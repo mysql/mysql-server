@@ -6,7 +6,6 @@
 # Exec_Master_Log_Pos advances as expected.
 
 -- source include/have_log_bin.inc
--- source include/have_innodb.inc
 -- source include/have_myisam.inc
 
 
@@ -234,9 +233,23 @@ set autocommit=1;
 insert into t0 select GET_LOCK("lock1",null);
 set autocommit=0;
 create table t2 (n int) engine=innodb;
-insert into t2 values (3); 
+insert into t2 values (3);
+# Saving the binlog filename and position
+--source include/save_binlog_position.inc
 disconnect con2;
+# Wait until con2 disconnects
+--source include/wait_until_disconnected.inc
 connection con3;
+if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
+{
+  # Bug #22084462 - MYSQL TEST BINLOG.BINLOG_ROW_MIX_INNODB_MYISAM FAILS
+  # Wait to ensure that drop temporary tables events
+  # are present in binary log.
+  --let $event_sequence= (Anonymous_)?Gtid # !Q(DROP.*TEMPORARY.*) # (Anonymous_)?Gtid # !Q(DROP.*TEMPORARY.*)
+  --let $limit= 0,4
+  --let $wait_for_binlog_events= 1
+  --source include/assert_binlog_events.inc
+}
 select get_lock("lock1",60);
 source include/show_binlog_events.inc;
 do release_lock("lock1");
@@ -343,16 +356,16 @@ if (`select @@binlog_format = 'ROW'`)
 
 if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 {
-  --exec $MYSQL_BINLOG --start-position=$binlog_rollback_position $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+  --exec $MYSQL_BINLOG --start-position=$binlog_rollback_position $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
 
   --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
   eval select
   (@a:=load_file("$MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
-  is not null;
+  is not null AS Loaded;
   --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
   eval select
-  @a like "%#%error_code=0%ROLLBACK\\n/*!*/;%ROLLBACK /* added by mysqlbinlog */;%" OR
-  @a like "%#%error_code=0%ROLLBACK\\r\\n/*!*/;%ROLLBACK /* added by mysqlbinlog */;%",
+  @a like "%#%error_code=0%ROLLBACK\\n/*!*/;%" OR
+  @a like "%#%error_code=0%ROLLBACK\\r\\n/*!*/;%",
   @a not like "%#%error_code=%error_code=%";
 }
 drop table t1, t2;

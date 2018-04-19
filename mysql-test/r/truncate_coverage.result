@@ -33,29 +33,6 @@ CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 VALUES (1);
 #
 # connection con1
-HANDLER t1 OPEN;
-#
-# connection default
-LOCK TABLE t1 WRITE;
-SET DEBUG_SYNC='mdl_upgrade_lock SIGNAL waiting';
-TRUNCATE TABLE t1;
-#
-# connection con2
-SET DEBUG_SYNC='now WAIT_FOR waiting';
-#
-# connection con1
-HANDLER t1 CLOSE;
-#
-# connection default
-ERROR 42S02: Table 'test.t1' doesn't exist
-UNLOCK TABLES;
-DROP TABLE t1;
-ERROR 42S02: Unknown table 'test.t1'
-SET DEBUG_SYNC='RESET';
-CREATE TABLE t1 (c1 INT);
-INSERT INTO t1 VALUES (1);
-#
-# connection con1
 START TRANSACTION;
 INSERT INTO t1 VALUES (2);
 #
@@ -78,30 +55,3 @@ COMMIT;
 UNLOCK TABLES;
 DROP TABLE t1;
 SET DEBUG_SYNC='RESET';
-#
-# Bug#57659 Segfault in Query_cache::invalidate_data for TRUNCATE TABLE
-#
-# Note that this test case only reproduces the problem
-# when it is run with valgrind.
-DROP TABLE IF EXISTS t1, m1;
-CREATE TABLE t1(a INT) engine=memory;
-CREATE TABLE m1(a INT) engine=merge UNION(t1);
-# Connection con1
-SET DEBUG_SYNC= 'open_tables_after_open_and_process_table SIGNAL opened WAIT_FOR dropped';
-# Sending:
-TRUNCATE TABLE m1;
-# Connection con2
-SET DEBUG_SYNC= 'now WAIT_FOR opened';
-# Sending:
-FLUSH TABLES;
-# Connection default
-# Waiting for FLUSH TABLES to be blocked.
-SET DEBUG_SYNC= 'now SIGNAL dropped';
-# Connection con1
-# Reaping: TRUNCATE TABLE m1
-ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
-# Connection con2
-# Reaping: FLUSH TABLES
-# Connection default
-SET DEBUG_SYNC= 'RESET';
-DROP TABLE m1, t1;

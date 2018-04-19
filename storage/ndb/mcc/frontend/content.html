@@ -1,45 +1,58 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <!--
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 -->
 <html dir="ltr" lang="en">
     <head>
         <meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1"/>
         <title>MySQL Cluster</title>
-        <link href="img/favicon.ico" rel="icon" type="image/x-icon"/>
+        <link rel="icon" type="image/x-icon" href="img/favicon.ico"/>
         <link rel="stylesheet" type="text/css" href="css/content.css"/>
         <link rel="stylesheet" type="text/css" 
                 href="dojo/dijit/themes/claro/claro.css"/>
-        <link rel="stylesheet" type="text/css" 
-                href="dojo/dojox/grid/resources/Grid.css"/>
-        <link rel="stylesheet" type="text/css" 
-                href="dojo/dojox/grid/resources/claroGrid.css"/>
-
+        <style type="text/css">
+            @import "dojo/dojox/grid/enhanced/resources/claro/EnhancedGrid.css";
+            @import "dojo/dojox/grid/enhanced/resources/EnhancedGrid_rtl.css";
+            @import "dojo/dojox/html/resources/ellipsis.css";
+        </style>
         <script  type="text/javascript" src="dojo/dojo/dojo.js" djConfig="parseOnLoad: true"></script>
-
         <script  type="text/javascript">
-            // Path to top level mcc module
+            // Path to top level mcc module   href="dojo/dojox/grid/resources/claroGrid.css"/>
             dojo.registerModulePath("mcc", "../../js/mcc");
-
+            var globals = JSON.parse(window.name);
+            window.name = ""; //Reset and remove stuff.
             // MCC modules immediately required
+            dojo.require("mcc.userconfig");
+            mcc.userconfig.setConfigFile(globals.CF);
+            mcc.userconfig.setConfigFileContents(globals.CFC);
+            mcc.userconfig.resetConfKey(globals.CFPP)
+
             dojo.require("mcc.util");
             dojo.require("mcc.storage");
             dojo.require("mcc.gui");
 
             // Dojo widgets immediately required
+            dojo.require("dojox.html.ellipsis");
             dojo.require("dijit.layout.ContentPane");
             dojo.require("dijit.layout.BorderContainer");
             dojo.require("dijit.layout.TabContainer");
@@ -47,6 +60,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
             // When ready, initialize storage and enter first page in wizard
             dojo.ready(function() {
+                mcc.util.resetCookies(); //In case there is an old configuration lingering in browser.
                 mcc.storage.initializeStorage().then(function () {
                     mcc.gui.enterFirst();   
                     mcc.util.inf("Ready for configuration of MySQL Cluster");
@@ -54,7 +68,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
             });
         </script>
     </head>
-    <body class="claro">
+    <body class="claro" >
         <!-- Side panels -->
         <div id="panel-main-bottom"></div>
         <div id="panel-main-left">
@@ -125,7 +139,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
             <span data-dojo-type="dijit.form.Button"
                 data-dojo-props="iconClass: 'rightIcon'"
                 onClick="mcc.gui.nextPage"
-                id="configWizardNextPage">Next
+                id="configWizardNextPage">Save&amp;Next
             </span>
             <span data-dojo-type="dijit.form.Button"
                 data-dojo-props="iconClass: 'lastIcon'"

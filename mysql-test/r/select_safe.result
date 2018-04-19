@@ -1,6 +1,6 @@
 drop table if exists t1;
-SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=4, MAX_JOIN_SIZE=9;
-create table t1 (a int auto_increment primary key, b char(20));
+SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=4, MAX_JOIN_SIZE=8;
+create table t1 (a int auto_increment primary key, b char(20)) charset utf8mb4;
 insert into t1 values(1,"test");
 SELECT SQL_BUFFER_RESULT * from t1;
 a	b
@@ -36,10 +36,10 @@ update t1 set b="a" where b="b" limit 2;
 delete from t1 where b="test" limit 1;
 delete from t1 where a+0=1 limit 2;
 alter table t1 add key b (b);
-SET MAX_JOIN_SIZE=2;
+SET MAX_JOIN_SIZE=1;
 SELECT @@MAX_JOIN_SIZE, @@SQL_BIG_SELECTS;
 @@MAX_JOIN_SIZE	@@SQL_BIG_SELECTS
-2	0
+1	0
 insert into t1 values (null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a");
 SELECT * from t1 order by a;
 ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
@@ -50,7 +50,7 @@ a	b
 3	a
 4	a
 5	a
-SET MAX_JOIN_SIZE=2;
+SET MAX_JOIN_SIZE=1;
 SELECT * from t1;
 ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
 SET MAX_JOIN_SIZE=DEFAULT;
@@ -67,14 +67,14 @@ insert into t1 values (null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(nu
 explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	b	NULL	NULL	NULL	21	100.00	Using where
-1	SIMPLE	t2	NULL	ref	b	b	21	test.t1.b	6	100.00	NULL
+1	SIMPLE	t2	NULL	ref	b	b	81	test.t1.b	6	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t1` `t2` where (`test`.`t2`.`b` = `test`.`t1`.`b`)
 set MAX_SEEKS_FOR_KEY=1;
 explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	b	NULL	NULL	NULL	21	100.00	Using where
-1	SIMPLE	t2	NULL	ref	b	b	21	test.t1.b	6	100.00	NULL
+1	SIMPLE	t2	NULL	ref	b	b	81	test.t1.b	6	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t1` `t2` where (`test`.`t2`.`b` = `test`.`t1`.`b`)
 SET MAX_SEEKS_FOR_KEY=DEFAULT;
@@ -84,7 +84,7 @@ insert into t1 values (1),(2),(3),(4),(5);
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
-set local  max_join_size=8;
+set local  max_join_size=4;
 select * from (select * from t1) x;
 ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
 set local  max_join_size=1;

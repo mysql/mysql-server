@@ -1,0 +1,19 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1(c1 INT, c2 INT);
+CREATE TABLE t2(c1 INT, c2 INT);
+INSERT INTO t1 VALUES(1, 1), (2, 2);
+SELECT * FROM t1 INTO OUTFILE "DATA_PATH/wl9218.txt"
+     FIELDS TERMINATED BY '\b' ENCLOSED BY '\0'
+     LINES TERMINATED BY '\n\r';
+LOAD DATA INFILE "DATA_PATH/wl9218.txt" INTO TABLE t2
+FIELDS TERMINATED BY '\b' ENCLOSED BY '\0'
+     LINES TERMINATED BY '\n\r';
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, master:t2, slave:t2]
+[connection master]
+DROP TABLE t1, t2;
+include/rpl_end.inc

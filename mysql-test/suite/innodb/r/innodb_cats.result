@@ -1,0 +1,167 @@
+################################################################
+#                                                              #
+# Bug #89829: lock_rec_has_to_wait_vats ignores locks held by  #
+#             transactions being rolled back                   #
+#                                                              #
+################################################################
+USE test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+val INT NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (id, val) VALUES (1,1), (3,3), (5,5);
+SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
+SET @@global.innodb_lock_wait_timeout = 100000;
+# establishing connection cats0
+# establishing connection cats1
+# establishing connection cats2
+# establishing connection cats3
+# establishing connection cats4
+# establishing connection cats5
+# establishing connection cats6
+# establishing connection cats7
+# establishing connection cats8
+# establishing connection cats9
+# establishing connection cats10
+# establishing connection cats11
+# establishing connection cats12
+# establishing connection cats13
+# establishing connection cats14
+# establishing connection cats15
+# establishing connection cats16
+# establishing connection cats17
+# establishing connection cats18
+# establishing connection cats19
+# establishing connection cats20
+# establishing connection cats21
+# establishing connection cats22
+# establishing connection cats23
+# establishing connection cats24
+# establishing connection cats25
+# establishing connection cats26
+# establishing connection cats27
+# establishing connection cats28
+# establishing connection cats29
+# establishing connection cats30
+# establishing connection cats31
+# establishing connection cats32
+# wating for cats1
+# wating for cats2
+# wating for cats3
+# wating for cats4
+# wating for cats5
+# wating for cats6
+# wating for cats7
+# wating for cats8
+# wating for cats9
+# wating for cats10
+# wating for cats11
+# wating for cats12
+# wating for cats13
+# wating for cats14
+# wating for cats15
+# wating for cats16
+# wating for cats17
+# wating for cats18
+# wating for cats19
+# wating for cats20
+# wating for cats21
+# wating for cats22
+# wating for cats23
+# wating for cats24
+# wating for cats25
+# wating for cats26
+# wating for cats27
+# wating for cats28
+# wating for cats29
+# wating for cats30
+# wating for cats31
+# wating for cats32
+# too_big_to_fail:
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+BEGIN;
+INSERT INTO t1 (id, val)
+VALUES (100, 100), (200, 200), (300, 300), (400, 400), (500, 500);
+SELECT * FROM t1 WHERE id = 2 FOR UPDATE;
+id	val
+# victim:
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+BEGIN;
+SELECT * FROM t1 WHERE id = 4 FOR UPDATE;
+id	val
+UPDATE t1 SET val = 200 WHERE id = 3;
+SET DEBUG_SYNC =
+'lock_wait_has_finished_waiting WAIT_FOR victim_can_rollback';
+INSERT INTO t1 (id, val) VALUES (2,2);
+# seer:
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+BEGIN;
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL seer_will_wait';
+UPDATE t1 SET val = val + 10 WHERE id = 3;
+# too_big_to_fail:
+SET DEBUG_SYNC = 'now WAIT_FOR seer_will_wait';
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL too_big_to_fail_will_wait';
+INSERT INTO t1 (id, val) VALUES (4, 4);
+# default:
+SET DEBUG_SYNC = 'now WAIT_FOR too_big_to_fail_will_wait';
+# Number of X locks granted: 1
+SET DEBUG_SYNC = 'now SIGNAL victim_can_rollback';
+# seer:
+SELECT * FROM t1 WHERE id = 3 FOR UPDATE;
+id	val
+3	13
+SET DEBUG_SYNC = 'now SIGNAL victim_can_rollback';
+COMMIT;
+# victim:
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+ROLLBACK;
+# too_big_to_fail:
+ROLLBACK;
+# default:
+SELECT * FROM t1;
+id	val
+1	1
+3	13
+5	5
+# cleaning up connection cats0
+# cleaning up connection cats1
+# cleaning up connection cats2
+# cleaning up connection cats3
+# cleaning up connection cats4
+# cleaning up connection cats5
+# cleaning up connection cats6
+# cleaning up connection cats7
+# cleaning up connection cats8
+# cleaning up connection cats9
+# cleaning up connection cats10
+# cleaning up connection cats11
+# cleaning up connection cats12
+# cleaning up connection cats13
+# cleaning up connection cats14
+# cleaning up connection cats15
+# cleaning up connection cats16
+# cleaning up connection cats17
+# cleaning up connection cats18
+# cleaning up connection cats19
+# cleaning up connection cats20
+# cleaning up connection cats21
+# cleaning up connection cats22
+# cleaning up connection cats23
+# cleaning up connection cats24
+# cleaning up connection cats25
+# cleaning up connection cats26
+# cleaning up connection cats27
+# cleaning up connection cats28
+# cleaning up connection cats29
+# cleaning up connection cats30
+# cleaning up connection cats31
+# cleaning up connection cats32
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;
+#####################
+#                   #
+# End of Bug #89829 #
+#                   #
+#####################

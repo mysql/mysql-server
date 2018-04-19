@@ -43,26 +43,26 @@ DROP TABLE t1;
 SET SESSION innodb_strict_mode=OFF;
 CREATE TABLE t1 (id int, a TEXT) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 Warnings:
-Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=DYNAMIC.
 DROP TABLE t1;
 CREATE TABLE t1 (id int, a TEXT) ROW_FORMAT=COMPRESSED;
 Warnings:
-Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=DYNAMIC.
 DROP TABLE t1;
 CREATE TABLE t1 (id int, a TEXT) KEY_BLOCK_SIZE=4;
 Warnings:
-Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=DYNAMIC.
 DROP TABLE t1;
 CREATE TABLE t1 (id int, a TEXT);
 ALTER TABLE t1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 Warnings:
-Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=DYNAMIC.
 ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
 Warnings:
-Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=DYNAMIC.
 ALTER TABLE t1 KEY_BLOCK_SIZE=4;
 Warnings:
-Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4 as ROW_FORMAT is not COMPRESSED.
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
 CREATE TABLE t1 (id int, a TEXT) ROW_FORMAT=COMPACT;

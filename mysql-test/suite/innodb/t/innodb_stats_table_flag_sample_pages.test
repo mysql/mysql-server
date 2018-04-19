@@ -2,10 +2,6 @@
 # Test CREATE TABLE ... STATS_SAMPLE_PAGES=N|default
 #
 
--- source include/have_innodb.inc
-# include/restart_mysqld.inc does not work in embedded mode 
--- source include/not_embedded.inc 
-
 -- vertical_results
 
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB;

@@ -88,7 +88,7 @@ let $rows = 2;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # CRC32()
-let $cols = a varchar(10), b long generated always as (crc32(a)) virtual;
+let $cols = a varchar(10), b bigint generated always as (crc32(a)) virtual;
 let $values1 = 'MySQL',default;
 let $values2 = 'mysql',default;
 let $rows = 2;
@@ -116,7 +116,7 @@ let $rows = 3;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # FLOOR()
-let $cols = a double, b long generated always as (floor(a)) virtual;
+let $cols = a double, b bigint generated always as (floor(a)) virtual;
 let $values1 = 1.23,default;
 let $values2 = -1.23,default;
 let $rows = 2;
@@ -296,13 +296,13 @@ let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # BIT_LENGTH()
-let $cols = a varchar(10), b long generated always as (bit_length(a)) virtual;
+let $cols = a varchar(10), b bigint generated always as (bit_length(a)) virtual;
 let $values1 = 'text',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # CHAR_LENGTH()
-let $cols = a varchar(10), b long generated always as (char_length(a)) virtual;
+let $cols = a varchar(10), b bigint generated always as (char_length(a)) virtual;
 let $values1 = 'text',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
@@ -314,7 +314,7 @@ let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # CHARACTER_LENGTH()
-let $cols = a varchar(10), b long generated always as (character_length(a)) virtual;
+let $cols = a varchar(10), b bigint generated always as (character_length(a)) virtual;
 let $values1 = 'text',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
@@ -473,7 +473,7 @@ let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # ORD()
-let $cols = a varchar(10), b long generated always as (ord(a)) virtual;
+let $cols = a varchar(10), b bigint generated always as (ord(a)) virtual;
 let $values1 = '2',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
@@ -486,7 +486,7 @@ let $rows = 1;
 
 --echo # QUOTE()
 let $cols = a varchar(10), b varchar(10) generated always as (quote(a)) virtual;
-let $values1 = 'Don\'t',default;
+let $values1 = 'Don''t',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
@@ -867,7 +867,7 @@ let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # DATEDIFF()
-let $cols = a datetime, b long generated always as (datediff(a,'2000-01-01')) virtual;
+let $cols = a datetime, b bigint generated always as (datediff(a,'2000-01-01')) virtual;
 let $values1 = '2008-08-31',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
@@ -909,13 +909,13 @@ let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # FROM_DAYS()
-let $cols = a long, b datetime generated always as (from_days(a)) virtual;
+let $cols = a bigint, b datetime generated always as (from_days(a)) virtual;
 let $values1 = 730669,default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # FROM_UNIXTIME()
-let $cols = a long, b datetime generated always as (from_unixtime(a)) virtual;
+let $cols = a bigint, b datetime generated always as (from_unixtime(a)) virtual;
 let $values1 = 1196440219,default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
@@ -927,7 +927,7 @@ let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # HOUR()
-let $cols = a time, b long generated always as (hour(a)) virtual;
+let $cols = a time, b bigint generated always as (hour(a)) virtual;
 let $values1 = '10:05:03',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
@@ -952,7 +952,7 @@ let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # MICROSECOND()
-let $cols = a datetime, b long generated always as (microsecond(a)) virtual;
+let $cols = a datetime, b bigint generated always as (microsecond(a)) virtual;
 let $values1 = '2009-12-31 12:00:00.123456',default;
 let $values2 = '2009-12-31 23:59:59.000010',default;
 let $rows = 2;
@@ -995,7 +995,7 @@ let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # SEC_TO_TIME()
-let $cols = a long, b time generated always as (sec_to_time(a)) virtual;
+let $cols = a bigint, b time generated always as (sec_to_time(a)) virtual;
 let $values1 = 2378,default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
@@ -1031,7 +1031,7 @@ let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # TIME_TO_SEC()
-let $cols = a time, b long generated always as (time_to_sec(a)) virtual;
+let $cols = a time, b bigint generated always as (time_to_sec(a)) virtual;
 let $values1 = '22:23:00',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
@@ -1043,7 +1043,7 @@ let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # TIMEDIFF()
-let $cols = a datetime, b datetime, c long generated always as (timediff(a,b)) virtual;
+let $cols = a datetime, b datetime, c time generated always as (timediff(a,b)) virtual;
 let $values1 = '2008-12-31 23:59:59.000001','2008-12-30 01:01:01.000002',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
@@ -1061,13 +1061,13 @@ let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # TIMESTAMPDIFF()
-let $cols = a timestamp, c long generated always as (timestampdiff(MONTH, a, a)) virtual;
+let $cols = a timestamp, c bigint generated always as (timestampdiff(MONTH, a, a)) virtual;
 let $values1 = '2003-02-01',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # TO_DAYS()
-let $cols = a datetime, b long generated always as (to_days(a)) virtual;
+let $cols = a datetime, b bigint generated always as (to_days(a)) virtual;
 let $values1 = '2007-10-07',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
@@ -1112,14 +1112,14 @@ let $rows = 1;
 --echo #
 
 --echo # CAST()
-let $cols = a int, b long generated always as (cast(a as unsigned)) virtual;
+let $cols = a int, b bigint unsigned generated always as (cast(a as unsigned)) virtual;
 let $values1 = 1,default;
 let $values2 = -1,default;
 let $rows = 2;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo # Convert()
-let $cols = a int, b long generated always as (convert(a,unsigned)) virtual;
+let $cols = a int, b bigint unsigned generated always as (convert(a,unsigned)) virtual;
 let $values1 = 1,default;
 let $values2 = -1,default;
 let $rows = 2;
@@ -1136,6 +1136,27 @@ let $rows = 1;
 
 --echo # None.
 
+--echo #
+--echo # JSON functions
+--echo #
+
+--echo # JSON_PRETTY()
+let $cols = a varchar(1024), b varchar(1024) generated always as (JSON_PRETTY(a)) virtual;
+let $values1 = '{}', default;
+let $rows = 1;
+--source suite/gcol/inc/gcol_supported_sql_funcs.inc
+
+--echo # JSON_STORAGE_SIZE()
+let $cols = a varchar(1024), b varchar(1024) generated always as (JSON_STORAGE_SIZE(a)) virtual;
+let $values1 = '{}', default;
+let $rows = 1;
+--source suite/gcol/inc/gcol_supported_sql_funcs.inc
+
+--echo # JSON_STORAGE_FREE()
+let $cols = a varchar(1024), b varchar(1024) generated always as (JSON_STORAGE_FREE(a)) virtual;
+let $values1 = '{}', default;
+let $rows = 1;
+--source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo #
 --echo # OTHER FUNCTIONS
@@ -1177,29 +1198,11 @@ let $values1 = 'MySQL',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
---echo # ENCODE(), DECODE()
-let $cols = a varchar(1024), b varchar(1024) generated always as (decode(encode(a,'abc'),'abc')) virtual;
-let $values1 = 'MySQL',default;
-let $rows = 1;
---source suite/gcol/inc/gcol_supported_sql_funcs.inc
-
 --echo # DEFAULT()
 let $cols = a varchar(1024) default 'aaa', b varchar(1024) generated always as (ifnull(a,default(a))) virtual;
 let $values1 = 'any value',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
-
---echo # DES_ENCRYPT(), DES_DECRYPT()
---source include/have_ssl_crypto_functs.inc
-let $cols = a varchar(1024), b varchar(1024) generated always as (des_encrypt(des_decrypt(a,'adf'),'adf')) virtual;
-let $values1 = 'MySQL',default;
---disable_warnings
-eval create table t1 ($cols);
-show create table t1;
---enable_warnings
-eval insert into t1 values ($values1);
-select * from t1;
-drop table t1;
 
 --echo # INET_ATON(), INET_NTOA()
 let $cols = a varchar(1024), b varchar(1024) generated always as (inet_ntoa(inet_aton(a))) virtual;
@@ -1210,12 +1213,6 @@ let $rows = 1;
 --echo # MD5()
 let $cols = a varchar(1024), b varbinary(32) generated always as (md5(a)) virtual;
 let $values1 = 'testing',default;
-let $rows = 1;
---source suite/gcol/inc/gcol_supported_sql_funcs.inc
-
---echo # PASSWORD()
-let $cols = a varchar(1024), b varchar(1024) generated always as (password(a)) virtual;
-let $values1 = 'badpwd',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 

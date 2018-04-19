@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -24,9 +31,11 @@
 #define JAM_FILE_ID 247
 
 
+#define MAX_NO_OF_ZERO_TQ 128
 #define MAX_NO_OF_SHORT_TQ 512
 #define MAX_NO_OF_LONG_TQ 512
-#define MAX_NO_OF_TQ (MAX_NO_OF_SHORT_TQ + MAX_NO_OF_LONG_TQ)
+#define MAX_NO_OF_TQ (MAX_NO_OF_ZERO_TQ + MAX_NO_OF_SHORT_TQ + \
+                      MAX_NO_OF_LONG_TQ)
 #define NULL_TQ_ENTRY 65535
 
 class Signal;
@@ -53,11 +62,13 @@ public:
 		GlobalSignalNumber gsn, Uint32 delayTime);
   void   clear();
   void   scanTable(); // Called once per millisecond
+  void   scanZeroTimeQueue(); // Called after each doJob call
   Uint32 getIndex();
   void   releaseIndex(Uint32 aIndex);
   void   recount_timers();
   
 private:
+  TimerEntry  theZeroQueue[MAX_NO_OF_ZERO_TQ];
   TimerEntry  theShortQueue[MAX_NO_OF_SHORT_TQ];
   TimerEntry  theLongQueue[MAX_NO_OF_LONG_TQ];
   Uint16     theFreeIndex[MAX_NO_OF_TQ];

@@ -1,0 +1,38 @@
+# Tests for sys schema
+# Verify the sys.list_add() function perfoms as expected
+
+# Should init with a single value
+SELECT sys.list_add(NULL, 'foo');
+
+# Should init with a single value
+SELECT sys.list_add('', 'foo');
+
+# Should add to the list with a comma
+SELECT sys.list_add('bar', 'foo');
+
+# Should add to the list with a single comma
+SELECT sys.list_add('bar, ', 'foo');
+
+# Should return an error with a NULL value to add
+--error 1138
+SELECT sys.list_add('foo', NULL);
+
+# Test the sql mode update use case
+# save old mode to restore
+SET @sqlmode := @@sql_mode;
+
+SELECT @@sql_mode;
+
+SET SESSION sql_mode = sys.list_add(@@sql_mode, 'ANSI_QUOTES');
+
+SELECT @@sql_mode;
+
+# restore old mode
+SET SESSION sql_mode = @sqlmode;
+SET @sqlmode := NULL;
+
+# Check too large a value
+SET @input := REPEAT('a', 4194304);
+-- error 1406
+SELECT sys.list_add(@input, 'foo');
+SET @input := NULL;

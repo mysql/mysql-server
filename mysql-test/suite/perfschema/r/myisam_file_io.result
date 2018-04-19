@@ -20,29 +20,29 @@ where operation not like "tell"
   and event_name like "wait/io/file/myisam/%"
   order by thread_id, event_id;
 event_name	short_source	operation	number_of_bytes	short_name
-wait/io/file/myisam/kfile	mi_create.c:	create	NULL	no_index_tab.MYI
-wait/io/file/myisam/dfile	mi_create.c:	create	NULL	no_index_tab.MYD
-wait/io/file/myisam/kfile	mi_open.c:	write	176	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	write	100	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	write	7	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	write	7	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	write	7	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_create.c:	chsize	1024	no_index_tab.MYI
-wait/io/file/myisam/dfile	mi_create.c:	close	NULL	no_index_tab.MYD
-wait/io/file/myisam/kfile	mi_create.c:	close	NULL	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	open	NULL	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	read	24	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	seek	NULL	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	read	297	no_index_tab.MYI
-wait/io/file/myisam/dfile	mi_open.c:	open	NULL	no_index_tab.MYD
-wait/io/file/myisam/kfile	mi_locking.c:	write	3	no_index_tab.MYI
-wait/io/file/myisam/dfile	mi_dynrec.c:	write	20	no_index_tab.MYD
-wait/io/file/myisam/kfile	mi_open.c:	write	124	no_index_tab.MYI
-wait/io/file/myisam/dfile	mi_dynrec.c:	write	20	no_index_tab.MYD
-wait/io/file/myisam/kfile	mi_open.c:	write	124	no_index_tab.MYI
-wait/io/file/myisam/dfile	mi_dynrec.c:	write	20	no_index_tab.MYD
-wait/io/file/myisam/kfile	mi_open.c:	write	124	no_index_tab.MYI
-show global status like 'performance_schema_%';
+wait/io/file/myisam/kfile	mi_create.cc:	create	NULL	no_index_tab.MYI
+wait/io/file/myisam/dfile	mi_create.cc:	create	NULL	no_index_tab.MYD
+wait/io/file/myisam/kfile	mi_open.cc:	write	176	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	write	100	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	write	7	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	write	7	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	write	7	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_create.cc:	chsize	1024	no_index_tab.MYI
+wait/io/file/myisam/dfile	mi_create.cc:	close	NULL	no_index_tab.MYD
+wait/io/file/myisam/kfile	mi_create.cc:	close	NULL	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	open	NULL	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	read	24	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	seek	NULL	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	read	297	no_index_tab.MYI
+wait/io/file/myisam/dfile	mi_open.cc:	open	NULL	no_index_tab.MYD
+wait/io/file/myisam/kfile	mi_locking.cc:	write	3	no_index_tab.MYI
+wait/io/file/myisam/dfile	mi_dynrec.cc:	write	20	no_index_tab.MYD
+wait/io/file/myisam/kfile	mi_open.cc:	write	124	no_index_tab.MYI
+wait/io/file/myisam/dfile	mi_dynrec.cc:	write	20	no_index_tab.MYD
+wait/io/file/myisam/kfile	mi_open.cc:	write	124	no_index_tab.MYI
+wait/io/file/myisam/dfile	mi_dynrec.cc:	write	20	no_index_tab.MYD
+wait/io/file/myisam/kfile	mi_open.cc:	write	124	no_index_tab.MYI
+show global status like 'performance_schema_%_lost';
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0

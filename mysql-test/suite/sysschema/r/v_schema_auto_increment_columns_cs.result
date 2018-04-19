@@ -1,0 +1,173 @@
+DESC sys.schema_auto_increment_columns;
+Field	Type	Null	Key	Default	Extra
+table_schema	varchar(64)	NO		NULL	
+table_name	varchar(64)	NO		NULL	
+column_name	varchar(64)	NO			
+data_type	longtext	NO		NULL	
+column_type	mediumtext	NO		NULL	
+is_signed	int(1)	NO		0	
+is_unsigned	int(1)	NO		0	
+max_value	bigint(21) unsigned	YES		NULL	
+auto_increment	bigint(21) unsigned	YES		NULL	
+auto_increment_ratio	decimal(25,4) unsigned	YES		NULL	
+SELECT * FROM sys.schema_auto_increment_columns;
+CREATE DATABASE auto_incs;
+CREATE TABLE auto_incs.tinyintcol (
+id TINYINT AUTO_INCREMENT PRIMARY KEY,
+foo INT
+);
+INSERT INTO auto_incs.tinyintcol (foo) VALUES (100);
+INSERT INTO auto_incs.tinyintcol (foo) (SELECT foo FROM auto_incs.tinyintcol);
+INSERT INTO auto_incs.tinyintcol (foo) (SELECT foo FROM auto_incs.tinyintcol);
+INSERT INTO auto_incs.tinyintcol (foo) (SELECT foo FROM auto_incs.tinyintcol);
+INSERT INTO auto_incs.tinyintcol (foo) (SELECT foo FROM auto_incs.tinyintcol);
+CREATE TABLE auto_incs.tinyintcolunsigned (
+id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+foo INT
+);
+INSERT INTO auto_incs.tinyintcolunsigned (foo) (SELECT foo FROM auto_incs.tinyintcol);
+CREATE TABLE auto_incs.smallintcol (
+id SMALLINT AUTO_INCREMENT PRIMARY KEY,
+foo INT
+);
+INSERT INTO auto_incs.smallintcol (foo) VALUES (200);
+INSERT INTO auto_incs.smallintcol (foo) (SELECT foo FROM auto_incs.smallintcol);
+INSERT INTO auto_incs.smallintcol (foo) (SELECT foo FROM auto_incs.smallintcol);
+INSERT INTO auto_incs.smallintcol (foo) (SELECT foo FROM auto_incs.smallintcol);
+INSERT INTO auto_incs.smallintcol (foo) (SELECT foo FROM auto_incs.smallintcol);
+INSERT INTO auto_incs.smallintcol (foo) (SELECT foo FROM auto_incs.smallintcol);
+INSERT INTO auto_incs.smallintcol (foo) (SELECT foo FROM auto_incs.smallintcol);
+INSERT INTO auto_incs.smallintcol (foo) (SELECT foo FROM auto_incs.smallintcol);
+INSERT INTO auto_incs.smallintcol (foo) (SELECT foo FROM auto_incs.smallintcol);
+INSERT INTO auto_incs.smallintcol (foo) (SELECT foo FROM auto_incs.smallintcol);
+INSERT INTO auto_incs.smallintcol (foo) (SELECT foo FROM auto_incs.smallintcol);
+INSERT INTO auto_incs.smallintcol (foo) (SELECT foo FROM auto_incs.smallintcol);
+CREATE TABLE auto_incs.smallintcolunsigned (
+id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+foo INT
+);
+INSERT INTO auto_incs.smallintcolunsigned (foo) (SELECT foo FROM auto_incs.smallintcol);
+CREATE TABLE auto_incs.mediumintcol (
+id MEDIUMINT AUTO_INCREMENT PRIMARY KEY,
+foo INT
+);
+INSERT INTO auto_incs.mediumintcol (foo) VALUES (300);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+INSERT INTO auto_incs.mediumintcol (foo) (SELECT foo FROM auto_incs.mediumintcol);
+CREATE TABLE auto_incs.mediumintcolunsigned (
+id MEDIUMINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+foo INT
+);
+INSERT INTO auto_incs.mediumintcolunsigned (foo) (SELECT foo FROM auto_incs.mediumintcol);
+CREATE TABLE auto_incs.intcol (
+id INT AUTO_INCREMENT PRIMARY KEY,
+foo INT
+);
+INSERT INTO auto_incs.intcol (foo) VALUES (400);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+INSERT INTO auto_incs.intcol (foo) (SELECT foo FROM auto_incs.intcol);
+CREATE TABLE auto_incs.intcolunsigned (
+id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+foo INT
+);
+INSERT INTO auto_incs.intcolunsigned (foo) (SELECT foo FROM auto_incs.intcol);
+CREATE TABLE auto_incs.bigintcol (
+id BIGINT AUTO_INCREMENT PRIMARY KEY,
+foo INT
+);
+INSERT INTO auto_incs.bigintcol (foo) VALUES (500);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+INSERT INTO auto_incs.bigintcol (foo) (SELECT foo FROM auto_incs.bigintcol);
+CREATE TABLE auto_incs.bigintcolunsigned (
+id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+foo INT
+);
+INSERT INTO auto_incs.bigintcolunsigned (foo) (SELECT foo FROM auto_incs.bigintcol);
+analyze table auto_incs.tinyintcol;
+Table	Op	Msg_type	Msg_text
+auto_incs.tinyintcol	analyze	status	OK
+analyze table auto_incs.tinyintcolunsigned;
+Table	Op	Msg_type	Msg_text
+auto_incs.tinyintcolunsigned	analyze	status	OK
+analyze table auto_incs.smallintcol;
+Table	Op	Msg_type	Msg_text
+auto_incs.smallintcol	analyze	status	OK
+analyze table auto_incs.smallintcolunsigned;
+Table	Op	Msg_type	Msg_text
+auto_incs.smallintcolunsigned	analyze	status	OK
+analyze table auto_incs.mediumintcol;
+Table	Op	Msg_type	Msg_text
+auto_incs.mediumintcol	analyze	status	OK
+analyze table auto_incs.mediumintcolunsigned;
+Table	Op	Msg_type	Msg_text
+auto_incs.mediumintcolunsigned	analyze	status	OK
+analyze table auto_incs.intcol;
+Table	Op	Msg_type	Msg_text
+auto_incs.intcol	analyze	status	OK
+analyze table auto_incs.intcolunsigned;
+Table	Op	Msg_type	Msg_text
+auto_incs.intcolunsigned	analyze	status	OK
+analyze table auto_incs.bigintcol;
+Table	Op	Msg_type	Msg_text
+auto_incs.bigintcol	analyze	status	OK
+analyze table auto_incs.bigintcolunsigned;
+Table	Op	Msg_type	Msg_text
+auto_incs.bigintcolunsigned	analyze	status	OK
+SELECT * FROM sys.schema_auto_increment_columns;
+table_schema	table_name	column_name	data_type	column_type	is_signed	is_unsigned	max_value	auto_increment	auto_increment_ratio
+auto_incs	tinyintcol	id	tinyint	tinyint(4)	1	0	127	28	0.2205
+auto_incs	tinyintcolunsigned	id	tinyint	tinyint(3) unsigned	0	1	255	32	0.1255
+auto_incs	smallintcol	id	smallint	smallint(6)	1	0	32767	4085	0.1247
+auto_incs	smallintcolunsigned	id	smallint	smallint(5) unsigned	0	1	65535	4096	0.0625
+auto_incs	mediumintcol	id	mediumint	mediumint(9)	1	0	8388607	262126	0.0312
+auto_incs	mediumintcolunsigned	id	mediumint	mediumint(8) unsigned	0	1	16777215	196606	0.0117
+auto_incs	intcol	id	int	int(11)	1	0	2147483647	262126	0.0001
+auto_incs	intcolunsigned	id	int	int(10) unsigned	0	1	4294967295	196606	0.0000
+auto_incs	bigintcol	id	bigint	bigint(20)	1	0	9223372036854775807	262126	0.0000
+auto_incs	bigintcolunsigned	id	bigint	bigint(20) unsigned	0	1	18446744073709551615	196606	0.0000
+DROP DATABASE auto_incs;

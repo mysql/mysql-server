@@ -1,0 +1,2 @@
+# For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
+v_wait_classes_global_by_avg_latency       : Bug#21550054 2016-06-26 Erlend Test fails too often

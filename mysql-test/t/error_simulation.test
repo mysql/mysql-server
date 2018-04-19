@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_debug.inc
 
 #
@@ -24,6 +19,7 @@ INSERT INTO t1 VALUES
   ('AAAAAAAAAH','AAAAAAAAAH'), ('AAAAAAAAAI','AAAAAAAAAI'),
   ('AAAAAAAAAJ','AAAAAAAAAJ'), ('AAAAAAAAAK','AAAAAAAAAK');
 
+set session internal_tmp_mem_storage_engine='memory';
 set tmp_table_size=1024;
 
 # Set debug flag so an error is returned when
@@ -34,7 +30,19 @@ set session debug="d,raise_error";
 --error ER_DUP_KEY
 SELECT MAX(a) FROM t1 GROUP BY a,b;
 
+# Same with a CTE, referenced multiple times; subquery is evaluated
+# first, so qn1 is materialized before qn0, even though qn1 was
+# resolved last; error happens during materialization of qn1.
+--replace_regex /in table '[^']+'/in table 'tmp_table'/
+--error ER_DUP_KEY
+WITH qn (z) AS
+(
+  SELECT 1 FROM t1, t1 t2, t1 t3, t1 t4 LIMIT 100000000
+)
+SELECT * FROM qn qn0 WHERE z = (SELECT z FROM qn qn1 LIMIT 1);
+
 set tmp_table_size=default;
+set session internal_tmp_mem_storage_engine=default;
 DROP TABLE t1;
 
 
@@ -56,6 +64,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1(a BLOB);
 
+call mtr.add_suppression(".*Out of memory *");
 SET SESSION debug="+d,bug42064_simulate_oom";
 # May fail with either ER_OUT_OF_RESOURCES or EE_OUTOFMEMORY
 --error ER_OUT_OF_RESOURCES, 5
@@ -113,4 +122,4 @@ set debug='d,bug19656296';
 --error ER_LOCK_DEADLOCK
 select * from t1 order by a;
 drop table t1;
-SET debug= OFF;
+SET debug= DEFAULT;

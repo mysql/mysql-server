@@ -1,0 +1,46 @@
+###############################################################################
+# Bug#22247668 SLAVE IS ~10X SLOWER TO EXECUTE SET OF STATEMENTS COMPARED TO
+#               MASTER RBR
+# Problem: A new style of locking is implemented in Innodb. Starting from 5.6,
+#          Innodb uses this new style of locking for all the cases except for the case
+#          where for a simple (single/multi) row INSERTs, it fall back to old style
+#          locking if another transaction has already acquired the AUTOINC lock on behalf of
+#          a LOAD FILE or INSERT...SELECT etc. type of statement. But on
+#          Slave, in RBR format, it is always using old style auto inc
+#          algorithm.
+#
+# Steps to reproduce:
+#  1)  Setup DEBUG simulation point on Slave to bring the server down
+#      if the INSERT enters old style autoinc locking method.
+#
+#  2)  Execute AUTOINC related work on Master.
+#
+#  3)  Make sure that sync on slave happens without any issues.
+#
+###############################################################################
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+# Initial setup
+CREATE TABLE t (i INT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+--source include/sync_slave_sql_with_master.inc
+
+# Step-1 : Setup DEBUG simulation point on Slave to bring the server down
+# if the INSERT enters old style autoinc locking method.
+SET @save_debug=@@debug;
+SET GLOBAL DEBUG='+d,die_if_autoinc_old_lock_style_used';
+
+# Step-2 :Execute AUTOINC related work on Master.
+--source include/rpl_connection_master.inc
+INSERT INTO t VALUES (1);
+DROP TABLE t;
+
+# Step-3: Due to above DEBUG simulation point, server will go down if it enters
+# old autoinc lock style. After fix, sync on Slave happens without any issues.
+--source include/sync_slave_sql_with_master.inc
+
+# Cleanup
+# Reset the simulation point on Slave.
+SET GLOBAL DEBUG=@save_debug;
+--source include/rpl_end.inc

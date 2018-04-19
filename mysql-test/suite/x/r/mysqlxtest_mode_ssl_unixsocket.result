@@ -1,0 +1,194 @@
+call mtr.add_suppression(".*Failed to set up SSL.*");
+
+############################################################
+## Test starts MySQL Server without configured SSL
+##
+## * Verify client ssl-mode vs MySQL Server without SSL
+[Verify that SSL_cert and SSL_mode=disabled, makes 'mysqlx_ssl_active' status variable set to OFF]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=preferred, makes 'mysqlx_ssl_active' status variable set to OFF]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: Capability prepare failed for 'tls' (code 5001)
+not ok
+Application terminated with expected error: Capability prepare failed for 'tls' (code 5001)
+not ok
+Application terminated with expected error: Capability prepare failed for 'tls' (code 5001)
+not ok
+
+############################################################
+## Restart MySQL Server with configured SSL and certificate
+## that can be verified
+##
+## * Verify client ssl-mode vs MySQL Server with SSL
+# $SSL_VERIFICABLE$
+[Verify that SSL_cert and SSL_mode=disabled, makes 'mysqlx_ssl_active' status variable set to OFF]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=preferred, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=required, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=verify_ca, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=verify_identity, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=required, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: TLS was marked that requires "CA", but it was not configured (code 2503)
+not ok
+
+############################################################
+## Restart MySQL Server with configured SSL and certificate
+## that can't be verified
+##
+## * Verify client ssl-mode vs MySQL Server with SSL
+# $SSL_NOT_VERIFICABLE$
+[Verify that SSL_cert and SSL_mode=disabled, makes 'mysqlx_ssl_active' status variable set to OFF]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=preferred, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=required, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=verify_ca, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: SSL certificate validation failure (code 2026)
+not ok
+[Verify that SSL_cert and SSL_mode=required, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: TLS was marked that requires "CA", but it was not configured (code 2503)
+not ok
+# restart: 
+
+############################################################
+## Test starts MySQL Server without configured SSL
+##
+## * Verify client ssl-mode vs MySQL Server without SSL
+[Verify that SSL_cert and SSL_mode=disabled, makes 'mysqlx_ssl_active' status variable set to OFF]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=preferred, makes 'mysqlx_ssl_active' status variable set to OFF]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: Capability prepare failed for 'tls' (code 5001)
+not ok
+Application terminated with expected error: Capability prepare failed for 'tls' (code 5001)
+not ok
+Application terminated with expected error: Capability prepare failed for 'tls' (code 5001)
+not ok
+
+############################################################
+## Restart MySQL Server with configured SSL and certificate
+## that can be verified
+##
+## * Verify client ssl-mode vs MySQL Server with SSL
+# $SSL_VERIFICABLE$
+[Verify that SSL_cert and SSL_mode=disabled, makes 'mysqlx_ssl_active' status variable set to OFF]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=preferred, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=required, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=verify_ca, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=verify_identity, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=required, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: TLS was marked that requires "CA", but it was not configured (code 2503)
+not ok
+
+############################################################
+## Restart MySQL Server with configured SSL and certificate
+## that can't be verified
+##
+## * Verify client ssl-mode vs MySQL Server with SSL
+# $SSL_NOT_VERIFICABLE$
+[Verify that SSL_cert and SSL_mode=disabled, makes 'mysqlx_ssl_active' status variable set to OFF]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=preferred, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=required, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[Verify that SSL_cert and SSL_mode=verify_ca, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: SSL certificate validation failure (code 2026)
+not ok
+[Verify that SSL_cert and SSL_mode=required, makes 'mysqlx_ssl_active' status variable set to ON]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: TLS was marked that requires "CA", but it was not configured (code 2503)
+not ok

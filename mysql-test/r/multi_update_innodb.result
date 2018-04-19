@@ -73,18 +73,39 @@ DROP TABLE t1,t2;
 #
 CREATE TABLE table_11757486 (field1 tinyint) ENGINE=INNODB;
 INSERT INTO table_11757486 VALUES (0),(0);
-SET SESSION SQL_MODE='STRICT_ALL_TABLES';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+SET SESSION SQL_MODE=default;
 UPDATE IGNORE (SELECT 128 as col1) x, table_11757486 SET field1=x.col1;
 Warnings:
 Warning	1264	Out of range value for column 'field1' at row 1
 Warning	1264	Out of range value for column 'field1' at row 2
 UPDATE (SELECT 128 as col1) x, table_11757486 SET field1=x.col1;
 ERROR 22003: Out of range value for column 'field1' at row 1
-SET SESSION SQL_MODE='';
 UPDATE IGNORE (SELECT 128 as col1) x, table_11757486 SET field1=x.col1;
 Warnings:
 Warning	1264	Out of range value for column 'field1' at row 1
 Warning	1264	Out of range value for column 'field1' at row 2
 DROP TABLE table_11757486;
+#
+# Bug#20748537 INNODB: FAILING ASSERTION: NODE->PCUR->REL_POS == BTR_PCUR_ON
+#
+CREATE TABLE t1(c1 INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (0),(0),(1);
+CREATE TABLE t2(b INT) ENGINE=INNODB;
+INSERT INTO t2 VALUES(0),(0);
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN UPDATE t1,t2 SET t2.b=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+SET @old_buf_result=@@sql_buffer_result;
+SET sql_buffer_result=ON;
+EXPLAIN UPDATE t1,t2 SET t2.b=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+UPDATE t1,t2 SET t2.b=0;
+SET sql_buffer_result=@old_buf_result;
+DROP TABLE t1,t2;

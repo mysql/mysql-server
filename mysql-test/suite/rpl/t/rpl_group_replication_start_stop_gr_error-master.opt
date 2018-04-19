@@ -1,0 +1,1 @@
+--no-console --log_error=$MYSQLTEST_VARDIR/tmp/rpl_group_replication_start_stop_gr_error.err

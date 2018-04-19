@@ -1,5 +1,5 @@
-SET @old_isolation_level= @@session.tx_isolation;
-SET @@session.tx_isolation= 'READ-COMMITTED';
+SET @old_isolation_level= @@session.transaction_isolation;
+SET @@session.transaction_isolation= 'READ-COMMITTED';
 CREATE DATABASE b42829;
 use b42829;
 CREATE TABLE t1 (x int, y int) engine=InnoDB;
@@ -34,9 +34,9 @@ COMMIT;
 ### assertion: filtered events did not make into the binlog
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	CREATE DATABASE b42829
-master-bin.000001	#	Query	#	#	use `b42829`; CREATE TABLE t1 (x int, y int) engine=InnoDB
-master-bin.000001	#	Query	#	#	use `b42829`; CREATE TABLE t2 (x int, y int) engine=InnoDB
+binlog.000001	#	Query	#	#	CREATE DATABASE b42829
+binlog.000001	#	Query	#	#	use `b42829`; CREATE TABLE t1 (x int, y int) engine=InnoDB
+binlog.000001	#	Query	#	#	use `b42829`; CREATE TABLE t2 (x int, y int) engine=InnoDB
 DROP DATABASE b42829;
 DROP DATABASE b42829_filtered;
-SET @@session.tx_isolation= @old_isolation_level;
+SET @@session.transaction_isolation= @old_isolation_level;

@@ -1,19 +1,26 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # -*- cperl -*-
 #
@@ -37,6 +44,13 @@ $| = 1;
 my $opt_debug;
 my $opt_build_type;
 my $opt_build = 1;
+if ($^O eq "cygwin" or $^O eq "MSWin32" or $^O eq "msys")
+{
+  # Default to not build on Windows, just configure a solution
+  # which can then be opened in VS
+  $opt_build = 0;
+}
+my $opt_embedded = 0;
 my $opt_just_print;
 my $opt_vanilla;
 my $opt_autotest;
@@ -57,6 +71,7 @@ GetOptions(
   'autotest' => \$opt_autotest,
   'valgrind' => \$opt_valgrind,
   'distcheck' => \$opt_distcheck,
+  'embedded' => sub { $opt_embedded = 1; },
 
   # Special switch --parse-log=<file> which reads a log file (from build) and
   # parses it for warnings
@@ -67,7 +82,7 @@ GetOptions(
 # in <srcroot>/storage/ndb/
 my $opt_srcdir = dirname(dirname(dirname(abs_path($0))));
 die unless -d $opt_srcdir; # Sanity check that the srcdir exist
-if ($^O eq "cygwin") {
+if ($^O eq "cygwin" or $^O eq "msys") {
   # Convert posix path to Windows mixed path since cmake
   # is most likely a windows binary
   $opt_srcdir= `cygpath -m $opt_srcdir`;
@@ -121,6 +136,16 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
   print("compile-cluster: stripped off -fno-exceptions from CXXFLAGS='$ENV{CXXFLAGS}'\n");
 }
 
+# If no libmysqld directory in source, there is support for build embedded server.
+if(! -d "$opt_srcdir/libmysqld")
+{
+  if($opt_embedded)
+  {
+    die "Build with embedded server is not possible";
+  }
+  $opt_embedded = undef;
+}
+
 #
 # Configure
 #
@@ -134,7 +159,10 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
   {
     print("compile-cluster: debug build requested\n");
     push(@args, "-DWITH_DEBUG=1");
-    push(@args, "-DMYSQL_MAINTAINER_MODE=0");
+    # The MySQL maintainter mode is automatically turned on when
+    # building with debug using gcc on linux, turn it off
+    # by uncommenting the line below or use --mysql-maintainer-mode=0
+    # push(@args, "-DMYSQL_MAINTAINER_MODE=0");
   }
 
   if ($opt_vanilla)
@@ -149,7 +177,7 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
   else
   {
     # Hardcoded options controlling how to build MySQL Server
-    push(@args, "-DWITH_SSL=bundled"); # Consistent error messages
+    push(@args, "-DWITH_SSL=system"); # Consistent error messages
 
     # Hardcoded options controlling how to build NDB
     push(@args, "-DWITH_PLUGIN_NDBCLUSTER=1");
@@ -162,7 +190,11 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
   {
     print("compile-cluster: autotest build requested, extra everything\n");
     push(@args, "-DWITH_NDB_CCFLAGS='-DERROR_INSERT'");
-    push(@args, "-DWITH_EMBEDDED_SERVER=1");
+  }
+
+  if (defined $opt_embedded)
+  {
+    push(@args, "-DWITH_EMBEDDED_SERVER=$opt_embedded");
   }
 
   if ($opt_valgrind)
@@ -180,6 +212,13 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
   if ($opt_build_type)
   {
     push(@args, "-G \"$opt_build_type\"");
+  }
+
+  if ($^O eq "cygwin" or $^O eq "MSWin32" or $^O eq "msys")
+  {
+    # Default to x64 since that's currrenlty the only supported
+    # architecture for building MySQL on Windows
+    push(@args, "-A x64");
   }
 
   # Sets installation directory,  bindir, libdir, libexecdir etc.
@@ -274,7 +313,7 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
   }
   if($opt_with_ssl)
   {
-    push(@args, "-DWITH_SSL=".($opt_with_ssl ? "yes" : "bundled"));
+    push(@args, "-DWITH_SSL=".($opt_with_ssl ? "yes" : "wolfssl"));
   }
   if ($opt_localstatedir)
   {
@@ -383,7 +422,7 @@ if (!$opt_build)
     push(@args, "--build");
     push(@args, ".");
 
-    if ($^O eq "cygwin" or $^O eq "MSWin32")
+    if ($^O eq "cygwin" or $^O eq "MSWin32" or $^O eq "msys")
     {
       # Choose to build RelWitDebInfo by default on Windows
       my $config = 'RelWithDebInfo';
@@ -423,7 +462,7 @@ sub cmd {
   my $cmd_str = join(' ', $cmd, @a);
   print "compile-cluster: '$cmd_str'\n";
   return if ($opt_just_print);
-  system($cmd, @a)
+  system($cmd_str)
     and print("command '$cmd_str' failed\n")
 	  and exit(1);
 }
@@ -707,7 +746,6 @@ sub suppress_warning {
   # regexes. If both expressions match, the warning is suppressed.
   my @suppressions = (
     # [ qr/<dirname+filename regex>/, qr/<warning regex>/ ],
-    [ qr/DbtuxMeta.cpp/, qr/Warray-bounds/ ],
   );
 
   foreach my $sup ( @suppressions )

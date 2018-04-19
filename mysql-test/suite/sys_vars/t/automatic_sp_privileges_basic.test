@@ -115,7 +115,7 @@ SELECT @@session.automatic_sp_privileges;
 
 --disable_warnings
 SELECT IF(@@global.automatic_sp_privileges, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='automatic_sp_privileges';
 --enable_warnings
 

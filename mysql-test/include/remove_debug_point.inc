@@ -6,17 +6,26 @@
 # ==== Usage ====
 #
 # --let $debug_point= debug_point
+# [--let $debug_point_silent= 1]
 # [--let $debug_type= GLOBAL | SESSION]
+# [--let $debug_if_exists= 1]
 # --source extra/rpl_tests/remove_debug_point.inc
 #
 # Parameters:
 #   $debug_point
 #     The debug point to be activated.
 #
+#   $debug_point_silent
+#     By default, this script prints the name of the debug point. If
+#     this parameter is set, it does not print anything.
+#
 #   $debug_type
 #     If the debug variable to be changed is the GLOBAL or SESSION one.
 #     The default (if not specified one) is GLOBAL.
 #
+#   $debug_if_exists
+#     By default, this script fails if the debug symbol does not exist.
+#     If this variable is set, the error is omitted.
 
 --let $_previous_include_silent= $include_silent
 --let $include_silent= 1
@@ -57,13 +66,19 @@ if (`SELECT LOCATE('$debug_point', @previous_debug) > 0`)
   }
 }
 
-if (`SELECT @new_debug = @previous_debug`)
+if (!$debug_if_exists)
 {
-  --die ERROR IN TEST: the debug point '$debug_point' was not found
+  if (`SELECT @new_debug = @previous_debug`)
+  {
+    --die ERROR IN TEST: the debug point '$debug_point' was not found
+  }
 }
 
---let $message_prefix=`SELECT REPEAT("#", $_include_file_depth)`
---echo $message_prefix Removing debug point '$debug_point' from @@$_debug_type.debug
+if (!$debug_point_silent)
+{
+  --let $message_prefix=`SELECT REPEAT("#", $_include_file_depth)`
+  --echo $message_prefix Removing debug point '$debug_point' from @@$_debug_type.debug
+}
 
 if ($rpl_debug)
 {

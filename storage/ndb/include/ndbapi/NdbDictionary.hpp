@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -21,8 +28,7 @@
 #include <ndb_types.h>
 
 class Ndb;
-struct charset_info_st;
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 
 /* Forward declaration only. */
 class NdbRecord;
@@ -125,7 +131,8 @@ public:
       HashMap = 24,
       ForeignKey = 25,
       FKParentTrigger = 26,
-      FKChildTrigger = 27
+      FKChildTrigger = 27,
+      FullyReplicatedTrigger = 28
     };
 
     /**
@@ -172,6 +179,47 @@ public:
       UserDefined = 7,
       HashMapPartition = 9
     };
+
+    /**
+     * This enum defines values that are usable with
+     *   Table::setPartitionBalance
+     */
+    enum PartitionBalance {
+      /**
+       * Use a specific value set using setFragmentCount
+       */
+      PartitionBalance_Specific = NDB_PARTITION_BALANCE_SPECIFIC,
+
+      /**
+       * Use one fragment per LDM per node
+       *   (current default)
+       */
+      PartitionBalance_ForRPByLDM = NDB_PARTITION_BALANCE_FOR_RP_BY_LDM,
+
+      /**
+       * Use X fragment per LDM per nodegroup
+       */
+      PartitionBalance_ForRAByLDMx2 = NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2,
+      PartitionBalance_ForRAByLDMx3 = NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3,
+      PartitionBalance_ForRAByLDMx4 = NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4,
+
+      /**
+       * Use one fragment per LDM per nodegroup
+       */
+      PartitionBalance_ForRAByLDM =
+        NDB_PARTITION_BALANCE_FOR_RA_BY_LDM,
+
+      /**
+       * Use one fragment per node
+       */
+      PartitionBalance_ForRPByNode = NDB_PARTITION_BALANCE_FOR_RP_BY_NODE,
+
+      /**
+       * Use one fragment per node group
+       */
+      PartitionBalance_ForRAByNode = NDB_PARTITION_BALANCE_FOR_RA_BY_NODE,
+    };
+
   private:
     Object&operator=(const Object&);
   };
@@ -370,6 +418,11 @@ public:
      * Array length for column or max length for variable length arrays.
      */
     int getLength() const;
+
+    /**
+     * Get size required to store column in NdbRecord layout.
+     */
+    int getSizeInBytesForRecord() const;
 
     /**
      * For Char or Varchar or Text, get MySQL CHARSET_INFO.  This
@@ -874,6 +927,7 @@ public:
 
     /**
      * Set fragment count
+     *   also sets PartitionBalance_Specific
      */
     void setFragmentCount(Uint32);
 
@@ -881,6 +935,29 @@ public:
      * Get fragment count
      */
     Uint32 getFragmentCount() const;
+
+    /**
+     * Get real fragment count, no setter, is set by NDB, always
+     * equal to getFragmentCount except for fully replicated tables.
+     */
+    Uint32 getPartitionCount() const;
+
+    /**
+     * Set fragment count using cluster agnostics defines
+     */
+    void setPartitionBalance(NdbDictionary::Object::PartitionBalance);
+
+    /**
+     * Get partition balance
+     */
+    NdbDictionary::Object::PartitionBalance getPartitionBalance() const;
+    static NdbDictionary::Object::PartitionBalance getPartitionBalance(const char str[]);
+
+    /**
+     * Get partition balance string
+     */
+    const char* getPartitionBalanceString() const;
+    static const char* getPartitionBalanceString(PartitionBalance partition_balance);
 
     /**
      * Set fragmentation type
@@ -922,11 +999,6 @@ public:
     int setHashMap(const class HashMap &);
 
     /**
-     * Get table object type
-     */
-    Object::Type getObjectType() const;
-
-    /**
      * Get object status
      */
     virtual Object::Status getObjectStatus() const;
@@ -954,12 +1026,44 @@ public:
     int setFrm(const void* data, Uint32 len);
 
     /**
-     * Set fragmentation
+      Set unpacked extra metadata for this table
+
+      NOTE! Function will pack the data into buffer
+      of Table object without modifying the "data".
+
+      NOTE! Normally version 1 means that extra metadata contains
+      a frm blob and version 2 means serialized dictionary information.
+      This is however application specific how to use these version
+      numbers.
+
+      returns 0 for success and otherwise error code indicating
+      type of error, for caller error handling
+    */
+    int setExtraMetadata(Uint32 version,
+                         const void* data, Uint32 data_length);
+
+    /**
+      Get unpacked extra metadata for this table
+
+      NOTE! Function will return memory that must be released
+      with free()
+
+      returns 0 for success and otherwise error code
+    */
+    int getExtraMetadata(Uint32& version,
+                         void** data, Uint32* data_length) const;
+
+
+    /**
+     * Set fragmentation, maps each fragment to specific nodegroup.
      *   One Uint32 per fragment, containing nodegroup of fragment
      *   nodegroups[0] - correspondce to fragment 0
      *
-     * Note: This calls also modifies <em>setFragmentCount</em>
+     * Only used if FragmentType is one of DistrKeyHash, DistrKeyLin, or,
+     * UserDefined.
      *
+     * For other FragmentType it should be called with nodegroups NULL and
+     * cnt 0.
      */
     int setFragmentData(const Uint32 * nodegroups, Uint32 cnt);
 
@@ -996,11 +1100,6 @@ public:
                             Uint32 arraySize) const;
 
     /**
-     * Set table object type
-     */
-    void setObjectType(Object::Type type);
-
-    /**
      * Set/Get Maximum number of rows in table (only used to calculate
      * number of partitions).
      */
@@ -1031,7 +1130,10 @@ public:
 
     void setRowChecksumIndicator(bool value);
     bool getRowChecksumIndicator() const;
- 
+
+    void setReadBackupFlag(bool value);
+    bool getReadBackupFlag() const;
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     const char *getMysqlName() const;
 
@@ -1089,6 +1191,9 @@ public:
      */
     void setExtraRowAuthorBits(Uint32);
     Uint32 getExtraRowAuthorBits() const;
+
+    void setFullyReplicated(bool val);
+    bool getFullyReplicated() const;
 #endif
 
     // these 2 are not de-doxygenated
@@ -1440,6 +1545,9 @@ public:
       TE_NODE_FAILURE=1<<10, ///< Node failed
       TE_SUBSCRIBE   =1<<11, ///< Node subscribes
       TE_UNSUBSCRIBE =1<<12, ///< Node unsubscribes
+      TE_EMPTY         =1<<15, ///< Empty epoch from data nodes
+      TE_INCONSISTENT  =1<<21, ///< MISSING_DATA (buffer overflow) at data node
+      TE_OUT_OF_MEMORY =1<<22, ///< Buffer overflow in event buffer
       TE_ALL=0xFFFF         ///< Any/all event on table (not relevant when 
                             ///< events are received)
     };
@@ -1460,7 +1568,10 @@ public:
       _TE_SUBSCRIBE=11,
       _TE_UNSUBSCRIBE=12,
       _TE_NUL=13, // internal (e.g. INS o DEL within same GCI)
-      _TE_ACTIVE=14 // internal (node becomes active)
+      _TE_ACTIVE=14, // internal (node becomes active)
+      _TE_EMPTY=15,
+      _TE_INCONSISTENT=21,
+      _TE_OUT_OF_MEMORY=22
     };
 #endif
     /**
@@ -1668,7 +1779,9 @@ public:
     */
     RecMysqldShrinkVarchar= 0x1,
     /* Use the mysqld record format for bitfields, only used inside mysqld. */
-    RecMysqldBitfield= 0x2
+    RecMysqldBitfield= 0x2,
+    /* Use the column specific flags from RecordSpecification. */
+    RecPerColumnFlags= 0x4
   };
   struct RecordSpecification {
     /*
@@ -1707,6 +1820,31 @@ public:
     */
     Uint32 nullbit_byte_offset;
     /* NULL bit, 0-7. Not used for columns that are not NULLable. */
+    Uint32 nullbit_bit_in_byte;
+    /*
+      Column specific flags
+      Used only when RecPerColumnFlags is enabled
+    */
+    enum ColumnFlags
+    {
+      /*
+        Skip reading/writing overflow bits in bitmap
+        Used for MySQLD char(0) column
+        Used only with RecMysqldBitfield flag
+      */
+      BitColMapsNullBitOnly= 0x1
+    };
+    Uint32 column_flags;
+  };
+
+  /*
+    First version of RecordSpecification
+    Maintained here for backward compatibility reasons.
+  */
+  struct RecordSpecification_v1 {
+    const Column *column;
+    Uint32 offset;
+    Uint32 nullbit_byte_offset;
     Uint32 nullbit_bit_in_byte;
   };
 
@@ -1950,11 +2088,6 @@ public:
     const char * getTablespace() const;
     void getTablespaceId(ObjectId * dst) const;
 
-    void setNode(Uint32 nodeId);
-    Uint32 getNode() const;
-
-    Uint32 getFileNo() const;
-
     /**
      * Get object status
      */
@@ -1992,11 +2125,6 @@ public:
     void setLogfileGroup(const class LogfileGroup &);
     const char * getLogfileGroup() const;
     void getLogfileGroupId(ObjectId * dst) const;
-
-    void setNode(Uint32 nodeId);
-    Uint32 getNode() const;
-
-    Uint32 getFileNo() const;
 
     /**
      * Get object status
@@ -2186,6 +2314,9 @@ public:
 	  schema(0),
           name(0) {
         }
+        /* qsort compare functions */
+        static int compareByName(const void * p, const void * q);
+        static int compareById(const void * p, const void * q);
       };
       unsigned count;           ///< Number of elements in list
       Element * elements;       ///< Pointer to array of elements
@@ -2203,6 +2334,8 @@ public:
           elements = 0;
         }
       }
+      void sortById();
+      void sortByName();
     };
 
     /** 
@@ -2292,6 +2425,7 @@ public:
     int listIndexes(List & list, const char * tableName);
 #endif
     int listIndexes(List & list, const char * tableName) const;
+    int listIndexes(List & list, const char * tableName, bool fullyQualified) const;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
@@ -2429,13 +2563,13 @@ public:
      */
     int alterTable(const Table & f, const Table & t);
 
+#endif
+
     /**
      * Invalidate cached table object
      * @param name  Name of table to invalidate
      */
     void invalidateTable(const char * name);
-#endif
-
     /**
      * Remove table from local cache
      */
@@ -2444,8 +2578,14 @@ public:
      * Remove index from local cache
      */
     void removeCachedIndex(const char * index, const char * table);
+    /**
+     * Invalidate cached index object
+     * @param indexName  Name of index to invalidate
+     * @param tableName  Name of table the index belongs to
+     */
+    void invalidateIndex(const char * indexName,
+                         const char * tableName);
 
-    
     /** @} *******************************************************************/
     /** 
      * @name Index creation
@@ -2501,11 +2641,6 @@ public:
     void removeCachedTable(const Table *table);
     void removeCachedIndex(const Index *index);
     void invalidateTable(const Table *table);
-    /**
-     * Invalidate cached index object
-     */
-    void invalidateIndex(const char * indexName,
-                         const char * tableName);
     void invalidateIndex(const Index *index);
     /**
      * Force gcp and wait for gcp complete
@@ -2581,15 +2716,15 @@ public:
     /**
      * Get default HashMap
      */
-    int getDefaultHashMap(HashMap& dst, Uint32 fragments);
-    int getDefaultHashMap(HashMap& dst, Uint32 buckets, Uint32 fragments);
+    int getDefaultHashMap(HashMap& dst, Uint32 partitionCount);
+    int getDefaultHashMap(HashMap& dst, Uint32 buckets, Uint32 partitionCount);
 
 
     /**
      * Init a default HashMap
      */
-    int initDefaultHashMap(HashMap& dst, Uint32 fragments);
-    int initDefaultHashMap(HashMap& dst, Uint32 buckets, Uint32 fragments);
+    int initDefaultHashMap(HashMap& dst, Uint32 partitionCount);
+    int initDefaultHashMap(HashMap& dst, Uint32 buckets, Uint32 partitionCount);
 
     /**
      * create (or retreive) a HashMap suitable for alter

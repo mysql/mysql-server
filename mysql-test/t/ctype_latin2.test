@@ -65,11 +65,9 @@ drop table t1;
 
 set names latin2;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 
 set collation_connection=latin2_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 
 --echo #
 --echo # Bugs#12635232: VALGRIND WARNINGS: IS_IPV6, IS_IPV4, INET6_ATON,

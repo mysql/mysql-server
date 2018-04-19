@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -239,7 +246,9 @@ private:
     DescPage();
   };
   typedef Ptr<DescPage> DescPagePtr;
-  ArrayPool<DescPage> c_descPagePool;
+  typedef ArrayPool<DescPage> DescPage_pool;
+
+  DescPage_pool c_descPagePool;
   Uint32 c_descPageList;
 
   struct DescHead {
@@ -265,13 +274,16 @@ private:
    * ScanBound instances are members of ScanOp.  Bound data is stored in
    * a separate segmented buffer pool.
    */
+  typedef ArrayPool<DataBufferSegment<ScanBoundSegmentSize> > ScanBoundSegment_pool;
+  typedef DataBuffer<ScanBoundSegmentSize,ScanBoundSegment_pool> ScanBoundBuffer;
+  typedef LocalDataBuffer<ScanBoundSegmentSize,ScanBoundSegment_pool> LocalScanBoundBuffer;
   struct ScanBound {
-    DataBuffer<ScanBoundSegmentSize>::Head m_head;
+    ScanBoundBuffer::Head m_head;
     Uint16 m_cnt;       // number of attributes
     Int16 m_side;
     ScanBound();
   };
-  DataBuffer<ScanBoundSegmentSize>::DataBufferPool c_scanBoundPool;
+  ScanBoundSegment_pool c_scanBoundPool;
 
   // ScanLock
   struct ScanLock {
@@ -284,7 +296,12 @@ private:
     Uint32 prevList;
   };
   typedef Ptr<ScanLock> ScanLockPtr;
-  ArrayPool<ScanLock> c_scanLockPool;
+  typedef ArrayPool<ScanLock> ScanLock_pool;
+  typedef DLFifoList<ScanLock_pool> ScanLock_fifo;
+  typedef LocalDLFifoList<ScanLock_pool> Local_ScanLock_fifo;
+  typedef ConstLocalDLFifoList<ScanLock_pool> ConstLocal_ScanLock_fifo;
+
+  ScanLock_pool c_scanLockPool;
  
   /*
    * Scan operation.
@@ -336,7 +353,7 @@ private:
     // lock waited for or obtained and not yet passed to LQH
     Uint32 m_accLockOp;
     // locks obtained and passed to LQH but not yet returned by LQH
-    DLFifoList<ScanLock>::Head m_accLockOps;
+    ScanLock_fifo::Head m_accLockOps;
     Uint8 m_readCommitted;      // no locking
     Uint8 m_lockMode;
     Uint8 m_descending;
@@ -353,7 +370,10 @@ private:
     ScanOp();
   };
   typedef Ptr<ScanOp> ScanOpPtr;
-  ArrayPool<ScanOp> c_scanOpPool;
+  typedef ArrayPool<ScanOp> ScanOp_pool;
+  typedef DLList<ScanOp_pool> ScanOp_list;
+
+  ScanOp_pool c_scanOpPool;
 
   // indexes and fragments
 
@@ -393,7 +413,9 @@ private:
     Index();
   };
   typedef Ptr<Index> IndexPtr;
-  ArrayPool<Index> c_indexPool;
+  typedef ArrayPool<Index> Index_pool;
+
+  Index_pool c_indexPool;
   RSS_AP_SNAPSHOT(c_indexPool);
 
   /*
@@ -410,7 +432,7 @@ private:
     Uint16 m_fragId;
     TreeHead m_tree;
     TupLoc m_freeLoc;           // one free node for next op
-    DLList<ScanOp> m_scanList;  // current scans on this fragment
+    ScanOp_list m_scanList;  // current scans on this fragment
     Uint32 m_tupIndexFragPtrI;
     Uint32 m_tupTableFragPtrI;
     Uint32 m_accTableFragPtrI;
@@ -420,10 +442,12 @@ private:
     union {
     Uint32 nextPool;
     };
-    Frag(ArrayPool<ScanOp>& scanOpPool);
+    Frag(ScanOp_pool& scanOpPool);
   };
   typedef Ptr<Frag> FragPtr;
-  ArrayPool<Frag> c_fragPool;
+  typedef ArrayPool<Frag> Frag_pool;
+
+  Frag_pool c_fragPool;
   RSS_AP_SNAPSHOT(c_fragPool);
 
   /*
@@ -443,7 +467,9 @@ private:
     FragOp();
   };
   typedef Ptr<FragOp> FragOpPtr;
-  ArrayPool<FragOp> c_fragOpPool;
+  typedef ArrayPool<FragOp> FragOp_pool;
+
+  FragOp_pool c_fragOpPool;
   RSS_AP_SNAPSHOT(c_fragOpPool);
 
   // node handles
@@ -480,7 +506,7 @@ private:
     Uint32* getPref();
     TreeEnt getEnt(unsigned pos);
     // for ndbrequire and ndbassert
-    void progError(int line, int cause, const char* file);
+    void progError(int line, int cause, const char* file, const char* check);
   };
 
   // stats scan
@@ -537,7 +563,9 @@ private:
    StatOp(const Index&);
   };
   typedef Ptr<StatOp> StatOpPtr;
-  ArrayPool<StatOp> c_statOpPool;
+  typedef ArrayPool<StatOp> StatOp_pool;
+
+  StatOp_pool c_statOpPool;
   RSS_AP_SNAPSHOT(c_statOpPool);
 
   // stats monitor (shared by req data and continueB loop)
@@ -1050,7 +1078,7 @@ Dbtux::Index::Index() :
 // Dbtux::Frag
 
 inline
-Dbtux::Frag::Frag(ArrayPool<ScanOp>& scanOpPool) :
+Dbtux::Frag::Frag(ScanOp_pool& scanOpPool) :
   m_tableId(RNIL),
   m_indexId(RNIL),
   m_fragId(ZNIL),
@@ -1350,7 +1378,7 @@ Dbtux::getTupAddr(const Frag& frag, TreeEnt ent, Uint32& lkey1, Uint32& lkey2)
   const TupLoc tupLoc = ent.m_tupLoc;
   c_tup->tuxGetTupAddr(tableFragPtrI, tupLoc.getPageId(),tupLoc.getPageOffset(),
                        lkey1, lkey2);
-  jamEntry();
+  jamEntryDebug();
 }
 
 inline unsigned

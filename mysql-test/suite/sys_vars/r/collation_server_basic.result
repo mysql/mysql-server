@@ -1,19 +1,19 @@
 SET @global_start_value = @@global.collation_server;
 SELECT @global_start_value;
 @global_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @session_start_value = @@collation_server;
 SELECT @session_start_value;
 @session_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @session_start_value = @@local.collation_server;
 SELECT @session_start_value;
 @session_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @session_start_value = @@session.collation_server;
 SELECT @session_start_value;
 @session_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_014_01------------------#'
 SELECT collation_server;
 ERROR 42S22: Unknown column 'collation_server' in 'field list'
@@ -39,7 +39,7 @@ SET @@global.collation_server = latin1_bin;
 SET @@global.collation_server = DEFAULT;
 SELECT @@global.collation_server;
 @@global.collation_server
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_014_03-------------------------#'
 SET @@session.collation_server = utf8_polish_ci;
 SELECT @@session.collation_server;
@@ -597,6 +597,10 @@ SET @@session.collation_server = eucjpms_bin;
 SELECT @@session.collation_server;
 @@session.collation_server
 eucjpms_bin
+SET @@session.collation_server = utf8mb4_0900_ai_ci;
+SELECT @@session.collation_server;
+@@session.collation_server
+utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_014_07-------------------------#'
 SET @@global.collation_server = big5_chinese_ci;
 SELECT @@global.collation_server;
@@ -1122,6 +1126,10 @@ SET @@global.collation_server = eucjpms_bin;
 SELECT @@global.collation_server;
 @@global.collation_server
 eucjpms_bin
+SET @@global.collation_server = utf8mb4_0900_ai_ci;
+SELECT @@global.collation_server;
+@@global.collation_server
+utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_014_08-------------------------#'
 SET @@collation_server = LATIN7_GENERAL_CS;
 SELECT @@collation_server;
@@ -1197,6 +1205,10 @@ res_with_true
 big5_chinese_ci
 SET @@collation_server = ON;
 ERROR HY000: Unknown collation: 'ON'
+SET @@collation_server = repeat('e', 256);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+SET @@collation_server = repeat('e', 1024);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
 '#--------------------FN_DYNVARS_014_11-------------------------#'
 SET @@global.collation_server = latin7_binary;
 ERROR HY000: Unknown collation: 'latin7_binary'
@@ -1215,9 +1227,13 @@ ERROR HY000: Unknown collation: ' eucjpms_bin'
 SET @@global.collation_server = true;
 SET @@global.collation_server = ON;
 ERROR HY000: Unknown collation: 'ON'
+SET @@global.collation_server = repeat('e', 256);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+SET @@global.collation_server = repeat('e', 1024);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
 '#--------------------FN_DYNVARS_014_12-------------------------#'
 SELECT @@global.collation_server =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='collation_server') AS res;
 res
 1
@@ -1226,31 +1242,31 @@ SELECT @@global.collation_server;
 @@global.collation_server
 big5_chinese_ci
 SELECT @@global.collation_server =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='collation_server') AS res;
 res
 1
 '#--------------------FN_DYNVARS_014_13-------------------------#'
 SELECT @@collation_server =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='collation_server') AS res;
 res
 1
 SELECT @@local.collation_server =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='collation_server') AS res;
 res
 1
 SELECT @@session.collation_server =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='collation_server') AS res;
 res
 1
 SET @@global.collation_server = @global_start_value;
 SELECT @@global.collation_server;
 @@global.collation_server
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @@session.collation_server = @session_start_value;
 SELECT @@session.collation_server;
 @@session.collation_server
-latin1_swedish_ci
+utf8mb4_0900_ai_ci

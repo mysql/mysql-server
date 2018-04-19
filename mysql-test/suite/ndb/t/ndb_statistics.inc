@@ -1,9 +1,5 @@
 -- source include/have_ndb.inc
 
---disable_warnings
-drop table if exists t1, t2, t3, t4;
---enable_warnings
-
 CREATE TABLE t10(
   K INT NOT NULL AUTO_INCREMENT,
   I INT, J INT,
@@ -21,9 +17,9 @@ INSERT INTO t100(I,J)
 
 CREATE TABLE t10000 LIKE t10;
 
-# Insert into t10000 into myisam and alter to ndb
-#  not to exhaust MaxNoOfConcurrentOperations
-ALTER TABLE t10000 ENGINE=MYISAM;
+# Insert into t10000 into innodb and alter to ndb
+# not to exhaust MaxNoOfConcurrentOperations
+ALTER TABLE t10000 ENGINE=INNODB;
 INSERT INTO t10000(I,J)
   SELECT X.J, X.J+(100*Y.J) FROM t100 AS X,t100 AS Y;
 ALTER TABLE t10000 ENGINE=NDBCLUSTER;
@@ -139,5 +135,3 @@ SELECT * FROM t10000 WHERE J <> 1 AND I <> 0;
 
 
 DROP TABLE t10,t100,t10000;
-
---echo End of 5.1 tests

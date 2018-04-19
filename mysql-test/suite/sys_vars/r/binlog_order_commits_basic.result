@@ -48,7 +48,7 @@ SELECT @@session.binlog_order_commits;
 ERROR HY000: Variable 'binlog_order_commits' is a GLOBAL variable
 '#----------------------FN_DYNVARS_004_05------------------------#'
 SELECT IF(@@global.binlog_order_commits, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='binlog_order_commits';
 IF(@@global.binlog_order_commits, "ON", "OFF") = VARIABLE_VALUE
 1

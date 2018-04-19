@@ -14,16 +14,316 @@ c int unsigned not null,
 primary key(a,c),
 unique (b))
 ENGINE = NDB
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
 partition by key(a);
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
+a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+c Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, c) - UniqueHashIndex
+PRIMARY(a, c) - OrderedIndex
+b(b) - OrderedIndex
+b$unique(b) - UniqueHashIndex
+-- t1/PRIMARY --
+Version: Any
+Base table: t1
+Number of attributes: 2
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+a Unsigned NOT NULL AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+a Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t1/b --
+Version: Any
+Base table: t1
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/b --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t1/b$unique --
+Version: Any
+Base table: t1
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/b$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(b) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
 CREATE TABLE t2 (a int unsigned not null,
 b int unsigned not null,
 c int unsigned not null,
 primary key(a,b),
 unique (b))
 ENGINE = NDB
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
 STORAGE DISK
 TABLESPACE ts1
 partition by key(a);
+-- t2 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
+a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=DISK
+-- Indexes -- 
+PRIMARY KEY(a, b) - UniqueHashIndex
+PRIMARY(a, b) - OrderedIndex
+b(b) - OrderedIndex
+b$unique(b) - UniqueHashIndex
+-- t2/PRIMARY --
+Version: Any
+Base table: t2
+Number of attributes: 2
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+a Unsigned NOT NULL AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+a Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t2/b --
+Version: Any
+Base table: t2
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/b --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t2/b$unique --
+Version: Any
+Base table: t2
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/b$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(b) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
 CREATE TABLE t3 (a int unsigned not null,
 b int unsigned not null,
 c int unsigned not null,
@@ -31,12 +331,162 @@ primary key(a,b),
 unique (b))
 MAX_ROWS=50000000
 ENGINE = NDB;
+-- t3 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 50000000
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, b) - UniqueHashIndex
+PRIMARY(a, b) - OrderedIndex
+b(b) - OrderedIndex
+b$unique(b) - UniqueHashIndex
+-- t3/PRIMARY --
+Version: Any
+Base table: t3
+Number of attributes: 2
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+a Unsigned NOT NULL AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+a Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t3/b --
+Version: Any
+Base table: t3
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/b --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t3/b$unique --
+Version: Any
+Base table: t3
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/b$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(b) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
 CREATE TABLE t4 (a int unsigned not null,
 b int unsigned not null,
 c int unsigned not null,
 primary key(a,b),
 unique (b))
-ENGINE = NDB;
+ENGINE = NDB
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 CREATE TABLE t5 (a int unsigned not null,
 b int unsigned not null,
 c int unsigned null,
@@ -46,22 +496,27 @@ unique (c))
 ENGINE = NDB
 partition by key(a) partitions 3;
 Table: test.t1
+PartitionCount: 2
 FragmentCount: 2
 b$unique(b) - UniqueHashIndex
 FragmentCount: 2
 Table: test.t2
+PartitionCount: 2
 FragmentCount: 2
 b$unique(b) - UniqueHashIndex
 FragmentCount: 2
 Table: test.t3
+PartitionCount: 4
 FragmentCount: 4
 b$unique(b) - UniqueHashIndex
 FragmentCount: 4
 Table: test.t4
+PartitionCount: 2
 FragmentCount: 2
 b$unique(b) - UniqueHashIndex
 FragmentCount: 2
 Table: test.t5
+PartitionCount: 3
 FragmentCount: 3
 b$unique(b) - UniqueHashIndex
 FragmentCount: 3
@@ -287,28 +742,465 @@ a	b	c
 select * from t4 where b = 50;
 a	b	c
 50	50	50
-alter online table t1 reorganize partition;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t2 reorganize partition;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-Cannot use normal reorganize partition on t3 as it has explicit MAX_ROWS set
-alter online table t3 reorganize partition;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+alter table t1 algorithm=inplace, reorganize partition;
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
+a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+c Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, c) - UniqueHashIndex
+PRIMARY(a, c) - OrderedIndex
+b(b) - OrderedIndex
+b$unique(b) - UniqueHashIndex
+-- t1/PRIMARY --
+Version: Any
+Base table: t1
+Number of attributes: 2
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+a Unsigned NOT NULL AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+a Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t1/b --
+Version: Any
+Base table: t1
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/b --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t1/b$unique --
+Version: Any
+Base table: t1
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/b$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(b) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t2 algorithm=inplace, reorganize partition;
+-- t2 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
+a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=DISK
+-- Indexes -- 
+PRIMARY KEY(a, b) - UniqueHashIndex
+PRIMARY(a, b) - OrderedIndex
+b(b) - OrderedIndex
+b$unique(b) - UniqueHashIndex
+-- t2/PRIMARY --
+Version: Any
+Base table: t2
+Number of attributes: 2
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+a Unsigned NOT NULL AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+a Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t2/b --
+Version: Any
+Base table: t2
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/b --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t2/b$unique --
+Version: Any
+Base table: t2
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/b$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(b) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+Cannot use inplace reorganize partition on t3 as it has explicit MAX_ROWS set
+alter table t3 algorithm=inplace, reorganize partition;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: REORGANIZE of table with MAX_ROWS. Try ALGORITHM=COPY.
 show warnings;
 Level	Code	Message
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-Warning	1105	Cannot online REORGANIZE a table with Max_Rows set.  Use ALTER TABLE ... MAX_ROWS=<new_val> or offline REORGANIZE to redistribute this table.
-Error	1845	ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
-alter online table t3 max_rows=50000000;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t4 reorganize partition;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t5 partition by key() partitions 6;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: REORGANIZE of table with MAX_ROWS. Try ALGORITHM=COPY.
+alter table t3 algorithm=inplace, max_rows=50000000;
+-- t3 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 50000000
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, b) - UniqueHashIndex
+PRIMARY(a, b) - OrderedIndex
+b(b) - OrderedIndex
+b$unique(b) - UniqueHashIndex
+-- t3/PRIMARY --
+Version: Any
+Base table: t3
+Number of attributes: 2
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+a Unsigned NOT NULL AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+a Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t3/b --
+Version: Any
+Base table: t3
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/b --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t3/b$unique --
+Version: Any
+Base table: t3
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/b$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(b) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t4 algorithm=inplace, reorganize partition;
+alter table t5 algorithm=inplace partition by key() partitions 6;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
 Check partitions added, expect 0 in all cases
 partitions added to t1
 t1_added
@@ -322,41 +1214,478 @@ t3_added
 partitions added to t4
 t4_added
 0
-alter online table t1 add partition partitions 1;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t2 add partition partitions 4;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t3 max_rows=100000000;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t4 max_rows=100000000;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+alter table t1 algorithm=inplace, add partition partitions 1;
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 3
+FragmentCount: 3
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: HASHMAP-3840-2-3
+-- Attributes --
+a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+c Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, c) - UniqueHashIndex
+PRIMARY(a, c) - OrderedIndex
+b(b) - OrderedIndex
+b$unique(b) - UniqueHashIndex
+-- t1/PRIMARY --
+Version: Any
+Base table: t1
+Number of attributes: 2
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+a Unsigned NOT NULL AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 3
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+a Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t1/b --
+Version: Any
+Base table: t1
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/b --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 3
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t1/b$unique --
+Version: Any
+Base table: t1
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/b$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 3
+FragmentCount: 3
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: HASHMAP-3840-2-3
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(b) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t2 algorithm=inplace, add partition partitions 4;
+-- t2 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 6
+FragmentCount: 6
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-6
+-- Attributes --
+a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=DISK
+-- Indexes -- 
+PRIMARY KEY(a, b) - UniqueHashIndex
+PRIMARY(a, b) - OrderedIndex
+b(b) - OrderedIndex
+b$unique(b) - UniqueHashIndex
+-- t2/PRIMARY --
+Version: Any
+Base table: t2
+Number of attributes: 2
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+a Unsigned NOT NULL AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 6
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+a Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t2/b --
+Version: Any
+Base table: t2
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/b --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 6
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t2/b$unique --
+Version: Any
+Base table: t2
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/b$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 6
+FragmentCount: 6
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-6
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(b) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t3 algorithm=inplace, max_rows=100000000;
+-- t3 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 50000000
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 6
+FragmentCount: 6
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: HASHMAP-3840-4-6
+-- Attributes --
+a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, b) - UniqueHashIndex
+PRIMARY(a, b) - OrderedIndex
+b(b) - OrderedIndex
+b$unique(b) - UniqueHashIndex
+-- t3/PRIMARY --
+Version: Any
+Base table: t3
+Number of attributes: 2
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+a Unsigned NOT NULL AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 6
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+a Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t3/b --
+Version: Any
+Base table: t3
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/b --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 6
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t3/b$unique --
+Version: Any
+Base table: t3
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/b$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 6
+FragmentCount: 6
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: HASHMAP-3840-4-6
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(b) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t4 algorithm=inplace, max_rows=100000000;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: setting MAX_ROWS on table without MAX_ROWS. Try ALGORITHM=COPY.
 partitions added to t1 (expect 1)
 t1_added
 1
 partitions added to t2 (expect 4)
 t2_added
 4
-partitions added to t3 (expect 2)
+partitions added to t3 (expect 4)
 t3_added
 2
 partitions added to t4 (expect 0)
 t4_added
 0
-alter online table t1 reorganize partition;
+alter table t1 algorithm=inplace, reorganize partition;
 ERROR HY000: REORGANIZE PARTITION without parameters can only be used on auto-partitioned tables using HASH PARTITIONs
-alter online table t3 reorganize partition;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+alter table t3 algorithm=inplace, reorganize partition;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: REORGANIZE of table with MAX_ROWS. Try ALGORITHM=COPY.
 show warnings;
 Level	Code	Message
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-Warning	1105	Cannot online REORGANIZE a table with Max_Rows set.  Use ALTER TABLE ... MAX_ROWS=<new_val> or offline REORGANIZE to redistribute this table.
-Error	1845	ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
-alter online table t4 reorganize partition;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: REORGANIZE of table with MAX_ROWS. Try ALGORITHM=COPY.
+alter table t4 algorithm=inplace, reorganize partition;
 select count(*) from t1;
 count(*)
 100
@@ -544,19 +1873,461 @@ select * from t4 where b = 50;
 a	b	c
 50	50	50
 Table: test.t4
+PartitionCount: 2
 FragmentCount: 2
 b$unique(b) - UniqueHashIndex
 FragmentCount: 2
 drop table t4;
-alter online table t1 add partition partitions 2;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t2 add partition partitions 1;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t3 max_rows=150000000;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+alter table t1 algorithm=inplace, add partition partitions 2;
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 5
+FragmentCount: 5
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: HASHMAP-3840-3-5
+-- Attributes --
+a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+c Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, c) - UniqueHashIndex
+PRIMARY(a, c) - OrderedIndex
+b(b) - OrderedIndex
+b$unique(b) - UniqueHashIndex
+-- t1/PRIMARY --
+Version: Any
+Base table: t1
+Number of attributes: 2
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+a Unsigned NOT NULL AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 5
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+a Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t1/b --
+Version: Any
+Base table: t1
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/b --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 5
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t1/b$unique --
+Version: Any
+Base table: t1
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/b$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 5
+FragmentCount: 5
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: HASHMAP-3840-3-5
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(b) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t2 algorithm=inplace, add partition partitions 1;
+-- t2 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 7
+FragmentCount: 7
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: HASHMAP-3840-6-7
+-- Attributes --
+a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=DISK
+-- Indexes -- 
+PRIMARY KEY(a, b) - UniqueHashIndex
+PRIMARY(a, b) - OrderedIndex
+b(b) - OrderedIndex
+b$unique(b) - UniqueHashIndex
+-- t2/PRIMARY --
+Version: Any
+Base table: t2
+Number of attributes: 2
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+a Unsigned NOT NULL AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 7
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+a Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t2/b --
+Version: Any
+Base table: t2
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/b --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 7
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t2/b$unique --
+Version: Any
+Base table: t2
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/b$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 7
+FragmentCount: 7
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: HASHMAP-3840-6-7
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(b) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t3 algorithm=inplace, max_rows=150000000;
+-- t3 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 50000000
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: HASHMAP-3840-6-8
+-- Attributes --
+a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+c Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, b) - UniqueHashIndex
+PRIMARY(a, b) - OrderedIndex
+b(b) - OrderedIndex
+b$unique(b) - UniqueHashIndex
+-- t3/PRIMARY --
+Version: Any
+Base table: t3
+Number of attributes: 2
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+a Unsigned NOT NULL AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+a Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t3/b --
+Version: Any
+Base table: t3
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/b --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t3/b$unique --
+Version: Any
+Base table: t3
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/b$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: HASHMAP-3840-6-8
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(b) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
 partitions added to t1 (expect 3)
 t1_added
 3
@@ -708,24 +2479,255 @@ select * from t3 where b = 50;
 a	b	c
 50	50	50
 Table: test.t1
+PartitionCount: 5
 FragmentCount: 5
 b$unique(b) - UniqueHashIndex
-FragmentCount: 2
+FragmentCount: 5
 Table: test.t2
+PartitionCount: 7
 FragmentCount: 7
 b$unique(b) - UniqueHashIndex
-FragmentCount: 2
+FragmentCount: 7
 Table: test.t3
+PartitionCount: 8
 FragmentCount: 8
 b$unique(b) - UniqueHashIndex
-FragmentCount: 4
+FragmentCount: 8
 Table: test.t5
+PartitionCount: 3
 FragmentCount: 3
 b$unique(b) - UniqueHashIndex
 FragmentCount: 3
 c$unique(c) - UniqueHashIndex
 FragmentCount: 3
+alter table t5 algorithm=inplace, add partition partitions 1;
+-- t5 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: HASHMAP-3840-3-4
+-- Attributes --
+a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+c Unsigned NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, b) - UniqueHashIndex
+PRIMARY(a, b) - OrderedIndex
+b(b) - OrderedIndex
+b$unique(b) - UniqueHashIndex
+c(c) - OrderedIndex
+c$unique(c) - UniqueHashIndex
+-- t5/PRIMARY --
+Version: Any
+Base table: t5
+Number of attributes: 2
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+a Unsigned NOT NULL AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 3
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+a Unsigned NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t5/b --
+Version: Any
+Base table: t5
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/b --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 3
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+b Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t5/b$unique --
+Version: Any
+Base table: t5
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/b$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: HASHMAP-3840-3-4
+-- Attributes --
+b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(b) - UniqueHashIndex
+
+-- t5/c --
+Version: Any
+Base table: t5
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+c Unsigned NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/c --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 3
+FragmentCount: 4
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+c Unsigned NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t5/c$unique --
+Version: Any
+Base table: t5
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+c Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/c$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 4
+FragmentCount: 4
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: HASHMAP-3840-3-4
+-- Attributes --
+c Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [3] NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(c) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
 drop table t1,t2,t3,t5;
-alter tablespace ts1 drop datafile 'datafile.dat' engine = ndb;
-drop tablespace ts1 engine = ndb;
+alter tablespace ts1 drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1 engine = ndb;

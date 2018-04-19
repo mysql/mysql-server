@@ -74,3 +74,45 @@ XA START 'xid1';
 ERROR XAE08: XAER_DUPID: The XID already exists
 XA COMMIT 'xid1';
 DROP TABLE t1;
+#
+# Bug#20538956 - XA PREPARE ERROR BRANCH LEAVES THE TRANSACTION IN SCREWED STATE
+#
+CREATE TABLE t1 (a INT);
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+SET @@session.debug = '+d,simulate_xa_failure_prepare';
+XA PREPARE 'xid1';
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+SET @@session.debug = '-d,simulate_xa_failure_prepare';
+XA ROLLBACK 'xid1';
+ERROR XAE04: XAER_NOTA: Unknown XID
+XA START 'trx_another_one';
+#
+# Bug#20488921 - ERROR PROPAGATION DOES NOT FULLY WORK IN XA
+#
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA PREPARE 'xid1';
+SET @@session.debug= '+d,simulate_xa_commit_log_failure';
+XA COMMIT 'xid1';
+ERROR XAE03: XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+SET @@session.debug= '-d,simulate_xa_commit_log_failure';
+INSERT INTO t1 VALUES (2);
+DROP TABLE t1;
+#
+# Bug#23264552 - XA: ASSERT `m_status == da_error' IN mysql_errno:sql_error.h:385
+#
+CREATE TABLE t1 (a INT);
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+SET @@session.debug = '+d,simulate_xa_failure_prepare_in_engine';
+XA PREPARE 'xid1';
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+SET @@session.debug = '-d,simulate_xa_failure_prepare_in_engine';
+XA ROLLBACK 'xid1';
+ERROR XAE04: XAER_NOTA: Unknown XID
+XA START 'trx_another_one';
+DROP TABLE t1;

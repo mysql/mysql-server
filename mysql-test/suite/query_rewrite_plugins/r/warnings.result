@@ -17,8 +17,8 @@ CALL query_rewrite.flush_rewrite_rules();
 ERROR 45000: Loading of some rule(s) failed.
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	INSERT INTO test.t1 VALUES ( ? )	NULL	INSERT DELAYED INTO test.t1 VALUES ( ? )	Y	Pattern needs to be a a select statement.
-2	INSERT DELAYED INTO test.t1 VALUES ( ? )	NULL	INSERT INTO test.t1 VALUES ( ? )	Y	Pattern needs to be a a select statement.
+1	INSERT INTO test.t1 VALUES ( ? )	NULL	INSERT DELAYED INTO test.t1 VALUES ( ? )	YES	Pattern needs to be a a select statement.
+2	INSERT DELAYED INTO test.t1 VALUES ( ? )	NULL	INSERT INTO test.t1 VALUES ( ? )	YES	Pattern needs to be a a select statement.
 CREATE TABLE t1 ( a INT );
 # This will translate into INSERT DELAYED, which causes the parser to
 # warn.
@@ -60,10 +60,12 @@ ERROR 45000: Loading of some rule(s) failed.
 SELECT 1;
 Level	Code	Message
 Error	1644	Loading of some rule(s) failed.
-Note	1105	Query 'SELECT 1' rewritten to 'SHOW WARNINGS' by plugin: Rewriter.
+Note	1105	Query 'SELECT 1' rewritten to 'SHOW WARNINGS' by a query rewrite plugin
 SHOW WARNINGS;
 Level	Code	Message
 Error	1644	Loading of some rule(s) failed.
-Note	1105	Query 'SELECT 1' rewritten to 'SHOW WARNINGS' by plugin: Rewriter.
+Note	1105	Query 'SELECT 1' rewritten to 'SHOW WARNINGS' by a query rewrite plugin
 DROP TABLE t1;
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

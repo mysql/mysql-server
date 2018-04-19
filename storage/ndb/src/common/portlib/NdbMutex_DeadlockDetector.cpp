@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -21,7 +28,7 @@
 
 #include "NdbMutex_DeadlockDetector.h"
 
-#define NDB_THREAD_TLS_SELF NDB_THREAD_TLS_MAX
+static thread_local ndb_mutex_thr_state* NDB_THREAD_TLS_SELF = nullptr;
 
 static NdbMutex g_mutex_no_mutex; // We need a mutex to assign numbers to mutexes...
 static nmdd_mask g_mutex_no_mask = { 0, 0 };
@@ -117,8 +124,7 @@ static
 ndb_mutex_thr_state*
 get_thr()
 {
-  void * p = NdbThread_GetTlsKey(NDB_THREAD_TLS_SELF);
-  return (ndb_mutex_thr_state*)p;
+  return NDB_THREAD_TLS_SELF;
 }
 
 #define INC_SIZE 16
@@ -228,8 +234,8 @@ extern "C"
 void
 ndb_mutex_thread_init(struct ndb_mutex_thr_state* p)
 {
-  bzero(p, sizeof(* p));
-  NdbThread_SetTlsKey(NDB_THREAD_TLS_SELF, p);
+  memset(p, 0, sizeof(* p));
+  NDB_THREAD_TLS_SELF = p;
 }
 
 extern "C"

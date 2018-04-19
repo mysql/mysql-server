@@ -24,8 +24,6 @@
 # Setup
 #
 
---source include/not_embedded.inc
-
 --echo ** Setup **
 SET @global_automatic_sp_privileges = @@GLOBAL.automatic_sp_privileges;
 

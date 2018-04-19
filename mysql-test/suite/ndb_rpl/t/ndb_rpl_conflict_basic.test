@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test engine native conflict resolution for ndb
 #
@@ -577,8 +572,38 @@ show warnings;
 drop table test.t1;
 drop table test.t1$EX;
 
+--echo Test conflict_fn definitions in ndb_replication which cover  
+--echo exceptions tables and verify that conflict functions are not
+--echo set up for exceptions tables. 
 
+--connection master
+insert into mysql.ndb_replication values ("test", "t2%", 1, 7, "NDB$EPOCH()");  
 
+create table test.t2$EX (
+server_id int unsigned NOT NULL,
+master_server_id int unsigned NOT NULL,
+master_epoch bigint unsigned NOT NULL,
+count int unsigned NOT NULL,
+a int NOT NULL,
+PRIMARY KEY (server_id,master_server_id,master_epoch,count)
+) ENGINE=ndbcluster;
+
+create table test.t2 (
+a int primary key,
+b varchar(100)) engine=ndb;
+
+--let mysqld_name=mysqld.1.1
+--source ndb_rpl_get_server_error_log.inc
+--disable_query_log 
+# t2$EX is exceptions table, conflict function should not be used 
+select count(*) from test.server_error_log where line like '%Ndb Slave%t2$EX is exceptions table: not using conflict function%';
+# normal table test.t2 is not exceptions table, should have conflict function 
+select count(*) from test.server_error_log where line like '%Ndb Slave%test.t2 using conflict_fn NDB$EPOCH%';
+--enable_query_log
+
+drop table test.server_error_log;
+drop table test.t2;
+drop table test.t2$EX;
 
 ###############
 --echo "Cleanup"

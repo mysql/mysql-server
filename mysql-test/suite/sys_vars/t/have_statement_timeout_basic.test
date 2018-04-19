@@ -18,7 +18,7 @@ SELECT COUNT(@@GLOBAL.have_statement_timeout);
 
 --disable_warnings
 SELECT @@GLOBAL.have_statement_timeout = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='have_statement_timeout';
 --enable_warnings
 --echo 1 Expected
@@ -28,7 +28,7 @@ SELECT COUNT(@@GLOBAL.have_statement_timeout);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='have_statement_timeout';
 --enable_warnings
 --echo 1 Expected

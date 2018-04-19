@@ -1,0 +1,19 @@
+------ Run plugin ------------------------------------------------
+INSTALL PLUGIN test_services_plugin_registry SONAME 'TEST_SERVICES_PLUGIN_REGISTRY';
+------ Show status of plugin -------------------------------------
+SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME='test_services_plugin_registry';
+PLUGIN_STATUS
+ACTIVE
+------ Stop plugin -----------------------------------------------
+UNINSTALL PLUGIN test_services_plugin_registry;
+CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT, c4 TEXT);
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/mysqld.1.err' INTO TABLE t1
+FIELDS TERMINATED BY ' [';
+SELECT replace(concat('[',c2,' [',c3,' [',c4),'\r','') AS msg FROM t1 WHERE c4 LIKE '%test_services_plugin_registry %';
+msg
+[Note] [MY-011071] [Server] Plugin test_services_plugin_registry reported: 'new service already registered'
+[Note] [MY-011071] [Server] Plugin test_services_plugin_registry reported: 'my service aleady unregistered'
+[Note] [MY-011071] [Server] Plugin test_services_plugin_registry reported: 'test_plugin_registry succeeded'
+DROP TABLE IF EXISTS t1;
+FLUSH ERROR LOGS;

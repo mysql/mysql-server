@@ -9,21 +9,13 @@ create table t (s1 int) engine=innodb;
 set @@autocommit=0;
 start transaction;
 insert into t values (1);
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+create user x@y;
 grant select on t to x@y;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 rollback;
 show grants for x@y;
 Grants for x@y
-GRANT USAGE ON *.* TO 'x'@'y'
-GRANT SELECT ON `d1`.`t` TO 'x'@'y'
+GRANT USAGE ON *.* TO `x`@`y`
+GRANT SELECT ON `d1`.`t` TO `x`@`y`
 start transaction;
 insert into t values (2);
 revoke select on t from x@y;
@@ -34,7 +26,7 @@ s1
 2
 show grants for x@y;
 Grants for x@y
-GRANT USAGE ON *.* TO 'x'@'y'
+GRANT USAGE ON *.* TO `x`@`y`
 drop user x@y;
 drop database d1;
 include/rpl_end.inc

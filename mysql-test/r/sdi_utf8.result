@@ -1,0 +1,5 @@
+CREATE TABLE tæøå(i INT) ENGINE MYISAM;
+t@0m@1k@0l.MYD
+t@0m@1k@0l.MYI
+t@0m@1k@0l_XXX.sdi
+DROP TABLE tæøå;

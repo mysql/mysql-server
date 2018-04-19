@@ -1,0 +1,62 @@
+#
+# WL#6972: Collect GTIDs to include in the protocol's OK packet
+#
+--source include/have_binlog_format_mixed.inc
+
+# need debug build to be able to set a deterministic server uuid
+--source include/have_debug.inc
+
+# BUG#19667258: WL#6972 - SERVER CRASH ON SET SESSION SESSION_TRACK_GTIDS='OFF'
+
+RESET MASTER;
+
+--enable_session_track_info
+CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+DROP TABLE t1;
+set session session_track_gtids='own_gtid';
+CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+INSERT INTO t1 VALUES (1);
+set session session_track_gtids='all_gtids';
+SELECT * FROM t1;
+DROP TABLE t1;
+set session session_track_gtids='off';
+RESET MASTER;
+--disable_session_track_info
+
+########################################################
+# Sanity Test.
+#
+# Verifies that we collect the right GTIDs when
+# switching between values of SESSION_TRACK_GTIDS.
+########################################################
+
+--enable_session_track_info
+
+--let $saved_session_track_gtids= `SELECT @@SESSION.SESSION_TRACK_GTIDS`
+
+SELECT @@server_uuid;
+
+SET SESSION SESSION_TRACK_GTIDS=OFF;
+SET SESSION GTID_NEXT='11111111-AAAA-2222-BBBB-000000000000:1';
+CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+SET SESSION GTID_NEXT=AUTOMATIC;
+
+SET SESSION SESSION_TRACK_GTIDS=OWN_GTID;
+SET SESSION GTID_NEXT='11111111-AAAA-2222-BBBB-111111111111:1';
+CREATE TABLE t2 (c1 INT) Engine=InnoDB;
+SET SESSION GTID_NEXT=AUTOMATIC;
+
+SET SESSION SESSION_TRACK_GTIDS=ALL_GTIDS;
+CREATE TABLE t3 (c1 INT) Engine=InnoDB;
+
+DROP TABLE t1, t2, t3;
+
+--disable_session_track_info
+
+--eval SET SESSION SESSION_TRACK_GTIDS= $saved_session_track_gtids
+RESET MASTER;
+
+######################################################
+# Tests for the OK packet data
+######################################################
+--source suite/binlog/include/binlog_gtid_mix_response_packet.inc

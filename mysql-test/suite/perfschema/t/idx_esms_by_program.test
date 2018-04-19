@@ -1,0 +1,38 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = COUNT_STAR;
+let $table = performance_schema.events_statements_summary_by_program;
+
+let $olddb = `select database()`;
+create database explain_test_db;
+use explain_test_db;
+create table explain_test_table(c int);
+delimiter //;
+create procedure explain_test_proc()
+BEGIN
+	select * from explain_test_table;
+END //
+delimiter ;//
+
+truncate table performance_schema.events_statements_summary_by_program;
+call explain_test_proc();
+
+###########################################################################
+# Test index on OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+###########################################################################
+
+let $column_count = 3;
+let $col1 = OBJECT_TYPE;
+let $col2 = OBJECT_SCHEMA;
+let $col3 = OBJECT_NAME;
+let $col1_act = "PROCEDURE";
+let $col2_act = "explain_test_db";
+let $col3_act = "explain_test_proc";
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+drop procedure explain_test_proc;
+drop table explain_test_db.explain_test_table;
+drop database explain_test_db;

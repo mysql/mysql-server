@@ -1,86 +1,178 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************************//**
-@file include/ut0ut.ic
-Various utilities
+/** @file include/ut0ut.ic
+ Various utilities
 
-Created 5/30/1994 Heikki Tuuri
-*******************************************************************/
+ Created 5/30/1994 Heikki Tuuri
+ *******************************************************************/
 
-/******************************************************//**
-Compares two ulints.
-@return 1 if a > b, 0 if a == b, -1 if a < b */
+#include <algorithm>
+
+#include "os0thread.h"
+#include "ut0dbg.h"
+
+#ifndef UNIV_HOTBACKUP
+/** Calculate the minimum of two pairs.
+@param[out]	min_hi	MSB of the minimum pair
+@param[out]	min_lo	LSB of the minimum pair
+@param[in]	a_hi	MSB of the first pair
+@param[in]	a_lo	LSB of the first pair
+@param[in]	b_hi	MSB of the second pair
+@param[in]	b_lo	LSB of the second pair */
 UNIV_INLINE
-int
-ut_ulint_cmp(
-/*=========*/
-	ulint	a,	/*!< in: ulint */
-	ulint	b)	/*!< in: ulint */
+void ut_pair_min(ulint *min_hi, ulint *min_lo, ulint a_hi, ulint a_lo,
+                 ulint b_hi, ulint b_lo) {
+  if (a_hi == b_hi) {
+    *min_hi = a_hi;
+    *min_lo = std::min(a_lo, b_lo);
+  } else if (a_hi < b_hi) {
+    *min_hi = a_hi;
+    *min_lo = a_lo;
+  } else {
+    *min_hi = b_hi;
+    *min_lo = b_lo;
+  }
+}
+#endif /* !UNIV_HOTBACKUP */
+
+/** Compares two ulints.
+ @return 1 if a > b, 0 if a == b, -1 if a < b */
+UNIV_INLINE
+int ut_ulint_cmp(ulint a, /*!< in: ulint */
+                 ulint b) /*!< in: ulint */
 {
-	if (a < b) {
-		return(-1);
-	} else if (a == b) {
-		return(0);
-	} else {
-		return(1);
-	}
+  if (a < b) {
+    return (-1);
+  } else if (a == b) {
+    return (0);
+  } else {
+    return (1);
+  }
 }
 
-/*************************************************************//**
-Calculates fast the 2-logarithm of a number, rounded upward to an
-integer.
-@return logarithm in the base 2, rounded upward */
+/** Compare two pairs of integers.
+@param[in]	a_h	more significant part of first pair
+@param[in]	a_l	less significant part of first pair
+@param[in]	b_h	more significant part of second pair
+@param[in]	b_l	less significant part of second pair
+@return comparison result of (a_h,a_l) and (b_h,b_l)
+@retval -1 if (a_h,a_l) is less than (b_h,b_l)
+@retval 0 if (a_h,a_l) is equal to (b_h,b_l)
+@retval 1 if (a_h,a_l) is greater than (b_h,b_l) */
 UNIV_INLINE
-ulint
-ut_2_log(
-/*=====*/
-	ulint	n)	/*!< in: number != 0 */
-{
-	ulint	res;
-
-	res = 0;
-
-	ut_ad(n > 0);
-
-	n = n - 1;
-
-	for (;;) {
-		n = n / 2;
-
-		if (n == 0) {
-			break;
-		}
-
-		res++;
-	}
-
-	return(res + 1);
+int ut_pair_cmp(ulint a_h, ulint a_l, ulint b_h, ulint b_l) {
+  if (a_h < b_h) {
+    return (-1);
+  }
+  if (a_h > b_h) {
+    return (1);
+  }
+  return (ut_ulint_cmp(a_l, b_l));
 }
 
-/*************************************************************//**
-Calculates 2 to power n.
+/** Calculates fast the 2-logarithm of a number, rounded upward to an
+ integer.
+ @return logarithm in the base 2, rounded upward */
+UNIV_INLINE
+ulint ut_2_log(ulint n) /*!< in: number != 0 */
+{
+  ulint res;
+
+  res = 0;
+
+  ut_ad(n > 0);
+
+  n = n - 1;
+
+  for (;;) {
+    n = n / 2;
+
+    if (n == 0) {
+      break;
+    }
+
+    res++;
+  }
+
+  return (res + 1);
+}
+
+/** Calculates 2 to power n.
+@param[in]	n	power of 2
 @return 2 to power n */
 UNIV_INLINE
-ulint
-ut_2_exp(
-/*=====*/
-	ulint	n)	/*!< in: number */
-{
-	return((ulint) 1 << n);
+uint32_t ut_2_exp(uint32_t n) { return (1 << n); }
+
+#ifndef UNIV_HOTBACKUP
+/** Waits in loop until given condition is satisfied. It starts waiting
+using spin loop with pauses and after reaching maximum iterations, it
+switches to loop with sleeps. The sleep time is multiplied by two after
+every k-sleeps, until it reaches 100ms (starting at provided value).
+@param[in]	spins_limit		maximum iterations without sleep
+@param[in]	sleep			initial sleep time in microseconds
+@param[in]	sleep_mul2_every	number of sleeps every which sleep
+                                        is multiplied by two
+@param[in]	condition		returns true when condition is
+                                        satisfied
+@return		number of loops with sleep that have been used */
+template <typename Condition>
+inline static Wait_stats ut_wait_for(uint64_t spins_limit, uint64_t sleep,
+                                     Condition condition = {}) {
+  uint64_t sleeps = 0, spins = 0;
+#ifdef _WIN32
+  uint64_t next_level = 64;
+#else
+  uint64_t next_level = 4;
+#endif
+
+  while (!condition(spins == spins_limit)) {
+    if (spins == spins_limit) {
+      ++sleeps;
+
+      if (sleeps == next_level) {
+        sleep = std::min(sleep * 2, uint64_t{100 * 1000});
+
+#ifdef _WIN32
+        next_level += 64;
+#else
+        next_level += 4;
+#endif
+      }
+
+      os_thread_sleep(sleep);
+
+    } else {
+      ++spins;
+
+      UT_RELAX_CPU();
+    }
+  }
+
+  return (Wait_stats{sleeps});
 }
+
+#endif /* !UNIV_HOTBACKUP */

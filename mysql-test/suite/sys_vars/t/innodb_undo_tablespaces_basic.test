@@ -16,22 +16,48 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
+# We need to reboot in order to get rid of extra undo tablespaces.
+--source include/not_valgrind.inc
 
-SELECT @@GLOBAL.innodb_undo_tablespaces >= 0;
+let MYSQLD_DATADIR = `select @@datadir`;
+
+SELECT @@GLOBAL.innodb_undo_tablespaces >= 2;
 let $undo_tablespaces=`SELECT @@GLOBAL.innodb_undo_tablespaces`;
 
 
 ####################################################################
-#   Check if value can be set                                      #
+# Make sure the value can be set at runtime                        #
+# Test for invalid range and expect a warning
 ####################################################################
 
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@GLOBAL.innodb_undo_tablespaces=128;
---echo Expected error 'Read only variable'
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Expected to open 127 undo tablespaces but found 0. Will create the rest");
+--enable_query_log
+
+SET GLOBAL innodb_undo_tablespaces=2;
+SELECT @@innodb_undo_tablespaces;
+--echo # 2 Expected
+
+SET GLOBAL innodb_undo_tablespaces=1;
+--echo # Expected warning 'Truncated incorrect innodb_undo_tablespaces value'
+SELECT @@innodb_undo_tablespaces;
+--echo # 2 Expected
+
+SET GLOBAL innodb_undo_tablespaces=0;
+--echo # Expected warning 'Truncated incorrect innodb_undo_tablespaces value'
+SELECT @@innodb_undo_tablespaces;
+--echo # 2 Expected
+
+SET GLOBAL innodb_undo_tablespaces=-1;
+--echo # Expected warning 'Truncated incorrect innodb_undo_tablespaces value'
+SELECT @@innodb_undo_tablespaces;
+--echo # 2 Expected
+
+--replace_result $undo_tablespaces ORIGINAL_VALUE
+--eval SET @@GLOBAL.innodb_undo_tablespaces=$undo_tablespaces;
 
 SELECT COUNT(@@GLOBAL.innodb_undo_tablespaces);
---echo 1 Expected
+--echo # 1 Expected
 
 
 ################################################################################
@@ -41,7 +67,7 @@ SELECT COUNT(@@GLOBAL.innodb_undo_tablespaces);
 --disable_warnings
 --disable_query_log
 eval SELECT VARIABLE_VALUE-$undo_tablespaces DIFFERENCE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_undo_tablespaces';
 --enable_query_log
 --enable_warnings
@@ -52,7 +78,7 @@ WHERE VARIABLE_NAME='innodb_undo_tablespaces';
 #  Check if accessing variable with and without GLOBAL point to same variable  #
 ################################################################################
 SELECT @@innodb_undo_tablespaces = @@GLOBAL.innodb_undo_tablespaces;
---echo 1 Expected
+--echo # 1 Expected
 
 
 ################################################################################
@@ -60,19 +86,19 @@ SELECT @@innodb_undo_tablespaces = @@GLOBAL.innodb_undo_tablespaces;
 ################################################################################
 
 SELECT COUNT(@@innodb_undo_tablespaces);
---echo 1 Expected
+--echo # 1 Expected
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT COUNT(@@local.innodb_undo_tablespaces);
---echo Expected error 'Variable is a GLOBAL variable'
+--echo # Expected error 'Variable is a GLOBAL variable'
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT COUNT(@@SESSION.innodb_undo_tablespaces);
---echo Expected error 'Variable is a GLOBAL variable'
+--echo # Expected error 'Variable is a GLOBAL variable'
 
 SELECT COUNT(@@GLOBAL.innodb_undo_tablespaces);
---echo 1 Expected
+--echo # 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
 SELECT innodb_undo_tablespaces = @@SESSION.innodb_undo_tablespaces;
---echo Expected error 'Readonly variable'
+--echo # Expected error 'Unknown column'

@@ -15,7 +15,7 @@ pk INTEGER NOT NULL,
 i1 INTEGER NOT NULL,
 c1 VARCHAR(10) NOT NULL,
 PRIMARY KEY (pk)
-);
+) charset latin1;
 INSERT INTO t1
 SELECT a, 1, 'MySQL' FROM thousand;
 CREATE TABLE t2 (
@@ -23,14 +23,14 @@ pk INTEGER NOT NULL,
 c1 VARCHAR(10) NOT NULL,
 c2 varchar(10) NOT NULL,
 PRIMARY KEY (pk)
-);
+) charset latin1;
 INSERT INTO t2
 SELECT a, 'MySQL', 'MySQL' FROM ten;
 CREATE TABLE t3 (
 pk INTEGER NOT NULL,
 c1 VARCHAR(10) NOT NULL,
 PRIMARY KEY (pk)
-);
+) charset latin1;
 INSERT INTO t3
 SELECT a, 'MySQL' FROM hundred;
 CREATE TABLE t4 (
@@ -40,12 +40,14 @@ c2 varchar(10) NOT NULL,
 c3 varchar(10) NOT NULL,
 PRIMARY KEY (pk),
 KEY k1 (c1_key)
-);
+) charset latin1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t5 (
 pk INTEGER NOT NULL,
 c1 VARCHAR(10) NOT NULL,
 PRIMARY KEY (pk)
-);
+) charset latin1;
 INSERT INTO t5
 SELECT a, 'MySQL' FROM ten;
 set optimizer_switch=`mrr=on,mrr_cost_based=off`;

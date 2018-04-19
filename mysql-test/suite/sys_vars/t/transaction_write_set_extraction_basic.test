@@ -6,8 +6,8 @@
 # Scope: GLOBAL | SESSION                                                               #
 # Access Type: Dynamic                                                                  #
 # Data Type: enum                                                                       #
-# Default Value: OFF                                                                    #
-# Allowed value: OFF / MURMUR32 or  0 / 1                                               #
+# Default Value: XXHASH64                                                               #
+# Allowed value: OFF / MURMUR32 / XXHASH64 or  0 / 1 / 2                                #
 #                                                                                       #
 # Description: Test Cases of Dynamic System Variable transaction_write_set_extraction   #
 #              that checks the behavior of this variable in the following ways          #
@@ -22,10 +22,13 @@
 # 2. The new server option transaction_write_set_extraction can only be set             #
 #    when the binlog format is ROW and fails with other binlog formats.                 #
 #                                                                                       #
+# Note: This var cannot be set also when Group Replication is running.                  #
+#       This test is done in the group replication suite                                #
+#                                                                                       #
 #########################################################################################
 
---source include/not_embedded.inc
-
+# Having binlog format row as the test checks the default binlog format.
+--source include/have_binlog_format_row.inc
 #############################################################
 #                 Save initial value                        #
 #############################################################
@@ -42,7 +45,7 @@ SELECT @start_global_binlog_format;
 #####################################################################
 
 # GLOBAL SETTINGS
-SET @@GLOBAL.binlog_format= ROW;
+SET @@GLOBAL.binlog_format= 'ROW';
 SET global transaction_write_set_extraction= DEFAULT;
 SELECT @@global.transaction_write_set_extraction;
 
@@ -58,10 +61,16 @@ SELECT @@global.transaction_write_set_extraction;
 SET global transaction_write_set_extraction= 1;
 SELECT @@global.transaction_write_set_extraction;
 
+SET global transaction_write_set_extraction='XXHASH64';
+SELECT @@global.transaction_write_set_extraction;
+
+SET global transaction_write_set_extraction= 2;
+SELECT @@global.transaction_write_set_extraction;
+
 # SESSION SETTINGS
 SELECT @@session.transaction_write_set_extraction;
 
-SET @@SESSION.binlog_format= ROW;
+SET @@SESSION.binlog_format= 'ROW';
 SET session transaction_write_set_extraction=DEFAULT;
 SELECT @@session.transaction_write_set_extraction;
 
@@ -77,6 +86,12 @@ SELECT @@session.transaction_write_set_extraction;
 SET session transaction_write_set_extraction=1;
 SELECT @@session.transaction_write_set_extraction;
 
+SET session transaction_write_set_extraction='XXHASH64';
+SELECT @@session.transaction_write_set_extraction;
+
+SET session transaction_write_set_extraction=2;
+SELECT @@session.transaction_write_set_extraction;
+
 # checking that setting variable to a non existing value raises error
 # INVALID SESSION SETTINGS
 --error ER_WRONG_VALUE_FOR_VAR
@@ -84,7 +99,7 @@ SET session transaction_write_set_extraction='ABC';
 SELECT @@session.transaction_write_set_extraction;
 
 --error ER_WRONG_VALUE_FOR_VAR
-SET session transaction_write_set_extraction= 2;
+SET session transaction_write_set_extraction= 3;
 SELECT @@session.transaction_write_set_extraction;
 
 --error ER_WRONG_VALUE_FOR_VAR
@@ -149,30 +164,30 @@ SET @@SESSION.transaction_write_set_extraction=OFF;
 # Check for setting the value for this variable when binlog format is not ROW. #
 ################################################################################
 
-SET @@SESSION.binlog_format= STATEMENT;
+SET @@SESSION.binlog_format= 'STATEMENT';
 --error ER_PREVENTS_VARIABLE_WITHOUT_RBR
 SET @@SESSION.transaction_write_set_extraction= MURMUR32;
 
-SET @@SESSION.binlog_format= MIXED;
+SET @@SESSION.binlog_format= 'MIXED';
 --error ER_PREVENTS_VARIABLE_WITHOUT_RBR
 SET @@SESSION.transaction_write_set_extraction= MURMUR32;
 
-SET @@SESSION.binlog_format= ROW;
+SET @@SESSION.binlog_format= 'ROW';
 SET @@SESSION.transaction_write_set_extraction= MURMUR32;
 SELECT @@SESSION.transaction_write_set_extraction;
 
 SET @@SESSION.transaction_write_set_extraction = @start_session_value;
 SELECT @@SESSION.transaction_write_set_extraction;
 
-SET @@GLOBAL.binlog_format= STATEMENT;
+SET @@GLOBAL.binlog_format= 'STATEMENT';
 --error ER_PREVENTS_VARIABLE_WITHOUT_RBR
 SET @@GLOBAL.transaction_write_set_extraction= MURMUR32;
 
-SET @@GLOBAL.binlog_format= MIXED;
+SET @@GLOBAL.binlog_format= 'MIXED';
 --error ER_PREVENTS_VARIABLE_WITHOUT_RBR
 SET @@GLOBAL.transaction_write_set_extraction= MURMUR32;
 
-SET @@GLOBAL.binlog_format= ROW;
+SET @@GLOBAL.binlog_format= 'ROW';
 SET @@GLOBAL.transaction_write_set_extraction= MURMUR32;
 SELECT @@GLOBAL.transaction_write_set_extraction;
 

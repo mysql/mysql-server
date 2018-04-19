@@ -3,9 +3,6 @@
 # Privilege-specific tests for WL#4897: Add EXPLAIN INSERT/UPDATE/DELETE
 #
 
-# Grant tests not performed with embedded server
--- source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -15,10 +12,7 @@ CREATE TABLE privtest_db.t1 (a INT);
 CREATE TABLE privtest_db.t2 (a INT);
 INSERT INTO privtest_db.t2 VALUES (1), (2), (3);
 
-SET @orig_sql_mode= @@sql_mode;
-SET sql_mode= (SELECT replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-GRANT USAGE ON *.* TO 'privtest'@'localhost';
-SET sql_mode= @orig_sql_mode;
+CREATE USER 'privtest'@'localhost';
 GRANT SELECT ON privtest_db.t2 TO 'privtest'@'localhost';
 
 connect(con1,localhost,privtest,,);

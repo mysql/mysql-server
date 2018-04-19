@@ -77,14 +77,14 @@ ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of 'ON'
 SET @@global.ft_boolean_syntax = true;
 ERROR 42000: Incorrect argument type to variable 'ft_boolean_syntax'
 SET @@global.ft_boolean_syntax = + -><()~*:""&|;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '><()~*:""&|' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-><()~*:""&|' at line 1
 SET @@global.ft_boolean_syntax = ENABLE;
 ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of 'ENABLE'
 SET @@global.ft_boolean_syntax = 'IGNORE';
 ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of 'IGNORE'
 '#--------------------FN_DYNVARS_033_06-------------------------#'
 SELECT @@global.ft_boolean_syntax = (SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='ft_boolean_syntax') AS res;
 res
 1

@@ -2,7 +2,6 @@
 # Bug#18384390 WRONG STATISTICS WITH BIG ROW LENGTH AND PERSISTENT STATS
 #
 
--- source include/have_innodb.inc
 -- source include/have_innodb_max_16k.inc
 
 CREATE TABLE bug18384390 (

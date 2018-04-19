@@ -1,10 +1,12 @@
-CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL,
-c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL) 
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0) 
 ENGINE=InnoDB;
-ALTER TABLE tab ADD SPATIAL INDEX idx2(c2 ASC);
+ALTER TABLE tab ADD SPATIAL INDEX idx2(c2);
 ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
-ALTER TABLE tab ADD SPATIAL INDEX idx4(c4 ASC) COMMENT 'testing spatial index on Polygon';
-ALTER TABLE tab ADD SPATIAL KEY idx5(c5 ASC) COMMENT 'testing spatial index on Geometry';
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3);
+ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Polygon';
+ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
 INSERT INTO tab(c1,c2,c3,c4,c5) 
 VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
 ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
@@ -17,8 +19,8 @@ COUNT(*)
 1
 "In connection 1"
 SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 REPEATABLE-READ
 SELECT COUNT(*) FROM tab;
 COUNT(*)
@@ -28,8 +30,8 @@ c1	ST_AsText(c2)	ST_AsText(c3)	ST_AsText(c4)	ST_AsText(c5)
 1	POINT(10 10)	LINESTRING(5 5,20 20,30 30)	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))
 "In connection 2"
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 READ-COMMITTED
 START TRANSACTION;
 INSERT INTO tab(c1,c2,c3,c4,c5) 
@@ -75,13 +77,15 @@ c1	ST_AsText(c2)	ST_AsText(c4)	ST_AsText(c5)
 1	POINT(10 10)	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))	POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))
 2	POINT(20 20)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
 DROP TABLE tab;
-CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL,
-c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL) 
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0) 
 ENGINE=InnoDB;
-ALTER TABLE tab ADD SPATIAL INDEX idx2(c2 ASC);
+ALTER TABLE tab ADD SPATIAL INDEX idx2(c2);
 ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
-ALTER TABLE tab ADD SPATIAL INDEX idx4(c4 ASC) COMMENT 'testing spatial index on Polygon';
-ALTER TABLE tab ADD SPATIAL KEY idx5(c5 ASC) COMMENT 'testing spatial index on Geometry';
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3);
+ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Polygon';
+ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
 INSERT INTO tab(c1,c2,c3,c4,c5) 
 VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
 ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
@@ -94,8 +98,8 @@ COUNT(*)
 1
 "In connection 1"
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 REPEATABLE-READ
 SELECT COUNT(*) FROM tab;
 COUNT(*)
@@ -105,8 +109,8 @@ c1	ST_AsText(c2)	ST_AsText(c3)	ST_AsText(c4)	ST_AsText(c5)
 1	POINT(10 10)	LINESTRING(5 5,20 20,30 30)	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))
 "In connection 2"
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 READ-COMMITTED
 START TRANSACTION;
 INSERT INTO tab(c1,c2,c3,c4,c5) 

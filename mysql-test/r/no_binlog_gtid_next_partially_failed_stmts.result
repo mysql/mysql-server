@@ -1,0 +1,285 @@
+RESET MASTER;
+SET SESSION GTID_NEXT='MASTER_UUID:1';
+CREATE TABLE t1 (a int) ENGINE=MyISAM;
+SET SESSION GTID_NEXT='MASTER_UUID:2';
+CREATE TABLE t5 (a int) ENGINE=InnoDB;
+SET SESSION GTID_NEXT='MASTER_UUID:3';
+#
+# Original test case.
+#
+# The below DROP TABLE has partially failed before WL#7743.
+# Now if fails without side-effects and thus should not consume gitd.
+#
+DROP TABLE t1, t3;
+ERROR 42S02: Unknown table 'test.t3'
+#
+# The table t1 was not dropped.
+#
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# Verify that the above DROP TABLE statement has not consumed gtid.
+#
+include/assert.inc [Committed gtid MASTER_UUID:2 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Saved gtid MASTER_UUID:2 into mysql.gtid_executed table]
+#
+# Now we simulate error after dropping MyISAM table. In this case
+# DROP TABLE is partially executed/failed and should consume gtid.
+#
+SET @@debug="+d,rm_table_no_locks_abort_before_atomic_tables";
+SET SESSION GTID_NEXT='MASTER_UUID:3';
+DROP TABLE t1, t5;
+ERROR HY000: Unknown error
+SET @@debug="-d,rm_table_no_locks_abort_before_atomic_tables";
+#
+# The above DROP TABLE should have deleted t1.
+#
+SHOW CREATE TABLE t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+#
+# Verify that the partially failed DROP TABLE statement can consume
+# its gtid and save the gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table when binlog is disabled as it did when
+# binlog is enabled.
+#
+include/assert.inc [Committed gtid MASTER_UUID:2 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Saved gtid MASTER_UUID:2 into mysql.gtid_executed table]
+SET SESSION GTID_NEXT='MASTER_UUID:4';
+CREATE TEMPORARY TABLE tmp1 (a int);
+SET SESSION GTID_NEXT='MASTER_UUID:5';
+#
+# The below DROP TEMPORARY TABLE has partially failed before WL#7743.
+# Now if fails without side-effects and thus should not consume gitd.
+#
+# There is no way for DROP TEMPORARY TABLE to partially fail now,
+# so unlike for DROP TABLE, there is no way to test scenario with
+# partial failure for it.
+DROP TEMPORARY TABLE tmp1, t2;
+ERROR 42S02: Unknown table 'test.t2'
+#
+# Verify that failed DROP TEMPORARY TABLE statement has not
+# consumed its gtid.
+#
+include/assert.inc [Committed gtid MASTER_UUID:4 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Saved gtid MASTER_UUID:4 into mysql.gtid_executed table]
+SET SESSION GTID_NEXT='MASTER_UUID:5';
+CREATE TABLE t1(a INT, b INT);
+SET SESSION GTID_NEXT='MASTER_UUID:6';
+CREATE USER u1@h;
+#
+# Verify that u1 is added into mysql.user.
+#
+SELECT user FROM mysql.user where user='u1';
+user
+u1
+SET SESSION GTID_NEXT='MASTER_UUID:7';
+GRANT SELECT(a), SELECT(c) ON t1 TO u1@h;
+ERROR 42S22: Unknown column 'c' in 't1'
+#
+# The SELECT privilege on column a is not granted to u1@h,
+# which means that GRANT can not be failed partially when
+# granting an available privilege and a non-available
+# privilege to an existent user.
+#
+SELECT user, column_name, column_priv FROM mysql.columns_priv;
+user	column_name	column_priv
+#
+# Verify that the failed GRANT statement does not save
+# the specified gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table.
+#
+include/assert.inc [Did not commit gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Did not save gtid MASTER_UUID:7 into mysql.gtid_executed table]
+SET SESSION GTID_NEXT='MASTER_UUID:7';
+GRANT SELECT(a) ON t1 TO u1@h, u2@h;
+ERROR 42000: You are not allowed to create a user with GRANT
+#
+# The SELECT privilege on column a is not granted to u1@h,
+# which means that GRANT can not fail partially when
+# granting an available privilege to both an existent
+# user and a non-existent user.
+#
+SELECT user, column_name, column_priv FROM mysql.columns_priv;
+user	column_name	column_priv
+#
+# Verify that the failed GRANT statement does not save
+# the specified gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table.
+#
+include/assert.inc [Did not commit gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Did not save gtid MASTER_UUID:7 into mysql.gtid_executed table]
+SET SESSION GTID_NEXT='MASTER_UUID:7';
+REVOKE SELECT(a), SELECT(b) ON t1 FROM u1@h;
+ERROR 42000: There is no such grant defined for user 'u1' on host 'h' on table 't1'
+#
+# The SELECT privilege is not removed on column a from user u1,
+# which means that REVOKE statement can not fail partially
+# when revoking multiple privileges from a user.
+#
+SELECT user, column_name, column_priv FROM mysql.columns_priv;
+user	column_name	column_priv
+#
+# Verify that the failed REVOKE statement does not save
+# the specified gtid into @@GLOBAL.GTID_EXECUTED and
+# and mysql.gtid_executed table.
+#
+include/assert.inc [Did not commit gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Did not save gtid MASTER_UUID:7 into mysql.gtid_executed table]
+SET SESSION GTID_NEXT='MASTER_UUID:7';
+DROP USER u1@h, u2@h;
+ERROR HY000: Operation DROP USER failed for 'u2'@'h'
+#
+# The u1 is not removed from mysql.user which means that DROP USER
+# can not fail partially.
+#
+SELECT user FROM mysql.user where user='u1';
+user
+u1
+#
+# Verify that the failed DROP USER statement does not consume
+# its gtid and save the gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table.
+#
+include/assert.inc [Did not commit gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Did not save gtid MASTER_UUID:7 into mysql.gtid_executed table]
+SET SESSION GTID_NEXT='MASTER_UUID:7';
+RENAME TABLE t1 TO t2, t3 TO t4;
+ERROR 42S02: Table 'test.t3' doesn't exist
+#
+# The table t1 was not renamed, which means RENAME TABLE
+# can not be failed partially.
+#
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# Verify that the failed RENAME TABLE statement does not save
+# the specified gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table when binlog is disabled as it did
+# when binlog is enabled.
+#
+include/assert.inc [Did not commit gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Did not save gtid MASTER_UUID:7 into mysql.gtid_executed table]
+#
+# The OPTIMIZE TABLE statement can be failed partially when optimizing
+# multiple tables, which contain a non-existent table.
+#
+SET SESSION GTID_NEXT='MASTER_UUID:7';
+OPTIMIZE TABLE t1, t_non_existent;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+test.t_non_existent	optimize	Error	Table 'test.t_non_existent' doesn't exist
+test.t_non_existent	optimize	status	Operation failed
+#
+# When optimizing a non-existent table, verify that the OPTIMIZE TABLE
+# statement saves its specified gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table when binlog is disabled as it did
+# when binlog is enabled.
+#
+include/assert.inc [Committed gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Saved gtid MASTER_UUID:7 into mysql.gtid_executed table]
+#
+# The ANALYZE TABLE statement can be failed partially when analyzingu
+# multiple tables, which contain a non-existent table.
+#
+SET SESSION GTID_NEXT='MASTER_UUID:8';
+ANALYZE TABLE t1, t_non_existent;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t_non_existent	analyze	Error	Table 'test.t_non_existent' doesn't exist
+test.t_non_existent	analyze	status	Operation failed
+#
+# When analyzing a non-existent table, verify that the ANALYZE TABLE
+# statement saves its specified gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table when binlog is disabled as it did
+# when binlog is enabled.
+#
+include/assert.inc [Committed gtid MASTER_UUID:8 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Saved gtid MASTER_UUID:8 into mysql.gtid_executed table]
+#
+# The REPAIR TABLE statement can be failed partially when repairing
+# multiple tables, which contain a non-existent table.
+#
+SET SESSION GTID_NEXT='MASTER_UUID:9';
+REPAIR TABLE t1, t_non_existent;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t_non_existent	repair	Error	Table 'test.t_non_existent' doesn't exist
+test.t_non_existent	repair	status	Operation failed
+#
+# When repairing a non-existent table, verify that the REPAIR TABLE
+# statement saves its specified gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table when binlog is disabled as it did
+# when binlog is enabled.
+#
+include/assert.inc [Committed gtid MASTER_UUID:9 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Saved gtid MASTER_UUID:9 into mysql.gtid_executed table]
+#
+# The CHECKSUM TABLE statement can be failed partially when checksuming
+# multiple tables, which contain a non-existent table.
+#
+SET SESSION GTID_NEXT='MASTER_UUID:10';
+CHECKSUM TABLE t1, t_non_existent;
+Table	Checksum
+test.t1	0
+test.t_non_existent	NULL
+Warnings:
+Error	1146	Table 'test.t_non_existent' doesn't exist
+#
+# When checksuming a non-existent table, verify that the CHECKSUM TABLE
+# statement does not save its specified gtid into @@GLOBAL.GTID_EXECUTED
+# and mysql.gtid_executed table when binlog is disabled as it did
+# when binlog is enabled.
+#
+include/assert.inc [Did not commit gtid MASTER_UUID:10 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Did not save gtid MASTER_UUID:10 into mysql.gtid_executed table]
+SET SESSION GTID_NEXT='MASTER_UUID:11';
+RENAME USER u1@h TO u11@h, u3@h TO u33@h;
+ERROR HY000: Operation RENAME USER failed for 'u3'@'h'
+#
+# The u1 is not renamed on mysql.user which means that RENAME USER
+# cannot be failed partially.
+#
+SELECT user FROM mysql.user where user='u1';
+user
+u1
+#
+# Verify that the failed RENAME USER statement does not save
+# the specified gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table.
+#
+include/assert.inc [Did not commit gtid MASTER_UUID:11 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Did not save gtid MASTER_UUID:11 and :12 into mysql.gtid_executed table]
+SELECT password_expired FROM mysql.user where user='u1';
+password_expired
+N
+SET SESSION GTID_NEXT='MASTER_UUID:13';
+ALTER USER u1@h, u3@h PASSWORD EXPIRE;
+ERROR HY000: Operation ALTER USER failed for 'u3'@'h'
+#
+# The u1 is not altered on mysql.user which means that ALTER USER
+# cannot be failed partially.
+#
+SELECT password_expired FROM mysql.user where user='u1';
+password_expired
+N
+#
+# Verify that the failed ALTER USER statement does not save
+# the specified gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table.
+#
+include/assert.inc [Did not commit gtid MASTER_UUID:13 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Did not save gtid MASTER_UUID:13 into mysql.gtid_executed table]
+SET SESSION GTID_NEXT='MASTER_UUID:14';
+DROP TABLE t1;
+SET SESSION GTID_NEXT='MASTER_UUID:15';
+DROP TABLE t5;
+SET SESSION GTID_NEXT='MASTER_UUID:16';
+DROP USER u1@h;

@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -63,13 +70,12 @@ void Dbtup::initData()
   // Records with constant sizes
   init_list_sizes();
   cpackedListIndex = 0;
-
-  m_minFreePages = 0;
 }//Dbtup::initData()
 
 Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   : SimulatedBlock(DBTUP, ctx, instanceNumber),
     c_lqh(0),
+    c_backup(0),
     c_tsman(0),
     c_lgman(0),
     c_pgman(0),
@@ -79,13 +85,13 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
     c_undo_buffer(&ctx.m_mm),
     m_pages_allocated(0),
     m_pages_allocated_max(0),
+    c_pending_undo_page_hash(c_pending_undo_page_pool),
     f_undo_done(true)
 {
   BLOCK_CONSTRUCTOR(Dbtup);
 
   addRecSignal(GSN_DEBUG_SIG, &Dbtup::execDEBUG_SIG);
   addRecSignal(GSN_CONTINUEB, &Dbtup::execCONTINUEB);
-  addRecSignal(GSN_LCP_FRAG_ORD, &Dbtup::execLCP_FRAG_ORD);
   addRecSignal(GSN_NODE_FAILREP, &Dbtup::execNODE_FAILREP);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtup::execDUMP_STATE_ORD);
@@ -105,7 +111,6 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   addRecSignal(GSN_TUP_ABORTREQ, &Dbtup::execTUP_ABORTREQ);
   addRecSignal(GSN_NDB_STTOR, &Dbtup::execNDB_STTOR);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbtup::execREAD_CONFIG_REQ, true);
-  addRecSignal(GSN_NODE_STATE_REP, &Dbtup::execNODE_STATE_REP, true);
 
   // Trigger Signals
   addRecSignal(GSN_CREATE_TRIG_IMPL_REQ, &Dbtup::execCREATE_TRIG_IMPL_REQ);
@@ -134,6 +139,12 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   // Drop table
   addRecSignal(GSN_FSREMOVEREF, &Dbtup::execFSREMOVEREF, true);
   addRecSignal(GSN_FSREMOVECONF, &Dbtup::execFSREMOVECONF, true);
+  addRecSignal(GSN_FSOPENREF, &Dbtup::execFSOPENREF, true);
+  addRecSignal(GSN_FSOPENCONF, &Dbtup::execFSOPENCONF, true);
+  addRecSignal(GSN_FSREADREF, &Dbtup::execFSREADREF, true);
+  addRecSignal(GSN_FSREADCONF, &Dbtup::execFSREADCONF, true);
+  addRecSignal(GSN_FSCLOSEREF, &Dbtup::execFSCLOSEREF, true);
+  addRecSignal(GSN_FSCLOSECONF, &Dbtup::execFSCLOSECONF, true);
 
   addRecSignal(GSN_DROP_FRAG_REQ, &Dbtup::execDROP_FRAG_REQ);
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dbtup::execSUB_GCP_COMPLETE_REP);
@@ -161,36 +172,21 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
     ce.m_flags = 0;
   }
   { // 1
-    CallbackEntry& ce = m_callbackEntry[UNDO_CREATETABLE_LOGSYNC_CALLBACK];
-    ce.m_function = safe_cast(&Dbtup::undo_createtable_logsync_callback);
-    ce.m_flags = 0;
-  }
-  { // 2
-    CallbackEntry& ce = m_callbackEntry[DROP_TABLE_LOGSYNC_CALLBACK];
-    ce.m_function = safe_cast(&Dbtup::drop_table_logsync_callback);
-    ce.m_flags = 0;
-  }
-  { // 3
-    CallbackEntry& ce = m_callbackEntry[UNDO_CREATETABLE_CALLBACK];
-    ce.m_function = safe_cast(&Dbtup::undo_createtable_callback);
-    ce.m_flags = 0;
-  }
-  { // 4
     CallbackEntry& ce = m_callbackEntry[DROP_TABLE_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::drop_table_log_buffer_callback);
     ce.m_flags = 0;
   }
-  { // 5
+  { // 2
     CallbackEntry& ce = m_callbackEntry[DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::drop_fragment_free_extent_log_buffer_callback);
     ce.m_flags = 0;
   }
-  { // 6
+  { // 3
     CallbackEntry& ce = m_callbackEntry[NR_DELETE_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::nr_delete_log_buffer_callback);
     ce.m_flags = 0;
   }
-  { // 7
+  { // 4
     CallbackEntry& ce = m_callbackEntry[DISK_PAGE_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::disk_page_log_buffer_callback);
     ce.m_flags = CALLBACK_ACK;
@@ -239,6 +235,7 @@ Dbtup::~Dbtup()
 
 Dbtup::Apply_undo::Apply_undo()
 {
+  m_in_intermediate_log_record = false;
   m_type = 0;
   m_len = 0;
   m_ptr = 0;
@@ -338,9 +335,13 @@ void Dbtup::execCONTINUEB(Signal* signal)
     ndbrequire(handle.m_cnt == 1);
     SegmentedSectionPtr ssptr;
     handle.getSection(ssptr, 0);
-    ::copy(c_proxy_undo_data, ssptr);
+    ::copy(f_undo.m_data, ssptr);
     releaseSections(handle);
-    disk_restart_undo(signal, lsn, type, c_proxy_undo_data, len);
+    disk_restart_undo(signal,
+                      lsn,
+                      type,
+                      f_undo.m_data,
+                      len);
     return;
   }
 
@@ -363,11 +364,16 @@ void Dbtup::execSTTOR(Signal* signal)
   switch (startPhase) {
   case ZSTARTPHASE1:
     jam();
+    c_started = false;
     ndbrequire((c_lqh= (Dblqh*)globalData.getBlock(DBLQH, instance())) != 0);
+    ndbrequire((c_backup= (Backup*)globalData.getBlock(BACKUP, instance())) != 0);
     ndbrequire((c_tsman= (Tsman*)globalData.getBlock(TSMAN)) != 0);
     ndbrequire((c_lgman= (Lgman*)globalData.getBlock(LGMAN)) != 0);
     ndbrequire((c_pgman= (Pgman*)globalData.getBlock(PGMAN, instance())) != 0);
     cownref = calcInstanceBlockRef(DBTUP);
+    break;
+  case 50:
+    c_started = true;
     break;
   default:
     jam();
@@ -377,9 +383,10 @@ void Dbtup::execSTTOR(Signal* signal)
   signal->theData[1] = 3;
   signal->theData[2] = 2;
   signal->theData[3] = ZSTARTPHASE1;
-  signal->theData[4] = 255;
+  signal->theData[4] = 50;
+  signal->theData[5] = 255;
   BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBTUP_REF;
-  sendSignal(cntrRef, GSN_STTORRY, signal, 5, JBB);
+  sendSignal(cntrRef, GSN_STTORRY, signal, 6, JBB);
   return;
 }//Dbtup::execSTTOR()
 
@@ -411,7 +418,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 noOfStoredProc;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_STORED_PROC, 
 					&noOfStoredProc));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, 
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_NO_TRIGGERS, 
 					&noOfTriggers));
 
 
@@ -449,13 +456,18 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   allocCopyProcedure();
 
   c_buildIndexPool.setSize(c_noOfBuildIndexRec);
-  c_triggerPool.setSize(noOfTriggers, false, true, true, CFG_DB_NO_TRIGGERS);
+  c_triggerPool.setSize(noOfTriggers, false, true, true, CFG_TUP_NO_TRIGGERS);
 
   c_extent_hash.setSize(1024); // 4k
+
+  c_pending_undo_page_hash.setSize(MAX_PENDING_UNDO_RECORDS);
   
   Pool_context pc;
   pc.m_block = this;
   c_page_request_pool.wo_pool_init(RT_DBTUP_PAGE_REQUEST, pc);
+  c_apply_undo_pool.init(RT_DBTUP_UNDO, pc);
+  c_pending_undo_page_pool.init(RT_DBTUP_UNDO, pc);
+
   c_extent_pool.init(RT_DBTUP_EXTENT_INFO, pc);
   NdbMutex_Init(&c_page_map_pool_mutex);
   c_page_map_pool.init(&c_page_map_pool_mutex, RT_DBTUP_PAGE_MAP, pc);
@@ -484,7 +496,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   ScanOpPtr lcp;
   ndbrequire(c_scanOpPool.seize(lcp));
   new (lcp.p) ScanOp();
-  c_lcp_scan_op= lcp.i;
+  c_lcp_scan_op = lcp.i;
 
   czero = 0;
   cminusOne = czero - 1;
@@ -512,7 +524,12 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
                               &val);
     c_crashOnCorruptedTuple = val ? true : false;
   }
-
+  /**
+   * Set up read buffer used by Drop Table
+   */
+  NewVARIABLE *bat = allocateBat(1);
+  bat[0].WA = &m_read_ctl_file_data[0];
+  bat[0].nrr = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
 }
 
 void Dbtup::initRecords() 
@@ -527,6 +544,7 @@ void Dbtup::initRecords()
   // Records with dynamic sizes
   void* ptr = m_ctx.m_mm.get_memroot();
   c_page_pool.set((Page*)ptr, (Uint32)~0);
+  c_allow_alloc_spare_page=false;
 
   fragoperrec = (Fragoperrec*)allocRecord("Fragoperrec",
 					  sizeof(Fragoperrec),
@@ -681,12 +699,12 @@ void Dbtup::initializeDefaultValuesFrag()
    */
   seizeFragrecord(DefaultValuesFragment);
   DefaultValuesFragment.p->fragStatus = Fragrecord::FS_ONLINE;
-  DefaultValuesFragment.p->m_undo_complete= false;
+  DefaultValuesFragment.p->m_undo_complete= 0;
   DefaultValuesFragment.p->m_lcp_scan_op = RNIL;
   DefaultValuesFragment.p->noOfPages = 0;
   DefaultValuesFragment.p->noOfVarPages = 0;
   DefaultValuesFragment.p->m_varWordsFree = 0;
-  DefaultValuesFragment.p->m_max_page_no = 0;
+  DefaultValuesFragment.p->m_max_page_cnt = 0;
   DefaultValuesFragment.p->m_free_page_id_list = FREE_PAGE_RNIL;
   ndbrequire(DefaultValuesFragment.p->m_page_map.isEmpty());
   DefaultValuesFragment.p->m_restore_lcp_id = RNIL;
@@ -917,33 +935,4 @@ void Dbtup::execNODE_FAILREP(Signal* signal)
       (void) elementsCleaned; // Remove compiler warning
     }//if
   }//for
-}
-
-extern Uint32 compute_acc_32kpages(const ndb_mgm_configuration_iterator * p);
-
-void
-Dbtup::execNODE_STATE_REP(Signal* signal)
-{
-  jamEntry();
-  const NodeStateRep* rep = CAST_CONSTPTR(NodeStateRep,
-                                          signal->getDataPtr());
-
-  if (rep->nodeState.startLevel == NodeState::SL_STARTED)
-  {
-    jam();
-
-    const ndb_mgm_configuration_iterator * p =
-      m_ctx.m_config.getOwnConfigIterator();
-    ndbrequire(p != 0);
-
-    Uint32 free_pct = 5;
-    ndb_mgm_get_int_parameter(p, CFG_DB_FREE_PCT, &free_pct);
-
-    Uint32 accpages = compute_acc_32kpages(p);
-
-    Resource_limit rl;
-    m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
-    m_minFreePages = ((rl.m_min - accpages) * free_pct) / 100;
-  }
-  SimulatedBlock::execNODE_STATE_REP(signal);
 }

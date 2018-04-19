@@ -1,6 +1,9 @@
 # DEBUG_SYNC must be compiled in.
 --source include/have_debug_sync.inc
 
+# Temporarily skipping the test when log-bin is enabled due to Bug#22328779
+--source include/not_log_bin.inc
+
 # We need to test the use case:
 #    a. Create a transaction T1 that will be promoted to RW.
 #    b. Create a transaction T2 that will be promoted to RW.
@@ -10,7 +13,7 @@
 #    f. T1 & T2 Commit
 #    g. T3 Does a select - it should not see the changes of T1 & T2
 
---source include/have_innodb.inc
+--source include/count_sessions.inc
 
 CREATE TABLE t1 (c1 INT , c2 CHAR(10), PRIMARY KEY (c1)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES(0, "0");
@@ -170,7 +173,44 @@ disconnect con2;
 DROP TABLE t1;
 DROP TABLE t2;
 
+--echo #
+--echo # Bug 21433768: NON-REPEATABLE READ WITH REPEATABLE READ ISOLATION
+--echo #
+
+--connect (con1,localhost,root,,)
+--echo # connection con1
+
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 INT) ENGINE = InnoDB;
+INSERT INTO t1 values (1, 0), (2, 0);
+SELECT * FROM t1 ORDER BY col1;
+
+START TRANSACTION;
+UPDATE t1 SET col2 = 100;
+SET DEBUG_SYNC = 'after_trx_committed_in_memory SIGNAL s1 WAIT_FOR s2';
+--send COMMIT;
+
+connection default;
+--echo # connection default
+SET DEBUG_SYNC = 'now WAIT_FOR s1';
+UPDATE t1 SET col2 = col2 + 10 where col1 = 1;
+COMMIT;
+
+SELECT * FROM t1 ORDER BY col1;
+SET DEBUG_SYNC = 'now SIGNAL s2';
+
+connection con1;
+--echo # connection con1
+--echo # reap COMMIT for con1
+reap;
+
+connection default;
+--echo # connection default
+disconnect con1;
+
+DROP TABLE t1;
+
 # Clean up resources used in this test case.
 --disable_warnings
 SET DEBUG_SYNC= 'RESET';
 --enable_warnings
+--source include/wait_until_count_sessions.inc

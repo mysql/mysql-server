@@ -47,6 +47,7 @@ struct items {
  * @param flags the flags in the new item
  * @param exptime when the object should expire
  * @param nbytes the number of bytes in the body for the item
+ * @param cookie cookie provided by the core to identify the client
  * @return a pointer to an item on success NULL otherwise
  */
 hash_item *item_alloc(struct default_engine *engine,
@@ -146,6 +147,7 @@ hash_item *touch_item(struct default_engine *engine,
  * @param item the item to store
  * @param cas the cas value (OUT)
  * @param operation what kind of store operation is this (ADD/SET etc)
+ * @param cookie cookie provided by the core to identify the client
  * @return ENGINE_SUCCESS on success
  *
  * @todo should we refactor this into hash_item ** and remove the cas

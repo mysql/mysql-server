@@ -1,17 +1,44 @@
 create table t1 (test_name text);
 create table t2 (variable_name text);
 load data infile "MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
-insert into t2 select variable_name from information_schema.global_variables;
-insert into t2 select variable_name from information_schema.session_variables;
-update t2 set variable_name= replace(variable_name, "PERFORMANCE_SCHEMA_", "PFS_");
-update t2 set variable_name= replace(variable_name, "_HISTORY_LONG_", "_HL_");
-update t2 set variable_name= replace(variable_name, "_HISTORY_", "_H_");
-update t2 set variable_name= replace(variable_name, "_THROTTLE_QUERIES_NOT_USING_INDEXES", "_THROTTLE_QNI");
+insert into t2 select variable_name from performance_schema.global_variables;
+insert into t2 select variable_name from performance_schema.session_variables;
+update t2 set variable_name= replace(variable_name, "performance_schema_", "pfs_");
+update t2 set variable_name= replace(variable_name, "_history_long_", "_hl_");
+update t2 set variable_name= replace(variable_name, "_history_", "_h_");
+update t2 set variable_name= replace(variable_name, "_throttle_queries_not_using_indexes", "_throttle_qni");
 select variable_name as `There should be *no* long test name listed below:` from t2
 where length(variable_name) > 50;
 There should be *no* long test name listed below:
 select variable_name as `There should be *no* variables listed below:` from t2
 left join t1 on variable_name=test_name where test_name is null ORDER BY variable_name;
 There should be *no* variables listed below:
+activate_all_roles_on_login
+activate_all_roles_on_login
+cte_max_recursion_depth
+cte_max_recursion_depth
+default_collation_for_utf8mb4
+default_collation_for_utf8mb4
+disabled_storage_engines
+disabled_storage_engines
+innodb_dedicated_server
+innodb_dedicated_server
+innodb_log_spin_cpu_abs_lwm
+innodb_log_spin_cpu_abs_lwm
+innodb_log_spin_cpu_pct_hwm
+innodb_log_spin_cpu_pct_hwm
+innodb_log_wait_for_flush_spin_hwm
+innodb_log_wait_for_flush_spin_hwm
+keyring_operations
+keyring_operations
+mandatory_roles
+mandatory_roles
+regexp_stack_limit
+regexp_stack_limit
+regexp_time_limit
+regexp_time_limit
+resultset_metadata
+tls_version
+tls_version
 drop table t1;
 drop table t2;

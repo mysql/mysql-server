@@ -62,9 +62,9 @@ f238 varchar(0),
 f239 varchar(20000) binary,
 f240 varchar(2000),
 f241 char(100)
-) engine = innodb;
+) charset latin1 engine = innodb;
 
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
 load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/innodb_tb4.txt'
-into table tb4;
+into table tb4 CHARACTER SET latin1;

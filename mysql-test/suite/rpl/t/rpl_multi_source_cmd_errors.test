@@ -12,6 +12,8 @@
 #Skip on group replication runs
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_mixed.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 --source include/have_debug.inc
 
 --echo #
@@ -97,12 +99,12 @@ SET GLOBAL DEBUG=@old_debug;
 
 --error ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
---error ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_recovery";
 
 --echo # Assert that channels are not created for failed CHANGE MASTER command.
 --echo # and number of channels configured must be 2
---let $assert_text= there shall be only four rows representing 4 channels.
+--let $assert_text= there shall be only two rows representing 2 channels.
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_configuration] = 2;
 --source include/assert.inc
 

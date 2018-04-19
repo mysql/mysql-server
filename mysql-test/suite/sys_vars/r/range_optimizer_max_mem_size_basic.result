@@ -1,0 +1,48 @@
+# Display the DEFAULT value of range_optimizer_max_mem_size
+SET @@session.range_optimizer_max_mem_size = DEFAULT;
+SELECT @@session.range_optimizer_max_mem_size;
+@@session.range_optimizer_max_mem_size
+8388608
+# Change the value of range_optimizer_max_mem_size to a valid
+# value for SESSION Scope
+SET @@session.range_optimizer_max_mem_size = 4000;
+SELECT @@session.range_optimizer_max_mem_size;
+@@session.range_optimizer_max_mem_size
+4000
+# Change the value of the range_optimizer_max_mem_size to a 
+# value greater than --maximum-range-optimizer-max-mem-size
+SET session range_optimizer_max_mem_size = 20000;
+Warnings:
+Warning	1292	Truncated incorrect range_optimizer_max_mem_size value: '20000'
+SELECT @@session.range_optimizer_max_mem_size;
+@@session.range_optimizer_max_mem_size
+5000
+# Change the value of range_optimizer_max_mem_size to an invalid value
+SET @@session.range_optimizer_max_mem_size= 'NOT_CHAR_TYPE';
+ERROR 42000: Incorrect argument type to variable 'range_optimizer_max_mem_size'
+SET @@session.range_optimizer_max_mem_size = -10;
+Warnings:
+Warning	1292	Truncated incorrect range_optimizer_max_mem_size value: '-10'
+SET @@session.range_optimizer_max_mem_size = 0.5;
+ERROR 42000: Incorrect argument type to variable 'range_optimizer_max_mem_size'
+# Check if the value in session Table matches value in variable
+SET @@session.range_optimizer_max_mem_size = DEFAULT;
+SELECT * FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='range_optimizer_max_mem_size';
+VARIABLE_NAME	VARIABLE_VALUE
+range_optimizer_max_mem_size	8388608
+# Check if TRUE and FALSE values can be used on variable
+SET @@session.range_optimizer_max_mem_size = TRUE;
+SELECT @@session.range_optimizer_max_mem_size;
+@@session.range_optimizer_max_mem_size
+1
+SET @@session.range_optimizer_max_mem_size = FALSE;
+SELECT @@session.range_optimizer_max_mem_size;
+@@session.range_optimizer_max_mem_size
+0
+# Restore initial value
+SET @@session.range_optimizer_max_mem_size = DEFAULT;
+SELECT @@session.range_optimizer_max_mem_size;
+@@session.range_optimizer_max_mem_size
+8388608
+# END OF range_optimizer_max_mem_size TESTS

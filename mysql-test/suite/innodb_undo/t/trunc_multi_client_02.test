@@ -6,7 +6,7 @@
 # Test-case will test following scenarios.
 #
 # 1. Perform DML action using multiple clients and multiple undo tablespace.
-#    tablespace configured to 128 through master.opt file.
+#    Use innodb_undo_tablespaces=127 & innodb_rollback_segments=128 in master.opt file.
 #
 ################################################################################
 

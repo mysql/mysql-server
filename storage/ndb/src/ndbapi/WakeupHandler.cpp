@@ -1,14 +1,21 @@
-/*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ /*
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -50,7 +57,6 @@ MultiNdbWakeupHandler::MultiNdbWakeupHandler(Ndb* _wakeNdb)
   assert(localWakeupMutexPtr);
   /* Register the waiter Ndb to receive wakeups for all Ndbs in the group */
   PollGuard pg(* wakeNdb->theImpl);
-  woken = false;
   ignore_wakeups();
   bool rc = wakeNdb->theImpl->m_transporter_facade->registerForWakeup(wakeNdb->theImpl);
   require(rc);
@@ -180,6 +186,7 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs,
         if (isReadyToWake())  // already enough
         {
           pg.wait_for_input(0);
+          woken = false;
           ignore_wakeups();
           ret = 0;
           break;
@@ -189,11 +196,12 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs,
         first = false;
       }
       /* PollGuard will put us to sleep until something relevant happens */
-      pg.wait_for_input(timeout_millis > 10 ? 10 : timeout_millis);
+      pg.wait_for_input(timeout_millis);
       wakeNdb->theImpl->incClientStat(Ndb::WaitExecCompleteCount, 1);
  
       if (isReadyToWake())
       {
+        woken = false;
         ignore_wakeups();
         ret = 0;
         break;
@@ -234,7 +242,10 @@ void MultiNdbWakeupHandler::swapNdbsInArray(Uint32 indexA, Uint32 indexB)
 void MultiNdbWakeupHandler::notifyTransactionCompleted(Ndb* from)
 {
   Uint32 num_completed_trans;
-  wakeNdb->theImpl->lock_client();
+  if (!wakeNdb->theImpl->is_locked_for_poll())
+  {
+    wakeNdb->theImpl->lock_client();
+  }
 
   assert(wakeNdb->theImpl->wakeHandler == this);
   assert(from != wakeNdb);
@@ -257,7 +268,10 @@ void MultiNdbWakeupHandler::notifyTransactionCompleted(Ndb* from)
 
 void MultiNdbWakeupHandler::notifyWakeup()
 {
-  wakeNdb->theImpl->lock_client();
+  if (!wakeNdb->theImpl->is_locked_for_poll())
+  {
+    wakeNdb->theImpl->lock_client();
+  }
   assert(wakeNdb->theImpl->wakeHandler == this);
 
   woken = true;

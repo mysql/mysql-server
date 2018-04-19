@@ -1,0 +1,63 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+############################################################
+# 1. Execute some transactions on server 1.
+include/rpl_gr_wait_for_number_of_members.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+
+############################################################
+# 2. Force error on before_commit listener on the next
+#    transactions.
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_force_error_on_before_commit_listener';
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+SET SESSION sql_log_bin= 1;
+
+############################################################
+# 3. These transactions must be aborted.
+BEGIN;
+INSERT INTO t1 VALUES (2);
+COMMIT;
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+INSERT INTO t1 VALUES (3);
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+
+############################################################
+# 4. Clean debug flag.
+#    Next commit must succeed.
+SET @@GLOBAL.DEBUG= @debug_saved;
+INSERT INTO t1 VALUES (4);
+include/rpl_sync.inc
+
+############################################################
+# 5. Data validation on server 1.
+include/assert.inc ['There is a value 1 in table t1 on server 1']
+include/assert.inc ['There is no value 2 in table t1 on server 1']
+include/assert.inc ['There is no value 3 in table t1 on server 1']
+include/assert.inc ['There is a value 4 in table t1 on server 1']
+include/assert.inc ['The value of Count_Transactions_In_Queue should be 0 on server 1']
+include/assert.inc ['The value of Count_Transactions_Checked should be 3 on server 1']
+include/assert.inc ['The value of Count_Conflicts_Detected should be 0 on server 1']
+include/assert.inc ['The value of Last_Conflict_Free_Transaction should be 8a94f357-aab4-11df-86ab-c80aa9429456:5 on server 1']
+
+############################################################
+# 6. Data validation on server 2.
+include/assert.inc ['There is a value 1 in table t1 on server 2']
+include/assert.inc ['There is no value 2 in table t1 on server 2']
+include/assert.inc ['There is no value 3 in table t1 on server 2']
+include/assert.inc ['There is a value 4 in table t1 on server 2']
+include/assert.inc ['The value of Count_Transactions_In_Queue should be 0 on server 2']
+include/assert.inc ['The value of Count_Transactions_Checked should be 3 on server 2']
+include/assert.inc ['The value of Count_Conflicts_Detected should be 0 on server 2']
+include/assert.inc ['The value of Last_Conflict_Free_Transaction should be 8a94f357-aab4-11df-86ab-c80aa9429456:5 on server 2']
+
+############################################################
+# 7. Shutdown.
+DROP TABLE t1;
+include/group_replication_end.inc

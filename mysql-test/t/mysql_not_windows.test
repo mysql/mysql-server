@@ -1,7 +1,5 @@
 
 -- source include/not_windows.inc
-# This test should work in embedded server after we fix mysqltest
--- source include/not_embedded.inc
 #
 # Testing the MySQL command line client(mysql)
 #
@@ -11,6 +9,17 @@
 # 
 --echo Bug #54466 client 5.5 built from source lacks "pager" support
 --exec $MYSQL --pager test -e "select 1 as a"
+
+--echo #
+--echo # Bug#21074643: SERVER SETS OPEN_FILES_LIMIT UNCONDITIONALLY
+--echo #
+--echo # Filtering out the warning since platforms Solaris and osx set the
+--echo # open_files_limit to too low a value after setrlimit fails to set
+--echo # open_files_limit to 10000000
+CALL mtr.add_suppression("innodb_open_files should not be greater than the open_files_limit.");
+# .opt file tries to set limit to 10000000, but this should not work
+# so that the SELECT below should return 0.
+SELECT @@open_files_limit = 10000000;
 
 --echo
 --echo End of tests

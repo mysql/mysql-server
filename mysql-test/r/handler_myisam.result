@@ -766,7 +766,7 @@ handler t1 close;
 drop table t1;
 USE information_schema;
 HANDLER COLUMNS OPEN;
-ERROR HY000: Incorrect usage of HANDLER OPEN and information_schema
+ERROR HY000: 'information_schema.COLUMNS' is not BASE TABLE
 USE test;
 #
 # Add test coverage for HANDLER and LOCK TABLES, HANDLER and DDL.
@@ -1573,7 +1573,7 @@ CREATE TABLE t1 (id INT);
 HANDLER t1 OPEN;
 SELECT table_name, table_comment FROM information_schema.tables
 WHERE table_schema= 'test' AND table_name= 't1';
-table_name	table_comment
+TABLE_NAME	TABLE_COMMENT
 t1	
 HANDLER t1 CLOSE;
 DROP TABLE t1;
@@ -1821,6 +1821,26 @@ a	b
 HANDLER t1 CLOSE;
 DROP TABLE t1;
 #
+# Bug#21650603 ASSERT `0' FAILED AT THD::SEND_STATEMENT_STATUS() ON
+#              HANDLER READ + INVALID DATE
+#
+CREATE TABLE t (
+col_date DATE
+, col_datetime DATETIME
+, col_time TIME
+, col_year YEAR
+, KEY col_date_key (col_date)
+, KEY col_datetime_key (col_datetime)
+, KEY col_year_key (col_year));
+HANDLER t OPEN;
+HANDLER t READ col_date_key <= ('p');
+ERROR HY000: Incorrect arguments to HANDLER ... READ
+HANDLER t READ col_datetime_key <= ('p');
+ERROR HY000: Incorrect arguments to HANDLER ... READ
+HANDLER t READ col_year_key <= ('p');
+ERROR HY000: Incorrect arguments to HANDLER ... READ
+DROP TABLE t;
+#
 # BUG #46456: HANDLER OPEN + TRUNCATE + DROP (temporary) TABLE, crash 
 #
 CREATE TABLE t1 AS SELECT 1 AS f1;
@@ -2017,8 +2037,14 @@ HANDLER t1 READ FIRST;
 ERROR 42S02: Unknown table 't1' in HANDLER
 CREATE TEMPORARY TABLE t1(a INT, b INT, INDEX i(a));
 set global keycache1.key_cache_block_size=2048;
+Warnings:
+Warning	1287	keycache1.key_cache_block_size syntax is deprecated and will be removed in a future release
 set global keycache1.key_buffer_size=1*1024*1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 set global keycache1.key_buffer_size=1024*1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 # -- CACHE INDEX
 HANDLER t1 OPEN;
 CACHE INDEX t1 IN keycache1;

@@ -1,8 +1,6 @@
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP TABLE IF EXISTS t1;
-SET CHARACTER SET latin1;
+SET CHARACTER SET koi8r;
 CREATE TABLE t1 (
 comment CHAR(32) ASCII NOT NULL,
 koi8_ru_f CHAR(32) CHARACTER SET koi8r NOT NULL default ''
@@ -10,22 +8,22 @@ koi8_ru_f CHAR(32) CHARACTER SET koi8r NOT NULL default ''
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `comment` char(32) CHARACTER SET latin1 NOT NULL,
-  `koi8_ru_f` char(32) CHARACTER SET koi8r NOT NULL DEFAULT ''
+  `comment` char(32) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
+  `koi8_ru_f` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL DEFAULT ''
 ) ENGINE=ENGINE DEFAULT CHARSET=latin5
 ALTER TABLE t1 CHANGE comment comment CHAR(32) CHARACTER SET latin2 NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `comment` char(32) CHARACTER SET latin2 NOT NULL,
-  `koi8_ru_f` char(32) CHARACTER SET koi8r NOT NULL DEFAULT ''
+  `comment` char(32) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL,
+  `koi8_ru_f` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL DEFAULT ''
 ) ENGINE=ENGINE DEFAULT CHARSET=latin5
 ALTER TABLE t1 ADD latin5_f CHAR(32) NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `comment` char(32) CHARACTER SET latin2 NOT NULL,
-  `koi8_ru_f` char(32) CHARACTER SET koi8r NOT NULL DEFAULT '',
+  `comment` char(32) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL,
+  `koi8_ru_f` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL DEFAULT '',
   `latin5_f` char(32) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin5
 ALTER TABLE t1 DEFAULT CHARSET=latin2;
@@ -33,8 +31,8 @@ ALTER TABLE t1 ADD latin2_f CHAR(32) NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `comment` char(32) NOT NULL,
-  `koi8_ru_f` char(32) CHARACTER SET koi8r NOT NULL DEFAULT '',
+  `comment` char(32) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL,
+  `koi8_ru_f` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL DEFAULT '',
   `latin5_f` char(32) CHARACTER SET latin5 NOT NULL,
   `latin2_f` char(32) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin2
@@ -42,8 +40,8 @@ ALTER TABLE t1 DROP latin2_f, DROP latin5_f;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `comment` char(32) NOT NULL,
-  `koi8_ru_f` char(32) CHARACTER SET koi8r NOT NULL DEFAULT ''
+  `comment` char(32) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL,
+  `koi8_ru_f` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL DEFAULT ''
 ) ENGINE=ENGINE DEFAULT CHARSET=latin2
 INSERT INTO t1 (koi8_ru_f,comment) VALUES ('a','LAT SMALL A');
 INSERT INTO t1 (koi8_ru_f,comment) VALUES ('b','LAT SMALL B');
@@ -223,7 +221,11 @@ z	LAT CAPIT Z	2
 ю	CYR CAPIT YU	2
 я	CYR CAPIT YA	2
 ALTER TABLE t1 ADD utf8_f CHAR(32) CHARACTER SET utf8 NOT NULL default '';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 UPDATE t1 SET utf8_f=CONVERT(koi8_ru_f USING utf8);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET CHARACTER SET koi8r;
 SELECT * FROM t1;
 comment	koi8_ru_f	utf8_f
@@ -1066,6 +1068,8 @@ CYR CAPIT YA	CYR CAPIT YA
 CYR CAPIT YA	CYR SMALL YA
 CYR SMALL YA	CYR CAPIT YA
 CYR SMALL YA	CYR SMALL YA
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT t11.comment,t12.comment 
 FROM t1 t11,t1 t12 
 WHERE t11.koi8_ru_f=CONVERT(t12.utf8_f USING koi8r)
@@ -1333,6 +1337,9 @@ ALTER TABLE t1 ADD greek_f CHAR(32) CHARACTER SET greek NOT NULL;
 UPDATE t1 SET greek_f=CONVERT(ucs2_f USING greek) WHERE comment LIKE _latin2'GRE%';
 UPDATE t1 SET armscii8_f=CONVERT(ucs2_f USING armscii8) WHERE comment LIKE _latin2'ARM%';
 UPDATE t1 SET utf8_f=CONVERT(ucs2_f USING utf8) WHERE utf8_f=_utf8'';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 UPDATE t1 SET ucs2_f=CONVERT(utf8_f USING ucs2) WHERE ucs2_f=_ucs2'';
 SELECT comment, koi8_ru_f, utf8_f, hex(bin_f), ucs2_f, armscii8_f, greek_f FROM t1;
 comment	koi8_ru_f	utf8_f	hex(bin_f)	ucs2_f	armscii8_f	greek_f
@@ -1643,11 +1650,6 @@ LAT CAPIT W	2
 LAT CAPIT X	2
 LAT CAPIT Y	2
 LAT CAPIT Z	2
-GREEK CAPIT ALPHA	2
-GREEK CAPIT BETA	2
-GREEK CAPIT GAMMA	2
-GREEK CAPIT DELTA	2
-GREEK CAPIT EPSILON	2
 CYR CAPIT A	2
 CYR CAPIT BE	2
 CYR CAPIT VE	2
@@ -1679,6 +1681,11 @@ CYR CAPIT SOFT SIGN	2
 CYR CAPIT E	2
 CYR CAPIT YU	2
 CYR CAPIT YA	2
+GREEK CAPIT ALPHA	2
+GREEK CAPIT BETA	2
+GREEK CAPIT GAMMA	2
+GREEK CAPIT DELTA	2
+GREEK CAPIT EPSILON	2
 ARMENIAN CAPIT AYB	2
 ARMENIAN CAPIT BEN	2
 ARMENIAN CAPIT GIM	2
@@ -1696,6 +1703,7 @@ SET NAMES latin1;
 DO CONVERT(CAST(SUBSTRING_INDEX(FORMAT(1,'1111'), FORMAT('','Zpq'),1) 
 AS BINARY(0)) USING utf8);
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1292	Truncated incorrect INTEGER value: 'Zpq'
 Warning	1292	Truncated incorrect BINARY(0) value: '1.'
 #
@@ -1706,7 +1714,7 @@ Warning	1292	Truncated incorrect BINARY(0) value: '1.'
 #
 #
 # WL#1213 Implement 4-byte UTF8, UTF16 and UTF32
-# Testing that only utf8mb4 is superset for utf8
+# Testing that utf8mb4 and utf32 are superset for all Unicode
 # No other Unicode character set pairs have superset/subset relations
 #
 CREATE TABLE t1 (
@@ -1716,6 +1724,8 @@ ucs2 CHAR CHARACTER SET ucs2,
 utf16 CHAR CHARACTER SET utf16,
 utf32 CHAR CHARACTER SET utf32
 );
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('','','','','');
 SELECT CHARSET(CONCAT(utf8, utf8mb4)) FROM t1;
 CHARSET(CONCAT(utf8, utf8mb4))
@@ -1725,40 +1735,52 @@ ERROR HY000: Illegal mix of collations (utf8_general_ci,IMPLICIT) and (ucs2_gene
 SELECT CHARSET(CONCAT(utf8, utf16)) FROM t1;
 ERROR HY000: Illegal mix of collations (utf8_general_ci,IMPLICIT) and (utf16_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(utf8, utf32)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf8_general_ci,IMPLICIT) and (utf32_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf8, utf32))
+utf32
 SELECT CHARSET(CONCAT(utf8mb4, utf8)) FROM t1;
 CHARSET(CONCAT(utf8mb4, utf8))
 utf8mb4
 SELECT CHARSET(CONCAT(utf8mb4, ucs2)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf8mb4_general_ci,IMPLICIT) and (ucs2_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf8mb4, ucs2))
+utf8mb4
 SELECT CHARSET(CONCAT(utf8mb4, utf16)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf8mb4_general_ci,IMPLICIT) and (utf16_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf8mb4, utf16))
+utf8mb4
 SELECT CHARSET(CONCAT(utf8mb4, utf32)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf8mb4_general_ci,IMPLICIT) and (utf32_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf8mb4, utf32))
+utf8mb4
 SELECT CHARSET(CONCAT(ucs2, utf8)) FROM t1;
 ERROR HY000: Illegal mix of collations (ucs2_general_ci,IMPLICIT) and (utf8_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(ucs2, utf8mb4)) FROM t1;
-ERROR HY000: Illegal mix of collations (ucs2_general_ci,IMPLICIT) and (utf8mb4_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(ucs2, utf8mb4))
+utf8mb4
 SELECT CHARSET(CONCAT(ucs2, utf16)) FROM t1;
 ERROR HY000: Illegal mix of collations (ucs2_general_ci,IMPLICIT) and (utf16_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(ucs2, utf32)) FROM t1;
-ERROR HY000: Illegal mix of collations (ucs2_general_ci,IMPLICIT) and (utf32_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(ucs2, utf32))
+utf32
 SELECT CHARSET(CONCAT(utf16, utf8)) FROM t1;
 ERROR HY000: Illegal mix of collations (utf16_general_ci,IMPLICIT) and (utf8_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(utf16, ucs2)) FROM t1;
 ERROR HY000: Illegal mix of collations (utf16_general_ci,IMPLICIT) and (ucs2_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(utf16, utf8mb4)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf16_general_ci,IMPLICIT) and (utf8mb4_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf16, utf8mb4))
+utf8mb4
 SELECT CHARSET(CONCAT(utf16, utf32)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf16_general_ci,IMPLICIT) and (utf32_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf16, utf32))
+utf32
 SELECT CHARSET(CONCAT(utf32, utf8)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf32_general_ci,IMPLICIT) and (utf8_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf32, utf8))
+utf32
 SELECT CHARSET(CONCAT(utf32, ucs2)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf32_general_ci,IMPLICIT) and (ucs2_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf32, ucs2))
+utf32
 SELECT CHARSET(CONCAT(utf32, utf8mb4)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf32_general_ci,IMPLICIT) and (utf8mb4_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf32, utf8mb4))
+utf32
 SELECT CHARSET(CONCAT(utf32, utf16)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf32_general_ci,IMPLICIT) and (utf16_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf32, utf16))
+utf32
 DROP TABLE t1;
 #
 # Bug#58321 No warning when characters outside BMP0 is converted to UCS2
@@ -1784,6 +1806,8 @@ DROP TABLE t2;
 # ITEM_STRFUNC.CC, LINE 2760
 #
 CREATE TABLE t1 (a CHAR(1) CHARSET UTF8);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('a'), ('b');
 CREATE TABLE t2 (a BINARY(1));
 SELECT * FROM t2 WHERE a=(SELECT a FROM t1) AND a=_LATIN1'x';

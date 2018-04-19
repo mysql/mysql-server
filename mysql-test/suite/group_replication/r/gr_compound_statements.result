@@ -1,0 +1,38 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+CREATE TABLE t1 (a INT PRIMARY KEY);
+
+CREATE PROCEDURE insert_into_t1(IN a INT, IN b INT)
+BEGIN
+DECLARE x INT;
+SET x=a;
+WHILE x<b DO
+INSERT INTO t1 VALUES (x);
+SET x=x+1;
+END WHILE;
+END$$
+
+CREATE FUNCTION f1() RETURNS INT RETURN (SELECT COUNT(*) FROM t1);
+
+Calling procedure
+CALL insert_into_t1(0,10);
+
+SELECT f1();
+f1()
+10
+include/rpl_sync.inc
+
+Check if server1 and server2 has same data in test.t1
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+
+DROP TABLE t1;
+
+DROP PROCEDURE insert_into_t1;
+
+DROP FUNCTION f1;
+
+include/group_replication_end.inc

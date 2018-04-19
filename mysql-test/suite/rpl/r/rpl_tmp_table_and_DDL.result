@@ -186,9 +186,24 @@ DROP USER test_3@localhost;
 ERROR HY000: Table 'user' was not locked with LOCK TABLES
 INSERT INTO t2 VALUES ("DROP USER test_3@localhost with table locked");
 UNLOCK TABLE;
+CREATE DATABASE db;
+CREATE TABLE db.t1 LIKE t2;
+CREATE TABLE t3 LIKE t2;
+DROP TABLE t3;
+DROP DATABASE db;
 DROP USER test_3@localhost;
 DROP FUNCTION f2;
 DROP PROCEDURE p2;
 DROP EVENT e2;
+DROP TABLE t1, t2;
+CREATE TEMPORARY TABLE temp_t1 (c1 INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE temp_t2 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t1 LIKE temp_t1;
+CREATE TABLE t2 LIKE temp_t2;
+include/assert.inc ["t1 on master and temp_t1 have the same storage engine"]
+include/assert.inc ["t2 on master and temp_t2 have the same storage engine"]
+include/assert.inc ["t1 on slave and temp_t1 have the same storage engine"]
+include/assert.inc ["t2 on slave and temp_t2 have the same storage engine"]
+DROP TEMPORARY TABLE temp_t1, temp_t2;
 DROP TABLE t1, t2;
 include/rpl_end.inc

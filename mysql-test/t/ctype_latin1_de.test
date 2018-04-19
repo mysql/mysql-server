@@ -1,13 +1,14 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test latin_de character set
 #
 
 set names latin1;
+--character_set latin1
+
+let $old_collation_schema= `SELECT @@collation_database`;
+let $collation_server=`SELECT @@global.collation_server`;
+eval ALTER SCHEMA test COLLATE $collation_server;
+
 set @@collation_connection=latin1_german2_ci;
 
 select @@collation_connection;
@@ -16,7 +17,7 @@ select @@collation_connection;
 drop table if exists t1;
 --enable_warnings
 
-create table t1 (a char (20) not null, b int not null auto_increment, index (a,b));
+create table t1 (a char (20) not null, b int not null primary key auto_increment, index (a,b));
 insert into t1 (a) values ('ä'),('ac'),('ae'),('ad'),('Äc'),('aeb');
 insert into t1 (a) values ('üc'),('uc'),('ue'),('ud'),('Ü'),('ueb'),('uf');
 insert into t1 (a) values ('ö'),('oc'),('Öa'),('oe'),('od'),('Öc'),('oeb');
@@ -56,7 +57,7 @@ select strcmp('sä', 'ßa'), strcmp('aä', 'äx');
 # Some other simple tests with the current character set
 #
 
-create table t1 (a varchar(10), key(a), fulltext (a));
+create table t1 (a varchar(10), key(a), fulltext (a)) engine=myisam;
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 select * from t1 where a like "abc%"; 
 select * from t1 where a like "test%"; 
@@ -163,7 +164,6 @@ drop table t1;
 set @@collation_connection=latin1_german2_ci;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 select hex(weight_string('Ä'));
 select hex(weight_string('ä'));
 select hex(weight_string('Ö'));
@@ -185,3 +185,6 @@ select hex(weight_string('xß' as char(2)));
 --echo #
 --echo # End of 5.6 tests
 --echo #
+
+# Revert the collation of the 'test' schema
+eval ALTER SCHEMA test COLLATE $old_collation_schema;

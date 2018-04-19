@@ -1,6 +1,4 @@
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 USE test;
 drop table if exists tb3;
 create table tb3 (
@@ -56,16 +54,20 @@ f172 numeric zerofill,
 f173 numeric unsigned zerofill,
 f174 numeric (0),
 f175 numeric (64)
-) engine = <engine_to_be_used>;
+) charset latin1 engine = <engine_to_be_used>;
 Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/memory_tb3.txt'
-into table tb3;
+into table tb3 character set latin1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.10.1/2/3:
 ----------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Create view vw11 as select * from tb3
 where f122 like 'Test 3.5.10.1/2/3%';
 Create trigger trg1a before insert on tb3
@@ -129,9 +131,13 @@ drop trigger trg1d;
 drop trigger trg1e;
 drop trigger trg1f;
 delete from tb3 where f122 like 'Test 3.5.10.1/2/3%';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.10.4:
 ------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table tb_load (f1 int, f2 char(25),f3 int) engine = <engine_to_be_used>;
 Create trigger trg4 before insert on tb_load
 for each row set new.f3=-(new.f1 div 5), @counter= @counter+1;
@@ -139,7 +145,7 @@ set @counter= 0;
 select @counter as 'Rows Loaded Before';
 Rows Loaded Before
 0
-load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t9.txt' into table tb_load;
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t9.txt' into table tb_load character set latin1;
 select @counter as 'Rows Loaded After';
 Rows Loaded After
 10
@@ -157,15 +163,27 @@ f1	f2	f3
 -4991	a_aaaaaaaaa	998
 drop trigger trg4;
 drop table tb_load;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.10.5: (implemented in trig_frkey.test)
 ---------------------------------------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.10.6: (implemented in trig_frkey.test)
 ---------------------------------------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.10.extra:
 ----------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1_sp (var136 tinyint, var151 decimal) engine = <engine_to_be_used>;
 create trigger trg before insert on t1_sp
 for each row set @counter=@counter+1;
@@ -203,12 +221,20 @@ count(*)
 drop procedure trig_sp;
 drop trigger trg;
 drop table t1_sp;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.11.1 (implemented in trig_perf.test)
 -------------------------------------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase y.y.y.2: Check for triggers starting triggers
 ------------------------------------------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use test;
 drop table if exists t1;
 drop table if exists t2_1;
@@ -251,9 +277,13 @@ drop trigger tr2_2;
 drop trigger tr2_3;
 drop trigger tr2_4;
 drop table t1, t2_1, t2_2, t2_3, t2_4, t3;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase y.y.y.3: Circular trigger reference
 --------------------------------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use test;
 drop table if exists t1;
 drop table if exists t2;
@@ -295,9 +325,13 @@ drop table t1;
 drop table t2;
 drop table t3;
 drop table t4;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase y.y.y.4: Recursive trigger/SP references
 -------------------------------------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set @sql_mode='traditional';
 create table t1_sp (
 count integer,
@@ -355,12 +389,14 @@ count(*)
 drop procedure trig_sp;
 drop trigger trg;
 drop table t1_sp;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase y.y.y.5: Rollback of nested trigger references
 -------------------------------------------------------
-set @@sql_mode='traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+set @@sql_mode='traditional';
 use test;
 drop table if exists t1;
 drop table if exists t2;
@@ -370,11 +406,6 @@ create table t1 (f1 integer) engine = <engine_to_be_used>;
 create table t2 (f2 integer) engine = <engine_to_be_used>;
 create table t3 (f3 integer) engine = <engine_to_be_used>;
 create table t4 (f4 tinyint) engine = <engine_to_be_used>;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values (1);
 create trigger tr1 after insert on t1
 for each row insert into t2 (f2) values (new.f1+1);

@@ -1,19 +1,23 @@
 !include include/default_mysqld.cnf
 
+# Set innodb-write-io-threads and innodb-read-io-threads to 2,
+# instead of the default value 4, so that the aio-max-nr limit
+# is not exceeded due to the increased number of concurrent mysqld
+# instances when MTR runs rpl tests with parallel 4 or more.
+
 [mysqld.1]
-log-slave-updates
 new=1
 innodb_flush_log_at_trx_commit= 0
 
 [mysqld.2]
-log-slave-updates
 new=1
 innodb_flush_log_at_trx_commit= 0
 
 [mysqld.3]
-log-slave-updates
 new=1
 innodb_flush_log_at_trx_commit= 0
+loose-innodb_write_io_threads=    2
+loose-innodb_read_io_threads=     2
 
 [ENV]
 SERVER_MYPORT_1= @mysqld.1.port

@@ -42,11 +42,10 @@ aaa
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-explain extended select if(u=1,st,binary st) s from t1 where st like "%a%" order by s;
+explain select if(u=1,st,binary st) s from t1 where st like "%a%" order by s;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; Using filesort
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select if((`test`.`t1`.`u` = 1),`test`.`t1`.`st`,cast(`test`.`t1`.`st` as char charset binary)) AS `s` from `test`.`t1` where (`test`.`t1`.`st` like '%a%') order by `s`
 select nullif(u, 1) from t1;
 nullif(u, 1)
@@ -57,11 +56,10 @@ NULL
 NULL
 0
 0
-explain extended select nullif(u, 1) from t1;
+explain select nullif(u, 1) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select nullif(`test`.`t1`.`u`,1) AS `nullif(u, 1)` from `test`.`t1`
 drop table t1;
 select nullif(1,'test');
@@ -198,8 +196,8 @@ CREATE TABLE t1 (a LONGBLOB, b DOUBLE);
 INSERT INTO t1 VALUES (NULL, 0), (NULL, 1);
 SELECT IF(b, (SELECT a FROM t1 LIMIT 1), b) c FROM t1 GROUP BY c;
 c
-NULL
 0
+NULL
 DROP TABLE t1;
 #
 # Bug#12620084
@@ -230,3 +228,60 @@ foo
 0.1
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'a'
+#
+# Bug#22148586 IF(BOOL, DATE STR, DATE STR) THROWS ERROR IN UPDATE
+#
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES(1);
+UPDATE t1 SET c1 = 2 WHERE IF(true, '2015-01-01', '2015-01-01') IS NOT NULL;
+DROP TABLE t1;
+#
+# Bug#24492965 ERROR RESULTS FROM CALCULATION
+#
+CREATE TABLE test_grids_1 (
+unq_id int(11) NOT NULL DEFAULT '0',
+var_fld int(11) DEFAULT '0'
+);
+INSERT INTO test_grids_1 VALUES
+(1,4500),
+(2,6000);
+CREATE TABLE test_grid_dtl_1 (
+dtl_id int(11) NOT NULL DEFAULT '0',
+unq_id int(11) DEFAULT '0'
+);
+INSERT INTO test_grid_dtl_1 VALUES
+(1,1),
+(2,1),
+(3,2);
+SELECT g.calc_var, g.if_var, g.case_var
+FROM
+(
+SELECT unq_id,
+IF ( var_fld  > 5000, (     1 / var_fld ) , 5000 ) calc_var,
+IF ( var_fld  > 5000, ( 00001 / var_fld ) , 5000 ) if_var,
+CASE  var_fld  > 5000 WHEN TRUE THEN ( 1 / var_fld ) ELSE 5000 END case_var
+FROM
+test_grids_1
+) g
+JOIN
+test_grid_dtl_1 d USING (unq_id)
+ORDER BY 1
+;
+calc_var	if_var	case_var
+0.0002	0.0002	0.0002
+5000.0000	5000.0000	5000.0000
+5000.0000	5000.0000	5000.0000
+DROP TABLE test_grids_1, test_grid_dtl_1;
+# Bug#25669606: regression: assertion failed: !is_temporal()
+DO NULLIF(CAST(DATABASE() AS TIME), 1);
+Warnings:
+Warning	1292	Truncated incorrect time value: 'test'
+Warning	1292	Truncated incorrect time value: 'test'
+DO NULLIF(CAST(DATABASE() AS DATE), 1);
+Warnings:
+Warning	1292	Incorrect datetime value: 'test'
+Warning	1292	Incorrect datetime value: 'test'
+DO NULLIF(CAST(DATABASE() AS DATETIME), 1);
+Warnings:
+Warning	1292	Incorrect datetime value: 'test'
+Warning	1292	Incorrect datetime value: 'test'

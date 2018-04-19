@@ -1,5 +1,3 @@
-#Want to skip this test from daily Valgrind execution
---source include/no_valgrind_without_big.inc
 #
 # Test for the functionality of InnoDB Buffer Pool dump/load.
 #
@@ -8,9 +6,12 @@
 # with innodb_buffer_pool_dump_now=ON
 # and innodb_buffer_pool_load_now=ON
 
---source include/have_innodb.inc
-# include/restart_mysqld.inc does not work in embedded mode
---source include/not_embedded.inc
+# Skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+
+# Skip this test if page size is too big since buffer pool may not be
+# large enough, especially if using multiple undo tablespaces.
+--source include/have_innodb_max_16k.inc
 
 --let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
 
@@ -30,7 +31,7 @@ let $check_cnt =
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page_lru
 WHERE table_name LIKE '%ib_bp_test%';
 
---let SPACE = `SELECT space FROM information_schema.innodb_sys_tables WHERE name LIKE '%ib_bp_test%'`
+--let SPACE = `SELECT space FROM information_schema.innodb_tables WHERE name LIKE '%ib_bp_test%'`
 
 # See that we have a small number of pages in the LRU
 --eval $check_cnt
@@ -60,7 +61,7 @@ SET GLOBAL innodb_buffer_pool_dump_now = ON;
 --disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
 --enable_warnings
 --source include/wait_condition.inc
@@ -104,7 +105,7 @@ SET GLOBAL innodb_buffer_pool_load_now = ON;
 --disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 --source include/wait_condition.inc
@@ -113,7 +114,7 @@ let $wait_condition =
 --disable_warnings
 --replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 
@@ -131,7 +132,7 @@ print $fh "abcdefg\n";
 close($fh);
 EOF
 
-call mtr.add_suppression("InnoDB: Error parsing");
+call mtr.add_suppression("Error parsing");
 
 # Load
 SET GLOBAL innodb_buffer_pool_load_now = ON;
@@ -140,7 +141,7 @@ SET GLOBAL innodb_buffer_pool_load_now = ON;
 --disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 13) = 'Error parsing'
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 --source include/wait_condition.inc
@@ -168,7 +169,7 @@ SET GLOBAL innodb_buffer_pool_load_now = ON;
 --disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 --source include/wait_condition.inc
@@ -177,9 +178,25 @@ let $wait_condition =
 --disable_warnings
 --replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 
 DROP TABLE ib_bp_test;
 SET GLOBAL innodb_buffer_pool_dump_pct=default;
+
+--echo #
+--echo # Bug#21371070 [ERROR] INNODB: CANNOT ALLOCATE 0 BYTES: SUCCESS
+--echo #
+
+--let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
+
+# Remove the buffer pool file that exists already
+--error 0,1
+--remove_file $file
+
+# Create an empty buffer pool file
+write_file $file;
+EOF
+
+SET GLOBAL innodb_buffer_pool_load_now = ON;

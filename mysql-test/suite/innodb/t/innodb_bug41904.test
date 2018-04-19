@@ -2,8 +2,6 @@
 # Make sure http://bugs.mysql.com/41904 remains fixed.
 #
 
--- source include/not_embedded.inc
--- source include/have_innodb.inc
 
 CREATE TABLE bug41904 (id INT PRIMARY KEY, uniquecol CHAR(15)) ENGINE=InnoDB;
 

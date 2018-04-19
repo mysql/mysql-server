@@ -14,16 +14,10 @@
 #                                                                      #
 ########################################################################
 
-# This test does not make sense on the embedded server because processlist
-# will be empty.
---source include/not_embedded.inc
 
 # The file with expected results fits only to a run without
 # ps-protocol/sp-protocol/cursor-protocol/view-protocol.
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
-            + $VIEW_PROTOCOL > 0`)
-{
-   --skip Test requires: ps-protocol/sp-protocol/cursor-protocol/view-protocol disabled
-}
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
 --source suite/funcs_1/datadict/processlist_val.inc

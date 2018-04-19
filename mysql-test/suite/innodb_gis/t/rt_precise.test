@@ -3,7 +3,6 @@
 # Since Innodb does not support the spatial key, hence converted
 # Orginal name of the testcase : gis_rt_precise.test
 #*****************************************************************
--- source include/have_geometry.inc
 SET default_storage_engine=InnoDB;
 
 #
@@ -33,6 +32,9 @@ while ($1)
 --enable_query_log
 
 SELECT count(*) FROM t1;
+
+ANALYZE TABLE t1;
+
 --replace_column 10 #
 EXPLAIN SELECT fid, ST_AsText(g) FROM t1 WHERE ST_Within(g, ST_GeomFromText('Polygon((140 140,160 140,160 160,140 140))'));
 SELECT fid, ST_AsText(g) FROM t1 WHERE ST_Within(g, ST_GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))')) ORDER BY fid;
@@ -41,7 +43,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (
   fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  g GEOMETRY NOT NULL
+  g GEOMETRY NOT NULL SRID 0
 ) ENGINE=InnoDB;
 
 --disable_query_log

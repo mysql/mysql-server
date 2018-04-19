@@ -1,0 +1,126 @@
+
+--echo # Creating tables
+CREATE TABLE t_int (c1  TINYINT,
+                    c2  SMALLINT,
+                    c3  MEDIUMINT,
+                    c4  INT,
+                    c5  INTEGER,
+                    c6  SMALLINT UNSIGNED,
+                    c7  MEDIUMINT UNSIGNED,
+                    c8  INT UNSIGNED,
+                    c9  INTEGER);
+
+CREATE TABLE t_bigint (c1  BIGINT,
+                       c2  BIGINT UNSIGNED);
+
+CREATE TABLE t_real (c1 REAL UNSIGNED,
+                     c2 DOUBLE UNSIGNED,
+                     c3 FLOAT UNSIGNED,
+                     c4 DECIMAL UNSIGNED,
+                     c5 NUMERIC UNSIGNED,
+                     c6 DOUBLE,
+                     c7 FLOAT,
+                     c8 DECIMAL,
+                     c9 NUMERIC);
+
+CREATE TABLE t_date (c1 DATE,
+                     c2 TIME,
+                     c3 TIMESTAMP,
+                     c4 DATETIME,
+                     c5 YEAR);
+
+CREATE TABLE t_char (c1 CHAR(32),
+                     c2 VARCHAR(128) BINARY,
+                     c3 VARCHAR(128),
+                     c4 BINARY(128),
+                     c5 VARBINARY(2048));
+
+CREATE TABLE t_lob (c1  TINYBLOB,
+                    c2  BLOB,
+                    c3  MEDIUMBLOB,
+                    c4  LONGBLOB,
+                    c5  TINYTEXT,
+                    c6  TEXT,
+                    c7  MEDIUMTEXT,
+                    c8  LONGTEXT,
+                    c9  TINYTEXT BINARY,
+                    c10 TEXT BINARY,
+                    c11 MEDIUMTEXT BINARY,
+                    c12 LONGTEXT BINARY);
+
+CREATE TABLE t_spec (c1 BIT(16),
+                     c2 ENUM('v1','v2','v3'),
+                     c3 SET('v1','v2','v3'));
+
+--echo # Inserting values into the tables
+INSERT INTO t_int VALUES (91,92,93,94,95,96,97,98,99),(81,82,83,84,85,86,87,88,89);
+
+INSERT INTO t_bigint VALUES (91,92),(81,82);
+
+INSERT INTO t_real VALUES (8.51,8.52,8.53,8.54,8.55,8.56,8.57,8.58,8.59);
+
+INSERT INTO t_real VALUES (9.51,9.52,9.53,9.54,9.55,9.56,9.57,9.58,9.59);
+
+INSERT INTO t_date VALUES ('2015-07-06','20:15','2015-12-31 14:59:48','2014-11-30 13:58:47','2015');
+
+INSERT INTO t_date VALUES ('2015-07-07','20:17','2013-12-31 17:59:47','2012-10-31 15:57:47','2010');
+
+INSERT INTO t_char VALUES ('char-text','varchar-binary-text\nnext line','varchar-text','binary-text\nnext line','varbinary-text\nline 1\nline 2');
+
+INSERT INTO t_char VALUES ('2char-text','2varchar-binary-text\nnext line','2varchar-text','2binary-text\nnext line','2varbinary-text\nline 1\nline 2');
+
+INSERT INTO t_lob  VALUES ('tinyblob-text readable','blob-text readable','mediumblob-text readable',
+                           'longblob-text readable','tinytext','text','mediumtext','longtext',
+                           'tinytext-binary\nnext line','text-binary\nnext line',
+                           'mediumtext-binary\nnext line','longtext-binary \nnext line');
+
+INSERT INTO t_lob  VALUES ('2tinyblob-text readable','2blob-text readable','2mediumblob-text readable',
+                           '2longblob-text readable','2tinytext','2text','2mediumtext','2longtext',
+                           '2tinytext-binary\nnext line','2text-binary\nnext line',
+                           '2mediumtext-binary\nnext line','2longtext-binary \nnext line');
+
+INSERT INTO t_spec VALUES ( b'111', 'v1', 'v1');
+
+SELECT * FROM t_int ;
+SELECT * FROM t_bigint ;
+SELECT * FROM t_real;
+SELECT * FROM t_date;
+
+# Only text columns are selected to avaoid not deterministinc results.
+SELECT c3 FROM t_char;
+
+# Only text columns are selected to avaoid not deterministinc results.
+SELECT c5,c6,c7,c8 FROM t_lob ;
+
+SELECT * FROM t_spec;
+
+--echo ##########################################
+--echo # Run plugin
+--echo ##########################################
+--replace_result $TEST_SQL_2_SESSIONS TEST_SQL_2_SESSIONS
+eval INSTALL PLUGIN test_sql_2_sessions SONAME '$TEST_SQL_2_SESSIONS';
+
+--echo ##########################################
+--echo # Stop plugin
+--echo ##########################################
+UNINSTALL PLUGIN test_sql_2_sessions;
+
+--echo ##########################################
+--echo # Plugin log
+--echo ##########################################
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_sql_2_sessions.log;
+remove_file $MYSQLD_DATADIR/test_sql_2_sessions.log;
+
+--echo ##########################################
+--echo # Cleanup
+--echo ##########################################
+
+--echo # Dropping the created tables
+DROP TABLE IF EXISTS t_int;
+DROP TABLE IF EXISTS t_bigint;
+DROP TABLE IF EXISTS t_real;
+DROP TABLE IF EXISTS t_date;
+DROP TABLE IF EXISTS t_char;
+DROP TABLE IF EXISTS t_lob;
+DROP TABLE IF EXISTS t_spec;

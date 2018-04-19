@@ -28,16 +28,8 @@
 --echo #
 --echo # Verify that the DATA/INDEX DIR is stored and used if ALTER to MyISAM.
 --echo #
---source include/have_innodb.inc
-# The server must support partitioning.
---source include/have_partition.inc
-# The server must support symlink for DATA/INDEX DIRECTORY.
---source include/have_symlink.inc
 # windows does not support symlink for DATA/INDEX DIRECTORY.
 --source include/not_windows.inc
-
-# Does not work with --embedded
---source include/not_embedded.inc
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -75,9 +67,7 @@ PARTITION BY HASH (c1) (
 SHOW WARNINGS;
 
 --echo #
---echo # InnoDB is different from MyISAM in that it uses a text file
---echo # with an '.isl' extension instead of a symbolic link so that
---echo # the tablespace can be re-located on any OS. Also, instead of
+--echo # InnoDB is different from MyISAM in that instead of
 --echo # putting the file directly into the DATA DIRECTORY,
 --echo # it adds a folder under it with the name of the database.
 --echo # Since strict mode is off, InnoDB ignores the INDEX DIRECTORY
@@ -97,7 +87,17 @@ PARTITION BY HASH (c1)
 );
 SHOW WARNINGS;
 
---echo # Verifying .frm, .par, .isl & .ibd files
+--echo # Also create a partitioned table with DATA DIRECTORY clasue at
+--echo # the table level.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval CREATE TABLE t2 (c1 int) ENGINE = InnoDB
+ DATA DIRECTORY = '$MYSQLTEST_VARDIR/mysql-test-data-dir'
+PARTITION BY HASH (c1)
+(PARTITION p0,
+ PARTITION p1
+);
+
+--echo # Verifying .ibd files
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir/test
@@ -111,16 +111,24 @@ SHOW WARNINGS;
 FLUSH TABLES;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SHOW CREATE TABLE t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+SHOW CREATE TABLE t2;
 
 --echo #
---echo # Verify that the DATA/INDEX DIRECTORY is stored and used if we
+--echo # Verify how the DATA/INDEX DIRECTORY is stored and used if we
 --echo # ALTER TABLE to MyISAM.
 --echo #
-ALTER TABLE t1 engine=MyISAM;
+ALTER TABLE t1 engine=MyISAM REMOVE PARTITIONING;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SHOW CREATE TABLE t1;
---echo # Verifying .frm, .par and MyISAM files (.MYD, MYI)
+
+ALTER TABLE t2 engine=MyISAM REMOVE PARTITIONING;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+SHOW CREATE TABLE t2;
+
+--echo # Verifying .par and MyISAM files (.MYD, MYI)
 --echo ---- MYSQLD_DATADIR/test
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir
 --list_files $MYSQLTEST_VARDIR/mysql-test-data-dir
@@ -128,14 +136,20 @@ SHOW CREATE TABLE t1;
 --list_files $MYSQLTEST_VARDIR/mysql-test-idx-dir
 
 --echo #
---echo # Now verify that the DATA DIRECTORY is used again if we
+--echo # Now verify how the DATA DIRECTORY is used again if we
 --echo # ALTER TABLE back to InnoDB.
 --echo #
 SET SESSION innodb_strict_mode = ON;
+
 ALTER TABLE t1 engine=InnoDB;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SHOW CREATE TABLE t1;
---echo # Verifying .frm, .par, .isl and InnoDB .ibd files
+
+ALTER TABLE t2 engine=InnoDB;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+SHOW CREATE TABLE t2;
+
+--echo # Verifying InnoDB .ibd files
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir
@@ -146,6 +160,92 @@ SHOW CREATE TABLE t1;
 --list_files $MYSQLTEST_VARDIR/mysql-test-data-dir/test
 
 DROP TABLE t1;
+DROP TABLE t2;
+
+--disable_query_log
+EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
+EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
+--enable_query_log
+
+#
+# Bug 32091: Security breach via directory changes
+#
+# Note: The description below is kept for historical reasons.
+#       An updated description is provided further below.
+#
+# The below test shows that a pre-existing table mysqltest2.t1 cannot be
+# replaced by a user with no rights in 'mysqltest2'. The altered table
+# test.t1 will be altered (remove partitioning) into the test directory
+# and having its partitions removed from the mysqltest2 directory.
+# (the partitions data files are named <tablename>#P#<partname>.MYD
+# and will not collide with a non partitioned table's data files.) 
+# NOTE: the privileges on files and directories are the same for all
+# database users in mysqld, though mysqld enforces privileges on
+# the database and table levels which in turn maps to directories and
+# files, but not the other way around (any db-user can use any
+# directory or file that the mysqld-process can use, via DATA/INDEX DIR)
+# this is the security flaw that was used in bug#32091 and bug#32111
+#
+# After WL#8971, this test is rewritten to use InnoDB.
+# We create two partitioned tables in separate schemas. Then,
+# partitioning is removed, which makes the data files be
+# located in MYSQL_DATA_DIR/<schema name>.
+
+--echo # Creating two non colliding tables test2.t1 and test.t1.
+CREATE DATABASE test2;
+USE test2;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval CREATE TABLE t1 (a INT)
+   ENGINE = InnoDB
+   DATA DIRECTORY '$MYSQLTEST_VARDIR/tmp'
+   PARTITION BY LIST (a) (
+    PARTITION p0 VALUES IN (0),
+    PARTITION p1 VALUES IN (1)
+  );
+INSERT INTO t1 VALUES (0);
+
+USE test;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval CREATE TABLE t1 (a INT)
+   ENGINE = InnoDB
+   DATA DIRECTORY '$MYSQLTEST_VARDIR/tmp'
+   PARTITION BY LIST (a) (
+    PARTITION p0 VALUES IN (0),
+    PARTITION p1 VALUES IN (1)
+  );
+INSERT INTO t1 VALUES (1);
+
+ALTER TABLE test.t1 ENGINE= MyISAM REMOVE PARTITIONING;
+
+--echo # datadir/test:
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--list_files $MYSQLD_DATADIR/test
+
+--echo # datadir/test2:
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--list_files $MYSQLD_DATADIR/test2
+
+ALTER TABLE test2.t1 ENGINE= MyISAM REMOVE PARTITIONING;
+
+--echo # datadir/test:
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--list_files $MYSQLD_DATADIR/test
+
+--echo # datadir/test2:
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--list_files $MYSQLD_DATADIR/test2
+
+FLUSH TABLES;
+SELECT * FROM test.t1;
+SELECT * FROM test2.t1;
+
+DROP TABLE test2.t1;
+DROP TABLE test.t1;
+DROP DATABASE test2;
 
 --echo #
 --echo # Cleanup
@@ -154,11 +254,5 @@ DROP TABLE t1;
 --rmdir $MYSQLTEST_VARDIR/mysql-test-data-dir/test
 --rmdir $MYSQLTEST_VARDIR/mysql-test-data-dir
 --rmdir $MYSQLTEST_VARDIR/mysql-test-idx-dir
-
---disable_query_log
-EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
-EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
---enable_query_log
-
-
-
+--rmdir $MYSQLTEST_VARDIR/tmp/test2
+--rmdir $MYSQLTEST_VARDIR/tmp/test

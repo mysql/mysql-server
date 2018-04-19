@@ -1,5 +1,6 @@
 # Test needs myisam for some myisam specific testcases
 --source include/have_myisam.inc
+
 #
 # Test of heap tables.
 #
@@ -110,7 +111,7 @@ drop table t1;
 # Test when using part key searches
 #
 
-create table t1 (btn char(10) not null, key using BTREE (btn)) engine=heap;
+create table t1 (btn char(10) not null, key using BTREE (btn)) charset utf8mb4 engine=heap;
 insert into t1 values ("hello"),("hello"),("hello"),("hello"),("hello"),("a"),("b"),("c"),("d"),("e"),("f"),("g"),("h"),("i");
 explain select * from t1 where btn like "i%";
 --replace_column 10 #
@@ -239,7 +240,7 @@ SELECT INDEX_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=DATABASE()
 DROP TABLE t1;
 
 #
-# BUG#12873 - BTREE index on MEMORY table with multiple NULL values doesn't
+# BUG#12873 - BTREE index on MEMORY table with multiple NULL values does not
 # work properly
 #
 CREATE TABLE t1 (a INT, UNIQUE USING BTREE(a)) ENGINE=MEMORY;
@@ -265,3 +266,17 @@ DELETE a1 FROM t1 AS a1, t1 AS a2 WHERE a1.a=a2.a;
 DROP TABLE t1;
 --echo End of 5.0 tests
 
+--echo # Bug#24364448: Check that btree indexes may be used to provide ordering
+
+CREATE TABLE t1(
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  c1 INT NOT NULL,
+  c2 INT NOT NULL,
+  UNIQUE KEY USING BTREE (c2,c1)) ENGINE = MEMORY;
+
+INSERT INTO t1(c1,c2) VALUES (5,1), (4,1), (3,5), (2,3), (1,3);
+
+EXPLAIN SELECT c2, COUNT(c1) FROM t1 GROUP BY c2;
+SELECT c2, COUNT(c1) FROM t1 GROUP BY c2;
+
+DROP TABLE t1;

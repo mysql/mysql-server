@@ -4,6 +4,8 @@ Start of 5.4 tests
 # WL#4642 Greek locale for DAYNAME, MONTHNAME, DATE_FORMAT
 #
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET @@lc_time_names=109;
 SELECT @@lc_time_names;
 @@lc_time_names
@@ -67,6 +69,8 @@ format(123456.789, 3, 'sr_RS')
 # Bug#43207 wrong LC_TIME names for romanian locale
 #
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET lc_time_names=ro_RO;
 SELECT DATE_FORMAT('2001-01-01', '%w %a %W');
 DATE_FORMAT('2001-01-01', '%w %a %W')
@@ -97,6 +101,8 @@ End of 5.4 tests
 # WL#5303 Romansh locale for DAYNAME, MONTHNAME, DATE_FORMAT
 #
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET @old_50915_lc_time_names := @@lc_time_names;
 SET lc_time_names=en_US;
 SELECT DATE_FORMAT('2001-01-01', '%w %a %W');

@@ -230,7 +230,7 @@ SELECT city.Name, country.Name FROM city,country
   WHERE city.country=country.Code AND 
         country.Name LIKE 'L%' AND city.Population > 100000;
 
-ALTER TABLE country MODIFY Name varchar(300) NOT NULL default '';
+ALTER TABLE country MODIFY Name varchar(250) NOT NULL default '';
 
 --sorted_result
 SELECT city.Name, country.Name FROM city,country
@@ -530,7 +530,7 @@ explain
 select t1.a, count(t2.p) as count
   from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
 select t1.a, count(t2.p) as count
-  from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
+  from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a asc;
 drop table t1, t2;
 
 --echo #
@@ -1555,6 +1555,7 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES (2,'2003-02-11 21:19:41');
 INSERT INTO t1 VALUES (3,'2009-10-18 02:27:49');
 INSERT INTO t1 VALUES (0,'2000-09-26 07:45:57');
+INSERT INTO t1 VALUES (4,'2000-09-26 07:45:57');
 
 CREATE TABLE t2 (
   `col_int` int,

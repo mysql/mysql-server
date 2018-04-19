@@ -10,8 +10,8 @@ COMMIT;
 
 # Start a transaction in the default connection for isolation.
 START TRANSACTION;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 READ-COMMITTED
 SELECT * FROM bug_53756;
 pk	c1
@@ -22,43 +22,43 @@ pk	c1
 
 # connection con1 deletes row 1
 START TRANSACTION;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 READ-COMMITTED
 DELETE FROM bug_53756 WHERE pk=1;
 
 # connection con2 deletes row 2
 START TRANSACTION;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 READ-COMMITTED
 DELETE FROM bug_53756 WHERE pk=2;
 
 # connection con3 updates row 3
 START TRANSACTION;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 READ-COMMITTED
 UPDATE bug_53756 SET c1=77 WHERE pk=3;
 
 # connection con4 updates row 4
 START TRANSACTION;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 READ-COMMITTED
 UPDATE bug_53756 SET c1=88 WHERE pk=4;
 
 # connection con5 inserts row 5
 START TRANSACTION;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 READ-COMMITTED
 INSERT INTO bug_53756 VALUES(5, 55);
 
 # connection con6 inserts row 6
 START TRANSACTION;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 READ-COMMITTED
 INSERT INTO bug_53756 VALUES(6, 66);
 

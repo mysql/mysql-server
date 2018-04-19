@@ -22,7 +22,6 @@
 #              server-options.html#option_mysqld_event-scheduler               #
 #                                                                              #
 ################################################################################
---source include/not_embedded.inc
 --source include/load_sysvars.inc
 
 ###############################################################
@@ -109,7 +108,7 @@ SELECT @@session.event_scheduler;
 
 --disable_warnings
 SELECT @@global.event_scheduler = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='event_scheduler';
 --enable_warnings
 
@@ -169,7 +168,8 @@ SELECT event_scheduler = @@session.event_scheduler;
 SET @@global.event_scheduler = @start_value;
 SELECT @@global.event_scheduler;
 
-
+# To clear the entries in P_S, restart mysqld (Bug#26533649)
+--source include/restart_mysqld.inc
 #####################################################
 #       END OF event_scheduler TESTS                #
 #####################################################

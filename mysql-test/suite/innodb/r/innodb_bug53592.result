@@ -1,12 +1,12 @@
 set old_alter_table=0;
 create table bug53592(a int) engine=innodb row_format=compact;
 alter table bug53592 add column b text charset utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 alter table bug53592 add column c blob not null;
 create index bug53592_b on bug53592(b(81));
 create unique index bug53592_c on bug53592(c(1));
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 replace into bug53592 values (),();
 Warnings:
 Warning	1364	Field 'c' doesn't have a default value
@@ -18,12 +18,12 @@ drop table bug53592;
 set old_alter_table=1;
 create table bug53592(a int) engine=innodb row_format=compact;
 alter table bug53592 add column b text charset utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 alter table bug53592 add column c blob not null;
 create index bug53592_b on bug53592(b(81));
 create unique index bug53592_c on bug53592(c(1));
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 replace into bug53592 values (),();
 Warnings:
 Warning	1364	Field 'c' doesn't have a default value

@@ -1,40 +1,4 @@
-SET @start_value= @@global.log_syslog_facility;
-SET @@global.log_syslog_facility= DEFAULT;
-SELECT @@global.log_syslog_facility;
-@@global.log_syslog_facility
-daemon
-SET @@global.log_syslog_facility="user";
-SELECT @@global.log_syslog_facility;
-@@global.log_syslog_facility
-user
-SET @@global.log_syslog_facility= "daemon";
-SELECT @@global.log_syslog_facility;
-@@global.log_syslog_facility
-daemon
-SET @@global.log_syslog_facility= "local0";
-SELECT @@global.log_syslog_facility;
-@@global.log_syslog_facility
-local0
-SET @@global.log_syslog_facility= "log_local5";
-SELECT @@global.log_syslog_facility;
-@@global.log_syslog_facility
-local5
-SET @@global.log_syslog_facility= "LOG_LOCAL7";
-SELECT @@global.log_syslog_facility;
-@@global.log_syslog_facility
-local7
-SET @@global.log_syslog_facility= "9";
-ERROR 42000: Variable 'log_syslog_facility' can't be set to the value of '9'
-SET @@global.log_syslog_facility= "local8";
-ERROR 42000: Variable 'log_syslog_facility' can't be set to the value of 'local8'
-SET @@global.log_syslog_facility= "";
-ERROR 42000: Variable 'log_syslog_facility' can't be set to the value of ''
-SET @@global.log_syslog_facility= 9;
-ERROR 42000: Incorrect argument type to variable 'log_syslog_facility'
-SET GLOBAL log_syslog_facility= 0.01;
-ERROR 42000: Incorrect argument type to variable 'log_syslog_facility'
-SET SESSION log_syslog_facility= "local1";
-ERROR HY000: Variable 'log_syslog_facility' is a GLOBAL variable and should be set with SET GLOBAL
-SET LOCAL log_syslog_facility= "local1";
-ERROR HY000: Variable 'log_syslog_facility' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@global.log_syslog_facility= @start_value;
+# THIS NOW REQUIRES THE SYSLOG COMPONENT BEING LOADED.
+#
+# THE TESTS THAT USED TO LIVE HERE ARE NOW PART OF
+#   mysql-test\t\log_components_notwin.test

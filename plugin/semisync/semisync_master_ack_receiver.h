@@ -1,13 +1,20 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,10 +23,26 @@
 #ifndef SEMISYNC_MASTER_ACK_RECEIVER_DEFINED
 #define SEMISYNC_MASTER_ACK_RECEIVER_DEFINED
 
+#include <sys/types.h>
 #include <vector>
-#include "my_global.h"
+
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_thread.h"
-#include "sql_class.h"
+#include "plugin/semisync/semisync.h"
+#include "plugin/semisync/semisync_master.h"
+#include "sql/sql_class.h"
+
+struct Slave {
+  THD *thd;
+  Vio *vio;
+
+  my_socket sock_fd() const { return vio->mysql_socket.fd; }
+  uint server_id() const { return thd->server_id; }
+};
+
+typedef std::vector<Slave> Slave_vector;
+typedef Slave_vector::iterator Slave_vector_it;
 
 /**
   Ack_receiver is responsible to control ack receive thread and maintain
@@ -31,9 +54,8 @@
   add_slave: maintain a new semisync slave's information
   remove_slave: remove a semisync slave's information
  */
-class Ack_receiver : public ReplSemiSyncBase
-{
-public:
+class Ack_receiver : public ReplSemiSyncBase {
+ public:
   Ack_receiver();
   ~Ack_receiver();
 
@@ -77,20 +99,16 @@ public:
   */
   void run();
 
-  void setTraceLevel(unsigned long trace_level)
-  {
-    trace_level_= trace_level;
-  }
+  void setTraceLevel(unsigned long trace_level) { trace_level_ = trace_level; }
 
-  bool init()
-  {
+  bool init() {
     setTraceLevel(rpl_semi_sync_master_trace_level);
-    if (rpl_semi_sync_master_enabled)
-      return start();
+    if (rpl_semi_sync_master_enabled) return start();
     return false;
   }
-private:
-  enum status {ST_UP, ST_DOWN, ST_STOPPING};
+
+ private:
+  enum status { ST_UP, ST_DOWN, ST_STOPPING };
   uint8 m_status;
   /*
     Protect m_status, m_slaves_changed and m_slaves. ack thread and other
@@ -100,30 +118,16 @@ private:
   mysql_cond_t m_cond;
   /* If slave list is updated(add or remove). */
   bool m_slaves_changed;
-
-  struct Slave
-  {
-    THD *thd;
-    Vio vio;
-
-    my_socket sock_fd() { return vio.mysql_socket.fd; }
-    uint server_id() { return thd->server_id; }
-  };
-
-  typedef std::vector<Slave> Slave_vector;
-  typedef Slave_vector::iterator Slave_vector_it;
   Slave_vector m_slaves;
-
   my_thread_handle m_pid;
 
-/* Declare them private, so no one can copy the object. */
+  /* Declare them private, so no one can copy the object. */
   Ack_receiver(const Ack_receiver &ack_receiver);
-  Ack_receiver& operator=(const Ack_receiver &ack_receiver);
+  Ack_receiver &operator=(const Ack_receiver &ack_receiver);
 
   void set_stage_info(const PSI_stage_info &stage);
   void wait_for_slave_connection();
-  my_socket get_slave_sockets(fd_set *fds);
 };
 
-extern Ack_receiver ack_receiver;
+extern Ack_receiver *ack_receiver;
 #endif

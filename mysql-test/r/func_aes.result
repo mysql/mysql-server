@@ -195,6 +195,9 @@ AES_DECRYPT(AES_ENCRYPT('a','a'), 'a') = 'a'
 SELECT AES_DECRYPT(AES_ENCRYPT(_UTF8'Жоро', 'a'), 'a') = _UTF8'Жоро';
 AES_DECRYPT(AES_ENCRYPT(_UTF8'Жоро', 'a'), 'a') = _UTF8'Жоро'
 1
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT AES_DECRYPT(AES_ENCRYPT('Жоро', 'a'), 'a') = 'Жоро';
 AES_DECRYPT(AES_ENCRYPT('Жоро', 'a'), 'a') = 'Жоро'
 1
@@ -232,7 +235,7 @@ YQ==
 Warnings:
 Warning	1618	<IV> option ignored
 #### 128, 192 and 256 bit ECB
-CREATE TABLE aes_ecb(a VARCHAR(16), b128 CHAR(16), b192 CHAR(16), b256 CHAR(16));
+CREATE TABLE aes_ecb(a VARBINARY(16), b128 CHAR(16), b192 CHAR(16), b256 CHAR(16)) charset latin1;
 INSERT INTO aes_ecb (a) VALUES ('a'), ('Жоро'), (REPEAT('a', 10));
 SET SESSION block_encryption_mode='aes-128-ecb';
 UPDATE aes_ecb SET b128 = AES_ENCRYPT(a, 'a');
@@ -345,8 +348,8 @@ SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('b',@KEY1, @IVA), @KEY1, @IVA);
 0
 SET SESSION block_encryption_mode=DEFAULT;
 #### 128, 192 and 256 bit cbc
-CREATE TABLE aes_cbc(a VARCHAR(128), b128 VARCHAR(144),
-b192 VARCHAR(144), b256 CHAR(144));
+CREATE TABLE aes_cbc(a VARBINARY(128), b128 VARBINARY(144),
+b192 VARBINARY(144), b256 BINARY(144));
 INSERT INTO aes_cbc (a) VALUES (REPEAT('a', 128));
 INSERT INTO aes_cbc (a) VALUES (REPEAT(0x00313233, 32));
 SET SESSION block_encryption_mode="aes-128-cbc";

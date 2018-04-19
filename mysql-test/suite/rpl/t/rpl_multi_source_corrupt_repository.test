@@ -1,0 +1,85 @@
+###############################################################################
+# Bug#24285104 RELAY LOG CORRUPTION NOT HANDLED CORRECTLY WITH MULTI-SOURCE
+# REPLICATION
+#
+# Problem: Corruption of one channel's relay logs + server restart is
+#          making few channels (good channels) to disappear.
+#
+# Steps to reproduce:
+# -------------------
+# In this test script, we will experiment with '4' servers.
+# 1->4, 2->4, 3->4 is the MSR setup (server4 (the last server) is MSR slave).
+# In this test script, there will be 3 channels created
+#     > default channel (empty channel name) used for 1->4
+#     > channel_1 not used in this test.
+#     > channel_2 used for 2->4
+#     > channel_3 used for 3->4
+#
+# Iterate through all the channels, corrupt one channel in each iteration.
+# And execute some basic commands for testing purpose.
+# First iteration: default channel corrupted (the first channel in the list)
+# Second iteration: channel2 is corrupted (the middle channel in the list)
+# Third iteration: channel3 is corrupted ( the last channel in the list).
+# In this we can cover all the combinations of channel list with corrupted and
+# good channels.
+###############################################################################
+
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+
+--let $rpl_number_of_servers=4
+--let $rpl_topology= 1->4,2->4,3->4
+
+# Test will take care of creating the channels.
+--let $rpl_skip_change_master=1
+--let $rpl_multi_source= 1
+# Test will take care of starting slave threads.
+--let $rpl_skip_start_slave= 1
+--source include/rpl_init.inc
+
+# Test case will corrupt the channel and will execute few basic commands
+# on the corrupted channel. Add necessary suppressions.
+--let $rpl_connection_name= server_$rpl_number_of_servers
+--source include/rpl_connection.inc
+CALL mtr.add_suppression("Failed to open the relay log");
+CALL mtr.add_suppression("Could not find target log file mentioned in relay log info in the index file");
+CALL mtr.add_suppression(".*Failed to initialize the master info structure for channel.*");
+CALL mtr.add_suppression("Failed to create or recover replication info repositories.");
+CALL mtr.add_suppression("Slave failed to initialize relay log info structure from the repository");
+CALL mtr.add_suppression("Failed to start slave threads for channel");
+CALL mtr.add_suppression("Could not start slave for channel");
+
+--let $iter =1
+while ($iter < $rpl_number_of_servers)
+{
+  #######################
+  # Create MSR channels
+  #######################
+  --source extra/rpl_tests/rpl_create_msr_channels.inc
+
+  ##############################################################################
+  # Stop the server, corrupt one channel(rpl_corrupt_channel_name),
+  # start the server and execute basic commands on all the channels.
+  ##############################################################################
+  --let $rpl_corrupt_channel_name='channel_$iter'
+
+  # In the first iteration, we want empty channel name (the default channel)
+  if ($iter == 1)
+  {
+    --let $rpl_corrupt_channel_name=''
+  }
+  --source extra/rpl_tests/rpl_multi_source_corrupt_repository.inc
+
+  --inc $iter
+}
+
+# Cleanup time no need to create sample data now.
+--let $no_sample_data=1
+--source extra/rpl_tests/rpl_create_msr_channels.inc
+# channel_1 is expected by rpl_end.inc.
+--replace_result $SERVER_MYPORT_1 SERVER_1_PORT
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= $SERVER_MYPORT_1, MASTER_HOST='localhost' FOR CHANNEL 'channel_1'
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

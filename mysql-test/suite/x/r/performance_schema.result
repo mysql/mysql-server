@@ -1,0 +1,317 @@
+
+14 rows affected
+Rows matched: 14  Changed: 0  Warnings: 0
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+
+3 rows affected
+Rows matched: 3  Changed: 0  Warnings: 0
+
+0 rows affected
+
+0 rows affected
+name
+thread/mysqlx/acceptor_network
+thread/mysqlx/worker
+0 rows affected
+name
+wait/synch/mutex/mysqlx/document_id_generate
+wait/synch/mutex/mysqlx/lock_list_access
+wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit
+wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending
+0 rows affected
+name
+wait/synch/cond/mysqlx/scheduler_dynamic_thread_exit
+wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending
+0 rows affected
+name
+wait/synch/rwlock/mysqlx/client_list_clients
+wait/synch/rwlock/mysqlx/sha256_password_cache
+0 rows affected
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/mysqlx/lock_list_access	NO	NO		0	null
+wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending	NO	NO		0	null
+wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit	YES	NO		0	null
+wait/synch/mutex/mysqlx/document_id_generate	YES	NO		0	null
+wait/synch/rwlock/mysqlx/client_list_clients	YES	NO		0	null
+wait/synch/rwlock/mysqlx/sha256_password_cache	YES	NO		0	null
+wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending	NO	NO		0	null
+wait/synch/cond/mysqlx/scheduler_dynamic_thread_exit	YES	NO		0	null
+wait/io/socket/mysqlx/tcpip_socket	YES	NO		0	null
+wait/io/socket/mysqlx/unix_socket	YES	NO		0	null
+wait/io/socket/mysqlx/client_connection	YES	NO		0	null
+memory/mysqlx/objects	YES	null	global_statistics	0	null
+memory/mysqlx/recv_buffer	YES	null	global_statistics	0	null
+memory/mysqlx/send_buffer	YES	null	global_statistics	0	null
+0 rows affected
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+instrumented
+NO
+0 rows affected
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+instrumented
+YES
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+While executing alter table performance_schema.mutex_instances add column foo integer:
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing alter table performance_schema.cond_instances add column foo integer:
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing alter table performance_schema.threads add column foo integer:
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing alter table performance_schema.rwlock_instances add column foo integer:
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing alter table performance_schema.socket_instances add column foo integer:
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing alter table performance_schema.socket_summary_by_event_name add column foo integer:
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing alter table performance_schema.socket_summary_by_instance add column foo integer:
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing truncate table performance_schema.mutex_instances:
+Got expected error: DROP command denied to user 'x_root'@'localhost' for table 'mutex_instances' (code 1142)
+While executing truncate table performance_schema.cond_instances:
+Got expected error: DROP command denied to user 'x_root'@'localhost' for table 'cond_instances' (code 1142)
+While executing truncate table performance_schema.threads:
+Got expected error: DROP command denied to user 'x_root'@'localhost' for table 'threads' (code 1142)
+While executing truncate table performance_schema.rwlock_instances:
+Got expected error: DROP command denied to user 'x_root'@'localhost' for table 'rwlock_instances' (code 1142)
+While executing truncate table performance_schema.socket_instances:
+Got expected error: DROP command denied to user 'x_root'@'localhost' for table 'socket_instances' (code 1142)
+
+0 rows affected
+
+0 rows affected
+While executing ALTER TABLE performance_schema.mutex_instances ADD INDEX test_index(NAME):
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing ALTER TABLE performance_schema.cond_instances ADD INDEX test_index(NAME):
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing ALTER TABLE performance_schema.threads ADD INDEX test_index(PROCESSLIST_ID):
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing ALTER TABLE performance_schema.rwlock_instances ADD INDEX test_index(NAME):
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing ALTER TABLE performance_schema.rwlock_instances ADD INDEX socket_instances(STATE):
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing ALTER TABLE performance_schema.rwlock_instances ADD INDEX socket_summary_by_event_name(EVENT_NAME):
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing ALTER TABLE performance_schema.rwlock_instances ADD INDEX socket_summary_by_instance(EVENT_NAME):
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing CREATE UNIQUE INDEX test_index ON performance_schema.mutex_instances(NAME):
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing CREATE UNIQUE INDEX test_index ON performance_schema.cond_instances(NAME):
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing CREATE UNIQUE INDEX test_index ON performance_schema.threads(PROCESSLIST_ID):
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing CREATE UNIQUE INDEX test_index ON performance_schema.rwlock_instances(NAME):
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing CREATE UNIQUE INDEX test_index ON performance_schema.socket_instances(STATE):
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing CREATE UNIQUE INDEX test_index ON performance_schema.socket_summary_by_event_name(EVENT_NAME):
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing CREATE UNIQUE INDEX test_index ON performance_schema.socket_summary_by_instance(EVENT_NAME):
+Got expected error: Access denied for user 'x_root'@'localhost' to database 'performance_schema' (code 1044)
+While executing insert into performance_schema.mutex_instances
+  set name='FOO', object_instance_begin=12:
+Got expected error: INSERT command denied to user 'x_root'@'localhost' for table 'mutex_instances' (code 1142)
+While executing insert into performance_schema.cond_instances
+  set name='FOO', object_instance_begin=12:
+Got expected error: INSERT command denied to user 'x_root'@'localhost' for table 'cond_instances' (code 1142)
+While executing insert into performance_schema.threads
+  set name='FOO', thread_id=1, processlist_id=2:
+Got expected error: INSERT command denied to user 'x_root'@'localhost' for table 'threads' (code 1142)
+While executing insert into performance_schema.rwlock_instances
+  set name='FOO', object_instance_begin=12:
+Got expected error: INSERT command denied to user 'x_root'@'localhost' for table 'rwlock_instances' (code 1142)
+While executing insert into performance_schema.socket_instances
+  set ip='', port=12:
+Got expected error: INSERT command denied to user 'x_root'@'localhost' for table 'socket_instances' (code 1142)
+While executing insert into performance_schema.socket_summary_by_event_name
+  set event_name='FOO', count_read=12:
+Got expected error: INSERT command denied to user 'x_root'@'localhost' for table 'socket_summary_by_event_name' (code 1142)
+While executing insert into performance_schema.socket_summary_by_instance
+  set event_name='FOO', count_misc=12:
+Got expected error: INSERT command denied to user 'x_root'@'localhost' for table 'socket_summary_by_instance' (code 1142)
+While executing update performance_schema.mutex_instances
+  set name='FOO':
+Got expected error: UPDATE command denied to user 'x_root'@'localhost' for table 'mutex_instances' (code 1142)
+While executing update performance_schema.cond_instances
+  set name='FOO':
+Got expected error: UPDATE command denied to user 'x_root'@'localhost' for table 'cond_instances' (code 1142)
+While executing update performance_schema.threads
+  set thread_id=12 where PROCESSLIST_ID=connection_id():
+Got expected error: Invalid performance_schema usage. (code 1683)
+While executing update performance_schema.threads
+  set thread_id=12:
+Got expected error: Invalid performance_schema usage. (code 1683)
+While executing update performance_schema.rwlock_instances
+  set name='FOO':
+Got expected error: UPDATE command denied to user 'x_root'@'localhost' for table 'rwlock_instances' (code 1142)
+While executing update performance_schema.socket_instances
+  set ip='FOO':
+Got expected error: UPDATE command denied to user 'x_root'@'localhost' for table 'socket_instances' (code 1142)
+While executing update performance_schema.socket_summary_by_event_name
+  set event_name='FOO':
+Got expected error: UPDATE command denied to user 'x_root'@'localhost' for table 'socket_summary_by_event_name' (code 1142)
+While executing update performance_schema.socket_summary_by_instance
+  set event_name='FOO':
+Got expected error: UPDATE command denied to user 'x_root'@'localhost' for table 'socket_summary_by_instance' (code 1142)
+While executing delete from performance_schema.mutex_instances
+  where name like "wait/%":
+Got expected error: DELETE command denied to user 'x_root'@'localhost' for table 'mutex_instances' (code 1142)
+While executing delete from performance_schema.cond_instances
+  where name like "wait/%":
+Got expected error: DELETE command denied to user 'x_root'@'localhost' for table 'cond_instances' (code 1142)
+While executing delete from performance_schema.threads
+  where id=1:
+Got expected error: DELETE command denied to user 'x_root'@'localhost' for table 'threads' (code 1142)
+While executing delete from performance_schema.rwlock_instances
+  where name like "wait/%":
+Got expected error: DELETE command denied to user 'x_root'@'localhost' for table 'rwlock_instances' (code 1142)
+While executing delete from performance_schema.socket_instances
+  where event_name like "wait/%":
+Got expected error: DELETE command denied to user 'x_root'@'localhost' for table 'socket_instances' (code 1142)
+While executing delete from performance_schema.socket_summary_by_event_name
+  where event_name like "wait/%":
+Got expected error: DELETE command denied to user 'x_root'@'localhost' for table 'socket_summary_by_event_name' (code 1142)
+While executing delete from performance_schema.socket_summary_by_instance
+  where event_name like "wait/%":
+Got expected error: DELETE command denied to user 'x_root'@'localhost' for table 'socket_summary_by_instance' (code 1142)
+While executing delete from performance_schema.mutex_instances:
+Got expected error: DELETE command denied to user 'x_root'@'localhost' for table 'mutex_instances' (code 1142)
+While executing delete from performance_schema.cond_instances:
+Got expected error: DELETE command denied to user 'x_root'@'localhost' for table 'cond_instances' (code 1142)
+While executing delete from performance_schema.threads:
+Got expected error: DELETE command denied to user 'x_root'@'localhost' for table 'threads' (code 1142)
+While executing delete from performance_schema.rwlock_instances:
+Got expected error: DELETE command denied to user 'x_root'@'localhost' for table 'rwlock_instances' (code 1142)
+While executing delete from performance_schema.socket_instances:
+Got expected error: DELETE command denied to user 'x_root'@'localhost' for table 'socket_instances' (code 1142)
+While executing delete from performance_schema.socket_summary_by_event_name:
+Got expected error: DELETE command denied to user 'x_root'@'localhost' for table 'socket_summary_by_event_name' (code 1142)
+While executing delete from performance_schema.socket_summary_by_instance:
+Got expected error: DELETE command denied to user 'x_root'@'localhost' for table 'socket_summary_by_instance' (code 1142)
+While executing LOCK TABLES performance_schema.mutex_instances READ:
+Got expected error: SELECT, LOCK TABLES command denied to user 'x_root'@'localhost' for table 'mutex_instances' (code 1142)
+
+0 rows affected
+While executing LOCK TABLES performance_schema.cond_instances READ:
+Got expected error: SELECT, LOCK TABLES command denied to user 'x_root'@'localhost' for table 'cond_instances' (code 1142)
+
+0 rows affected
+While executing LOCK TABLES performance_schema.rwlock_instances READ:
+Got expected error: SELECT, LOCK TABLES command denied to user 'x_root'@'localhost' for table 'rwlock_instances' (code 1142)
+
+0 rows affected
+While executing LOCK TABLES performance_schema.socket_instances READ:
+Got expected error: SELECT, LOCK TABLES command denied to user 'x_root'@'localhost' for table 'socket_instances' (code 1142)
+
+0 rows affected
+While executing LOCK TABLES performance_schema.socket_summary_by_event_name READ:
+Got expected error: SELECT, LOCK TABLES command denied to user 'x_root'@'localhost' for table 'socket_summary_by_event_name' (code 1142)
+
+0 rows affected
+While executing LOCK TABLES performance_schema.socket_summary_by_instance READ:
+Got expected error: SELECT, LOCK TABLES command denied to user 'x_root'@'localhost' for table 'socket_summary_by_instance' (code 1142)
+
+0 rows affected
+While executing LOCK TABLES performance_schema.mutex_instances WRITE:
+Got expected error: SELECT, LOCK TABLES command denied to user 'x_root'@'localhost' for table 'mutex_instances' (code 1142)
+
+0 rows affected
+While executing LOCK TABLES performance_schema.cond_instances WRITE:
+Got expected error: SELECT, LOCK TABLES command denied to user 'x_root'@'localhost' for table 'cond_instances' (code 1142)
+
+0 rows affected
+While executing LOCK TABLES performance_schema.rwlock_instances WRITE:
+Got expected error: SELECT, LOCK TABLES command denied to user 'x_root'@'localhost' for table 'rwlock_instances' (code 1142)
+
+0 rows affected
+While executing LOCK TABLES performance_schema.socket_instances WRITE:
+Got expected error: SELECT, LOCK TABLES command denied to user 'x_root'@'localhost' for table 'socket_instances' (code 1142)
+
+0 rows affected
+While executing LOCK TABLES performance_schema.socket_summary_by_event_name WRITE:
+Got expected error: SELECT, LOCK TABLES command denied to user 'x_root'@'localhost' for table 'socket_summary_by_event_name' (code 1142)
+
+0 rows affected
+While executing LOCK TABLES performance_schema.socket_summary_by_instance WRITE:
+Got expected error: SELECT, LOCK TABLES command denied to user 'x_root'@'localhost' for table 'socket_summary_by_instance' (code 1142)
+
+0 rows affected
+name
+thread/mysqlx/acceptor_network
+thread/mysqlx/worker
+command ok
+name
+wait/synch/mutex/mysqlx/document_id_generate
+wait/synch/mutex/mysqlx/lock_list_access
+wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit
+wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending
+command ok
+name
+wait/synch/cond/mysqlx/scheduler_dynamic_thread_exit
+wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending
+command ok
+name
+wait/synch/rwlock/mysqlx/client_list_clients
+wait/synch/rwlock/mysqlx/sha256_password_cache
+command ok
+event_name
+wait/io/socket/mysqlx/client_connection
+wait/io/socket/mysqlx/tcpip_socket
+command ok
+event_name
+wait/io/socket/mysqlx/client_connection
+wait/io/socket/mysqlx/tcpip_socket
+command ok
+event_name
+wait/io/socket/mysqlx/client_connection
+wait/io/socket/mysqlx/tcpip_socket
+command ok
+event_name
+wait/io/socket/mysqlx/client_connection
+wait/io/socket/mysqlx/tcpip_socket
+command ok
+
+command ok
+sleep(1)
+0
+0 rows affected
+
+command ok
+
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+select DISTINCT EVENT_NAME from performance_schema.events_waits_history 
+where EVENT_NAME rlike '^wait/synch/mutex/mysqlx/(client_session|obuffer|queue)$' ORDER BY EVENT_NAME;
+EVENT_NAME
+select DISTINCT EVENT_NAME from performance_schema.events_waits_history_long 
+where EVENT_NAME rlike '^wait/synch/(cond|mutex)/mysqlx/(queue|client_session|obuffer|queue)$' ORDER BY EVENT_NAME;
+EVENT_NAME
+update performance_schema.setup_instruments set ENABLED='YES'
+where NAME rlike '^wait/synch/(cond|mutex)/mysqlx/(lock_list_access|scheduler_dynamic_worker_pending)$';
+# Check if any classes are not lost, this may happen if they are already
+# just on the limit
+SELECT * FROM performance_schema.global_status
+WHERE variable_name LIKE '%_LOST' AND variable_value > 0;
+VARIABLE_NAME	VARIABLE_VALUE

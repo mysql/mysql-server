@@ -1,18 +1,24 @@
-/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
 
 /*
   Utility program that encapsulates process creation, monitoring
@@ -50,19 +56,19 @@
            is killed.
 */
 
-#include <windows.h>
-#include <stdio.h>
-#include <tlhelp32.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <windows.h>
 
-static int verbose= 0;
-static char safe_process_name[32]= {0};
+// Needs to be included after <windows.h>.
+#include <tlhelp32.h>
 
-static void message(const char* fmt, ...)
-{
-  if (!verbose)
-    return;
+static int verbose = 0;
+static char safe_process_name[32] = {0};
+
+static void message(const char *fmt, ...) {
+  if (!verbose) return;
   va_list args;
   fprintf(stderr, "%s: ", safe_process_name);
   va_start(args, fmt);
@@ -72,192 +78,155 @@ static void message(const char* fmt, ...)
   fflush(stderr);
 }
 
-
-static void die(const char* fmt, ...)
-{
-  DWORD last_err= GetLastError();
+static void die(const char *fmt, ...) {
+  DWORD last_err = GetLastError();
   va_list args;
   fprintf(stderr, "%s: FATAL ERROR, ", safe_process_name);
   va_start(args, fmt);
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
-  if (last_err)
-  {
+  if (last_err) {
     char *message_text;
-    if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER
-        |FORMAT_MESSAGE_IGNORE_INSERTS, NULL, last_err , 0, (LPSTR)&message_text,
-        0, NULL))
-    {
-      fprintf(stderr,"error: %d, %s\n",last_err, message_text);
+    if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
+                          FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                          FORMAT_MESSAGE_IGNORE_INSERTS,
+                      NULL, last_err, 0, (LPSTR)&message_text, 0, NULL)) {
+      fprintf(stderr, "error: %d, %s\n", last_err, message_text);
       LocalFree(message_text);
-    }
-    else
-    {
+    } else {
       /* FormatMessage failed, print error code only */
-      fprintf(stderr,"error:%d\n", last_err);
+      fprintf(stderr, "error:%d\n", last_err);
     }
   }
   fflush(stderr);
   exit(1);
 }
 
-
-DWORD get_parent_pid(DWORD pid)
-{
+DWORD get_parent_pid(DWORD pid) {
   HANDLE snapshot;
-  DWORD parent_pid= -1;
+  DWORD parent_pid = -1;
   PROCESSENTRY32 pe32;
-  pe32.dwSize= sizeof(PROCESSENTRY32);
+  pe32.dwSize = sizeof(PROCESSENTRY32);
 
-  snapshot= CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-  if (snapshot == INVALID_HANDLE_VALUE)
-    die("CreateToolhelp32Snapshot failed");
+  snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if (snapshot == INVALID_HANDLE_VALUE) die("CreateToolhelp32Snapshot failed");
 
-  if (!Process32First(snapshot, &pe32))
-  {
+  if (!Process32First(snapshot, &pe32)) {
     CloseHandle(snapshot);
     die("Process32First failed");
   }
 
-  do
-  {
-    if (pe32.th32ProcessID == pid)
-      parent_pid= pe32.th32ParentProcessID;
-  } while(Process32Next( snapshot, &pe32));
+  do {
+    if (pe32.th32ProcessID == pid) parent_pid = pe32.th32ParentProcessID;
+  } while (Process32Next(snapshot, &pe32));
   CloseHandle(snapshot);
 
-  if (parent_pid == -1)
-    die("Could not find parent pid");
+  if (parent_pid == -1) die("Could not find parent pid");
 
   return parent_pid;
 }
 
-
-enum {
-  PARENT,
-  CHILD,
-  EVENT,
-  NUM_HANDLES
-};
-
+enum { PARENT, CHILD, EVENT, NUM_HANDLES };
 
 HANDLE shutdown_event;
-void handle_signal (int signal)
-{
+void handle_signal(int signal) {
   message("Got signal: %d", signal);
-  if(SetEvent(shutdown_event) == 0) {
+  if (SetEvent(shutdown_event) == 0) {
     /* exit safe_process and (hopefully) kill off the child */
     die("Failed to SetEvent");
   }
 }
 
-
-int main(int argc, const char** argv )
-{
-  char child_args[4096]= {0};
-  DWORD pid= GetCurrentProcessId();
-  DWORD parent_pid= get_parent_pid(pid);
+int main(int argc, const char **argv) {
+  char child_args[4096] = {0};
+  DWORD pid = GetCurrentProcessId();
+  DWORD parent_pid = get_parent_pid(pid);
   HANDLE job_handle;
-  HANDLE wait_handles[NUM_HANDLES]= {0};
-  PROCESS_INFORMATION process_info= {0};
-  BOOL nocore= FALSE;
+  HANDLE wait_handles[NUM_HANDLES] = {0};
+  PROCESS_INFORMATION process_info = {0};
+  BOOL nocore = FALSE;
 
   sprintf(safe_process_name, "safe_process[%d]", pid);
 
   /* Create an event for the signal handler */
-  if ((shutdown_event=
-       CreateEvent(NULL, TRUE, FALSE, safe_process_name)) == NULL)
+  if ((shutdown_event = CreateEvent(NULL, TRUE, FALSE, safe_process_name)) ==
+      NULL)
     die("Failed to create shutdown_event");
-  wait_handles[EVENT]= shutdown_event;
+  wait_handles[EVENT] = shutdown_event;
 
-  signal(SIGINT,   handle_signal);
+  signal(SIGINT, handle_signal);
   signal(SIGBREAK, handle_signal);
-  signal(SIGTERM,  handle_signal);
+  signal(SIGTERM, handle_signal);
 
   message("Started");
 
   /* Parse arguments */
-  for (int i= 1; i < argc; i++) {
-    const char* arg= argv[i];
-	char* to= child_args;
+  for (int i = 1; i < argc; i++) {
+    const char *arg = argv[i];
+    char *to = child_args;
     if (strcmp(arg, "--") == 0 && strlen(arg) == 2) {
       /* Got the "--" delimiter */
-      if (i >= argc)
-        die("No real args -> nothing to do");
+      if (i >= argc) die("No real args -> nothing to do");
       /* Copy the remaining args to child_arg */
-      for (int j= i+1; j < argc; j++) {
-        arg= argv[j];
-        if (strchr (arg, ' ') &&
-            arg[0] != '\"' &&
-            arg[strlen(arg)] != '\"')
-        {
+      for (int j = i + 1; j < argc; j++) {
+        arg = argv[j];
+        if (strchr(arg, ' ') && arg[0] != '\"' && arg[strlen(arg)] != '\"') {
           /* Quote arg that contains spaces and are not quoted already */
-          to+= _snprintf(to, child_args + sizeof(child_args) - to,
-                         "\"%s\" ", arg);
-        }
-        else
-        {
-          to+= _snprintf(to, child_args + sizeof(child_args) - to,
-          "%s ", arg);
+          to += _snprintf(to, child_args + sizeof(child_args) - to, "\"%s\" ",
+                          arg);
+        } else {
+          to += _snprintf(to, child_args + sizeof(child_args) - to, "%s ", arg);
         }
       }
       break;
     } else {
       if (strcmp(arg, "--verbose") == 0)
         verbose++;
-      else if (strncmp(arg, "--parent-pid", 10) == 0)
-      {
-            /* Override parent_pid with a value provided by user */
-        const char* start;
-        if ((start= strstr(arg, "=")) == NULL)
+      else if (strncmp(arg, "--parent-pid", 10) == 0) {
+        /* Override parent_pid with a value provided by user */
+        const char *start;
+        if ((start = strstr(arg, "=")) == NULL)
           die("Could not find start of option value in '%s'", arg);
         start++; /* Step past = */
-        if ((parent_pid= atoi(start)) == 0)
+        if ((parent_pid = atoi(start)) == 0)
           die("Invalid value '%s' passed to --parent-id", start);
-      }
-      else if (strcmp(arg, "--nocore") == 0)
-      {
-        nocore= TRUE;
-      }
-      else if ( strncmp (arg, "--env ", 6) == 0 )
-      {
-	putenv(strdup(arg+6));
-      }
-      else
+      } else if (strcmp(arg, "--nocore") == 0) {
+        nocore = TRUE;
+      } else if (strncmp(arg, "--env ", 6) == 0) {
+        putenv(strdup(arg + 6));
+      } else
         die("Unknown option: %s", arg);
     }
   }
-  if (*child_args == '\0')
-    die("nothing to do");
+  if (*child_args == '\0') die("nothing to do");
 
   /* Open a handle to the parent process */
   message("parent_pid: %d", parent_pid);
-  if (parent_pid == pid)
-    die("parent_pid is equal to own pid!");
+  if (parent_pid == pid) die("parent_pid is equal to own pid!");
 
-  if ((wait_handles[PARENT]=
-       OpenProcess(SYNCHRONIZE, FALSE, parent_pid)) == NULL)
+  if ((wait_handles[PARENT] = OpenProcess(SYNCHRONIZE, FALSE, parent_pid)) ==
+      NULL)
     die("Failed to open parent process with pid: %d", parent_pid);
 
   /* Create the child process in a job */
-  JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = { 0 };
-  STARTUPINFO                          si   = { 0 };
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = {0};
+  STARTUPINFO si = {0};
   si.cb = sizeof(si);
 
   /*
     Create the job object to make it possible to kill the process
     and all of it's children in one go
   */
-  if ((job_handle= CreateJobObject(NULL, NULL)) == NULL)
+  if ((job_handle = CreateJobObject(NULL, NULL)) == NULL)
     die("CreateJobObject failed");
 
-  /*
-    Make all processes associated with the job terminate when the
-    last handle to the job is closed.
-  */
+    /*
+      Make all processes associated with the job terminate when the
+      last handle to the job is closed.
+    */
 #ifndef JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
-#define JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE  0x00002000
+#define JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE 0x00002000
 #endif
 
   jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
@@ -265,10 +234,10 @@ int main(int argc, const char** argv )
                               &jeli, sizeof(jeli)) == 0)
     message("SetInformationJobObject failed, continue anyway...");
 
-				/* Avoid popup box */
+  /* Avoid popup box */
   if (nocore)
-    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX
-                 | SEM_NOOPENFILEERRORBOX);
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX |
+                 SEM_NOOPENFILEERRORBOX);
 
 #if 0
   /* Setup stdin, stdout and stderr redirect */
@@ -290,49 +259,41 @@ int main(int argc, const char** argv )
     this process).
 
     If breakaway from job fails on some reason, fallback is to create a
-    new process group. Process groups also allow to kill process and its 
+    new process group. Process groups also allow to kill process and its
     descedants, subject to some restrictions (processes have to run within
     the same console,and must not ignore CTRL_BREAK)
   */
-  DWORD create_flags[]= {CREATE_BREAKAWAY_FROM_JOB, CREATE_NEW_PROCESS_GROUP, 0};
-  BOOL process_created= FALSE;
-  BOOL jobobject_assigned= FALSE;
+  DWORD create_flags[] = {CREATE_BREAKAWAY_FROM_JOB, CREATE_NEW_PROCESS_GROUP,
+                          0};
+  BOOL process_created = FALSE;
+  BOOL jobobject_assigned = FALSE;
 
-  for (int i=0; i < sizeof(create_flags)/sizeof(create_flags[0]); i++)
-  { 
-    process_created= CreateProcess(NULL, (LPSTR)child_args,
-                    NULL,
-                    NULL,
-                    TRUE, /* inherit handles */
-                    CREATE_SUSPENDED | create_flags[i],
-                    NULL,
-                    NULL,
-                    &si,
-                    &process_info);
-    if (process_created)
-    {
-     jobobject_assigned= AssignProcessToJobObject(job_handle, process_info.hProcess);
-     break;
+  for (int i = 0; i < sizeof(create_flags) / sizeof(create_flags[0]); i++) {
+    process_created = CreateProcess(
+        NULL, (LPSTR)child_args, NULL, NULL, TRUE, /* inherit handles */
+        CREATE_SUSPENDED | create_flags[i], NULL, NULL, &si, &process_info);
+    if (process_created) {
+      jobobject_assigned =
+          AssignProcessToJobObject(job_handle, process_info.hProcess);
+      break;
     }
   }
 
-  if (!process_created)
-  {
+  if (!process_created) {
     die("CreateProcess failed");
   }
   ResumeThread(process_info.hThread);
   CloseHandle(process_info.hThread);
 
-  wait_handles[CHILD]= process_info.hProcess;
+  wait_handles[CHILD] = process_info.hProcess;
 
   message("Started child %d", process_info.dwProcessId);
 
   /* Monitor loop */
-  DWORD child_exit_code= 1;
-  DWORD wait_res= WaitForMultipleObjects(NUM_HANDLES, wait_handles,
-                                         FALSE, INFINITE);
-  switch (wait_res)
-  {
+  DWORD child_exit_code = 1;
+  DWORD wait_res =
+      WaitForMultipleObjects(NUM_HANDLES, wait_handles, FALSE, INFINITE);
+  switch (wait_res) {
     case WAIT_OBJECT_0 + PARENT:
       message("Parent exit");
       break;
@@ -357,33 +318,26 @@ int main(int argc, const char** argv )
   CloseHandle(job_handle);
   message("Job terminated and closed");
 
-  if (!jobobject_assigned)
-  {
+  if (!jobobject_assigned) {
     GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, process_info.dwProcessId);
     TerminateProcess(process_info.hProcess, 202);
   }
 
-  if (wait_res != WAIT_OBJECT_0 + CHILD)
-  {
+  if (wait_res != WAIT_OBJECT_0 + CHILD) {
     /* The child has not yet returned, wait for it */
     message("waiting for child to exit");
-    if ((wait_res= WaitForSingleObject(wait_handles[CHILD], INFINITE))
-        != WAIT_OBJECT_0)
-    {
+    if ((wait_res = WaitForSingleObject(wait_handles[CHILD], INFINITE)) !=
+        WAIT_OBJECT_0) {
       message("child wait failed: %d", wait_res);
-    }
-    else
-    {
+    } else {
       message("child wait succeeded");
     }
     /* Child's exit code should now be 201, no need to get it */
   }
 
   message("Closing handles");
-  for (int i= 0; i < NUM_HANDLES; i++)
-    CloseHandle(wait_handles[i]);
+  for (int i = 0; i < NUM_HANDLES; i++) CloseHandle(wait_handles[i]);
 
   message("Exiting, exit_code: %d", child_exit_code);
   exit(child_exit_code);
 }
-

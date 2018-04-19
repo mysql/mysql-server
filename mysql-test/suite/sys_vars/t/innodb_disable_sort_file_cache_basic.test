@@ -3,7 +3,6 @@
 # 2011-11-15 - Added
 #
 
---source include/have_innodb.inc
 
 SET @start_global_value = @@global.innodb_disable_sort_file_cache;
 SELECT @start_global_value;
@@ -19,8 +18,8 @@ select @@session.innodb_disable_sort_file_cache;
 show global variables like 'innodb_disable_sort_file_cache';
 show session variables like 'innodb_disable_sort_file_cache';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
-select * from information_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
 --enable_warnings
 
 #
@@ -29,26 +28,26 @@ select * from information_schema.session_variables where variable_name='innodb_d
 set global innodb_disable_sort_file_cache='OFF';
 select @@global.innodb_disable_sort_file_cache;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
-select * from information_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
 --enable_warnings
 set @@global.innodb_disable_sort_file_cache=1;
 select @@global.innodb_disable_sort_file_cache;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
-select * from information_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
 --enable_warnings
 set global innodb_disable_sort_file_cache=0;
 select @@global.innodb_disable_sort_file_cache;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
-select * from information_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
 --enable_warnings
 set @@global.innodb_disable_sort_file_cache='ON';
 select @@global.innodb_disable_sort_file_cache;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
-select * from information_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
 --enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_disable_sort_file_cache='OFF';
@@ -68,8 +67,8 @@ set global innodb_disable_sort_file_cache=2;
 set global innodb_disable_sort_file_cache=-3;
 select @@global.innodb_disable_sort_file_cache;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
-select * from information_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
 --enable_warnings
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_disable_sort_file_cache='AUTO';

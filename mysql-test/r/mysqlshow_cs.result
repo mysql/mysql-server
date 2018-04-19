@@ -1,0 +1,313 @@
+DROP TABLE IF EXISTS t1,t2,test1,test2;
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE TABLE t2 (a int, b int);
+show tables;
+Tables_in_test
+t1
+t2
+select "--------------------" as "";
+
+--------------------
+Database: test
++--------+
+| Tables |
++--------+
+| t1     |
+| t2     |
++--------+
+select "---- -v ------------" as "";
+
+---- -v ------------
+Database: test
++--------+----------+
+| Tables | Columns  |
++--------+----------+
+| t1     |        1 |
+| t2     |        2 |
++--------+----------+
+2 rows in set.
+
+select "---- -v -v ---------" as "";
+
+---- -v -v ---------
+Database: test
++--------+----------+------------+
+| Tables | Columns  | Total Rows |
++--------+----------+------------+
+| t1     |        1 |          3 |
+| t2     |        2 |          0 |
++--------+----------+------------+
+2 rows in set.
+
+select "----- -t -----------" as "";
+
+----- -t -----------
+Database: test
++--------+------------+
+| Tables | table_type |
++--------+------------+
+| t1     | BASE TABLE |
+| t2     | BASE TABLE |
++--------+------------+
+select "---- -v -t ---------" as "";
+
+---- -v -t ---------
+Database: test
++--------+------------+----------+
+| Tables | table_type | Columns  |
++--------+------------+----------+
+| t1     | BASE TABLE |        1 |
+| t2     | BASE TABLE |        2 |
++--------+------------+----------+
+2 rows in set.
+
+select "---- -v -v -t ------" as "";
+
+---- -v -v -t ------
+Database: test
++--------+------------+----------+------------+
+| Tables | table_type | Columns  | Total Rows |
++--------+------------+----------+------------+
+| t1     | BASE TABLE |        1 |          3 |
+| t2     | BASE TABLE |        2 |          0 |
++--------+------------+----------+------------+
+2 rows in set.
+
+DROP TABLE t1, t2;
+Database: information_schema
++---------------------------------------+
+|                Tables                 |
++---------------------------------------+
+| CHARACTER_SETS                        |
+| COLLATIONS                            |
+| COLLATION_CHARACTER_SET_APPLICABILITY |
+| COLUMNS                               |
+| COLUMN_PRIVILEGES                     |
+| COLUMN_STATISTICS                     |
+| ENGINES                               |
+| EVENTS                                |
+| FILES                                 |
+| INNODB_BUFFER_PAGE                    |
+| INNODB_BUFFER_PAGE_LRU                |
+| INNODB_BUFFER_POOL_STATS              |
+| INNODB_CACHED_INDEXES                 |
+| INNODB_CMP                            |
+| INNODB_CMPMEM                         |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_CMP_PER_INDEX                  |
+| INNODB_CMP_PER_INDEX_RESET            |
+| INNODB_CMP_RESET                      |
+| INNODB_COLUMNS                        |
+| INNODB_DATAFILES                      |
+| INNODB_FIELDS                         |
+| INNODB_FOREIGN                        |
+| INNODB_FOREIGN_COLS                   |
+| INNODB_FT_BEING_DELETED               |
+| INNODB_FT_CONFIG                      |
+| INNODB_FT_DEFAULT_STOPWORD            |
+| INNODB_FT_DELETED                     |
+| INNODB_FT_INDEX_CACHE                 |
+| INNODB_FT_INDEX_TABLE                 |
+| INNODB_INDEXES                        |
+| INNODB_METRICS                        |
+| INNODB_TABLES                         |
+| INNODB_TABLESPACES                    |
+| INNODB_TABLESPACES_BRIEF              |
+| INNODB_TABLESTATS                     |
+| INNODB_TEMP_TABLE_INFO                |
+| INNODB_TRX                            |
+| INNODB_VIRTUAL                        |
+| KEYWORDS                              |
+| KEY_COLUMN_USAGE                      |
+| OPTIMIZER_TRACE                       |
+| PARAMETERS                            |
+| PARTITIONS                            |
+| PLUGINS                               |
+| PROCESSLIST                           |
+| PROFILING                             |
+| REFERENTIAL_CONSTRAINTS               |
+| RESOURCE_GROUPS                       |
+| ROUTINES                              |
+| SCHEMATA                              |
+| SCHEMA_PRIVILEGES                     |
+| STATISTICS                            |
+| ST_GEOMETRY_COLUMNS                   |
+| ST_SPATIAL_REFERENCE_SYSTEMS          |
+| TABLES                                |
+| TABLESPACES                           |
+| TABLE_CONSTRAINTS                     |
+| TABLE_PRIVILEGES                      |
+| TRIGGERS                              |
+| USER_PRIVILEGES                       |
+| VIEWS                                 |
++---------------------------------------+
+Database: INFORMATION_SCHEMA
++---------------------------------------+
+|                Tables                 |
++---------------------------------------+
+| CHARACTER_SETS                        |
+| COLLATIONS                            |
+| COLLATION_CHARACTER_SET_APPLICABILITY |
+| COLUMNS                               |
+| COLUMN_PRIVILEGES                     |
+| COLUMN_STATISTICS                     |
+| ENGINES                               |
+| EVENTS                                |
+| FILES                                 |
+| INNODB_BUFFER_PAGE                    |
+| INNODB_BUFFER_PAGE_LRU                |
+| INNODB_BUFFER_POOL_STATS              |
+| INNODB_CACHED_INDEXES                 |
+| INNODB_CMP                            |
+| INNODB_CMPMEM                         |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_CMP_PER_INDEX                  |
+| INNODB_CMP_PER_INDEX_RESET            |
+| INNODB_CMP_RESET                      |
+| INNODB_COLUMNS                        |
+| INNODB_DATAFILES                      |
+| INNODB_FIELDS                         |
+| INNODB_FOREIGN                        |
+| INNODB_FOREIGN_COLS                   |
+| INNODB_FT_BEING_DELETED               |
+| INNODB_FT_CONFIG                      |
+| INNODB_FT_DEFAULT_STOPWORD            |
+| INNODB_FT_DELETED                     |
+| INNODB_FT_INDEX_CACHE                 |
+| INNODB_FT_INDEX_TABLE                 |
+| INNODB_INDEXES                        |
+| INNODB_METRICS                        |
+| INNODB_TABLES                         |
+| INNODB_TABLESPACES                    |
+| INNODB_TABLESPACES_BRIEF              |
+| INNODB_TABLESTATS                     |
+| INNODB_TEMP_TABLE_INFO                |
+| INNODB_TRX                            |
+| INNODB_VIRTUAL                        |
+| KEYWORDS                              |
+| KEY_COLUMN_USAGE                      |
+| OPTIMIZER_TRACE                       |
+| PARAMETERS                            |
+| PARTITIONS                            |
+| PLUGINS                               |
+| PROCESSLIST                           |
+| PROFILING                             |
+| REFERENTIAL_CONSTRAINTS               |
+| RESOURCE_GROUPS                       |
+| ROUTINES                              |
+| SCHEMATA                              |
+| SCHEMA_PRIVILEGES                     |
+| STATISTICS                            |
+| ST_GEOMETRY_COLUMNS                   |
+| ST_SPATIAL_REFERENCE_SYSTEMS          |
+| TABLES                                |
+| TABLESPACES                           |
+| TABLE_CONSTRAINTS                     |
+| TABLE_PRIVILEGES                      |
+| TRIGGERS                              |
+| USER_PRIVILEGES                       |
+| VIEWS                                 |
++---------------------------------------+
+Wildcard: inf_rmation_schema
++--------------------+
+|     Databases      |
++--------------------+
+| information_schema |
++--------------------+
+Database: test
++--------+
+| Tables |
++--------+
++--------+
+#
+# Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+#
+DROP DATABASE IF EXISTS b12688860_db;
+CREATE DATABASE b12688860_db;
+CREATE TABLE b12688860_db.b12688860_tab (c1 INT);
+mysqlshow: [Warning] Using a password on the command line interface can be insecure.
+Database: b12688860_db
++---------------+
+|    Tables     |
++---------------+
+| b12688860_tab |
++---------------+
+DROP TABLE b12688860_db.b12688860_tab;
+DROP DATABASE b12688860_db;
+#
+# Bug #21246 sql-mode parameter NO_BACKSLASH_ESCAPES
+#            breaks parameters with apostrophe's (')
+#
+# sql_mode = 'NO_BACKSLASH_ESCAPES'
+SET @OLD_SQL_MODE = @@SQL_MODE;
+SET GLOBAL sql_mode = 'NO_BACKSLASH_ESCAPES';
+SHOW GLOBAL VARIABLES LIKE 'sql_mode';
+Variable_name	Value
+sql_mode	NO_BACKSLASH_ESCAPES
+DROP TABLE IF EXISTS ```t1`,```t2`;
+CREATE TABLE ```t1` (a int);
+INSERT INTO ```t1` VALUES (1),(2),(3);
+CREATE TABLE ```t2` (a int, b int);
+show tables;
+Tables_in_test
+`t1
+`t2
+Database: test
++--------+
+| Tables |
++--------+
+| `t1    |
+| `t2    |
++--------+
+Database: test  Wildcard: `t%
++--------+
+| Tables |
++--------+
+| `t1    |
+| `t2    |
++--------+
+DROP TABLE ```t1`, ```t2`;
+# sql_mode = ''
+SET GLOBAL sql_mode = '';
+SHOW GLOBAL VARIABLES LIKE 'sql_mode';
+Variable_name	Value
+sql_mode	
+DROP TABLE IF EXISTS ```t1`,```t2`;
+CREATE TABLE ```t1` (a int);
+INSERT INTO ```t1` VALUES (1),(2),(3);
+CREATE TABLE ```t2` (a int, b int);
+show tables;
+Tables_in_test
+`t1
+`t2
+Database: test
++--------+
+| Tables |
++--------+
+| `t1    |
+| `t2    |
++--------+
+Database: test  Wildcard: `t%
++--------+
+| Tables |
++--------+
+| `t1    |
+| `t2    |
++--------+
+DROP TABLE ```t1`, ```t2`;
+SET GLOBAL sql_mode = @OLD_SQL_MODE;
+#
+# WL#2284: Increase the length of a user name
+#
+CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
+GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
+Database: mysql  Table: user  Wildcard: user
++-------+----------+-----------+------+-----+---------+-------+---------------------------------+---------+
+| Field | Type     | Collation | Null | Key | Default | Extra | Privileges                      | Comment |
++-------+----------+-----------+------+-----+---------+-------+---------------------------------+---------+
+| User  | char(32) | utf8_bin  | NO   | PRI |         |       | select,insert,update,references |         |
++-------+----------+-----------+------+-----+---------+-------+---------------------------------+---------+
+DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
+
+End of tests

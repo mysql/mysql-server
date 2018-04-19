@@ -4,14 +4,6 @@
 Checking the password authentication using the sha256_password plugin at the client and mysql_native_password plugin at the server side
 ===========================================================================================================================================
 
-select @@Global.old_passwords;
-@@Global.old_passwords
-0
-0 Expected
-select @@session.old_passwords;
-@@session.old_passwords
-0
-0 Expected
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
 select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='sha256_password';
@@ -24,35 +16,8 @@ select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0
 1 Expected
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
-set @@session.old_passwords=2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
-**** connecting Tanjotuser1 with server 
-@@session.old_passwords
-2
-2 Expected
-**** connecting Tanjotuser2 with server 
-@@session.old_passwords
-2
-2 Expected
-**** connecting Tanjotuser1 with server 
-@@session.old_passwords
-2
-2 Expected
-**** connecting Tanjotuser2 with server 
-@@session.old_passwords
-2
-2 Expected
-**** connecting Tanjotuser1 with server 
-@@session.old_passwords
-2
-2 Expected
-**** connecting Tanjotuser2 with server 
-@@session.old_passwords
-2
-2 Expected
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
@@ -79,9 +44,6 @@ checking the integrity of long password (more than 40 chars) using sha256_passwo
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
-SET @@session.old_passwords=2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
@@ -101,14 +63,6 @@ Checking the password authentication using the sha256_password plugin at the cli
 ============================================================================================================================================
 
 # Restart server with default-authentication-plugin=sha256_password;
-select @@Global.old_passwords;
-@@Global.old_passwords
-2
-2 Expected
-select @@session.old_passwords;
-@@session.old_passwords
-0
-0 Expected
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
 select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='sha256_password';
@@ -121,27 +75,8 @@ select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0
 1 Expected
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
-SET @@session.old_passwords=2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
-**** connecting Tanjotuser1 with server 
-@@session.old_passwords
-2
-2 Expected
-**** connecting Tanjotuser2 with server 
-@@session.old_passwords
-2
-2 Expected
-**** connecting Tanjotuser1 with server 
-@@session.old_passwords
-2
-2 Expected
-**** connecting Tanjotuser2 with server 
-@@session.old_passwords
-2
-2 Expected
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
@@ -168,9 +103,6 @@ checking the integrity of long password (more than 40 chars) using sha256_passwo
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
-SET @@session.old_passwords=2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
@@ -183,9 +115,3 @@ ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
 DROP USER 'Tanjotuser1'@'localhost';
 DROP USER 'Tanjotuser2'@'127.0.0.1';
-SET @@global.old_passwords=default;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-SET @@session.old_passwords=default;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.

@@ -1,14 +1,11 @@
+
 --source include/have_optimizer_trace.inc
 --source include/have_64bit.inc
---source include/have_innodb_16k.inc
 
-call mtr.add_suppression("InnoDB: Cannot add field");
+call mtr.add_suppression("Cannot add field");
 
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
-            + $VIEW_PROTOCOL > 0`)
-{
-   --skip Need normal protocol
-}
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
 SET optimizer_trace_max_mem_size=1048576; # 1MB
 SET end_markers_in_json=off;
@@ -83,7 +80,7 @@ CREATE TABLE t1 (
   c62 VARCHAR(1022) NOT NULL DEFAULT '',
   c63 VARCHAR(1022) NOT NULL DEFAULT '',
   c64 VARCHAR(1021) NOT NULL DEFAULT ''
-) ENGINE = INNODB;
+) ENGINE = INNODB, charset latin1;
 
 SET @save_max_length_for_sort_data = @@max_length_for_sort_data;
 SET @save_sort_buffer_size= @@sort_buffer_size;
@@ -378,7 +375,7 @@ CREATE TABLE t1 (
   c255 CHAR(255) NOT NULL DEFAULT '',
   c256 CHAR(255) NOT NULL DEFAULT '',
   c257 CHAR(254) NOT NULL DEFAULT ''
-) ENGINE = INNODB;
+) ENGINE = INNODB ROW_FORMAT=COMPACT charset latin1;
 
 SELECT * FROM t1 ORDER BY c1;
 SELECT * FROM information_schema.OPTIMIZER_TRACE;

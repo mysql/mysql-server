@@ -1,0 +1,26 @@
+## XPLUGIN: Following test cases for mysqlx plugin ssl connection testing
+##          with SSL cert verification on client side.
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_ssl_warnings_suppression.inc
+--source include/xplugin_create_user.inc
+
+call mtr.add_suppression(".*Failed to set up SSL.*");
+
+--let $SS_VERIFY=--ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem
+--let $MYSQLXTEST_SSLCA_TEST=$MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp $SS_VERIFY --quiet
+--let $MYSQLXTEST_TEST=$MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp --quiet
+
+--write_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
+-->echo [Verify that SSL_cert and SSL_mode=%OPTION_SSL_MODE%, makes 'mysqlx_ssl_active' status variable set to %EXPECT%]
+-->stmtsql SELECT variable_value FROM performance_schema.global_status WHERE variable_name LIKE 'mysqlx_ssl_active';
+-->recvtovar %IS_SSL_ACTIVE%
+-->assert_eq %EXPECT%	%IS_SSL_ACTIVE%
+EOF
+
+--let $USE_SOCKET=
+--source ../include/mysqlxtest_mode_ssl.inc
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
+--source include/xplugin_drop_user.inc

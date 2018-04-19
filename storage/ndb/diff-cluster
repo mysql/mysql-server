@@ -1,0 +1,384 @@
+#!/usr/bin/perl
+
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+# -*- cperl -*-
+#
+# MySQL Cluster diff script used to show any patches applied to
+# the MySQL Server release which Cluster is based on
+#
+# This script is intended for internal use
+#
+
+use strict;
+use warnings;
+use IO::File;
+use Cwd;
+use File::Temp ();
+
+use Getopt::Long;
+
+my $grep;
+GetOptions(
+  'grep=s' => \$grep,
+) or die "Failed to parse options";
+
+my $clone = $ARGV[0] || cwd();
+die "usage: diff-cluster [<clone>] [--grep=<some_text>]" unless $clone;
+
+# Extract MySQL version from VERSION
+my $base_version;
+my $base_version_tag;
+{
+  my $major;
+  my $minor;
+  my $patch;
+  my $F = IO::File->new("$clone/VERSION")
+    or die "Failed to open $clone/VERSION: $!\n";
+  while(my $line = <$F>){
+    chomp($line);
+
+    if($line  =~ /MYSQL_VERSION_MAJOR=([0-9]*)/)
+    {
+      $major = $1;
+    }
+    if($line  =~ /MYSQL_VERSION_MINOR=([0-9]*)/)
+    {
+      $minor = $1;
+    }
+    if($line  =~ /MYSQL_VERSION_PATCH=([0-9]*)/)
+    {
+      $patch = $1;
+    }
+  }
+  $base_version_tag = "mysql-$major.$minor.$patch";
+  # The MySQL Server branch this version of Cluster
+  # most likely is based on
+  $base_version = "mysql-$major.$minor";
+}
+
+print "MySQL Server tag: $base_version_tag\n";
+print "MySQL Server base branch: $base_version\n";
+{
+  #
+  # With git it's possible to find the merge base and use that
+  # as the point to compare with, this allows showing the upstream
+  # diff also when having merged down an arbitrary commit.
+  #
+  # Try to find the merge base from the branch name
+  # as suggested by the VERSION file, if that branch does not
+  # exists try instead with mysql-trunk.
+  #
+  # i.e VERSION says 5.8.7 -> try with mysql-5.8 but fall
+  # back to mysql-trunk if that branch does not exist
+  #
+  print "Finding best merge base...\n";
+  my @merge_base_candidates =
+    `git -C $clone merge-base --all origin/$base_version HEAD`;
+  if ( $? )
+  {
+    $base_version = 'mysql-trunk';
+    print "Couldn't find that branch, trying $base_version\n";
+    @merge_base_candidates =
+      `git -C $clone merge-base --all origin/$base_version HEAD`;
+    if ( $? )
+    {
+      die "Couldn't find merge-base for $base_version either, error: $!\n";
+    }
+  }
+
+  # In most case merge-base find only one revision, but sometimes
+  # there will be more than one possible and thus it's necessary to
+  # choose the one with as few changes as possible since that normally
+  # produce the smallest diff.
+  my $merge_base;
+  my $merge_base_commit_count;
+  do
+  {
+    my $candidate = pop(@merge_base_candidates);
+    chomp($candidate);
+
+    my $commit_count = `git rev-list --count --no-merges $candidate..HEAD`;
+    if ( $? )
+    {
+       die "Could not find commit count for merge base $candidate";
+    }
+    chomp($commit_count);
+    #print "  $candidate = $commit_count\n";
+
+    if (!$merge_base_commit_count ||
+        $commit_count < $merge_base_commit_count)
+    {
+      # Merge base commit count was not already set or this merge base
+      # had lower number of commits, select it
+      $merge_base = $candidate;
+      $merge_base_commit_count = $commit_count;
+    }
+  } while (@merge_base_candidates);
+  print "  found $merge_base with $merge_base_commit_count commits!\n";
+
+  # Found the merge-base commit, print it to allow
+  # manual verification that is seems correct and also
+  # showing if that commit is tagged(which it normally will be)
+  print "\nLast commit merged from $base_version is:\n";
+  print `git -C $clone show --decorate --abbrev-commit --no-patch $merge_base`;
+  print "\n";
+
+  $base_version_tag = $merge_base;
+}
+
+print "Showing diff in $clone against $base_version_tag\n";
+
+# Ask git for a diff of all files
+
+my $diff_opts = '--unified --ignore-space-change';
+my $cmd = "git -C $clone diff $diff_opts $base_version_tag..HEAD";
+#print "cmd: $cmd\n";
+
+my @diff = `$cmd`;
+die "No diff lines returned by '$cmd'" unless @diff; # No diff
+
+# Postprocess the diff
+my @post_diff = post_process($grep, @diff);
+
+# Generate diffstat for the postprocessed diff
+my $temp_file = File::Temp->new();
+print $temp_file join("", @post_diff);
+my $diff_stat_cmd = "diffstat -p1 " . $temp_file->filename();
+print `$diff_stat_cmd`;
+print "\n";
+
+# Print postprocessed diff
+print @post_diff;
+
+exit(0);
+
+# Post process the diff to filter away unwanted diffs like
+# copyright header changes
+sub post_process
+{
+  my ($grep, @lines) = @_;
+  my @filtered;
+
+  print "Showing only hunks marked with $grep\n"
+    if ($grep);
+
+
+  my $line;
+  my @file_lines;
+  do {
+
+    $line = shift(@lines);
+
+    if (! defined $line ||
+        $line =~ /^diff/)
+    {
+      # No more lines or start of new file diff detected
+      if (@file_lines)
+      {
+        my @file_header = splice(@file_lines, 0, 4);
+
+        #print "file_header: ", join(" ", @file_header);
+
+        @file_lines = post_filter_copyright(@file_lines);
+
+        if ($grep)
+        {
+          @file_lines = post_filter_grep($grep, @file_lines);
+        }
+
+        if (@file_lines)
+        {
+          # Still some lines left after filtering
+          if (!post_filter_skip_file(@file_header))
+          {
+            push (@filtered, @file_header);
+            push (@filtered, @file_lines);
+          }
+        }
+      }
+
+      @file_lines = ();
+    }
+
+    push(@file_lines, $line);
+
+  } while(defined $line);
+
+  return @filtered;
+}
+
+# Post process a diff list return only the hunks
+# that is not a copyright header change
+sub post_filter_copyright{
+  my @lines = @_;
+  my @filtered;
+
+  # print "filter_copyright: " . join("", @lines) . "\n";
+
+  my $line;
+  my @hunk;
+  do {
+
+    $line = shift(@lines);
+
+    # Check if there any real diffs
+    # ignore copyright header diffs
+    if (!defined $line ||
+        $line =~ /^\@\@.*\@\@/){
+      # No more lines in file or new hunk
+
+      # Skip hunk if it looks like a copyright
+      # header change and is 6 lines or shorter
+      if (grep(/Copyright|Foundation,/, @hunk) &&
+         scalar(@hunk) <= 6)
+      {
+        # Don't print this diff hunk
+        #print "discarding: " . join("", @hunk);
+      }
+      else
+      {
+        push(@filtered, @hunk);
+      }
+
+      # Reset hunk
+      @hunk = ();
+    }
+
+    # Save line in current hunk
+    push(@hunk, $line);
+
+  } while (defined $line);
+
+  return @filtered;
+}
+
+# Post process a diff list return only the hunks
+# that matches the given string
+sub post_filter_grep{
+  my ($grep, @lines) = @_;
+  my @filtered;
+
+  #print "post_filter_grep: $grep\n" . join("", @lines) . "\n";
+
+  my $line;
+  my @hunk;
+  do {
+
+    $line = shift(@lines);
+
+    # Check if there any real diffs
+    # ignore copyright header diffs
+    if (!defined $line ||
+        $line =~ /^\@\@.*\@\@/){
+      # No more lines in file or new hunk
+
+      if (!grep(/$grep/, @hunk))
+      {
+        # Don't print this diff hunk
+        #print "discarding: " . join("", @hunk);
+      }
+      else
+      {
+        push(@filtered, @hunk);
+      }
+
+      # Reset hunk
+      @hunk = ();
+    }
+
+    # Save line in current hunk
+    push(@hunk, $line);
+
+  } while (defined $line);
+
+  return @filtered;
+}
+
+
+sub is_server_file {
+  my ($file_name) = @_;
+
+  # Add file patterns to be totally ignored here
+  my @ignore_patterns = (
+    ".gitignore",
+  );
+  # Add file pattern to consider owned by Cluster here
+  my @skip_patterns = (
+    "ndb", # ndb in the path
+    "abstract_query_plan\.",
+    );
+
+  if (grep ( $file_name =~ /$_/, @ignore_patterns, @skip_patterns))
+  {
+    return 0;
+  }
+  return 1;
+}
+
+
+# Check if the file indentified by file_header should be included
+# in the post processed diff. Normally only files not having ndb
+# in the path are included in the diff but there might be some
+# exceptions
+sub post_filter_skip_file {
+  my (@file_header) = @_;
+
+  # print "post_filter_skip_file: ", join(" ", @file_header);
+
+  my $first_header = $file_header[0];
+  $first_header =~ /a\/(.*) b\/(.*)$/;
+  my $file1 = $1;
+  my $file2 = $2;
+  #print "file1: $file1\n";
+  #print "file2: $file2\n";
+  die "Failed to parse file names" unless ( $file1 && $file2 );
+
+  # Only check non Cluster files
+  if (!is_server_file($file1) &&
+      !is_server_file($file2))
+  {
+    #print "Skip file $file1\n";
+    return 1;
+  }
+
+  if ($file1 ne $file2)
+  {
+    if ($file1 eq "/dev/null")
+    {
+       # New file
+       return !is_server_file($file2);
+    }
+
+    if ($file2 eq "/dev/null")
+    {
+      # Deleted file
+      return !is_server_file($file1);
+    }
+
+    # Renamed file
+  }
+
+  #print "Dont skip file $file1\n";
+  return 0;
+}

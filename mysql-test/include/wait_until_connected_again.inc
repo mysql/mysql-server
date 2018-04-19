@@ -3,9 +3,12 @@
 # server has been restored or timeout occurs
 --disable_result_log
 --disable_query_log
-let $counter= 500;
+let $counter= 1000;
 if ($VALGRIND_TEST) {
-  let $counter= 3000;
+  let $counter= 9000;
+}
+if ($explicit_time_out_counter) {
+ let $counter=$explicit_time_out_counter;
 }
 let $mysql_errno= 9999;
 while ($mysql_errno)
@@ -14,12 +17,14 @@ while ($mysql_errno)
   # Strangely enough, the server might return "Too many connections"
   # while being shutdown, thus 1040 is an "allowed" error
   # See BUG#36228
-  --error 0,1040,1053,2002,2003,2006,2013,1045
+  --error 0,1040,1053,2002,2003,2006,2013,1045,ER_SECURE_TRANSPORT_REQUIRED,2016,2017
   show session status;
   if ($mysql_errno == 1045){
     let mysql_errno=0;
   }
-
+  if ($mysql_errname == ER_SECURE_TRANSPORT_REQUIRED){
+    let mysql_errno=0;
+  }
   dec $counter;
   if (!$counter)
   {

@@ -1,0 +1,124 @@
+#
+# BUG#22516559 MYSQL INSTANCE STALLS WHEN SYNCING FTS INDEX
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_log_bin.inc
+--source include/count_sessions.inc
+
+SET @old_log_output = @@global.log_output;
+SET @old_slow_query_log = @@global.slow_query_log;
+SET @old_general_log = @@global.general_log;
+SET @old_long_query_time = @@global.long_query_time;
+SET @old_binlog_order_commits = @@global.binlog_order_commits;
+
+SET GLOBAL log_output = 'TABLE';
+SET GLOBAL general_log = 1;
+SET GLOBAL slow_query_log = 1;
+SET GLOBAL long_query_time = 1;
+SET GLOBAL binlog_order_commits = 1;
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection default;
+
+--echo # Case 1: Sync blocks DML(insert) on the same table.
+CREATE TABLE t1 (
+        FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        FULLTEXT(title)
+) ENGINE = InnoDB;
+
+connection con1;
+
+SET GLOBAL debug="+d,fts_instrument_sync_debug,fts_instrument_sync_sleep";
+
+SET DEBUG_SYNC= 'fts_sync_begin SIGNAL begin WAIT_FOR continue';
+
+send INSERT INTO t1(title) VALUES('mysql database');
+
+connection con2;
+
+SET DEBUG_SYNC= 'now WAIT_FOR begin';
+
+send SELECT * FROM t1 WHERE MATCH(title) AGAINST('mysql database');
+
+connection default;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+connection con1;
+--echo /* connection con1 */ INSERT INTO t1(title) VALUES('mysql database');
+--reap
+
+connection con2;
+--echo /* conneciton con2 */ SELECT * FROM t1 WHERE MATCH(title) AGAINST('mysql database');
+--reap
+
+connection default;
+-- echo # make con1 & con2 show up in mysql.slow_log
+SELECT SLEEP(2);
+-- echo # slow log results should only contain INSERT INTO t1.
+SELECT sql_text FROM mysql.slow_log WHERE query_time >= '00:00:02';
+
+SET GLOBAL debug="-d,fts_instrument_sync_debug,fts_instrument_sync_sleep";
+TRUNCATE TABLE mysql.slow_log;
+
+DROP TABLE t1;
+
+--echo # Case 2: Sync blocks DML(insert) on other tables.
+CREATE TABLE t1 (
+        FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        FULLTEXT(title)
+) ENGINE = InnoDB;
+
+CREATE TABLE t2(id INT);
+
+connection con1;
+
+SET GLOBAL debug="+d,fts_instrument_sync_request,fts_instrument_sync_sleep";
+
+SET DEBUG_SYNC= 'fts_instrument_sync_request SIGNAL begin WAIT_FOR continue';
+
+send INSERT INTO t1(title) VALUES('mysql database');
+
+connection con2;
+
+SET DEBUG_SYNC= 'now WAIT_FOR begin';
+
+send INSERT INTO t2 VALUES(1);
+
+connection default;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+connection con1;
+--echo /* connection con1 */ INSERT INTO t1(title) VALUES('mysql database');
+--reap
+
+connection con2;
+--echo /* conneciton con2 */ INSERT INTO t2 VALUES(1);
+--reap
+
+connection default;
+-- echo # make con1 & con2 show up in mysql.slow_log
+SELECT SLEEP(2);
+-- echo # slow log results should be empty here.
+SELECT sql_text FROM mysql.slow_log WHERE query_time >= '00:00:02';
+
+SET GLOBAL debug="-d,fts_instrument_sync_request,fts_instrument_sync_sleep";
+TRUNCATE TABLE mysql.slow_log;
+
+DROP TABLE t1,t2;
+
+disconnect con1;
+disconnect con2;
+
+--source include/wait_until_count_sessions.inc
+
+-- echo # Restore slow log settings.
+SET GLOBAL log_output = @old_log_output;
+SET GLOBAL general_log = @old_general_log;
+SET GLOBAL slow_query_log = @old_slow_query_log;
+SET GLOBAL long_query_time = @old_long_query_time;
+SET GLOBAL binlog_order_commits = @old_binlog_order_commits;

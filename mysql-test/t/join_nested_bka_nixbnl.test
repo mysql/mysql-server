@@ -65,6 +65,7 @@ SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
        (t6 LEFT JOIN t7 ON t7.a=1, t8)
        ON (t5.b=t8.b);
 
+--sorted_result
 SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM t5 LEFT JOIN                
        (t6 LEFT JOIN t7 ON t7.a=1, t8)
@@ -76,6 +77,7 @@ SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
        (t6 LEFT JOIN t7 ON t7.b=2, t8)
        ON (t5.b=t8.b);
 
+--sorted_result
 SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM t5 LEFT JOIN                
        (t6 LEFT JOIN t7 ON t7.b=2, t8)
@@ -87,6 +89,7 @@ SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
        (t8, t6 LEFT JOIN t7 ON t7.a=1)
        ON (t5.b=t8.b);
 
+--sorted_result
 SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM t5 LEFT JOIN                
        (t8, t6 LEFT JOIN t7 ON t7.a=1)

@@ -1,0 +1,33 @@
+
+0 rows affected
+
+1 rows affected
+
+0 rows affected
+
+1 rows affected
+id	name	flag
+42	ROBB	0
+0 rows affected
+
+0 rows affected
+
+1 rows affected
+
+1 rows affected
+hex("one")
+6F6E65
+0 rows affected
+hex("two")
+74776F
+0 rows affected
+doc	_id
+{"_id": "7468726565", "value": 88}	7468726565
+{"_id": "74776F", "value": 77}	74776F
+0 rows affected
+
+2 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

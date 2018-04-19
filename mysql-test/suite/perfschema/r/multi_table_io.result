@@ -9,13 +9,13 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` bigint(20) DEFAULT NULL,
   `col2` varchar(30) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table test1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `col1` bigint(20) DEFAULT NULL,
   `col2` varchar(30) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table if exists test.marker;
 create table test.marker(a int);
 update performance_schema.setup_consumers set enabled='NO';
@@ -52,17 +52,26 @@ where event_name like 'wait/io/table/%'
   and object_schema in ('test','test1')
 order by thread_id, event_id;
 event_name	short_source	object_type	object_schema	pretty_name	operation	number_of_bytes
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	update	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	update	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	delete	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	delete	1
-show global status like 'performance_schema_%';
+show global status like 'performance_schema_%_lost';
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0

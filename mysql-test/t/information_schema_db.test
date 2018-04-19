@@ -1,15 +1,10 @@
 
-# this test mostly test privilege control (what doesn't work
-# in the embedded server by default). So skip the test in embedded-server mode.
--- source include/not_embedded.inc
-
 #Don't run this test when thread_pool active
 --source include/not_threadpool.inc
 
 -- source include/testdb_only.inc
 
 set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 
 --disable_warnings
 drop table if exists t1,t2;
@@ -19,8 +14,10 @@ drop function if exists f2;
 --enable_warnings
 
 use INFORMATION_SCHEMA;
+sorted_result;
 --replace_result Tables_in_INFORMATION_SCHEMA Tables_in_information_schema
-show tables where Tables_in_INFORMATION_SCHEMA NOT LIKE 'Innodb%' and Tables_in_INFORMATION_SCHEMA NOT LIKE 'ndb%';
+show tables where Tables_in_INFORMATION_SCHEMA NOT LIKE 'INNODB%' and Tables_in_INFORMATION_SCHEMA NOT LIKE 'ndb%';
+sorted_result;
 --replace_result 'Tables_in_INFORMATION_SCHEMA (T%)' 'Tables_in_information_schema (T%)'
 show tables from INFORMATION_SCHEMA like 'T%';
 create database `inf%`;
@@ -37,6 +34,7 @@ show tables;
 # database-level privileges (e.g. had only table-level or had no
 # privileges at all).
 #
+create user 'mysqltest_1'@'localhost';
 grant all privileges on `inf%`.* to 'mysqltest_1'@'localhost';
 grant all privileges on `mbase`.* to 'mysqltest_1'@'localhost';
 create table t1 (f1 int);
@@ -232,6 +230,7 @@ create database testdb_1;
 create table testdb_1.t1 (a int);
 create view testdb_1.v1 as select * from testdb_1.t1;
 
+create user mysqltest_1@localhost;
 grant show view on testdb_1.* to mysqltest_1@localhost;
 grant select on testdb_1.v1 to mysqltest_1@localhost;
 

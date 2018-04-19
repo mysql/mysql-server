@@ -1,0 +1,20 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server2]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+include/assert.inc [Assert that show slave hosts is empty..]
+STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+[connection server1]
+SET @restore_slave_net_timeout=@@global.slave_net_timeout;
+SET @@global.slave_net_timeout=20;
+include/start_group_replication.inc
+[connection server2]
+START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+[connection server1]
+SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+DROP TABLE t1;
+include/group_replication_end.inc

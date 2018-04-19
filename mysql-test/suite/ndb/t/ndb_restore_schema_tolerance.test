@@ -1,14 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ######################################################################
 # Test restoring backups into similar schemas
 ######################################################################
 
 -- source include/have_ndb.inc
--- source include/ndb_default_cluster.inc
 
 --echo Test ndb_restore ability to ignore some schema differences
 
@@ -23,7 +17,7 @@ create table t1 (
   g char(20),
   h text,
   i int,
-  primary key(a,b)) TABLESPACE ts1 engine = ndb;
+  primary key(a,b)) engine = ndb;
 
 insert into t1 values
         (1, 1, 1, 1, '1', 1, 'Rankin', 'Rebus', 1),
@@ -43,7 +37,9 @@ drop table t1;
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 select * from t1 order by a;
 
@@ -67,7 +63,9 @@ truncate t1;
 --echo Column type change, should fail
 
 alter table t1 change cc c bigint;
+--disable_warnings
 show create table t1; #REMOVE!
+--enable_warnings
 --error 1
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
@@ -145,7 +143,7 @@ USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M
 ENGINE NDB;
 
-alter table t1 change i i int storage disk;
+alter table t1 TABLESPACE ts1, change i i int storage disk;
 
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
@@ -167,8 +165,8 @@ alter table t1 change c c int column_format dynamic;
 select * from t1 order by a;
 
 drop table t1;
-alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
-drop tablespace ts1 engine=ndb;
+alter tablespace ts1 drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1 engine=ndb;
 
 --echo Different PK columns, should fail
@@ -182,7 +180,7 @@ create table t1 (
   g char(20),
   h text,
   i int,
-  primary key (a)) TABLESPACE ts1 engine = ndb;
+  primary key (a)) engine = ndb;
 
 --error 1
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
@@ -201,7 +199,7 @@ create table t1 (
   g char(20),
   h text,
   i int,
-  primary key(a,b)) TABLESPACE ts1 engine = ndb partition by key(a);
+  primary key(a,b)) engine = ndb partition by key(a);
 
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
@@ -209,3 +207,583 @@ create table t1 (
 select * from t1 order by a;
 
 drop table t1;
+
+create table test.t1(id int primary key, val1 int unique, val2 char(20) unique) engine=ndb;
+--source include/ndb_backup.inc
+drop table test.t1;
+
+--let $dump_file= $MYSQLTEST_VARDIR/tmp/restore_out.txt
+
+--echo Test ndb_restore of backup containing unique index, should warn only for data restore
+
+--echo # print metadata+data+log : should not warn
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 --print $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--source suite/ndb/include/ndb_restore_check_warn.inc
+
+--echo # print metadata : should not warn
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 --print-meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--source suite/ndb/include/ndb_restore_check_warn.inc
+
+--echo # metadata restore : should not warn
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -m $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--source suite/ndb/include/ndb_restore_check_warn.inc
+
+--echo # disable-indexes : should not warn
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 --disable-indexes $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--source suite/ndb/include/ndb_restore_check_warn.inc
+
+--echo # print data : should not warn
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 --print-data $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--source suite/ndb/include/ndb_restore_check_warn.inc
+
+--echo # print log : should not warn
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 --print-log $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--source suite/ndb/include/ndb_restore_check_warn.inc
+
+--echo # restore data, but exclude indexed table : should not warn since unique indexes excluded
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r --exclude-tables=test.t1 $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--source suite/ndb/include/ndb_restore_check_warn.inc
+
+--echo # restore data, but exclude database containing indexed table : should not warn since unique indexes excluded
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r --exclude-databases=test $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--source suite/ndb/include/ndb_restore_check_warn.inc
+
+--echo # restore data : should warn since unique indexes to be restored
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--source suite/ndb/include/ndb_restore_check_warn.inc
+
+--echo # restore epoch : should not warn
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -e $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--source suite/ndb/include/ndb_restore_check_warn.inc
+
+--echo # rebuild-indexes : should not warn
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 --rebuild-indexes $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--source suite/ndb/include/ndb_restore_check_warn.inc
+
+drop table test.t1;
+--echo Restore table with largest possible descriptor
+
+create table grp_hssesmusersstoredbytenant(t1 bigint primary key,
+t2 bigint unique default 65535,
+t3 bigint unique default 65535,
+t4 bigint unique default 65535,
+t5 bigint unique default 65535,
+t6 bigint unique default 65535,
+t7 bigint unique default 65535,
+t8 bigint unique default 65535,
+t9 bigint unique default 65535,
+t10 bigint unique default 65535,
+t11 bigint unique default 65535,
+t12 bigint unique default 65535,
+t13 bigint unique default 65535,
+t14 bigint unique default 65535,
+t15 bigint unique default 65535,
+t16 bigint unique default 65535,
+t17 bigint unique default 65535,
+t18 bigint unique default 65535,
+t19 bigint unique default 65535,
+t20 bigint unique default 65535,
+t21 bigint unique default 65535,
+t22 bigint unique default 65535,
+t23 bigint unique default 65535,
+t24 bigint unique default 65535,
+t25 bigint unique default 65535,
+t26 bigint unique default 65535,
+t27 bigint unique default 65535,
+t28 bigint unique default 65535,
+t29 bigint unique default 65535,
+t30 bigint unique default 65535,
+t31 bigint unique default 65535,
+t32 bigint unique default 65535,
+t33 bigint unique default 65535,
+t34 bigint unique default 65535,
+t35 bigint unique default 65535,
+t36 bigint unique default 65535,
+t37 bigint unique default 65535,
+t38 bigint unique default 65535,
+t39 bigint unique default 65535,
+t40 bigint unique default 65535,
+t41 bigint unique default 65535,
+t42 bigint unique default 65535,
+t43 bigint unique default 65535,
+t44 bigint unique default 65535,
+t45 bigint unique default 65535,
+t46 bigint unique default 65535,
+t47 bigint unique default 65535,
+t48 bigint unique default 65535,
+t49 bigint unique default 65535,
+t50 bigint unique default 65535,
+t51 bigint unique default 65535,
+t52 bigint unique default 65535,
+t53 bigint unique default 65535,
+t54 bigint unique default 65535,
+t55 bigint unique default 65535,
+t56 bigint unique default 65535,
+t57 bigint unique default 65535,
+t58 bigint unique default 65535,
+t59 bigint unique default 65535,
+t60 bigint unique default 65535,
+t61 bigint unique default 65535,
+t62 bigint unique default 65535,
+t63 bigint unique default 65535,
+t64 bigint unique default 65535,
+t65 bigint default 65535,
+t66 bigint default 65535,
+t67 bigint default 65535,
+t68 bigint default 65535,
+t69 bigint default 65535,
+t70 bigint default 65535,
+t71 bigint default 65535,
+t72 bigint default 65535,
+t73 bigint default 65535,
+t74 bigint default 65535,
+t75 bigint default 65535,
+t76 bigint default 65535,
+t77 bigint default 65535,
+t78 bigint default 65535,
+t79 bigint default 65535,
+t80 bigint default 65535,
+t81 bigint default 65535,
+t82 bigint default 65535,
+t83 bigint default 65535,
+t84 bigint default 65535,
+t85 bigint default 65535,
+t86 bigint default 65535,
+t87 bigint default 65535,
+t88 bigint default 65535,
+t89 bigint default 65535,
+t90 bigint default 65535,
+t91 bigint default 65535,
+t92 bigint default 65535,
+t93 bigint default 65535,
+t94 bigint default 65535,
+t95 bigint default 65535,
+t96 bigint default 65535,
+t97 bigint default 65535,
+t98 bigint default 65535,
+t99 bigint default 65535,
+t100 bigint default 65535,
+t101 bigint default 65535,
+t102 bigint default 65535,
+t103 bigint default 65535,
+t104 bigint default 65535,
+t105 bigint default 65535,
+t106 bigint default 65535,
+t107 bigint default 65535,
+t108 bigint default 65535,
+t109 bigint default 65535,
+t110 bigint default 65535,
+t111 bigint default 65535,
+t112 bigint default 65535,
+t113 bigint default 65535,
+t114 bigint default 65535,
+t115 bigint default 65535,
+t116 bigint default 65535,
+t117 bigint default 65535,
+t118 bigint default 65535,
+t119 bigint default 65535,
+t120 bigint default 65535,
+t121 bigint default 65535,
+t122 bigint default 65535,
+t123 bigint default 65535,
+t124 bigint default 65535,
+t125 bigint default 65535,
+t126 bigint default 65535,
+t127 bigint default 65535,
+t128 bigint default 65535,
+t129 bigint default 65535,
+t130 bigint default 65535,
+t131 bigint default 65535,
+t132 bigint default 65535,
+t133 bigint default 65535,
+t134 bigint default 65535,
+t135 bigint default 65535,
+t136 bigint default 65535,
+t137 bigint default 65535,
+t138 bigint default 65535,
+t139 bigint default 65535,
+t140 bigint default 65535,
+t141 bigint default 65535,
+t142 bigint default 65535,
+t143 bigint default 65535,
+t144 bigint default 65535,
+t145 bigint default 65535,
+t146 bigint default 65535,
+t147 bigint default 65535,
+t148 bigint default 65535,
+t149 bigint default 65535,
+t150 bigint default 65535,
+t151 bigint default 65535,
+t152 bigint default 65535,
+t153 bigint default 65535,
+t154 bigint default 65535,
+t155 bigint default 65535,
+t156 bigint default 65535,
+t157 bigint default 65535,
+t158 bigint default 65535,
+t159 bigint default 65535,
+t160 bigint default 65535,
+t161 bigint default 65535,
+t162 bigint default 65535,
+t163 bigint default 65535,
+t164 bigint default 65535,
+t165 bigint default 65535,
+t166 bigint default 65535,
+t167 bigint default 65535,
+t168 bigint default 65535,
+t169 bigint default 65535,
+t170 bigint default 65535,
+t171 bigint default 65535,
+t172 bigint default 65535,
+t173 bigint default 65535,
+t174 bigint default 65535,
+t175 bigint default 65535,
+t176 bigint default 65535,
+t177 bigint default 65535,
+t178 bigint default 65535,
+t179 bigint default 65535,
+t180 bigint default 65535,
+t181 bigint default 65535,
+t182 bigint default 65535,
+t183 bigint default 65535,
+t184 bigint default 65535,
+t185 bigint default 65535,
+t186 bigint default 65535,
+t187 bigint default 65535,
+t188 bigint default 65535,
+t189 bigint default 65535,
+t190 bigint default 65535,
+t191 bigint default 65535,
+t192 bigint default 65535,
+t193 bigint default 65535,
+t194 bigint default 65535,
+t195 bigint default 65535,
+t196 bigint default 65535,
+t197 bigint default 65535,
+t198 bigint default 65535,
+t199 bigint default 65535,
+t200 bigint default 65535,
+t201 bigint default 65535,
+t202 bigint default 65535,
+t203 bigint default 65535,
+t204 bigint default 65535,
+t205 bigint default 65535,
+t206 bigint default 65535,
+t207 bigint default 65535,
+t208 bigint default 65535,
+t209 bigint default 65535,
+t210 bigint default 65535,
+t211 bigint default 65535,
+t212 bigint default 65535,
+t213 bigint default 65535,
+t214 bigint default 65535,
+t215 bigint default 65535,
+t216 bigint default 65535,
+t217 bigint default 65535,
+t218 bigint default 65535,
+t219 bigint default 65535,
+t220 bigint default 65535,
+t221 bigint default 65535,
+t222 bigint default 65535,
+t223 bigint default 65535,
+t224 bigint default 65535,
+t225 bigint default 65535,
+t226 bigint default 65535,
+t227 bigint default 65535,
+t228 bigint default 65535,
+t229 bigint default 65535,
+t230 bigint default 65535,
+t231 bigint default 65535,
+t232 bigint default 65535,
+t233 bigint default 65535,
+t234 bigint default 65535,
+t235 bigint default 65535,
+t236 bigint default 65535,
+t237 bigint default 65535,
+t238 bigint default 65535,
+t239 bigint default 65535,
+t240 bigint default 65535,
+t241 bigint default 65535,
+t242 bigint default 65535,
+t243 bigint default 65535,
+t244 bigint default 65535,
+t245 bigint default 65535,
+t246 bigint default 65535,
+t247 bigint default 65535,
+t248 bigint default 65535,
+t249 bigint default 65535,
+t250 bigint default 65535,
+t251 bigint default 65535,
+t252 bigint default 65535,
+t253 bigint default 65535,
+t254 bigint default 65535,
+t255 bigint default 65535,
+t256 bigint default 65535,
+t257 bigint default 65535,
+t258 bigint default 65535,
+t259 bigint default 65535,
+t260 bigint default 65535,
+t261 bigint default 65535,
+t262 bigint default 65535,
+t263 bigint default 65535,
+t264 bigint default 65535,
+t265 bigint default 65535,
+t266 bigint default 65535,
+t267 bigint default 65535,
+t268 bigint default 65535,
+t269 bigint default 65535,
+t270 bigint default 65535,
+t271 bigint default 65535,
+t272 bigint default 65535,
+t273 bigint default 65535,
+t274 bigint default 65535,
+t275 bigint default 65535,
+t276 bigint default 65535,
+t277 bigint default 65535,
+t278 bigint default 65535,
+t279 bigint default 65535,
+t280 bigint default 65535,
+t281 bigint default 65535,
+t282 bigint default 65535,
+t283 bigint default 65535,
+t284 bigint default 65535,
+t285 bigint default 65535,
+t286 bigint default 65535,
+t287 bigint default 65535,
+t288 bigint default 65535,
+t289 bigint default 65535,
+t290 bigint default 65535,
+t291 bigint default 65535,
+t292 bigint default 65535,
+t293 bigint default 65535,
+t294 bigint default 65535,
+t295 bigint default 65535,
+t296 bigint default 65535,
+t297 bigint default 65535,
+t298 bigint default 65535,
+t299 bigint default 65535,
+t300 bigint default 65535,
+t301 bigint default 65535,
+t302 bigint default 65535,
+t303 bigint default 65535,
+t304 bigint default 65535,
+t305 bigint default 65535,
+t306 bigint default 65535,
+t307 bigint default 65535,
+t308 bigint default 65535,
+t309 bigint default 65535,
+t310 bigint default 65535,
+t311 bigint default 65535,
+t312 bigint default 65535,
+t313 bigint default 65535,
+t314 bigint default 65535,
+t315 bigint default 65535,
+t316 bigint default 65535,
+t317 bigint default 65535,
+t318 bigint default 65535,
+t319 bigint default 65535,
+t320 bigint default 65535,
+t321 bigint default 65535,
+t322 bigint default 65535,
+t323 bigint default 65535,
+t324 bigint default 65535,
+t325 bigint default 65535,
+t326 bigint default 65535,
+t327 bigint default 65535,
+t328 bigint default 65535,
+t329 bigint default 65535,
+t330 bigint default 65535,
+t331 bigint default 65535,
+t332 bigint default 65535,
+t333 bigint default 65535,
+t334 bigint default 65535,
+t335 bigint default 65535,
+t336 bigint default 65535,
+t337 bigint default 65535,
+t338 bigint default 65535,
+t339 bigint default 65535,
+t340 bigint default 65535,
+t341 bigint default 65535,
+t342 bigint default 65535,
+t343 bigint default 65535,
+t344 bigint default 65535,
+t345 bigint default 65535,
+t346 bigint default 65535,
+t347 bigint default 65535,
+t348 bigint default 65535,
+t349 bigint default 65535,
+t350 bigint default 65535,
+t351 bigint default 65535,
+t352 bigint default 65535,
+t353 bigint default 65535,
+t354 bigint default 65535,
+t355 bigint default 65535,
+t356 bigint default 65535,
+t357 bigint default 65535,
+t358 bigint default 65535,
+t359 bigint default 65535,
+t360 bigint default 65535,
+t361 bigint default 65535,
+t362 bigint default 65535,
+t363 bigint default 65535,
+t364 bigint default 65535,
+t365 bigint default 65535,
+t366 bigint default 65535,
+t367 bigint default 65535,
+t368 bigint default 65535,
+t369 bigint default 65535,
+t370 bigint default 65535,
+t371 bigint default 65535,
+t372 bigint default 65535,
+t373 bigint default 65535,
+t374 bigint default 65535,
+t375 bigint default 65535,
+t376 bigint default 65535,
+t377 bigint default 65535,
+t378 bigint default 65535,
+t379 bigint default 65535,
+t380 bigint default 65535,
+t381 bigint default 65535,
+t382 bigint default 65535,
+t383 bigint default 65535,
+t384 bigint default 65535,
+t385 bigint default 65535,
+t386 bigint default 65535,
+t387 bigint default 65535,
+t388 bigint default 65535,
+t389 bigint default 65535,
+t390 bigint default 65535,
+t391 bigint default 65535,
+t392 bigint default 65535,
+t393 bigint default 65535,
+t394 bigint default 65535,
+t395 bigint default 65535,
+t396 bigint default 65535,
+t397 bigint default 65535,
+t398 bigint default 65535,
+t399 bigint default 65535,
+t400 bigint default 65535,
+t401 bigint default 65535,
+t402 bigint default 65535,
+t403 bigint default 65535,
+t404 bigint default 65535,
+t405 bigint default 65535,
+t406 bigint default 65535,
+t407 bigint default 65535,
+t408 bigint default 65535,
+t409 bigint default 65535,
+t410 bigint default 65535,
+t411 bigint default 65535,
+t412 bigint default 65535,
+t413 bigint default 65535,
+t414 bigint default 65535,
+t415 bigint default 65535,
+t416 bigint default 65535,
+t417 bigint default 65535,
+t418 bigint default 65535,
+t419 bigint default 65535,
+t420 bigint default 65535,
+t421 bigint default 65535,
+t422 bigint default 65535,
+t423 bigint default 65535,
+t424 bigint default 65535,
+t425 bigint default 65535,
+t426 bigint default 65535,
+t427 bigint default 65535,
+t428 bigint default 65535,
+t429 bigint default 65535,
+t430 bigint default 65535,
+t431 bigint default 65535,
+t432 bigint default 65535,
+t433 bigint default 65535,
+t434 bigint default 65535,
+t435 bigint default 65535,
+t436 bigint default 65535,
+t437 bigint default 65535,
+t438 bigint default 65535,
+t439 bigint default 65535,
+t440 bigint default 65535,
+t441 bigint default 65535,
+t442 bigint default 65535,
+t443 bigint default 65535,
+t444 bigint default 65535,
+t445 bigint default 65535,
+t446 bigint default 65535,
+t447 bigint default 65535,
+t448 bigint default 65535,
+t449 bigint default 65535,
+t450 bigint default 65535,
+t451 bigint default 65535,
+t452 bigint default 65535,
+t453 bigint default 65535,
+t454 bigint default 65535,
+t455 bigint default 65535,
+t456 bigint default 65535,
+t457 bigint default 65535,
+t458 bigint default 65535,
+t459 bigint default 65535,
+t460 bigint default 65535,
+t461 bigint default 65535,
+t462 bigint default 65535,
+t463 bigint default 65535,
+t464 bigint default 65535,
+t465 bigint default 65535,
+t466 bigint default 65535,
+t467 bigint default 65535,
+t468 bigint default 65535,
+t469 bigint default 65535,
+t470 bigint default 65535,
+t471 bigint default 65535,
+t472 bigint default 65535,
+t473 bigint default 65535,
+t474 bigint default 65535,
+t475 bigint default 65535,
+t476 bigint default 65535,
+t477 bigint default 65535,
+t478 bigint default 65535,
+t479 bigint default 65535,
+t480 bigint default 65535,
+t481 bigint default 65535,
+t482 bigint default 65535,
+t483 bigint default 65535,
+t484 bigint default 65535,
+t485 bigint default 65535,
+t486 bigint default 65535,
+t487 bigint default 65535,
+t488 bigint default 65535,
+t489 bigint default 65535,
+t490 bigint default 65535,
+t491 bigint default 65535,
+t492 bigint default 65535,
+t493 bigint default 65535,
+t494 bigint default 65535,
+t495 bigint default 65535,
+t496 bigint default 65535,
+t497 bigint default 65535,
+t498 bigint default 65535,
+t499 bigint default 65535,
+t500 bigint default 65535,
+t501 bigint default 65535,
+t502 bigint default 65535,
+t503 bigint default 65535,
+t504 bigint default 65535,
+t505 bigint default 65535,
+t506 bigint default 65535,
+t507 bigint default 65535,
+t508 bigint default 65535,
+t509 bigint default 65535,
+t510 bigint default 65535,
+t511 bigint default 65535,
+t512 bigint default 65535
+) engine=ndb;
+
+--echo Backing up data
+--source include/ndb_backup.inc
+drop table grp_hssesmusersstoredbytenant;
+
+-- source suite/ndb/include/ndb_find_tools.inc
+--exec $NDB_PRINT_BACKUP_FILE $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id/BACKUP-$the_backup_id.1.ctl >> $NDB_TOOLS_OUTPUT
+
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -m  --print-log $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+drop table grp_hssesmusersstoredbytenant;

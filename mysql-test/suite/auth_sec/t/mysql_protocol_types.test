@@ -1,0 +1,163 @@
+######################## suite/auth_sec/mysql_protocol_types.test #####################
+# Connetion Protocols testing with new CONNECTION_TYPE field in P_S.THREADS,audit log #
+# and general log.                                                                    #
+#                                                                                     #
+# Test for WL#7729                                                                    #
+# Created : 2015-05-14                                                                #
+# Author  : Lalit Choudhary                                                           #
+#######################################################################################
+
+# Windows does not have SOCKET connection protocol support.
+--source include/not_windows.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+## Connection Protocols: SOCKET, TCP/IP, SSL/TLS BY enabling general log.
+
+--echo # Enabling general logs. Make sure we start with a clean slate.
+TRUNCATE TABLE mysql.general_log;
+
+--echo --------------- general log ---------------------------------------
+
+SET @old_log_output=    @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+SET @old_general_log_file=    @@global.general_log_file;
+
+let $general_file_on = $MYSQLTEST_VARDIR/log/general_connection_protocols.log;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SET GLOBAL general_log_file = '$general_file_on';
+SET GLOBAL log_output =       'FILE,TABLE';
+SET GLOBAL general_log=       'ON';
+
+--echo
+# Creating users for connection protocols testing.
+CREATE USER 'user_tcp'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON *.* TO 'user_tcp'@'127.0.0.1';
+CREATE USER 'user_ssl'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON *.* TO 'user_ssl'@'127.0.0.1';
+
+--echo
+--echo # Connection type testing for SOCKET protocol.
+connect(socket_con1,localhost,root);
+
+connection default;
+disconnect socket_con1;
+--source include/wait_until_count_sessions.inc
+
+connect(socket_con2,localhost,root,,,$MASTER_MYPORT);
+
+connection default;
+disconnect socket_con2;
+--source include/wait_until_count_sessions.inc
+
+connect(socket_con3,localhost,root,,,,$MASTER_MYSOCK);
+
+connection default;
+disconnect socket_con3;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
+# For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS.
+--exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -uroot --ssl-mode=REQUIRED ping
+--exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -uroot --ssl-mode=REQUIRED --protocol=SOCKET ping
+--echo
+# Skipping SSL
+--exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot --ssl-mode=DISABLED --protocol=SOCKET ping
+
+# Mysql client with SSL enabled server.
+--exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --ssl-mode=REQUIRED --protocol=SOCKET -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+# Skipping SSL
+--exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --ssl-mode=DISABLED --protocol=SOCKET -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
+--echo
+--echo # Connection type testing for TCP/IP  protocol.
+
+--echo
+connect(tcp_con1,127.0.0.1,user_tcp);
+
+connection default;
+disconnect tcp_con1;
+--source include/wait_until_count_sessions.inc
+
+connect(tcp_con2,127.0.0.1,user_tcp,,,,$MASTER_MYSOCK);
+
+connection default;
+disconnect tcp_con2;
+--source include/wait_until_count_sessions.inc
+
+--echo # MYSQLADMIN test
+# For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS.
+--exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_tcp --protocol=TCP ping
+# Skipping SSL
+--exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_tcp --ssl-mode=DISABLED --protocol=TCP ping
+
+# Mysql client with SSL enabled server.
+--exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --protocol=TCP -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+# Skipping SSL
+--exec $MYSQL --host=127.0.0.1 --user=user_tcp --socket=$MASTER_MYSOCK --ssl-mode=DISABLED --protocol=TCP -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+
+--echo
+--echo # Testing TCP/IP connections over SSL/TLS.
+--echo
+connect(ssl_con2,127.0.0.1,user_ssl,,,,,SSL);
+
+connection default;
+disconnect ssl_con2;
+--source include/wait_until_count_sessions.inc
+
+--echo
+connect(ssl_con3,127.0.0.1,user_tcp,,,$MASTER_MYPORT,,SSL);
+
+connection default;
+disconnect ssl_con3;
+--source include/wait_until_count_sessions.inc
+
+--echo
+connect(ssl_con4,127.0.0.1,user_ssl,,,$MASTER_MYPORT,$MASTER_MYSOCK,SSL);
+
+connection default;
+disconnect ssl_con4;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
+--echo
+--echo # MYSQLADMIN test
+# For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS.
+--exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_tcp --ssl-mode=REQUIRED  ping
+--echo
+--exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_ssl --protocol=TCP --ssl-mode=REQUIRED ping
+
+# Mysql client with SSL enabled server.
+--exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --ssl-mode=REQUIRED  -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+
+--exec $MYSQL --host=127.0.0.1 --user=user_ssl --socket=$MASTER_MYSOCK --protocol=TCP --ssl-mode=REQUIRED -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+--echo
+
+CREATE TABLE test_log (argument TEXT);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA LOCAL INFILE '$general_file_on'
+INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
+
+--echo Show what is logged:
+--echo ------ rewrite ------
+SELECT argument FROM mysql.general_log where command_type='connect';
+--echo ------ done ------
+
+--remove_file $general_file_on
+DROP table test_log;
+
+SET GLOBAL general_log_file=  @old_general_log_file;
+SET GLOBAL general_log=       @old_general_log;
+SET GLOBAL log_output=        @old_log_output;
+
+
+--echo #Cleanup
+DROP USER 'user_tcp'@'127.0.0.1', 'user_ssl'@'127.0.0.1';
+
+

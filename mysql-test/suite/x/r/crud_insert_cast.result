@@ -1,0 +1,715 @@
+RUN DROP SCHEMA IF EXISTS xtest
+
+0 rows affected
+RUN CREATE SCHEMA xtest
+
+1 rows affected
+RUN CREATE TABLE xtest.my_int (value INTEGER)
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "my_int"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "value"
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_SINT
+            v_signed_int: 11
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "UNSIGNED"
+            }
+          }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_SINT
+            v_signed_int: -11
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "SIGNED"
+            }
+          }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_SINT
+            v_signed_int: 12
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "UNSIGNED INTEGER"
+            }
+          }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_SINT
+            v_signed_int: -12
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "SIGNED INTEGER"
+            }
+          }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "-123"
+            }
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "SIGNED"
+            }
+          }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "123"
+            }
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "UNSIGNED"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+6 rows affected
+Records: 6  Duplicates: 0  Warnings: 0
+RUN SELECT * FROM xtest.my_int
+value
+11
+-11
+12
+-12
+-123
+123
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "my_int"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "value"
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_SINT
+            v_signed_int: 13
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "undefined"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+Got expected error: CAST type invalid. (code 5154)
+RUN CREATE TABLE xtest.my_datetime (value DATETIME)
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "my_datetime"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "value"
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "2011.11.11T3:14"
+            }
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "DATETIME"
+            }
+          }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "2012.12.12"
+            }
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "DATE"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+RUN SELECT * FROM xtest.my_datetime
+value
+2011-11-11 03:14:00
+2012-12-12 00:00:00
+0 rows affected
+RUN CREATE TABLE xtest.my_time (value TIME)
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "my_time"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "value"
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "1024"
+            }
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "TIME"
+            }
+          }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_SINT
+            v_signed_int: 314
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "TIME"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+RUN SELECT * FROM xtest.my_time
+value
+00:10:24
+00:03:14
+0 rows affected
+RUN CREATE TABLE xtest.my_json (value JSON)
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "my_json"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "value"
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "{\"pi\": 3.14}"
+            }
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "JSON"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN SELECT * FROM xtest.my_json
+value
+{"pi": 3.14}
+0 rows affected
+RUN CREATE TABLE xtest.my_float (value FLOAT)
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "my_float"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "value"
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_FLOAT
+            v_float: 3.141593
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "DECIMAL"
+            }
+          }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_FLOAT
+            v_float: 3.141593
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "DECIMAL(4)"
+            }
+          }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_FLOAT
+            v_float: 3.141593
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "DECIMAL(4,2)"
+            }
+          }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "3.141593"
+            }
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "DECIMAL(4,2)"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+4 rows affected
+Records: 4  Duplicates: 0  Warnings: 0
+RUN SELECT * FROM xtest.my_float
+value
+3
+3
+3.14
+3.14
+0 rows affected
+RUN CREATE TABLE xtest.my_char (value VARCHAR(20))
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "my_char"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "value"
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "one"
+            }
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "CHAR"
+            }
+          }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "two"
+            }
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "CHAR(4)"
+            }
+          }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "three"
+            }
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "BINARY"
+            }
+          }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "four"
+            }
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "BINARY(4)"
+            }
+          }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_SINT
+            v_signed_int: -20
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "CHAR"
+            }
+          }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "cast"
+        param {
+          type: LITERAL
+          literal {
+            type: V_SINT
+            v_signed_int: 40
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {
+              value: "BINARY"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+6 rows affected
+Records: 6  Duplicates: 0  Warnings: 0
+RUN SELECT * FROM xtest.my_char
+value
+one
+two
+three
+four
+-20
+40
+0 rows affected
+RUN drop schema if exists xtest
+
+6 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

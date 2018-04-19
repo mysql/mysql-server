@@ -1,36 +1,19 @@
 
 
 =======================================================================
-Checking the password authentication with mysql_native_password plugin
+Checking the password authentication with @default_plugin plugin
 =======================================================================
 
+set @default_plugin= @@global.default_authentication_plugin;
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED BY 'abc';
-select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password';
-(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password'
+select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')=@default_plugin;
+(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')=@default_plugin
 1
 1 Expected
-select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='mysql_native_password';
-(select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='mysql_native_password'
+select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=@default_plugin;
+(select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=@default_plugin
 1
-1 Expected
-SET @@global.old_passwords=0;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-SET @@session.old_passwords=0;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-select (select authentication_string from mysql.user where User='Tanjotuser1' and Host='localhost')=password('abc');
-(select authentication_string from mysql.user where User='Tanjotuser1' and Host='localhost')=password('abc')
-1
-Warnings:
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
-1 Expected
-select (select authentication_string from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=password('abc');
-(select authentication_string from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=password('abc')
-1
-Warnings:
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
 1 Expected
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
@@ -56,12 +39,6 @@ select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0
 1 Expected
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-SET @@global.old_passwords=2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-SET @@session.old_passwords=2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
@@ -73,7 +50,7 @@ DROP USER 'Tanjotuser2'@'127.0.0.1';
 
 
 ====================================================================================================
-checking the integrity of long password (more than 40 chars) using mysql_native_password plugin
+checking the integrity of long password (more than 40 chars) using @default_plugin plugin
 ====================================================================================================
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
@@ -90,12 +67,6 @@ checking the integrity of long password (more than 40 chars) using sha256_passwo
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
-SET @@global.old_passwords=2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-SET @@session.old_passwords=2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
@@ -105,7 +76,7 @@ DROP USER 'Tanjotuser2'@'127.0.0.1';
 
 
 ====================================================================================================
-checking the integrity of NULL password using mysql_native_password plugin
+checking the integrity of NULL password using @default_plugin plugin
 ====================================================================================================
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY '';
@@ -126,12 +97,6 @@ checking the integrity of NULL password using sha256_password plugin
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
-SET @@global.old_passwords=2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-SET @@session.old_passwords=2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='';
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
@@ -148,12 +113,6 @@ checking the combination of Client default_auth=sha256_password and server defau
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
-SET @@global.old_passwords=2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-SET @@session.old_passwords=2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
 GRANT ALL ON *.* TO 'Tanjotuser1'@'localhost';
@@ -181,9 +140,6 @@ CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
 Grant all on *.* to 'Tanjotuser1'@'localhost';
 Creating a user with SHA256_password plugin
 CREATE USER 'Tanjotuser3'@'localhost' IDENTIFIED WITH 'sha256_password';
-set @@session.old_passwords=2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 set password for 'Tanjotuser3'@'localhost' ='abc';
 Grant all on *.* to 'Tanjotuser3'@'localhost';
 select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password';
@@ -194,26 +150,6 @@ select (select plugin from mysql.user where User='Tanjotuser3' and Host='localho
 (select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password'
 1
 1 Expected
-select @@global.old_passwords;
-@@global.old_passwords
-0
-0 Expected
-**** connecting Tanjotuser1 with Client default_auth=mysql_native_password 
-@@session.old_passwords
-0
-0 Expected
-**** connecting Tanjotuser1 with Client default_auth=sha256_password 
-@@session.old_passwords
-0
-0 Expected
-**** connecting Tanjotuser3 with Client default_auth=mysql_native_password 
-@@session.old_passwords
-2
-2 Expected
-**** connecting Tanjotuser3 with Client default_auth=sha256_password 
-@@session.old_passwords
-2
-2 Expected
 DROP USER 'Tanjotuser1'@'localhost';
 DROP USER 'Tanjotuser3'@'localhost';
 
@@ -225,9 +161,6 @@ Starting the server with the default authentication sha256_password
 # Restart server with default-authentication-plugin=sha256_password;
 Creating a user with mysql_native_password plugin
 CREATE USER 'Tanjotuser2'@'localhost' IDENTIFIED WITH 'mysql_native_password';
-set @@session.old_passwords=0;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 set password for 'Tanjotuser2'@'localhost' ='abc';
 Grant all on *.* to 'Tanjotuser2'@'localhost';
 Creating a user with SHA256_password plugin
@@ -241,28 +174,5 @@ select (select plugin from mysql.user where User='Tanjotuser3' and Host='localho
 (select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password'
 1
 1 Expected
-select @@global.old_passwords;
-@@global.old_passwords
-2
-2 Expected
-**** connecting Tanjotuser2 with Client default_auth=mysql_native_password 
-@@session.old_passwords
-0
-0 Expected
-**** connecting Tanjotuser2 with Client default_auth=sha256_password 
-@@session.old_passwords
-0
-0 Expected
-**** connecting Tanjotuser3 with Client default_auth=mysql_native_password 
-@@session.old_passwords
-2
-2 Expected
-**** connecting Tanjotuser3 with Client default_auth=sha256_password 
-@@session.old_passwords
-2
-2 Expected
 DROP USER 'Tanjotuser2'@'localhost';
 DROP USER 'Tanjotuser3'@'localhost';
-SET GLOBAL old_passwords= default;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.

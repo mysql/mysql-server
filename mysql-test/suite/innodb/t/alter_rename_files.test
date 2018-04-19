@@ -1,0 +1,30 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (x INT NOT NULL UNIQUE KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(5);
+
+SET GLOBAL innodb_log_checkpoint_now=TRUE;
+
+# Start an ALTER TABLE and stop it before renaming the files
+SET DEBUG_SYNC='commit_cache_rebuild SIGNAL ready WAIT_FOR finish';
+
+--send ALTER TABLE t1 ADD PRIMARY KEY(x)
+
+connect (con1,localhost,root,,);
+
+SET DEBUG_SYNC='now WAIT_FOR ready';
+
+SET GLOBAL innodb_log_checkpoint_now=TRUE;
+
+SET DEBUG_SYNC='now SIGNAL finish';
+
+disconnect con1;
+connection default;
+reap;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+SET DEBUG_SYNC='RESET';
+
+--source include/wait_until_count_sessions.inc

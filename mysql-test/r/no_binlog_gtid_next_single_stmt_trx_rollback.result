@@ -1,0 +1,201 @@
+RESET MASTER;
+SET GLOBAL GTID_MODE=OFF_PERMISSIVE;
+CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=MyISAM;
+CREATE TABLE t1_c like t1;
+CREATE INDEX t_index ON t1(c1);
+CREATE TEMPORARY TABLE temp1(c1 INT) ENGINE=MyISAM;
+ALTER TABLE temp1 ADD COLUMN other_column INT;
+CREATE VIEW v1 as SELECT 1;
+CREATE USER user1;
+CREATE DATABASE db1;
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1_c VALUES (1), (2);
+SET SESSION GTID_NEXT='MASTER_UUID:1';
+CREATE TABLE t1(c1 INT, c2 INT);
+ERROR 42S01: Table 't1' already exists
+include/assert.inc [rollback gtid MASTER_UUID:1]
+SET SESSION GTID_NEXT='MASTER_UUID:2';
+ALTER TABLE t2 ADD COLUMN other_column INT;
+ERROR 42S02: Table 'test.t2' doesn't exist
+include/assert.inc [rollback gtid MASTER_UUID:2]
+SET SESSION GTID_NEXT='MASTER_UUID:3';
+DROP TABLE t2;
+ERROR 42S02: Unknown table 'test.t2'
+include/assert.inc [rollback gtid MASTER_UUID:3]
+SET SESSION GTID_NEXT='MASTER_UUID:4';
+CREATE INDEX t_index ON t1(c1);
+ERROR 42000: Duplicate key name 't_index'
+include/assert.inc [rollback gtid MASTER_UUID:4]
+SET SESSION GTID_NEXT='MASTER_UUID:5';
+DROP INDEX t_index2 ON t1;
+ERROR 42000: Can't DROP 't_index2'; check that column/key exists
+include/assert.inc [rollback gtid MASTER_UUID:5]
+SET SESSION GTID_NEXT='MASTER_UUID:6';
+RENAME TABLE t3 TO t4;
+ERROR 42S02: Table 'test.t3' doesn't exist
+include/assert.inc [rollback gtid MASTER_UUID:6]
+SET SESSION GTID_NEXT='MASTER_UUID:7';
+CREATE TEMPORARY TABLE temp1(c1 INT);
+ERROR 42S01: Table 'temp1' already exists
+include/assert.inc [rollback gtid MASTER_UUID:7]
+SET SESSION GTID_NEXT='MASTER_UUID:8';
+ALTER TABLE temp1 ADD COLUMN other_column INT;
+ERROR 42S21: Duplicate column name 'other_column'
+include/assert.inc [rollback gtid MASTER_UUID:8]
+SET SESSION GTID_NEXT='MASTER_UUID:9';
+DROP TEMPORARY TABLE temp2;
+ERROR 42S02: Unknown table 'test.temp2'
+include/assert.inc [rollback gtid MASTER_UUID:9]
+SET SESSION GTID_NEXT='MASTER_UUID:10';
+CREATE DATABASE db1;
+ERROR HY000: Can't create database 'db1'; database exists
+include/assert.inc [rollback gtid MASTER_UUID:10]
+SET SESSION GTID_NEXT='MASTER_UUID:12';
+DROP DATABASE db2;
+ERROR HY000: Can't drop database 'db2'; database doesn't exist
+include/assert.inc [rollback gtid MASTER_UUID:12]
+include/assert.inc [rollback gtid MASTER_UUID:17]
+SET SESSION GTID_NEXT='MASTER_UUID:18';
+DROP VIEW v2;
+ERROR 42S02: Unknown table 'test.v2'
+include/assert.inc [rollback gtid MASTER_UUID:18]
+SET SESSION GTID_NEXT='MASTER_UUID:19';
+CREATE VIEW v1 as SELECT 1;
+ERROR 42S01: Table 'v1' already exists
+include/assert.inc [rollback gtid MASTER_UUID:19]
+SET SESSION GTID_NEXT='MASTER_UUID:20';
+INSERT INTO t1 VALUES (3), (2);
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+include/assert.inc [rollback gtid MASTER_UUID:20]
+SET SESSION GTID_NEXT='MASTER_UUID:21';
+INSERT INTO t1 SELECT * FROM t1;
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+include/assert.inc [rollback gtid MASTER_UUID:21]
+SET SESSION GTID_NEXT='MASTER_UUID:22';
+INSERT INTO t1 VALUES (2), (3);
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+include/assert.inc [commit gtid MASTER_UUID:22]
+SET SESSION GTID_NEXT='MASTER_UUID:23';
+INSERT INTO t1 SELECT * FROM t1_c;
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+include/assert.inc [commit gtid MASTER_UUID:23]
+SET SESSION GTID_NEXT='MASTER_UUID:24';
+UPDATE t1 SET c1=2 WHERE c1=1;
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+include/assert.inc [rollback gtid MASTER_UUID:24]
+SET SESSION GTID_NEXT='MASTER_UUID:25';
+UPDATE t1_c, t1 SET t1_c.c1=3, t1.c1=2 WHERE t1_c.c1=1 AND t1.c1=1;
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+include/assert.inc [commit gtid MASTER_UUID:25]
+SET SESSION GTID_NEXT='MASTER_UUID:26';
+UPDATE t1, t1_c SET t1.c1=2, t1_c.c1=3 WHERE t1.c1=1 OR t1_c.c1=1;
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+include/assert.inc [rollback gtid MASTER_UUID:26]
+SET GTID_NEXT = 'AUTOMATIC';
+DROP INDEX t_index ON t1;
+DROP TABLE t1, t1_c;
+DROP TEMPORARY TABLE temp1;
+DROP VIEW v1;
+DROP USER user1;
+SET GLOBAL GTID_MODE=OFF;
+DROP DATABASE db1;
+RESET MASTER;
+SET GLOBAL GTID_MODE=OFF_PERMISSIVE;
+CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t1_c like t1;
+CREATE INDEX t_index ON t1(c1);
+CREATE TEMPORARY TABLE temp1(c1 INT) ENGINE=InnoDB;
+ALTER TABLE temp1 ADD COLUMN other_column INT;
+CREATE VIEW v1 as SELECT 1;
+CREATE USER user1;
+CREATE DATABASE db1;
+INSERT INTO t1 VALUES (3), (4);
+INSERT INTO t1_c VALUES (1), (2), (3);
+SET SESSION GTID_NEXT='MASTER_UUID:1';
+CREATE TABLE t1(c1 INT, c2 INT);
+ERROR 42S01: Table 't1' already exists
+include/assert.inc [rollback gtid MASTER_UUID:1]
+SET SESSION GTID_NEXT='MASTER_UUID:2';
+ALTER TABLE t2 ADD COLUMN other_column INT;
+ERROR 42S02: Table 'test.t2' doesn't exist
+include/assert.inc [rollback gtid MASTER_UUID:2]
+SET SESSION GTID_NEXT='MASTER_UUID:3';
+DROP TABLE t2;
+ERROR 42S02: Unknown table 'test.t2'
+include/assert.inc [rollback gtid MASTER_UUID:3]
+SET SESSION GTID_NEXT='MASTER_UUID:4';
+CREATE INDEX t_index ON t1(c1);
+ERROR 42000: Duplicate key name 't_index'
+include/assert.inc [rollback gtid MASTER_UUID:4]
+SET SESSION GTID_NEXT='MASTER_UUID:5';
+DROP INDEX t_index2 ON t1;
+ERROR 42000: Can't DROP 't_index2'; check that column/key exists
+include/assert.inc [rollback gtid MASTER_UUID:5]
+SET SESSION GTID_NEXT='MASTER_UUID:6';
+RENAME TABLE t3 TO t4;
+ERROR 42S02: Table 'test.t3' doesn't exist
+include/assert.inc [rollback gtid MASTER_UUID:6]
+SET SESSION GTID_NEXT='MASTER_UUID:7';
+CREATE TEMPORARY TABLE temp1(c1 INT);
+ERROR 42S01: Table 'temp1' already exists
+include/assert.inc [rollback gtid MASTER_UUID:7]
+SET SESSION GTID_NEXT='MASTER_UUID:8';
+ALTER TABLE temp1 ADD COLUMN other_column INT;
+ERROR 42S21: Duplicate column name 'other_column'
+include/assert.inc [rollback gtid MASTER_UUID:8]
+SET SESSION GTID_NEXT='MASTER_UUID:9';
+DROP TEMPORARY TABLE temp2;
+ERROR 42S02: Unknown table 'test.temp2'
+include/assert.inc [rollback gtid MASTER_UUID:9]
+SET SESSION GTID_NEXT='MASTER_UUID:10';
+CREATE DATABASE db1;
+ERROR HY000: Can't create database 'db1'; database exists
+include/assert.inc [rollback gtid MASTER_UUID:10]
+SET SESSION GTID_NEXT='MASTER_UUID:12';
+DROP DATABASE db2;
+ERROR HY000: Can't drop database 'db2'; database doesn't exist
+include/assert.inc [rollback gtid MASTER_UUID:12]
+SET SESSION GTID_NEXT='MASTER_UUID:18';
+DROP VIEW v2;
+ERROR 42S02: Unknown table 'test.v2'
+include/assert.inc [rollback gtid MASTER_UUID:18]
+SET SESSION GTID_NEXT='MASTER_UUID:19';
+CREATE VIEW v1 as SELECT 1;
+ERROR 42S01: Table 'v1' already exists
+include/assert.inc [rollback gtid MASTER_UUID:19]
+SET SESSION GTID_NEXT='MASTER_UUID:20';
+INSERT INTO t1 VALUES (3), (2);
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+include/assert.inc [rollback gtid MASTER_UUID:20]
+SET SESSION GTID_NEXT='MASTER_UUID:21';
+INSERT INTO t1 SELECT * FROM t1;
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+include/assert.inc [rollback gtid MASTER_UUID:21]
+SET SESSION GTID_NEXT='MASTER_UUID:22';
+INSERT INTO t1 VALUES (2), (3);
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+include/assert.inc [rollback gtid MASTER_UUID:22]
+SET SESSION GTID_NEXT='MASTER_UUID:23';
+INSERT INTO t1 SELECT * FROM t1_c;
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+include/assert.inc [rollback gtid MASTER_UUID:23]
+SET SESSION GTID_NEXT='MASTER_UUID:24';
+UPDATE t1 SET c1=3 WHERE c1=4;
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+include/assert.inc [rollback gtid MASTER_UUID:24]
+SET SESSION GTID_NEXT='MASTER_UUID:25';
+UPDATE t1_c, t1 SET t1_c.c1=6, t1.c1=3 WHERE t1_c.c1=1 AND t1.c1=4;
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+include/assert.inc [rollback gtid MASTER_UUID:25]
+SET SESSION GTID_NEXT='MASTER_UUID:26';
+UPDATE t1, t1_c SET t1.c1=3, t1_c.c1=6 WHERE t1.c1=4 OR t1_c.c1=1;
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+include/assert.inc [rollback gtid MASTER_UUID:26]
+SET GTID_NEXT = 'AUTOMATIC';
+DROP INDEX t_index ON t1;
+DROP TABLE t1, t1_c;
+DROP TEMPORARY TABLE temp1;
+DROP VIEW v1;
+DROP USER user1;
+SET GLOBAL GTID_MODE=OFF;
+DROP DATABASE db1;

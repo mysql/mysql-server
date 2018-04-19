@@ -9,261 +9,306 @@ SELECT COUNT(*) FROM table_list INTO @table_count;
 # For each table in the performance schema, attempt HANDLER...OPEN,
 # which should fail with an error 1031, ER_ILLEGAL_HA.
 
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=87;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=102;
+HANDLER performance_schema.variables_info OPEN;
+ERROR HY000: Table storage engine for 'variables_info' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=101;
 HANDLER performance_schema.variables_by_thread OPEN;
 ERROR HY000: Table storage engine for 'variables_by_thread' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=86;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=100;
 HANDLER performance_schema.users OPEN;
 ERROR HY000: Table storage engine for 'users' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=85;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=99;
 HANDLER performance_schema.user_variables_by_thread OPEN;
 ERROR HY000: Table storage engine for 'user_variables_by_thread' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=84;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=98;
+HANDLER performance_schema.user_defined_functions OPEN;
+ERROR HY000: Table storage engine for 'user_defined_functions' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=97;
 HANDLER performance_schema.threads OPEN;
 ERROR HY000: Table storage engine for 'threads' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=83;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=96;
 HANDLER performance_schema.table_lock_waits_summary_by_table OPEN;
 ERROR HY000: Table storage engine for 'table_lock_waits_summary_by_table' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=82;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=95;
 HANDLER performance_schema.table_io_waits_summary_by_table OPEN;
 ERROR HY000: Table storage engine for 'table_io_waits_summary_by_table' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=81;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=94;
 HANDLER performance_schema.table_io_waits_summary_by_index_usage OPEN;
 ERROR HY000: Table storage engine for 'table_io_waits_summary_by_index_usage' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=80;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=93;
 HANDLER performance_schema.table_handles OPEN;
 ERROR HY000: Table storage engine for 'table_handles' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=79;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=92;
 HANDLER performance_schema.status_by_user OPEN;
 ERROR HY000: Table storage engine for 'status_by_user' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=78;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=91;
 HANDLER performance_schema.status_by_thread OPEN;
 ERROR HY000: Table storage engine for 'status_by_thread' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=77;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=90;
 HANDLER performance_schema.status_by_host OPEN;
 ERROR HY000: Table storage engine for 'status_by_host' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=76;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=89;
 HANDLER performance_schema.status_by_account OPEN;
 ERROR HY000: Table storage engine for 'status_by_account' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=75;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=88;
 HANDLER performance_schema.socket_summary_by_instance OPEN;
 ERROR HY000: Table storage engine for 'socket_summary_by_instance' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=74;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=87;
 HANDLER performance_schema.socket_summary_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'socket_summary_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=73;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=86;
 HANDLER performance_schema.socket_instances OPEN;
 ERROR HY000: Table storage engine for 'socket_instances' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=72;
-HANDLER performance_schema.setup_timers OPEN;
-ERROR HY000: Table storage engine for 'setup_timers' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=71;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=85;
+HANDLER performance_schema.setup_threads OPEN;
+ERROR HY000: Table storage engine for 'setup_threads' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=84;
 HANDLER performance_schema.setup_objects OPEN;
 ERROR HY000: Table storage engine for 'setup_objects' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=70;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=83;
 HANDLER performance_schema.setup_instruments OPEN;
 ERROR HY000: Table storage engine for 'setup_instruments' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=69;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=82;
 HANDLER performance_schema.setup_consumers OPEN;
 ERROR HY000: Table storage engine for 'setup_consumers' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=68;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=81;
 HANDLER performance_schema.setup_actors OPEN;
 ERROR HY000: Table storage engine for 'setup_actors' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=67;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=80;
 HANDLER performance_schema.session_variables OPEN;
 ERROR HY000: Table storage engine for 'session_variables' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=66;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=79;
 HANDLER performance_schema.session_status OPEN;
 ERROR HY000: Table storage engine for 'session_status' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=65;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=78;
 HANDLER performance_schema.session_connect_attrs OPEN;
 ERROR HY000: Table storage engine for 'session_connect_attrs' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=64;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=77;
 HANDLER performance_schema.session_account_connect_attrs OPEN;
 ERROR HY000: Table storage engine for 'session_account_connect_attrs' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=63;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=76;
 HANDLER performance_schema.rwlock_instances OPEN;
 ERROR HY000: Table storage engine for 'rwlock_instances' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=62;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=75;
 HANDLER performance_schema.replication_group_members OPEN;
 ERROR HY000: Table storage engine for 'replication_group_members' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=61;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=74;
 HANDLER performance_schema.replication_group_member_stats OPEN;
 ERROR HY000: Table storage engine for 'replication_group_member_stats' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=60;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=73;
 HANDLER performance_schema.replication_connection_status OPEN;
 ERROR HY000: Table storage engine for 'replication_connection_status' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=59;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=72;
 HANDLER performance_schema.replication_connection_configuration OPEN;
 ERROR HY000: Table storage engine for 'replication_connection_configuration' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=58;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=71;
 HANDLER performance_schema.replication_applier_status_by_worker OPEN;
 ERROR HY000: Table storage engine for 'replication_applier_status_by_worker' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=57;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=70;
 HANDLER performance_schema.replication_applier_status_by_coordinator OPEN;
 ERROR HY000: Table storage engine for 'replication_applier_status_by_coordinator' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=56;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=69;
 HANDLER performance_schema.replication_applier_status OPEN;
 ERROR HY000: Table storage engine for 'replication_applier_status' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=55;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=68;
+HANDLER performance_schema.replication_applier_global_filters OPEN;
+ERROR HY000: Table storage engine for 'replication_applier_global_filters' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=67;
+HANDLER performance_schema.replication_applier_filters OPEN;
+ERROR HY000: Table storage engine for 'replication_applier_filters' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=66;
 HANDLER performance_schema.replication_applier_configuration OPEN;
 ERROR HY000: Table storage engine for 'replication_applier_configuration' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=54;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=65;
 HANDLER performance_schema.prepared_statements_instances OPEN;
 ERROR HY000: Table storage engine for 'prepared_statements_instances' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=53;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=64;
+HANDLER performance_schema.persisted_variables OPEN;
+ERROR HY000: Table storage engine for 'persisted_variables' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=63;
 HANDLER performance_schema.performance_timers OPEN;
 ERROR HY000: Table storage engine for 'performance_timers' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=52;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=62;
 HANDLER performance_schema.objects_summary_global_by_type OPEN;
 ERROR HY000: Table storage engine for 'objects_summary_global_by_type' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=51;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=61;
 HANDLER performance_schema.mutex_instances OPEN;
 ERROR HY000: Table storage engine for 'mutex_instances' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=50;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=60;
 HANDLER performance_schema.metadata_locks OPEN;
 ERROR HY000: Table storage engine for 'metadata_locks' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=49;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=59;
 HANDLER performance_schema.memory_summary_global_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'memory_summary_global_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=48;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=58;
 HANDLER performance_schema.memory_summary_by_user_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'memory_summary_by_user_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=47;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=57;
 HANDLER performance_schema.memory_summary_by_thread_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'memory_summary_by_thread_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=46;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=56;
 HANDLER performance_schema.memory_summary_by_host_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'memory_summary_by_host_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=45;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=55;
 HANDLER performance_schema.memory_summary_by_account_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'memory_summary_by_account_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=44;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=54;
+HANDLER performance_schema.log_status OPEN;
+ERROR HY000: Table storage engine for 'log_status' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=53;
 HANDLER performance_schema.hosts OPEN;
 ERROR HY000: Table storage engine for 'hosts' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=43;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=52;
 HANDLER performance_schema.host_cache OPEN;
 ERROR HY000: Table storage engine for 'host_cache' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=42;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=51;
 HANDLER performance_schema.global_variables OPEN;
 ERROR HY000: Table storage engine for 'global_variables' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=41;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=50;
 HANDLER performance_schema.global_status OPEN;
 ERROR HY000: Table storage engine for 'global_status' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=40;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=49;
 HANDLER performance_schema.file_summary_by_instance OPEN;
 ERROR HY000: Table storage engine for 'file_summary_by_instance' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=39;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=48;
 HANDLER performance_schema.file_summary_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'file_summary_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=38;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=47;
 HANDLER performance_schema.file_instances OPEN;
 ERROR HY000: Table storage engine for 'file_instances' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=37;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=46;
 HANDLER performance_schema.events_waits_summary_global_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_waits_summary_global_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=36;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=45;
 HANDLER performance_schema.events_waits_summary_by_user_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_waits_summary_by_user_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=35;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=44;
 HANDLER performance_schema.events_waits_summary_by_thread_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_waits_summary_by_thread_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=34;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=43;
 HANDLER performance_schema.events_waits_summary_by_instance OPEN;
 ERROR HY000: Table storage engine for 'events_waits_summary_by_instance' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=33;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=42;
 HANDLER performance_schema.events_waits_summary_by_host_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_waits_summary_by_host_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=32;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=41;
 HANDLER performance_schema.events_waits_summary_by_account_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_waits_summary_by_account_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=31;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=40;
 HANDLER performance_schema.events_waits_history_long OPEN;
 ERROR HY000: Table storage engine for 'events_waits_history_long' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=30;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=39;
 HANDLER performance_schema.events_waits_history OPEN;
 ERROR HY000: Table storage engine for 'events_waits_history' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=29;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=38;
 HANDLER performance_schema.events_waits_current OPEN;
 ERROR HY000: Table storage engine for 'events_waits_current' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=28;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=37;
 HANDLER performance_schema.events_transactions_summary_global_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_transactions_summary_global_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=27;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=36;
 HANDLER performance_schema.events_transactions_summary_by_user_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_transactions_summary_by_user_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=26;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=35;
 HANDLER performance_schema.events_transactions_summary_by_thread_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_transactions_summary_by_thread_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=25;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=34;
 HANDLER performance_schema.events_transactions_summary_by_host_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_transactions_summary_by_host_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=24;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=33;
 HANDLER performance_schema.events_transactions_summary_by_account_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_transactions_summary_by_account_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=23;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=32;
 HANDLER performance_schema.events_transactions_history_long OPEN;
 ERROR HY000: Table storage engine for 'events_transactions_history_long' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=22;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=31;
 HANDLER performance_schema.events_transactions_history OPEN;
 ERROR HY000: Table storage engine for 'events_transactions_history' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=21;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=30;
 HANDLER performance_schema.events_transactions_current OPEN;
 ERROR HY000: Table storage engine for 'events_transactions_current' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=20;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=29;
 HANDLER performance_schema.events_statements_summary_global_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_statements_summary_global_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=19;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=28;
 HANDLER performance_schema.events_statements_summary_by_user_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_statements_summary_by_user_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=18;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=27;
 HANDLER performance_schema.events_statements_summary_by_thread_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_statements_summary_by_thread_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=17;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=26;
 HANDLER performance_schema.events_statements_summary_by_program OPEN;
 ERROR HY000: Table storage engine for 'events_statements_summary_by_program' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=16;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=25;
 HANDLER performance_schema.events_statements_summary_by_host_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_statements_summary_by_host_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=15;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=24;
 HANDLER performance_schema.events_statements_summary_by_digest OPEN;
 ERROR HY000: Table storage engine for 'events_statements_summary_by_digest' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=14;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=23;
 HANDLER performance_schema.events_statements_summary_by_account_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_statements_summary_by_account_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=13;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=22;
 HANDLER performance_schema.events_statements_history_long OPEN;
 ERROR HY000: Table storage engine for 'events_statements_history_long' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=12;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=21;
 HANDLER performance_schema.events_statements_history OPEN;
 ERROR HY000: Table storage engine for 'events_statements_history' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=11;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=20;
+HANDLER performance_schema.events_statements_histogram_global OPEN;
+ERROR HY000: Table storage engine for 'events_statements_histogram_global' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=19;
+HANDLER performance_schema.events_statements_histogram_by_digest OPEN;
+ERROR HY000: Table storage engine for 'events_statements_histogram_by_digest' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=18;
 HANDLER performance_schema.events_statements_current OPEN;
 ERROR HY000: Table storage engine for 'events_statements_current' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=10;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=17;
 HANDLER performance_schema.events_stages_summary_global_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_stages_summary_global_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=9;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=16;
 HANDLER performance_schema.events_stages_summary_by_user_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_stages_summary_by_user_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=8;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=15;
 HANDLER performance_schema.events_stages_summary_by_thread_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_stages_summary_by_thread_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=7;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=14;
 HANDLER performance_schema.events_stages_summary_by_host_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_stages_summary_by_host_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=6;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=13;
 HANDLER performance_schema.events_stages_summary_by_account_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'events_stages_summary_by_account_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=5;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=12;
 HANDLER performance_schema.events_stages_history_long OPEN;
 ERROR HY000: Table storage engine for 'events_stages_history_long' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=4;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=11;
 HANDLER performance_schema.events_stages_history OPEN;
 ERROR HY000: Table storage engine for 'events_stages_history' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=3;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=10;
 HANDLER performance_schema.events_stages_current OPEN;
 ERROR HY000: Table storage engine for 'events_stages_current' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=9;
+HANDLER performance_schema.events_errors_summary_global_by_error OPEN;
+ERROR HY000: Table storage engine for 'events_errors_summary_global_by_error' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=8;
+HANDLER performance_schema.events_errors_summary_by_user_by_error OPEN;
+ERROR HY000: Table storage engine for 'events_errors_summary_by_user_by_error' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=7;
+HANDLER performance_schema.events_errors_summary_by_thread_by_error OPEN;
+ERROR HY000: Table storage engine for 'events_errors_summary_by_thread_by_error' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=6;
+HANDLER performance_schema.events_errors_summary_by_host_by_error OPEN;
+ERROR HY000: Table storage engine for 'events_errors_summary_by_host_by_error' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=5;
+HANDLER performance_schema.events_errors_summary_by_account_by_error OPEN;
+ERROR HY000: Table storage engine for 'events_errors_summary_by_account_by_error' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=4;
+HANDLER performance_schema.data_locks OPEN;
+ERROR HY000: Table storage engine for 'data_locks' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=3;
+HANDLER performance_schema.data_lock_waits OPEN;
+ERROR HY000: Table storage engine for 'data_lock_waits' doesn't have this option
 SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=2;
 HANDLER performance_schema.cond_instances OPEN;
 ERROR HY000: Table storage engine for 'cond_instances' doesn't have this option

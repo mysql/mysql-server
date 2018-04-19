@@ -3,6 +3,12 @@ CREATE TABLE t1 (a int not null, b char (10) not null);
 insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
 CREATE TABLE t2 (a int not null, b char (10) not null);
 insert into t2 values (3,'c'),(4,'d'),(5,'f'),(6,'e');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 select a,b from t1 union distinct select a,b from t2;
 a	b
 1	a
@@ -62,8 +68,8 @@ t1	b	1
 t1	c	2
 t2	c	1
 t2	d	1
-t2	e	1
 t2	f	1
+t2	e	1
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 4;
 a	b
 1	a
@@ -82,13 +88,12 @@ a	b
 1	a
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by t1.b;
 ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
-explain extended (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
+explain (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	(/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` limit 2) union all (/* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`a` limit 1) order by `b` desc
 select count(*) from (
 (select                      a,b from t1 limit 2)  union all (select a,b from t2 order by a)) q;
@@ -112,27 +117,26 @@ a	b
 select found_rows();
 found_rows()
 8
-explain extended 
+explain 
 select * from t1 where a in
 (select a from t1 union select a from t1 order by (select a))
 union select * from t1 order by (select a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-3	DEPENDENT UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
-5	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-NULL	UNION RESULT	<union1,5>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
-6	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
+3	DEPENDENT UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
+NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary
+5	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+NULL	UNION RESULT	<union1,5>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
+6	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'a' of SELECT #4 was resolved in SELECT #2
 Note	1276	Field or reference 'a' of SELECT #6 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`) union /* select#3 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`))) union /* select#5 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by (/* select#6 */ select `a`)
 explain select a,b from t1 union all select a,b from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` union all /* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 explain select xx from t1 union select 1;
@@ -144,11 +148,13 @@ ERROR 21000: The used SELECT statements have a different number of columns
 explain select a,b from t1 union select 1 limit 0;
 ERROR 21000: The used SELECT statements have a different number of columns
 select a,b from t1 into outfile 'skr' union select a,b from t2;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'union select a,b from t2' at line 1
 select a,b from t1 order by a union select a,b from t2;
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'union select a,b from t2' at line 1
 insert into t3 select a from t1 order by a union select a from t2;
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'union select a from t2' at line 1
+INSERT INTO t3 SELECT a FROM t1 LIMIT 1 UNION SELECT a FROM t2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT a FROM t2' at line 1
 create table t3 select a,b from t1 union select a from t2;
 ERROR 21000: The used SELECT statements have a different number of columns
 select a,b from t1 union select a from t2;
@@ -394,7 +400,7 @@ select found_rows();
 found_rows()
 4
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION all SELECT * FROM t2 LIMIT 2;
-ERROR HY000: Incorrect usage of UNION and LIMIT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION all SELECT * FROM t2 LIMIT 2' at line 1
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION all SELECT * FROM t2) q;
 COUNT(*)
@@ -443,7 +449,7 @@ select found_rows();
 found_rows()
 5
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 100 UNION SELECT * FROM t2;
-ERROR HY000: Incorrect usage of UNION and LIMIT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2' at line 1
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 100) UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -459,7 +465,7 @@ select found_rows();
 found_rows()
 5
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2;
-ERROR HY000: Incorrect usage of UNION and LIMIT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2' at line 1
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -474,7 +480,7 @@ select found_rows();
 found_rows()
 4
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2 LIMIT 2;
-ERROR HY000: Incorrect usage of UNION and LIMIT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2 LIMIT 2' at line 1
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -498,7 +504,7 @@ select found_rows();
 found_rows()
 5
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 limit 2,2 UNION SELECT * FROM t2;
-ERROR HY000: Incorrect usage of UNION and LIMIT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2' at line 1
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 limit 2,2) UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -524,10 +530,12 @@ a
 ERROR 42000: Incorrect usage/placement of 'SQL_CALC_FOUND_ROWS'
 create temporary table t1 select a from t1 union select a from t2;
 drop temporary table t1;
+create temporary table temp1 select a from t1 union select a from t2;
+drop temporary table temp1;
 create table t1 select a from t1 union select a from t2;
 ERROR 42S01: Table 't1' already exists
 select a from t1 union select a from t2 order by t2.a;
-ERROR 42000: Table 't2' from one of the SELECTs cannot be used in field list
+ERROR 42000: Table 't2' from one of the SELECTs cannot be used in global ORDER clause
 drop table t1,t2;
 select length(version()) > 1 as `*` UNION select 2;
 *
@@ -535,11 +543,14 @@ select length(version()) > 1 as `*` UNION select 2;
 2
 create table t1 (a int);
 insert into t1 values (0), (3), (1), (2);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain (select * from t1) union (select * from t1) order by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
 Warnings:
 Note	1003	(/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) union (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) order by `a`
 drop table t1;
@@ -573,13 +584,15 @@ create table t1 (a int not null primary key auto_increment, b int, key(b));
 create table t2 (a int not null primary key auto_increment, b int);
 insert into t1 (b) values (1),(2),(2),(3);
 insert into t2 (b) values (10),(11),(12),(13);
-explain extended (select * from t1 where a=1) union (select * from t2 where a=1);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain (select * from t1 where a=1) union (select * from t2 where a=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 2	UNION	t2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 1) union (/* select#2 */ select '1' AS `a`,'10' AS `b` from `test`.`t2` where 1)
 (select * from t1 where a=5) union (select * from t2 where a=1);
 a	b
@@ -598,33 +611,33 @@ a	b
 4	4
 explain (select * from t1 where a=1 and b=10) union (select straight_join t1.a,t2.a from t1,t2 where t1.a=t2.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	UNION	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
-2	UNION	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Using index
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE noticed after reading const tables
+2	UNION	t1	NULL	index	PRIMARY	b	5	NULL	#	100.00	Using index
+2	UNION	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	#	100.00	Using index
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
 Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 0) union (/* select#2 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`))
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-2	UNION	t1	NULL	ref	b	b	5	const	1	100.00	NULL
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	#	#	NULL
+2	UNION	t1	NULL	ref	b	b	5	const	#	#	Using index
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary
 Warnings:
 Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 1) union (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 1))
 drop table t1,t2;
-create table t1 (   id int not null auto_increment, primary key (id)   ,user_name text );
-create table t2 (    id int not null auto_increment, primary key (id)   ,group_name text );
-create table t3 (    id int not null auto_increment, primary key (id)   ,user_id int   ,index user_idx (user_id)   ,foreign key (user_id) references users(id)   ,group_id int   ,index group_idx (group_id)   ,foreign key (group_id) references groups(id) );
-insert into t1 (user_name) values ('Tester');
-insert into t2 (group_name) values ('Group A');
-insert into t2 (group_name) values ('Group B');
+create table `groups` (id int not null auto_increment, primary key (id) ,user_name text );
+create table users (id int not null auto_increment, primary key (id) ,group_name text );
+create table t3 (id int not null auto_increment, primary key (id),user_id int,index user_idx (user_id),foreign key (user_id) references users(id),group_id int,index group_idx (group_id),foreign key (group_id) references `groups`(id) );
+insert into `groups` (user_name) values ('Tester');
+insert into users (group_name) values ('Group A');
+insert into users (group_name) values ('Group B');
 insert into t3 (user_id, group_id) values (1,1);
-select 1 'is_in_group', a.user_name, c.group_name, b.id from t1 a, t3 b, t2 c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from t1 a, t2 c;
+select 1 'is_in_group', a.user_name, c.group_name, b.id from `groups` a, t3 b, users c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from `groups` a, users c;
 is_in_group	user_name	group_name	id
 1	Tester	Group A	1
 0	Tester	Group A	NULL
 0	Tester	Group B	NULL
-drop table t1, t2, t3;
+drop table t3, users, `groups`;
 create table t1 (mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, matintnum CHAR(6) NOT NULL, test MEDIUMINT UNSIGNED NULL);
 create table t2 (mat_id MEDIUMINT UNSIGNED NOT NULL, pla_id MEDIUMINT UNSIGNED NOT NULL);
 insert into t1 values (NULL, 'a', 1), (NULL, 'b', 2), (NULL, 'c', 3), (NULL, 'd', 4), (NULL, 'e', 5), (NULL, 'f', 6), (NULL, 'g', 7), (NULL, 'h', 8), (NULL, 'i', 9);
@@ -648,7 +661,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2) NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT 12 as a UNION select "aa" as a;
 select * from t1;
@@ -659,7 +672,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2) NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
 select * from t1;
@@ -670,7 +683,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` decimal(3,1) NOT NULL DEFAULT '0.0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
 insert into t2 values (NULL, 1, 3, 4, 1.5, 2.5, 1972, '1972-10-22', '1972-10-22 11:50', 'testc', 'testv', 'tetetetetest', 'teeeeeeeeeeeest');
@@ -683,7 +696,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `it2` tinyint(4) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT it2 from t2 UNION select i from t2;
 select * from t1;
@@ -694,7 +707,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `it2` int(11) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT i from t2 UNION select f from t2;
 select * from t1;
@@ -705,7 +718,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT f from t2 UNION select d from t2;
 select * from t1;
@@ -716,7 +729,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT ib from t2 UNION select f from t2;
 select * from t1;
@@ -727,7 +740,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `ib` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT ib from t2 UNION select d from t2;
 select * from t1;
@@ -738,7 +751,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `ib` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT f from t2 UNION select y from t2;
 select * from t1;
@@ -749,7 +762,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f` float DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT f from t2 UNION select da from t2;
 select * from t1;
@@ -760,7 +773,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f` varchar(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT y from t2 UNION select da from t2;
 select * from t1;
@@ -771,7 +784,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `y` varchar(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT y from t2 UNION select dt from t2;
 select * from t1;
@@ -782,7 +795,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `y` varchar(19) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT da from t2 UNION select dt from t2;
 select * from t1;
@@ -793,7 +806,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `da` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT dt from t2 UNION select trim(sc) from t2;
 select trim(dt) from t1;
@@ -804,7 +817,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `dt` varchar(19) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT dt from t2 UNION select sv from t2;
 select * from t1;
@@ -815,7 +828,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `dt` varchar(19) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT sc from t2 UNION select sv from t2;
 select * from t1;
@@ -826,7 +839,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `sc` varchar(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT dt from t2 UNION select b from t2;
 select * from t1;
@@ -837,7 +850,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `dt` blob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT sv from t2 UNION select b from t2;
 select * from t1;
@@ -848,7 +861,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `sv` blob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT i from t2 UNION select d from t2 UNION select b from t2;
 select * from t1;
@@ -860,7 +873,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` blob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT sv from t2 UNION select tx from t2;
 select * from t1;
@@ -870,8 +883,8 @@ teeeeeeeeeeeest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `sv` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `sv` mediumtext
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT b from t2 UNION select tx from t2;
 select * from t1;
@@ -881,8 +894,8 @@ teeeeeeeeeeeest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `b` blob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `b` mediumblob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1,t2;
 create table t1 select 1 union select -1;
 select * from t1;
@@ -892,8 +905,8 @@ select * from t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `1` bigint(20) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `1` bigint(2) NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 select _latin1"test" union select _latin2"testt" ;
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'UNION'
@@ -902,7 +915,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `test` varchar(5) CHARACTER SET latin2 NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (s char(200));
 insert into t1 values (repeat("1",200));
@@ -1074,8 +1087,6 @@ a
 150
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 ( ID1 int(10) unsigned NOT NULL DEFAULT '0' , ID2 datetime NOT NULL DEFAULT '0000-00-00 00:00:00' , DATA1 varchar(10) , DATA2 double(5,4) , DATA3 datetime , PRIMARY KEY (ID1,ID2));
 CREATE TABLE t2 ( ID int(3) unsigned NOT NULL DEFAULT '0' , DATA1 timestamp DEFAULT '0000-00-00 00:00:00' , PRIMARY KEY (ID));
 (SELECT * FROM t1 AS PARTITIONED, t2 AS
@@ -1142,6 +1153,7 @@ a
 No
 aaa,bbb
 drop table t1,t2,t3,t4;
+set names latin1;
 create table t1 as
 (select _latin1'test') union
 (select _latin1'TEST') union
@@ -1149,8 +1161,8 @@ create table t1 as
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `test` varchar(4) NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `test` varchar(4) CHARACTER SET latin1 NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(*) from t1;
 count(*)
 1
@@ -1163,7 +1175,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `_latin1'test' collate latin1_bin` varchar(4) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(*) from t1;
 count(*)
 3
@@ -1176,7 +1188,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `test` varchar(4) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(*) from t1;
 count(*)
 3
@@ -1189,7 +1201,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `test` varchar(4) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(*) from t1;
 count(*)
 3
@@ -1208,7 +1220,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a collate latin1_german1_ci` varchar(1) CHARACTER SET latin1 COLLATE latin1_german1_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 as
 (select a from t2) union
@@ -1217,7 +1229,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1) CHARACTER SET latin1 COLLATE latin1_german1_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 as
 (select a from t2) union
@@ -1227,7 +1239,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1) CHARACTER SET latin1 COLLATE latin1_german1_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 drop table t2;
 create table t1(a1 int, f1 char(10));
@@ -1308,13 +1320,16 @@ a ENUM('ä','ö','ü') character set utf8 not null default 'ü',
 b ENUM("one", "two") character set utf8,
 c ENUM("one", "two")
 );
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('ä','ö','ü') CHARACTER SET utf8 NOT NULL DEFAULT 'ü',
-  `b` enum('one','two') CHARACTER SET utf8 DEFAULT NULL,
+  `a` enum('ä','ö','ü') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'ü',
+  `b` enum('one','two') CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   `c` enum('one','two') DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('ä', 'one', 'one'), ('ö', 'two', 'one'), ('ü', NULL, NULL);
 create table t2 select NULL union select a from t1;
 show columns from t2;
@@ -1364,22 +1379,40 @@ description	f1
 XXXXXXXXXXXXXXXXXXXX	0.000000000000000000000000
 YYYYYYYYYYYYYYYYYYYY	0.000000000000000000000000
 drop table t1;
-create table t1 (a varchar(5));
-create table t2 select * from t1 union select 'abcdefghijkl';
+create table t1 (a varchar(5)) engine=myisam;
+create table t2 engine=myisam select * from t1 union select 'abcdefghijkl';
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select row_format from information_schema.TABLES where table_schema="test" and table_name="t2";
-row_format
+ROW_FORMAT
 Dynamic
 alter table t2 ROW_FORMAT=fixed;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=FIXED
+drop table t1,t2;
+create table t1 (a varchar(5));
+create table t2 select * from t1 union select 'abcdefghijkl';
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(12) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select row_format from information_schema.TABLES where table_schema="test" and table_name="t2";
+ROW_FORMAT
+Dynamic
+alter table t2 ROW_FORMAT=fixed;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(12) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1,t2;
 CREATE TABLE t1 (a mediumtext);
 CREATE TABLE t2 (b varchar(20));
@@ -1392,8 +1425,8 @@ create table t3 SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `left(a,100000000)` mediumtext
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `left(a,100000000)` longtext
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop tables t1,t2,t3;
 CREATE TABLE t1 (a longtext);
 CREATE TABLE t2 (b varchar(20));
@@ -1407,11 +1440,11 @@ show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `left(a,100000000)` longtext
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop tables t1,t2,t3;
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
-4194304
+67108864
 SET @@global.max_allowed_packet=25000000;
 Warnings:
 Warning	1292	Truncated incorrect max_allowed_packet value: '25000000'
@@ -1423,7 +1456,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` longtext
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLES t1,t3;
 CREATE TABLE t1 (a tinytext);
 INSERT INTO t1 VALUES ('a');
@@ -1432,7 +1465,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` varchar(510) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLES t1,t3;
 CREATE TABLE t1 (a mediumtext);
 INSERT INTO t1 VALUES ('a');
@@ -1441,7 +1474,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` longtext
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLES t1,t3;
 CREATE TABLE t1 (a tinyblob);
 INSERT INTO t1 VALUES ('a');
@@ -1450,7 +1483,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` varbinary(510) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLES t1,t2,t3;
 SET @@global.max_allowed_packet:= @tmp_max;
 create table t1 ( id int not null auto_increment, primary key (id), col1 int);
@@ -1473,9 +1506,9 @@ id
 99
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1(f1 char(1), f2 char(5), f3 binary(1), f4 binary(5), f5 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', f6 varchar(1) character set utf8 collate utf8_general_ci, f7 text);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t2 as select *, f6 as f8 from t1 union select *, f7 from t1;
 show create table t2;
 Table	Create Table
@@ -1486,9 +1519,9 @@ t2	CREATE TABLE `t2` (
   `f4` binary(5) DEFAULT NULL,
   `f5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `f6` varchar(1) CHARACTER SET utf8 DEFAULT NULL,
-  `f7` text,
-  `f8` mediumtext CHARACTER SET utf8
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `f7` mediumtext,
+  `f8` mediumtext
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 SET sql_mode = default;
 (select avg(1)) union (select avg(1)) union (select avg(1)) union
@@ -1540,6 +1573,8 @@ select _utf8'12' union select _latin1'12345';
 12
 12
 12345
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (3),(1),(2),(4),(1);
 SELECT a FROM (SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY a) AS test;
@@ -1608,7 +1643,8 @@ UNION ALL
 SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP ORDER BY a
 UNION
 SELECT 1,1;
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION
+SELECT 1,1' at line 4
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1), (2), (3);
@@ -1647,18 +1683,17 @@ Field	Type	Null	Key	Default	Extra
 d	double(9,6)	YES		NULL	
 DROP TABLE t1, t2;
 CREATE TABLE t1(a INT);
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT a FROM t1
 UNION
 SELECT a FROM t1
 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` union /* select#2 */ select NULL AS `a` from `test`.`t1` order by `a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `a`
 DROP TABLE t1;
 End of 5.0 tests
 #
@@ -1698,7 +1733,7 @@ SELECT ( SELECT a UNION SELECT a ) INTO OUTFILE  'union.out.file3' FROM t1;
 SELECT ( SELECT a UNION SELECT a ) INTO DUMPFILE 'union.out.file4' FROM t1;
 DROP TABLE t1;
 # 
-# Bug #49734: Crash on EXPLAIN EXTENDED UNION ... ORDER BY 
+# Bug #49734: Crash on EXPLAIN UNION ... ORDER BY 
 #   <any non-const-function>
 # 
 CREATE TABLE t1 (a VARCHAR(10), FULLTEXT KEY a (a));
@@ -1706,14 +1741,13 @@ INSERT INTO t1 VALUES (1),(2);
 CREATE TABLE t2 (b INT);
 INSERT INTO t2 VALUES (1),(2);
 # Should not crash
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (`a` + 12)
 # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
@@ -1721,7 +1755,7 @@ a
 1
 2
 # Should not crash
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT * FROM t1 UNION SELECT * FROM t1
 ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1729,8 +1763,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (match `a` against ('+abc' in boolean mode))
+# Should not crash
+WITH cte AS (
+SELECT * FROM t1 UNION SELECT * FROM t1
+ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE)
+) SELECT * FROM cte;
+a
+1
+2
 # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1
 ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
@@ -1744,7 +1785,7 @@ a
 1
 2
 # Should not crash
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT * FROM t1 UNION SELECT * FROM t1
 ORDER BY (SELECT a FROM t2 WHERE b = 12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1753,7 +1794,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'a' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (/* select#3 */ select `a` from `test`.`t2` where (`test`.`t2`.`b` = 12))
 # Should not crash
@@ -1965,7 +2005,7 @@ SELECT a FROM t1 UNION ALL SELECT b FROM t2;
 SELECT column_name, column_type
 FROM information_schema.columns
 WHERE TABLE_NAME='t3';
-column_name	column_type
+COLUMN_NAME	COLUMN_TYPE
 a	datetime
 DROP TABLE t1, t2, t3;
 # Bug #17602922 RESULT DIFFERENCES IN UNION QUERIES WITH IN
@@ -2090,7 +2130,7 @@ UNION
 SELECT 2
 ORDER BY t1.a) AS x
 FROM t1;
-ERROR 42000: Table 't1' from one of the SELECTs cannot be used in field list
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
 # Subquery, ORDER BY contains set function with outer reference
 SELECT (SELECT 1 AS foo
 UNION
@@ -2104,7 +2144,7 @@ UNION
 SELECT 2
 ORDER BY COUNT(t1.a)) AS x
 FROM t1;
-ERROR 42000: Table 't1' from one of the SELECTs cannot be used in field list
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
 # Subquery, ORDER BY contains set function
 SELECT (SELECT 1 AS foo
 UNION
@@ -2139,7 +2179,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 SET GLOBAL internal_tmp_disk_storage_engine=@tmp;
 CREATE TABLE geometries (
@@ -2168,7 +2208,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT g FROM geometries) t;
@@ -2176,7 +2216,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT g FROM geometries) t;
@@ -2184,7 +2224,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT g FROM geometries) t;
@@ -2192,7 +2232,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT g FROM geometries) t;
@@ -2200,7 +2240,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT g FROM geometries) t;
@@ -2208,7 +2248,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT g FROM geometries) t;
@@ -2216,7 +2256,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT g FROM geometries) t;
@@ -2224,7 +2264,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT g AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2232,7 +2272,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2240,7 +2280,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` point DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2248,7 +2288,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2256,7 +2296,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2264,7 +2304,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2272,7 +2312,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2280,7 +2320,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2288,7 +2328,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT g AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2296,7 +2336,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2304,7 +2344,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2312,7 +2352,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` linestring DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2320,7 +2360,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2328,7 +2368,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2336,7 +2376,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2344,7 +2384,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2352,7 +2392,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT g AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2360,7 +2400,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2368,7 +2408,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2376,7 +2416,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2384,7 +2424,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` polygon DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2392,7 +2432,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2400,7 +2440,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2408,7 +2448,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2416,7 +2456,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT g AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2424,7 +2464,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2432,7 +2472,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2440,7 +2480,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2448,7 +2488,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2456,7 +2496,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` multipoint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2464,7 +2504,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2472,7 +2512,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2480,7 +2520,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT g AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2488,7 +2528,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2496,7 +2536,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2504,7 +2544,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2512,7 +2552,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2520,7 +2560,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2528,7 +2568,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` multilinestring DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2536,7 +2576,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2544,7 +2584,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT g AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2552,7 +2592,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2560,7 +2600,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2568,7 +2608,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2576,7 +2616,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2584,7 +2624,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2592,7 +2632,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2600,7 +2640,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` multipolygon DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2608,7 +2648,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT g AS a FROM geometries UNION SELECT gc FROM geometries) t;
@@ -2616,7 +2656,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT gc FROM geometries) t;
@@ -2624,7 +2664,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT gc FROM geometries) t;
@@ -2632,7 +2672,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT gc FROM geometries) t;
@@ -2640,7 +2680,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT gc FROM geometries) t;
@@ -2648,7 +2688,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT gc FROM geometries) t;
@@ -2656,7 +2696,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT gc FROM geometries) t;
@@ -2664,15 +2704,15 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT gc FROM geometries) t;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` geometrycollection DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` geomcollection DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 DROP TABLE geometries;
 # 
@@ -2689,3 +2729,352 @@ a
 a
 1
 DROP TABLE t1, t2;
+#
+# Bug #21156155 UNION GEOMETRY TYPE: UNITIALIZED VALUE IN
+# ITEM_TYPE_HOLDER::JOIN_TYPES
+#
+SELECT NULL UNION SELECT POINT(1,1);
+NULL
+NULL
+             ð?      ð?
+#
+# Bug#22602381 FOUND_ROWS() IS NOT WORKING AS EXPECTED WITHOUT
+#              SQL_CALC_FOUND_ROWS
+#
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES(1),(2),(3);
+(SELECT c1 FROM t1) UNION ALL
+(SELECT c1 FROM t1) LIMIT 2;
+c1
+1
+2
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+(SELECT SQL_CALC_FOUND_ROWS c1 FROM t1) UNION ALL
+(SELECT c1 FROM t1) LIMIT 2;
+c1
+1
+2
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+6
+(SELECT c1 FROM t1 LIMIT 1) UNION ALL
+(SELECT c1 FROM t1 LIMIT 3) LIMIT 2;
+c1
+1
+1
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+(SELECT c1 FROM t1 LIMIT 1) UNION ALL
+(SELECT c1 FROM t1 LIMIT 1) LIMIT 3;
+c1
+1
+1
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+(SELECT c1 FROM t1 LIMIT 3) UNION ALL
+(SELECT c1 FROM t1 LIMIT 3) LIMIT 1 OFFSET 4;
+c1
+2
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+5
+(SELECT c1 FROM t1 LIMIT 1) UNION ALL
+(SELECT c1 FROM t1 LIMIT 1) LIMIT 1 OFFSET 2;
+c1
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+DROP TABLE t1;
+#End of test for Bug#22602381
+# INSERT SELECT using UNION ALL:
+# UNION should create no tmp table if not at the top level.
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 LIKE t1;
+FLUSH STATUS;
+SELECT * FROM t1 UNION ALL SELECT * FROM t1;
+a
+1
+2
+1
+2
+SHOW STATUS LIKE "handler_write";
+Variable_name	Value
+Handler_write	0
+FLUSH STATUS;
+INSERT INTO t2
+SELECT * FROM t1 UNION ALL SELECT * FROM t1;
+SHOW STATUS LIKE "handler_write";
+Variable_name	Value
+Handler_write	8
+SELECT * FROM t2;
+a
+1
+2
+1
+2
+DELETE FROM t2;
+FLUSH STATUS;
+INSERT INTO t2
+SELECT * FROM (SELECT * FROM t1 UNION ALL SELECT * FROM t1) AS dt;
+SHOW STATUS LIKE "handler_write";
+Variable_name	Value
+Handler_write	8
+SELECT * FROM t2;
+a
+1
+2
+1
+2
+DROP TABLE t1,t2;
+#
+# Bug#24808970 CREATED_TMP_TABLES STATISTIC IS WRONG
+#
+FLUSH STATUS;
+SELECT 1 UNION ALL SELECT 2;
+1
+1
+2
+SHOW STATUS LIKE 'Created_tmp_%tables';
+Variable_name	Value
+Created_tmp_disk_tables	0
+Created_tmp_tables	0
+FLUSH STATUS;
+SELECT 1 UNION DISTINCT SELECT 2;
+1
+1
+2
+variable_name	tweaked_value
+Created_tmp_disk_tables	0
+Created_tmp_tables	1
+#
+# Bug#11747567: INTEGER CONSTANTS CASTED TO BIGINTS BY UNIONS
+#
+CREATE TABLE t1(
+a tinyint(4) DEFAULT NULL,
+b int(11) DEFAULT NULL,
+c bigint(20) DEFAULT NULL
+);
+CREATE VIEW v1 AS SELECT t1.a AS a, t1.b AS b,t1.c AS c, 1 AS
+`1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
+-(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`;
+CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1`,
+-(1) AS `-1`, -(1) AS `My_exp_-1`, -(1) AS `My_exp_1_-1`;
+CREATE VIEW v3 AS SELECT t1.a AS a, t1.b AS b, t1.c AS c FROM t1;
+DESCRIBE v1;
+Field	Type	Null	Key	Default	Extra
+a	tinyint(4)	YES		NULL	
+b	int(11)	YES		NULL	
+c	bigint(20)	YES		NULL	
+1	int(1)	NO		0	
+My_exp_1	int(1)	NO		0	
+My_exp_1_1	int(1)	NO		0	
+DESCRIBE v2;
+Field	Type	Null	Key	Default	Extra
+1	int(1)	NO		0	
+My_exp_1	int(1)	NO		0	
+My_exp_1_1	int(1)	NO		0	
+-1	int(2)	NO		0	
+My_exp_-1	int(2)	NO		0	
+My_exp_1_-1	int(2)	NO		0	
+DESCRIBE v3;
+Field	Type	Null	Key	Default	Extra
+a	tinyint(4)	YES		NULL	
+b	int(11)	YES		NULL	
+c	bigint(20)	YES		NULL	
+DROP TABLE t1;
+DROP VIEW v1,v2,v3;
+# End of test for Bug#11747567
+#
+# Bug #27068222 CREATE TABLE USING SELECT WITH UNION
+#               FAILS FOR DATE COLUMN
+#
+CREATE TABLE `t1` (`date` date NOT NULL);
+INSERT INTO t1 VALUES ('2017-03-02'), ('2017-06-22');
+CREATE TABLE IF NOT EXISTS t2 AS
+SELECT * FROM t1
+UNION
+SELECT * FROM t1;
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+date	date	NO		NULL	
+SELECT * FROM t2;
+date
+2017-03-02
+2017-06-22
+DROP TABLE t1, t2;
+CREATE TABLE t1 (
+i1 INT NOT NULL,
+i2 INT NOT NULL DEFAULT '1234',
+# non-specified nullability => i3 is nullable
+i3 INT,
+i4 INT DEFAULT NULL,
+i5 INT DEFAULT '5678',
+d1 date NOT NULL,
+d2 date NOT NULL DEFAULT '2018-01-25',
+d3 date,
+d4 date DEFAULT NULL,
+d5 date DEFAULT '2017-11-14',
+g1 geometry NOT NULL
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i1` int(11) NOT NULL,
+  `i2` int(11) NOT NULL DEFAULT '1234',
+  `i3` int(11) DEFAULT NULL,
+  `i4` int(11) DEFAULT NULL,
+  `i5` int(11) DEFAULT '5678',
+  `d1` date NOT NULL,
+  `d2` date NOT NULL DEFAULT '2018-01-25',
+  `d3` date DEFAULT NULL,
+  `d4` date DEFAULT NULL,
+  `d5` date DEFAULT '2017-11-14',
+  `g1` geometry NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SQL_MODE='';
+SELECT @@SQL_MODE;
+@@SQL_MODE
+
+CREATE TEMPORARY TABLE t2 AS
+SELECT * FROM t1;
+# we see that with CREATE SELECT (no UNION), defaults are inherited.
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `i1` int(11) NOT NULL,
+  `i2` int(11) NOT NULL DEFAULT '1234',
+  `i3` int(11) DEFAULT NULL,
+  `i4` int(11) DEFAULT NULL,
+  `i5` int(11) DEFAULT '5678',
+  `d1` date NOT NULL,
+  `d2` date NOT NULL DEFAULT '2018-01-25',
+  `d3` date DEFAULT NULL,
+  `d4` date DEFAULT NULL,
+  `d5` date DEFAULT '2017-11-14',
+  `g1` geometry NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TEMPORARY TABLE t2;
+CREATE TEMPORARY TABLE t2 AS
+SELECT * FROM t1
+UNION
+SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `i1` int(11) NOT NULL DEFAULT '0',
+  `i2` int(11) NOT NULL DEFAULT '0',
+  `i3` int(11) DEFAULT NULL,
+  `i4` int(11) DEFAULT NULL,
+  `i5` int(11) DEFAULT NULL,
+  `d1` date NOT NULL DEFAULT '0000-00-00',
+  `d2` date NOT NULL DEFAULT '0000-00-00',
+  `d3` date DEFAULT NULL,
+  `d4` date DEFAULT NULL,
+  `d5` date DEFAULT NULL,
+  `g1` geometry NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TEMPORARY TABLE t2;
+CREATE TEMPORARY TABLE t2 AS
+SELECT * FROM t1
+UNION ALL
+SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `i1` int(11) NOT NULL DEFAULT '0',
+  `i2` int(11) NOT NULL DEFAULT '0',
+  `i3` int(11) DEFAULT NULL,
+  `i4` int(11) DEFAULT NULL,
+  `i5` int(11) DEFAULT NULL,
+  `d1` date NOT NULL DEFAULT '0000-00-00',
+  `d2` date NOT NULL DEFAULT '0000-00-00',
+  `d3` date DEFAULT NULL,
+  `d4` date DEFAULT NULL,
+  `d5` date DEFAULT NULL,
+  `g1` geometry NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# With UNION and UNION ALL, defaults are not inherited; every
+# column gets, as default, NULL (if nullable) or 0 (if not
+# nullable). Exception: if strict mode and a date type,
+# 0000-00-00 isn't given as default
+INSERT INTO t2 VALUES();
+SELECT * FROM t2;
+i1	i2	i3	i4	i5	d1	d2	d3	d4	d5	g1
+0	0	NULL	NULL	NULL	0000-00-00	0000-00-00	NULL	NULL	NULL	
+DROP TEMPORARY TABLE t2;
+SET SQL_MODE=DEFAULT;
+SELECT @@SQL_MODE;
+@@SQL_MODE
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+CREATE TEMPORARY TABLE t2 AS
+SELECT * FROM t1;
+# we see that with CREATE SELECT (no UNION), defaults are inherited.
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `i1` int(11) NOT NULL,
+  `i2` int(11) NOT NULL DEFAULT '1234',
+  `i3` int(11) DEFAULT NULL,
+  `i4` int(11) DEFAULT NULL,
+  `i5` int(11) DEFAULT '5678',
+  `d1` date NOT NULL,
+  `d2` date NOT NULL DEFAULT '2018-01-25',
+  `d3` date DEFAULT NULL,
+  `d4` date DEFAULT NULL,
+  `d5` date DEFAULT '2017-11-14',
+  `g1` geometry NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TEMPORARY TABLE t2;
+CREATE TEMPORARY TABLE t2 AS
+SELECT * FROM t1
+UNION
+SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `i1` int(11) NOT NULL DEFAULT '0',
+  `i2` int(11) NOT NULL DEFAULT '0',
+  `i3` int(11) DEFAULT NULL,
+  `i4` int(11) DEFAULT NULL,
+  `i5` int(11) DEFAULT NULL,
+  `d1` date NOT NULL,
+  `d2` date NOT NULL,
+  `d3` date DEFAULT NULL,
+  `d4` date DEFAULT NULL,
+  `d5` date DEFAULT NULL,
+  `g1` geometry NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TEMPORARY TABLE t2;
+CREATE TEMPORARY TABLE t2 AS
+SELECT * FROM t1
+UNION ALL
+SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `i1` int(11) NOT NULL DEFAULT '0',
+  `i2` int(11) NOT NULL DEFAULT '0',
+  `i3` int(11) DEFAULT NULL,
+  `i4` int(11) DEFAULT NULL,
+  `i5` int(11) DEFAULT NULL,
+  `d1` date NOT NULL,
+  `d2` date NOT NULL,
+  `d3` date DEFAULT NULL,
+  `d4` date DEFAULT NULL,
+  `d5` date DEFAULT NULL,
+  `g1` geometry NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# With UNION and UNION ALL, defaults are not inherited; every
+# column gets, as default, NULL (if nullable) or 0 (if not
+# nullable). Exception: if strict mode and a date type,
+# 0000-00-00 isn't given as default
+SELECT * FROM t2;
+i1	i2	i3	i4	i5	d1	d2	d3	d4	d5	g1
+DROP TEMPORARY TABLE t2;
+SET SQL_MODE=DEFAULT;
+DROP TABLE t1;

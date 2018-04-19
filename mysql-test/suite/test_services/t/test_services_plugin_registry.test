@@ -1,0 +1,21 @@
+
+--echo ------ Run plugin ------------------------------------------------
+--replace_result $TEST_SERVICES_PLUGIN_REGISTRY TEST_SERVICES_PLUGIN_REGISTRY
+eval INSTALL PLUGIN test_services_plugin_registry SONAME '$TEST_SERVICES_PLUGIN_REGISTRY';
+
+--echo ------ Show status of plugin -------------------------------------
+SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS
+  WHERE PLUGIN_NAME='test_services_plugin_registry';
+
+--echo ------ Stop plugin -----------------------------------------------
+UNINSTALL PLUGIN test_services_plugin_registry;
+
+--disable_warnings
+
+CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT, c4 TEXT);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/mysqld.1.err' INTO TABLE t1
+     FIELDS TERMINATED BY ' [';
+SELECT replace(concat('[',c2,' [',c3,' [',c4),'\r','') AS msg FROM t1 WHERE c4 LIKE '%test_services_plugin_registry %';
+DROP TABLE IF EXISTS t1;
+FLUSH ERROR LOGS;

@@ -11,9 +11,9 @@ rows_sent	bigint(20) unsigned	NO		NULL
 rows_examined	bigint(20) unsigned	NO		NULL	
 rows_sent_avg	decimal(21,0) unsigned	YES		NULL	
 rows_examined_avg	decimal(21,0) unsigned	YES		NULL	
-first_seen	timestamp	NO		0000-00-00 00:00:00	
-last_seen	timestamp	NO		0000-00-00 00:00:00	
-digest	varchar(32)	YES		NULL	
+first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
+last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
+digest	varchar(64)	YES		NULL	
 SELECT * FROM sys.statements_with_full_table_scans;
 DESC sys.x$statements_with_full_table_scans;
 Field	Type	Null	Key	Default	Extra
@@ -28,45 +28,42 @@ rows_sent	bigint(20) unsigned	NO		NULL
 rows_examined	bigint(20) unsigned	NO		NULL	
 rows_sent_avg	decimal(21,0) unsigned	YES		NULL	
 rows_examined_avg	decimal(21,0) unsigned	YES		NULL	
-first_seen	timestamp	NO		0000-00-00 00:00:00	
-last_seen	timestamp	NO		0000-00-00 00:00:00	
-digest	varchar(32)	YES		NULL	
+first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
+last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
+digest	varchar(64)	YES		NULL	
 SELECT * FROM sys.x$statements_with_full_table_scans;
-CREATE DATABASE v_schema_tables_with_full_table_scans;
-CREATE TABLE v_schema_tables_with_full_table_scans.t (i BIGINT AUTO_INCREMENT PRIMARY KEY, j BIGINT) ENGINE = innodb;
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) VALUES (1), (2), (3);
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+CREATE DATABASE v_statements_with_full_table_scans;
+CREATE TABLE v_statements_with_full_table_scans.t (i BIGINT AUTO_INCREMENT PRIMARY KEY, j BIGINT) ENGINE = innodb;
+INSERT INTO v_statements_with_full_table_scans.t (j) VALUES (1), (2), (3);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
 CALL sys.ps_truncate_all_tables(false);
 summary
-Truncated 44 tables
-SELECT i, j, RAND() FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
-SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
-object_schema	object_name	rows_full_scanned
-v_schema_tables_with_full_table_scans	t	768
-SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
-object_schema	object_name	rows_full_scanned
-v_schema_tables_with_full_table_scans	t	768
-SELECT i, j, RAND() FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
-SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
-object_schema	object_name	rows_full_scanned
-v_schema_tables_with_full_table_scans	t	1536
-SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
-object_schema	object_name	rows_full_scanned
-v_schema_tables_with_full_table_scans	t	1536
-SELECT * FROM v_schema_tables_with_full_table_scans.t WHERE i = 10;
+Truncated 49 tables
+SELECT i, j, RAND() FROM v_statements_with_full_table_scans.t WHERE j = 12;
+SELECT db, query, rows_examined FROM sys.statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
+db	query	rows_examined
+SELECT db, query, rows_examined FROM sys.x$statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
+db	query	rows_examined
+test	SELECT `i` , `j` , `RAND` ( ) FROM `v_statements_with_full_table_scans` . `t` WHERE `j` = ?	768
+SELECT i, j, RAND() FROM v_statements_with_full_table_scans.t WHERE j = 12;
+SELECT db, query, rows_examined FROM sys.statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
+db	query	rows_examined
+SELECT db, query, rows_examined FROM sys.x$statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
+db	query	rows_examined
+test	SELECT `i` , `j` , `RAND` ( ) FROM `v_statements_with_full_table_scans` . `t` WHERE `j` = ?	1536
+SELECT * FROM v_statements_with_full_table_scans.t WHERE i = 10;
 i	j
 10	4
-SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
-object_schema	object_name	rows_full_scanned
-v_schema_tables_with_full_table_scans	t	1536
-SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
-object_schema	object_name	rows_full_scanned
-v_schema_tables_with_full_table_scans	t	1536
-DROP DATABASE v_schema_tables_with_full_table_scans;
+SELECT db, query, rows_examined FROM sys.statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
+db	query	rows_examined
+SELECT db, query, rows_examined FROM sys.x$statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
+db	query	rows_examined
+test	SELECT `i` , `j` , `RAND` ( ) FROM `v_statements_with_full_table_scans` . `t` WHERE `j` = ?	1536
+DROP DATABASE v_statements_with_full_table_scans;

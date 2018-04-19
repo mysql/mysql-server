@@ -1,226 +1,187 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/hash0hash.ic
-The simple hash table utility
+/** @file include/hash0hash.ic
+ The simple hash table utility
 
-Created 5/20/1997 Heikki Tuuri
-*******************************************************/
+ Created 5/20/1997 Heikki Tuuri
+ *******************************************************/
 
 #include "ut0rnd.h"
 
-/************************************************************//**
-Gets the nth cell in a hash table.
-@return pointer to cell */
+/** Gets the nth cell in a hash table.
+ @return pointer to cell */
 UNIV_INLINE
-hash_cell_t*
-hash_get_nth_cell(
-/*==============*/
-	hash_table_t*	table,	/*!< in: hash table */
-	ulint		n)	/*!< in: cell index */
+hash_cell_t *hash_get_nth_cell(hash_table_t *table, /*!< in: hash table */
+                               ulint n)             /*!< in: cell index */
 {
-	ut_ad(table);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-	ut_ad(n < table->n_cells);
+  ut_ad(table);
+  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(n < table->n_cells);
 
-	return(table->array + n);
+  return (table->cells + n);
 }
 
-/*************************************************************//**
-Clears a hash table so that all the cells become empty. */
+/** Clears a hash table so that all the cells become empty. */
 UNIV_INLINE
-void
-hash_table_clear(
-/*=============*/
-	hash_table_t*	table)	/*!< in/out: hash table */
+void hash_table_clear(hash_table_t *table) /*!< in/out: hash table */
 {
-	ut_ad(table);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-	memset(table->array, 0x0,
-	       table->n_cells * sizeof(*table->array));
+  ut_ad(table);
+  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  memset(table->cells, 0x0, table->n_cells * sizeof(*table->cells));
 }
 
-/*************************************************************//**
-Returns the number of cells in a hash table.
-@return number of cells */
+/** Returns the number of cells in a hash table.
+ @return number of cells */
 UNIV_INLINE
-ulint
-hash_get_n_cells(
-/*=============*/
-	hash_table_t*	table)	/*!< in: table */
+ulint hash_get_n_cells(hash_table_t *table) /*!< in: table */
 {
-	ut_ad(table);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-	return(table->n_cells);
+  ut_ad(table);
+  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  return (table->n_cells);
 }
 
-/**************************************************************//**
-Calculates the hash value from a folded value.
-@return hashed value */
+/** Calculates the hash value from a folded value.
+ @return hashed value */
 UNIV_INLINE
-ulint
-hash_calc_hash(
-/*===========*/
-	ulint		fold,	/*!< in: folded value */
-	hash_table_t*	table)	/*!< in: hash table */
+ulint hash_calc_hash(ulint fold,          /*!< in: folded value */
+                     hash_table_t *table) /*!< in: hash table */
 {
-	ut_ad(table);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-	return(ut_hash_ulint(fold, table->n_cells));
+  ut_ad(table);
+  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  return (ut_hash_ulint(fold, table->n_cells));
 }
 
 #ifndef UNIV_HOTBACKUP
-/************************************************************//**
-Gets the sync object index for a fold value in a hash table.
-@return index */
+/** Gets the sync object index for a fold value in a hash table.
+ @return index */
 UNIV_INLINE
-ulint
-hash_get_sync_obj_index(
-/*====================*/
-	hash_table_t*	table,	/*!< in: hash table */
-	ulint		fold)	/*!< in: fold */
+ulint hash_get_sync_obj_index(hash_table_t *table, /*!< in: hash table */
+                              ulint fold)          /*!< in: fold */
 {
-	ut_ad(table);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-	ut_ad(table->type != HASH_TABLE_SYNC_NONE);
-	ut_ad(ut_is_2pow(table->n_sync_obj));
-	return(ut_2pow_remainder(hash_calc_hash(fold, table),
-				 table->n_sync_obj));
+  ut_ad(table);
+  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table->type != HASH_TABLE_SYNC_NONE);
+  ut_ad(ut_is_2pow(table->n_sync_obj));
+  return (ut_2pow_remainder(hash_calc_hash(fold, table), table->n_sync_obj));
 }
 
-/************************************************************//**
-Gets the nth heap in a hash table.
-@return mem heap */
+/** Gets the nth heap in a hash table.
+ @return mem heap */
 UNIV_INLINE
-mem_heap_t*
-hash_get_nth_heap(
-/*==============*/
-	hash_table_t*	table,	/*!< in: hash table */
-	ulint		i)	/*!< in: index of the heap */
+mem_heap_t *hash_get_nth_heap(hash_table_t *table, /*!< in: hash table */
+                              ulint i)             /*!< in: index of the heap */
 {
-	ut_ad(table);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-	ut_ad(table->type != HASH_TABLE_SYNC_NONE);
-	ut_ad(i < table->n_sync_obj);
+  ut_ad(table);
+  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table->type != HASH_TABLE_SYNC_NONE);
+  ut_ad(i < table->n_sync_obj);
 
-	return(table->heaps[i]);
+  return (table->heaps[i]);
 }
 
-/************************************************************//**
-Gets the heap for a fold value in a hash table.
-@return mem heap */
+/** Gets the heap for a fold value in a hash table.
+ @return mem heap */
 UNIV_INLINE
-mem_heap_t*
-hash_get_heap(
-/*==========*/
-	hash_table_t*	table,	/*!< in: hash table */
-	ulint		fold)	/*!< in: fold */
+mem_heap_t *hash_get_heap(hash_table_t *table, /*!< in: hash table */
+                          ulint fold)          /*!< in: fold */
 {
-	ulint	i;
+  ulint i;
 
-	ut_ad(table);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table);
+  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 
-	if (table->heap) {
-		return(table->heap);
-	}
+  if (table->heap) {
+    return (table->heap);
+  }
 
-	i = hash_get_sync_obj_index(table, fold);
+  i = hash_get_sync_obj_index(table, fold);
 
-	return(hash_get_nth_heap(table, i));
+  return (hash_get_nth_heap(table, i));
 }
 
-/************************************************************//**
-Gets the nth mutex in a hash table.
-@return mutex */
+/** Gets the nth mutex in a hash table.
+ @return mutex */
 UNIV_INLINE
-ib_mutex_t*
-hash_get_nth_mutex(
-/*===============*/
-	hash_table_t*	table,	/*!< in: hash table */
-	ulint		i)	/*!< in: index of the mutex */
+ib_mutex_t *hash_get_nth_mutex(hash_table_t *table, /*!< in: hash table */
+                               ulint i) /*!< in: index of the mutex */
 {
-	ut_ad(table);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-	ut_ad(table->type == HASH_TABLE_SYNC_MUTEX);
-	ut_ad(i < table->n_sync_obj);
+  ut_ad(table);
+  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table->type == HASH_TABLE_SYNC_MUTEX);
+  ut_ad(i < table->n_sync_obj);
 
-	return(table->sync_obj.mutexes + i);
+  return (table->sync_obj.mutexes + i);
 }
 
-/************************************************************//**
-Gets the mutex for a fold value in a hash table.
-@return mutex */
+/** Gets the mutex for a fold value in a hash table.
+ @return mutex */
 UNIV_INLINE
-ib_mutex_t*
-hash_get_mutex(
-/*===========*/
-	hash_table_t*	table,	/*!< in: hash table */
-	ulint		fold)	/*!< in: fold */
+ib_mutex_t *hash_get_mutex(hash_table_t *table, /*!< in: hash table */
+                           ulint fold)          /*!< in: fold */
 {
-	ulint	i;
+  ulint i;
 
-	ut_ad(table);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table);
+  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 
-	i = hash_get_sync_obj_index(table, fold);
+  i = hash_get_sync_obj_index(table, fold);
 
-	return(hash_get_nth_mutex(table, i));
+  return (hash_get_nth_mutex(table, i));
 }
 
-/************************************************************//**
-Gets the nth rw_lock in a hash table.
-@return rw_lock */
+/** Gets the nth rw_lock in a hash table.
+ @return rw_lock */
 UNIV_INLINE
-rw_lock_t*
-hash_get_nth_lock(
-/*==============*/
-	hash_table_t*	table,	/*!< in: hash table */
-	ulint		i)	/*!< in: index of the rw_lock */
+rw_lock_t *hash_get_nth_lock(hash_table_t *table, /*!< in: hash table */
+                             ulint i) /*!< in: index of the rw_lock */
 {
-	ut_ad(table);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
-	ut_ad(i < table->n_sync_obj);
+  ut_ad(table);
+  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
+  ut_ad(i < table->n_sync_obj);
 
-	return(table->sync_obj.rw_locks + i);
+  return (table->sync_obj.rw_locks + i);
 }
 
-/************************************************************//**
-Gets the rw_lock for a fold value in a hash table.
-@return rw_lock */
+/** Gets the rw_lock for a fold value in a hash table.
+ @return rw_lock */
 UNIV_INLINE
-rw_lock_t*
-hash_get_lock(
-/*==========*/
-	hash_table_t*	table,	/*!< in: hash table */
-	ulint		fold)	/*!< in: fold */
+rw_lock_t *hash_get_lock(hash_table_t *table, /*!< in: hash table */
+                         ulint fold)          /*!< in: fold */
 {
-	ulint	i;
+  ulint i;
 
-	ut_ad(table);
-	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table);
+  ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
+  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 
-	i = hash_get_sync_obj_index(table, fold);
+  i = hash_get_sync_obj_index(table, fold);
 
-	return(hash_get_nth_lock(table, i));
+  return (hash_get_nth_lock(table, i));
 }
 
 /** If not appropriate rw_lock for a fold value in a hash table,
@@ -230,26 +191,20 @@ relock S-lock the another rw_lock until appropriate for a fold value.
 @param[in]	fold		fold value
 @return	latched rw_lock */
 UNIV_INLINE
-rw_lock_t*
-hash_lock_s_confirm(
-	rw_lock_t*	hash_lock,
-	hash_table_t*	table,
-	ulint		fold)
-{
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(hash_lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
+rw_lock_t *hash_lock_s_confirm(rw_lock_t *hash_lock, hash_table_t *table,
+                               ulint fold) {
+  ut_ad(rw_lock_own(hash_lock, RW_LOCK_S));
 
-	rw_lock_t*	hash_lock_tmp = hash_get_lock(table, fold);
+  rw_lock_t *hash_lock_tmp = hash_get_lock(table, fold);
 
-	while (hash_lock_tmp != hash_lock) {
-		rw_lock_s_unlock(hash_lock);
-		hash_lock = hash_lock_tmp;
-		rw_lock_s_lock(hash_lock);
-		hash_lock_tmp = hash_get_lock(table, fold);
-	}
+  while (hash_lock_tmp != hash_lock) {
+    rw_lock_s_unlock(hash_lock);
+    hash_lock = hash_lock_tmp;
+    rw_lock_s_lock(hash_lock);
+    hash_lock_tmp = hash_get_lock(table, fold);
+  }
 
-	return(hash_lock);
+  return (hash_lock);
 }
 
 /** If not appropriate rw_lock for a fold value in a hash table,
@@ -259,25 +214,19 @@ relock X-lock the another rw_lock until appropriate for a fold value.
 @param[in]	fold		fold value
 @return	latched rw_lock */
 UNIV_INLINE
-rw_lock_t*
-hash_lock_x_confirm(
-	rw_lock_t*	hash_lock,
-	hash_table_t*	table,
-	ulint		fold)
-{
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+rw_lock_t *hash_lock_x_confirm(rw_lock_t *hash_lock, hash_table_t *table,
+                               ulint fold) {
+  ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
 
-	rw_lock_t*	hash_lock_tmp = hash_get_lock(table, fold);
+  rw_lock_t *hash_lock_tmp = hash_get_lock(table, fold);
 
-	while (hash_lock_tmp != hash_lock) {
-		rw_lock_x_unlock(hash_lock);
-		hash_lock = hash_lock_tmp;
-		rw_lock_x_lock(hash_lock);
-		hash_lock_tmp = hash_get_lock(table, fold);
-	}
+  while (hash_lock_tmp != hash_lock) {
+    rw_lock_x_unlock(hash_lock);
+    hash_lock = hash_lock_tmp;
+    rw_lock_x_lock(hash_lock);
+    hash_lock_tmp = hash_get_lock(table, fold);
+  }
 
-	return(hash_lock);
+  return (hash_lock);
 }
 #endif /* !UNIV_HOTBACKUP */

@@ -1,5 +1,3 @@
-
--- source include/have_ujis.inc
 -- source include/big_test.inc
 
 #
@@ -10,6 +8,7 @@ drop table if exists t1;
 --enable_warnings
 
 set names ujis;
+--character_set ujis
 
 #
 # Test problem with LEFT()
@@ -1281,7 +1280,10 @@ DROP TEMPORARY TABLE head, tail;
 --replace_result $default_engine default_engine
 SHOW CREATE TABLE t1;
 
+# Set max_error_count to contain number of warnings in result file.
+SET @@session.max_error_count = 64;
 UPDATE IGNORE t1 SET a=unhex(code) ORDER BY code;
+SET @@session.max_error_count = default;
 SELECT COUNT(*) FROM t1;
 SELECT COUNT(*) FROM t1 WHERE a<>'';
 SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=2;
@@ -1341,14 +1343,12 @@ DROP TABLE t1;
 
 set names ujis;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 --source include/weight_string_8EA1.inc
 --source include/weight_string_8FA2C3.inc
 
 set collation_connection=ujis_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 --source include/weight_string_8EA1.inc
 --source include/weight_string_8FA2C3.inc

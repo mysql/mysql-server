@@ -2,13 +2,20 @@
  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; version 2 of the License.
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+ GNU General Public License, version 2.0, for more details.
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
@@ -37,13 +44,11 @@ public class MyJapi {
     // ----------------------------------------------------------------------
 
     static public native String s012s();
-    static public native String s052s();
     static public native void s112s(String p0);
     static public native void s152s(String p0);
 
     // mapping as result is supported, for s112(s032()) is in C++
     static public native String s032s();
-    static public native String s072s();
     // mapping as parameters is not supported, for s132(s012()) is not in C++
     //static public native void s132s(String p0);
     //static public native void s172s(String p0);
@@ -56,10 +61,6 @@ public class MyJapi {
     static public native ByteBuffer s012bb0();
     static public native ByteBuffer s030bb0();
     static public native ByteBuffer s032bb0();
-    static public native ByteBuffer s050bb0();
-    static public native ByteBuffer s052bb0();
-    static public native ByteBuffer s070bb0();
-    static public native ByteBuffer s072bb0();
     
     static public native void s110bb0(ByteBuffer p0);
     static public native void s112bb0(ByteBuffer p0);
@@ -78,10 +79,6 @@ public class MyJapi {
     static public native ByteBuffer s012bb1();
     static public native ByteBuffer s030bb1();
     static public native ByteBuffer s032bb1();
-    static public native ByteBuffer s050bb1();
-    static public native ByteBuffer s052bb1();
-    static public native ByteBuffer s070bb1();
-    static public native ByteBuffer s072bb1();
     
     static public native void s110bb1(ByteBuffer p0);
     static public native void s112bb1(ByteBuffer p0);
@@ -100,10 +97,6 @@ public class MyJapi {
     static public native ByteBuffer s212bb();
     static public native ByteBuffer s230bb();
     static public native ByteBuffer s232bb();
-    static public native ByteBuffer s250bb();
-    static public native ByteBuffer s252bb();
-    static public native ByteBuffer s270bb();
-    static public native ByteBuffer s272bb();
     
     static public native void s310bb(ByteBuffer p0);
     static public native void s312bb(ByteBuffer p0);
@@ -118,20 +111,8 @@ public class MyJapi {
     // Default mappings of primitive result/parameter types
     // ----------------------------------------------------------------------
 
-    static public native boolean f011();
-    static public native byte f012();
-    static public native byte f013();
-    static public native byte f014();
-    static public native short f015();
-    static public native short f016();
-    static public native int f017();
-    static public native int f018();
     static public native int f019();
     static public native int f020();
-    static public native long f021();
-    static public native long f022();
-    static public native float f023();
-    static public native double f024();
     static public native double f025();
 
     static public native void f111(boolean p0);
@@ -336,31 +317,7 @@ public class MyJapi {
     static public native ByteBuffer f443bb0();
     static public native ByteBuffer f444bb0();
 
-    static public native ByteBuffer f451bb0();
-    static public native ByteBuffer f452bb0();
-    static public native ByteBuffer f453bb0();
-    static public native ByteBuffer f454bb0();
-    static public native ByteBuffer f455bb0();
-    static public native ByteBuffer f456bb0();
-    static public native ByteBuffer f457bb0();
-    static public native ByteBuffer f458bb0();
-    static public native ByteBuffer f461bb0();
-    static public native ByteBuffer f462bb0();
-    static public native ByteBuffer f463bb0();
-    static public native ByteBuffer f464bb0();
 
-    static public native ByteBuffer f471bb0();
-    static public native ByteBuffer f472bb0();
-    static public native ByteBuffer f473bb0();
-    static public native ByteBuffer f474bb0();
-    static public native ByteBuffer f475bb0();
-    static public native ByteBuffer f476bb0();
-    static public native ByteBuffer f477bb0();
-    static public native ByteBuffer f478bb0();
-    static public native ByteBuffer f481bb0();
-    static public native ByteBuffer f482bb0();
-    static public native ByteBuffer f483bb0();
-    static public native ByteBuffer f484bb0();
 
     static public native void f511bb0(ByteBuffer p0);
     static public native void f512bb0(ByteBuffer p0);
@@ -444,31 +401,7 @@ public class MyJapi {
     static public native ByteBuffer f443bb1();
     static public native ByteBuffer f444bb1();
 
-    static public native ByteBuffer f451bb1();
-    static public native ByteBuffer f452bb1();
-    static public native ByteBuffer f453bb1();
-    static public native ByteBuffer f454bb1();
-    static public native ByteBuffer f455bb1();
-    static public native ByteBuffer f456bb1();
-    static public native ByteBuffer f457bb1();
-    static public native ByteBuffer f458bb1();
-    static public native ByteBuffer f461bb1();
-    static public native ByteBuffer f462bb1();
-    static public native ByteBuffer f463bb1();
-    static public native ByteBuffer f464bb1();
 
-    static public native ByteBuffer f471bb1();
-    static public native ByteBuffer f472bb1();
-    static public native ByteBuffer f473bb1();
-    static public native ByteBuffer f474bb1();
-    static public native ByteBuffer f475bb1();
-    static public native ByteBuffer f476bb1();
-    static public native ByteBuffer f477bb1();
-    static public native ByteBuffer f478bb1();
-    static public native ByteBuffer f481bb1();
-    static public native ByteBuffer f482bb1();
-    static public native ByteBuffer f483bb1();
-    static public native ByteBuffer f484bb1();
 
     static public native void f511bb1(ByteBuffer p0);
     static public native void f512bb1(ByteBuffer p0);
@@ -552,31 +485,7 @@ public class MyJapi {
     static public native float[] f443v1();
     static public native double[] f444v1();
 
-    static public native boolean[] f451v1();
-    static public native byte[] f452v1();
-    static public native byte[] f453v1();
-    static public native byte[] f454v1();
-    static public native short[] f455v1();
-    static public native short[] f456v1();
-    static public native int[] f457v1();
-    static public native int[] f458v1();
-    static public native long[] f461v1();
-    static public native long[] f462v1();
-    static public native float[] f463v1();
-    static public native double[] f464v1();
 
-    static public native boolean[] f471v1();
-    static public native byte[] f472v1();
-    static public native byte[] f473v1();
-    static public native byte[] f474v1();
-    static public native short[] f475v1();
-    static public native short[] f476v1();
-    static public native int[] f477v1();
-    static public native int[] f478v1();
-    static public native long[] f481v1();
-    static public native long[] f482v1();
-    static public native float[] f483v1();
-    static public native double[] f484v1();
 
     static public native void f511v1(boolean[] p0);
     static public native void f512v1(byte[] p0);
@@ -660,31 +569,7 @@ public class MyJapi {
     static public native ByteBuffer f643bb0();
     static public native ByteBuffer f644bb0();
 
-    static public native ByteBuffer f651bb0();
-    static public native ByteBuffer f652bb0();
-    static public native ByteBuffer f653bb0();
-    static public native ByteBuffer f654bb0();
-    static public native ByteBuffer f655bb0();
-    static public native ByteBuffer f656bb0();
-    static public native ByteBuffer f657bb0();
-    static public native ByteBuffer f658bb0();
-    static public native ByteBuffer f661bb0();
-    static public native ByteBuffer f662bb0();
-    static public native ByteBuffer f663bb0();
-    static public native ByteBuffer f664bb0();
 
-    static public native ByteBuffer f671bb0();
-    static public native ByteBuffer f672bb0();
-    static public native ByteBuffer f673bb0();
-    static public native ByteBuffer f674bb0();
-    static public native ByteBuffer f675bb0();
-    static public native ByteBuffer f676bb0();
-    static public native ByteBuffer f677bb0();
-    static public native ByteBuffer f678bb0();
-    static public native ByteBuffer f681bb0();
-    static public native ByteBuffer f682bb0();
-    static public native ByteBuffer f683bb0();
-    static public native ByteBuffer f684bb0();
 
     static public native void f711bb0(ByteBuffer p0);
     static public native void f712bb0(ByteBuffer p0);
@@ -768,31 +653,7 @@ public class MyJapi {
     static public native ByteBuffer f643bb1();
     static public native ByteBuffer f644bb1();
 
-    static public native ByteBuffer f651bb1();
-    static public native ByteBuffer f652bb1();
-    static public native ByteBuffer f653bb1();
-    static public native ByteBuffer f654bb1();
-    static public native ByteBuffer f655bb1();
-    static public native ByteBuffer f656bb1();
-    static public native ByteBuffer f657bb1();
-    static public native ByteBuffer f658bb1();
-    static public native ByteBuffer f661bb1();
-    static public native ByteBuffer f662bb1();
-    static public native ByteBuffer f663bb1();
-    static public native ByteBuffer f664bb1();
 
-    static public native ByteBuffer f671bb1();
-    static public native ByteBuffer f672bb1();
-    static public native ByteBuffer f673bb1();
-    static public native ByteBuffer f674bb1();
-    static public native ByteBuffer f675bb1();
-    static public native ByteBuffer f676bb1();
-    static public native ByteBuffer f677bb1();
-    static public native ByteBuffer f678bb1();
-    static public native ByteBuffer f681bb1();
-    static public native ByteBuffer f682bb1();
-    static public native ByteBuffer f683bb1();
-    static public native ByteBuffer f684bb1();
 
     static public native void f711bb1(ByteBuffer p0);
     static public native void f712bb1(ByteBuffer p0);
@@ -876,31 +737,7 @@ public class MyJapi {
     static public native float[] f643v0();
     static public native double[] f644v0();
 
-    static public native boolean[] f651v0();
-    static public native byte[] f652v0();
-    static public native byte[] f653v0();
-    static public native byte[] f654v0();
-    static public native short[] f655v0();
-    static public native short[] f656v0();
-    static public native int[] f657v0();
-    static public native int[] f658v0();
-    static public native long[] f661v0();
-    static public native long[] f662v0();
-    static public native float[] f663v0();
-    static public native double[] f664v0();
 
-    static public native boolean[] f671v0();
-    static public native byte[] f672v0();
-    static public native byte[] f673v0();
-    static public native byte[] f674v0();
-    static public native short[] f675v0();
-    static public native short[] f676v0();
-    static public native int[] f677v0();
-    static public native int[] f678v0();
-    static public native long[] f681v0();
-    static public native long[] f682v0();
-    static public native float[] f683v0();
-    static public native double[] f684v0();
 
     static public native void f711v0(boolean[] p0);
     static public native void f712v0(byte[] p0);
@@ -984,31 +821,7 @@ public class MyJapi {
     static public native float[] f643v1();
     static public native double[] f644v1();
 
-    static public native boolean[] f651v1();
-    static public native byte[] f652v1();
-    static public native byte[] f653v1();
-    static public native byte[] f654v1();
-    static public native short[] f655v1();
-    static public native short[] f656v1();
-    static public native int[] f657v1();
-    static public native int[] f658v1();
-    static public native long[] f661v1();
-    static public native long[] f662v1();
-    static public native float[] f663v1();
-    static public native double[] f664v1();
 
-    static public native boolean[] f671v1();
-    static public native byte[] f672v1();
-    static public native byte[] f673v1();
-    static public native byte[] f674v1();
-    static public native short[] f675v1();
-    static public native short[] f676v1();
-    static public native int[] f677v1();
-    static public native int[] f678v1();
-    static public native long[] f681v1();
-    static public native long[] f682v1();
-    static public native float[] f683v1();
-    static public native double[] f684v1();
 
     static public native void f711v1(boolean[] p0);
     static public native void f712v1(byte[] p0);

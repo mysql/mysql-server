@@ -65,34 +65,40 @@ Warning	1292	Truncated incorrect myisam_repair_threads value: '-1024'
 SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
 1
-SET @@global.myisam_repair_threads  = 429496729533;
-Warnings:
-Warning	1292	Truncated incorrect myisam_repair_threads value: '429496729533'
-SELECT @@global.myisam_repair_threads ;
-@@global.myisam_repair_threads
-4294967295
 SET @@global.myisam_repair_threads  = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'myisam_repair_threads'
 SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
-4294967295
+1
 SET @@global.myisam_repair_threads  = test;
 ERROR 42000: Incorrect argument type to variable 'myisam_repair_threads'
 SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
-4294967295
+1
 SET @@global.myisam_repair_threads  = "test";
 ERROR 42000: Incorrect argument type to variable 'myisam_repair_threads'
 SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
-4294967295
+1
 SET @@global.myisam_repair_threads  = 'test';
 ERROR 42000: Incorrect argument type to variable 'myisam_repair_threads'
 SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
-4294967295
+1
 SET @@global.myisam_repair_threads  = ON;
 ERROR 42000: Incorrect argument type to variable 'myisam_repair_threads'
+SELECT @@global.myisam_repair_threads ;
+@@global.myisam_repair_threads
+1
+SET @@global.myisam_repair_threads  = 4294967296;
+Warnings:
+Warning	1292	Truncated incorrect myisam_repair_threads value: '4294967296'
+SELECT @@global.myisam_repair_threads ;
+@@global.myisam_repair_threads
+4294967295
+SET @@global.myisam_repair_threads  = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect myisam_repair_threads value: '42949672950'
 SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
 4294967295
@@ -123,16 +129,28 @@ ERROR 42000: Incorrect argument type to variable 'myisam_repair_threads'
 SELECT @@session.myisam_repair_threads ;
 @@session.myisam_repair_threads
 1
+SET @@session.myisam_repair_threads  = 4294967296;
+Warnings:
+Warning	1292	Truncated incorrect myisam_repair_threads value: '4294967296'
+SELECT @@session.myisam_repair_threads ;
+@@session.myisam_repair_threads
+4294967295
+SET @@session.myisam_repair_threads  = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect myisam_repair_threads value: '42949672950'
+SELECT @@session.myisam_repair_threads ;
+@@session.myisam_repair_threads
+4294967295
 '#------------------FN_DYNVARS_005_06-----------------------#'
 SELECT @@global.myisam_repair_threads  = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
-WHERE VARIABLE_NAME='myisam_repair_threads ';
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='myisam_repair_threads';
 @@global.myisam_repair_threads  = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_005_07-----------------------#'
 SELECT @@session.myisam_repair_threads  = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
-WHERE VARIABLE_NAME='myisam_repair_threads ';
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='myisam_repair_threads';
 @@session.myisam_repair_threads  = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_005_08-----------------------#'

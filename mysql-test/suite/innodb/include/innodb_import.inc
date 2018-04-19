@@ -35,7 +35,7 @@ FLUSH TABLES t1 FOR EXPORT;
 SELECT * FROM t1 ORDER BY c1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -53,7 +53,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -124,7 +124,7 @@ FLUSH TABLES t1 WITH READ LOCK;
 SELECT * FROM t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test",
@@ -179,7 +179,7 @@ CREATE UNIQUE INDEX idx3 ON t1(col8);
 ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test",
@@ -239,7 +239,7 @@ FROM t1;
 FLUSH TABLES t1 FOR EXPORT;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -266,7 +266,7 @@ $col7_part;
 ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -306,7 +306,7 @@ SELECT * FROM t1 ORDER BY col_1_int;
 FLUSH TABLES t1 FOR EXPORT;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -328,7 +328,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -377,7 +377,7 @@ SELECT * FROM t1_fk;
 FLUSH TABLES t1,t1_fk FOR EXPORT;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test", "t1");
 ib_backup_tablespaces("test", "t1_fk");
 EOF
@@ -403,7 +403,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 SET foreign_key_checks = 1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1");
 ib_discard_tablespaces("test", "t1_fk");
 ib_restore_tablespaces("test", "t1");
@@ -453,7 +453,7 @@ SELECT * FROM  t1 ORDER BY col_1_int;
 FLUSH TABLES t1 FOR EXPORT;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -473,7 +473,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 SET AUTOCOMMIT = 0;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -509,7 +509,7 @@ SELECT * FROM t1 ORDER BY i;
 FLUSH TABLES t1 FOR EXPORT;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -527,7 +527,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -557,7 +557,7 @@ SELECT * FROM t1 ORDER BY i;
 FLUSH TABLES t1 FOR EXPORT;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -580,7 +580,7 @@ $i_part;
 ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -597,7 +597,7 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 
 --echo # explicitly delete ibd file before creating table with correct schema
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_unlink_tablespace("test", "t1#P#p0");
@@ -615,7 +615,7 @@ $i_part;
 ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -644,7 +644,7 @@ $i_part;
 ALTER TABLE t1 DISCARD TABLESPACE;
 --echo # do not delete ibd file and try to import
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -668,7 +668,7 @@ ROLLBACK;
 FLUSH TABLES t1 FOR EXPORT;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -686,7 +686,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -713,7 +713,7 @@ col_6 text (255), col_7 text (255),
 col_8 text (255),col_9 text (255),
 col_10 BLOB (255),col_11  BLOB (255),
 col_12 BLOB (255), col_13 BLOB (255),
-col_14 BLOB (255), col_15 int) ENGINE = InnoDB
+col_14 BLOB (255), col_15 int) ENGINE = InnoDB charset latin1
 $col1_key_part;
 
 CREATE INDEX prefix_idx ON t1(
@@ -751,7 +751,7 @@ FROM t1;
 FLUSH TABLES t1 FOR EXPORT;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -771,7 +771,7 @@ col_6 text (255), col_7 text (255),
 col_8 text (255),col_9 text (255),
 col_10 BLOB (255),col_11  BLOB (255),
 col_12 BLOB (255), col_13 BLOB (255),
-col_14 BLOB (255), col_15 int) ENGINE = InnoDB
+col_14 BLOB (255), col_15 int) ENGINE = InnoDB charset latin1
 $col1_key_part;
 
 CREATE INDEX prefix_idx ON t1(
@@ -784,7 +784,7 @@ col_13(50));
 ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -828,7 +828,7 @@ col_6 text (255), col_7 text (255),
 col_8 text (255),col_9 text (255),
 col_10 BLOB (255),col_11  BLOB (255),
 col_12 BLOB (255), col_13 BLOB (255),
-col_14 BLOB (255), col_15 int) ENGINE = InnoDB
+col_14 BLOB (255), col_15 int) ENGINE = InnoDB charset latin1
 $col1_key_part;
 
 CREATE INDEX idx1 ON t1(col_1);
@@ -874,7 +874,7 @@ FROM t1;
 FLUSH TABLES t1 FOR EXPORT;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -894,7 +894,7 @@ col_6 text (255), col_7 text (255),
 col_8 text (255),col_9 text (255),
 col_10 BLOB (255),col_11  BLOB (255),
 col_12 BLOB (255), col_13 BLOB (255),
-col_14 BLOB (255), col_15 int) ENGINE = InnoDB
+col_14 BLOB (255), col_15 int) ENGINE = InnoDB charset latin1
 $col1_key_part;
 
 CREATE INDEX idx1 ON t1(col_1);
@@ -916,7 +916,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -1067,7 +1067,7 @@ SELECT * FROM VW1;
 FLUSH TABLES t1 FOR EXPORT;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -1107,7 +1107,7 @@ CREATE UNIQUE INDEX idx3 ON t1(col8);
 ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -1149,9 +1149,9 @@ DROP TABLE trigger_table;
 
 --disable_query_log
 call mtr.add_suppression("Got error -1 when reading table '.*'");
-call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file '.*'.*");
-call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
-call mtr.add_suppression("InnoDB: Unable to import tablespace .* because it already exists.  Please DISCARD the tablespace before IMPORT.");
+call mtr.add_suppression("Error: tablespace id and flags in file '.*'.*");
+call mtr.add_suppression("The table .* doesn't have a corresponding tablespace, it was discarded");
+call mtr.add_suppression("Unable to import tablespace .* because it already exists.  Please DISCARD the tablespace before IMPORT.");
 --enable_query_log
 
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.ibd

@@ -3,7 +3,6 @@
 # Access Type: Static                                                         #
 # Data Type: numeric                                                          #
 
---source include/have_innodb.inc
 
 SELECT @@GLOBAL.innodb_max_purge_lag_delay;
 --echo 0 Expected
@@ -15,7 +14,7 @@ SELECT COUNT(@@GLOBAL.innodb_max_purge_lag_delay);
 
 --disable_warnings
 SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_max_purge_lag_delay';
 --enable_warnings
 --echo 1 Expected

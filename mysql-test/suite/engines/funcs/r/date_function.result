@@ -1,7 +1,5 @@
 DROP TABLE IF EXISTS t3;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t3(c1 DATE NOT NULL);
 INSERT INTO t3 VALUES('1000-01-01');
 INSERT INTO t3 VALUES('1999-12-31');

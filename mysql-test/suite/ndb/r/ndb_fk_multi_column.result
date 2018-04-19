@@ -15,30 +15,107 @@ index(c,a)) engine = ndb;
 insert into parent values (1,2,3);
 alter table child add constraint fkname foreign key (c,a) references parent(a,b) on delete restrict on update restrict;
 insert into child values (2,1,2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`,`a`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 insert into child values (1,1,1);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`,`a`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 insert into child values (2,1,1);
 delete from parent;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`,`a`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 delete from child;
 alter table child drop foreign key fkname;
 alter table child add constraint fkname foreign key (b,a) references parent(a,b) on delete restrict on update restrict;
 insert into child values (1,2,2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`,`a`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 insert into child values (2,3,1);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`,`a`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 insert into child values (2,1,1);
 delete from parent;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`,`a`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 delete from child;
 alter table child drop foreign key fkname;
 alter table child add constraint fkname foreign key (c,b) references parent(a,b) on delete restrict on update restrict;
 insert into child values (1,2,2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`,`b`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 insert into child values (2,3,1);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`,`b`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 insert into child values (2,2,1);
 delete from parent;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`,`b`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 drop table child, parent;
+#
+# Bug#21664899 : FAILURE CREATING COMPOSITE FKS REFERENCING COMPOSITE PKS OF PARENT
+#
+#create table t1
+create table t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key pk1(a,b)
+) engine=ndbcluster;
+#create t2 with a unique key on single column
+create table t2 (
+a int not null,
+b int not null,
+c int not null,
+unique key uniquet2a(a),
+foreign key fkt2ab(a,b) references t1(a,b)
+) engine=ndbcluster;
+#verify the presence of uniquet2a, fkt2ab & and an extra key for fkt2ab
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  UNIQUE KEY `uniquet2a` (`a`),
+  KEY `fkt2ab` (`a`,`b`),
+  CONSTRAINT `fkt2ab` FOREIGN KEY (`a`,`b`) REFERENCES `t1` (`a`,`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+alter table t2 drop key uniquet2a;
+#alter add a unique constraint on single key
+alter table t2 add constraint uniquet2a unique (a);
+#verify the presence of uniquet2a, fkt2ab & and an extra key for fkt2ab
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  UNIQUE KEY `uniquet2a` (`a`),
+  KEY `fkt2ab` (`a`,`b`),
+  CONSTRAINT `fkt2ab` FOREIGN KEY (`a`,`b`) REFERENCES `t1` (`a`,`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#alter add a unique constraint on all cols in fk
+alter table t2 add constraint uniquet2ab unique (a,b);
+#verify the presence of uniquet2a, uniquet2ab, fkt2ab. no extra key for fkt2ab
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  UNIQUE KEY `uniquet2a` (`a`),
+  UNIQUE KEY `uniquet2ab` (`a`,`b`),
+  CONSTRAINT `fkt2ab` FOREIGN KEY (`a`,`b`) REFERENCES `t1` (`a`,`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#try adding fk(a,b,c) referring t1(a,b,c), it should fail without parent index.
+alter table t2 add constraint foreign key fkt2abc(a,b,c) references t1(a,b,c);
+ERROR HY000: Cannot add foreign key constraint
+#now add a unique key but on a different column order and try again
+alter table t1 add constraint uniquet1abc unique (c,a,b);
+alter table t2 add constraint foreign key fkt2abc(a,b,c) references t1(a,b,c);
+#verify the presence of new fk
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  UNIQUE KEY `uniquet2a` (`a`),
+  UNIQUE KEY `uniquet2ab` (`a`,`b`),
+  KEY `fkt2abc` (`a`,`b`,`c`),
+  CONSTRAINT `fkt2ab` FOREIGN KEY (`a`,`b`) REFERENCES `t1` (`a`,`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fkt2abc` FOREIGN KEY (`a`,`b`,`c`) REFERENCES `t1` (`a`,`b`,`c`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#cleanup
+drop table t2, t1;

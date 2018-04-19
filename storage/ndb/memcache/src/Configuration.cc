@@ -1,23 +1,27 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- as published by the Free Software Foundation; version 2 of
- the License.
- 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU General Public License for more details.
- 
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License, version 2.0, for more details.
+
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
-#include <my_config.h>
+#include "my_config.h"
 #include <unistd.h>
 #include <stdlib.h>  
 #include <stdio.h>
@@ -39,6 +43,7 @@
 #include "TableSpec.h"
 #include "QueryPlan.h"
 #include "Operation.h"
+#include "ndb_error_logger.h"
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
@@ -335,14 +340,18 @@ bool Configuration::fetch_meta_record(QueryPlan *plan, Ndb *db,
   op.buffer     = (char *) malloc(op.requiredBuffer());
   
   NdbTransaction *tx = db->startTransaction();
-
-  op.setKeyPart(COL_STORE_KEY + 0, "ndbmemcache", strlen("ndbmemcache"));
-  op.setKeyPart(COL_STORE_KEY + 1, version, strlen(version));
-  op.readTuple(tx);
-  tx->execute(NdbTransaction::Commit);  
-  if(tx->getNdbError().classification == NdbError::NoError)
-    result = true;
-  tx->close();
+  if(tx) {
+    op.setKeyPart(COL_STORE_KEY + 0, "ndbmemcache", strlen("ndbmemcache"));
+    op.setKeyPart(COL_STORE_KEY + 1, version, strlen(version));
+    op.readTuple(tx);
+    tx->execute(NdbTransaction::Commit);
+    if(tx->getNdbError().classification == NdbError::NoError)
+      result = true;
+    tx->close();
+  }
+  else {
+    log_ndb_error(db->getNdbError());
+  }
   
   free(op.key_buffer);
   free(op.buffer);

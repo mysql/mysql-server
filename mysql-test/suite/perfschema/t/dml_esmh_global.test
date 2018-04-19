@@ -1,0 +1,38 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--disable_result_log 
+select * from performance_schema.events_statements_histogram_global
+  where bucket_number = 1000 limit 1;
+
+select * from performance_schema.events_statements_histogram_global
+  where count_bucket=0;
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.events_statements_histogram_global
+  set digest='XXYYZZ', count_star=1, sum_timer_wait=2, min_timer_wait=3,
+  avg_timer_wait=4, max_timer_wait=5;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_statements_histogram_global
+  set count_star=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_statements_histogram_global
+  set count_star=12 where digest like "XXYYZZ";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_statements_histogram_global
+  where count_star=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_statements_histogram_global;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_statements_histogram_global READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_statements_histogram_global WRITE;
+UNLOCK TABLES;
+

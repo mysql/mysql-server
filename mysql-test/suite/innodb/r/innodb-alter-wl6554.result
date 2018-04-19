@@ -24,10 +24,10 @@ INSERT INTO t2 VALUES ('coastal');
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`))
 INSERT INTO t2 VALUES ('coast');
 DROP TABLE t2, t1;
-CREATE TABLE t1 (pk VARCHAR(2) PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t1 (pk VARCHAR(2) PRIMARY KEY) ENGINE=InnoDB charset latin1;
 CREATE TABLE t2 (fk VARCHAR(2),
 CONSTRAINT fk FOREIGN KEY (fk) REFERENCES t1 (pk))
-ENGINE=InnoDB;
+ENGINE=InnoDB charset latin1;
 INSERT INTO t1 VALUES ('aa'), ('bb');
 INSERT INTO t2 VALUES ('aa'), ('bb');
 ALTER TABLE t2 ALGORITHM=INPLACE, CHANGE COLUMN fk fk VARCHAR(6);
@@ -44,8 +44,6 @@ ALTER TABLE t2 ALGORITHM=INPLACE, DROP FOREIGN KEY fk;
 ALTER TABLE t2 CHANGE COLUMN fk fk VARCHAR(256);
 ALTER TABLE t2 ALGORITHM=INPLACE, CHANGE COLUMN fk fk VARCHAR(300);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 ALTER TABLE t2 ALGORITHM=INPLACE, CHANGE COLUMN fk fk VARCHAR(99999);
 ERROR 42000: BLOB/TEXT column 'fk' used in key specification without a key length
 ALTER TABLE t2 ALGORITHM=INPLACE, DROP INDEX fk;

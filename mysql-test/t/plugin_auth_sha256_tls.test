@@ -1,19 +1,17 @@
---source include/not_embedded.inc
 --source include/have_ssl.inc
 
 connect (ssl_con,localhost,root,,,,,SSL);
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
 SHOW STATUS LIKE 'Ssl_cipher';
 
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';
-SET GLOBAL old_passwords= 2;
-SET SESSION old_passwords= 2;
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
 connect(con1,localhost,kristofer,secret,,,,SSL);
 connection con1;
 connection ssl_con;
 disconnect con1;
 DROP USER 'kristofer';
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
+CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY 'secret2';
 connect(con2,localhost,kristofer,secret2,,,,SSL);
 connection con2;
@@ -22,7 +20,7 @@ SHOW GRANTS FOR 'kristofer'@'localhost';
 connection ssl_con;
 disconnect con2;
 DROP USER 'kristofer'@'localhost';
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
+CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY '';
 connect(con3,localhost,kristofer,,,,,SSL);
 connection con3;
@@ -32,7 +30,7 @@ connection ssl_con;
 disconnect con3;
 DROP USER 'kristofer'@'localhost';
 
-GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33' IDENTIFIED WITH 'sha256_password';
+CREATE USER 'kristofer'@'33.33.33.33' IDENTIFIED WITH 'sha256_password' BY '123';
 ALTER USER 'kristofer'@'33.33.33.33' IDENTIFIED BY '';
 --echo Connection should fail for localhost
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
@@ -51,7 +49,9 @@ ALTER USER 'u1'@'localhost' PASSWORD EXPIRE;
 connect(con5,127.0.0.1,u1,pass,test,,,SSL);
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
+--disable_ps_protocol
 ALTER USER 'u1'@'localhost' IDENTIFIED BY 'pass2'; 
+--enable_ps_protocol
 
 connect(con6,127.0.0.1,u1,pass2,test,,,SSL);
 SELECT USER();
@@ -61,8 +61,6 @@ DROP USER 'u1'@'localhost';
 disconnect con5;
 disconnect con6;
 
-# Restore default value to old_passwords
-SET GLOBAL old_passwords= default;
 connection default;
 disconnect ssl_con;
 

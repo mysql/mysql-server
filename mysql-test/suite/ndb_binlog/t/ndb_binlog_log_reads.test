@@ -1,0 +1,614 @@
+########################################################
+# Test logging of read in different binlog variants
+# produced by Ndb
+#
+#  1) Updates logged as write_row events
+#     Only primary key and updated columns included in the 
+#     event
+#  2) Updates logged as write_row_events
+#     All columns included in the event
+#  3) Updates logged as update_row events
+#     Only primary key and updated columns included in the
+#     event
+#  4) Updates logged as update_row events
+#     All columns included in the event
+#
+#
+########################################################
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_row.inc
+-- source include/have_debug.inc
+
+# Setup connections
+connect(mysqld1,127.0.0.1,root,,test,$MASTER_MYPORT);
+connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1);
+connect(mysqld3,127.0.0.1,root,,test,$MASTER_MYPORT2);
+connect(mysqld4,127.0.0.1,root,,test,$MASTER_MYPORT3);
+
+connection mysqld1;
+
+#
+# WL#7642 Ndb Active Active Binlog read tracking
+#
+
+create table test.t1 (
+  a int primary key,
+  b varchar(2000),
+  c int not null unique,
+  d int,
+  key(d)) engine=ndb;
+
+insert into test.t1 values
+ (1, "Initial data 1", 1, 1),
+ (2, "Initial data 2", 2, 2),
+ (3, "Initial data 3", 3, 3),
+ (4, "Initial data 4", 4, 4),
+ (5, "Initial data 5", 5, 5),
+ (6, "Initial data 6", 6, 6),
+ (7, "Initial data 7", 7, 7),
+ (8, "Initial data 8", 8, 8),
+ (9, "Initial data 9", 9, 9),
+ (10, "Initial data 10", 10, 10);
+
+-- echo Test 1: Testing logging of pk reads
+
+reset master;
+
+create table test.synch(x int primary key) engine=ndb;
+
+connection mysqld2;
+--disable_result_log
+show create table test.synch;
+--enable_result_log
+reset master;
+connection mysqld3;
+--disable_result_log
+show create table test.synch;
+--enable_result_log
+reset master;
+connection mysqld4;
+--disable_result_log
+show create table test.synch;
+--enable_result_log
+reset master;
+
+connection mysqld1;
+SET ndb_log_exclusive_reads= 1;
+select * from test.t1 where a = 7 order by a for update;
+
+--disable_query_log
+--disable_result_log
+insert into test.synch values (1);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
+select "mysqld1:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (2);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
+select "mysqld2:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld3;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (3);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
+select "mysqld3:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld4;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (4);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
+select "mysqld4:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld1;
+SET ndb_log_exclusive_reads= 0;
+
+-- echo Test 2: Testing logging of unique index reads
+
+reset master;
+
+connection mysqld1;
+--disable_result_log
+delete from test.synch;
+--enable_result_log
+connection mysqld2;
+--disable_result_log
+show create table test.synch;
+--enable_result_log
+reset master;
+connection mysqld3;
+--disable_result_log
+show create table test.synch;
+--enable_result_log
+reset master;
+connection mysqld4;
+--disable_result_log
+show create table test.synch;
+--enable_result_log
+reset master;
+
+connection mysqld1;
+SET ndb_log_exclusive_reads= 1;
+select * from test.t1 where c = 7 order by a for update;
+
+--disable_query_log
+--disable_result_log
+insert into test.synch values (1);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
+select "mysqld1:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (2);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
+select "mysqld2:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld3;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (3);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
+select "mysqld3:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld4;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (4);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
+select "mysqld4:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld1;
+SET ndb_log_exclusive_reads= 0;
+
+-- echo Test 3: Testing logging of ordered index scans
+
+reset master;
+
+connection mysqld1;
+--disable_result_log
+delete from test.synch;
+--enable_result_log
+connection mysqld2;
+--disable_result_log
+show create table test.synch;
+--enable_result_log
+reset master;
+connection mysqld3;
+--disable_result_log
+show create table test.synch;
+--enable_result_log
+reset master;
+connection mysqld4;
+--disable_result_log
+show create table test.synch;
+--enable_result_log
+reset master;
+
+connection mysqld1;
+SET ndb_log_exclusive_reads= 1;
+select * from test.t1 where d = 7 order by a for update;
+
+--disable_query_log
+--disable_result_log
+insert into test.synch values (1);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
+select "mysqld1:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (2);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
+select "mysqld2:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld3;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (3);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
+select "mysqld3:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld4;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (4);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
+select "mysqld4:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld1;
+SET ndb_log_exclusive_reads= 0;
+
+-- echo Test 4: Testing logging of table scans
+
+reset master;
+
+connection mysqld1;
+--disable_result_log
+delete from test.synch;
+--enable_result_log
+connection mysqld2;
+--disable_result_log
+show create table test.synch;
+--enable_result_log
+reset master;
+connection mysqld3;
+--disable_result_log
+show create table test.synch;
+--enable_result_log
+reset master;
+connection mysqld4;
+--disable_result_log
+show create table test.synch;
+--enable_result_log
+reset master;
+
+connection mysqld1;
+SET ndb_log_exclusive_reads= 1;
+select * from test.t1 where b like "Initial data 7" order by a for update;
+
+--disable_query_log
+--disable_result_log
+insert into test.synch values (1);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
+select "mysqld1:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld2;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (2);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
+select "mysqld2:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld3;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (3);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
+select "mysqld3:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld4;
+--disable_query_log
+--disable_result_log
+insert into test.synch values (4);
+--enable_result_log
+--enable_query_log
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+--echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
+select "mysqld4:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+
+drop table raw_binlog_rows;
+--enable_query_log
+
+connection mysqld1;
+SET ndb_log_exclusive_reads= 0;
+drop table test.synch, test.t1;

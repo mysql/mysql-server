@@ -23,10 +23,6 @@ include/sync_slave_sql_with_master.inc
 INSERT INTO t1 VALUE(2);
 include/sync_slave_sql_with_master.inc
 include/check_slave_is_running.inc
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Relay_Log_File = 'master-relay-bin.000003'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

@@ -248,11 +248,11 @@ select * from t1 where b = 6 order by a;
 a	b	c
 affected rows: 0
 drop table t1;
-affected rows: 0
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 create table t1 (a int primary key,
 b varchar(4))
 engine=ndb;
-affected rows: 0
 insert into t1 values (1, '1'), (2, '2'), (3, '3');
 affected rows: 3
 info: Records: 3  Duplicates: 0  Warnings: 0
@@ -397,11 +397,10 @@ affected rows: 0
 2
 affected rows: 1
 drop table t1;
-affected rows: 0
 create table t1
 (a int not null primary key auto_increment, b int, c varchar(256))
+character set latin1
 engine = ndb;
-affected rows: 0
 insert into t1(b,c) values (1,'this is a test'),
 (2,'this is a test'),(3,'this is a test'),
 (4,'this is a test'),(5,'this is a test'),(6,'this is a test'),
@@ -479,4 +478,3 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 9
 affected rows: 1
 drop table t1;
-affected rows: 0

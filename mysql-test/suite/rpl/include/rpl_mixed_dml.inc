@@ -173,7 +173,7 @@ SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 # CREATE USER
 --echo
 --echo ******************** CREATE USER ********************
-CREATE USER 'user_test_rpl'@'localhost' IDENTIFIED BY PASSWORD '*1111111111111111111111111111111111111111';
+CREATE USER 'user_test_rpl'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*1111111111111111111111111111111111111111';
 --source suite/rpl/include/rpl_mixed_check_user.inc
 
 # GRANT 

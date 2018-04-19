@@ -6,10 +6,7 @@
 # - but the detection is done only in PREPARE, not EXECUTE
 # - in PS mode, the trace is of EXECUTE
 
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
-            + $VIEW_PROTOCOL > 0`)
-{
-   --skip Need normal protocol
-}
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
 --source include/group_by_fd.inc

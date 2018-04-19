@@ -1,12 +1,6 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ### t/log_state.test ###
 #
 
---source include/not_embedded.inc
 
 # Several subtests modify global variables. Save the initial values only here,
 # but reset to the initial values per subtest.

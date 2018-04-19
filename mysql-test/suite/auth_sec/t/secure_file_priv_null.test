@@ -1,5 +1,4 @@
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
 
 --echo #-----------------------------------------------------------------------
 --echo # Setup
@@ -12,7 +11,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --echo #              related to importing and exporting data are
 --echo #              disabled
 let SEARCH_PATTERN= --secure-file-priv is set to NULL. Operations related to importing and exporting data are disabled;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 connect(test4_con,localhost,root,,,,,);
 show variables like 'secure_file_priv';

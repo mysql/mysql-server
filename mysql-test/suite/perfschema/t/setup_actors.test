@@ -4,43 +4,41 @@
 # are within setup_actors1.test.
 
 --source include/not_windows.inc
---source include/not_embedded.inc
---source include/have_perfschema.inc
 
 # The initial number of rows is 1. The initial row always looks like this:
 # mysql> select * from performance_schema.setup_actors;
-# +------+------+------+---------+
-# | HOST | USER | ROLE | ENABLED |
-# +------+------+------+---------+
-# | %    | %    | %    | YES     |
-# +------+------+------+---------+
+# +------+------+------+---------+---------+
+# | HOST | USER | ROLE | ENABLED | HISTORY |
+# +------+------+------+---------+---------+
+# | %    | %    | %    | YES     | YES     |
+# +------+------+------+---------+---------+
 select * from performance_schema.setup_actors;
 
 truncate table performance_schema.setup_actors;
 
 insert into performance_schema.setup_actors
-values ('hosta', 'user1', '%', 'YES');
+values ('hosta', 'user1', '%', 'YES', 'YES');
 
 insert into performance_schema.setup_actors
-values ('%', 'user2', '%', 'YES');
+values ('%', 'user2', '%', 'YES', 'YES');
 
 insert into performance_schema.setup_actors
-values ('localhost', 'user3', '%', 'YES');
+values ('localhost', 'user3', '%', 'YES', 'YES');
 
 insert into performance_schema.setup_actors
-values ('hostb', '%', '%', 'YES');
+values ('hostb', '%', '%', 'YES', 'YES');
 
 select * from performance_schema.setup_actors
-order by USER, HOST, ROLE;
+order by USER, HOST, `ROLE`;
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user user1@localhost, user2@localhost,
+            user3@localhost, user4@localhost,
+            user5@localhost;
 grant ALL on *.* to user1@localhost;
 grant ALL on *.* to user2@localhost;
 grant ALL on *.* to user3@localhost;
 grant ALL on *.* to user4@localhost;
 grant select on test.* to user5@localhost;
-set sql_mode= @orig_sql_mode;
 
 flush privileges;
 
@@ -57,7 +55,7 @@ let $con1_thread_id= `select THREAD_ID from performance_schema.threads
 --echo # Switch to connection default
 --connection default
 insert into performance_schema.setup_actors
-values ('%', 'user1', '%', 'YES');
+values ('%', 'user1', '%', 'YES', 'YES');
 
 --echo # Switch to connection con1
 --connection con1
@@ -178,10 +176,10 @@ where PROCESSLIST_ID = connection_id();
 --connection default
 
 insert into performance_schema.setup_actors
-values ('localhost', '%', '%', 'YES');
+values ('localhost', '%', '%', 'YES', 'YES');
 
 select * from performance_schema.setup_actors
-order by USER, HOST, ROLE;
+order by USER, HOST, `ROLE`;
 
 --echo # Switch to (con4b, localhost, user4, , )
 connect (con4b, localhost, user4, , );
@@ -198,7 +196,7 @@ where PROCESSLIST_ID = connection_id();
 --echo # Switch to connection default
 --connection default
 insert into performance_schema.setup_actors
-values ('%', 'user5', '%', 'YES');
+values ('%', 'user5', '%', 'YES', 'YES');
 
 create sql security definer view test.v1 as select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
 from performance_schema.threads
@@ -243,7 +241,7 @@ flush privileges;
 truncate table performance_schema.setup_actors;
 
 insert into performance_schema.setup_actors
-values ('%', '%', '%', 'YES');
+values ('%', '%', '%', 'YES', 'YES');
 
 select * from performance_schema.setup_actors;
 

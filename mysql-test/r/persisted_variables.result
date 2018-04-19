@@ -1,0 +1,400 @@
+#
+# WL#8688: Support ability to persist SET GLOBAL settings
+#
+# Syntax check for PERSIST option
+SET PERSIST autocommit=0;
+SET @@persist.max_execution_time=60000;
+SET PERSIST max_user_connections=10, PERSIST max_allowed_packet=8388608;
+SET @@persist.max_user_connections=10, PERSIST max_allowed_packet=8388608;
+SET @@persist.max_user_connections=10, @@persist.max_allowed_packet=8388608;
+SET PERSIST max_user_connections=10, @@persist.max_allowed_packet=8388608;
+# Syntax check for PERSIST/GLOBAL combination
+SET PERSIST autocommit=0, GLOBAL max_user_connections=10;
+SET @@persist.autocommit=0, @@global.max_user_connections=10;
+SET GLOBAL autocommit=0, PERSIST max_user_connections=10;
+SET @@global.autocommit=0, @@persist.max_user_connections=10;
+# Syntax check for PERSIST/SESSION combination
+SET PERSIST autocommit=0, SESSION auto_increment_offset=10;
+SET @@persist.autocommit=0, @@session.auto_increment_offset=10;
+SET SESSION auto_increment_offset=20, PERSIST max_user_connections=10;
+SET @@session.auto_increment_offset=20, @@persist.max_user_connections=10;
+SET PERSIST autocommit=0, auto_increment_offset=10;
+SET autocommit=0, PERSIST auto_increment_offset=10;
+# Syntax check for PERSIST/SESSION/GLOBAL combination
+SET PERSIST autocommit=0, SESSION auto_increment_offset=10, GLOBAL max_error_count= 128;
+SET SESSION autocommit=0, GLOBAL auto_increment_offset=10, PERSIST max_allowed_packet=8388608;
+SET GLOBAL autocommit=0, PERSIST auto_increment_offset=10, SESSION max_error_count= 128;
+SET @@persist.autocommit=0, @@session.auto_increment_offset=10, @@global.max_allowed_packet=8388608;
+SET @@session.autocommit=0, @@global.auto_increment_offset=10, @@persist.max_allowed_packet=8388608;
+SET @@global.autocommit=0, @@persist.auto_increment_offset=10, @@session.max_error_count= 128;
+# Restart server
+# default values
+SELECT @@global.max_connections;
+@@global.max_connections
+151
+SET PERSIST max_connections=33;
+# Restart server and check for values
+# after restart
+SELECT @@global.max_connections;
+@@global.max_connections
+33
+# default values
+SELECT @@global.sort_buffer_size;
+@@global.sort_buffer_size
+262144
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+16777216
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
+60
+# persist few more variables
+SET PERSIST sort_buffer_size=256000;
+SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST long_query_time= 8.3452;
+# Restart server
+# after restart
+SELECT @@global.max_connections;
+@@global.max_connections
+33
+SELECT @@global.sort_buffer_size;
+@@global.sort_buffer_size
+256000
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+999424
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
+124
+SELECT @@global.long_query_time;
+@@global.long_query_time
+8.345200
+# modify existing persisted variables
+SET PERSIST sort_buffer_size=156000,max_connections= 52;
+SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
+SET PERSIST long_query_time= 7.8102;
+# Restart server
+# after restart
+SELECT @@global.max_connections;
+@@global.max_connections
+52
+SELECT @@global.sort_buffer_size;
+@@global.sort_buffer_size
+156000
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+887808
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
+160
+SELECT @@global.long_query_time;
+@@global.long_query_time
+7.810200
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+0
+SELECT @@global.max_execution_time;
+@@global.max_execution_time
+0
+# modify existing persisted variables and add new
+SET PERSIST sort_buffer_size=256000;
+SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST long_query_time= 2.999999;
+SET @@persist.max_execution_time=44000, @@persist.max_user_connections=30;
+# Restart server
+# after restart
+SELECT @@global.sort_buffer_size;
+@@global.sort_buffer_size
+256000
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+999424
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
+124
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+30
+SELECT @@global.max_execution_time;
+@@global.max_execution_time
+44000
+SELECT @@global.long_query_time;
+@@global.long_query_time
+2.999999
+# reset persisted variables
+RESET PERSIST sort_buffer_size;
+RESET PERSIST max_heap_table_size;
+RESET PERSIST max_execution_time;
+RESET PERSIST max_user_connections;
+# Restart server
+# after restart
+SELECT @@global.sort_buffer_size;
+@@global.sort_buffer_size
+262144
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+16777216
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
+124
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+0
+SELECT @@global.max_execution_time;
+@@global.max_execution_time
+0
+SELECT @@global.max_connections;
+@@global.max_connections
+52
+SELECT @@global.server_id;
+@@global.server_id
+1
+SELECT @@global.general_log;
+@@global.general_log
+1
+SELECT @@global.concurrent_insert;
+@@global.concurrent_insert
+AUTO
+# reset persisted variables and add new
+RESET PERSIST slave_net_timeout;
+SET PERSIST server_id=47, @@persist.general_log=0;
+SET PERSIST concurrent_insert=NEVER;
+RESET PERSIST max_connections;
+# Restart server
+# after restart
+SELECT @@global.sort_buffer_size;
+@@global.sort_buffer_size
+262144
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+16777216
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
+60
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+0
+SELECT @@global.max_execution_time;
+@@global.max_execution_time
+0
+SELECT @@global.max_connections;
+@@global.max_connections
+151
+SELECT @@global.server_id;
+@@global.server_id
+47
+SELECT @@global.general_log;
+@@global.general_log
+0
+SELECT @@global.concurrent_insert;
+@@global.concurrent_insert
+NEVER
+# check precedence with command line option
+SELECT @@global.max_connections;
+@@global.max_connections
+151
+SELECT @@global.server_id;
+@@global.server_id
+47
+SET PERSIST max_connections=88;
+SET PERSIST server_id=9;
+SET PERSIST session_track_system_variables='autocommit';
+# Restart server with command line option
+# after restart must be 88,9, autocommit
+SELECT @@global.max_connections;
+@@global.max_connections
+88
+SELECT @@global.server_id;
+@@global.server_id
+9
+SELECT @@global.session_track_system_variables;
+@@global.session_track_system_variables
+autocommit
+
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+concurrent_insert	NEVER
+general_log	OFF
+long_query_time	2.999999
+max_connections	88
+server_id	9
+session_track_system_variables	autocommit
+RESET PERSIST server_id;
+RESET PERSIST general_log;
+SET PERSIST max_connections=77;
+SET PERSIST session_track_system_variables='max_connections';
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+concurrent_insert	NEVER
+long_query_time	2.999999
+max_connections	77
+session_track_system_variables	max_connections
+
+SET PERSIST max_connections=99;
+RESET PERSIST session_track_system_variables;
+SET PERSIST concurrent_insert=ALWAYS;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+concurrent_insert	ALWAYS
+long_query_time	2.999999
+max_connections	99
+
+RESET PERSIST max_connections;
+SET PERSIST concurrent_insert=AUTO;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+concurrent_insert	AUTO
+long_query_time	2.999999
+
+# negative tests persist session only variables
+SET @@persist.sql_log_bin=0;
+ERROR HY000: Variable 'sql_log_bin' is a SESSION variable and can't be used with SET GLOBAL
+# Test persisted-globals-load
+SELECT @@global.persisted_globals_load;
+@@global.persisted_globals_load
+1
+# New read-only variable persisted_globals_load.
+SET PERSIST persisted_globals_load=0;
+ERROR HY000: Variable 'persisted_globals_load' is a read only variable
+SET GLOBAL  persisted_globals_load=ON;
+ERROR HY000: Variable 'persisted_globals_load' is a read only variable
+SET SESSION persisted_globals_load=1;
+ERROR HY000: Variable 'persisted_globals_load' is a read only variable
+SET GLOBAL persisted_globals_load= 'abc';
+ERROR HY000: Variable 'persisted_globals_load' is a read only variable
+SET GLOBAL persisted_globals_load= -1;
+ERROR HY000: Variable 'persisted_globals_load' is a read only variable
+# Test persisted-globals-load functionality
+SET PERSIST sort_buffer_size=256000;
+SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+# Restart server
+# values must be read from persited config file
+SELECT @@global.sort_buffer_size;
+@@global.sort_buffer_size
+256000
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+999424
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
+124
+SELECT @@global.foreign_key_checks;
+@@global.foreign_key_checks
+1
+SET PERSIST foreign_key_checks=0;
+SET PERSIST flush_time=2;
+# Restart server with persisted-globals-load=0
+# should have default values
+SELECT @@global.sort_buffer_size;
+@@global.sort_buffer_size
+262144
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+16777216
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
+60
+# Expected value 1
+SELECT @@global.foreign_key_checks;
+@@global.foreign_key_checks
+1
+# Expected value 0
+SELECT @@global.flush_time;
+@@global.flush_time
+0
+# reset some persisted values
+RESET PERSIST sort_buffer_size;
+RESET PERSIST slave_net_timeout;
+# Restart server with persisted-globals-load=1
+# should have default values
+SELECT @@global.sort_buffer_size;
+@@global.sort_buffer_size
+262144
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
+60
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+999424
+# Expected value 0
+SELECT @@global.foreign_key_checks;
+@@global.foreign_key_checks
+0
+# Expected value 2
+SELECT @@global.flush_time;
+@@global.flush_time
+2
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] option 'persisted_globals_load': boolean value 'NULL' wasn't recognized. Set to OFF.");
+call mtr.add_suppression("\\[Warning\\] option 'persisted_globals_load': boolean value 'NULL' wasn't recognized. Set to OFF.");
+# Restart server with persisted-globals-load=NULL
+# Should get warning in error log.
+Pattern "persisted_globals_load" found
+SELECT @@global.persisted_globals_load;
+@@global.persisted_globals_load
+0
+# Restart server with persisted-globals-load=1
+#
+# Bug24569624: "SET PERSIST GENERAL_LOG=1" DOES NOT RESUME ON RESTART.
+#
+SET PERSIST general_log=ON;
+SET PERSIST autocommit= 0, innodb_deadlock_detect= OFF;
+SET PERSIST enforce_gtid_consistency=ON;
+SELECT @@global.general_log, @@global.autocommit,
+@@global.innodb_deadlock_detect, @@global.enforce_gtid_consistency;
+@@global.general_log	@@global.autocommit	@@global.innodb_deadlock_detect	@@global.enforce_gtid_consistency
+1	0	0	ON
+# Restart server
+SELECT @@global.general_log, @@global.autocommit,
+@@global.innodb_deadlock_detect, @@global.enforce_gtid_consistency;
+@@global.general_log	@@global.autocommit	@@global.innodb_deadlock_detect	@@global.enforce_gtid_consistency
+1	0	0	ON
+#
+# Bug#24613005: SET PERSIST STORES PREVIOUS VALUE OF
+#               INNODB_BUFFER_POOL_SIZE TO MYSQLD-AUTO.CNF
+#
+SELECT @@global.innodb_buffer_pool_size;
+@@global.innodb_buffer_pool_size
+25165824
+SET PERSIST innodb_buffer_pool_size=10*1024*1024;
+Warnings:
+Warning	1210	InnoDB: Cannot resize buffer pool to lesser than chunk size of 25165824 bytes.
+SELECT @@global.innodb_buffer_pool_size;
+@@global.innodb_buffer_pool_size
+25165824
+# Restart server
+# restart
+SELECT @@global.innodb_buffer_pool_size;
+@@global.innodb_buffer_pool_size
+25165824
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+autocommit	OFF
+enforce_gtid_consistency	ON
+general_log	ON
+innodb_buffer_pool_size	25165824
+innodb_deadlock_detect	OFF
+
+#
+# Bug#26085712: SERVER FAILS TO START AFTER SET PERSIST GTID_MODE
+#                = ON_PERMISSIVE OR ON
+#
+RESET PERSIST;
+SELECT @@gtid_mode;
+@@gtid_mode
+OFF
+SET PERSIST gtid_mode=OFF_PERMISSIVE;
+SET PERSIST gtid_mode=ON_PERMISSIVE;
+SELECT @@gtid_mode;
+@@gtid_mode
+ON_PERMISSIVE
+# Restart server and check for gtid_mode value
+# restart
+SELECT @@gtid_mode;
+@@gtid_mode
+ON_PERMISSIVE
+RESET PERSIST;
+# Restart server with all defaults
+# restart
+SELECT 'END OF TEST';
+END OF TEST
+END OF TEST

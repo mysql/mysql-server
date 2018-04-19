@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -46,6 +53,7 @@ class NdbOperation
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
+  friend class NdbImpl;
   friend class NdbTransaction;
   friend class NdbScanOperation;
   friend class NdbScanReceiver;
@@ -1117,7 +1125,7 @@ protected:
 //--------------------------------------------------------------
 // Initialise after allocating operation to a transaction		      
 //--------------------------------------------------------------
-  int init(const class NdbTableImpl*, NdbTransaction* aCon, bool useRec);
+  int init(const class NdbTableImpl*, NdbTransaction* aCon);
   void initInterpreter();
 
   NdbOperation(Ndb* aNdb, Type aType = PrimaryKeyAccess);	
@@ -1246,8 +1254,12 @@ protected:
  * was sent, then the connection object is told about this situation.
  *****************************************************************************/
 
-  int    doSendKeyReq(int processorId, GenericSectionPtr* secs, Uint32 numSecs);
+  int    doSendKeyReq(int processorId,
+                      GenericSectionPtr* secs,
+                      Uint32 numSecs,
+                      bool lastFlag);
   int    doSend(int ProcessorId, Uint32 lastFlag);
+  void   setRequestInfoTCKEYREQ(bool lastFlag, bool longSignal);
   virtual int	 prepareSend(Uint32  TC_ConnectPtr,
                              Uint64  TransactionId,
 			     AbortOption);
@@ -1299,6 +1311,7 @@ protected:
   int	 receiveTCKEYREF(const NdbApiSignal*);
 
   int	 checkMagicNumber(bool b = true); // Verify correct object
+  static Uint32 getMagicNumber() { return (Uint32)0xABCDEF01; }
 
   int    checkState_TransId(const NdbApiSignal* aSignal);
 
@@ -1361,6 +1374,8 @@ protected:
   int prepareGetLockHandleNdbRecord();
 
   virtual void setReadLockMode(LockMode lockMode);
+  void setReadCommittedBase();
+  Uint32 getReadCommittedBase();
 
 /******************************************************************************
  * These are the private variables that are defined in the operation objects.
@@ -1448,6 +1463,11 @@ protected:
   Uint8  theCommitIndicator;	 // Indicator of whether commit operation
   Uint8  theSimpleIndicator;	 // Indicator of whether simple operation
   Uint8  theDirtyIndicator;	 // Indicator of whether dirty operation
+  /**
+   * Indicates that the base operation is ReadCommitted although it has
+   * been upgraded to use locking read.
+   */
+  Uint8  theReadCommittedBaseIndicator;
   Uint8  theInterpretIndicator;  // Indicator of whether interpreted operation
                                  // Note that scan operations always have this
                                  // set true
@@ -1564,7 +1584,7 @@ NdbOperation::checkMagicNumber(bool b)
 #ifndef NDB_NO_DROPPED_SIGNAL
   (void)b;  // unused param in this context
 #endif
-  if (theMagicNumber != 0xABCDEF01){
+  if (theMagicNumber != getMagicNumber()){
 #ifdef NDB_NO_DROPPED_SIGNAL
     if(b) abort();
 #endif
@@ -1633,7 +1653,7 @@ inline
 const NdbRecAttr*
 NdbOperation::getFirstRecAttr() const 
 {
-  return theReceiver.theFirstRecAttr;
+  return theReceiver.m_firstRecAttr;
 }
 
 /******************************************************************************
@@ -1866,6 +1886,19 @@ NdbOperation::setValue(Uint32 anAttrId, double aPar)
   return setValue(anAttrId, (const char*)&aPar, (Uint32)8);
 }
 
+inline
+void
+NdbOperation::setReadCommittedBase()
+{
+  theReadCommittedBaseIndicator = 1;
+}
+
+inline
+Uint32
+NdbOperation::getReadCommittedBase()
+{
+  return theReadCommittedBaseIndicator;
+}
 #endif // doxygen
 
 #endif

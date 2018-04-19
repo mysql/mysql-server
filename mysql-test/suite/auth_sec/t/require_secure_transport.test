@@ -1,0 +1,98 @@
+--source include/not_windows.inc
+
+
+CREATE USER 'user_tcp'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON *.* TO 'user_tcp'@'127.0.0.1';
+CREATE USER 'user_ssl'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON *.* TO 'user_ssl'@'127.0.0.1';
+CREATE USER 'user_requiressl'@'localhost' REQUIRE SSL;
+GRANT ALL PRIVILEGES ON *.* TO 'user_requiressl'@'localhost';
+
+--disable_query_log
+connect(sock_con1,localhost,root,,,,,);
+connection default;
+disconnect sock_con1;
+
+--echo # Socket connection is not possible for user
+--echo # created with REQUIRE SSL unless we pass SSL explicitly
+--error 1045
+connect(sock_con2,localhost,user_requiressl,,,,,);
+
+connect(sock_con3,localhost,user_requiressl,,,,,SSL);
+--enable_query_log
+
+
+--echo
+--echo # Connection type testing for TCP/IP  protocol
+--echo
+--exec $MYSQL --host=127.0.0.1 --user=user_tcp --ssl-mode=DISABLED --protocol=TCP -e "select 1;"
+#
+--echo # Testing TCP/IP connections over SSL/TLS
+#
+--exec $MYSQL --host=127.0.0.1 --user=user_ssl --protocol=TCP --ssl-mode=REQUIRED -e "select 2;"
+--echo
+--echo # Testing TCP/IP connections over SSL/TLS having user with REQUIRE SSL clause
+#
+--exec $MYSQL --host=127.0.0.1 --user=user_requiressl --protocol=TCP -e "select 2.5;"
+--echo
+
+SET @@global.require_secure_transport = ON;
+
+--disable_query_log
+connect(sock_con4,localhost,root,,,,,);
+connection default;
+disconnect sock_con4;
+--enable_query_log
+
+--echo
+--echo # Connection type testing for TCP/IP protocol, secure transport required.
+--echo
+--error 1
+--exec $MYSQL --host=127.0.0.1 --user=user_tcp --ssl-mode=DISABLED --protocol=TCP -e "select 3;"
+#
+--echo # Testing TCP/IP connections over SSL/TLS, secure transport required.
+#
+--exec $MYSQL --host=127.0.0.1 --user=user_ssl --protocol=TCP --ssl-mode=REQUIRED -e "select 4;"
+--echo
+#
+--echo # Testing TCP/IP connections over SSL/TLS with an user created with REQUIRE SSL
+#
+--exec $MYSQL --host=127.0.0.1 --user=user_requiressl --protocol=TCP -e "select 4.5;"
+--echo
+
+--echo # Rebooting to start without ssl and require-secure-transport=on
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart:--skip-ssl --require-secure-transport=on" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Insecure connection is not possible with TCP
+--error 1
+--exec $MYSQL --host=127.0.0.1 --user=user_ssl --protocol=TCP -e "select 6;"
+
+--error 1
+--exec $MYSQL --host=127.0.0.1 --user=user_requiressl --protocol=TCP -e "select 7;"
+
+--echo # Socket connection is possible as it is treated as secure
+--disable_query_log
+connect(sock_con5,localhost,root,,,,,);
+connection default;
+disconnect sock_con5;
+
+--echo # Even socket connection is not possible for users created with REQUIRE SSL clause
+--error 1045
+connect(sock_con6,localhost,user_requiressl,,,,,);
+connection default;
+
+--error 2026
+connect(sock_con7,localhost,user_requiressl,,,,,SSL);
+connection default;
+--enable_query_log
+
+--echo #Cleanup
+DROP USER 'user_tcp'@'127.0.0.1', 'user_ssl'@'127.0.0.1', 'user_requiressl'@'localhost';
+SET @@global.require_secure_transport = OFF;

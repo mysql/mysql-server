@@ -16,48 +16,46 @@
 # ################################################################
 
 --source include/not_valgrind.inc
---source include/not_embedded.inc
-
-# can not run parallel > 1, as this testcase likely to fail sporadically due to
-# bootstrap and different datadir locations than MTR defaults
---source include/not_parallel.inc
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
 
-# Create datadir path,rathan than mtr defaults path
+# Create custom datadir path
 --mkdir $MYSQL_TMP_DIR/datadir1
---mkdir $MYSQL_TMP_DIR/datadir1/data
---mkdir $MYSQL_TMP_DIR/datadir1/data/test
 
 # Set different paths for --datadir
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
-
-# Create a bootstrap file in temp location
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---exec echo $MYSQL_TMP_DIR/bootstrap.log
 
 # Stop the MTR default datadir, as it was started with default 16k page size
 --echo # Stop DB server which was created by MTR default
 --source include/shutdown_mysqld.inc
 
+let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+# Note: we add the following parameters: "--innodb_log_file_size=5M
+# --innodb_log_files_in_group=2" to reduce bootstrap time. By default
+# innodb create 2*48MB redo log. With 2*5MB file, bootstrap takes less
+# time to create redo log files.
+
 # Set the bootstrap parameter page size 32k for datadir1
-let NEW_CMD = $MYSQLD --no-defaults --bootstrap --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=32K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --skip-grant-tables</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=32K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command with page size 32k
 --exec $NEW_CMD
 
 --echo # Start the DB server with page size 32k
---exec echo "restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1 --skip-grant-tables" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--let $restart_parameters="restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2"
+--source include/start_mysqld.inc
 
 SET innodb_strict_mode=ON;
 
 # Check page size 32k
 SELECT @@innodb_page_size;
-
-SELECT @@innodb_file_format;
 
 SELECT @@Innodb_file_per_table;
 
@@ -75,7 +73,21 @@ col42 CHAR(255),col43 CHAR(255),col44 CHAR(255),col45 CHAR(255),col46  CHAR(255)
 col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255), col53 CHAR(255),
 col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
-ENGINE = innodb ;
+ENGINE = innodb ROW_FORMAT= COMPACT charset latin1;
+
+--error ER_TOO_BIG_ROWSIZE
+CREATE TABLE tab5(col1 CHAR (255), col2 CHAR (255), col3 CHAR(255),col4 CHAR(255), col5 CHAR(255),
+col6   CHAR(255), col7 CHAR(255),  col8 CHAR(255), col9 CHAR(255),col10 CHAR(255), col11  CHAR(255),
+col12 CHAR(255), col13 CHAR(255),col14 CHAR(255),col15 CHAR(255),col16  CHAR(255), col17 CHAR(255),
+col18 CHAR(255),col19 CHAR(255),col20 CHAR(255),col21 CHAR(255),col22  CHAR(255), col23 CHAR(255),
+col24 CHAR(255),col25 CHAR(255),col26 CHAR(255),col27 CHAR(255),col28  CHAR(255), col29 CHAR(255),
+col30 CHAR(255),col31 CHAR(255),col32 CHAR(255),col33 CHAR(255),col34  CHAR(255), col35 CHAR(255),
+col36 CHAR(255),col37 CHAR(255),col38 CHAR(255),col39 CHAR(255),col40  CHAR(255), col41 CHAR(255),
+col42 CHAR(255),col43 CHAR(255),col44 CHAR(255),col45 CHAR(255),col46  CHAR(255), col47 CHAR(255),
+col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255), col53 CHAR(255),
+col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
+col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
+ENGINE = innodb ROW_FORMAT= DYNAMIC;
 
 SELECT @@innodb_file_per_table;
 
@@ -92,7 +104,7 @@ col42 CHAR(255),col43 CHAR(255),col44 CHAR(255),col45 CHAR(255),col46  CHAR(255)
 col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255), col53 CHAR(255),
 col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
-ENGINE = innodb ROW_FORMAT=COMPRESSED;
+ENGINE = innodb ROW_FORMAT=COMPRESSED charset latin1;
 
 # Check the ERROR 1118 (42000): Row size too large (> 16383).
 --error ER_TOO_BIG_ROWSIZE
@@ -121,11 +133,9 @@ col42 CHAR(255),col43 CHAR(255),col44 CHAR(255),col45 CHAR(255),col46  CHAR(255)
 col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255), col53 CHAR(255),
 col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
-ENGINE = innodb ROW_FORMAT=FIXED;
+ENGINE = innodb ROW_FORMAT=FIXED charset latin1;
 
 SET innodb_strict_mode=OFF;
-SET GLOBAL innodb_file_format='Antelope';
-SELECT @@innodb_file_format;
 
 # Check the Warning |  139 | Row size too large (> 16318)
 
@@ -141,16 +151,12 @@ col42 CHAR(255),col43 CHAR(255),col44 CHAR(255),col45 CHAR(255),col46  CHAR(255)
 col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255), col53 CHAR(255),
 col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
-ENGINE = innodb ;
+ENGINE = innodb ROW_FORMAT=COMPACT charset latin1;
 
 DROP TABLE tab5;
 
-SET GLOBAL innodb_file_format='Barracuda';
-SELECT @@innodb_file_format;
-
 #Check the ERROR 1118 (42000): Row size too large (> 16383).
 
---error ER_TOO_BIG_ROWSIZE
 CREATE TABLE tab5(col1 CHAR (255), col2 CHAR (255), col3 CHAR(255),col4 CHAR(255), col5 CHAR(255),
 col6   CHAR(255), col7 CHAR(255),  col8 CHAR(255), col9 CHAR(255),col10 CHAR(255), col11  CHAR(255),
 col12 CHAR(255), col13 CHAR(255),col14 CHAR(255),col15 CHAR(255),col16  CHAR(255), col17 CHAR(255),
@@ -162,58 +168,67 @@ col42 CHAR(255),col43 CHAR(255),col44 CHAR(255),col45 CHAR(255),col46  CHAR(255)
 col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255), col53 CHAR(255),
 col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
-ENGINE = innodb ROW_FORMAT=COMPRESSED;
+ENGINE = innodb ROW_FORMAT=DYNAMIC charset latin1;
+DROP TABLE tab5;
+
+#Check the ERROR 1118 (42000): Row size too large (> 16383).
+
+CREATE TABLE tab5(col1 CHAR (255), col2 CHAR (255), col3 CHAR(255),col4 CHAR(255), col5 CHAR(255),
+col6   CHAR(255), col7 CHAR(255),  col8 CHAR(255), col9 CHAR(255),col10 CHAR(255), col11  CHAR(255),
+col12 CHAR(255), col13 CHAR(255),col14 CHAR(255),col15 CHAR(255),col16  CHAR(255), col17 CHAR(255),
+col18 CHAR(255),col19 CHAR(255),col20 CHAR(255),col21 CHAR(255),col22  CHAR(255), col23 CHAR(255),
+col24 CHAR(255),col25 CHAR(255),col26 CHAR(255),col27 CHAR(255),col28  CHAR(255), col29 CHAR(255),
+col30 CHAR(255),col31 CHAR(255),col32 CHAR(255),col33 CHAR(255),col34  CHAR(255), col35 CHAR(255),
+col36 CHAR(255),col37 CHAR(255),col38 CHAR(255),col39 CHAR(255),col40  CHAR(255), col41 CHAR(255),
+col42 CHAR(255),col43 CHAR(255),col44 CHAR(255),col45 CHAR(255),col46  CHAR(255), col47 CHAR(255),
+col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255), col53 CHAR(255),
+col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
+col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
+ENGINE = innodb ROW_FORMAT=COMPRESSED charset latin1;
+DROP TABLE tab5;
 
 # Stop the server when the instance was created by page size 32k
 
 --echo # Stop DB server with page size 32k
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 # Check Server startup failure when page sizes are mismatch
-let NEW_CMD = $MYSQLD --no-defaults --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --skip-grant-tables</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Check Server startup failure when page size 64K
---error 1
+--error 1,42
 --exec $NEW_CMD
 
-# Search for perticular warning during server startup
+# Search for particular warning during server startup
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_PATTERN= \[Warning\] InnoDB: innodb-page-size has been changed from the default value 16384 to 32768;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= \[Warning\] .*MY-\\d+.* innodb-page-size has been changed from the default value 16384 to 32768;
+--source include/search_pattern.inc
 
 # Restart the datadir with same page size 32k and check , server should be started
 --echo # Restart the DB server with datadir1 with same 32k page size 
---exec echo "restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1 --skip-grant-tables" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--let $restart_parameters="restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1  --innodb_log_file_size=5M --innodb_log_files_in_group=2"
+--source include/start_mysqld.inc
 
 # Check page size
 SELECT @@innodb_page_size;
 
 --echo # Stop DB server which was created by page size 32k
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 # Remove residue files and data folder of page size 32K
---source ../include/cleanup_folder.inc
-
-# Create datadir path,rathan than mtr defaults path
---mkdir $MYSQL_TMP_DIR/datadir1/data
---mkdir $MYSQL_TMP_DIR/datadir1/data/test
+--force-rmdir $MYSQL_TMP_DIR/datadir1/data
 
 # Set the bootstrap parameters for datadir1 and page size 64k
-let NEW_CMD = $MYSQLD --no-defaults --bootstrap --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --skip-grant-tables</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command with page size 64k
 --exec $NEW_CMD
 
 --echo # Start the DB server with page size 64K
---exec echo "restart: --innodb_page_size=64K --datadir=$MYSQLD_DATADIR1 --skip-grant-tables" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--let restart_parameters="restart: --innodb_page_size=64K --datadir=$MYSQLD_DATADIR1  --innodb_log_file_size=5M --innodb_log_files_in_group=2"
+--source include/start_mysqld.inc
 
 # Check page size
 SELECT @@innodb_page_size;
@@ -251,45 +266,13 @@ col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255)
 
 DROP TABLE tab5;
 
-# The following lines of code nowehere related to the wl testcases, these lines
-# are meant for dupe/fool the MTR ,in order to get status success/0
-# At the end of testcase execution, MTR always check the status of env, if some problem,
-# exist, then MTR would considered the testcase as a fail one.
-CREATE DATABASE mysql;
+--let $restart_parameters=
+--source include/restart_mysqld.inc
 
-USE mysql;
-
-CREATE TABLE `proc` (
-  `db` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
-  `name` char(64) NOT NULL DEFAULT '',
-  `type` enum('FUNCTION','PROCEDURE') NOT NULL,
-  `specific_name` char(64) NOT NULL DEFAULT '',
-  `language` enum('SQL') NOT NULL DEFAULT 'SQL',
-  `sql_data_access` enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA') NOT NULL DEFAULT 'CONTAINS_SQL',
-  `is_deterministic` enum('YES','NO') NOT NULL DEFAULT 'NO',
-  `security_type` enum('INVOKER','DEFINER') NOT NULL DEFAULT 'DEFINER',
-  `param_list` blob NOT NULL,
-  `returns` longblob NOT NULL,
-  `body` longblob NOT NULL,
-  `definer` char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
-  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `modified` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH') NOT NULL DEFAULT '',
-  `comment` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `character_set_client` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
-  `collation_connection` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
-  `db_collation` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
-  `body_utf8` longblob,
-  PRIMARY KEY (`db`,`name`,`type`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Stored Procedures';
-
-CREATE DATABASE mtr;
-
-USE mtr;
-
-DELIMITER |;
-CREATE PROCEDURE mtr.check_warnings(OUT result INT)
-BEGIN
-SELECT 0 INTO RESULT;
-END|
-
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot add field.*");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
+--enable_query_log
+--remove_file $BOOTSTRAP_SQL
+# Remove residue files and data folder of page size 32K
+--force-rmdir $MYSQL_TMP_DIR/datadir1

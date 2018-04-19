@@ -1,0 +1,65 @@
+########### suite/sysschema/t/pr_ps_trace_statement_digest.test #############
+#                                                                           #
+# Testing of of the sys.ps_trace_statement_digest() procedure               #
+#                                                                           #
+# Creation:                                                                 #
+# 2016-06-21 jkrogh Implement this test as part of                          #
+#                   Bug 23621189 PS_TRACE_STATEMENT_DIGEST FAILS AT EXPLAIN #
+#                                                                           #
+#############################################################################
+
+# The ps_trace_statement_digest does not work with prepared statements
+# So disable this test with --ps-protocol
+-- source include/no_protocol.inc
+
+use test;
+
+# Get the thread id of this thread
+# Store it in a user variable as otherwise repeated calls to sys.ps_thread_id()
+# will keep changing performance_schema.events_statements_history
+SET @threadid = sys.ps_thread_id(NULL);
+
+# Create a table
+CREATE TABLE t1 (id INT PRIMARY KEY, val int);
+
+# Get digest of an INSERT statement with a qualified table name
+INSERT INTO test.t1 VALUES (1, 9);
+SET @digest.insert = (SELECT DIGEST FROM performance_schema.events_statements_history WHERE THREAD_ID = @threadid AND SQL_TEXT LIKE 'INSERT INTO test.t1 VALUES (1, 9)');
+
+# Get digest of an SELECT statement using the default schema
+SELECT * FROM t1;
+SET @digest.select = (SELECT DIGEST FROM performance_schema.events_statements_history WHERE THREAD_ID = @threadid AND SQL_TEXT LIKE 'SELECT * FROM t1');
+
+# Get digets of a SHOW statement (doesn't support EXPLAIN)
+SHOW CREATE TABLE test.t1;
+SET @digest.show = (SELECT DIGEST FROM performance_schema.events_statements_history WHERE THREAD_ID = @threadid AND SQL_TEXT LIKE 'SHOW CREATE TABLE test.t1');
+
+# Don't execute ps_trace_statement_digest() in the same schema as the queries
+# to monitor - to ensure we handle queries using the default schema.
+CREATE SCHEMA test_sys;
+use test_sys;
+
+# Only do sanity checks - no error should occur, but the actual output is non-deterministic
+--disable_result_log
+# Regular EXPLAINable SELECT with a qualified table name
+CALL sys.ps_trace_statement_digest(@digest.insert, 0.5, 0.1, FALSE, FALSE);
+# Table in query is not qualified and is not in the current default schema
+CALL sys.ps_trace_statement_digest(@digest.select, 0.5, 0.1, FALSE, FALSE);
+# SHOW queries doesn't work with EXPLAIN
+CALL sys.ps_trace_statement_digest(@digest.show  , 0.5, 0.1, FALSE, FALSE);
+# Test that finding no queries works - the TRUE argument resets the P_S tables
+# used in ps_trace_statement_digest()
+CALL sys.ps_trace_statement_digest(@digest.insert, 0.5, 0.1, TRUE , FALSE);
+--enable_result_log
+
+
+
+# Clean up
+use test;
+DROP SCHEMA test_sys;
+DROP TABLE t1;
+SET @threadid      = NULL,
+    @digest.insert = NULL,
+    @digest.select = NULL,
+    @digest.show   = NULL;
+

@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
 --source suite/ndb_memcache/include/have_memcache.inc
 --source suite/ndb_memcache/include/memcached_wait_for_ready.inc
@@ -25,13 +20,13 @@ $mc->delete("hashtag:oscon\t1");
 $mc->delete("hashtag:mysql\t1"); 
 $mc->delete("hashtag:oscon\t2");
 
-$mc->set("hashtag:oscon\t1","fred")      || Carp::confess("FAILED # 01 (SET)");
-$mc->add("hashtag:mysql\t1","frederick") || Carp::confess("FAILED # 02 (SET)");
-$mc->set("hashtag:oscon\t2","freddy")    || Carp::confess("FAILED # 03 (SET)");
+$mc->set("hashtag:oscon\t1","fred")      || $mc->fail("t01 (SET)");
+$mc->add("hashtag:mysql\t1","frederick") || $mc->fail("t02 (SET)");
+$mc->set("hashtag:oscon\t2","freddy")    || $mc->fail("t03 (SET)");
   
-($mc->get("hashtag:oscon\t1") == "fred")      || Carp::confess("FAILED # 04 (GET)");
-($mc->get("hashtag:mysql\t1") == "frederick") || Carp::confess("FAILED # 05 (GET)");
-($mc->get("hashtag:oscon\t2") == "freddy")    || Carp::confess("FAILED # 06 (GET)");
+($mc->get("hashtag:oscon\t1") == "fred")      || $mc->fail("t04 (expected fred)");
+($mc->get("hashtag:mysql\t1") == "frederick") || $mc->fail("t05 (expected frederick)");
+($mc->get("hashtag:oscon\t2") == "freddy")    || $mc->fail("t06 (expected freddy)");
 
 EOF
 

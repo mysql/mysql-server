@@ -1,17 +1,24 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef PFS_EVENTS_WAITS_H
 #define PFS_EVENTS_WAITS_H
@@ -21,9 +28,14 @@
   Events waits data structures (declarations).
 */
 
-#include "pfs_column_types.h"
-#include "pfs_lock.h"
-#include "pfs_events.h"
+#include <sys/types.h>
+#include <atomic>
+
+#include "my_inttypes.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_events.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_lock.h"
 
 struct PFS_mutex;
 struct PFS_rwlock;
@@ -40,9 +52,8 @@ struct PFS_host;
 struct PFS_metadata_lock;
 
 /** Class of a wait event. */
-enum events_waits_class
-{
-  NO_WAIT_CLASS= 0,
+enum events_waits_class {
+  NO_WAIT_CLASS = 0,
   WAIT_CLASS_MUTEX,
   WAIT_CLASS_RWLOCK,
   WAIT_CLASS_COND,
@@ -54,8 +65,7 @@ enum events_waits_class
 };
 
 /** A wait event record. */
-struct PFS_events_waits : public PFS_events
-{
+struct PFS_events_waits : public PFS_events {
   /**
     The type of wait.
     Readers:
@@ -76,7 +86,7 @@ struct PFS_events_waits : public PFS_events
   PFS_file *m_weak_file;
   /** Socket, for socket operations only. */
   PFS_socket *m_weak_socket;
-  /** Metadata lock, for mdl operations only. */
+  /** Metadata lock, for MDL operations only. */
   PFS_metadata_lock *m_weak_metadata_lock;
   /** For weak pointers, target object version. */
   uint32 m_weak_version;
@@ -86,13 +96,14 @@ struct PFS_events_waits : public PFS_events
   enum_operation_type m_operation;
   /**
     Number of bytes/rows read/written.
-    This member is populated for FILE READ/WRITE operations, with a number of bytes.
-    This member is populated for TABLE IO operations, with a number of rows.
+    This member is populated for FILE READ/WRITE operations, with a number of
+    bytes.
+    This member is populated for TABLE I/O operations, with a number of rows.
   */
   size_t m_number_of_bytes;
   /**
     Index used.
-    This member is populated for TABLE IO operations only.
+    This member is populated for TABLE I/O operations only.
   */
   uint m_index;
   /** Flags */
@@ -100,13 +111,13 @@ struct PFS_events_waits : public PFS_events
 };
 
 /** TIMED bit in the state flags bitfield. */
-#define STATE_FLAG_TIMED (1<<0)
+#define STATE_FLAG_TIMED (1 << 0)
 /** THREAD bit in the state flags bitfield. */
-#define STATE_FLAG_THREAD (1<<1)
+#define STATE_FLAG_THREAD (1 << 1)
 /** EVENT bit in the state flags bitfield. */
-#define STATE_FLAG_EVENT (1<<2)
+#define STATE_FLAG_EVENT (1 << 2)
 /** DIGEST bit in the state flags bitfield. */
-#define STATE_FLAG_DIGEST (1<<3)
+#define STATE_FLAG_DIGEST (1 << 3)
 
 void insert_events_waits_history(PFS_thread *thread, PFS_events_waits *wait);
 
@@ -119,7 +130,7 @@ extern bool flag_global_instrumentation;
 extern bool flag_thread_instrumentation;
 
 extern bool events_waits_history_long_full;
-extern PFS_ALIGNED PFS_cacheline_uint32 events_waits_history_long_index;
+extern PFS_ALIGNED PFS_cacheline_atomic_uint32 events_waits_history_long_index;
 extern PFS_events_waits *events_waits_history_long_array;
 extern ulong events_waits_history_long_size;
 
@@ -146,4 +157,3 @@ void reset_table_io_waits_by_table_handle();
 void reset_table_lock_waits_by_table_handle();
 
 #endif
-

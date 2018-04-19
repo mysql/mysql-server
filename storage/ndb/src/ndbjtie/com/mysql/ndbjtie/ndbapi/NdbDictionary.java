@@ -1,14 +1,21 @@
 /*
-  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
@@ -156,6 +163,7 @@ public class NdbDictionary extends Wrapper
             int StorageTypeMemory = 0 /*_NDB_STORAGETYPE_MEMORY_*/,
                 StorageTypeDisk = 1 /*_NDB_STORAGETYPE_DISK_*/;
         }
+        boolean getAutoIncrement() /*_const_*/;
         String/*_const char *_*/ getName() /*_const_*/;
         boolean getNullable() /*_const_*/;
         boolean getPrimaryKey() /*_const_*/;
@@ -179,6 +187,7 @@ public class NdbDictionary extends Wrapper
     }
     static public class Column extends Wrapper implements ColumnConst
     {
+        public final native boolean getAutoIncrement() /*_const_*/;
         public final native String/*_const char *_*/ getName() /*_const_*/;
         public final native boolean getNullable() /*_const_*/;
         public final native boolean getPrimaryKey() /*_const_*/;
@@ -732,6 +741,8 @@ public class NdbDictionary extends Wrapper
         public final native boolean supportedAlterTable(TableConst/*_const Table &_*/ f, TableConst/*_const Table &_*/ t);
         public final native void removeCachedTable(String/*_const char *_*/ table);
         public final native void removeCachedIndex(String/*_const char *_*/ index, String/*_const char *_*/ table);
+        public final native void invalidateTable(String/*_const char *_*/ table);
+        public final native void invalidateIndex(String/*_const char *_*/ index, String/*_const char *_*/ table);
         public final native int createIndex(IndexConst/*_const Index &_*/ index, boolean offline /*_= false_*/);
         public final native int createIndex(IndexConst/*_const Index &_*/ index, TableConst/*_const Table &_*/ table, boolean offline /*_= false_*/);
         public final native int dropIndex(String/*_const char *_*/ indexName, String/*_const char *_*/ tableName);

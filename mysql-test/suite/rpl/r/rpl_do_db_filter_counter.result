@@ -1,0 +1,58 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION FILTER REPLICATE_DO_DB = (db1);
+include/start_slave.inc
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters where FILTER_NAME = "REPLICATE_DO_DB";
+CHANNEL_NAME	
+FILTER_NAME	REPLICATE_DO_DB
+FILTER_RULE	db1
+CONFIGURED_BY	CHANGE_REPLICATION_FILTER
+COUNTER	0
+[connection master]
+CREATE DATABASE db1;
+include/sync_slave_sql_with_master.inc
+#
+# Verify that the replication_applier_filters.counter increases by 1
+# when 'CREATE DATABASE db1' hits REPLICATE_DO_DB filter rule.
+#
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters where FILTER_NAME = "REPLICATE_DO_DB";
+CHANNEL_NAME	
+FILTER_NAME	REPLICATE_DO_DB
+FILTER_RULE	db1
+CONFIGURED_BY	CHANGE_REPLICATION_FILTER
+COUNTER	1
+[connection master]
+ALTER DATABASE db1 CHARACTER SET latin1;
+include/sync_slave_sql_with_master.inc
+#
+# Verify that the replication_applier_filters.counter increases by 1
+# when 'ALTER DATABASE db1 CHARACTER SET latin1' hits REPLICATE_DO_DB
+# filter rule.
+#
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters where FILTER_NAME = "REPLICATE_DO_DB";
+CHANNEL_NAME	
+FILTER_NAME	REPLICATE_DO_DB
+FILTER_RULE	db1
+CONFIGURED_BY	CHANGE_REPLICATION_FILTER
+COUNTER	2
+[connection master]
+DROP DATABASE db1;
+include/sync_slave_sql_with_master.inc
+#
+# Verify that the replication_applier_filters.counter increases by 1
+# when 'DROP DATABASE db1' hits REPLICATE_DO_DB filter rule.
+#
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters where FILTER_NAME = "REPLICATE_DO_DB";
+CHANNEL_NAME	
+FILTER_NAME	REPLICATE_DO_DB
+FILTER_RULE	db1
+CONFIGURED_BY	CHANGE_REPLICATION_FILTER
+COUNTER	3
+include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_DB = ();
+include/start_slave.inc
+include/rpl_end.inc

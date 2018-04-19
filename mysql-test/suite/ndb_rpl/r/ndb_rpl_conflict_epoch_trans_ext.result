@@ -4,22 +4,6 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 Setup circular replication
-RESET MASTER;
-select @slave_server_id:=(variable_value+0)
-from information_schema.global_variables
-where variable_name like 'server_id';
-@slave_server_id:=(variable_value+0)
-3
-CHANGE MASTER TO master_host="127.0.0.1",master_port=SLAVE_PORT,master_user="root";
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-START SLAVE;
-select @master_server_id:=(variable_value+0)
-from information_schema.global_variables
-where variable_name like 'server_id';
-@master_server_id:=(variable_value+0)
-1
 Setup ndb_replication and t1 exceptions table
 Populate ndb_replication table as necessary
 replace into mysql.ndb_replication values
@@ -90,6 +74,8 @@ a	b
 10	Initial data 10
 ndb_conflict_fn_epoch_trans
 1
+ndb_conflict_fn_epoch2_trans
+0
 ndb_conflict_trans_row_conflict_count
 1
 ndb_conflict_trans_row_reject_count
@@ -100,6 +86,8 @@ ndb_conflict_trans_detect_iter_count
 1
 ndb_conflict_trans_conflict_commit_count
 1
+ndb_epoch_delete_delete_count
+0
 start slave;
 Secondary should have been realigned to Primary
 select * from t1 order by a;
@@ -161,6 +149,8 @@ a	b
 10	Initial data 10
 ndb_conflict_fn_epoch_trans
 1
+ndb_conflict_fn_epoch2_trans
+0
 ndb_conflict_trans_row_conflict_count
 1
 ndb_conflict_trans_row_reject_count
@@ -171,6 +161,8 @@ ndb_conflict_trans_detect_iter_count
 1
 ndb_conflict_trans_conflict_commit_count
 1
+ndb_epoch_delete_delete_count
+0
 start slave;
 Secondary should have been realigned to Primary
 select * from test.t1 order by a;
@@ -239,6 +231,8 @@ ndb_conflict_trans_row_reject_count
 4
 ndb_conflict_trans_reject_count
 2
+ndb_epoch_delete_delete_count
+0
 start slave;
 Secondary should have been realigned to Primary
 select * from test.t1 order by a;
@@ -314,6 +308,8 @@ ndb_conflict_trans_row_reject_count
 5
 ndb_conflict_trans_reject_count
 2
+ndb_epoch_delete_delete_count
+0
 start slave;
 Secondary should have been realigned to primary
 select * from test.t1 order by a;
@@ -362,6 +358,8 @@ a	b
 14	Look on my works ye mighty, and despair
 ndb_conflict_fn_epoch_trans
 1
+ndb_conflict_fn_epoch2_trans
+0
 ndb_conflict_trans_row_conflict_count
 1
 ndb_conflict_trans_row_reject_count
@@ -372,6 +370,8 @@ ndb_conflict_trans_detect_iter_count
 1
 ndb_conflict_trans_conflict_commit_count
 1
+ndb_epoch_delete_delete_count
+0
 start slave;
 Secondary should be aligned with Primary
 select * from t1 order by a;
@@ -468,6 +468,8 @@ a	b
 14	Look on my works ye mighty, and despair
 ndb_conflict_fn_epoch_trans
 1
+ndb_conflict_fn_epoch2_trans
+0
 ndb_conflict_trans_row_conflict_count
 1
 ndb_conflict_trans_row_reject_count
@@ -478,6 +480,8 @@ ndb_conflict_trans_detect_iter_count
 1
 ndb_conflict_trans_conflict_commit_count
 1
+ndb_epoch_delete_delete_count
+0
 start slave;
 Secondary cluster should be realigned with Primary
 select * from test.t1 order by a;
@@ -627,6 +631,8 @@ ndb_conflict_trans_row_reject_count
 9
 ndb_conflict_trans_reject_count
 3
+ndb_epoch_delete_delete_count
+0
 Records at Secondary bank site
 select * from test.transactions order by auto_key;
 auto_key	from_name	to_name	detail	amount
@@ -742,6 +748,8 @@ Expect 1 transaction rejected, 3 rows rejected
 1 conflict row, 1 epoch, 1 iteration
 ndb_conflict_fn_epoch_trans
 1
+ndb_conflict_fn_epoch2_trans
+0
 ndb_conflict_trans_row_conflict_count
 1
 ndb_conflict_trans_row_reject_count
@@ -752,6 +760,8 @@ ndb_conflict_trans_detect_iter_count
 1
 ndb_conflict_trans_conflict_commit_count
 1
+ndb_epoch_delete_delete_count
+0
 Now restart rep to Secondary, and check realignment
 start slave;
 select * from test.t1 order by a;
@@ -840,6 +850,8 @@ a	b
 Expect all counters to be zero
 ndb_conflict_fn_epoch_trans
 0
+ndb_conflict_fn_epoch2_trans
+0
 ndb_conflict_trans_row_conflict_count
 0
 ndb_conflict_trans_row_reject_count
@@ -849,6 +861,8 @@ ndb_conflict_trans_reject_count
 ndb_conflict_trans_detect_iter_count
 0
 ndb_conflict_trans_conflict_commit_count
+0
+ndb_epoch_delete_delete_count
 0
 Show effect of transaction on Secondary
 start slave;
@@ -915,13 +929,16 @@ flush logs;
 drop table test.t3;
 drop table test.t4;
 drop table test.t5;
+Fix misalignment caused above
+Makes following result sets look nicer
+update test.t1 set b=2 where a=2;
 Show a simple row-level delete-delete conflict
 PRIMARY:
 insert into test.t1 values (77, "A good year");
 select * from test.t1 order by a;
 a	b
 1	11
-2	2000
+2	2
 3	3
 4	4
 5	5
@@ -936,7 +953,7 @@ Show Primary contents
 select * from test.t1 order by a;
 a	b
 1	11
-2	2000
+2	2
 3	3
 4	4
 5	5
@@ -945,7 +962,7 @@ SECONDARY:
 select * from test.t1 order by a;
 a	b
 1	11
-2	222
+2	2
 3	3
 4	4
 5	5
@@ -972,7 +989,7 @@ Show Secondary contents
 select * from test.t1 order by a;
 a	b
 1	11
-2	222
+2	2
 3	3
 4	4
 5	5
@@ -984,16 +1001,51 @@ a	b
 Allow propagation to Primary
 PRIMARY:
 Expect:
-- Delete-Delete conflict did not result in rejection of Secondary transaction
-Therefore related row from Secondary Deleting transaction (73) is present
+- NDB$EPOCH_TRANS :
+- Will not detect delete-delete conflict, so first
+Secondary transaction will apply row 73.
 - Unrelated transaction from Secondary (84) is present
 - Following insert on delete-delete conflict row (77) is not in conflict,
 so both it and the related row from the same transaction (80) are present
+This applies whether the following insert is in the same or a different
+epoch
+Divergence:
+- Primary will have 73,84,77,80
+- Secondary will have 73,84,80, no 77
 
+- NDB$EPOCH_TRANS2 :
+- Will detect delete-delete conflict, so first 
+Secondary transaction will not apply (no row 73)
+77 and 73 will be refreshed (DEL)
+- Unrelated transaction from Secondary (84) is present and applied
+84 will be reflected (INS)
+- Following insert on delete-delete conflict row (77) will be found in 
+conflict iff this transaction is in the same epoch as the first 
+conflicting transaction.  If it is in a different epoch then it will
+not be found in conflict, as there will be no state available to 
+use.
+- If it is in-conflict, then 77 and 80 will be refreshed (DEL)
+Result on both should be :
+84
+- If it is not in-conflict, then 77 and 80 will be reflected (INS)
+Result on both should be :
+84, 77, 80
+No divergence
+select @primary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch);
+@primary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch)
+1
+EPOCH_TRANS has stable results independent of
+epoch boundaries: 
 select * from test.t1 order by a;
 a	b
 1	11
-2	2000
+2	2
 3	3
 4	4
 5	5
@@ -1006,17 +1058,27 @@ ndb_conflict_trans_row_reject_count
 0
 ndb_conflict_trans_reject_count
 0
-Now sync with Secondary to show divergence
+ndb_epoch_delete_delete_count
+1
+Now sync with Secondary to show outcomes
 start slave;
 SECONDARY:
-Expect:
-- Primary delete of row 77 took out the newly inserted row 77 
-- Otherwise Secondary is as before
 
+select @secondary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch);
+@secondary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch)
+1
+EPOCH_TRANS has stable results independent of
+epoch boundaries: 
 select * from test.t1 order by a;
 a	b
 1	11
-2	222
+2	2
 3	3
 4	4
 5	5
@@ -1024,6 +1086,126 @@ a	b
 73	A superb year
 80	Poor
 84	A good vintage
+PRIMARY
+Cleanup
+delete from test.t1 where a != 6;
+PRIMARY
+Transactional Delete testcase
+STOP slave on SECONDARY
+stop slave;
+PRIMARY
+Primary updates row with pk 6
+update test.t1 set b="Pentland" where a=6;
+PRIMARY content
+Row 6 updated
+select * from test.t1 order by a;
+a	b
+6	Pentland
+SECONDARY
+Transaction deleting pk 6, inserting pk 7
+begin;
+delete from test.t1 where a = 6;
+insert into test.t1 values (7, "Mendip");
+commit;
+Optionally flush logs
+Transaction deleting pk 7, inserting pk 8
+begin;
+delete from test.t1 where a = 7;
+insert into test.t1 values (8, "Ochil");
+commit;
+SECONDARY content
+Rows 6 + 7 deleted.  Row 8 present.
+select * from test.t1 order by a;
+a	b
+8	Ochil
+Sync SECONDARY -> PRIMARY
+Expected Behaviour
+EPOCH_TRANS
+
+1.  Conflict between Primary update to 6 + Secondary
+[Delete of 6 + Insert of 7] is detected by Primary
+and transaction is not applied at the Primary.
+Rows 6 (INS) and 7 (DEL) are refreshed.  Row 6 has its 
+epoch updated.
+
+2.  Following Secondary transaction, [delete of 7
++ insert of 8] behaviour depends on whether it
+arrives in the same or a different epoch.
+Same epoch : 
+Will conflict with refreshed row 7, and so will
+not be applied.  Row 8 will be refreshed (DEL)
+Different epoch :
+Will not conflict with Not-present row 7, and so
+will be applied.
+
+3.  On the Secondary, the observed sequence will be :
+- Update 6 from PRIMARY : (Idempotent insert)
+- Refresh (INS) 6 from PRIMARY
+- Refresh (DEL) 7 from PRIMARY
+Same epoch :
+- Refresh (DEL) 8 from PRIMARY
+Different epoch :
+- Nothing
+
+Results (no divergence) :
+Same epoch :
+PRIMARY : 6
+SECONDARY : 6
+Diff epoch :
+PRIMARY : 6,8
+SECONDARY : 6,8
+
+
+EPOCH_TRANS2
+
+1.  Conflict between Primary update to 6 + Secondary
+[Delete of 6 + Insert of 7] is detected by Primary
+and transaction is not applied at the Primary.
+Rows 6 (INS) and 7 (DEL) are refreshed.  Row 6 has its 
+epoch updated.
+
+2.  Following Secondary transaction [delete of 7 + 
+insert of 8] will conflict with the first 
+transaction as EPOCH_TRANS2 does not allow
+a delete of an already deleted row.
+Row 7 will be refreshed (DEL) and row 8 will be 
+refreshed (DEL)
+
+3.  On the Secondary, the observed sequence will be :
+- Update 6 from PRIMARY : (Idempotent insert)
+- Refresh (INS) 6 from PRIMARY
+- Refresh (DEL) 7 from PRIMARY
+- [Refresh (DEL) 7 from PRIMARY] - diff epoch
+- Refresh (DEL) 8 from PRIMARY
+
+Results (no divergence) :
+PRIMARY : 6
+SECONDARY : 6
+
+PRIMARY content 
+select @primary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans);
+@primary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans)
+1
+Restart SECONDARY Slave
+START SLAVE;
+Sync PRIMARY -> SECONDARY
+SECONDARY content
+select @secondary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans);
+@secondary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans)
+1
+STABILISE
 drop table mysql.ndb_replication;
 drop table test.t1;
 drop table test.t2;

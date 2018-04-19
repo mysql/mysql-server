@@ -3,7 +3,12 @@
 # Test for the partition storage engine which require DEBUG_SYNC feature to
 # Created by Mattias Jonsson
 #
---source include/have_partition.inc
+
+# Skipping the test when log-bin is enabled and binlog_format != ROW, due to
+# Bug#22689960.
+--source include/not_binlog_format_statement.inc
+--source include/not_binlog_format_mixed.inc
+
 --source include/have_debug_sync.inc
 --source include/have_debug.inc
 
@@ -92,53 +97,6 @@ SET DEBUG_SYNC= 'RESET';
 --echo End of 5.1 tests
 
 --echo #
---echo # Coverage test for non pruned ha_partition::store_lock()
---echo #
---echo # Use MyISAM tables as InnoDB no longer relies on THR_LOCK locks.
-CREATE TABLE t1 (a int) ENGINE = MyISAM;
-CREATE TABLE t2 (a int PRIMARY KEY)
-ENGINE = MyISAM PARTITION BY HASH (a) PARTITIONS 3;
-
-HANDLER t1 OPEN;
-
---echo # Con1
-connect (con1, localhost, root,,);
-
-LOCK TABLES t1 WRITE, t2 READ LOCAL;
-
---echo # Default
-connection default;
-
-SET DEBUG_SYNC="wait_for_lock SIGNAL locking";
-send UPDATE t2 SET a=1;
-
---echo # Con1
-connection con1;
-SET DEBUG_SYNC="now WAIT_FOR locking";
-
-send ALTER TABLE t1 ADD COLUMN b int;
-
---echo # Default
-connection default;
---error ER_LOCK_ABORTED
---reap
-
-SELECT 1;
-
---echo # Con1
-connection con1;
---reap
-
-UNLOCK TABLES;
---disconnect con1
-
---echo # Default
-connection default;
-
-DROP TABLE t1, t2;
-
-
---echo #
 --echo # Test Auto increment generation and release of overbooked values.
 --echo #
 CREATE TABLE t1 (a SERIAL) ENGINE = InnoDB
@@ -153,6 +111,7 @@ SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (5);
 --echo # Not really a bug, since no row has been assigned the number between
 --echo # this and the next auto_inc value.
+ANALYZE TABLE t1;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 SET DEBUG_SYNC="now SIGNAL release";
 
@@ -160,6 +119,7 @@ SET DEBUG_SYNC="now SIGNAL release";
 connection default;
 --echo # Reaping INSERT INTO t1 VALUES (3), (NULL), (4);
 reap;
+ANALYZE TABLE t1;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 
 --echo # Test with generating an auto inc value in Con1
@@ -174,6 +134,7 @@ SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (NULL);
 --echo # Not really a bug, since no row has been assigned the number between
 --echo # this and the next auto_inc value.
+ANALYZE TABLE t1;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 SET DEBUG_SYNC="now SIGNAL release";
 
@@ -181,6 +142,7 @@ SET DEBUG_SYNC="now SIGNAL release";
 connection default;
 --echo # Reaping INSERT INTO t1 VALUES (3), (NULL), (4);
 reap;
+ANALYZE TABLE t1;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 
 --echo #
@@ -197,6 +159,7 @@ send INSERT INTO t1 SELECT * FROM t2;
 connection con1;
 SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (5);
+ANALYZE TABLE t1;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 SET DEBUG_SYNC="now SIGNAL release";
 
@@ -218,6 +181,7 @@ SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (NULL);
 --echo # Not really a bug, since no row has been assigned the number between
 --echo # this and the next auto_inc value.
+ANALYZE TABLE t1;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 SET DEBUG_SYNC="now SIGNAL release";
 

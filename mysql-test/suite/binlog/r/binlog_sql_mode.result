@@ -1,8 +1,6 @@
 SET @old_sql_mode=  @@global.sql_mode;
 SET @old_binlog_format=@@session.binlog_format;
 SET SESSION sql_mode=8;
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Initialization 
 RESET MASTER;
 CREATE TABLE t1 (id INT);
@@ -26,9 +24,8 @@ END;|
 Check Result
 select
 (@a:=load_file("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug39526.binlog"))
-is not null;
-(@a:=load_file("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug39526.binlog"))
-is not null
+is not null AS Loaded;
+Loaded
 1
 *** String sql_mode=0 is found: 0 ***
 Clean Up
@@ -39,8 +36,6 @@ DROP EVENT testEvent;
 DROP VIEW testView;
 DROP TABLE t1;
 SET @@global.sql_mode= @old_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET @@session.binlog_format=@old_binlog_format;
 
 #

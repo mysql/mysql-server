@@ -1,4 +1,4 @@
--- source include/not_embedded.inc
+-- source ../include/ps_truncate_all_tables.inc
 
 DESC sys.x$ps_digest_avg_latency_distribution;
 

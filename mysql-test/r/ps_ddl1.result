@@ -9,7 +9,7 @@ create procedure p_verify_reprepare_count(expected int)
 begin
 declare old_reprepare_count int default @reprepare_count;
 select variable_value from
-information_schema.session_status where
+performance_schema.session_status where
 variable_name='com_stmt_reprepare'
   into @reprepare_count;
 if old_reprepare_count + expected <> @reprepare_count then

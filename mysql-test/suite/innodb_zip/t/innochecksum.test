@@ -1,11 +1,8 @@
 #************************************************************
 # WL6045:Improve Innochecksum
 #************************************************************
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 --source include/no_valgrind_without_big.inc
-# Embedded server does not support crashing.
---source include/not_embedded.inc
 
 # Avoid CrashReporter popup on Mac.
 --source include/not_crashrep.inc
@@ -14,8 +11,8 @@
 let MYSQLD_BASEDIR= `SELECT @@basedir`;
 let MYSQLD_DATADIR= `SELECT @@datadir`;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
-call mtr.add_suppression("InnoDB: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
-call mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
+call mtr.add_suppression("Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+call mtr.add_suppression("Warning: database page corruption or a failed");
 
 SET GLOBAL innodb_file_per_table=on;
 
@@ -34,8 +31,9 @@ insert into t1 values(3,"compressed table");
 --echo [1a]: check the innochecksum when file doesn't exists
 --error 1
 --exec $INNOCHECKSUM  $MYSQLD_DATADIR/test/aa.ibd 2> $SEARCH_FILE
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 let SEARCH_PATTERN= Error: $MYSQLD_DATADIR/test/aa.ibd cannot be found;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo [1b]: check the innochecksum without --strict-check
 --exec $INNOCHECKSUM  $MYSQLD_DATADIR/test/tab1.ibd
@@ -50,119 +48,99 @@ let SEARCH_PATTERN= Error: $MYSQLD_DATADIR/test/aa.ibd cannot be found;
 --error 1
 --exec $INNOCHECKSUM --no-check $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error: --no-check must be associated with --write option.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo [5]: check the innochecksum with short form --no-check ignores algorithm check, warning is expected
 --error 1
 --exec $INNOCHECKSUM  -n $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error: --no-check must be associated with --write option.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo [6]: check the innochecksum with full form strict-check & no-check , an error is expected
 --error 1
 --exec $INNOCHECKSUM --strict-check=innodb  --no-check $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error: --strict-check option cannot be used together with --no-check option.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo [7]: check the innochecksum with short form strict-check & no-check , an error is expected
 --error 1
 --exec $INNOCHECKSUM -C innodb -n $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error: --strict-check option cannot be used together with --no-check option.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo [8]: check the innochecksum with short & full form combination
 --echo # strict-check & no-check, an error is expected
 --error 1
 --exec $INNOCHECKSUM --strict-check=innodb -n $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error: --strict-check option cannot be used together with --no-check option.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
---echo [9]: (negative scenario) check the innochecksum with full form --strict-check=innodb
+--echo [9]: check the innochecksum with full form --strict-check=innodb
 # Server Default checksum = crc32
---error 1
 --exec $INNOCHECKSUM  --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
-let SEARCH_PATTERN= Fail: page 0 invalid;
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= Exceeded the maximum allowed checksum mismatch count::0;
---source include/search_pattern_in_file.inc
 
---echo [10]: (negative scenario) check the innochecksum with full form --strict-check=none
+--echo [10]: check the innochecksum with full form --strict-check=none
 --echo # when server Default checksum=crc32
---error 1
 --exec $INNOCHECKSUM  --strict-check=none $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
-let SEARCH_PATTERN= Fail: page 0 invalid;
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= Exceeded the maximum allowed checksum mismatch count::0;
---source include/search_pattern_in_file.inc
 
---echo [11]: (negative scenario) check the innochecksum with short form -C innodb
+--echo [11]: check the innochecksum with short form -C innodb
 --echo # when server Default checksum=crc32
---error 1
 --exec $INNOCHECKSUM  -C innodb $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
-let SEARCH_PATTERN= Fail: page 0 invalid;
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= Exceeded the maximum allowed checksum mismatch count::0;
---source include/search_pattern_in_file.inc
 
---echo [12]: (negative scenario) check the innochecksum with short form -C none
+--echo [12]: check the innochecksum with short form -C none
 --echo # when server Default checksum=crc32
---error 1
 --exec $INNOCHECKSUM  -C none $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
-let SEARCH_PATTERN= Fail: page 0 invalid;
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= Exceeded the maximum allowed checksum mismatch count::0;
---source include/search_pattern_in_file.inc
 
 --echo [13]: check strict-check with invalid values
 --error 1
 --exec $INNOCHECKSUM --strict-check=strict_innodb $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error while setting value \'strict_innodb\' to \'strict-check\';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM -C strict_innodb $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error while setting value \'strict_innodb\' to \'strict-check\';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM --strict-check=strict_crc32 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error while setting value \'strict_crc32\' to \'strict-check\';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM -C strict_crc32 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error while setting value \'strict_crc32\' to \'strict-check\';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM --strict-check=strict_none $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error while setting value \'strict_none\' to \'strict-check\';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM -C strict_none $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error while setting value \'strict_none\' to \'strict-check\';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM --strict-check=InnoBD $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error while setting value \'InnoBD\' to \'strict-check\';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM -C InnoBD $MYSQLD_DATADIR/test/tab1.ibd 2>$SEARCH_FILE
 let SEARCH_PATTERN= Error while setting value \'InnoBD\' to \'strict-check\';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM --strict-check=crc $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error while setting value \'crc\' to \'strict-check\';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM --strict-check=no $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error while setting value \'no\' to \'strict-check\';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo [14a]: when server default checksum=crc32 rewrite new checksum=crc32 with innochecksum
 --echo # Also check the long form of write option.
@@ -180,7 +158,7 @@ let SEARCH_PATTERN= Error while setting value \'no\' to \'strict-check\';
 --exec $INNOCHECKSUM --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd
 
 --echo # start the server with innodb_checksum_algorithm=InnoDB
---let restart_options= : --innodb_checksum_algorithm=innodb
+--let restart_parameters= restart: --innodb_checksum_algorithm=innodb
 --source include/start_mysqld.inc
 
 INSERT INTO tab1 VALUES(2, 'Innochecksum CRC32');
@@ -198,7 +176,7 @@ SELECT c1,c2 FROM tab1 order by c1,c2;
 --exec $INNOCHECKSUM --strict-check=none $MYSQLD_DATADIR/test/t1.ibd
 
 --echo # Start the server with checksum algorithm=none
---let restart_options= : --innodb_checksum_algorithm=none
+--let restart_parameters=restart: --innodb_checksum_algorithm=none
 --source include/start_mysqld.inc
 
 INSERT INTO tab1 VALUES(3, 'Innochecksum None');
@@ -212,7 +190,7 @@ DROP TABLE t1;
 --exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/test/tab1.ibd
 
 --echo # Restart the DB server with  innodb_checksum_algorithm=crc32
---let restart_options= : --innodb_checksum_algorithm=crc32 --innodb_file_per_table=on
+--let restart_parameters=restart: --innodb_checksum_algorithm=crc32 --innodb_file_per_table=on
 --source include/start_mysqld.inc
 
 SELECT * FROM tab1;
@@ -226,7 +204,7 @@ SELECT c1,c2 FROM tab1 order by c1,c2;
 --exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/test/tab1.ibd
 
 --echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
---let restart_options= : --innodb_checksum_algorithm=innodb --innodb_file_per_table=on
+--let restart_parameters=restart: --innodb_checksum_algorithm=innodb --innodb_file_per_table=on
 --source include/start_mysqld.inc
 
 DELETE FROM tab1 where c1=2;
@@ -239,17 +217,17 @@ SELECT * FROM tab1;
 --error 1
 --exec $INNOCHECKSUM --no-check --write=strict_crc32 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN=Error while setting value \'strict_crc32\' to \'write\';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM --no-check --write=strict_innodb $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN=Error while setting value \'strict_innodb\' to \'write\';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM --no-check --write=crc23 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN=Error while setting value \'crc23\' to \'write\';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 # Cleanup

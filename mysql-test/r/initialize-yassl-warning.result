@@ -1,0 +1,26 @@
+# We don't care about innodb warnings at this point
+CALL mtr.add_suppression("InnoDB:");
+# shut server down
+# Server is down
+#
+# Try --initialize --ssl and don't exect a warning
+#
+# create the empty datadir
+# start a server with --initialize --ssl
+# look for "ssl failed". Must get 0.
+ssl failed message found 0 times
+# delete datadir
+# delete mysqld log
+#
+# Try --initialize --ssl --ssl-ca and expect a warning
+#
+# create the empty datadir
+# start a server with --initialize --ssl -ssl-ca
+# look for "ssl failed". Must get 1.
+ssl failed message found 1 times
+# delete datadir
+# delete mysqld log
+#
+# Cleanup
+#
+# Restarting the server

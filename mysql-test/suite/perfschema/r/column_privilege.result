@@ -1,17 +1,10 @@
 show grants;
 Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+create user 'pfs_user_5'@localhost;
 grant usage on *.* to 'pfs_user_5'@localhost with GRANT OPTION;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 grant SELECT(thread_id, event_id) on performance_schema.events_waits_current
 to 'pfs_user_5'@localhost;
 grant UPDATE(enabled) on performance_schema.setup_instruments
@@ -26,9 +19,9 @@ select thread_id, event_id, event_name
 from performance_schema.events_waits_current;
 ERROR 42000: SELECT command denied to user 'pfs_user_5'@'localhost' for column 'event_name' in table 'events_waits_current'
 update performance_schema.setup_instruments set name='illegal';
-ERROR 42000: UPDATE command denied to user 'pfs_user_5'@'localhost' for column 'name' in table 'setup_instruments'
+ERROR 42000: UPDATE command denied to user 'pfs_user_5'@'localhost' for column 'NAME' in table 'setup_instruments'
 update performance_schema.setup_instruments set timed='NO';
-ERROR 42000: UPDATE command denied to user 'pfs_user_5'@'localhost' for column 'timed' in table 'setup_instruments'
+ERROR 42000: UPDATE command denied to user 'pfs_user_5'@'localhost' for column 'TIMED' in table 'setup_instruments'
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'pfs_user_5'@localhost;
 DROP USER 'pfs_user_5'@localhost;
 flush privileges;

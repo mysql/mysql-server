@@ -1,9 +1,9 @@
-SELECT sys.ps_thread_id(NULL);
-sys.ps_thread_id(NULL)
-NULL
 SELECT sys.ps_thread_id(234623462376);
 sys.ps_thread_id(234623462376)
 NULL
 SELECT sys.ps_thread_id(CONNECTION_ID()) = @ps_thread_id;
 sys.ps_thread_id(CONNECTION_ID()) = @ps_thread_id
+1
+SELECT sys.ps_thread_id(NULL) = @ps_thread_id;
+sys.ps_thread_id(NULL) = @ps_thread_id
 1

@@ -1,0 +1,44 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "events_statements_summary_by_digest";
+let $key_group = 17;
+let $target_schema = test2;
+
+--echo TABLE: $table
+--echo INDEXES: PK (SCHEMA_NAME, DIGEST)
+
+--source ../include/idx_compare_setup.inc
+
+truncate performance_schema.events_statements_summary_by_digest;
+
+# Create a uniquely identifiable statement from user 2
+
+--echo ## Connection 2
+CREATE DATABASE test2;
+--connection con2
+USE test2;
+SELECT COUNT(*) FROM test.t1;
+USE test;
+--echo ## Default connection
+--connection default
+
+--disable_query_log
+# Get a digest for user2
+eval SELECT digest INTO @target_digest
+  FROM performance_schema.events_statements_summary_by_digest
+  WHERE schema_name = '$target_schema' LIMIT 1;
+--enable_query_log
+
+--echo
+--echo ## Test SCHEMA_NAME, DIGEST
+let $key_group = 17;
+# Specify columns for the result set tables to avoid errors with CREATE TABLE
+SET @pfs_columns = "SCHEMA_NAME, DIGEST, DIGEST_TEXT";
+--source ../include/idx_compare_load.inc
+
+DROP DATABASE test2;
+
+--source ../include/idx_compare_cleanup.inc

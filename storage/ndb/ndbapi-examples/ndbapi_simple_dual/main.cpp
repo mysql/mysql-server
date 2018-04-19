@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -155,6 +162,7 @@ static void do_insert(Ndb &, const char* table);
 static void do_update(Ndb &, const char* table);
 static void do_delete(Ndb &, const char* table);
 static void do_read(Ndb &, const char* table);
+static void drop_table(MYSQL &,const char* table);
 
 static void run_application(MYSQL &mysql,
 			    Ndb_cluster_connection &cluster_connection,
@@ -188,7 +196,7 @@ static void run_application(MYSQL &mysql,
   /*
    * Drop the table
    */
-  mysql_query(&mysql, db_stmt);
+  drop_table(mysql,table);
 }
 
 /*********************************************************
@@ -338,4 +346,15 @@ static void do_read(Ndb &myNdb, const char* table)
     }
     myNdb.closeTransaction(myTransaction);
   }
+}
+
+/**************************
+ * Drop table after usage *
+ **************************/
+static void drop_table(MYSQL &mysql, const char* table)
+{
+  char drop_stmt[75];
+  sprintf(drop_stmt, "DROP TABLE %s", table);
+  if (mysql_query(&mysql,drop_stmt))
+      MYSQLERROR(mysql);
 }

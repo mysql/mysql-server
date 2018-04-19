@@ -1,0 +1,58 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+*****************************************************************************/
+
+/** @file page/page.ic
+ Index page routines
+
+ Created 2/2/1994 Heikki Tuuri
+ *******************************************************/
+
+/** NOTE: The functions in this file should only use functions from
+other files in library. The code in this file is used to make a library for
+external tools. */
+
+#ifndef page_page_h
+#define page_page_h
+
+#include "mach0data.h"
+/** Reads the given header field. */
+UNIV_INLINE
+ulint page_header_get_field(const page_t *page, /*!< in: page */
+                            ulint field)        /*!< in: PAGE_LEVEL, ... */
+{
+  ut_ad(page);
+  ut_ad(field <= PAGE_INDEX_ID);
+
+  return (mach_read_from_2(page + PAGE_HEADER + field));
+}
+/** Gets the number of records in the heap.
+ @return number of user records */
+UNIV_INLINE
+ulint page_dir_get_n_heap(const page_t *page) /*!< in: index page */
+{
+  return (page_header_get_field(page, PAGE_N_HEAP) & 0x7fff);
+}
+#endif

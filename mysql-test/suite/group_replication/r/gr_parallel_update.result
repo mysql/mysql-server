@@ -1,0 +1,26 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+############################################################
+# 1. Execute some transactions on server1 and wait for group
+#    to be synchronized.
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+include/sync_slave_sql_with_master.inc
+############################################################
+# 2. Executing the same transaction on both server (almost)
+#    in parallel, one will be committed, the other will be
+#    aborted.
+############################################################
+# 3. Validate servers state is equal.
+include/diff_tables.inc [server1:t1, server2:t1]
+include/assert.inc ['There is only one row in table t1 on server 1']
+include/assert.inc ['There is a value 50 in table t1 on server 1']
+include/assert.inc ['There is only one row in table t1 on server 2']
+include/assert.inc ['There is a value 50 in table t1 on server 2']
+############################################################
+# 4. Clean up.
+DROP TABLE t1;
+include/group_replication_end.inc

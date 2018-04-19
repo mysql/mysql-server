@@ -4,9 +4,6 @@
 #
 
 -- source include/have_debug.inc
--- source include/have_innodb.inc
-# include/restart_mysqld.inc does not work in embedded mode
--- source include/not_embedded.inc
 # Windows does not have grep(1)
 -- source include/not_windows.inc
 

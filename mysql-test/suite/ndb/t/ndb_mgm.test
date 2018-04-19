@@ -1,13 +1,5 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
 
-# No need to run this test with embedded sinced
-# nothing (except .result output) differs
--- source include/not_embedded.inc
 
 # Build the standard command used for running "ndb_mgm"
 let $mgm_cmd = $NDB_MGM;
@@ -31,12 +23,10 @@ let $mysql_version = mysql-$mysql_version;
 # echo mysql_version: $mysql_version;
 
 # load ndb-X.X.X from the "ndb_version_string" vaioable
---disable_warnings
 let $ndb_version=
   `select VARIABLE_VALUE
-     from INFORMATION_SCHEMA.GLOBAL_VARIABLES
+     from performance_schema.global_variables
        where VARIABLE_NAME='ndb_version_string'`;
---enable_warnings
 # echo ndb_version: $ndb_version;
 
 #
@@ -53,8 +43,6 @@ exec $mgm_cmd -e "show" > $dump_file;
 # Load the file into a temporary table
 CREATE TEMPORARY TABLE ndb_mgm_show (a varchar(512)) ENGINE = HEAP;
 
-# needed for embedded
---chmod 0777 $dump_file
 eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_mgm_show
   FIELDS TERMINATED BY '\n';
 --remove_file $dump_file
@@ -266,3 +254,8 @@ echo # Test 2/2 for Bug#16585497: abort backup with backup ID out of range;
 --error 255
 exec $mgm_cmd -e "ABORT BACKUP 1000000000000000000";
 
+--echo
+--echo # Bug #22328426: NEW TEST NDB_MGM_PROMPT FAILS WITH VALGRIND
+--echo # Test for Bug #18421338: SUPPORT SETTING THE PROMPT IN NDB_MGM
+--exec $mgm_cmd -e "prompt test-prompt>";
+--exec $mgm_cmd -e "prompt"

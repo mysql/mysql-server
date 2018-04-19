@@ -2,44 +2,43 @@
 # Test of multiple query rewrite plugins. This will only work on an
 # installation, where all plugins are in the same directory.
 #
-INSTALL PLUGIN rewrite_example SONAME 'rewrite_example.xxx';
-# We get about a dozen tedious warnings when installing the plugin, so
-# we silence them.
 # Query rewrite plugin was installed.
-# If you read the warning message, it will become obvious why we use
-# upper() here.
-INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement, enabled )
-VALUES ( 'SELECT "abc"', 'SELECT "Rewritten"', upper('Y') );
+INSTALL PLUGIN rewrite_example SONAME 'rewrite_example.xxx';
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "abc"', 'SELECT "Rewritten"' );
 Warnings:
-Note	1105	Query 'INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement, enabled )
-VALUES ( 'SELECT "abc"', 'SELECT "Rewritten"', upper('Y') )' rewritten to 'insert into query_rewrite.rewrite_rules ( pattern, replacement, enabled )
-values ( 'select "abc"', 'select "rewritten"', upper('y') )' by plugin: rewrite_example.
-Note	1105	Query 'SHOW WARNINGS' rewritten to 'show warnings' by plugin: rewrite_example.
+Note	1105	Query 'INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "abc"', 'SELECT "Rewritten"' )' rewritten to 'insert into query_rewrite.rewrite_rules ( pattern, replacement )
+values ( 'select "abc"', 'select "rewritten"' )' by a query rewrite plugin
+Note	1105	Query 'SHOW WARNINGS' rewritten to 'show warnings' by a query rewrite plugin
 CALL query_rewrite.flush_rewrite_rules();
 Warnings:
-Note	1105	Query 'CALL query_rewrite.flush_rewrite_rules()' rewritten to 'call query_rewrite.flush_rewrite_rules()' by plugin: rewrite_example.
-Note	1105	Query 'SHOW WARNINGS' rewritten to 'show warnings' by plugin: rewrite_example.
+Note	1105	Query 'CALL query_rewrite.flush_rewrite_rules()' rewritten to 'call query_rewrite.flush_rewrite_rules()' by a query rewrite plugin
+Note	1105	Query 'SHOW WARNINGS' rewritten to 'show warnings' by a query rewrite plugin
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	select "abc"	NULL	select "rewritten"	Y	NULL
+1	select "abc"	NULL	select "rewritten"	YES	NULL
 Warnings:
-Note	1105	Query 'SELECT * FROM query_rewrite.rewrite_rules' rewritten to 'select * from query_rewrite.rewrite_rules' by plugin: rewrite_example.
-Note	1105	Query 'SHOW WARNINGS' rewritten to 'show warnings' by plugin: rewrite_example.
+Note	1105	Query 'SELECT * FROM query_rewrite.rewrite_rules' rewritten to 'select * from query_rewrite.rewrite_rules' by a query rewrite plugin
+Note	1105	Query 'SHOW WARNINGS' rewritten to 'show warnings' by a query rewrite plugin
 SELECT 'abc';
 rewritten
 rewritten
 Warnings:
-Note	1105	Query 'SELECT 'abc'' rewritten to 'select 'abc'' by plugin: rewrite_example.
-Note	1105	Query 'select 'abc'' rewritten to 'select "rewritten"' by plugin: Rewriter.
-Note	1105	Query 'SHOW WARNINGS' rewritten to 'show warnings' by plugin: rewrite_example.
+Note	1105	Query 'SELECT 'abc'' rewritten to 'select 'abc'' by a query rewrite plugin
+Note	1105	Query 'select 'abc'' rewritten to 'select "rewritten"' by a query rewrite plugin
+Note	1105	Query 'SHOW WARNINGS' rewritten to 'show warnings' by a query rewrite plugin
 SELECT 'ABC';
 rewritten
 rewritten
 Warnings:
-Note	1105	Query 'SELECT 'ABC'' rewritten to 'select 'abc'' by plugin: rewrite_example.
-Note	1105	Query 'select 'abc'' rewritten to 'select "rewritten"' by plugin: Rewriter.
-Note	1105	Query 'SHOW WARNINGS' rewritten to 'show warnings' by plugin: rewrite_example.
-# We get about a dozen tedious warnings when uninstalling the plugins,
-# too, so we silence them as well.
-# Query rewrite plugin was uninstalled.
+Note	1105	Query 'SELECT 'ABC'' rewritten to 'select 'abc'' by a query rewrite plugin
+Note	1105	Query 'select 'abc'' rewritten to 'select "rewritten"' by a query rewrite plugin
+Note	1105	Query 'SHOW WARNINGS' rewritten to 'show warnings' by a query rewrite plugin
 UNINSTALL PLUGIN rewrite_example;
+Warnings:
+Note	1105	Query 'UNINSTALL PLUGIN rewrite_example' rewritten to 'uninstall plugin rewrite_example' by a query rewrite plugin
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

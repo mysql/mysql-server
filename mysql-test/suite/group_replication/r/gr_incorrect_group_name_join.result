@@ -1,0 +1,22 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Timeout on wait for view after joining group");
+call mtr.add_suppression("Timeout while waiting for the group communication engine to be ready!");
+call mtr.add_suppression("The group communication engine is not ready for the member to join. Local port: *.*");
+call mtr.add_suppression("read failed");
+call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
+SET SESSION sql_log_bin= 1;
+SET GLOBAL group_replication_group_name= "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+include/assert.inc [Server 2 is OFFLINE]
+[connection server1]
+include/rpl_gr_wait_for_number_of_members.inc
+include/group_replication_end.inc

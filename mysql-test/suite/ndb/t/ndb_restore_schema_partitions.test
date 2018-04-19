@@ -1,14 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ######################################################################
 # Test restoring backups into partitioned tables
 ######################################################################
 
 -- source include/have_ndb.inc
--- source include/ndb_default_cluster.inc
 
 --disable_query_log
 set new=on;
@@ -108,7 +102,7 @@ CREATE TABLE `t8_c` (
   `fastca` char(1) default NULL,
   `fastmag` char(1) default NULL,
   `lastupdate` datetime default NULL,
-  `hassetistart` datetime NOT NULL default '0000-00-00 00:00:00',
+  `hassetistart` datetime NOT NULL,
   `accthassetitime` int(10) unsigned default NULL,
   `acctoutputoctets` bigint(20) unsigned default NULL,
   `acctinputoctets` bigint(20) unsigned default NULL,
@@ -135,7 +129,7 @@ CREATE TABLE `t9_c` (
   `fastca` char(1) default NULL,
   `fastmag` char(1) default NULL,
   `lastupdate` datetime default NULL,
-  `hassetistart` datetime NOT NULL default '0000-00-00 00:00:00',
+  `hassetistart` datetime NOT NULL,
   `accthassetitime` int(10) unsigned default NULL,
   `actcoutpuocttets` bigint(20) unsigned default NULL,
   `actinputocctets` bigint(20) unsigned default NULL,

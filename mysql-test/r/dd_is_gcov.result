@@ -1,0 +1,97 @@
+#
+# A) Test code handling virtual columns in mysqldump tool.
+#
+SET timestamp=1;
+CREATE DATABASE test1;
+use test1;
+CREATE TABLE t1 (a1 INTEGER,
+a2 INTEGER GENERATED ALWAYS AS (a1 * 2) STORED,
+a3 INTEGER GENERATED ALWAYS AS (a1 * 3) VIRTUAL,
+KEY (a1) );
+DROP TABLE IF EXISTS `t1`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+ SET character_set_client = utf8mb4 ;
+CREATE TABLE `t1` (
+  `a1` int(11) DEFAULT NULL,
+  `a2` int(11) GENERATED ALWAYS AS ((`a1` * 2)) STORED,
+  `a3` int(11) GENERATED ALWAYS AS ((`a1` * 3)) VIRTUAL,
+  KEY `a1` (`a1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+<?xml version="1.0"?>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<database name="test1">
+DROP TABLE IF EXISTS `t1`;
+	<table_structure name="t1">
+		<field Field="a1" Type="int(11)" Null="YES" Key="MUL" Extra="" Comment="" />
+		<key Table="t1" Non_unique="1" Key_name="a1" Seq_in_index="1" Column_name="a1" Collation="A" Cardinality="0" Null="YES" Index_type="BTREE" Comment="" Index_comment="" Visible="YES" />
+		<options Name="t1" Engine="InnoDB" Version="10" Row_format="Dynamic" Rows="0" Avg_row_length="0" Data_length="16384" Max_data_length="0" Index_length="16384" Data_free="0" Create_time="1970-01-01 00:00:01" Collation="utf8mb4_0900_ai_ci" Create_options="" Comment="" />
+	</table_structure>
+</database>
+</mysqldump>
+DROP TABLE t1;
+#
+# B) Test displaying create_options from I_S.TABLES.CREATE_OPTIONS
+#
+CREATE TABLE t1 (a INT NOT NULL,b INT NOT NULL, PRIMARY KEY USING BTREE (a))
+ENGINE=MYISAM COMMENT="TESTING" PACK_KEYS=1 DELAY_KEY_WRITE=1
+STATS_PERSISTENT=1 CHECKSUM=1 MIN_ROWS=1 MAX_ROWS=100;
+CREATE TABLE t2 (a INT NOT NULL,b INT NOT NULL, PRIMARY KEY USING BTREE (a))
+ENGINE=MYISAM COMMENT="TESTING" PACK_KEYS=0 DELAY_KEY_WRITE=1
+STATS_PERSISTENT=1 CHECKSUM=1 MIN_ROWS=1 MAX_ROWS=100;
+SELECT CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME='t1' OR TABLE_NAME='t2';
+CREATE_OPTIONS
+max_rows=100 min_rows=1 stats_persistent=1 pack_keys=1 checksum=1 delay_key_write=1
+max_rows=100 min_rows=1 stats_persistent=1 pack_keys=0 checksum=1 delay_key_write=1
+DROP TABLE t1;
+DROP TABLE t2;
+#
+# C) Test SHOW COLUMNS/KEYS on temporary tables.
+#
+CREATE TEMPORARY TABLE t1 (
+a INTEGER NOT NULL DEFAULT 1,
+b INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c INTEGER,
+d INTEGER GENERATED ALWAYS AS (a * 2) STORED,
+e POINT NOT NULL SRID 0,
+f CHAR(30),
+g INT,
+h TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+KEY(g), SPATIAL KEY(e), FULLTEXT(f)) engine=myisam;
+CREATE INDEX b_index USING btree ON t1( b );
+CREATE INDEX h_index USING hash ON t1( c );
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+CREATE INDEX g_index ON t1( f(4) ) COMMENT 'ABC';
+CREATE INDEX r_index USING rtree ON t1( a ) USING btree;
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+a	int(11)	NULL	NO	MUL	1	NULL	select,insert,update,references	
+b	int(11)	NULL	NO	PRI	NULL	auto_increment	select,insert,update,references	
+c	int(11)	NULL	YES	MUL	NULL	NULL	select,insert,update,references	
+d	int(11)	NULL	YES		NULL	STORED GENERATED	select,insert,update,references	
+e	point	NULL	NO	MUL	NULL	NULL	select,insert,update,references	
+f	char(30)	utf8mb4_0900_ai_ci	YES	MUL	NULL	NULL	select,insert,update,references	
+g	int(11)	NULL	YES	MUL	NULL	NULL	select,insert,update,references	
+h	timestamp	NULL	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP	select,insert,update,references	
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	b	A	0	NULL	NULL		BTREE			YES
+t1	1	g	1	g	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	1	e	1	e	A	NULL	32	NULL		SPATIAL			YES
+t1	1	b_index	1	b	A	NULL	NULL	NULL		BTREE			YES
+t1	1	h_index	1	c	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	1	g_index	1	f	A	NULL	4	NULL	YES	BTREE		ABC	YES
+t1	1	r_index	1	a	A	NULL	NULL	NULL		BTREE			YES
+t1	1	f	1	f	NULL	NULL	NULL	NULL	YES	FULLTEXT			YES
+SHOW FULL COLUMNS FROM t1 WHERE FIELD = 'a' OR FIELD = 'b';
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+a	int(11)	NULL	NO	MUL	1	NULL	select,insert,update,references	
+b	int(11)	NULL	NO	PRI	NULL	auto_increment	select,insert,update,references	
+SHOW KEYS FROM t1 WHERE KEY_NAME = 'r_index' OR KEY_NAME = 'h_index';
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	h_index	1	c	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	1	r_index	1	a	A	NULL	NULL	NULL		BTREE			YES
+DROP TEMPORARY TABLE t1;
+DROP DATABASE test1;

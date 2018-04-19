@@ -1,5 +1,7 @@
+--source include/no_valgrind_without_big.inc
+
 --disable_warnings
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --enable_warnings
 
 #Want to skip this test from daily Valgrind execution.

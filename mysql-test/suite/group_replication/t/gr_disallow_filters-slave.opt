@@ -1,0 +1,2 @@
+--no-console
+--log-error=$MYSQLTEST_VARDIR/tmp/gr_disallow_filters.2.err

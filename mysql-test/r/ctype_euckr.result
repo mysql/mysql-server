@@ -72,6 +72,8 @@ select 1 from t1 order by cast(a as char(1));
 1
 drop table t1;
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (
 name varchar(10),
 level smallint unsigned);
@@ -236,8 +238,6 @@ A2E6
 FEF7
 DROP TABLE t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (s1 varchar(5) character set euckr);
 insert into t1 values (0xA141);
 insert into t1 values (0xA15A);
@@ -277,6 +277,8 @@ A161	ECA382
 A17A	ECA3A5
 A181	ECA3A6
 A1FE	EFBFA2
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t1;
 SET sql_mode = default;
 End of 5.0 tests
@@ -285,20 +287,22 @@ Start of 5.4 tests
 # WL#3997 New euckr characters
 #
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (a varchar(10) character set euckr);
 INSERT INTO t1 VALUES (0xA2E6), (0xA2E7);
 SELECT hex(a), hex(@utf8:=convert(a using utf8)), hex(convert(@utf8 using euckr)) FROM t1;
 hex(a)	hex(@utf8:=convert(a using utf8))	hex(convert(@utf8 using euckr))
 A2E6	E282AC	A2E6
 A2E7	C2AE	A2E7
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1;
 #
 # WL#3332 Korean Enhancements
 # euckr valid codes are now [81..FE][41..5A,61..7A,81..FE]
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a binary(1), key(a));
 CREATE TABLE t2 (s VARCHAR(4), a VARCHAR(1) CHARACTER SET euckr);
 INSERT INTO t2
@@ -1823,6 +1827,8 @@ FE7F
 FE80
 DELETE FROM t2 WHERE a='';
 ALTER TABLE t2 ADD u VARCHAR(1) CHARACTER SET utf8, ADD a2 VARCHAR(1) CHARACTER SET euckr;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 UPDATE t2 SET u=a, a2=u;
 SELECT s as unassigned_code FROM t2 WHERE u='?';
 unassigned_code
@@ -24270,9 +24276,9 @@ End of 5.4 tests
 # Testing WL#4583 Case conversion in Asian character sets 
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET collation_connection=euckr_korean_ci;
 CREATE TABLE t1 (b VARCHAR(2));
 INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
@@ -24291,7 +24297,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `code` varchar(8) DEFAULT NULL,
   `a` varchar(1) CHARACTER SET euckr NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET @@session.max_error_count = 64;
 UPDATE t1 SET a=unhex(code) ORDER BY code;
 Warnings:
 Warning	1366	Incorrect string value: '\x80 ' for column 'a' at row 1
@@ -24358,6 +24365,7 @@ Warning	1366	Incorrect string value: '\x80\' for column 'a' at row 61
 Warning	1366	Incorrect string value: '\x80]' for column 'a' at row 62
 Warning	1366	Incorrect string value: '\x80^' for column 'a' at row 63
 Warning	1366	Incorrect string value: '\x80_' for column 'a' at row 64
+SET @@session.max_error_count = default;
 SELECT COUNT(*) FROM t1 WHERE a<>'';
 COUNT(*)
 22428
@@ -24578,6 +24586,9 @@ WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
 HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
 code	a
 A1CA	Å
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT * FROM t1
 WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
 HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
@@ -24609,6 +24620,9 @@ A8E4	ⓧ
 A8E5	ⓨ
 A8E6	ⓩ
 A9A2	đ
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1;
 SET sql_mode = default;
 #
@@ -24696,36 +24710,6 @@ hex(weight_string('abc', 5, 4, 0xC0))
 select hex(weight_string('abc',25, 4, 0xC0));
 hex(weight_string('abc',25, 4, 0xC0))
 41424320202020202020202020202020202020202020202020
-select @@collation_connection;
-@@collation_connection
-euckr_korean_ci
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-41
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-41
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-414243
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-4142
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-414243
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-4142432020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-2020434241
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-BEBDBCDFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFDFBCBDBE
 select collation(cast(0xA1A1 as char));
 collation(cast(0xA1A1 as char))
 euckr_korean_ci
@@ -24889,36 +24873,6 @@ hex(weight_string('abc', 5, 4, 0xC0))
 select hex(weight_string('abc',25, 4, 0xC0));
 hex(weight_string('abc',25, 4, 0xC0))
 61626320202020202020202020202020202020202020202020
-select @@collation_connection;
-@@collation_connection
-euckr_bin
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-61
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-41
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-616263
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-6162
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-616263
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-6162632020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-2020636261
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-9E9D9CDFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFDF9C9D9E
 select collation(cast(0xA1A1 as char));
 collation(cast(0xA1A1 as char))
 euckr_bin
@@ -25019,16 +24973,22 @@ inet6_aton(inet_ntoa('1'))
 SELECT inet6_ntoa(inet_ntoa('1'));
 inet6_ntoa(inet_ntoa('1'))
 NULL
+Warnings:
+Warning	1411	Incorrect string value: 'inet_ntoa('1')' for function inet6_ntoa
 #
 # Bug#14040277 UNINITIALIZED VALUE REFERENCED IN STR_TO_IPV6
 #
 SELECT inet6_aton(soundex('a'));
 inet6_aton(soundex('a'))
 NULL
+Warnings:
+Warning	1411	Incorrect string value: 'soundex('a')' for function inet6_aton
 #
 # Bug#19047425 UNINITIALISED VALUE IN STR_TO_IPV6
 #
 do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using euckr)));
+Warnings:
+Warning	1411	Incorrect string value: 'convert(_ascii'a:' using euckr)' for function inet6_aton
 #
 # End of 5.6 tests
 #

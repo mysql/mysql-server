@@ -1,7 +1,7 @@
 # The test needs myisam as innodb does not support system tables
+--source include/no_valgrind_without_big.inc
 --source include/have_myisam.inc
 --source include/have_profiling.inc
---source include/not_embedded.inc
 --source include/have_validate_password_plugin.inc
 
 # Warning is generated when default file (NULL) is used
@@ -13,15 +13,6 @@ CALL mtr.add_suppression("Dictionary file not specified");
 
 --echo # System variables
 
-select @@global.max_tmp_tables;
-select @@local.max_tmp_tables;
-set @default_max_tmp_tables= @@global.max_tmp_tables;
-select @@global.date_format;
-select @@global.time_format;
-select @@global.datetime_format;
-set @@global.max_tmp_tables= 64;
-set @@global.max_tmp_tables= @@global.max_tmp_tables;
-set @@global.max_tmp_tables= @default_max_tmp_tables;
 select @@global.profiling;
 select @@local.profiling;
 select @@global.profiling_history_size;
@@ -78,9 +69,12 @@ perl;
   use strict;
   my $logf= $ENV{'LOGF'} or die "LOGF not set";
   open(FILE, "$logf") or die("Unable to open $logf: $!\n");
-  my $count_warnings= grep(/\[Warning\] The syntax 'plugin-validate-password-length' is deprecated and will be removed in a future release\. Please use validate-password-length instead\./gi,<FILE>);
+  my $count_warnings= grep(/\[Warning\] \[[^]]*\] \[[^]]*\] The syntax 'plugin-validate-password-length' is deprecated and will be removed in a future release\. Please use validate-password-length instead\./gi,<FILE>);
   my $count_warnings= $count_warnings;
   print "Deprecation warning count : $count_warnings\n";
+  close(FILE);
+  # Truncate the log file so that repititions of the test don't pick up deprecation warnings from previous runs
+  open(FILE,">$logf") or die("Unable to open $logf for truncation $!\n");
   close(FILE);
 EOF
 
@@ -92,6 +86,9 @@ select count(*) from information_schema.tables where table_name like 'host' and 
 create table mysql.host(c1 int) engine MyISAM;
 insert into mysql.host values(1);
 
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose 2>&1
 # It should have created a file in the MySQL Servers datadir
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -102,6 +99,9 @@ create view mysql.host as select HOST from mysql.db;
 create user 'wl6443_u1'@'10.10.10.1' identified by 'sql';
 select count(*) from mysql.host;
 
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 # It should have created a file in the MySQL Servers datadir
 file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
@@ -110,6 +110,9 @@ file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 drop view mysql.host;
 drop user 'wl6443_u1'@'10.10.10.1';
 
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 # It should have created a file in the MySQL Servers datadir
 file_exists $MYSQLD_DATADIR/mysql_upgrade_info;

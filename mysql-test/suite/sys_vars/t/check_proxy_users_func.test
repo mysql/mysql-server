@@ -26,8 +26,6 @@
 # Setup
 #
 
---source include/not_embedded.inc
-
 SET @default_check_proxy_users = @@check_proxy_users;
 
 --echo '#----- 1.2.4 superuser set variable -------------------------#'

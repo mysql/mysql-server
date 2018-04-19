@@ -1,8 +1,0 @@
-alter table performance_schema.setup_timers add column foo integer;
-ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
-truncate table performance_schema.setup_timers;
-ERROR HY000: Invalid performance_schema usage.
-ALTER TABLE performance_schema.setup_timers ADD INDEX test_index(NAME);
-ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
-CREATE UNIQUE INDEX test_index ON performance_schema.setup_timers(NAME);
-ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

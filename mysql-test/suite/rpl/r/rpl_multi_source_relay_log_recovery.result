@@ -1,0 +1,84 @@
+#
+# set up masters server_1 and server_3 with server_2 being a slave.
+#.
+include/rpl_init.inc [topology=1->2,3->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+#### I. Initialize slaves ####
+[connection server_2]
+include/rpl_stop_slaves.inc
+SET @save.innodb_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
+set @@global.innodb_lock_wait_timeout=5 + 1000;
+#start slave
+include/rpl_start_slaves.inc
+#
+# Generate MTS gaps for channel1.
+#
+[connection server_1]
+[connection server_1]
+CREATE DATABASE d1_1;;
+CREATE DATABASE d2_1;;;
+CREATE TABLE d1_1.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;;
+CREATE TABLE d2_1.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection slave_con_channel1]
+BEGIN;
+INSERT INTO d2_1.t VALUES (2, 'Slave local'); # Hold T3;
+INSERT INTO d1_1.t VALUES (3, 'Slave local'); # Hold T6;
+[connection server_1]
+INSERT INTO d1_1.t VALUES (1, 'T1');;
+INSERT INTO d2_1.t VALUES (1, 'T2');;
+INSERT INTO d2_1.t VALUES (2, 'T3'); # This will be a gap when executed on slave;
+INSERT INTO d2_1.t VALUES (3, 'T4'); # This will be a gap when executed on slave;
+INSERT INTO d1_1.t VALUES (2, 'T5');;
+[connection server_2]
+# Now d1_1.t has two rows and d2_.t has one row.
+#
+# Generate MTS gaps for channel2.
+#
+[connection server_3]
+[connection server_3]
+CREATE DATABASE d1_3;;
+CREATE DATABASE d2_3;;;
+CREATE TABLE d1_3.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;;
+CREATE TABLE d2_3.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+[connection slave_con_channel3]
+BEGIN;
+INSERT INTO d2_3.t VALUES (2, 'Slave local'); # Hold T3;
+INSERT INTO d1_3.t VALUES (3, 'Slave local'); # Hold T6;
+[connection server_3]
+INSERT INTO d1_3.t VALUES (1, 'T1');;
+INSERT INTO d2_3.t VALUES (1, 'T2');;
+INSERT INTO d2_3.t VALUES (2, 'T3'); # This will be a gap when executed on slave;
+INSERT INTO d2_3.t VALUES (3, 'T4'); # This will be a gap when executed on slave;
+INSERT INTO d1_3.t VALUES (2, 'T5');;
+[connection server_2]
+# Now d1_3.t has two rows and d2_.t has one row.
+[connection server_2]
+CALL mtr.add_suppression("Recovery from master pos");
+# Kill the server
+include/rpl_start_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start --gtid-mode=off]
+[connection server_2]
+START SLAVE;
+# channel 1
+[connection server_1]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+# channel 3
+[connection server_3]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+connection_server_1
+DROP DATABASE d1_1;
+DROP DATABASE d2_1;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+connection_server_3
+DROP DATABASE d1_3;
+DROP DATABASE d2_3;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/rpl_end.inc
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';

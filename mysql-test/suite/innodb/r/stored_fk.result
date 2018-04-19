@@ -1,0 +1,66 @@
+# Create statement with FK on base column of stored column
+create table t1(f1 int, f2 int as(f1) stored,
+foreign key(f1) references t2(f1) on delete cascade)engine=innodb;
+ERROR HY000: Cannot add foreign key constraint
+# adding new stored column during alter table copy operation.
+create table t1(f1 int primary key);
+create table t2(f1 int not null, f2 int as (f1) virtual,
+foreign key(f1) references t1(f1) on update cascade)engine=innodb;
+alter table t2 add column f3 int as (f1) stored, add column f4 int as (f1) virtual;
+ERROR HY000: Cannot add foreign key constraint
+drop table t2, t1;
+# adding foreign key constraint for base columns during alter copy.
+create table t1(f1 int primary key);
+create table t2(f1 int not null, f2 int as (f1) stored);
+alter table t2 add foreign key(f1) references t1(f1) on update cascade, algorithm=copy;
+ERROR HY000: Cannot add foreign key constraint
+drop table t2, t1;
+# adding foreign key constraint for base columns during online alter.
+create table t1(f1 int primary key);
+create table t2(f1 int not null, f2 int as (f1) stored);
+set foreign_key_checks = 0;
+alter table t2 add foreign key(f1) references t1(f1) on update cascade, algorithm=inplace;
+ERROR HY000: Cannot add foreign key on the base column of stored column. 
+drop table t2, t1;
+# adding stored column via online alter.
+create table t1(f1 int primary key);
+create table t2(f1 int not null,
+foreign key(f1) references t1(f1) on update cascade)engine=innodb;
+alter table t2 add column f2 int as (f1) stored, algorithm=inplace;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+drop table t2, t1;
+set foreign_key_checks = 1;
+#
+# BUG#26731689 FK ON TABLE WITH GENERATED COLS: ASSERTION POS < N_DEF
+#
+SET @foreign_key_checks_saved = @@foreign_key_checks;
+SET foreign_key_checks=0;
+DROP TABLE IF EXISTS s,t;
+CREATE TABLE s (a INT, b INT GENERATED ALWAYS AS (0) STORED,  c INT,
+d INT GENERATED ALWAYS AS (0) VIRTUAL, e INT) ENGINE=innodb;
+CREATE TABLE t (a INT) ENGINE=innodb;
+ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (e) REFERENCES t(a) ON UPDATE SET null;
+ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'c' in the referenced table 't'
+ALTER  TABLE t ADD PRIMARY KEY(a);
+ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (e) REFERENCES t(a) ON UPDATE SET null;
+DROP TABLE s,t;
+CREATE TABLE s (a INT GENERATED ALWAYS AS (0) VIRTUAL,
+b INT GENERATED ALWAYS AS (0) STORED,  c INT) ENGINE=innodb;
+CREATE TABLE t (a INT) ENGINE=innodb;
+ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (c) REFERENCES t(a) ON UPDATE SET null;
+ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'c' in the referenced table 't'
+ALTER  TABLE t ADD PRIMARY KEY(a);
+ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (c) REFERENCES t(a) ON UPDATE SET null;
+DROP TABLE s,t;
+CREATE TABLE s (a INT,  b INT GENERATED ALWAYS AS (0) STORED) ENGINE=innodb;
+CREATE TABLE t (a INT PRIMARY KEY) ENGINE=innodb;
+ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (a) REFERENCES t(a) ON UPDATE SET null;
+DROP TABLE s,t;
+CREATE TABLE s (a INT, b INT) ENGINE=innodb;
+CREATE TABLE t (a INT) ENGINE=innodb;
+ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (a) REFERENCES t(a) ON UPDATE SET null;
+ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'c' in the referenced table 't'
+ALTER  TABLE t ADD PRIMARY KEY(a);
+ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (a) REFERENCES t(a) ON UPDATE SET null;
+DROP TABLE s,t;
+SET @@foreign_key_checks = @foreign_key_checks_saved;

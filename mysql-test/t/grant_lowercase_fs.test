@@ -1,21 +1,13 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_case_insensitive_file_system.inc
--- source include/not_embedded.inc
 
 
 #
 # Bug#41049 does syntax "grant" case insensitive?
 #
 create database db1;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+CREATE USER user_1@localhost, USER_1@localhost;
 GRANT CREATE ON db1.* to user_1@localhost;
 GRANT SELECT ON db1.* to USER_1@localhost;
-set sql_mode= @orig_sql_mode;
 
 connect (con1,localhost,user_1,,db1);
 CREATE TABLE t1(f1 int);

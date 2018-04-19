@@ -38,10 +38,11 @@ a	b
 18	9
 explain select * from t2 where b in (select a from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
-1	SIMPLE	t2	NULL	ref	b	b	5	test.t1.a	1	100.00	End temporary; Using join buffer (Batched Key Access)
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	SIMPLE	t2	NULL	ref	b	b	5	<subquery2>.a	1	100.00	Using join buffer (Batched Key Access)
+2	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`b` = `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`b` = `<subquery2>`.`a`)
 select * from t2 where b in (select a from t1);
 a	b
 1	1
@@ -60,10 +61,11 @@ primary key(pk1, pk2, pk3)
 insert into t3 select a,a, a,a,a from t0;
 explain select * from t3 where b in (select a from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
-1	SIMPLE	t3	NULL	ref	b	b	5	test.t1.a	1	100.00	End temporary; Using join buffer (Batched Key Access)
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	SIMPLE	t3	NULL	ref	b	b	5	<subquery2>.a	1	100.00	Using join buffer (Batched Key Access)
+2	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`pk1` AS `pk1`,`test`.`t3`.`pk2` AS `pk2`,`test`.`t3`.`pk3` AS `pk3` from `test`.`t3` semi join (`test`.`t1`) where (`test`.`t3`.`b` = `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`pk1` AS `pk1`,`test`.`t3`.`pk2` AS `pk2`,`test`.`t3`.`pk3` AS `pk3` from `test`.`t3` semi join (`test`.`t1`) where (`test`.`t3`.`b` = `<subquery2>`.`a`)
 select * from t3 where b in (select a from t1);
 a	b	pk1	pk2	pk3
 1	1	1	1	1
@@ -85,10 +87,11 @@ A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a
 from t0 A, t0 B where B.a <5;
 explain select * from t3 where b in (select a from t0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where; Start temporary
-1	SIMPLE	t3	NULL	ref	b	b	5	test.t0.a	#	100.00	End temporary; Using join buffer (Batched Key Access)
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+1	SIMPLE	t3	NULL	ref	b	b	5	<subquery2>.a	#	100.00	Using join buffer (Batched Key Access)
+2	MATERIALIZED	t0	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`pk1` AS `pk1`,`test`.`t3`.`pk2` AS `pk2` from `test`.`t3` semi join (`test`.`t0`) where (`test`.`t3`.`b` = `test`.`t0`.`a`)
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`pk1` AS `pk1`,`test`.`t3`.`pk2` AS `pk2` from `test`.`t3` semi join (`test`.`t0`) where (`test`.`t3`.`b` = `<subquery2>`.`a`)
 select * from t3 where b in (select a.a+b.a from t0 a, t0 b where b.a<5);
 a	b	pk1	pk2
 0	0	0	0
@@ -151,9 +154,9 @@ drop table t1, t2;
 # 
 # BUG#42742: crash in setup_sj_materialization, Copy_field::set
 # 
-create table t3 ( c1 year) engine=innodb;
+create table t3 ( c1 year) charset latin1 engine=innodb;
 insert into t3 values (2135),(2142);
-create table t2 (c1 tinytext,c2 text,c6 timestamp) engine=innodb;
+create table t2 (c1 tinytext,c2 text,c6 timestamp) charset latin1 engine=innodb;
 # The following must not crash, EXPLAIN should show one SJ strategy, not a mix:
 explain select 1 from t2 where 
 c2 in (select 1 from t3, t2) and
@@ -164,7 +167,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	FirstMatch(t2)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` semi join (`test`.`t3` join `test`.`t2`) semi join (`test`.`t2`) where ((`test`.`t2`.`c2` = 1) and (`test`.`t2`.`c1` = cast(`test`.`t2`.`c6` as char(1) charset latin1)))
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` semi join (`test`.`t3` join `test`.`t2`) semi join (`test`.`t2`) where ((`test`.`t2`.`c2` = 1) and (convert(`test`.`t2`.`c1` using utf8mb4) = cast(`test`.`t2`.`c6` as char(1) charset utf8mb4)))
 drop table t2, t3;
 # 
 # BUG#57431: subquery returns wrong result (semijoin=on) with pred AND

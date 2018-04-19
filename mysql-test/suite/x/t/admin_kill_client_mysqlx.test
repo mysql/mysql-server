@@ -1,0 +1,97 @@
+## Kill client
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+create user unpriv@localhost;
+set password for unpriv@localhost = 'x';
+
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/admin_kill_mysqlx.tmp
+--write_file $xtest_file
+-->quiet
+## Test data
+
+-->varlet %CLIENT_ID1% %ACTIVE_CLIENT_ID%
+
+-->stmtadmin list_clients
+-->recvresult
+
+-->stmtadmin list_clients	{"what":"all"}
+-->expecterror 5015
+-->recvresult
+
+
+## create and activate new session
+-->newsession aux	x_root
+
+-->varlet %CLIENT_ID2% %ACTIVE_CLIENT_ID%
+
+-->stmtadmin list_clients
+-->recvresult
+
+## switch back to default session
+-->setsession
+
+-->stmtadmin list_clients
+-->recvresult
+
+-->stmtadmin kill_client
+-->expecterror 5015
+-->recvresult
+
+
+-->stmtadmin kill_client	{"id": %CLIENT_ID2% }
+-->recvresult
+
+-->sleep 1
+
+
+-->stmtadmin list_clients
+-->recvresult
+
+
+### Create a separate session with diff account
+-->newsession unpriv	unpriv	x
+
+-->varlet %CLIENT_ID3% %ACTIVE_CLIENT_ID%
+
+-->echo Should list unprivs session only
+-->stmtadmin list_clients
+-->recvresult
+
+
+## Try to kill a x_root session from unpriv
+-->stmtadmin kill_client	{"id": %CLIENT_ID1% }
+-->expecterror 1095
+-->recvresult
+
+-->setsession
+
+-->sleep 1;
+
+
+## Should list all sessions
+-->stmtadmin list_clients
+-->recvresult
+
+
+## kill the unpriv session
+-->stmtadmin kill_client	{"id": %CLIENT_ID3% }
+-->recvresult
+
+-->sleep 1;
+
+
+## Should list only x_root session
+-->stmtadmin list_clients
+-->recvresult
+EOF
+
+--replace_regex /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/ /You are not owner of thread [0-9]+/You are not owner of thread/
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+## Cleanup
+drop user unpriv@localhost;
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc

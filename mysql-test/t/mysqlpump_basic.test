@@ -1,0 +1,682 @@
+-- source include/no_valgrind_without_big.inc
+
+--echo #
+--echo # WL#7755  mysqlpump: Extend mysqldump functionalities
+--echo #
+
+--echo # Test for help
+--exec $MYSQL_PUMP --help > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+
+--echo #
+--echo # Test all existing options
+--echo #
+
+CREATE DATABASE db1_basic;
+USE db1_basic;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+CREATE TABLE t3 (`a"b"` char(2));
+CREATE TABLE t4 (
+  name VARCHAR(64) NOT NULL,
+  value FLOAT DEFAULT NULL,
+  last_update TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  comment VARCHAR(1024) DEFAULT NULL,
+  PRIMARY KEY (name)
+);
+
+CREATE TABLE t5 (
+  id int(11) NOT NULL,
+  id2 tinyint(3) NOT NULL,
+  PRIMARY KEY (id),
+  KEY index2 (id2)
+);
+
+CREATE TABLE t6 (`x"z"` INT, xyz VARCHAR(20), notes TEXT);
+ALTER TABLE t6 ADD INDEX t6_index (`x"z"`, xyz, notes(3));
+
+CREATE TABLE t7 (
+  PS_PARTKEY int(11) NOT NULL,
+  PS_SUPPKEY int(11) NOT NULL,
+  PS_AVAILQTY int(11) NOT NULL,
+  PS_SUPPLYCOST float NOT NULL,
+  PS_COMMENT varchar(199) NOT NULL
+);
+
+ALTER TABLE t7 ADD PRIMARY KEY (PS_PARTKEY,PS_SUPPKEY);
+
+CREATE TABLE t8 (
+  c_id INT(11) NOT NULL AUTO_INCREMENT,
+  c_name VARCHAR(255) NOT NULL,
+  c_description text,
+  PRIMARY KEY (c_id)
+);
+
+CREATE TABLE t9 (
+  v_id INT(11) NOT NULL AUTO_INCREMENT,
+  v_name VARCHAR(255) DEFAULT NULL,
+  PRIMARY KEY (v_id)
+);
+
+CREATE TABLE t10 (
+  p_id INT(11) NOT NULL AUTO_INCREMENT,
+  p_name VARCHAR(355) NOT NULL,
+  p_price decimal(10,0) DEFAULT NULL,
+  c_id INT(11) NOT NULL,
+  PRIMARY KEY (p_id),
+  KEY fk_t8 (c_id),
+  CONSTRAINT t10_ibfk_1 FOREIGN KEY (c_id) REFERENCES t8 (c_id) ON UPDATE CASCADE
+);
+
+CREATE TABLE t11 (
+   num int PRIMARY KEY,
+   FOREIGN KEY (num) REFERENCES t9 (v_id)
+);
+
+ALTER TABLE t10 ADD COLUMN v_id INT NOT NULL AFTER c_id;
+ALTER TABLE t10 ADD FOREIGN KEY fk_t9(v_id) REFERENCES
+      t9(v_id) ON DELETE NO ACTION ON UPDATE CASCADE;
+
+CREATE TABLE t12 (
+  ID bigint NOT NULL DEFAULT '0',
+  v bigint NOT NULL,
+  PRIMARY KEY (ID,v)
+);
+
+CREATE TABLE t13 (
+  ID bigint NOT NULL DEFAULT '0',
+  k varchar(30) NOT NULL DEFAULT '',
+  v bigint NOT NULL,
+  PRIMARY KEY (ID, v, k),
+  CONSTRAINT relation_tags_ibfk_1 FOREIGN KEY (ID, v) REFERENCES t12 (ID,v)
+);
+
+INSERT INTO t4  (name) VALUES ('disk_temptable_create_cost');
+INSERT INTO t4  (name) VALUES ('disk_temptable_row_cost');
+INSERT INTO t4  (name) VALUES ('key_compare_cost');
+INSERT INTO t4  (name) VALUES ('memory_temptable_create_cost');
+INSERT INTO t4  (name) VALUES ('memory_temptable_row_cost');
+INSERT INTO t4  (name) VALUES ('row_evaluate_cost');
+
+# store table value before backup
+SELECT last_update INTO @val1 FROM t4 WHERE name= 'disk_temptable_create_cost';
+SELECT last_update INTO @val2 FROM t4 WHERE name= 'disk_temptable_row_cost';
+SELECT last_update INTO @val3 FROM t4 WHERE name= 'key_compare_cost';
+SELECT last_update INTO @val4 FROM t4 WHERE name= 'memory_temptable_create_cost';
+SELECT last_update INTO @val5 FROM t4 WHERE name= 'memory_temptable_row_cost';
+SELECT last_update INTO @val6 FROM t4 WHERE name= 'row_evaluate_cost';
+
+INSERT INTO t1 VALUES (289), (298), (234), (456), (789);
+INSERT INTO t2 VALUES (1, "on"), (2, "off"), (10, "pol"), (12, "meg");
+INSERT INTO t3 VALUES ("1\""), ("\"2");
+
+CREATE VIEW v1 AS SELECT * FROM t2;
+CREATE VIEW v2 AS SELECT * FROM t1;
+CREATE VIEW v3 AS SELECT v1.*,v2.a as X FROM v1,v2;
+CREATE VIEW v11 AS SELECT * FROM v3;
+
+CREATE TEMPORARY TABLE t14 (id INT);
+
+CREATE TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW SET NEW.a = 1;
+CREATE TRIGGER trig2 BEFORE UPDATE ON t1 FOR EACH ROW SET NEW.a = 999;
+
+CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SET @a=5;
+CREATE EVENT ev2 ON SCHEDULE EVERY 5 HOUR DO SELECT 1;
+
+DELIMITER |;
+CREATE PROCEDURE t_cache()
+BEGIN
+  SET @A= 20;
+  SELECT * FROM t1;
+  SELECT * FROM t1;
+  PREPARE x FROM 'SELECT 1';
+  SELECT * FROM t1;
+  SELECT * FROM t1;
+END ;|
+DELIMITER ;|
+
+DELIMITER |;
+CREATE FUNCTION f1 () RETURNS int
+BEGIN
+SET NAMES 'big5';
+RETURN (SELECT COUNT(*) FROM t1);
+END ;|
+DELIMITER ;|
+
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA='db1_basic' AND TABLE_TYPE= 'BASE TABLE'
+       ORDER BY TABLE_NAME;
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA='db1_basic' AND TABLE_TYPE= 'VIEW'
+       ORDER BY TABLE_NAME;
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
+       WHERE ROUTINE_SCHEMA='db1_basic' AND ROUTINE_TYPE= 'PROCEDURE'
+       ORDER BY ROUTINE_NAME;
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
+       WHERE ROUTINE_SCHEMA='db1_basic' AND ROUTINE_TYPE= 'FUNCTION'
+       ORDER BY ROUTINE_NAME;
+SELECT EVENT_NAME FROM INFORMATION_SCHEMA.EVENTS
+       WHERE EVENT_SCHEMA='db1_basic' ORDER BY EVENT_NAME;
+SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS
+       WHERE TRIGGER_SCHEMA='db1_basic' ORDER BY TRIGGER_NAME;
+
+--echo # Check if all objects are dumped
+--exec $MYSQL_PUMP --databases db1_basic > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+DROP DATABASE db1_basic;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA='db1_basic' AND TABLE_TYPE= 'BASE TABLE'
+       ORDER BY TABLE_NAME;
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA='db1_basic' AND TABLE_TYPE= 'VIEW'
+       ORDER BY TABLE_NAME;
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
+       WHERE ROUTINE_SCHEMA='db1_basic' AND ROUTINE_TYPE= 'PROCEDURE'
+       ORDER BY ROUTINE_NAME;
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
+       WHERE ROUTINE_SCHEMA='db1_basic' AND ROUTINE_TYPE= 'FUNCTION'
+       ORDER BY ROUTINE_NAME;
+SELECT EVENT_NAME FROM INFORMATION_SCHEMA.EVENTS
+       WHERE EVENT_SCHEMA='db1_basic' ORDER BY EVENT_NAME;
+SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS
+       WHERE TRIGGER_SCHEMA='db1_basic' ORDER BY TRIGGER_NAME;
+
+# restore and check the values
+SELECT 1 FROM db1_basic.t4 WHERE name= 'disk_temptable_create_cost' AND last_update = @val1;
+SELECT 2 FROM db1_basic.t4 WHERE name= 'disk_temptable_row_cost' AND last_update = @val2;
+SELECT 3 FROM db1_basic.t4 WHERE name= 'key_compare_cost' AND last_update = @val3;
+SELECT 4 FROM db1_basic.t4 WHERE name= 'memory_temptable_create_cost' AND last_update = @val4;
+SELECT 5 FROM db1_basic.t4 WHERE name= 'memory_temptable_row_cost' AND last_update = @val5;
+SELECT 6 FROM db1_basic.t4 WHERE name= 'row_evaluate_cost' AND last_update = @val6;
+
+--echo # test for skip-triggers
+--exec $MYSQL_PUMP --databases db1_basic --skip-triggers > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+DROP DATABASE db1_basic;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+
+#report 0 rows
+SHOW TRIGGERS FROM db1_basic;
+
+--echo # test for skip-events
+--exec $MYSQL_PUMP --databases db1_basic --skip-events > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+DROP DATABASE db1_basic;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+
+#report 0 rows
+SHOW EVENTS FROM db1_basic;
+DROP DATABASE db1_basic;
+
+CREATE DATABASE db1_basic;
+USE db1_basic;
+CREATE TABLE t0 (`b` blob);
+INSERT INTO `t0` VALUES (0x602010000280100005E71A);
+--exec $MYSQL_PUMP --skip-extended-insert --hex-blob --databases db1_basic > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+DROP DATABASE db1_basic;
+
+CREATE DATABASE db1_basic;
+USE db1_basic;
+DROP TABLE IF EXISTS `t0`;
+CREATE TABLE `t0` (a INT);
+INSERT INTO `t0` VALUES (1),(2),(3);
+INSERT INTO `t0` VALUES (4),(5),(6);
+--exec $MYSQL_PUMP --insert-ignore --databases db1_basic > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+DROP DATABASE db1_basic;
+
+CREATE DATABASE db1_basic;
+USE db1_basic;
+DROP TABLE IF EXISTS `t0`;
+CREATE TABLE `t0` (a int);
+INSERT INTO `t0` VALUES (1),(2),(3);
+--exec $MYSQL_PUMP --add-drop-database --databases db1_basic > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+DROP DATABASE db1_basic;
+
+--echo # test for complete-insert
+CREATE DATABASE db1_basic;
+USE db1_basic;
+CREATE TABLE t0 ( a INT, b VARCHAR(10), c TIMESTAMP DEFAULT CURRENT_TIMESTAMP );
+INSERT INTO t0(a,b) VALUES (1, 'temptable'), (2, 'temptable');
+INSERT INTO t0(a,b) VALUES (3, ''), (4, NULL);
+--exec $MYSQL_PUMP --complete-insert --extended-insert=0 --databases db1_basic > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+DROP DATABASE db1_basic;
+
+CREATE DATABASE db1_basic;
+USE db1_basic;
+CREATE TABLE t0 ( a INT );
+CREATE TABLE t2 ( a INT );
+INSERT INTO t0 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+
+SELECT * FROM t0 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+--exec $MYSQL_PUMP --skip-dump-rows db1_basic > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+DROP DATABASE db1_basic;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+USE db1_basic;
+SELECT * FROM t0 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+DROP DATABASE db1_basic;
+
+CREATE DATABASE db1_basic;
+USE db1_basic;
+CREATE TABLE t0 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+INSERT INTO t0 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1), (2), (3);
+--exec $MYSQL_PUMP --single-transaction --databases db1_basic > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+DROP DATABASE db1_basic;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+USE db1_basic;
+SELECT * FROM t0;
+SELECT * FROM t2;
+DROP DATABASE db1_basic;
+
+--echo #
+--echo # Test view dependencies
+--echo #
+
+CREATE DATABASE db1_basic;
+USE db1_basic;
+CREATE TABLE t1 (a1 INT);
+CREATE TABLE t2 (a1 INT, b1 VARCHAR(10), primary key(a1));
+
+CREATE DATABASE db3_basic;
+USE db3_basic;
+CREATE TABLE t1 (a3 INT);
+CREATE TABLE t2 (a3 INT, b3 VARCHAR(10), primary key(a3));
+CREATE VIEW v1 AS SELECT * FROM db1_basic.t2;
+
+CREATE DATABASE db2_basic;
+USE db2_basic;
+CREATE TABLE t1 (a2 INT);
+CREATE TABLE t2 (a2 INT, b2 VARCHAR(10), primary key(a2));
+CREATE VIEW v1 AS SELECT * FROM db1_basic.t2;
+CREATE VIEW v2 AS SELECT * FROM db3_basic.t1;
+
+CREATE DATABASE db4_basic;
+USE db4_basic;
+CREATE TABLE t1 (a4 INT);
+CREATE TABLE t2 (a4 INT, b4 VARCHAR(10), primary key(a4));
+CREATE VIEW v1 AS SELECT * FROM db1_basic.t2,db3_basic.t1;
+CREATE VIEW v2 AS SELECT * FROM db2_basic.t1,db1_basic.t2;
+
+SHOW CREATE VIEW db3_basic.v1;
+SHOW CREATE VIEW db2_basic.v1;
+SHOW CREATE VIEW db2_basic.v2;
+SHOW CREATE VIEW db4_basic.v1;
+SHOW CREATE VIEW db4_basic.v2;
+
+#dump all dbs
+--exec $MYSQL_PUMP --exclude-databases=mysql,mtr > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+DROP DATABASE db1_basic;
+DROP DATABASE db2_basic;
+DROP DATABASE db3_basic;
+DROP DATABASE db4_basic;
+#restore all dbs
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+
+SHOW CREATE VIEW db3_basic.v1;
+SHOW CREATE VIEW db2_basic.v1;
+SHOW CREATE VIEW db2_basic.v2;
+SHOW CREATE VIEW db4_basic.v1;
+SHOW CREATE VIEW db4_basic.v2;
+
+# test with default-parallelism=0
+--exec $MYSQL_PUMP --default-parallelism=0 --exclude-databases=mysql,mtr > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+DROP DATABASE db1_basic;
+DROP DATABASE db2_basic;
+DROP DATABASE db3_basic;
+DROP DATABASE db4_basic;
+#restore all dbs
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+
+SHOW CREATE VIEW db3_basic.v1;
+SHOW CREATE VIEW db2_basic.v1;
+SHOW CREATE VIEW db2_basic.v2;
+SHOW CREATE VIEW db4_basic.v1;
+SHOW CREATE VIEW db4_basic.v2;
+
+DROP DATABASE db1_basic;
+DROP DATABASE db2_basic;
+DROP DATABASE db3_basic;
+DROP DATABASE db4_basic;
+
+#echo
+#echo Bug #21644479 MYSQLPUMP DECOMPRESSION UTILITIES NOT BUILT
+#echo
+
+CREATE DATABASE bug21644479;
+USE bug21644479;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+CREATE TABLE t3 (`a"b"` char(2));
+CREATE TABLE t4 (
+  name VARCHAR(64) NOT NULL,
+  value FLOAT DEFAULT NULL,
+  last_update TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  comment VARCHAR(1024) DEFAULT NULL,
+  PRIMARY KEY (name)
+);
+
+CREATE TABLE t5 (
+  id int(11) NOT NULL,
+  id2 tinyint(3) NOT NULL,
+  PRIMARY KEY (id),
+  KEY index2 (id2)
+);
+
+SHOW TABLES;
+INSERT INTO t1 VALUES (289), (298), (234), (456), (789);
+INSERT INTO t2 VALUES (1, "on"), (2, "off"), (10, "pol"), (12, "meg");
+INSERT INTO t3 VALUES ("1\""), ("\"2");
+
+INSERT INTO t4  (name) VALUES ('disk_temptable_create_cost');
+INSERT INTO t4  (name) VALUES ('disk_temptable_row_cost');
+
+SELECT * FROM t1 ORDER BY 1;
+SELECT * FROM t2 ORDER BY 1;
+SELECT * FROM t3 ORDER BY 1;
+SELECT name FROM t4 ORDER BY 1;
+SELECT * FROM t5 ORDER BY 1;
+
+--echo # compress using lz4
+--exec $MYSQL_PUMP --databases bug21644479 --compress-output=lz4 --result-file=$MYSQLTEST_VARDIR/tmp/bug21644479.lz4
+--echo # uncompress using lz4_decompress
+if ($LZ4_DECOMPRESS)
+{
+--exec $LZ4_DECOMPRESS $MYSQLTEST_VARDIR/tmp/bug21644479.lz4 $MYSQLTEST_VARDIR/tmp/bug21644479_lz4.sql
+}
+if (!$LZ4_DECOMPRESS)
+{
+--exec lz4 -d $MYSQLTEST_VARDIR/tmp/bug21644479.lz4 $MYSQLTEST_VARDIR/tmp/bug21644479_lz4.sql 
+}
+DROP DATABASE bug21644479;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21644479_lz4.sql
+
+USE bug21644479;
+SHOW TABLES;
+SELECT * FROM t1 ORDER BY 1;
+SELECT * FROM t2 ORDER BY 1;
+SELECT * FROM t3 ORDER BY 1;
+SELECT name FROM t4 ORDER BY 1;
+SELECT * FROM t5 ORDER BY 1;
+
+--echo # compress using zlib
+--exec $MYSQL_PUMP --databases bug21644479 --compress-output=zlib --result-file=$MYSQLTEST_VARDIR/tmp/bug21644479.zlib
+--echo # uncompress using zlib_decompress
+if ($ZLIB_DECOMPRESS)
+{
+--exec $ZLIB_DECOMPRESS $MYSQLTEST_VARDIR/tmp/bug21644479.zlib $MYSQLTEST_VARDIR/tmp/bug21644479_zlib.sql
+}
+if (!$ZLIB_DECOMPRESS)
+{
+--exec openssl zlib -d < $MYSQLTEST_VARDIR/tmp/bug21644479.zlib > $MYSQLTEST_VARDIR/tmp/bug21644479_zlib.sql
+}
+DROP DATABASE bug21644479;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21644479_zlib.sql
+
+USE bug21644479;
+SHOW TABLES;
+SELECT * FROM t1 ORDER BY 1;
+SELECT * FROM t2 ORDER BY 1;
+SELECT * FROM t3 ORDER BY 1;
+SELECT name FROM t4 ORDER BY 1;
+SELECT * FROM t5 ORDER BY 1;
+
+# cleanup
+DROP DATABASE bug21644479;
+--remove_file $MYSQLTEST_VARDIR/tmp/bug21644479_lz4.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug21644479_zlib.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug21644479.lz4
+--remove_file $MYSQLTEST_VARDIR/tmp/bug21644479.zlib
+
+--echo #
+--echo # Bug #21650559 MYSQLPUMP MAKES CORRUPTED DUMP WHEN TABLE HAS GENERATED COLUMN
+--echo #
+
+CREATE DATABASE bug21650559;
+USE bug21650559;
+CREATE TABLE t1 (pk INTEGER, a INTEGER, b INTEGER, c VARCHAR(16),
+                 sum INTEGER GENERATED ALWAYS AS (a+b),
+                 sub VARCHAR(4) GENERATED ALWAYS AS (SUBSTRING(c, 1, 4)),
+                 key k1(sum),
+                 key k2(sub)
+);
+CREATE TABLE t2 (pk INTEGER, a INTEGER, b INTEGER,
+                 sum INTEGER GENERATED ALWAYS AS (a+b),
+                 c VARCHAR(16),
+                 key k1(sum)
+);
+CREATE TABLE t3 (sum INTEGER GENERATED ALWAYS AS (a+(EXTRACT(YEAR from pk))),
+                 pk TIMESTAMP, a INTEGER,
+                 c VARCHAR(16)
+);
+
+INSERT INTO t1(pk, a, b, c) VALUES (1, 11, 12, 'oneone'), (2, 21, 22, 'twotwo');
+SELECT * FROM t1;
+INSERT INTO t2(pk, a, b, c) VALUES (1, 11, 12, 'oneone'), (2, 21, 22, 'twotwo');
+SELECT * FROM t2;
+INSERT INTO t3(pk, a, c) VALUES ('2003-01-02 10:30:00.000123', 11, 12), ('2015-11-22 00:30:00', 21, 22);
+SELECT * FROM t3;
+
+--exec $MYSQL_PUMP --databases bug21650559 > $MYSQLTEST_VARDIR/tmp/bug21650559.sql
+DROP DATABASE bug21650559;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21650559.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug21650559.sql
+USE bug21650559;
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+DROP DATABASE bug21650559;
+
+#echo
+#echo Bug #22505474 MYSQLPUMP FAILS WHEN IS DUMPING ALL DATABASES
+#echo
+
+CREATE DATABASE bug22505474;
+USE bug22505474;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE VIEW `v 1` AS SELECT * FROM t1;
+SELECT * FROM `v 1`;
+--exec $MYSQL_PUMP --databases bug22505474 > $MYSQLTEST_VARDIR/tmp/bug22505474.sql
+DROP DATABASE bug22505474;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug22505474.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug22505474.sql
+USE bug22505474;
+SELECT * FROM t1;
+SELECT * FROM `v 1`;
+DROP DATABASE bug22505474;
+
+#echo
+#echo Bug #22726732 MYSQLPUMP OUTPUT FAILS TO LOAD BECAUSE IT MISSES A KEY STATEMENT
+#echo
+
+CREATE DATABASE bug22726732;
+USE bug22726732;
+CREATE TABLE `part1_hash` (
+   `id` int(11) NOT NULL,
+   `fname` varchar(30) DEFAULT NULL,
+   `lname` varchar(30) DEFAULT NULL,
+   `hired` date NOT NULL DEFAULT '1970-01-01',
+   `store_id` int(11) DEFAULT NULL,
+   KEY `id` (`id`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ PARTITION BY HASH (MONTH(hired)) PARTITIONS 2;
+
+CREATE TABLE `part2_hash` (
+    `firstname` VARCHAR(25) NOT NULL,
+    `lastname` VARCHAR(25) NOT NULL,
+    `username` VARCHAR(16) NOT NULL,
+    `email` VARCHAR(35),
+    `joined` DATE NOT NULL
+)
+PARTITION BY RANGE( YEAR(joined) ) (
+    PARTITION p0 VALUES LESS THAN (1960),
+    PARTITION p1 VALUES LESS THAN (1970),
+    PARTITION p2 VALUES LESS THAN (1980),
+    PARTITION p3 VALUES LESS THAN (1990),
+    PARTITION p4 VALUES LESS THAN MAXVALUE
+);
+
+CREATE TABLE `part3_hash` (
+    `id` INT NOT NULL,
+    `fname` VARCHAR(30),
+    `lname` VARCHAR(30),
+    `hired` DATE NOT NULL DEFAULT '1970-01-01',
+    `separated` DATE NOT NULL DEFAULT '9999-12-31',
+    `job_code` INT,
+    `store_id` INT
+)
+PARTITION BY LIST(store_id) (
+    PARTITION pNorth VALUES IN (3,5,6,9,17),
+    PARTITION pEast VALUES IN (1,2,10,11,19,20),
+    PARTITION pWest VALUES IN (4,12,13,14,18),
+    PARTITION pCentral VALUES IN (7,8,15,16)
+);
+SHOW TABLES;
+--exec $MYSQL_PUMP --databases bug22726732 > $MYSQLTEST_VARDIR/tmp/bug22726732.sql
+DROP DATABASE bug22726732;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug22726732.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug22726732.sql
+USE bug22726732;
+SHOW TABLES;
+DROP DATABASE bug22726732;
+
+#echo
+#echo Bug #23072245 MYSQLPUMP OUTPUT FAILS TO LOAD WHEN IT INCLUDES TRIGGERS
+#echo
+
+CREATE DATABASE bug23072245;
+USE bug23072245;
+CREATE TABLE test1(a1 INT);
+CREATE TABLE test2(a2 INT);
+CREATE TABLE test3(a3 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE test4(a4 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b4 INT DEFAULT 0);
+DELIMITER |;
+CREATE TRIGGER testref BEFORE INSERT ON test1
+FOR EACH ROW
+BEGIN
+ INSERT INTO test2 SET a2 = NEW.a1;
+ DELETE FROM test3 WHERE a3 = NEW.a1;
+ UPDATE test4 SET b4 = b4 + 1 WHERE a4 = NEW.a1;
+END ;|
+DELIMITER ;|
+--replace_column 6 '0000-00-00 00:00:00'
+SHOW TRIGGERS;
+
+--exec $MYSQL_PUMP --databases bug23072245 > $MYSQLTEST_VARDIR/tmp/bug23072245.sql
+DROP DATABASE bug23072245;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug23072245.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug23072245.sql
+USE bug23072245;
+--replace_column 6 '0000-00-00 00:00:00'
+SHOW TRIGGERS;
+DROP DATABASE bug23072245;
+
+#
+# Bug #23721446 MYSQLPUMP DOES NOT DUMPS ALL THE GRANT STATEMENTS OF USERS
+#
+
+CREATE USER bug23721446_u1,bug23721446_u2;
+CREATE DATABASE db23721446;
+CREATE TABLE db23721446.t(i int);
+DELIMITER |;
+CREATE PROCEDURE db23721446.sp(out p1 int)
+BEGIN
+    select count(*) from db23721446.t;
+END ;|
+DELIMITER ;|
+
+GRANT ALL PRIVILEGES ON db23721446.* TO 'bug23721446_u1'@'%' ;
+GRANT SELECT, SELECT (i) ON db23721446.t TO 'bug23721446_u1'@'%';
+GRANT EXECUTE ON PROCEDURE db23721446.sp TO 'bug23721446_u1'@'%';
+SHOW GRANTS FOR bug23721446_u1@'%';
+
+GRANT UPDATE (i) ON db23721446.t TO 'bug23721446_u2'@'%';
+GRANT DELETE ON db23721446.t TO 'bug23721446_u2'@'%';
+SHOW GRANTS FOR bug23721446_u2@'%';
+
+--exec $MYSQL_PUMP --include-users=bug23721446_u% --include-databases=db23721446 > $MYSQLTEST_VARDIR/tmp/bug23721446.sql
+# drop the user, database and restore from backup
+DROP USER bug23721446_u1,bug23721446_u2;
+DROP DATABASE db23721446;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug23721446.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug23721446.sql
+
+#check for user privileges
+SHOW GRANTS FOR bug23721446_u1@'%';
+SHOW GRANTS FOR bug23721446_u2@'%';
+#cleanup
+DROP USER bug23721446_u1,bug23721446_u2;
+DROP DATABASE db23721446;
+
+-- echo #
+-- echo # Bug#22919028 - MYSQLPUMP DOES NOT HANDLE RE-IMPORT FROM UPGRADE
+-- echo #
+
+CREATE DATABASE bug22919028;
+USE bug22919028;
+CREATE TABLE t (i DATE);
+SET SQL_MODE = ALLOW_INVALID_DATES;
+INSERT INTO t VALUES('2016-02-31');
+--exec $MYSQL_PUMP --databases bug22919028 > $MYSQLTEST_VARDIR/tmp/bug22919028.sql
+DROP DATABASE bug22919028;
+
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug22919028.sql
+SELECT * FROM bug22919028.t;
+
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/bug22919028.sql
+DROP DATABASE bug22919028;
+
+-- echo #
+-- echo # Bug#26694675: MYSQLPUMP SPAMS WITH SQL_NO_CACHE DEPRECATION WARNINGS
+-- echo #
+
+CREATE DATABASE bug26694675;
+USE bug26694675;
+CREATE TABLE t (i INT);
+INSERT INTO t VALUES (9), (0);
+--exec $MYSQL_PUMP --all-databases --log-error-file=$MYSQLTEST_VARDIR/log/err.log > $MYSQLTEST_VARDIR/tmp/bug26694675.sql
+DROP DATABASE bug26694675;
+
+--echo check for warnings
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/err.log;
+let SEARCH_PATTERN= mysqlpump: \[WARNING\];
+--source include/search_pattern.inc
+
+# cleanup
+--remove_file $MYSQLTEST_VARDIR/log/err.log
+--remove_file $MYSQLTEST_VARDIR/tmp/bug26694675.sql
+
+-- echo #
+-- echo # Bug#26116415 TABLESPACE CLAUSE CONFUSES MYSQLPUMP
+-- echo #
+
+CREATE TABLESPACE `mytbsp` ADD DATAFILE 'mytbsp.ibd' ENGINE INNODB;
+
+CREATE TABLE `test`.`t1` (a integer) TABLESPACE `mytbsp`;
+
+SHOW CREATE TABLE test.t1;
+
+--let $program= $MYSQL_PUMP --include-databases=test --include-tables=t1
+
+--exec $PROGRAM >> $MYSQL_TMP_DIR/mysqlpump.sql
+
+DROP TABLE `test`.`t1`;
+
+--exec $MYSQL < $MYSQL_TMP_DIR/mysqlpump.sql
+
+SHOW CREATE TABLE test.t1;
+
+DROP TABLE `test`.`t1`;
+DROP TABLESPACE `mytbsp`;
+

@@ -2,17 +2,17 @@ drop table if exists test.setup_actors;
 create table test.setup_actors as
 select * from performance_schema.setup_actors;
 insert into performance_schema.setup_actors
-values ('%','%','%','YES');
+values ('%','%','%','YES', 'YES');
 ERROR 23000: Can't write; duplicate key in table 'setup_actors'
 insert into performance_schema.setup_actors
-values ('%','%','%','NO');
+values ('%','%','%','NO', 'NO');
 ERROR 23000: Can't write; duplicate key in table 'setup_actors'
 truncate table performance_schema.setup_actors;
 select * from performance_schema.setup_actors;
-HOST	USER	ROLE	ENABLED
+HOST	USER	ROLE	ENABLED	HISTORY
 select * from performance_schema.setup_actors
 where user = '%';
-HOST	USER	ROLE	ENABLED
+HOST	USER	ROLE	ENABLED	HISTORY
 insert into performance_schema.setup_actors
 set user='Joe', host='localhost';
 insert into performance_schema.setup_actors
@@ -22,15 +22,18 @@ set user='%', host='server1';
 insert into performance_schema.setup_actors
 set user='%', host='%';
 insert into performance_schema.setup_actors
-values ('localhost', 'user1', '%', 'NO%');
+values ('localhost', 'user1', '%', 'NO%', 'NO');
 ERROR 01000: Data truncated for column 'ENABLED' at row 1
+insert into performance_schema.setup_actors
+values ('localhost', 'user1', '%', 'NO', 'KO');
+ERROR 01000: Data truncated for column 'HISTORY' at row 1
 select * from performance_schema.setup_actors
 order by USER, HOST;
-HOST	USER	ROLE	ENABLED
-%	%	%	YES
-server1	%	%	YES
-%	Joe	%	YES
-localhost	Joe	%	YES
+HOST	USER	ROLE	ENABLED	HISTORY
+%	%	%	YES	YES
+server1	%	%	YES	YES
+%	Joe	%	YES	YES
+localhost	Joe	%	YES	YES
 update performance_schema.setup_actors
 set user='ILLEGAL';
 ERROR HY000: Invalid performance_schema usage.
@@ -38,10 +41,12 @@ update performance_schema.setup_actors
 set host='ILLEGAL';
 ERROR HY000: Invalid performance_schema usage.
 update performance_schema.setup_actors
-set role='ILLEGAL';
+set `role`='ILLEGAL';
 ERROR HY000: Invalid performance_schema usage.
 update performance_schema.setup_actors
 set ENABLED='YES';
+update performance_schema.setup_actors
+set HISTORY='YES';
 update performance_schema.setup_actors
 set ENABLED='';
 ERROR 01000: Data truncated for column 'ENABLED' at row 1
@@ -54,29 +59,45 @@ ERROR 01000: Data truncated for column 'ENABLED' at row 1
 update performance_schema.setup_actors
 set ENABLED=NULL;
 ERROR 23000: Column 'ENABLED' cannot be null
+update performance_schema.setup_actors
+set HISTORY='YESS';
+ERROR 01000: Data truncated for column 'HISTORY' at row 1
+update performance_schema.setup_actors
+set HISTORY='NO%';
+ERROR 01000: Data truncated for column 'HISTORY' at row 1
+update performance_schema.setup_actors
+set HISTORY=NULL;
+ERROR 23000: Column 'HISTORY' cannot be null
 select * from performance_schema.setup_actors
 order by USER, HOST;
-HOST	USER	ROLE	ENABLED
-%	%	%	YES
-server1	%	%	YES
-%	Joe	%	YES
-localhost	Joe	%	YES
+HOST	USER	ROLE	ENABLED	HISTORY
+%	%	%	YES	YES
+server1	%	%	YES	YES
+%	Joe	%	YES	YES
+localhost	Joe	%	YES	YES
 delete from performance_schema.setup_actors
 where user = 'Joe' and host = 'localhost';
 select * from performance_schema.setup_actors
 order by USER, HOST;
-HOST	USER	ROLE	ENABLED
-%	%	%	YES
-server1	%	%	YES
-%	Joe	%	YES
+HOST	USER	ROLE	ENABLED	HISTORY
+%	%	%	YES	YES
+server1	%	%	YES	YES
+%	Joe	%	YES	YES
 delete from performance_schema.setup_actors;
 select * from performance_schema.setup_actors
 order by USER, HOST;
-HOST	USER	ROLE	ENABLED
+HOST	USER	ROLE	ENABLED	HISTORY
 LOCK TABLES performance_schema.setup_actors READ;
 UNLOCK TABLES;
 LOCK TABLES performance_schema.setup_actors WRITE;
 UNLOCK TABLES;
+#
+# WL#2284: Increase the length of a user name
+#
+insert into performance_schema.setup_actors
+set user='user_name_len_22_01234', host='localhost';
+delete from performance_schema.setup_actors
+where user = 'user_name_len_22_01234' and host = 'localhost';
 truncate table performance_schema.setup_actors;
 insert into performance_schema.setup_actors
 select * from test.setup_actors;

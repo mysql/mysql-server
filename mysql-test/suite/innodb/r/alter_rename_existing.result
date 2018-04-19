@@ -1,0 +1,164 @@
+#
+# Show what happens during ALTER TABLE when an existing file
+# exists in the target location.
+#
+# Bug #19218794: IF TABLESPACE EXISTS, CAN'T CREATE TABLE,
+#                BUT CAN ALTER ENGINE=INNODB
+#
+CREATE TABLE t1 (a SERIAL, b CHAR(10)) ENGINE=Memory;
+INSERT INTO t1(b) VALUES('one'), ('two'), ('three');
+#
+# Create a file called MYSQLD_DATADIR/test/t1.ibd
+# Directory listing of test/*.ibd
+#
+t1.ibd
+ALTER TABLE t1 ENGINE = InnoDB;
+ERROR HY000: Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME' (errno: 184 - Tablespace already exists)
+#
+# Move the file to InnoDB as t2
+#
+ALTER TABLE t1 RENAME TO t2, ENGINE = INNODB;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` char(10) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * from t2;
+a	b
+1	one
+2	two
+3	three
+#
+# Try to rename t2 to t1 with an existing t1 in the way.
+#
+ALTER TABLE t2 RENAME TO t1;
+ERROR HY000: Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME' (errno: 184 - Tablespace already exists)
+#
+# Create another t1, but in the system tablespace.
+#
+SET GLOBAL innodb_file_per_table=OFF;
+CREATE TABLE t1 (a SERIAL, b CHAR(20)) ENGINE=InnoDB;
+INSERT INTO t1(b) VALUES('one'), ('two'), ('three');
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` char(20) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
+name	space_type
+test/t1	System
+#
+# ALTER TABLE from system tablespace to system tablespace
+#
+ALTER TABLE t1 ADD COLUMN c INT, ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD COLUMN d INT, ALGORITHM=COPY;
+#
+# Try to move t1 from the system tablespace to a file-per-table
+# while a blocking t1.ibd file exists.
+#
+SET GLOBAL innodb_file_per_table=ON;
+#
+# Move using TABLESPACE=innodb_file_per_table
+#
+SET GLOBAL innodb_file_per_table=OFF;
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace 'test/t1' exists.
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=COPY;
+ERROR HY000: Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME' (errno: 184 - Tablespace already exists)
+#
+# ALTER TABLE t1 from system tablespace to general tablespace
+#
+CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd';
+ALTER TABLE t1 TABLESPACE s1;
+#
+# Try to move t1 from a general tablespace to a file-per-table
+# while a blocking t1.ibd file exists.
+#
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace 'test/t1' exists.
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=COPY;
+ERROR HY000: Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME' (errno: 184 - Tablespace already exists)
+#
+# Delete the blocking file called MYSQLD_DATADIR/test/t1.ibd
+# Move t1 to file-per-table using ALGORITHM=INPLACE with no blocking t1.ibd.
+#
+SET GLOBAL innodb_file_per_table=ON;
+ALTER TABLE t1 ADD COLUMN e INT, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` char(20) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`)
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
+name	space_type
+test/t1	General
+SET GLOBAL innodb_file_per_table=OFF;
+#
+# Move t1 back to the system tablespace using ALGORITHM=INPLACE.
+#
+ALTER TABLE t1 TABLESPACE=innodb_system, ALGORITHM=INPLACE;
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
+name	space_type
+test/t1	System
+#
+# Move t1 to a general tablespace using ALGORITHM=INPLACE.
+#
+ALTER TABLE t1 TABLESPACE=s1, ALGORITHM=INPLACE;
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
+name	space_type
+test/t1	General
+#
+# Move t1 to a file-per-table tablespace using ALGORITHM=INPLACE.
+#
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=INPLACE;
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
+name	space_type
+test/t1	Single
+#
+# Move t1 to a general tablespace using ALGORITHM=COPY.
+#
+ALTER TABLE t1 TABLESPACE=s1, ALGORITHM=COPY;
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
+name	space_type
+test/t1	General
+#
+# Move t1 back to the system tablespace using ALGORITHM=COPY.
+#
+ALTER TABLE t1 TABLESPACE=innodb_system, ALGORITHM=COPY;
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
+name	space_type
+test/t1	System
+#
+# Move t1 to a file-per-table tablespace using ALGORITHM=COPY.
+#
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=COPY;
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
+name	space_type
+test/t1	Single
+DROP TABLE t1;
+#
+# Rename t2.ibd to t1.ibd.
+#
+ALTER TABLE t2 RENAME TO t1;
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
+name	space_type
+test/t1	Single
+SELECT * from t1;
+a	b
+1	one
+2	two
+3	three
+#
+# Cleanup
+#
+DROP TABLE t1;
+DROP TABLESPACE s1;

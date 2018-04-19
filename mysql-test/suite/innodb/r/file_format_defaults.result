@@ -17,7 +17,7 @@ SET GLOBAL innodb_file_format=Antelope;
 Warnings:
 Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 CREATE TABLE tab0(c1 INT,c2 LONGBLOB ) ENGINE=InnoDB ROW_FORMAT=Dynamic;
-ERROR HY000: Table storage engine for 'tab0' doesn't have this option
+DROP TABLE tab0;
 SET GLOBAL innodb_file_format=Default;
 Warnings:
 Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html

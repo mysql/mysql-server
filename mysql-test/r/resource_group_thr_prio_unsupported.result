@@ -1,0 +1,239 @@
+# Resource group tests with thread priority disabled.
+# Create Resource Group Tests
+# 1. Invalid Resource Group Name.
+CREATE RESOURCE GROUP 'invalid_utf8¿ÿres' TYPE=USER VCPU=1-3, 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''invalid_utf8¿ÿres' TYPE=USER VCPU=1-3, 1' at line 1
+# 2. Invalid Resource Group Type
+CREATE RESOURCE GROUP test TYPE=INVALID_TYPE VCPU=3-1, 0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVALID_TYPE VCPU=3-1, 0' at line 1
+# 3. Invalid VCPU ID and VCPU Range
+CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=MAX_CPU_NUM;
+ERROR HY000: Invalid cpu id MAX_CPU_NUM
+# 3.1 Invalid VCPU Range.
+CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=3-1;
+ERROR HY000: Invalid VCPU range 3-1
+# 4. Invalid Value of thread priority.
+# 5. Invalid Value of thread priority for user resource group type.
+# 5.1 Thread priority ignored warning.
+CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=-5;
+Warnings:
+Warning	3659	Attribute thread_priority is ignored (using default value).
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3659	Attribute thread_priority is ignored (using default value).
+# 6. Create a valid user resource group.
+SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS WHERE RESOURCE_GROUP_NAME="user_resource";
+RESOURCE_GROUP_NAME	RESOURCE_GROUP_TYPE	RESOURCE_GROUP_ENABLED	VCPU_IDS	THREAD_PRIORITY
+user_resource	USER	1	1-3	0
+# 7. Resource group already exists error.
+CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=5;
+ERROR HY000: Resource Group 'user_resource' exists
+# 7.1 Case sensitivity of RESOURCE GROUP.
+CREATE RESOURCE GROUP USER_resource TYPE=USER;
+ERROR HY000: Resource Group 'USER_resource' exists
+DROP RESOURCE GROUP user_resource;
+# 8. Privilege Error - user with default privileges can't create resource group.
+CREATE USER u1;
+CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=5;
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
+# 9. Privilege Error  - user with  RESOURCE_GROUP_USER privilege can't create resource group.
+GRANT RESOURCE_GROUP_USER ON *.* TO u1;
+CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=5;
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
+DROP USER u1;
+# 10. Length of resource group name is greater than maximum allowed limit of identifier names.
+CREATE RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafffffffff TYPE=USER;
+ERROR 42000: Identifier name 'user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+# ALTER resource group tests
+# 1. Alter on non-existent resource group.
+ALTER RESOURCE GROUP user_resource VCPU=3;
+ERROR HY000: Resource Group 'user_resource' does not exist.
+# 2. Alter with a invalid CPU ID
+CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=5;
+Warnings:
+Warning	3659	Attribute thread_priority is ignored (using default value).
+ALTER RESOURCE GROUP user_resource VCPU=MAX_CPU_NUM;
+ERROR HY000: Invalid cpu id MAX_CPU_NUM
+# 3. Alter with invalid CPU range.
+ALTER RESOURCE GROUP user_resource VCPU=3-1;
+ERROR HY000: Invalid VCPU range 3-1
+# 4. Alter with invalid thread_priority
+# 5. Alter with invalid thread priority for a user resource group.
+ALTER RESOURCE GROUP user_resource THREAD_PRIORITY=-5;
+Warnings:
+Warning	3659	Attribute thread_priority is ignored (using default value).
+# 6. DISABLE and ENABLE the resource group.
+ALTER RESOURCE GROUP user_resource DISABLE;
+SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS WHERE RESOURCE_GROUP_NAME="user_resource";
+RESOURCE_GROUP_NAME	RESOURCE_GROUP_TYPE	RESOURCE_GROUP_ENABLED	VCPU_IDS	THREAD_PRIORITY
+user_resource	USER	0	1-3	0
+ALTER RESOURCE GROUP user_resource ENABLE;
+# 7. Test FORCE option of ALTER
+SET RESOURCE GROUP user_resource;
+SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE RESOURCE_GROUP="user_resource";
+COUNT(*) = 1
+1
+ALTER RESOURCE GROUP user_resource FORCE;
+ERROR HY000: Option FORCE invalid as DISABLE option is not specified.
+ALTER RESOURCE GROUP user_resource DISABLE;
+ALTER RESOURCE GROUP user_resource DISABLE FORCE;
+SELECT COUNT(*) = 0 FROM performance_schema.threads WHERE RESOURCE_GROUP="user_resource";
+COUNT(*) = 0
+1
+# 8. Privilege Error - user with default privileges can't alter resource group.
+CREATE USER u1;
+ALTER RESOURCE GROUP user_resource VCPU=0 THREAD_PRIORITY=5;
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
+# 9. Privilege Error  - user with  RESOURCE_GROUP_USER privilege can't alter resource group.
+GRANT RESOURCE_GROUP_USER ON *.* TO u1;
+ALTER RESOURCE GROUP user_resource  VCPU=0 THREAD_PRIORITY=5;
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
+DROP USER u1;
+# 10. Length of resource group name is greater than maximum allowed limit of identifier names.
+ALTER RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafffffffff DISABLE;
+ERROR 42000: Identifier name 'user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+# 11. Default resource groups can't be altered.
+ALTER RESOURCE GROUP SYS_default VCPU=0;
+ERROR HY000: Alter operation is disallowed on default resource groups. 
+ALTER RESOURCE GROUP USR_default VCPU=1;
+ERROR HY000: Alter operation is disallowed on default resource groups. 
+# 11. Alter VCPU IDS and/or thread priority
+SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS WHERE RESOURCE_GROUP_NAME='user_resource';
+RESOURCE_GROUP_NAME	RESOURCE_GROUP_TYPE	RESOURCE_GROUP_ENABLED	VCPU_IDS	THREAD_PRIORITY
+user_resource	USER	0	1-3	0
+ALTER RESOURCE GROUP user_resource VCPU=0,2;
+SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS WHERE RESOURCE_GROUP_NAME='user_resource';
+RESOURCE_GROUP_NAME	RESOURCE_GROUP_TYPE	RESOURCE_GROUP_ENABLED	VCPU_IDS	THREAD_PRIORITY
+user_resource	USER	0	0,2	0
+# DROP resource group tests.
+# 1. DROP on a non-existent resource group.
+DROP RESOURCE GROUP user_resource1;
+ERROR HY000: Resource Group 'user_resource1' does not exist.
+# 2. DROP an existing resource group.
+SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS WHERE RESOURCE_GROUP_NAME="user_resource";
+RESOURCE_GROUP_NAME	RESOURCE_GROUP_TYPE	RESOURCE_GROUP_ENABLED	VCPU_IDS	THREAD_PRIORITY
+user_resource	USER	0	0,2	0
+DROP RESOURCE GROUP user_resource;
+# 3. Test FORCE option of resource group.
+CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=7;
+Warnings:
+Warning	3659	Attribute thread_priority is ignored (using default value).
+SET RESOURCE GROUP user_resource;
+DROP RESOURCE GROUP user_resource;
+ERROR HY000: Resource group user_resource is busy.
+SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.RESOURCE_GROUPS WHERE RESOURCE_GROUP_NAME="user_resource";
+COUNT(*) = 1
+1
+DROP RESOURCE GROUP user_resource FORCE;
+SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.RESOURCE_GROUPS WHERE RESOURCE_GROUP_NAME="user_resource";
+COUNT(*) = 0
+1
+# 4. Privilege Error - user with RESOURCE_GROUP_USER privilege can't drop resource group.
+CREATE USER u1;
+GRANT RESOURCE_GROUP_USER ON *.* TO u1;
+CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3;
+DROP RESOURCE GROUP user_resource;
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
+DROP RESOURCE GROUP user_resource;
+DROP USER u1;
+# 10. Length of resource group name is greater than maximum allowed limit of identifier names.
+DROP RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafffffffff;
+ERROR 42000: Identifier name 'user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+# 11. Default resource groups can't be dropped.
+DROP RESOURCE GROUP USR_default;
+ERROR HY000: Drop operation  operation is disallowed on default resource groups. 
+DROP RESOURCE GROUP SYS_default;
+ERROR HY000: Drop operation  operation is disallowed on default resource groups. 
+# SET resource group tests.
+SET RESOURCE GROUP user_resource;
+ERROR HY000: Resource Group 'user_resource' does not exist.
+# 2. SET current session to a resource group.
+CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=7;
+Warnings:
+Warning	3659	Attribute thread_priority is ignored (using default value).
+SET RESOURCE GROUP user_resource;
+SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE RESOURCE_GROUP="user_resource";
+COUNT(*) = 1
+1
+# 3. Assign a system thread to a user resource group.
+SET RESOURCE GROUP user_resource FOR pfs_system_thread_id;;
+ERROR HY000: Unable to bind resource group user_resource with thread id (pfs_system_thread_id).(Resource group type and thread type doesn't match.).
+# 4. Assign a system thread to system resource group.
+CREATE RESOURCE GROUP system_resource TYPE=SYSTEM VCPU=0-2 THREAD_PRIORITY=-1;
+Warnings:
+Warning	3659	Attribute thread_priority is ignored (using default value).
+SET RESOURCE GROUP system_resource FOR pfs_system_thread_id;;
+SELECT THREAD_ID, NAME, RESOURCE_GROUP FROM performance_schema.threads WHERE THREAD_ID=pfs_system_thread_id;;
+THREAD_ID	NAME	RESOURCE_GROUP
+pfs_system_thread_id	thread/innodb/io_write_thread	system_resource
+# 5. Assign a group of threads to a resource group.
+SET RESOURCE GROUP system_resource FOR pfs_system_thread_id1, pfs_system_thread_id2;;
+SELECT COUNT(*) = 2 FROM performance_schema.threads WHERE THREAD_ID IN (pfs_system_thread_id1, pfs_system_thread_id2);;
+COUNT(*) = 2
+1
+# 6. Privilege Tests
+CREATE USER u1;
+SET RESOURCE GROUP user_resource;
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN OR RESOURCE_GROUP_USER privilege(s) for this operation
+GRANT RESOURCE_GROUP_USER ON *.* TO u1;
+SET RESOURCE GROUP user_resource;
+SET RESOURCE GROUP system_resource;
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
+DROP USER u1;
+# 7. SET RESOURCE GROUP on invalid thread id will give warning.
+SET RESOURCE GROUP user_resource FOR 77777;
+ERROR HY000: Invalid thread id (77777).
+# 8. Disable resource group and assign to the current session - This should give error.
+ALTER RESOURCE GROUP user_resource DISABLE;
+SET RESOURCE GROUP user_resource;
+ERROR HY000: Resource group user_resource is disabled.
+DROP RESOURCE GROUP user_resource FORCE;
+# 10. Length of resource group name is greater than maximum allowed limit of identifier names.
+SET RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafffffffff;
+ERROR 42000: Identifier name 'user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+# 11. Do not allow a system resource group to be assigned to user thread.
+SET RESOURCE GROUP SYS_default;
+ERROR HY000: Unable to bind resource group SYS_default with thread id ID.(System resource group can't be applied to user thread.).
+# Query Hint Tests
+# 1. Hint on non-existent Resource Group.
+SELECT /*+ RESOURCE_GROUP(rg) */ 1;
+1
+1
+Warnings:
+Warning	3651	Resource Group 'rg' does not exist.
+# 2. Using system resource group in hint for a non-privilege user should give warning
+CREATE USER u1;
+SELECT /*+ RESOURCE_GROUP(system_resource) */ 1;
+1
+1
+Warnings:
+Warning	3661	Unable to bind resource group system_resource with thread id ID.(System resource group can't be bound with a session thread).
+DROP USER u1;
+# 3. Length of resource group name is greater than maximum allowed limit of identifier names.
+#    length shall be truncated in this case and warning output to user.
+SELECT /*+ RESOURCE GROUP (user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaffffffff#f) */ 1;
+1
+1
+Warnings:
+Warning	1064	Optimizer hint syntax error near 'RESOURCE GROUP (user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' at line 1
+# Information Schema and Privilege related tests.
+SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS;
+RESOURCE_GROUP_NAME	RESOURCE_GROUP_TYPE	RESOURCE_GROUP_ENABLED	VCPU_IDS	THREAD_PRIORITY
+USR_default	USER	1	NUM_VCPUS	0
+SYS_default	SYSTEM	1	NUM_VCPUS	0
+system_resource	SYSTEM	1	NUM_VCPUS	0
+CREATE USER u1;
+SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS;
+RESOURCE_GROUP_NAME	RESOURCE_GROUP_TYPE	RESOURCE_GROUP_ENABLED	VCPU_IDS	THREAD_PRIORITY
+GRANT RESOURCE_GROUP_USER ON *.* TO u1;
+SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS;
+RESOURCE_GROUP_NAME	RESOURCE_GROUP_TYPE	RESOURCE_GROUP_ENABLED	VCPU_IDS	THREAD_PRIORITY
+USR_default	USER	1	NUM_VCPUS	0
+GRANT RESOURCE_GROUP_ADMIN ON *.* TO u1;
+SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS;
+RESOURCE_GROUP_NAME	RESOURCE_GROUP_TYPE	RESOURCE_GROUP_ENABLED	VCPU_IDS	THREAD_PRIORITY
+USR_default	USER	1	NUM_VCPUS	0
+SYS_default	SYSTEM	1	NUM_VCPUS	0
+system_resource	SYSTEM	1	NUM_VCPUS	0
+DROP USER u1;
+DROP RESOURCE GROUP system_resource FORCE;

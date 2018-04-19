@@ -1,0 +1,115 @@
+#
+# BUG#57373: Multi update+InnoDB reports ER_KEY_NOT_FOUND if a
+#            table is updated twice
+#
+CREATE TABLE t1(
+pk INT,
+a INT,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (0,0);
+UPDATE t1 AS A, t1 AS B SET A.pk = 1, B.a = 2;
+
+# Should be (1,2)
+SELECT * FROM t1;
+pk	a
+1	2
+DROP TABLE t1;
+#
+# BUG#11882110: UPDATE REPORTS ER_KEY_NOT_FOUND IF TABLE IS
+#               UPDATED TWICE
+#
+CREATE TABLE t1 (
+col_int_key int,
+pk int,
+col_int int,
+key(col_int_key),
+primary key (pk)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,2,3);
+
+CREATE TABLE t2 (
+col_int_key int,
+pk_1 int,
+pk_2 int,
+col_int int,
+key(col_int_key),
+primary key (pk_1,pk_2)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,2,3,4);
+
+UPDATE t1 AS A NATURAL JOIN t1 B SET A.pk=5,B.pk=7;
+
+SELECT * FROM t1;
+col_int_key	pk	col_int
+1	7	3
+
+UPDATE t2 AS A NATURAL JOIN t2 B SET A.pk_1=5,B.pk_1=7;
+
+UPDATE t2 AS A NATURAL JOIN t2 B SET A.pk_2=10,B.pk_2=11;
+
+SELECT * FROM t2;
+col_int_key	pk_1	pk_2	col_int
+1	7	11	4
+DROP TABLE t1,t2;
+#
+#Bug 11757486 - 49539: NON-DESCRIPTIVE ERR (ERROR 0 FROM STORAGE ENGINE)
+#                      WITH MULTI-TABLE UPDATE
+#
+CREATE TABLE table_11757486 (field1 tinyint) ENGINE=MYISAM;
+INSERT INTO table_11757486 VALUES (0),(0);
+SET SESSION SQL_MODE=default;
+UPDATE IGNORE (SELECT 128 as col1) x, table_11757486 SET field1=x.col1;
+Warnings:
+Warning	1264	Out of range value for column 'field1' at row 1
+Warning	1264	Out of range value for column 'field1' at row 2
+UPDATE (SELECT 128 as col1) x, table_11757486 SET field1=x.col1;
+ERROR 22003: Out of range value for column 'field1' at row 1
+SET SESSION SQL_MODE='';
+UPDATE IGNORE (SELECT 128 as col1) x, table_11757486 SET field1=x.col1;
+Warnings:
+Warning	1264	Out of range value for column 'field1' at row 1
+Warning	1264	Out of range value for column 'field1' at row 2
+DROP TABLE table_11757486;
+CREATE TABLE `t1` (
+`a` int(11) NOT NULL auto_increment,
+`b` int(11) default NULL,
+PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
+CREATE TABLE `t2` (
+`a` int(11) NOT NULL auto_increment,
+`b` int(11) default NULL,
+PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
+set @sav_binlog_format=  @@session.binlog_format;
+set @@session.binlog_format= mixed;
+insert into t1 values (1,1),(2,2);
+insert into t2 values (1,1),(4,4);
+reset master;
+UPDATE t2,t1 SET t2.a=t1.a+2;
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+select * from t2 /* must be (3,1), (4,4) */;
+a	b
+3	1
+4	4
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.t2)
+binlog.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	COMMIT
+delete from t1;
+delete from t2;
+insert into t1 values (1,2),(3,4),(4,4);
+insert into t2 values (1,2),(3,4),(4,4);
+reset master;
+UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.t2)
+binlog.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	COMMIT
+drop table t1, t2;
+set @@session.binlog_format= @sav_binlog_format;

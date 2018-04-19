@@ -26,8 +26,6 @@ values ('TABLE', 'db4', 't1', 'NO', 'YES');
 insert into performance_schema.setup_objects
 values ('TABLE', 'db4', '%', 'YES', 'NO');
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 insert into performance_schema.setup_objects
 values ('SOMETHING', 'bad1', 'bad1', 'YES', 'NO');
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails ()

@@ -1,0 +1,45 @@
+# Check if a tablespace is discoverable during crash recovery
+
+--source include/have_innodb_max_16k.inc
+
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+
+let MYSQLD_DATADIR= `select @@datadir`;
+
+SET GLOBAL innodb_file_per_table=ON;
+
+CREATE DATABASE discover;
+use discover;
+
+# Stop the once a second checkpoint
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+
+# Check if we can recover from a crash when a full checkpoint happens
+# between the CREATE redo logging and the tablespace page init.
+
+SET SESSION debug="+d,fil_ibd_create_log";
+
+--source include/expect_crash.inc
+
+--error 2013
+CREATE TABLE discover.t1(c INT) engine=InnoDB;
+
+--source include/start_mysqld.inc
+
+CREATE TABLE discover.t2(c INT) ENGINE=InnoDB;
+
+BEGIN;
+INSERT INTO t2 VALUES(1);
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+
+--source include/kill_mysqld.inc
+--source include/start_mysqld.inc
+
+# Should be empty, transaction should be rolled back and the tablespace
+# should be found in the right place.
+SELECT * FROM t2;
+
+DROP DATABASE discover;

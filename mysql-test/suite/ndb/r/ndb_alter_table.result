@@ -1,5 +1,3 @@
-DROP TABLE IF EXISTS t1, t2;
-drop database if exists mysqltest;
 CREATE TABLE t1 (
 a INT NOT NULL,
 b INT NOT NULL
@@ -31,16 +29,18 @@ col2 varchar(30) not null,
 col3 varchar (20) not null,
 col4 varchar(4) not null,
 col5 enum('PENDING', 'ACTIVE', 'DISABLED') not null,
-col6 int not null, to_be_deleted int)  ENGINE=ndbcluster;
+col6 int not null, to_be_deleted int)  ENGINE=ndbcluster charset=latin1;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	ndbcluster	10	Dynamic	0	#	#	#	0	#	1	#	#	#	latin1_swedish_ci	NULL		#
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1 values
 (0,4,3,5,"PENDING",1,7),(NULL,4,3,5,"PENDING",1,7),(31,4,3,5,"PENDING",1,7), (7,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7), (100,4,3,5,"PENDING",1,7), (99,4,3,5,"PENDING",1,7), (8,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ndbcluster	10	Dynamic	9	#	#	#	0	#	102	#	#	#	latin1_swedish_ci	NULL		#
+t1	ndbcluster	10	Dynamic	0	#	#	#	0	#	1	#	#	#	latin1_swedish_ci	NULL		#
 select * from t1 order by col1;
 col1	col2	col3	col4	col5	col6	to_be_deleted
 0	4	3	5	PENDING	1	7
@@ -60,7 +60,7 @@ change column col2 fourth varchar(30) not null after col3,
 modify column col6 int not null first;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ndbcluster	10	Dynamic	9	#	#	#	0	#	102	#	#	#	latin1_swedish_ci	NULL		#
+t1	ndbcluster	10	Dynamic	0	#	#	#	0	#	1	#	#	#	latin1_swedish_ci	NULL		#
 select * from t1 order by col1;
 col6	col1	col3	fourth	col4	col4_5	col5	col7	col8
 1	0	3	4	5		PENDING		0000-00-00 00:00:00
@@ -75,7 +75,7 @@ col6	col1	col3	fourth	col4	col4_5	col5	col7	col8
 insert into t1 values (2, NULL,4,3,5,99,"PENDING","EXTRA",'2004-01-01 00:00:00');
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ndbcluster	10	Dynamic	10	#	#	#	0	#	103	#	#	#	latin1_swedish_ci	NULL		#
+t1	ndbcluster	10	Dynamic	0	#	#	#	0	#	1	#	#	#	latin1_swedish_ci	NULL		#
 select * from t1 order by col1;
 col6	col1	col3	fourth	col4	col4_5	col5	col7	col8
 1	0	3	4	5		PENDING		0000-00-00 00:00:00
@@ -133,6 +133,8 @@ a	b
 0	1
 17	18
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 alter table  t1 modify column a int not null auto_increment;
 SET SQL_MODE='';
 select * from t1 order by a;
@@ -298,7 +300,7 @@ a	b
 6	203
 alter table t2 add c int;
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
 insert into t2 (b) values (301),(302),(303);
 select * from t2 where a = 9;
 a	b	c
@@ -370,7 +372,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL DEFAULT '0',
   `c` varchar(254) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 alter b set default 1;
 show create table t1;
 Table	Create Table
@@ -379,7 +381,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL DEFAULT '1',
   `c` varchar(254) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int not null, b int not null) engine=ndb;
 insert into t1 values (1, 300), (2, 200), (3, 100);
@@ -525,7 +527,7 @@ unique i60 (ci061),
 unique i61 (ci062),
 unique i62 (ci063),
 unique i63 (ci064)
-) engine=ndb;
+) engine=ndb charset=latin1;
 drop table t1;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
@@ -540,10 +542,113 @@ ENGINE = ndb;
 ALTER TABLE t1 TABLESPACE ts1, MODIFY c CHAR(20) STORAGE DISK;
 DROP TABLE t1;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE = ndb;
-DROP TABLESPACE ts1
-ENGINE ndb;
+DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1
 ENGINE = ndb;
-End of 5.1 tests
+#test alter table add column with partion by and comment clause
+CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB CHARSET=latin1;
+ALTER TABLE t1 ADD value INT NULL, COMMENT='comment1' PARTITION BY KEY(id);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `value` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='comment1'
+/*!50100 PARTITION BY KEY (id) */
+DROP TABLE t1;
+#test alter table with and without ENGINE clause
+CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB CHARSET=latin1;
+ALTER TABLE t1 ENGINE=NDB PARTITION BY KEY(id);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (id) */
+DROP TABLE t1;
+CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB CHARSET=latin1;
+ALTER TABLE t1 PARTITION BY KEY(id);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (id) */
+DROP TABLE t1;
+bug#24577931 table comment is case sensitive
+create table tbasic(
+id int not null,
+name varchar(20), age int
+) engine=ndb charset=latin1;
+-- tbasic --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+id Int NOT NULL AT=FIXED ST=MEMORY
+name Varchar(20;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY
+age Int NULL AT=FIXED ST=MEMORY
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+-- Indexes -- 
+PRIMARY KEY($PK) - UniqueHashIndex
+
+NDBT_ProgramExit: 0 - OK
+
+alter table tbasic algorithm=copy, comment="NDB_TABLE=FULLY_REPLICATEd=1";
+-- tbasic --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+id Int NOT NULL AT=FIXED ST=MEMORY
+name Varchar(20;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY
+age Int NULL AT=FIXED ST=MEMORY
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+-- Indexes -- 
+PRIMARY KEY($PK) - UniqueHashIndex
+
+NDBT_ProgramExit: 0 - OK
+
+drop table tbasic;

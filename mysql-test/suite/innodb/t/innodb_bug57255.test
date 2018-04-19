@@ -1,7 +1,6 @@
 # Test Bug #57255. Cascade deletes that affect different rows should not
 # result in DB_FOREIGN_EXCEED_MAX_CASCADE error
 
---source include/have_innodb.inc
 
 create table A(id int not null primary key) engine=innodb;
 

@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -337,9 +344,16 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
   m_errorInsert= 0;
 
   struct sockaddr_in addr;
-  SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-  if (my_getpeername(sock, (struct sockaddr*)&addr, &addrlen) == 0)
-    m_name.assfmt("%s:%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+  ndb_socket_len_t addrlen= sizeof(addr);
+  if (ndb_getpeername(sock, (struct sockaddr*)&addr, &addrlen) == 0)
+  {
+    char addr_buf[NDB_ADDR_STRLEN];
+    char *addr_str = Ndb_inet_ntop(AF_INET,
+                                   static_cast<void*>(&addr.sin_addr),
+                                   addr_buf,
+                                   sizeof(addr_buf));
+    m_name.assfmt("%s:%d", addr_str, ntohs(addr.sin_port));
+  }
   DBUG_PRINT("info", ("new connection from: %s", m_name.c_str()));
 
   DBUG_VOID_RETURN;
@@ -354,10 +368,10 @@ MgmApiSession::~MgmApiSession()
     delete m_output;
   if (m_parser)
     delete m_parser;
-  if(my_socket_valid(m_socket))
+  if(ndb_socket_valid(m_socket))
   {
-    NDB_CLOSE_SOCKET(m_socket);
-    my_socket_invalidate(&m_socket);
+    ndb_socket_close(m_socket);
+    ndb_socket_invalidate(&m_socket);
   }
   if(m_stopSelf < 0)
     g_RestartServer= true;
@@ -449,10 +463,10 @@ MgmApiSession::runSession()
 
   NdbMutex_Lock(m_mutex);
   m_ctx= NULL;
-  if(my_socket_valid(m_socket))
+  if(ndb_socket_valid(m_socket))
   {
-    my_socket_close(m_socket);
-    my_socket_invalidate(&m_socket);
+    ndb_socket_close(m_socket);
+    ndb_socket_invalidate(&m_socket);
   }
   NdbMutex_Unlock(m_mutex);
 
@@ -517,8 +531,8 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 
   struct sockaddr_in addr;
   {
-    SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-    int r = my_getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
+    ndb_socket_len_t addrlen= sizeof(addr);
+    int r = ndb_getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
     if (r != 0 )
     {
       m_output->println("result: getpeername(" MY_SOCKET_FORMAT \
@@ -880,7 +894,7 @@ MgmApiSession::stopSignalLog(Parser<MgmApiSession>::Context &,
 
   int result = m_mgmsrv.stopSignalTracing(node);
 
-  m_output->println("stop signallog");
+  m_output->println("stop signallog reply");
   if(result != 0)
     m_output->println("result: %s", get_error_text(result));
   else
@@ -983,7 +997,7 @@ MgmApiSession::restartAll(Parser<MgmApiSession>::Context &,
 
   m_output->println("restart reply");
   if(result != 0)
-    m_output->println("result: %s", get_error_text(result));
+    m_output->println("result: %d-%s", result, get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("restarted: %d", count);
@@ -1004,9 +1018,13 @@ printNodeStatus(OutputStream *output,
       connectCount = 0;
     bool system;
     const char *address= NULL;
+    char addr_buf[NDB_ADDR_STRLEN];
+
     mgmsrv.status(nodeId, &status, &version, &mysql_version, &startPhase,
 		  &system, &dynamicId, &nodeGroup, &connectCount,
-		  &address);
+		  &address,
+                  addr_buf,
+                  sizeof(addr_buf));
     output->println("node.%d.type: %s",
 		      nodeId,
 		      ndb_mgm_get_node_type_string(type));
@@ -1304,7 +1322,7 @@ MgmApiSession::start(Parser<MgmApiSession>::Context &,
 
   args.get("node", &node);
   
-  int result = m_mgmsrv.start(node);
+  int result = m_mgmsrv.sendSTART_ORD(node);
 
   m_output->println("start reply");
   if(result != 0)
@@ -1321,7 +1339,7 @@ MgmApiSession::startAll(Parser<MgmApiSession>::Context &,
   int started = 0;
 
   while(m_mgmsrv.getNextNodeId(&node, NDB_MGM_NODE_TYPE_NDB))
-    if(m_mgmsrv.start(node) == 0)
+    if(m_mgmsrv.sendSTART_ORD(node) == 0)
       started++;
 
   m_output->println("start reply");
@@ -1462,7 +1480,7 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
   {
     if(threshold <= m_clients[i].m_logLevel.getLogLevel(cat))
     {
-      if(!my_socket_valid(m_clients[i].m_socket))
+      if(!ndb_socket_valid(m_clients[i].m_socket))
         continue;
 
       SocketOutputStream out(m_clients[i].m_socket);
@@ -1496,7 +1514,7 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
   if ((n= (int)copy.size()))
   {
     for(i= 0; i < n; i++)
-      NDB_CLOSE_SOCKET(copy[i]);
+      ndb_socket_close(copy[i]);
 
     LogLevel tmp; tmp.clear();
     m_clients.lock();
@@ -1538,7 +1556,7 @@ Ndb_mgmd_event_service::check_listeners()
   m_clients.lock();
   for(i= m_clients.size() - 1; i >= 0; i--)
   {
-    if(!my_socket_valid(m_clients[i].m_socket))
+    if(!ndb_socket_valid(m_clients[i].m_socket))
       continue;
 
     SocketOutputStream out(m_clients[i].m_socket);
@@ -1549,7 +1567,7 @@ Ndb_mgmd_event_service::check_listeners()
 
     if(out.println("<PING>") < 0)
     {
-      NDB_CLOSE_SOCKET(m_clients[i].m_socket);
+      ndb_socket_close(m_clients[i].m_socket);
       m_clients.erase(i, false);
       n=1;
     }
@@ -1584,10 +1602,10 @@ void
 Ndb_mgmd_event_service::stop_sessions(){
   m_clients.lock();
   for(int i = m_clients.size() - 1; i >= 0; i--){
-    if(my_socket_valid(m_clients[i].m_socket))
+    if(ndb_socket_valid(m_clients[i].m_socket))
     {
-      NDB_CLOSE_SOCKET(m_clients[i].m_socket);
-      m_clients.erase(i);
+      ndb_socket_close(m_clients[i].m_socket);
+      m_clients.erase(i, false);
     }
   }
   m_clients.unlock();
@@ -1742,7 +1760,7 @@ done:
   {
     m_mgmsrv.m_event_listner.add_listener(le);
     m_stop = true;
-    my_socket_invalidate(&m_socket);
+    ndb_socket_invalidate(&m_socket);
   }
 }
 
@@ -1774,15 +1792,18 @@ void
 MgmApiSession::transporter_connect(Parser_t::Context &ctx,
 				   Properties const &args)
 {
+  bool close_with_reset = true;
   BaseString errormsg;
-  if (!m_mgmsrv.transporter_connect(m_socket, errormsg))
+  if (!m_mgmsrv.transporter_connect(m_socket, errormsg, close_with_reset))
   {
     // Connection not allowed or failed
     g_eventLogger->warning("Failed to convert connection "
                            "from '%s' to transporter: %s",
                            name(),
                            errormsg.c_str());
-    // Close the socket to indicate failure to other side
+    // Close the socket to indicate failure to client
+    ndb_socket_close_with_reset(m_socket, close_with_reset);
+    ndb_socket_invalidate(&m_socket); // Already closed
   }
   else
   {
@@ -1792,7 +1813,7 @@ MgmApiSession::transporter_connect(Parser_t::Context &ctx,
       but don't close the socket, it's been taken over
       by the transporter
     */
-    my_socket_invalidate(&m_socket);   // so nobody closes it
+    ndb_socket_invalidate(&m_socket);   // so nobody closes it
   }
 
   m_stop= true; // Stop the session
@@ -1915,6 +1936,12 @@ MgmApiSession::list_session(SocketServer::Session *_s, void *data)
   {
     int l= (int)strlen(s->m_ctx->m_tokenBuffer);
     char *buf= (char*) malloc(2*l+1);
+
+    if (buf == NULL)
+    {
+        lister->m_stop = true;
+        return;
+    }
     char *b= buf;
     for(int i=0; i<l;i++)
       if(s->m_ctx->m_tokenBuffer[i]=='\n')

@@ -1,0 +1,263 @@
+--echo #
+--echo # WL#9343: Logging services: log writers
+--echo #
+
+# This tests whether we can load and unload the systemd log writer server.
+# It also tests whether the log_syslog* system variables behave as expected.
+# This used to be tested in the sys_vars suite, but since the behavior now
+# depends on what service is loaded, if any, we test it here instead.
+# In fact, we'll have to test it for each service that provides these.
+
+--source include/linux.inc
+--source include/have_log_component.inc
+
+SELECT @@global.log_error_services;
+--echo
+
+--echo #
+--echo # WL#9343: Logging services: log writers: syslog
+--echo #
+
+SELECT "*** SWITCHING ERROR LOG TO SYSLOG/EVENTLOG ***";
+INSTALL COMPONENT "file://component_log_sink_syseventlog";
+SET @@global.log_error_services="log_filter_internal; log_sink_internal; log_sink_syseventlog";
+SELECT "logging to syseventlog";
+
+
+################## mysql-test\t\log_syslog_basic.test #########################
+#                                                                             #
+# Variable Name: log_syslog                                                   #
+# Scope: Global                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: bool                                                             #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2014-02-14                                                   #
+# Author : Azundris (tnuernbe)                                                #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable                           #
+#             log_syslog                                                      #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference:                                                                  #
+#  http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html        #
+#                                                                             #
+###############################################################################
+
+SET @start_value= @@global.log_syslog;
+
+SET @@global.log_syslog= DEFAULT;
+SELECT @@global.log_syslog;
+
+SET @@global.log_syslog= 0;
+SELECT @@global.log_syslog;
+
+SET @@global.log_syslog= 1;
+SELECT @@global.log_syslog;
+
+SET @@global.log_syslog= ON;
+SELECT @@global.log_syslog;
+
+SET @@global.log_syslog= OFF;
+SELECT @@global.log_syslog;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_syslog= 9;
+SELECT @@global.log_syslog;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_syslog= 0.01;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_syslog= 0;
+
+--error ER_GLOBAL_VARIABLE
+SET LOCAL log_syslog= 0;
+
+SET @@global.log_syslog= @start_value;
+
+
+
+################## mysql-test\t\log_syslog_facility_basic.test ################
+#                                                                             #
+# Variable Name: log_syslog_facility                                          #
+# Scope: Global                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2014-02-14                                                   #
+# Author : Azundris (tnuernbe)                                                #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable                           #
+#             log_syslog_facility                                             #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference:                                                                  #
+#  http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html        #
+#                                                                             #
+###############################################################################
+
+SET @start_value= @@global.log_syslog_facility;
+
+SET @@global.log_syslog_facility= DEFAULT;
+SELECT @@global.log_syslog_facility, @start_value;
+
+SET @@global.log_syslog_facility="user";
+SELECT @@global.log_syslog_facility;
+
+SET @@global.log_syslog_facility= "daemon";
+SELECT @@global.log_syslog_facility;
+
+SET @@global.log_syslog_facility= "local0";
+SELECT @@global.log_syslog_facility;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.log_syslog_facility= 9;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_syslog_facility= 0.01;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_syslog_facility= "local1";
+
+--error ER_GLOBAL_VARIABLE
+SET LOCAL log_syslog_facility= "local1";
+
+SET @@global.log_syslog_facility= "log_local5";
+SELECT @@global.log_syslog_facility;
+SET @@global.log_syslog_facility= "LOG_LOCAL7";
+SELECT @@global.log_syslog_facility;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_syslog_facility= "9";
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_syslog_facility= "local8";
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_syslog_facility= "";
+
+SET @@global.log_syslog_facility= @start_value;
+--echo
+
+
+
+################## mysql-test\t\log_syslog_include_pid_basic.test #############
+#                                                                             #
+# Variable Name: log_syslog_include_pid                                       #
+# Scope: Global                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: bool                                                             #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2014-02-14                                                   #
+# Author : Azundris (tnuernbe)                                                #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable                           #
+#             log_syslog_include_pid                                          #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference:                                                                  #
+#  http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html        #
+#                                                                             #
+###############################################################################
+
+SET @start_value= @@global.log_syslog_include_pid;
+
+SET @@global.log_syslog_include_pid= DEFAULT;
+SELECT @@global.log_syslog_include_pid;
+
+SET @@global.log_syslog_include_pid= 0;
+SELECT @@global.log_syslog_include_pid;
+
+SET @@global.log_syslog_include_pid= 1;
+SELECT @@global.log_syslog_include_pid;
+
+SET @@global.log_syslog_include_pid= ON;
+SELECT @@global.log_syslog_include_pid;
+
+SET @@global.log_syslog_include_pid= OFF;
+SELECT @@global.log_syslog_include_pid;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_syslog_include_pid= 9;
+SELECT @@global.log_syslog_include_pid;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_syslog_include_pid= 0.01;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_syslog_include_pid= 0;
+
+--error ER_GLOBAL_VARIABLE
+SET LOCAL log_syslog_include_pid= 0;
+
+SET @@global.log_syslog_include_pid= @start_value;
+
+
+
+################## mysql-test\t\log_syslog_tag_basic.test #####################
+#                                                                             #
+# Variable Name: log_syslog_tag                                               #
+# Scope: Global                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2014-02-14                                                   #
+# Author : Azundris (tnuernbe)                                                #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable                           #
+#             log_syslog_tag                                                  #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference:                                                                  #
+#  http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html        #
+#                                                                             #
+###############################################################################
+
+SET @start_value= @@global.log_syslog_tag;
+
+SET @@global.log_syslog_tag= DEFAULT;
+SELECT @@global.log_syslog_tag;
+
+SET @@global.log_syslog_tag="production";
+SELECT @@global.log_syslog_tag;
+
+SET @@global.log_syslog_tag= "";
+SELECT @@global.log_syslog_tag;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.log_syslog_tag= 9;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_syslog_tag= "path/like";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_syslog_tag= 0.01;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_syslog_tag= "staging";
+
+--error ER_GLOBAL_VARIABLE
+SET LOCAL log_syslog_tag= "staging";
+
+SET @@global.log_syslog_tag= @start_value;
+
+
+
+FLUSH ERROR LOGS;
+SET @@global.log_error_services=DEFAULT;
+UNINSTALL COMPONENT "file://component_log_sink_syseventlog";
+
+
+--echo
+--echo ###
+--echo ### done
+--echo ###

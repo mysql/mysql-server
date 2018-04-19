@@ -31,6 +31,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
 create table t1 (a mediumtext, fulltext key key1(a)) charset utf8 collate utf8_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('hello');
 analyze table t1;
 Table	Op	Msg_type	Msg_text
@@ -39,22 +41,14 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 drop table t1;
-CREATE TABLE t1 (a int);
-prepare stmt1 from "SELECT * FROM t1 PROCEDURE ANALYSE()";
-execute stmt1;
-Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
-execute stmt1;
-Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
-deallocate prepare stmt1;
-drop table t1;
 create temporary table t1(a int, index(a));
 insert into t1 values('1'),('2'),('3'),('4'),('5');
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE			YES
 drop table t1;
 End of 4.1 tests
 create table t1(a int);
@@ -64,3 +58,53 @@ optimize table t1 extended;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'extended' at line 1
 drop table t1;
 End of 5.0 tests
+#
+# Bug #21789000 SPATIAL INDEX CAUSES INCORRECT CARDINALITY FOR ALL
+# NON-PRIMARY INDEXES
+#
+CREATE TABLE t1 (
+id INT NOT NULL AUTO_INCREMENT,
+a VARCHAR(10) NOT NULL,
+b VARCHAR(5) NOT NULL,
+c GEOMETRY NOT NULL SRID 0,
+PRIMARY KEY (id),
+SPATIAL INDEX c (c),
+INDEX a (a),
+INDEX b (b)
+) ENGINE=MyISAM;
+CREATE TABLE t2 (
+id INT NOT NULL AUTO_INCREMENT,
+a VARCHAR(10) NOT NULL,
+b VARCHAR(5) NOT NULL,
+c GEOMETRY NOT NULL,
+PRIMARY KEY (id),
+INDEX a (a),
+INDEX b (b)
+) ENGINE=MyISAM;
+INSERT INTO t1(a, b, c) VALUES
+('a1', 'b1', POINT(0, 0)),
+('a2', 'b2', POINT(0, 0)),
+('a3', 'b3', POINT(0, 0)),
+('a4', 'b4', POINT(0, 0)),
+('a5', 'b5', POINT(0, 0)),
+('a6', 'b6', POINT(0, 0)),
+('a7', 'b7', POINT(0, 0));
+INSERT INTO t2 SELECT * FROM t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	id	A	7	NULL	NULL		BTREE			YES
+t1	1	c	1	c	A	1	32	NULL		SPATIAL			YES
+t1	1	a	1	a	A	7	NULL	NULL		BTREE			YES
+t1	1	b	1	b	A	7	NULL	NULL		BTREE			YES
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	Table is already up to date
+SHOW INDEXES FROM t2;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t2	0	PRIMARY	1	id	A	7	NULL	NULL		BTREE			YES
+t2	1	a	1	a	A	7	NULL	NULL		BTREE			YES
+t2	1	b	1	b	A	7	NULL	NULL		BTREE			YES
+DROP TABLE t1, t2;

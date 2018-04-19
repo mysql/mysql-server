@@ -1,0 +1,13 @@
+-- source include/have_log_bin.inc
+
+--echo #
+--echo #Bug#20444737   STRING::CHOP ASSERTS ON NAUGHTY TABLE NAMES
+--echo #
+
+--echo # Execute statements from mysql_client_test.
+# This test case is created to avoid running all tests in mysql_client_test.test with --log-bin option.
+
+--exec echo "$MYSQL_CLIENT_TEST" > $MYSQLTEST_VARDIR/log/bug20444737.out.log 2>&1
+--exec $MYSQL_CLIENT_TEST -d -u root test_bug20444737 >> $MYSQLTEST_VARDIR/log/bug20444737.out.log 2>&1
+
+DROP DATABASE client_test_db;

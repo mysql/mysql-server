@@ -1,0 +1,42 @@
+#
+# Bug #22306581	VALGRIND FAILURE IN INNODB.TEMPORARY_TABLE
+#
+create temporary table t (i int) COMPRESSION = "ZLIB" ENGINE = InnoDB;
+ERROR HY000: Table storage engine for 't' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for temporary tables
+Error	1031	Table storage engine for 't' doesn't have this option
+create table t1(i INT) COMPRESSION="ZLIB" ENGINE=InnoDB TABLESPACE=innodb_system;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for the system tablespace
+Error	1031	Table storage engine for 't1' doesn't have this option
+SET DEBUG ='+d, simulate_max_char_col';
+create table t1(f1 varchar(1000))engine=innodb;
+Got one of the listed errors
+SET DEBUG ='-d, simulate_max_char_col';
+#
+# Bug #27361662  ERROR NOT THROWN ON CREATING TEMPORARY TABLE IN
+# INNODB_FILE_PER_TABLE TABLESPACE
+#
+"Try creating temporary table with innodb_file_per_table option with STRICT mode"
+SET innodb_strict_mode = ON;
+CREATE TEMPORARY TABLE t1(c1 int) TABLESPACE innodb_file_per_table;
+ERROR HY000: InnoDB: innodb_file_per_table option not supported for temporary tables.
+SELECT COUNT(*) FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+"Try creating temporary table with innodb_file_per_table option without STRICT mode"
+SET innodb_strict_mode = OFF;
+CREATE TEMPORARY TABLE t1(c1 int) TABLESPACE innodb_file_per_table;
+Warnings:
+Warning	1478	InnoDB: innodb_file_per_table option ignored while creating temporary table with INNODB_STRICT_MODE=OFF.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: innodb_file_per_table option ignored while creating temporary table with INNODB_STRICT_MODE=OFF.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+DROP TABLE t1;
+SET innodb_strict_mode = default;

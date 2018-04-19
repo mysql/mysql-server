@@ -11,7 +11,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_geometry.inc
 
 ############################################################################################
 # Creating the spatial objects                                                             #
@@ -20,7 +19,7 @@
 --echo #Creating the spatial Geometry object
 USE test;
 
-CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 
 ############################################################################################
 # Inserting the values specific to the spatial objects                                     #
@@ -459,7 +458,7 @@ SELECT MBRINTERSECTS(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_ge
 --echo #====================================================================================
 --echo # linestring,polygon
 --echo #====================================================================================
-SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
+SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'));
 
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
@@ -467,11 +466,13 @@ SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@sta
 
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal_3));
 
+--error ER_GIS_INVALID_DATA
 SELECT MBRINTERSECTS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
 
 --echo #====================================================================================
 --echo # linestring,multipolygon
 --echo #====================================================================================
+--error ER_GIS_INVALID_DATA
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
 
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
@@ -480,6 +481,7 @@ SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@sta
 
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems_3));
 
+--error ER_GIS_INVALID_DATA
 SELECT MBRINTERSECTS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
 
 --echo #====================================================================================
@@ -724,7 +726,7 @@ SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_
 
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star));
 
-SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0,0 0))'));
 
 SELECT MBRINTERSECTS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
 
@@ -737,7 +739,7 @@ SELECT MBRINTERSECTS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometryco
 --echo #====================================================================================
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems));
 
-SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
 
 SELECT MBRINTERSECTS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
 
@@ -813,7 +815,7 @@ SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@st
 
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star));
 
-SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0,0 0))'));
 
 SELECT MBRINTERSECTS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
 
@@ -826,7 +828,7 @@ SELECT MBRINTERSECTS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometryco
 --echo #====================================================================================
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems));
 
-SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
 
 SELECT MBRINTERSECTS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
 
@@ -1106,7 +1108,7 @@ SELECT ST_INTERSECTS(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_ge
 --echo #====================================================================================
 --echo # linestring,polygon
 --echo #====================================================================================
-SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'));
 
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
@@ -1114,12 +1116,12 @@ SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@sta
 
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal_3));
 
-SELECT ST_INTERSECTS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 25))')) FROM gis_geometrycollection WHERE fid=110;
+SELECT ST_INTERSECTS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 25,11 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
 
 --echo #====================================================================================
 --echo # linestring,multipolygon
 --echo #====================================================================================
-SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25)),((25 0,0 15,25 10)))'));
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25,11 15,11 15)),((25 0,0 15,25 10,25 0)))'));
 
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 
@@ -1127,7 +1129,7 @@ SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@sta
 
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems_3));
 
-SELECT ST_INTERSECTS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25)),((25 0,0 15,25 10)))')) FROM gis_geometrycollection WHERE fid=110;
+SELECT ST_INTERSECTS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25,11 15,11 15)),((25 0,0 15,25 10,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
 
 --echo #====================================================================================
 --echo # linestring,geometrycollection
@@ -1277,7 +1279,7 @@ SELECT ST_INTERSECTS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geom
 
 SELECT ST_INTERSECTS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=400;
 
-SELECT ST_INTERSECTS(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(2 2,2 4,4 4,4 2,2 2))'),
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0),(2 2,2 4,4 4,4 2,2 2))'),
                      ST_GEOMFROMTEXT('MULTILINESTRING((11 11,20 20),(5 7, 4 1))'));
 
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT('POLYGON((5 0,0 5,-5 0,0 -5,5 0))'),
@@ -1375,7 +1377,7 @@ SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_
 
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star));
 
-SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0,0 0))'));
 
 SELECT ST_INTERSECTS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
 
@@ -1388,7 +1390,7 @@ SELECT ST_INTERSECTS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometryco
 --echo #====================================================================================
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems));
 
-SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
 
 SELECT ST_INTERSECTS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
 
@@ -1462,7 +1464,7 @@ SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@st
 
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star));
 
-SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0,0 0))'));
 
 SELECT ST_INTERSECTS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
 
@@ -1475,7 +1477,7 @@ SELECT ST_INTERSECTS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometryco
 --echo #====================================================================================
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems));
 
-SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
 
 SELECT ST_INTERSECTS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
 
@@ -1509,20 +1511,21 @@ SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@st
 --echo #====================================================================================
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
-SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
+SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
 
-SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
+SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,2000),ST_GEOMFROMTEXT(@star_center,2000));
 
-SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
+SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
 
-SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
+SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,2000),ST_GEOMFROMTEXT(@star_center,2000));
 
-SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
-
+--error ER_DATA_OUT_OF_RANGE
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
 
 --echo #====================================================================================
@@ -1530,20 +1533,25 @@ SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@s
 --echo #====================================================================================
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
-SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
 
-SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
 
-SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
 
-SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
 
-SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
 
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
 
 --echo #####################################################################################
@@ -1557,7 +1565,10 @@ SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@s
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 
 --error ER_GIS_DIFFERENT_SRIDS
-SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
 
 SELECT ST_INTERSECTS(NULL,ST_GEOMFROMTEXT(@star_top));
 
@@ -1630,7 +1641,10 @@ SELECT ST_INTERSECTS(,ST_GEOMFROMTEXT(@star_top));
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 
 --error ER_GIS_DIFFERENT_SRIDS
-SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
+SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
 
 SELECT MBRINTERSECTS(NULL,ST_GEOMFROMTEXT(@star_top));
 
@@ -1782,10 +1796,175 @@ INSERT INTO t1 VALUES (
     POINT(1,10), POINT(1,1)), LINESTRING(POINT(4,4),POINT(6,4),POINT(6,6),
     POINT(4,6),POINT(4,4))))));
 
+# We don't care about the result. We just want to put all parameter type
+# combinations through the function.
+--disable_result_log
 SELECT ST_INTERSECTS(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
 SELECT MBRINTERSECTS(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
+
+SELECT ST_INTERSECTS(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
+SELECT MBRINTERSECTS(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
+--enable_result_log
 
 --echo # clean up
 DROP TABLE t1;
 DROP TABLE gis_geometrycollection;
 DROP TABLE gis_geometrycollection_2;
+
+--echo #
+--echo # WL#8579 Spatial Reference Systems
+--echo #
+
+--echo # SRID 0 (should pass)
+SELECT ST_INTERSECTS(
+  ST_GEOMFROMTEXT('POINT(0 0)', 0),
+  ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+SELECT MBRINTERSECTS(
+  ST_GEOMFROMTEXT('POINT(0 0)', 0),
+  ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+
+--echo # Projected SRS (should pass)
+SELECT ST_INTERSECTS(
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+SELECT MBRINTERSECTS(
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+
+--echo # Geographic SRS (should pass)
+SELECT ST_INTERSECTS(
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+SELECT MBRINTERSECTS(
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+
+--echo #
+--echo # WL#10827 Ellipsoidal R-tree support functions
+--echo #
+
+SET @pt = ST_GeomFromText('POINT(0 0)', 4326);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_Intersects(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_Intersects(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_Intersects(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_Intersects(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT MBRIntersects(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT MBRIntersects(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT MBRIntersects(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT MBRIntersects(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+
+CREATE TABLE t1 (
+  id INT,
+  c GEOMETRY NOT NULL SRID 0,
+  g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL SRID 4326,
+  SPATIAL INDEX c_idx (c),
+  SPATIAL INDEX g_idx (g)
+);
+
+INSERT INTO t1 (id, c) VALUES
+  (0, ST_GeomFromText('POINT(0 0)')),
+  (1, ST_GeomFromText('POINT(1 1)')),
+  (2, ST_GeomFromText('POINT(2 2)')),
+  (3, ST_GeomFromText('POINT(3 3)')),
+  (4, ST_GeomFromText('POINT(4 4)')),
+  (5, ST_GeomFromText('POINT(5 5.00001)')),
+  (6, ST_GeomFromText('POINT(6 6)')),
+  (7, ST_GeomFromText('POINT(7 7)'));
+
+SET @py = 'POLYGON((0 0, 10 0, 10 5, 0 5, 0 0))';
+SET @cart_py = ST_GeomFromText(@py);
+SET @geo_py = ST_GeomFromText(@py, 4326, 'axis-order=long-lat');
+
+SET @mpt = 'MULTIPOINT((0 0), (10 5))';
+SET @cart_mpt = ST_GeomFromText(@mpt);
+SET @geo_mpt = ST_GeomFromText(@mpt, 4326, 'axis-order=long-lat');
+
+--echo # Cartesian ST_Intersects
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE ST_Intersects(c, @cart_py)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE ST_Intersects(c, @cart_py)
+  ORDER BY id;
+
+--echo # Geographic ST_Intersects
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE ST_Intersects(g, @geo_py)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE ST_Intersects(g, @geo_py)
+  ORDER BY id;
+
+--echo # Cartesian MBRIntersects
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE MBRIntersects(c, @cart_py)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE MBRIntersects(c, @cart_py)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE MBRIntersects(c, @cart_mpt)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE MBRIntersects(c, @cart_mpt)
+  ORDER BY id;
+
+--echo # Geographic MBRIntersects
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE MBRIntersects(g, @geo_py)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE MBRIntersects(g, @geo_py)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE MBRIntersects(g, @geo_mpt)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE MBRIntersects(g, @geo_mpt)
+  ORDER BY id;
+
+DROP TABLE t1;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO MBRINTERSECTS(
+  x'0A000000010100000000000000000000000000000000000000',
+  x'0A000000010100000000000000000000000000000000000000'
+);
+--error ER_SRS_NOT_FOUND
+DO ST_INTERSECTS(
+  x'0A000000010100000000000000000000000000000000000000',
+  x'0A000000010100000000000000000000000000000000000000'
+);

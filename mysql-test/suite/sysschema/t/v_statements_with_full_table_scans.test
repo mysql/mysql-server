@@ -1,4 +1,10 @@
--- source include/not_embedded.inc
+-- source ../include/ps_truncate_all_tables.inc
+# Performance schema tracks prepared statements separately, and does not 
+# yet have a summary view that we can use for this view.
+# Until then, we disable this test with --ps-protocol
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+-- source include/no_protocol.inc
+
 # Tests for sys schema
 # Verify the sys.statements_with_full_table_scans view
 
@@ -20,27 +26,27 @@ SELECT * FROM sys.x$statements_with_full_table_scans;
 --enable_result_log
 
 # Create a dummy table, force some full table scans, verify the results
-CREATE DATABASE v_schema_tables_with_full_table_scans;
+CREATE DATABASE v_statements_with_full_table_scans;
 
-CREATE TABLE v_schema_tables_with_full_table_scans.t (i BIGINT AUTO_INCREMENT PRIMARY KEY, j BIGINT) ENGINE = innodb;
+CREATE TABLE v_statements_with_full_table_scans.t (i BIGINT AUTO_INCREMENT PRIMARY KEY, j BIGINT) ENGINE = innodb;
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) VALUES (1), (2), (3);
+INSERT INTO v_statements_with_full_table_scans.t (j) VALUES (1), (2), (3);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO v_statements_with_full_table_scans.t (j) (SELECT j*2 FROM v_statements_with_full_table_scans.t);
 
 # The table should now have 768 rows
 
@@ -50,31 +56,31 @@ CALL sys.ps_truncate_all_tables(false);
 # Following returns 28 rows, but should full scan as j has no index
 # Using RAND() to force no query caching, so ignore results, they are not important
 --disable_result_log
-SELECT i, j, RAND() FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
+SELECT i, j, RAND() FROM v_statements_with_full_table_scans.t WHERE j = 12;
 --enable_result_log
 
-# Now verify the table shows up in the views with the right row count (should be 768)
-SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
+# Now verify the statement shows up in the views with the right row count (should be 768)
+SELECT db, query, rows_examined FROM sys.statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
 
-SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
+SELECT db, query, rows_examined FROM sys.x$statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
 
 # Scan again
 --disable_result_log
-SELECT i, j, RAND() FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
+SELECT i, j, RAND() FROM v_statements_with_full_table_scans.t WHERE j = 12;
 --enable_result_log
 
-# Now verify that double the amount of rows in the table should be shown as scanned (should be 1536)
-SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
+# Now verify that double the amount of rows for the statement should be shown as scanned (should be 1536)
+SELECT db, query, rows_examined FROM sys.statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
 
-SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
+SELECT db, query, rows_examined FROM sys.x$statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
 
 # Do a point lookup
-SELECT * FROM v_schema_tables_with_full_table_scans.t WHERE i = 10;
+SELECT * FROM v_statements_with_full_table_scans.t WHERE i = 10;
 
 # The number of rows scanned should not have changed (should still be 1536)
-SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
+SELECT db, query, rows_examined FROM sys.statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
 
-SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
+SELECT db, query, rows_examined FROM sys.x$statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
 
 # Cleanup
-DROP DATABASE v_schema_tables_with_full_table_scans;
+DROP DATABASE v_statements_with_full_table_scans;

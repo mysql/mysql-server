@@ -1,21 +1,29 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_binlog_extra_row_info.h"
+#include "sql/ndb_binlog_extra_row_info.h"
+
 #include <string.h> // memcpy
 
 Ndb_binlog_extra_row_info::
@@ -23,6 +31,7 @@ Ndb_binlog_extra_row_info()
 {
   flags = 0;
   transactionId = InvalidTransactionId;
+  conflictFlags = UnsetConflictFlags;
   /* Prepare buffer with extra row info buffer bytes */
   buff[ EXTRA_ROW_INFO_LEN_OFFSET ] = 0;
   buff[ EXTRA_ROW_INFO_FORMAT_OFFSET ] = ERIF_NDB;
@@ -43,6 +52,13 @@ setTransactionId(Uint64 _transactionId)
   transactionId = _transactionId;
 };
 
+void
+Ndb_binlog_extra_row_info::
+setConflictFlags(Uint16 _conflictFlags)
+{
+  conflictFlags = _conflictFlags;
+}
+
 int
 Ndb_binlog_extra_row_info::
 loadFromBuffer(const uchar* extra_row_info)
@@ -62,6 +78,7 @@ loadFromBuffer(const uchar* extra_row_info)
       Uint8 nextPos = 0;
 
       /* Have flags at least */
+      bool error = false;
       Uint16 netFlags;
       memcpy(&netFlags, &data[ nextPos ], FLAGS_SIZE);
       nextPos += FLAGS_SIZE;
@@ -84,12 +101,48 @@ loadFromBuffer(const uchar* extra_row_info)
         }
         else
         {
-          /*
-             Error - supposed to have transaction id, but
-             buffer too short
-          */
-          return -1;
+          flags = 0; /* No more processing */
+          error = true;
         }
+      }
+      
+      if (flags & NDB_ERIF_CFT_FLAGS)
+      {
+        if (likely((nextPos + CFT_FLAGS_SIZE) <= payload_length))
+        {
+          /**
+           * Correct length, retrieve conflict flags, converting if 
+           * necessary
+           */
+          Uint16 netCftFlags;
+          memcpy(&netCftFlags,
+                 &data[ nextPos ],
+                 CFT_FLAGS_SIZE);
+          nextPos += CFT_FLAGS_SIZE;
+          conflictFlags = uint2korr((const char*) & netCftFlags);
+        }
+        else
+        {
+          flags = 0; /* No more processing */
+          error = true;
+        }
+      }
+
+      if (likely(!error))
+      {
+        return 0;
+      }
+      else
+      {
+        /* Error - malformed buffer, dump some debugging info */
+        fprintf(stderr, 
+                "Ndb_binlog_extra_row_info::loadFromBuffer()"
+                "malformed buffer - flags : %x nextPos %u "
+                "payload_length %u\n",
+                uint2korr((const char*) &netFlags),
+                nextPos, 
+                payload_length);
+        return -1;
       }
     }
   }
@@ -122,6 +175,13 @@ Ndb_binlog_extra_row_info::generateBuffer()
       Uint64 netTransactionId = uint8korr((const char*) &transactionId);
       memcpy(&buff[ nextPos ], &netTransactionId, TRANSID_SIZE);
       nextPos += TRANSID_SIZE;
+    }
+    
+    if (flags & NDB_ERIF_CFT_FLAGS)
+    {
+      Uint16 netCftFlags = uint2korr((const char*) &conflictFlags);
+      memcpy(&buff[ nextPos ], &netCftFlags, CFT_FLAGS_SIZE);
+      nextPos += CFT_FLAGS_SIZE;
     }
 
     assert( nextPos <= MaxLen );

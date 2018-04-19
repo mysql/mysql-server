@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 # This test verifies that the mysys and server instruments are properly
 # initialized and recorded by the performance schema during the bootstrap
 # sequence in mysqld main().
@@ -12,9 +9,6 @@
 use performance_schema;
 
 # Verify that these global mutexes have been properly initilized in mysys
-
-select count(name) from mutex_instances
- where name like "wait/synch/mutex/mysys/THR_LOCK_threads";
 
 select count(name) from mutex_instances
  where name like "wait/synch/mutex/mysys/THR_LOCK_malloc";
@@ -36,10 +30,8 @@ select count(name) from mutex_instances
 
 # There are no global rwlock in mysys
 
-# Verify that these global conditions have been properly initilized in mysys
-
-select count(name) from cond_instances
- where name like "wait/synch/cond/mysys/THR_COND_threads";
+# There are no global conditions in mysys
+# (THR_COND_threads is only present in debug builds
 
 # Verify that these global mutexes have been properly initilized in sql
 
@@ -56,9 +48,6 @@ select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_status";
 
 select count(name) from mutex_instances
- where name like "wait/synch/mutex/sql/LOCK_error_log";
-
-select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_uuid_generator";
 
 select count(name) from mutex_instances
@@ -66,9 +55,6 @@ select count(name) from mutex_instances
 
 select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_slave_list";
-
-select count(name) from mutex_instances
- where name like "wait/synch/mutex/sql/LOCK_msr_map";
 
 select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_manager";
@@ -92,9 +78,6 @@ select count(name) from mutex_instances
 # select count(name) from mutex_instances
 #  where name like "wait/synch/mutex/sql/LOG_INFO::lock";
 
-select count(name) from mutex_instances
- where name like "wait/synch/mutex/sql/Query_cache::structure_guard_mutex";
-
 # The event scheduler may be disabled
 # select count(name) from mutex_instances
 #  where name like "wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state";
@@ -113,10 +96,6 @@ select count(name) from mutex_instances
 
 select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_plugin";
-
-# Not a global variable, may be destroyed already.
-# select count(name) from mutex_instances
-#  where name like "wait/synch/mutex/sql/LOCK_gdl";
 
 select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/tz_LOCK";
@@ -151,9 +130,6 @@ select count(name) from cond_instances
 
 select count(name) from cond_instances
  where name like "wait/synch/cond/sql/COND_flush_thread_cache";
-
-select count(name) from cond_instances
- where name like "wait/synch/cond/sql/Query_cache::COND_cache_status_changed";
 
 # The event scheduler may be disabled
 # select count(name) from cond_instances

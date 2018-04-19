@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ##############################################################
 # Purpose: To test DICTionary changes while executing 
 #          SPJ (Pushed join) operations.
@@ -28,8 +23,15 @@
 # the test as experience has shown that 'rows' estimates
 # may vary depending on OS, compiler and .. phase of moon.
 #
+# Note that the 'Table ... does not exist' error message
+# will incorrectly refer 'parent' instead of 'child'.
+# This is an artifact of NDB to mysqld error translation
+# as the pushed join is sent for execution when accessing the
+# 'root' table. Thus any failure of finding any tables when
+# executing the pushed join, will be reported as the 'parent'
+# table not found.
+#
 ##############################################################
---source include/not_embedded.inc
 --source include/have_multi_ndb.inc
 
 connect (ddl,localhost,root,,test);
@@ -214,9 +216,9 @@ reap;
 --enable_result_log
 alter table child_orig rename to child;
 
---echo ======================================*=====================
+--echo ============================================================
 --echo OFFLINE ALTER: Rename table to make it go away - temporarily
---echo ==========================================*=================
+--echo ============================================================
 connection server1;
 --replace_column 10 ### 11 ###
 eval explain $query1;
@@ -231,7 +233,7 @@ commit;
 
 connection server1;
 --disable_result_log
---error 0,ER_TABLE_DEF_CHANGED
+--error 0,ER_TABLE_DEF_CHANGED,ER_NO_SUCH_TABLE
 reap;
 --enable_result_log
 alter table child_orig rename to child;

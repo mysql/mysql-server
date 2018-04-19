@@ -1,0 +1,24 @@
+--echo #
+--echo # Windows version of Tablespace Portability test.
+--echo #
+--echo # This testcase is related to WL#5980 & WL#6205.
+--echo # It tests whether datafiles can be copied from one location
+--echo # to another, and still be opened. In order to make this testcase run
+--echo # on any OS, we create the tablespaces here.
+--echo #
+
+# On Windows, MTR converts '\' to '/' in file names.
+# On other systems, '\' is left unchanged.
+# So this output file is different from the Non-Windows version.
+
+--source include/windows.inc
+
+SET DEFAULT_STORAGE_ENGINE=InnoDB;
+
+--source suite/innodb/include/tablespace_filenames.inc
+
+# There is no tablespace portabilility in mysql-trunk at the moment since ISL
+# files have been disabled and fil_ibd_open() only looks for a file in one place.
+# --source suite/innodb/include/tablespace_portability.inc
+
+

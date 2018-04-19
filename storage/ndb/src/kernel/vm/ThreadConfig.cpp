@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -52,6 +59,11 @@ ThreadConfig::init()
 {
 }
 
+void
+ThreadConfig::scanZeroTimeQueue()
+{
+  globalTimeQueue.scanZeroTimeQueue();
+}
 /**
  * For each millisecond that has passed since this function was last called:
  *   Scan the job buffer and increment the internalTicksCounter 
@@ -63,6 +75,7 @@ ThreadConfig::scanTimeQueue()
 {
   unsigned int maxCounter = 0;
   const NDB_TICKS currTicks = NdbTick_getCurrentTicks();
+  globalScheduler.setHighResTimer(currTicks);
 
   if (NdbTick_Compare(currTicks, globalData.internalTicksCounter) < 0) {
 //--------------------------------------------------------------------
@@ -151,6 +164,7 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
   globalEmulatorData.theWatchDog->registerWatchedThread(watchCounter, 0);
 
   start_ticks = NdbTick_getCurrentTicks();
+  globalScheduler.setHighResTimer(start_ticks);
   yield_ticks = statistics_start_ticks = end_ticks = start_ticks;
   while (1)
   {
@@ -159,7 +173,13 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
 // We send all messages buffered during execution of job buffers
 //--------------------------------------------------------------------
     globalData.incrementWatchDogCounter(6);
-    globalTransporterRegistry.performSend();
+    {
+      NDB_TICKS before = NdbTick_getCurrentTicks();
+      globalTransporterRegistry.performSend();
+      NDB_TICKS after = NdbTick_getCurrentTicks();
+      globalData.theMicrosSend +=
+        NdbTick_Elapsed(before, after).microSec();
+    }
 
 //--------------------------------------------------------------------
 // Now it is time to check all interfaces. We will send all buffers
@@ -183,6 +203,7 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
 // is now ready to be executed.
 //--------------------------------------------------------------------
       globalData.incrementWatchDogCounter(2);
+      scanZeroTimeQueue(); 
       scanTimeQueue(); 
 
       if (LEVEL_IDLE == globalData.highestAvailablePrio)
@@ -200,7 +221,10 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
         if (min_spin_time && !yield_flag)
         {
           if (spinning)
+          {
             end_ticks = NdbTick_getCurrentTicks();
+            globalScheduler.setHighResTimer(end_ticks);
+          }
 
           micros_passed = 
             (Uint32)NdbTick_Elapsed(start_ticks, end_ticks).microSec();
@@ -221,24 +245,43 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
       globalData.incrementWatchDogCounter(7);
       {
         bool poll_flag;
+        NDB_TICKS before = NdbTick_getCurrentTicks();
         if (yield_flag)
         {
           globalEmulatorData.theConfiguration->yield_main(thread_index, TRUE);
           poll_flag= globalTransporterRegistry.pollReceive(timeOutMillis);
           globalEmulatorData.theConfiguration->yield_main(thread_index, FALSE);
-          yield_ticks = NdbTick_getCurrentTicks();
         }
         else
           poll_flag= globalTransporterRegistry.pollReceive(timeOutMillis);
+
+        NDB_TICKS after = NdbTick_getCurrentTicks();
+        yield_ticks = after;
+        globalData.theMicrosSleep +=
+          NdbTick_Elapsed(before, after).microSec();
         if (poll_flag)
         {
           globalData.incrementWatchDogCounter(8);
           globalTransporterRegistry.performReceive();
         }
         yield_flag= FALSE;
+        globalScheduler.setHighResTimer(yield_ticks);
+        globalScheduler.postPoll();
+        if (min_spin_time > 0 && spinning &&
+            (timeOutMillis > 0 ||
+            LEVEL_IDLE != globalData.highestAvailablePrio))
+        {
+          /* Sum up the spin time to total spin time count */
+          micros_passed = 
+            (Uint32)NdbTick_Elapsed(start_ticks, before).microSec();
+          globalData.theMicrosSpin += micros_passed;
+          if (timeOutMillis > 0)
+          {
+            start_ticks = after;
+          }
+        }
       }
       spinning = true;
-      globalScheduler.postPoll();
 //--------------------------------------------------------------------
 // In an idle system we will use this loop to wait either for external
 // signal received or a message generated by the time queue.
@@ -250,16 +293,18 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
 // signals to receive.
 //--------------------------------------------------------------------
     start_ticks = NdbTick_getCurrentTicks();
+    globalScheduler.setHighResTimer(start_ticks);
     if ((NdbTick_Elapsed(yield_ticks, start_ticks).microSec() > 10000))
       yield_flag= TRUE;
     exec_again= 0;
+    Uint32 loopStartCount = 0;
     do
     {
 //--------------------------------------------------------------------
 // This is where the actual execution of signals occur. We execute
 // until all buffers are empty or until we have executed 2048 signals.
 //--------------------------------------------------------------------
-      globalScheduler.doJob();
+      loopStartCount = globalScheduler.doJob(loopStartCount);
       if (unlikely(globalData.theRestartFlag == perform_stop))
         goto out;
 //--------------------------------------------------------------------
@@ -274,6 +319,7 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
         break;
 
       end_ticks = NdbTick_getCurrentTicks();
+      globalScheduler.setHighResTimer(end_ticks);
       micros_passed = (Uint32)NdbTick_Elapsed(start_ticks, end_ticks).microSec();
       tot_exec_time += micros_passed;
       if (no_exec_loops++ >= 8192)
@@ -295,7 +341,7 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
         don't enter an eternal loop here. We'll never execute more than
         3 times before sending.
       */
-      if (micros_passed > execute_loop_constant || (exec_again > 1))
+      if (micros_passed >= execute_loop_constant || (exec_again > 1))
         break;
       exec_again++;
 //--------------------------------------------------------------------

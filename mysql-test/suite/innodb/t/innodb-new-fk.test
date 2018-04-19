@@ -1,0 +1,101 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_innodb_max_16k.inc
+
+--enable_connect_log
+
+--echo #
+--echo # Test for bug #26654685 "INDEX->ID == BTR_PAGE_GET_INDEX_ID(PAGE) AT
+--echo #                         BTR_CUR_SEARCH_TO_NTH_LEVEL IN BTR/B".
+--echo #
+
+CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+INSERT INTO parent VALUES(1,2),(2,2);
+CREATE TABLE child (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+INSERT INTO child VALUES (10, 2);
+
+
+# This should rollback due to dup key
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+--send CREATE UNIQUE INDEX idx ON parent(b);
+
+# Make table ref_count > 1
+connect (con1,localhost,root,,);
+connection con1;
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+INSERT INTO parent VALUES(4, 2);
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+connection default;
+--error ER_DUP_ENTRY
+reap;
+SET DEBUG_SYNC = 'now SIGNAL conn_add_fk';
+
+connection con1;
+SET DEBUG_SYNC = 'now WAIT_FOR conn_add_fk';
+--error ER_CANNOT_ADD_FOREIGN
+ALTER TABLE child ADD CONSTRAINT cfx FOREIGN KEY (b) REFERENCES parent(b);
+
+
+SET DEBUG_SYNC = 'RESET';
+
+connection default;
+DROP TABLE child;
+DROP TABLE parent;
+
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # Test case for bug#26655360 "ASSERTION FAILURE: DICT0DICT.CC:2045
+--echo #                             :TABLE->N_REC_LOCKS == 0".
+
+CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+CREATE INDEX idx on parent(b);
+INSERT INTO parent VALUES(1,2),(2,2);
+CREATE TABLE child (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+INSERT INTO child VALUES (10, 3);
+
+SET DEBUG_SYNC = "innodb_ddl_log_before_enter SIGNAL start_create WAIT_FOR go_ahead";
+--send  ALTER TABLE child ADD CONSTRAINT idx17 FOREIGN KEY (b) REFERENCES parent(a)
+
+--echo # Make table lock _count > 1
+connect (con1,localhost,root,,);
+connection con1;
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+START TRANSACTION;
+--send DELETE FROM parent WHERE a=1;
+
+connect (con2,localhost,root,,);
+--echo # Wait until DELETE is blocked due to MDL on the parent.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "DELETE FROM parent %";
+--source include/wait_condition.inc
+
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+disconnect con2;
+--source include/wait_until_disconnected.inc
+
+connection default;
+--replace_regex /#sql.*$/#sql-xxxxx/
+--error ER_NO_REFERENCED_ROW_2
+reap;
+
+connection con1;
+reap;
+COMMIT;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE child;
+DROP TABLE parent;
+
+--disable_connect_log

@@ -5,16 +5,18 @@
 # include default.weekly
 
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=debug      --vardir=var-debug --skip-rpl --report-features --debug-server
-perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=normal     --vardir=var-normal --report-features --unit-tests
+# Run with --non-parallel-test option so that non parallel tests are also run
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=normal     --vardir=var-normal --report-features --unit-tests-report --non-parallel-test
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=ps         --vardir=var-ps --ps-protocol
-perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=funcs1+ps  --vardir=var-funcs_1_ps --suite=funcs_1  --ps-protocol
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=funcs2     --vardir=var-funcs2     --suite=funcs_2
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=partitions --vardir=var-parts      --suite=parts
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=stress     --vardir=var-stress     --suite=stress
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=jp         --vardir=var-jp         --suite=jp
-perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=embedded   --vardir=var-embedded                    --embedded-server --skip-rpl
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=nist       --vardir=var-nist       --suite=nist
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=nist+ps    --vardir=var-nist_ps    --suite=nist     --ps-protocol
-perl mysql-test-run.pl --timer --force --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=auto --retry=0 --suite=memcached
-perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=interactive_tests  --vardir=interactive-tests  --suite=interactive_utilities
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=innodb_undo-debug --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --skip-test-list=collections/disabled-per-push.list
+perl mysql-test-run.pl --timer --force --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=auto --suite=memcached
+perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=interactive_tests  --vardir=var-interactive  --suite=interactive_utilities
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=innodb_undo-debug --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2
+
+# Group Replication
+perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication-debug --vardir=var-group_replication-debug --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360

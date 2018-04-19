@@ -1,0 +1,169 @@
+#
+# BUG#22516559 MYSQL INSTANCE STALLS WHEN SYNCING FTS INDEX
+#
+
+--source include/have_debug_sync.inc
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+--source include/not_log_bin.inc
+--source include/count_sessions.inc
+
+connect (con1,localhost,root,,);
+connection default;
+
+--echo # Case 1: Test select and insert(row in both disk and cache)
+CREATE TABLE t1 (
+        FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        FULLTEXT(title)
+) ENGINE = InnoDB;
+
+INSERT INTO t1(title) VALUES('mysql');
+INSERT INTO t1(title) VALUES('database');
+
+connection con1;
+
+SET SESSION debug="+d,fts_instrument_sync_debug";
+
+SET DEBUG_SYNC= 'fts_write_node SIGNAL written WAIT_FOR selected';
+
+send INSERT INTO t1(title) VALUES('mysql database');
+
+connection default;
+
+SET DEBUG_SYNC= 'now WAIT_FOR written';
+
+SET GLOBAL innodb_ft_aux_table="test/t1";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+SET GLOBAL innodb_ft_aux_table=default;
+
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('mysql database');
+
+SET DEBUG_SYNC= 'now SIGNAL selected';
+
+connection con1;
+--echo /* connection con1 */ INSERT INTO t1(title) VALUES('mysql database');
+--reap
+
+SET SESSION debug="-d,fts_instrument_sync_debug";
+
+SET GLOBAL innodb_ft_aux_table="test/t1";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+SET GLOBAL innodb_ft_aux_table=default;
+
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('mysql database');
+
+connection default;
+
+DROP TABLE t1;
+
+--echo # Case 2: Test insert and insert(sync)
+CREATE TABLE t1 (
+        FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        FULLTEXT(title)
+) ENGINE = InnoDB;
+
+INSERT INTO t1(title) VALUES('mysql');
+INSERT INTO t1(title) VALUES('database');
+
+connection con1;
+
+SET SESSION debug="+d,fts_instrument_sync_debug";
+
+SET DEBUG_SYNC= 'fts_write_node SIGNAL written WAIT_FOR inserted';
+
+send INSERT INTO t1(title) VALUES('mysql database');
+
+connection default;
+
+SET DEBUG_SYNC= 'now WAIT_FOR written';
+
+INSERT INTO t1(title) VALUES('mysql database');
+
+SET DEBUG_SYNC= 'now SIGNAL inserted';
+
+connection con1;
+--echo /* connection con1 */ INSERT INTO t1(title) VALUES('mysql database');
+--reap
+
+SET SESSION debug="-d,fts_instrument_sync_debug";
+
+SET GLOBAL innodb_ft_aux_table="test/t1";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+SET GLOBAL innodb_ft_aux_table=default;
+
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('mysql database');
+
+connection default;
+disconnect con1;
+
+DROP TABLE t1;
+
+--echo # Case 3: Test insert crash recovery
+--let $_expect_file_name=$MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
+
+CREATE TABLE t1 (
+	id    INT,
+        title VARCHAR(200),
+        FULLTEXT(title)
+) ENGINE = InnoDB;
+
+INSERT INTO t1(id, title) VALUES(1, 'database');
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+SET SESSION debug="+d,fts_instrument_sync_debug,fts_write_node_crash";
+
+--error 2013
+INSERT INTO t1(id, title) VALUES(2, 'mysql');
+
+--source include/start_mysqld.inc
+
+-- echo After restart
+SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database');
+
+SET SESSION debug="+d,fts_instrument_sync_debug";
+
+INSERT INTO t1(id, title) VALUES(3, 'mysql');
+
+SET SESSION debug="-d,fts_instrument_sync_debug";
+
+SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database');
+
+DROP TABLE t1;
+
+--echo # Case 4: Test sync commit & rollback in background
+CREATE TABLE t1(
+        id INT AUTO_INCREMENT,
+        title VARCHAR(100),
+        FULLTEXT(title),
+        PRIMARY KEY(id)) ENGINE=InnoDB;
+
+SET SESSION debug="+d,fts_instrument_sync";
+INSERT INTO t1(title) VALUES('mysql');
+SET SESSION debug="-d,fts_instrument_sync";
+
+--source include/restart_mysqld.inc
+
+SET GLOBAL debug="+d,fts_instrument_sync,fts_instrument_sync_interrupted";
+INSERT INTO t1(title) VALUES('database');
+SET GLOBAL debug="-d,fts_instrument_sync,fts_instrument_sync_interrupted";
+
+SET SESSION debug="+d,fts_instrument_sync_debug";
+INSERT INTO t1(title) VALUES('good');
+SET SESSION debug="-d,fts_instrument_sync_debug";
+
+SET GLOBAL innodb_ft_aux_table="test/t1";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+SET GLOBAL innodb_ft_aux_table=default;
+
+SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database good');
+
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

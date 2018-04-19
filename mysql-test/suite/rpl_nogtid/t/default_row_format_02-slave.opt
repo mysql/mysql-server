@@ -1,0 +1,2 @@
+--innodb_default_row_format=Compact
+--slave_skip_errors=1146,1051,1709

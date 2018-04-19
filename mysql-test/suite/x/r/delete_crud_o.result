@@ -1,0 +1,1344 @@
+==============================================
+CRUD DELETE SCENARIOS
+==============================================
+
+================================================================================
+PREAMBLE
+================================================================================
+create user deletecruduser@localhost identified by 'deletecruduser';
+grant all on *.* to deletecruduser@localhost;
+================================================================================
+TEST START
+================================================================================
+RUN DROP SCHEMA if EXISTS mysqlxplugin
+
+0 rows affected
+RUN CREATE SCHEMA mysqlxplugin DEFAULT CHARSET='utf8'
+
+1 rows affected
+RUN USE mysqlxplugin
+
+0 rows affected
+RUN CREATE TABLE categories (
+ CategoryID int NOT NULL AUTO_INCREMENT,
+ CategoryName varchar(100),
+ CategoryDescription varchar(200),
+ CategoryIMEI tinyint,	  
+ CategoryDecimal decimal(5,2),
+ PRIMARY key (CategoryID)
+ )
+
+0 rows affected
+RUN INSERT INTO categories(CategoryID, CategoryName, CategoryDescription, CategoryIMEI, CategoryDecimal)
+ VALUES
+ (1,'Sports','Sports related category',1,235.15),
+ (2,'Entertaiment','Entertaiment related category',2,235.15),
+ (3, 'Home','Home related category',3,235.15),
+ (4, 'Kitchen','Kitchen related category',4,235.15),
+ (5, 'Garden','Garden related category',5,535.15),
+ (6, 'Toys','Toys related category',6,635.15)
+
+6 rows affected
+last insert id: 6
+Records: 6  Duplicates: 0  Warnings: 0
+RUN CREATE TABLE extracategoryinfo (
+ extracategoryinfoID int NOT NULL AUTO_INCREMENT,
+ CategoryID int NOT NULL,
+ MainParentCategoryName varchar(100),
+ PRIMARY key (extracategoryinfoID)
+ )
+
+0 rows affected
+RUN INSERT INTO extracategoryinfo(extracategoryinfoID, CategoryID, MainParentCategoryName)
+ VALUES
+ (1,1,'People'),
+ (2,2,'People'),
+ (3,2,'House'),
+ (4,3,'House'),
+ (5,1,'People'),
+ (6,2,'People'),
+ (7,2,'House'),
+ (8,3,'House'),
+ (9,1,'People'),
+ (10,2,'House')
+
+10 rows affected
+last insert id: 10
+Records: 10  Duplicates: 0  Warnings: 0
+RUN SET SQL_SAFE_UPDATES = 1
+
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_delete'
+Variable_name	Value
+Mysqlx_crud_delete	0
+0 rows affected
+RUN select * from mysqlxplugin.extracategoryinfo
+extracategoryinfoID	CategoryID	MainParentCategoryName
+1	1	People
+2	2	People
+3	2	House
+4	3	House
+5	1	People
+6	2	People
+7	2	House
+8	3	House
+9	1	People
+10	2	House
+0 rows affected
+Delete with In, && operators
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "extracategoryinfo"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: "in"
+          param {
+            type: IDENT
+            identifier {
+              name: "extracategoryinfoID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 1
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 3
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: "=="
+          param {
+            type: IDENT
+            identifier {
+              name: "CategoryID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 2
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN select * from mysqlxplugin.extracategoryinfo
+extracategoryinfoID	CategoryID	MainParentCategoryName
+1	1	People
+2	2	People
+4	3	House
+5	1	People
+6	2	People
+7	2	House
+8	3	House
+9	1	People
+10	2	House
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_delete'
+Variable_name	Value
+Mysqlx_crud_delete	1
+0 rows affected
+Delete with == operator
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "extracategoryinfo"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "extracategoryinfoID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN select * from mysqlxplugin.extracategoryinfo
+extracategoryinfoID	CategoryID	MainParentCategoryName
+2	2	People
+4	3	House
+5	1	People
+6	2	People
+7	2	House
+8	3	House
+9	1	People
+10	2	House
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_delete'
+Variable_name	Value
+Mysqlx_crud_delete	2
+0 rows affected
+Error 1175 expected because of the safe mode = 1
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "extracategoryinfo"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "MainParentCategoryName"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "People"
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1175
+  msg: "You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column"
+  sql_state: "HY000"
+}
+
+Error 1175 expected because of the safe mode = 1
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "extracategoryinfo"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "||"
+      param {
+        type: OPERATOR
+        operator {
+          name: "in"
+          param {
+            type: IDENT
+            identifier {
+              name: "MainParentCategoryName"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "House"
+              }
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: "in"
+          param {
+            type: IDENT
+            identifier {
+              name: "CategoryID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 4
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1175
+  msg: "You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column"
+  sql_state: "HY000"
+}
+
+Error 1175 expected because of the safe mode = 1
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "categories"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryIMEI"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1175
+  msg: "You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column"
+  sql_state: "HY000"
+}
+
+RUN select * from mysqlxplugin.extracategoryinfo
+extracategoryinfoID	CategoryID	MainParentCategoryName
+2	2	People
+4	3	House
+5	1	People
+6	2	People
+7	2	House
+8	3	House
+9	1	People
+10	2	House
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+.
+#---------- START TEST WITH SAFE MODE OFF ----------#
+.
+RUN USE mysqlxplugin
+
+0 rows affected
+RUN SET SQL_SAFE_UPDATES = 0
+
+0 rows affected
+RUN select * from mysqlxplugin.extracategoryinfo
+extracategoryinfoID	CategoryID	MainParentCategoryName
+2	2	People
+4	3	House
+5	1	People
+6	2	People
+7	2	House
+8	3	House
+9	1	People
+10	2	House
+0 rows affected
+Delete all
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "extracategoryinfo"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+}
+
+
+8 rows affected
+RUN select * from mysqlxplugin.extracategoryinfo
+extracategoryinfoID	CategoryID	MainParentCategoryName
+0 rows affected
+RUN INSERT INTO extracategoryinfo(extracategoryinfoID, CategoryID, MainParentCategoryName)
+ VALUES
+ (1,1,'People'),
+ (2,2,'People'),
+ (3,2,'House'),
+ (4,3,'House'),
+ (5,1,'People'),
+ (6,2,'People2'),
+ (7,2,'House2'),
+ (8,3,'House2'),
+ (9,9,'People2'),
+ (10,10,'House2'),
+ (11,11,'House3'),
+ (12,12,'House4'),
+ (13,13,'House5'),
+ (14,14,'House6')
+
+14 rows affected
+last insert id: 14
+Records: 14  Duplicates: 0  Warnings: 0
+RUN select * from mysqlxplugin.extracategoryinfo
+extracategoryinfoID	CategoryID	MainParentCategoryName
+1	1	People
+2	2	People
+3	2	House
+4	3	House
+5	1	People
+6	2	People2
+7	2	House2
+8	3	House2
+9	9	People2
+10	10	House2
+11	11	House3
+12	12	House4
+13	13	House5
+14	14	House6
+0 rows affected
+Delete works ok because of the safe mode = 0
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "extracategoryinfo"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "MainParentCategoryName"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "People"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+3 rows affected
+RUN select * from mysqlxplugin.extracategoryinfo
+extracategoryinfoID	CategoryID	MainParentCategoryName
+3	2	House
+4	3	House
+6	2	People2
+7	2	House2
+8	3	House2
+9	9	People2
+10	10	House2
+11	11	House3
+12	12	House4
+13	13	House5
+14	14	House6
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_delete'
+Variable_name	Value
+Mysqlx_crud_delete	2
+0 rows affected
+Delete with || operator and in
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "extracategoryinfo"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "||"
+      param {
+        type: OPERATOR
+        operator {
+          name: "in"
+          param {
+            type: IDENT
+            identifier {
+              name: "MainParentCategoryName"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "House"
+              }
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: "in"
+          param {
+            type: IDENT
+            identifier {
+              name: "CategoryID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 4
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+RUN select * from mysqlxplugin.extracategoryinfo
+extracategoryinfoID	CategoryID	MainParentCategoryName
+6	2	People2
+7	2	House2
+8	3	House2
+9	9	People2
+10	10	House2
+11	11	House3
+12	12	House4
+13	13	House5
+14	14	House6
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_delete'
+Variable_name	Value
+Mysqlx_crud_delete	3
+0 rows affected
+Delete with || operator and not in
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "extracategoryinfo"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "||"
+      param {
+        type: OPERATOR
+        operator {
+          name: "not_in"
+          param {
+            type: IDENT
+            identifier {
+              name: "MainParentCategoryName"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "House"
+              }
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: "in"
+          param {
+            type: IDENT
+            identifier {
+              name: "CategoryID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 8
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+9 rows affected
+RUN select * from mysqlxplugin.extracategoryinfo
+extracategoryinfoID	CategoryID	MainParentCategoryName
+0 rows affected
+RUN select * from mysqlxplugin.categories
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal
+1	Sports	Sports related category	1	235.15
+2	Entertaiment	Entertaiment related category	2	235.15
+3	Home	Home related category	3	235.15
+4	Kitchen	Kitchen related category	4	235.15
+5	Garden	Garden related category	5	535.15
+6	Toys	Toys related category	6	635.15
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_delete'
+Variable_name	Value
+Mysqlx_crud_delete	4
+0 rows affected
+Delete with != operator
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "categories"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryIMEI"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+
+
+5 rows affected
+RUN select * from mysqlxplugin.categories
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal
+1	Sports	Sports related category	1	235.15
+0 rows affected
+RUN select * from mysqlxplugin.extracategoryinfo
+extracategoryinfoID	CategoryID	MainParentCategoryName
+0 rows affected
+RUN INSERT INTO extracategoryinfo(extracategoryinfoID, CategoryID, MainParentCategoryName)
+ VALUES
+ (9,9,'People'),
+ (10,10,'People'),
+ (11,11,'People'),
+ (12,12,'House'),
+ (13,13,'House'),
+ (14,14,'House')
+
+6 rows affected
+last insert id: 14
+Records: 6  Duplicates: 0  Warnings: 0
+RUN select * from mysqlxplugin.extracategoryinfo
+extracategoryinfoID	CategoryID	MainParentCategoryName
+9	9	People
+10	10	People
+11	11	People
+12	12	House
+13	13	House
+14	14	House
+0 rows affected
+Delete with > and < operators
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "extracategoryinfo"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: "<"
+          param {
+            type: IDENT
+            identifier {
+              name: "CategoryID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 11
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: ">"
+          param {
+            type: IDENT
+            identifier {
+              name: "CategoryID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 9
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN select * from mysqlxplugin.extracategoryinfo
+extracategoryinfoID	CategoryID	MainParentCategoryName
+9	9	People
+11	11	People
+12	12	House
+13	13	House
+14	14	House
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_delete'
+Variable_name	Value
+Mysqlx_crud_delete	6
+0 rows affected
+Delete with >= and <= operators
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "extracategoryinfo"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: "<="
+          param {
+            type: IDENT
+            identifier {
+              name: "CategoryID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 14
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: ">="
+          param {
+            type: IDENT
+            identifier {
+              name: "CategoryID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 13
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+RUN select * from mysqlxplugin.extracategoryinfo
+extracategoryinfoID	CategoryID	MainParentCategoryName
+9	9	People
+11	11	People
+12	12	House
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_delete'
+Variable_name	Value
+Mysqlx_crud_delete	7
+0 rows affected
+Delete with wrong Schema
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "extracategoryinfo"
+    schema: "noavailableschema"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: "<="
+          param {
+            type: IDENT
+            identifier {
+              name: "CategoryID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 14
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: ">="
+          param {
+            type: IDENT
+            identifier {
+              name: "CategoryID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 13
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1049
+  msg: "Unknown database \'noavailableschema\'"
+  sql_state: "42000"
+}
+
+Delete with wrong Table
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "notavailabletable"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: "<="
+          param {
+            type: IDENT
+            identifier {
+              name: "CategoryID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 14
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: ">="
+          param {
+            type: IDENT
+            identifier {
+              name: "CategoryID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 13
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1146
+  msg: "Table \'mysqlxplugin.notavailabletable\' doesn\'t exist"
+  sql_state: "42S02"
+}
+
+Delete with wrong Column
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "extracategoryinfo"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: "<="
+          param {
+            type: IDENT
+            identifier {
+              name: "notavailablecolumn"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 14
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: ">="
+          param {
+            type: IDENT
+            identifier {
+              name: "notavailablecolumn"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 13
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1054
+  msg: "Unknown column \'notavailablecolumn\' in \'where clause\'"
+  sql_state: "42S22"
+}
+
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+.
+#---------- START COLLECTION TESTING----------#
+.
+RUN DROP SCHEMA if EXISTS mysqlxplugin_coll
+
+0 rows affected
+RUN CREATE SCHEMA mysqlxplugin_coll
+
+1 rows affected
+RUN USE mysqlxplugin_coll
+
+0 rows affected
+RUN CREATE TABLE mysqlxplugin_coll.main_collection (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY)
+
+0 rows affected
+RUN insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "1", "name": "Omar", "Last_Name":"Andrei"}', json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "2", "name": "Alfonso", "Last_Name":"Pavluchenko"}', json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "3", "name": "Rodrigo", "Last_Name":"Kernel"}', json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "4", "name": "Omar", "Last_Name":"Kerball"}', json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "5", "name": "Omar", "Last_Name":"Lopez"}', json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "6", "name": "Javier", "Last_Name":"Torres"}', json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN select * from mysqlxplugin_coll.main_collection
+doc	_id
+{"_id": "1", "name": "Omar", "Last_Name": "Andrei"}	1
+{"_id": "2", "name": "Alfonso", "Last_Name": "Pavluchenko"}	2
+{"_id": "3", "name": "Rodrigo", "Last_Name": "Kernel"}	3
+{"_id": "4", "name": "Omar", "Last_Name": "Kerball"}	4
+{"_id": "5", "name": "Omar", "Last_Name": "Lopez"}	5
+{"_id": "6", "name": "Javier", "Last_Name": "Torres"}	6
+0 rows affected
+Delete collection rows with in Operator and based in ID
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "in"
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "3"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+RUN select * from mysqlxplugin_coll.main_collection
+doc	_id
+{"_id": "2", "name": "Alfonso", "Last_Name": "Pavluchenko"}	2
+{"_id": "4", "name": "Omar", "Last_Name": "Kerball"}	4
+{"_id": "5", "name": "Omar", "Last_Name": "Lopez"}	5
+{"_id": "6", "name": "Javier", "Last_Name": "Torres"}	6
+0 rows affected
+Delete collection row with == Operator
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "Last_Name"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "Pavluchenko"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN select * from mysqlxplugin_coll.main_collection
+doc	_id
+{"_id": "4", "name": "Omar", "Last_Name": "Kerball"}	4
+{"_id": "5", "name": "Omar", "Last_Name": "Lopez"}	5
+{"_id": "6", "name": "Javier", "Last_Name": "Torres"}	6
+0 rows affected
+Delete collection row with != Operator
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "name"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "Omar"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN select * from mysqlxplugin_coll.main_collection
+doc	_id
+{"_id": "4", "name": "Omar", "Last_Name": "Kerball"}	4
+{"_id": "5", "name": "Omar", "Last_Name": "Lopez"}	5
+0 rows affected
+Delete collection row with not in Operator
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "not_in"
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "Last_Name"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "Lopez"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN select * from mysqlxplugin_coll.main_collection
+doc	_id
+{"_id": "5", "name": "Omar", "Last_Name": "Lopez"}	5
+0 rows affected
+Delete collection wrong schema
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "main_collection"
+    schema: "not_available_schema"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "not_in"
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "Last_Name"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "Lopez"
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1049
+  msg: "Unknown database \'not_available_schema\'"
+  sql_state: "42000"
+}
+
+Delete collection wrong collection
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "not_available_collection"
+    schema: "mysqlxplugin_coll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "not_in"
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "Last_Name"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "Lopez"
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1146
+  msg: "Table \'mysqlxplugin_coll.not_available_collection\' doesn\'t exist"
+  sql_state: "42S02"
+}
+
+Delete collection wrong member
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "notavailablemember"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "Lopez"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+0 rows affected
+================================================================================
+CLEAN UP
+================================================================================
+RUN DROP SCHEMA if EXISTS mysqlxplugin
+
+2 rows affected
+RUN DROP SCHEMA if EXISTS mysqlxplugin_coll
+
+1 rows affected
+RUN DROP USER deletecruduser@localhost
+
+0 rows affected
+RUN SET SQL_SAFE_UPDATES = 1
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

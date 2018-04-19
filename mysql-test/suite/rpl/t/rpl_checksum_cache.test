@@ -1,7 +1,6 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 --source include/not_group_replication_plugin.inc
--- source include/have_innodb.inc
 -- source include/master-slave.inc
 
 --disable_warnings
@@ -18,8 +17,11 @@ set @@global.binlog_cache_size = 4096;
 set @@global.binlog_checksum = CRC32;
 set @@global.master_verify_checksum = 1;
 
+# Sync mtr suppressions before stopping the slave or else we can get "Slave
+# SQL Thread stopped with incomplete event group having non-transactional
+# changes" error.
+--source include/sync_slave_sql_with_master.inc
 # restart slave to force the dump thread to verify events (on master side)
-connection slave;
 source include/stop_slave.inc;
 source include/start_slave.inc;
 

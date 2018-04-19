@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # testing different DATETIME ranges
 #
@@ -237,7 +232,7 @@ select * from t1,t2 where if(1,'01-02-03 12:34:56','') in (f1, f2);
 create table t3(f3 varchar(20));
 insert into t3 select * from t2;
 select * from t2,t3 where f2 in (f3,'03-04-05');
-select f1,f2,f3 from t1,t2,t3 where (f1,'1') in ((f2,'1'),(f3,'1'));
+select f1,f2,f3 from t1,t2,t3 where (f1,'1') in ((f2,'1'),(f3,'1')) order by f1,f2,f3;
 select f1 from t1 where ('1',f1) in (('1','01-01-01'),('1','2001-1-1 0:0:0'),('1','02-02-02'));
 drop table t1,t2,t3;
 
@@ -363,6 +358,7 @@ create table t1 (id int(10) not null, cur_date datetime not null);
 create table t2 (id int(10) not null, cur_date date not null);
 insert into t1 (id, cur_date) values (1, '2007-04-25 18:30:22');
 insert into t2 (id, cur_date) values (1, '2007-04-25');
+analyze table t1;
 
 --disable_query_log
 if (`select locate('semijoin', @@optimizer_switch) > 0`) 
@@ -370,13 +366,13 @@ if (`select locate('semijoin', @@optimizer_switch) > 0`)
   set optimizer_switch='semijoin=off';
 }
 --enable_query_log
-explain extended
+explain
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 
-explain extended
+explain
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 select * from t2
@@ -385,13 +381,13 @@ where id in (select id from t2 as x1 where (t2.cur_date is null));
 insert into t1 (id, cur_date) values (2, '2007-04-26 18:30:22');
 insert into t2 (id, cur_date) values (2, '2007-04-26');
 
-explain extended
+explain
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 
-explain extended
+explain
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 select * from t2
@@ -479,7 +475,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (Id INT, AtTime DATETIME, KEY AtTime (AtTime));
 SET NAMES CP850;
 INSERT INTO t1 VALUES (1,'2010-04-12 22:30:12'), (2,'2010-04-12 22:30:12'), (3,'2010-04-12 22:30:12');
-EXPLAIN EXTENDED SELECT * FROM t1 FORCE INDEX(attime) WHERE AtTime = '2010-02-22 18:40:07';
+EXPLAIN SELECT * FROM t1 FORCE INDEX(attime) WHERE AtTime = '2010-02-22 18:40:07';
 DROP TABLE t1;
 SET NAMES latin1;
 
@@ -500,6 +496,7 @@ STR_TO_DATE('1/1/2010', '%m/%d/%Y');
 
 create table t2(f1 datetime primary key);
 insert into t2 select STR_TO_DATE(CONCAT_WS('/01/',`month`,`year`), '%m/%d/%Y') from t1;
+analyze table t1;
 select * from t2 where f1=STR_TO_DATE('4/1/2010', '%m/%d/%Y');
 --echo t2 should be const
 explain select * from t2 where f1=STR_TO_DATE('4/1/2010', '%m/%d/%Y');
@@ -573,14 +570,22 @@ DROP TABLE if EXISTS t1, t2, t3;
 SET @org_mode=@@sql_mode;
 
 --echo #Table creation in strict mode
-SET @@sql_mode='STRICT_ALL_TABLES';
+SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
 --error ER_INVALID_DEFAULT
 CREATE TABLE t1 (c1 DATETIME DEFAULT 0);
 --error ER_INVALID_DEFAULT
 CREATE TABLE t1 (c1 DATETIME DEFAULT '0000-00-00 00:00:00');
+SET @@sql_mode='NO_ZERO_IN_DATE,STRICT_ALL_TABLES';
 --error ER_INVALID_DEFAULT
 CREATE TABLE t1 (c1 DATETIME DEFAULT '2012-02-00 12:12:12');
 
+--echo #Table creation in non-strict mode but with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE';
+CREATE TABLE t1 (c1 DATETIME DEFAULT 0);
+CREATE TABLE t2 (c1 DATETIME DEFAULT '0000-00-00 00:00:00');
+SET @@sql_mode='NO_ZERO_IN_DATE';
+CREATE TABLE t3 (c1 DATETIME DEFAULT '2012-02-00 12:12:12');
+DROP TABLE t1, t2, t3;
 
 --echo #Table creation with out any SQL modes
 SET @@sql_mode='';
@@ -590,16 +595,25 @@ CREATE TABLE t3 (c1 DATETIME DEFAULT '2012-02-00 12:12:12');
 DROP TABLE t1, t2, t3;
 
 CREATE TABLE t1 (c1 int);
---echo #Alter table in strict mode
-SET @@sql_mode='STRICT_ALL_TABLES';
+--echo #Alter table in strict mode with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
 --error ER_INVALID_DEFAULT
 ALTER TABLE t1 ADD c2 DATETIME DEFAULT 0;
 --error ER_INVALID_DEFAULT
 ALTER TABLE t1 ADD c2 DATETIME DEFAULT '0000-00-00';
+SET @@sql_mode='NO_ZERO_IN_DATE,STRICT_ALL_TABLES';
 --error ER_INVALID_DEFAULT
 ALTER TABLE t1 ADD c2 DATETIME DEFAULT '2012-02-00';
 
+--echo #Alter table in non-strict mode but with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE';
+ALTER TABLE t1 ADD c2 DATETIME DEFAULT 0;
+ALTER TABLE t1 ADD c3 DATETIME DEFAULT '0000-00-00';
+SET @@sql_mode='NO_ZERO_IN_DATE';
+ALTER TABLE t1 ADD c4 DATETIME DEFAULT '2012-02-00';
+DROP TABLE t1;
 
+CREATE TABLE t1 (c1 INT);
 --echo #Alter table with out any SQL modes
 SET @@sql_mode='';
 ALTER TABLE t1 ADD c2 DATETIME DEFAULT 0;
@@ -613,3 +627,78 @@ SET @@sql_mode= @org_mode;
 --echo #
 --echo # End of 5.6 tests
 --echo #
+
+--echo #
+--echo #Bug#25586673: ASSERT IN DA FOR SQL_CMD_UPDATE::UPDATE_SINGLE_TABLE
+--echo #Bug#25586959: SERVER CRASH IN SQL_CMD_DELETE::DELETE_FROM_SINGLE_TABLE
+--echo #
+CREATE TABLE test.t(col_varchar_nokey VARCHAR(1) NOT NULL,
+                    col_time_nokey time NOT NULL,
+                    col_int_nokey INT NOT NULL,
+                    col_datetime_key datetime not null,
+                    key(col_datetime_key)) ENGINE= InnoDB;
+--error ER_TRUNCATED_WRONG_VALUE
+DELETE FROM test.t WHERE `col_int_nokey` > `col_int_nokey`
+                         AND TIMESTAMP( '18:16:35.025453' ) IS  NULL;
+--error ER_TRUNCATED_WRONG_VALUE
+UPDATE test.t SET `col_varchar_nokey` = TIMESTAMP(`col_time_nokey`,'00:00:00')
+  WHERE `col_int_nokey` > `col_int_nokey`
+        AND TIMESTAMP('18:16:35.025453') IS  NULL;
+INSERT INTO t VALUES('x', CURRENT_TIME(), 0, CURRENT_TIMESTAMP());
+--error ER_TRUNCATED_WRONG_VALUE
+UPDATE test.t SET `col_datetime_key` = `col_datetime_key` WHERE
+  `col_datetime_key` <=> FROM_UNIXTIME(1151860736,CONCAT_WS(':','%D','%v'));
+DROP TABLE test.t;
+
+--echo #
+--echo # Bug#25866743 - ASSERTION FAILED: FALSE IN
+--echo #                ITEM_FUNC_GEOMETRY_FROM_TEXT::VAL_STR
+--echo # Bug#25866143 CRASH IN ST_ASWKB STRING::COPY
+--echo #
+
+--error ER_DATA_OUT_OF_RANGE
+do is_ipv4_mapped(bin(maketime(11111,exp(repeat('1',32)),'')));
+
+--error ER_WRONG_VALUE_FOR_TYPE
+do ifnull((bin_to_uuid(uuid_to_bin(date_format('7088-02-14'
+   ,0xabbd95)))),(maketime('4678-07-20 03:51:44.174847',1,'b')));
+
+--error ER_WRONG_VALUE_FOR_TYPE
+do ucase(insert(maketime(9.565398e+307 ,'',
+                         st_longfromgeohash(('4358-04-12 03:45:08.727399'))),
+			 0xdc0823,6756,release_all_locks()));
+
+--error ER_DATA_OUT_OF_RANGE
+do soundex(maketime(cast((2530967061762658367) as decimal),
+   exp(repeat('1',32)),((period_add(579349005,27636))xor (sha(current_user)))));
+
+--error ER_DATA_OUT_OF_RANGE
+do st_mlinefromtext(
+ maketime(
+  now(),
+  instr(1,pow(15270551309908264860,100)),
+  31
+ )
+);
+
+--echo #
+--echo # Bug#26147274 ASSERTION `ITEM->MAYBE_NULL' AT MAKE_SORTKEY_FROM_ITEM
+--echo #              IN SQL/FILESORT.CC
+--echo #
+CREATE TABLE t1 (
+  col_datetime_1_not_null datetime NOT NULL,
+  col_datetime_2_not_null datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+SET sql_mode=NO_ENGINE_SUBSTITUTION;
+INSERT INTO t1 VALUES ('0000-00-00 00:00:00.0','2005-12-22 19:53:31.01');
+INSERT INTO t1 VALUES ('9999-00-00 00:00:00.0','2005-12-22 19:53:31.01');
+
+SET sql_mode=default;
+
+SELECT * FROM t1 order by col_datetime_1_not_null; 
+SELECT LEAST( '2005-06-05',
+              LEAST( col_datetime_1_not_null , col_datetime_2_not_null ) )
+AS c1 FROM t1 ORDER BY c1;
+
+DROP TABLE t1;

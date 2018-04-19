@@ -1,26 +1,28 @@
 drop table if exists t1;
+set names utf8mb4 collate utf8mb4_unicode_ci;
 select 'a' = 'a', 'a' = 'a ', 'a ' = 'a';
 'a' = 'a'	'a' = 'a '	'a ' = 'a'
 1	1	1
 select 'a\0' = 'a', 'a\0' < 'a', 'a\0' > 'a';
 'a\0' = 'a'	'a\0' < 'a'	'a\0' > 'a'
-0	1	0
+1	0	0
 select 'a' = 'a\0', 'a' < 'a\0', 'a' > 'a\0';
 'a' = 'a\0'	'a' < 'a\0'	'a' > 'a\0'
-0	0	1
+1	0	0
 select 'a\0' = 'a ', 'a\0' < 'a ', 'a\0' > 'a ';
 'a\0' = 'a '	'a\0' < 'a '	'a\0' > 'a '
-0	1	0
+1	0	0
 select 'a ' = 'a\0', 'a ' < 'a\0', 'a ' > 'a\0';
 'a ' = 'a\0'	'a ' < 'a\0'	'a ' > 'a\0'
-0	0	1
+1	0	0
 select 'a  a' > 'a', 'a  \0' < 'a';
 'a  a' > 'a'	'a  \0' < 'a'
-1	1
+1	0
 select binary 'a  a' > 'a', binary 'a  \0' > 'a', binary 'a\0' > 'a';
 binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
 1	1	1
-create table t1 (text1 varchar(32) not NULL, KEY key1 (text1));
+set names default;
+create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) charset latin1;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
 analyze table t1;
 check table t1;
@@ -127,7 +129,7 @@ concat('|', text1, '|')
 |teststring|
 |teststring |
 drop table t1;
-create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) pack_keys=0;
+create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) charset latin1 pack_keys=0;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
 select concat('|', text1, '|') as c from t1 where text1='teststring' or text1 like 'teststring_%' order by c;
 c
@@ -138,7 +140,8 @@ concat('|', text1, '|')
 |teststring	|
 |teststring|
 drop table t1;
-create table t1 (text1 varchar(32) not NULL, KEY key1 using BTREE (text1)) engine=heap;
+create table t1 (text1 varchar(32) not NULL, KEY key1 using BTREE (text1))
+charset latin1 engine=heap;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
 select * from t1 ignore key (key1) where text1='teststring' or 
 text1 like 'teststring_%' ORDER BY text1;
@@ -170,7 +173,8 @@ nothing
 teststring	
 teststring
 drop table t1;
-create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) engine=innodb;
+create table t1 (text1 varchar(32) not NULL, KEY key1 (text1))
+charset latin1 engine=innodb;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
 analyze table t1;
 check table t1;
@@ -214,13 +218,13 @@ teststring
 teststring 
 select text1, length(text1) from t1 where text1='teststring' or text1 like 'teststring_%';
 text1	length(text1)
-teststring	10
 teststring		11
+teststring	10
 teststring 	11
 select text1, length(text1) from t1 where text1='teststring' or text1 >= 'teststring\t';
 text1	length(text1)
-teststring	10
 teststring		11
+teststring	10
 teststring 	11
 select concat('|', text1, '|') from t1 order by text1;
 concat('|', text1, '|')

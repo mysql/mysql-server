@@ -1,0 +1,117 @@
+# ==== Purpose ====
+#
+# This test will pass a new parameter to the already exisiting command
+# RESET MASTER, and will test the expected output and the corner cases.
+#
+# ==== Related Worklog ====
+#
+# WL9110:Add RESET MASTER TO x to allow specification of binlog file number
+#
+# This test case is binary log format agnostic
+--source include/have_binlog_format_mixed.inc
+
+# This is to suppress the warning while testing with binlog index number 2147483645
+call mtr.add_suppression("Next log extension.* Remaining log filename extensions.");
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+# Checking the old command this deletes all the old binary log
+# file and create a new one with index 1, this is implemented in the inc file below
+
+RESET MASTER;
+--let $binlog_number= 000001
+--source suite/binlog/include/binlog_reset_master_to_option.inc
+
+# Extension to the existing command, this will delete the old
+# binary log and create a new one with index 1234,
+# this is implemented in the inc file below
+RESET MASTER TO 1234;
+
+# Check that old binary log is deleted
+--error 1
+file_exists $MYSQLD_DATADIR/binlog.000001;
+
+--let $binlog_number= 001234
+--source suite/binlog/include/binlog_reset_master_to_option.inc
+
+# Testing the boundary cases:
+#
+# 1) Test with non-integer values
+--error ER_PARSE_ERROR
+RESET MASTER TO 1.023;
+
+# 2) Test with negative numbers
+--error ER_PARSE_ERROR
+RESET MASTER TO -123;
+
+# 3) Test with numbers > 2^31 - 1, as that is the limit for binary log file index
+# Check with numbers around the upper limit to show it passes.
+RESET MASTER TO 2147483647;
+--let $binlog_number= 2147483647
+--source suite/binlog/include/binlog_reset_master_to_option.inc
+
+# Checking with 2^31 - 1
+-- error ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
+RESET MASTER TO 2147483648;
+
+# 4) Test with 0
+--error ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
+RESET MASTER TO 0;
+
+# 5) Test with Character
+--error ER_PARSE_ERROR
+RESET MASTER TO q;
+--error ER_PARSE_ERROR
+RESET MASTER TO "qwe";
+
+# 6) Test with special character
+--error ER_PARSE_ERROR
+RESET MASTER TO @;
+
+# 7) Test with a different user
+CREATE USER user1@localhost IDENTIFIED BY 'pass1';
+connect (conn_user1,localhost,user1,pass1,);
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+RESET MASTER TO 100;
+
+# Grant priviliges to user1
+--connection default
+GRANT RELOAD ON *.* TO 'user1'@'localhost';
+
+connect (conn_user,localhost,user1,pass1,);
+RESET MASTER TO 100;
+
+--disconnect conn_user
+--disconnect conn_user1
+
+--connection default
+--let $binlog_number= 000100
+--source suite/binlog/include/binlog_reset_master_to_option.inc
+
+# 8) Test with hexa decimal numbers
+RESET MASTER TO 0xF;
+--let $binlog_number= 000015
+--source suite/binlog/include/binlog_reset_master_to_option.inc
+
+-- error ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
+RESET MASTER TO 0x0;
+
+RESET MASTER TO 0xFFFF;
+--let $binlog_number= 065535
+--source suite/binlog/include/binlog_reset_master_to_option.inc
+
+RESET MASTER TO 0x7FFFFFFF;
+--let $binlog_number= 2147483647
+--source suite/binlog/include/binlog_reset_master_to_option.inc
+
+# 9) Check with function
+
+CREATE FUNCTION f1(a int) RETURNS INT RETURN (a+10);
+--error ER_PARSE_ERROR
+RESET MASTER TO f1(3);
+
+# Clean Up
+DROP USER 'user1'@'localhost';
+DROP FUNCTION f1;
+RESET MASTER;
+file_exists $MYSQLD_DATADIR/binlog.000001;

@@ -57,18 +57,18 @@ a	b	c
 2	2	20
 EXPLAIN SELECT a,b,c FROM t1 WHERE b = 2 AND a = 2 AND  c > 0 AND c < 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2	ref	a,b	a	3	const	9	3.57	Using where
+1	SIMPLE	t1	p0,p1,p2	ref	a,b	a	3	const	8	3.57	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`c` > 0) and (`test`.`t1`.`c` < 100))
 # Adding more fillers to get index_merge_union
-INSERT INTO t1 SELECT 1, 1, 97 FROM t2, t2 t3 LIMIT 27;
+INSERT INTO t1 SELECT 1, 1, 97 FROM t2, t2 t3 LIMIT 32;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SET SESSION optimizer_switch="index_merge_union=on";
 EXPLAIN SELECT a,b,c FROM t1 WHERE (b = 2 OR a = 2) AND  c > 0 AND c < 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2	index_merge	a,b	b,a	3,3	NULL	18	11.11	Using union(b,a); Using where
+1	SIMPLE	t1	p0,p1,p2	index_merge	a,b	b,a	3,3	NULL	17	11.11	Using union(b,a); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (((`test`.`t1`.`b` = 2) or (`test`.`t1`.`a` = 2)) and (`test`.`t1`.`c` > 0) and (`test`.`t1`.`c` < 100))
 SELECT a,b,c FROM t1 WHERE (b = 2 OR a = 2) AND  c > 0 AND c < 100;
@@ -106,7 +106,7 @@ a	b	c
 2	1	98
 EXPLAIN SELECT a,b,c FROM t1 WHERE (b = 2 OR a = 2) AND  c > 0 AND c < 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2	ALL	a,b	NULL	NULL	NULL	55	7.11	Using where
+1	SIMPLE	t1	p0,p1,p2	ALL	a,b	NULL	NULL	NULL	60	7.22	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (((`test`.`t1`.`b` = 2) or (`test`.`t1`.`a` = 2)) and (`test`.`t1`.`c` > 0) and (`test`.`t1`.`c` < 100))
 Insert a few more rows to trigger sort_union
@@ -117,7 +117,7 @@ test.t1	analyze	status	OK
 SET SESSION optimizer_switch="index_merge_sort_union=on";
 EXPLAIN SELECT a,b,c FROM t1 WHERE (b >= 2 OR a >= 2) AND  c > 0 AND c < 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2	index_merge	a,b	b,a	3,3	NULL	18	11.11	Using sort_union(b,a); Using where
+1	SIMPLE	t1	p0,p1,p2	index_merge	a,b	b,a	3,3	NULL	17	11.11	Using sort_union(b,a); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (((`test`.`t1`.`b` >= 2) or (`test`.`t1`.`a` >= 2)) and (`test`.`t1`.`c` > 0) and (`test`.`t1`.`c` < 100))
 # Not affected, added for completeness...
@@ -156,7 +156,7 @@ a	b	c
 2	1	98
 EXPLAIN SELECT a,b,c FROM t1 WHERE (b >= 2 OR a >= 2) AND  c > 0 AND c < 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2	ALL	a,b	NULL	NULL	NULL	103	6.17	Using where
+1	SIMPLE	t1	p0,p1,p2	ALL	a,b	NULL	NULL	NULL	108	6.17	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (((`test`.`t1`.`b` >= 2) or (`test`.`t1`.`a` >= 2)) and (`test`.`t1`.`c` > 0) and (`test`.`t1`.`c` < 100))
 SET @@session.optimizer_switch = @old_opt_switch;

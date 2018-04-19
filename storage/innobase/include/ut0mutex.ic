@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -9,25 +9,32 @@ incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/ut0mutex.ic
-Mutex implementation include file
+/** @file include/ut0mutex.ic
+ Mutex implementation include file
 
-Created 2012/08/21 Sunny Bains
-*******************************************************/
+ Created 2012/08/21 Sunny Bains
+ *******************************************************/
 
 #include "sync0arr.h"
 #include "sync0debug.h"
@@ -37,61 +44,62 @@ Wait in the sync array.
 @return true if the mutex acquisition was successful. */
 
 template <template <typename> class Policy>
-bool
-TTASEventMutex<Policy>::wait(const char* filename, ulint line) UNIV_NOTHROW
-{
-	sync_cell_t*	cell;
-	sync_array_t*	sync_arr = sync_array_get_and_reserve_cell(
-				this, SYNC_MUTEX, filename, line, &cell);
+bool TTASEventMutex<Policy>::wait(const char *filename, uint32_t line,
+                                  uint32_t spin) UNIV_NOTHROW {
+  sync_cell_t *cell;
+  sync_array_t *sync_arr;
 
-	/* The memory order of the array reservation and
-	the change in the waiters field is important: when
-	we suspend a thread, we first reserve the cell and
-	then set waiters field to 1. When threads are released
-	in mutex_exit, the waiters field is first set to zero
-	and then the event is set to the signaled state. */
+  sync_arr = sync_array_get_and_reserve_cell(
+      this,
+      (m_policy.get_id() == LATCH_ID_BUF_BLOCK_MUTEX ||
+       m_policy.get_id() == LATCH_ID_BUF_POOL_ZIP)
+          ? SYNC_BUF_BLOCK
+          : SYNC_MUTEX,
+      filename, line, &cell);
 
-	set_waiters();
+  /* The memory order of the array reservation and
+  the change in the waiters field is important: when
+  we suspend a thread, we first reserve the cell and
+  then set waiters field to 1. When threads are released
+  in mutex_exit, the waiters field is first set to zero
+  and then the event is set to the signaled state. */
 
-	/* Try to reserve still a few times. */
+  set_waiters();
 
-	for (ulint i = 0; i < 4; ++i) {
+  /* Try to reserve still a few times. */
 
-		if (try_lock()) {
+  for (uint32_t i = 0; i < spin; ++i) {
+    if (try_lock()) {
+      sync_array_free_cell(sync_arr, cell);
 
-			sync_array_free_cell(sync_arr, cell);
+      /* Note that in this case we leave
+      the waiters field set to 1. We cannot
+      reset it to zero, as we do not know if
+      there are other waiters. */
 
-			/* Note that in this case we leave
-			the waiters field set to 1. We cannot
-			reset it to zero, as we do not know if
-			there are other waiters. */
+      return (true);
+    }
+  }
 
-			return(true);
-		}
-	}
+  /* Now we know that there has been some thread
+  holding the mutex after the change in the wait
+  array and the waiters field was made.  Now there
+  is no risk of infinite wait on the event. */
 
-	/* Now we know that there has been some thread
-	holding the mutex after the change in the wait
-	array and the waiters field was made.  Now there
-	is no risk of infinite wait on the event. */
+  sync_array_wait_event(sync_arr, cell);
 
-	sync_array_wait_event(sync_arr, cell);
-
-	return(false);
+  return (false);
 }
-
 
 /** Wakeup any waiting thread(s). */
 
 template <template <typename> class Policy>
-void
-TTASEventMutex<Policy>::signal() UNIV_NOTHROW
-{
-	clear_waiters();
+void TTASEventMutex<Policy>::signal() UNIV_NOTHROW {
+  clear_waiters();
 
-	/* The memory order of resetting the waiters field and
-	signaling the object is important. See LEMMA 1 above. */
-	os_event_set(m_event);
+  /* The memory order of resetting the waiters field and
+  signaling the object is important. See LEMMA 1 above. */
+  os_event_set(m_event);
 
-	sync_array_object_signalled();
+  sync_array_object_signalled();
 }

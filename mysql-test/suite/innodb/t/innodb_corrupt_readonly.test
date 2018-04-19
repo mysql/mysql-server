@@ -1,0 +1,61 @@
+#
+# Test for set corrupt bit for corrupted index in read only mode
+#
+
+# This test needs debug server
+--source include/have_debug.inc
+
+--disable_query_log
+call mtr.add_suppression("Flagged corruption of.* in table .* in CHECK TABLE");
+call mtr.add_suppression("Skip re-populating collations and*");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
+--enable_query_log
+
+set names utf8;
+
+CREATE TABLE t(
+       a INT AUTO_INCREMENT PRIMARY KEY,
+       b CHAR(100),
+       c INT,
+       z INT,
+       INDEX idx(b))
+ENGINE=InnoDB STATS_PERSISTENT=0;
+
+INSERT INTO t VALUES(0,'x',1, 1);
+
+CREATE UNIQUE INDEX idx1 ON t(c, b);
+
+SELECT * FROM t;
+
+INSERT INTO t SELECT 0,b,c+1,z+1 FROM t;
+
+select count(*) from t;
+
+# restart server with read only
+SET GLOBAL innodb_fast_shutdown=0;
+let $restart_parameters = restart: --innodb-read-only;
+--source include/restart_mysqld.inc
+
+# This will flag all secondary indexes corrupted. It should just mark
+# in-memory metadata as corrupted, as this is a read-only server
+SET SESSION debug="+d,dict_set_index_corrupted";
+check table t;
+SET SESSION debug="-d,dict_set_index_corrupted";
+
+-- error ER_INDEX_CORRUPT
+select c from t;
+
+show warnings;
+
+# This does not use the corrupted index, expect to succeed
+select * from t use index(primary) where a = 1;
+
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+DROP INDEX idx ON t;
+DROP INDEX idx1 ON t;
+
+# Drop table
+drop table t;

@@ -1,0 +1,34 @@
+# Test that tests the crash of server in a particular combination of
+# temporary tables and user defined variable
+#
+# Here we tests the crash of server when temporary tables are dropped
+# immediately after a query which has an user defined variable.
+#
+#
+#
+# Test guide:
+#   1) Create a normal table and a temporary table.
+#   2) Create a user defined variable.
+#   3) Execute a transaction in normal table involving the user defined
+#      variable.
+#   4) Disconnect this connection, this will end up calling the cleanup
+#      method which drops all the temporary tables created in that connection
+#   5) Cleanup
+#
+--source include/have_binlog_format_statement.inc
+connect (con1,localhost,root,,test);
+connection con1;
+--let $connection_id= `SELECT connection_id()`
+CREATE TABLE t1 (id INT);
+CREATE TEMPORARY TABLE t2(id INT);
+SET @id := 1;
+DELETE FROM t1 WHERE id LIKE @id;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+# Wait till the session con1 is disconnected
+--let $wait_condition = SELECT COUNT(*) = 0 FROM information_schema.processlist WHERE  id = '$connection_id'
+--source include/wait_condition.inc
+DROP TABLE t1;

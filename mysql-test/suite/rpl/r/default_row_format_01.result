@@ -1,0 +1,66 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+USE test;
+CREATE TABLE tab(empno INT,ename VARCHAR(30),sal NUMERIC(3))
+ENGINE=InnoDB PARTITION BY HASH(empno) (PARTITION p0,PARTITION p1 );
+CREATE TABLE tab1(a INT PRIMARY KEY, b VARCHAR(5000),KEY idx1(b(3070)))
+ENGINE= InnoDB
+DEFAULT CHARACTER SET latin1;
+INSERT INTO tab VALUES (100,'VISWANATH',100);
+INSERT INTO tab VALUES (300,'VISWANATH',200);
+INSERT INTO tab1(a,b) VALUES(1,'Check with max prefix');
+include/sync_slave_sql_with_master.inc
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+dynamic
+SELECT * FROM tab ORDER BY empno;
+empno	ename	sal
+100	VISWANATH	100
+300	VISWANATH	200
+SELECT * FROM tab1 ORDER BY a;
+a	b
+1	Check with max prefix
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+CHECK TABLE tab1;
+Table	Op	Msg_type	Msg_text
+test.tab1	check	status	OK
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab#p#p0	test/tab#p#p0	33	6	Dynamic	0	Single
+test/tab#p#p1	test/tab#p#p1	33	6	Dynamic	0	Single
+test/tab1	test/tab1	33	5	Dynamic	0	Single
+DROP TABLE tab,tab1;
+SET GLOBAL innodb_default_row_format=Compact;
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000),KEY idx1(b(768)))
+ENGINE= InnoDB
+DEFAULT CHARACTER SET latin1;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+include/sync_slave_sql_with_master.inc
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+dynamic
+SHOW CREATE TABLE tab;
+ERROR 42S02: Table 'test.tab' doesn't exist
+SET GLOBAL innodb_default_row_format=Dynamic;
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000),KEY idx1(b(767)))
+ENGINE= InnoDB ROW_FORMAT=COMPACT
+DEFAULT CHARACTER SET latin1;
+INSERT INTO tab(a,b) VALUES(1,'Check with max prefix');
+ALTER TABLE tab ROW_FORMAT=COMPRESSED;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	test/tab	41	5	Compressed	8192	Single
+include/sync_slave_sql_with_master.inc
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+dynamic
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	test/tab	41	5	Compressed	8192	Single
+DROP TABLE tab;
+include/rpl_end.inc

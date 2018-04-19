@@ -52,7 +52,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	sa_opportunities	NULL	ref	org_id	org_id	5	test.orgs.org_id	ROWS	100.00	Using index
 1	SIMPLE	contacts	NULL	ref	contacts$org_id	contacts$org_id	5	test.orgs.org_id	ROWS	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)`,0 AS `0` from `test`.`bug30243_1` `orgs` left join `test`.`bug30243_3` `sa_opportunities` on((`test`.`orgs`.`org_id` = `test`.`sa_opportunities`.`org_id`)) left join `test`.`bug30243_2` `contacts` on((`test`.`orgs`.`org_id` = `test`.`contacts`.`org_id`)) where 1
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)`,0 AS `0` from `test`.`bug30243_1` `orgs` left join `test`.`bug30243_3` `sa_opportunities` on((`test`.`sa_opportunities`.`org_id` = `test`.`orgs`.`org_id`)) left join `test`.`bug30243_2` `contacts` on((`test`.`contacts`.`org_id` = `test`.`orgs`.`org_id`)) where 1
 select @@innodb_stats_method;
 @@innodb_stats_method
 nulls_ignored
@@ -80,7 +80,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	sa_opportunities	NULL	ref	org_id	org_id	5	test.orgs.org_id	ROWS	100.00	Using index
 1	SIMPLE	contacts	NULL	ref	contacts$org_id	contacts$org_id	5	test.orgs.org_id	ROWS	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)`,0 AS `0` from `test`.`bug30243_1` `orgs` left join `test`.`bug30243_3` `sa_opportunities` on((`test`.`orgs`.`org_id` = `test`.`sa_opportunities`.`org_id`)) left join `test`.`bug30243_2` `contacts` on((`test`.`orgs`.`org_id` = `test`.`contacts`.`org_id`)) where 1
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)`,0 AS `0` from `test`.`bug30243_1` `orgs` left join `test`.`bug30243_3` `sa_opportunities` on((`test`.`sa_opportunities`.`org_id` = `test`.`orgs`.`org_id`)) left join `test`.`bug30243_2` `contacts` on((`test`.`contacts`.`org_id` = `test`.`orgs`.`org_id`)) where 1
 SELECT COUNT(*) FROM table_bug30423 WHERE org_id IS NULL;
 COUNT(*)
 1024

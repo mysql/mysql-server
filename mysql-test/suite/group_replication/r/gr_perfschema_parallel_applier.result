@@ -1,0 +1,353 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Before start Group Replication channels are not present
+#    on common replication P_S tables.
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_connection_configuration table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_connection_status table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_configuration table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status_by_worker table']
+
+############################################################
+# 2. After start Group Replication channels are present
+#    on common replication P_S tables.
+[connection server2]
+include/start_and_bootstrap_group_replication.inc
+[connection server1]
+include/start_group_replication.inc
+include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_connection_configuration table']
+include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_connection_status table']
+include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_applier_configuration table']
+include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_applier_status table']
+include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table']
+include/assert.inc ['There are four Group Replication applier channel workers on performance_schema.replication_applier_status_by_worker table']
+
+############################################################
+# 3. Group Replication running channels sample output
+#    on common replication P_S tables.
+[connection server2]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+[connection server1]
+
+SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+HOST	<NULL>
+PORT	0
+USER	
+NETWORK_INTERFACE	
+AUTO_POSITION	1
+SSL_ALLOWED	NO
+SSL_CA_FILE	
+SSL_CA_PATH	
+SSL_CERTIFICATE	
+SSL_CIPHER	
+SSL_KEY	
+SSL_VERIFY_SERVER_CERTIFICATE	NO
+SSL_CRL_FILE	
+SSL_CRL_PATH	
+CONNECTION_RETRY_INTERVAL	60
+CONNECTION_RETRY_COUNT	10
+HEARTBEAT_INTERVAL	30.000
+TLS_VERSION	
+PUBLIC_KEY_PATH	
+GET_PUBLIC_KEY	NO
+
+SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+GROUP_NAME	8a94f357-aab4-11df-86ab-c80aa9429445
+SOURCE_UUID	8a94f357-aab4-11df-86ab-c80aa9429445
+THREAD_ID	NULL
+SERVICE_STATE	ON
+COUNT_RECEIVED_HEARTBEATS	0
+LAST_HEARTBEAT_TIMESTAMP	0000-00-00 00:00:00.000000
+RECEIVED_TRANSACTION_SET	8a94f357-aab4-11df-86ab-c80aa9429445:2-4
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
+LAST_QUEUED_TRANSACTION	8a94f357-aab4-11df-86ab-c80aa9429445:4
+LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	[ORIGINAL_COMMIT_TIMESTAMP]
+LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	[IMMEDIATE_COMMIT_TIMESTAMP]
+LAST_QUEUED_TRANSACTION_START_QUEUE_TIMESTAMP	[START_QUEUE_TIMESTAMP]
+LAST_QUEUED_TRANSACTION_END_QUEUE_TIMESTAMP	[END_QUEUE_TIMESTAMP]
+QUEUEING_TRANSACTION	
+QUEUEING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+QUEUEING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP	0000-00-00 00:00:00.000000
+
+SELECT * FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+DESIRED_DELAY	0
+
+SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+SERVICE_STATE	ON
+REMAINING_DELAY	NULL
+COUNT_TRANSACTIONS_RETRIES	0
+
+SELECT * FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+THREAD_ID	[THREAD_ID]
+SERVICE_STATE	ON
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
+LAST_PROCESSED_TRANSACTION	8a94f357-aab4-11df-86ab-c80aa9429445:4
+LAST_PROCESSED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	[ORIGINAL_COMMIT_TIMESTAMP]
+LAST_PROCESSED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	[IMMEDIATE_COMMIT_TIMESTAMP]
+LAST_PROCESSED_TRANSACTION_START_BUFFER_TIMESTAMP	[START_BUFFER_TIMESTAMP]
+LAST_PROCESSED_TRANSACTION_END_BUFFER_TIMESTAMP	[END_BUFFER_TIMESTAMP]
+PROCESSING_TRANSACTION	
+PROCESSING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+PROCESSING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+PROCESSING_TRANSACTION_START_BUFFER_TIMESTAMP	0000-00-00 00:00:00.000000
+
+SELECT * FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+WORKER_ID	1
+THREAD_ID	[THREAD_ID]
+SERVICE_STATE	ON
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
+LAST_APPLIED_TRANSACTION	[GTID]
+LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	[ORIGINAL_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	[IMMEDIATE_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP	[START_APPLY_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP	[END_APPLY_TIMESTAMP]
+APPLYING_TRANSACTION	
+APPLYING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_START_APPLY_TIMESTAMP	0000-00-00 00:00:00.000000
+CHANNEL_NAME	group_replication_applier
+WORKER_ID	2
+THREAD_ID	[THREAD_ID]
+SERVICE_STATE	ON
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
+LAST_APPLIED_TRANSACTION	[GTID]
+LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	[ORIGINAL_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	[IMMEDIATE_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP	[START_APPLY_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP	[END_APPLY_TIMESTAMP]
+APPLYING_TRANSACTION	
+APPLYING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_START_APPLY_TIMESTAMP	0000-00-00 00:00:00.000000
+CHANNEL_NAME	group_replication_applier
+WORKER_ID	3
+THREAD_ID	[THREAD_ID]
+SERVICE_STATE	ON
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
+LAST_APPLIED_TRANSACTION	[GTID]
+LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	[ORIGINAL_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	[IMMEDIATE_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP	[START_APPLY_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP	[END_APPLY_TIMESTAMP]
+APPLYING_TRANSACTION	
+APPLYING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_START_APPLY_TIMESTAMP	0000-00-00 00:00:00.000000
+CHANNEL_NAME	group_replication_applier
+WORKER_ID	4
+THREAD_ID	[THREAD_ID]
+SERVICE_STATE	ON
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
+LAST_APPLIED_TRANSACTION	[GTID]
+LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	[ORIGINAL_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	[IMMEDIATE_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP	[START_APPLY_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP	[END_APPLY_TIMESTAMP]
+APPLYING_TRANSACTION	
+APPLYING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_START_APPLY_TIMESTAMP	0000-00-00 00:00:00.000000
+
+############################################################
+# 4. Clean up data.
+[connection server2]
+DROP TABLE t1;
+include/rpl_sync.inc
+
+############################################################
+# 5. Stop Group Replication, channels must continue to be
+#    present on common replication P_S tables.
+[connection server2]
+include/stop_group_replication.inc
+[connection server1]
+include/stop_group_replication.inc
+include/assert.inc ['There is still a Group Replication applier channel on performance_schema.replication_connection_configuration table']
+include/assert.inc ['There is still a Group Replication applier channel on performance_schema.replication_connection_status table']
+include/assert.inc ['There is still a Group Replication applier channel on performance_schema.replication_applier_configuration table']
+include/assert.inc ['There is still a Group Replication applier channel on performance_schema.replication_applier_status table']
+include/assert.inc ['There is still a Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table']
+include/assert.inc ['There are still four Group Replication applier channel workers on performance_schema.replication_applier_status_by_worker table']
+
+############################################################
+# 6. Group Replication stopped channels sample output
+#    on common replication P_S tables.
+
+SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+HOST	<NULL>
+PORT	0
+USER	
+NETWORK_INTERFACE	
+AUTO_POSITION	1
+SSL_ALLOWED	NO
+SSL_CA_FILE	
+SSL_CA_PATH	
+SSL_CERTIFICATE	
+SSL_CIPHER	
+SSL_KEY	
+SSL_VERIFY_SERVER_CERTIFICATE	NO
+SSL_CRL_FILE	
+SSL_CRL_PATH	
+CONNECTION_RETRY_INTERVAL	60
+CONNECTION_RETRY_COUNT	10
+HEARTBEAT_INTERVAL	30.000
+TLS_VERSION	
+PUBLIC_KEY_PATH	
+GET_PUBLIC_KEY	NO
+
+SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+GROUP_NAME	8a94f357-aab4-11df-86ab-c80aa9429445
+SOURCE_UUID	8a94f357-aab4-11df-86ab-c80aa9429445
+THREAD_ID	NULL
+SERVICE_STATE	OFF
+COUNT_RECEIVED_HEARTBEATS	0
+LAST_HEARTBEAT_TIMESTAMP	0000-00-00 00:00:00.000000
+RECEIVED_TRANSACTION_SET	8a94f357-aab4-11df-86ab-c80aa9429445:2-5
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
+LAST_QUEUED_TRANSACTION	8a94f357-aab4-11df-86ab-c80aa9429445:5
+LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	[ORIGINAL_COMMIT_TIMESTAMP]
+LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	[IMMEDIATE_COMMIT_TIMESTAMP]
+LAST_QUEUED_TRANSACTION_START_QUEUE_TIMESTAMP	[START_QUEUE_TIMESTAMP]
+LAST_QUEUED_TRANSACTION_END_QUEUE_TIMESTAMP	[END_QUEUE_TIMESTAMP]
+QUEUEING_TRANSACTION	
+QUEUEING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+QUEUEING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP	0000-00-00 00:00:00.000000
+
+SELECT * FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+DESIRED_DELAY	0
+
+SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+SERVICE_STATE	OFF
+REMAINING_DELAY	NULL
+COUNT_TRANSACTIONS_RETRIES	0
+
+SELECT * FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+THREAD_ID	NULL
+SERVICE_STATE	OFF
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
+LAST_PROCESSED_TRANSACTION	8a94f357-aab4-11df-86ab-c80aa9429445:5
+LAST_PROCESSED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	[ORIGINAL_COMMIT_TIMESTAMP]
+LAST_PROCESSED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	[IMMEDIATE_COMMIT_TIMESTAMP]
+LAST_PROCESSED_TRANSACTION_START_BUFFER_TIMESTAMP	[START_BUFFER_TIMESTAMP]
+LAST_PROCESSED_TRANSACTION_END_BUFFER_TIMESTAMP	[END_BUFFER_TIMESTAMP]
+PROCESSING_TRANSACTION	
+PROCESSING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+PROCESSING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+PROCESSING_TRANSACTION_START_BUFFER_TIMESTAMP	0000-00-00 00:00:00.000000
+
+SELECT * FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+WORKER_ID	1
+THREAD_ID	NULL
+SERVICE_STATE	OFF
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
+LAST_APPLIED_TRANSACTION	[GTID]
+LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	[ORIGINAL_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	[IMMEDIATE_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP	[START_APPLY_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP	[END_APPLY_TIMESTAMP]
+APPLYING_TRANSACTION	
+APPLYING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_START_APPLY_TIMESTAMP	0000-00-00 00:00:00.000000
+CHANNEL_NAME	group_replication_applier
+WORKER_ID	2
+THREAD_ID	NULL
+SERVICE_STATE	OFF
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
+LAST_APPLIED_TRANSACTION	[GTID]
+LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	[ORIGINAL_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	[IMMEDIATE_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP	[START_APPLY_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP	[END_APPLY_TIMESTAMP]
+APPLYING_TRANSACTION	
+APPLYING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_START_APPLY_TIMESTAMP	0000-00-00 00:00:00.000000
+CHANNEL_NAME	group_replication_applier
+WORKER_ID	3
+THREAD_ID	NULL
+SERVICE_STATE	OFF
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
+LAST_APPLIED_TRANSACTION	[GTID]
+LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	[ORIGINAL_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	[IMMEDIATE_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP	[START_APPLY_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP	[END_APPLY_TIMESTAMP]
+APPLYING_TRANSACTION	
+APPLYING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_START_APPLY_TIMESTAMP	0000-00-00 00:00:00.000000
+CHANNEL_NAME	group_replication_applier
+WORKER_ID	4
+THREAD_ID	NULL
+SERVICE_STATE	OFF
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
+LAST_APPLIED_TRANSACTION	[GTID]
+LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	[ORIGINAL_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	[IMMEDIATE_COMMIT_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP	[START_APPLY_TIMESTAMP]
+LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP	[END_APPLY_TIMESTAMP]
+APPLYING_TRANSACTION	
+APPLYING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP	0000-00-00 00:00:00.000000
+APPLYING_TRANSACTION_START_APPLY_TIMESTAMP	0000-00-00 00:00:00.000000
+
+############################################################
+# 7. Group Replication channel must not be present on common
+#    replication P_S tables after a RESET ALL command.
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_connection_configuration table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_connection_status table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_configuration table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status_by_worker table']
+
+############################################################
+# 8. Test end.
+include/group_replication_end.inc

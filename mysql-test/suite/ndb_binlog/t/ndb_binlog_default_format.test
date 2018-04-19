@@ -1,15 +1,21 @@
 --source include/have_ndb.inc
---source include/not_embedded.inc
+
+# The purpose of this test is to show that the global binlog_format
+# is automatically upgraded to MIXED in case the mysqld is started
+# with STATEMENT
 
 show variables like 'log_bin';
+
+#
+# Check that binlog_format has been auto upgraded to MIXED
+#
 show variables like 'binlog_format';
 
+#
+# Run some basic statements and check how they look in the binlog
+#
 use test;
 create table test.t1 (a int primary key) engine=ndb;
-
 insert into test.t1 values (1);
-
 drop table test.t1;
-
 --source include/show_binlog_events.inc
-

@@ -1,7 +1,5 @@
 drop table if exists t1,t2,t3;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL);
 insert into t1 (bandID,payoutID) VALUES (1,6),(2,6),(3,4),(4,9),(5,10),(6,1),(7,12),(8,12);
 create table t2 (payoutID SMALLINT UNSIGNED NOT NULL PRIMARY KEY);
@@ -775,17 +773,15 @@ INSERT INTO t1 VALUES ( 0, 1 );
 INSERT INTO t1 ( b ) SELECT MAX( b ) FROM t1 WHERE b = 2;
 ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
 DROP TABLE t1;
-SET SQL_MODE='STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
-CREATE TABLE t1 (c VARCHAR(30), INDEX ix_c (c(10)));
+SET SQL_MODE=default;
+CREATE TABLE t1 (c VARCHAR(30), INDEX ix_c (c(10))) charset utf8mb4;
 CREATE TABLE t2 (d VARCHAR(10));
 INSERT INTO t1 (c) VALUES ('7_chars'), ('13_characters');
 EXPLAIN
 SELECT (SELECT SUM(LENGTH(c)) FROM t1 WHERE c='13_characters') FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	SUBQUERY	t1	NULL	ref	ix_c	ix_c	13	const	1	100.00	Using where
+1	PRIMARY	t1	NULL	index	NULL	ix_c	43	NULL	2	100.00	Using index
+2	SUBQUERY	t1	NULL	ref	ix_c	ix_c	43	const	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select sum(length(`test`.`t1`.`c`)) from `test`.`t1` where (`test`.`t1`.`c` = '13_characters')) AS `(SELECT SUM(LENGTH(c)) FROM t1 WHERE c='13_characters')` from `test`.`t1`
 SELECT (SELECT SUM(LENGTH(c)) FROM t1 WHERE c='13_characters') FROM t1;
@@ -846,16 +842,48 @@ drop table t1,t2;
 # Bug #46075: Assertion failed: 0, file .\protocol.cc, line 416
 #
 set global internal_tmp_disk_storage_engine = 'myisam';
+set session internal_tmp_mem_storage_engine = 'memory';
 CREATE TABLE t1(a INT);
 SET max_heap_table_size = 16384;
 SET @old_myisam_data_pointer_size = @@myisam_data_pointer_size;
 SET GLOBAL myisam_data_pointer_size = 2;
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
-call mtr.add_suppression("mysqld.*: The table '.*#sql.*' is full");
+call mtr.add_suppression("\\[MY-\\d+.*\\] The table '.*#sql.*' is full");
 INSERT IGNORE INTO t1 SELECT t1.a FROM t1,t1 t2,t1 t3,t1 t4,t1 t5,t1 t6,t1 t7;
 Got one of the listed errors
-set global internal_tmp_disk_storage_engine = TMP_TABLE_ENGINE;
+set session internal_tmp_mem_storage_engine = default;
+set global internal_tmp_disk_storage_engine = InnoDB;
 SET GLOBAL myisam_data_pointer_size = @old_myisam_data_pointer_size;
 DROP TABLE t1;
-SET sql_mode = default;
 End of 5.0 tests
+#
+# Bug #21441405: DASH '-' IS NOT RECOGNIZED IN CHARSET
+#                ARMSCII8 ON SELECT WHERE QUERY
+#
+CREATE TABLE t1 (
+id INT AUTO_INCREMENT PRIMARY KEY,
+a VARCHAR(100) CHARACTER SET ARMSCII8
+);
+INSERT INTO t1 (a) VALUES('abc-def');
+INSERT INTO t1 (a) VALUES(x'616263AC646566');
+INSERT INTO t1 (a) VALUES('\'(),-.');
+INSERT INTO t1 (a) VALUES(x'FFA5A4ABACA9');
+SELECT *, HEX(a) FROM t1;
+id	a	HEX(a)
+1	abc-def	6162632D646566
+2	abc-def	616263AC646566
+3	'(),-.	2728292C2D2E
+4	'(),-.	FFA5A4ABACA9
+SELECT *, HEX(a) FROM t1 WHERE a = 'abc-def';
+id	a	HEX(a)
+1	abc-def	6162632D646566
+SELECT *, HEX(a) FROM t1 WHERE a = x'616263AC646566';
+id	a	HEX(a)
+2	abc-def	616263AC646566
+SELECT *, HEX(a) FROM t1 WHERE a = '\'(),-.';
+id	a	HEX(a)
+3	'(),-.	2728292C2D2E
+SELECT *, HEX(a) FROM t1 WHERE a = x'FFA5A4ABACA9';
+id	a	HEX(a)
+4	'(),-.	FFA5A4ABACA9
+DROP TABLE t1;

@@ -1,14 +1,21 @@
 /*
- Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; version 2 of the License.
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+ GNU General Public License, version 2.0, for more details.
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
@@ -266,17 +273,6 @@ Java_myjapi_A_deliver_1ref(JNIEnv * env, jclass cls)
 #endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-JNIEXPORT jobject JNICALL
-Java_myjapi_A_deliver_1null_1ref(JNIEnv * env, jclass cls)
-{
-    TRACE("jobject Java_myjapi_A_deliver_1null_1ref(JNIEnv *, jclass)");
-#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_fr< ttrait_myjapi_A_r, &A::deliver_null_ref >(env, cls);
-#else
-    return gcall_fr< ttrait_myjapi_A_r, &MyApiWrapper::A__deliver_null_ref >(env, cls);
-#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-}
-
 JNIEXPORT void JNICALL
 Java_myjapi_A_take_1ptr(JNIEnv * env, jclass cls, jobject p0)
 {
@@ -307,17 +303,6 @@ Java_myjapi_A_take_1ref(JNIEnv * env, jclass cls, jobject p0)
     gcall_fv< ttrait_myjapi_A_r, &A::take_ref >(env, cls, p0);
 #else
     gcall_fv< ttrait_myjapi_A_r, &MyApiWrapper::A__take_ref >(env, cls, p0);
-#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-}
-
-JNIEXPORT void JNICALL
-Java_myjapi_A_take_1null_1ref(JNIEnv * env, jclass cls, jobject p0)
-{
-    TRACE("void Java_myjapi_A_take_1null_1ref(JNIEnv *, jclass, jobject)");
-#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    gcall_fv< ttrait_myjapi_A_r, &A::take_null_ref >(env, cls, p0);
-#else
-    gcall_fv< ttrait_myjapi_A_r, &MyApiWrapper::A__take_null_ref >(env, cls, p0);
 #endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
@@ -1305,17 +1290,6 @@ Java_myjapi_E_take_1EE1(JNIEnv * env, jclass cls, jint p0)
     gcall_fv< ttrait_E_EE_iv, &E::take_EE1 >(env, cls, p0);
 #else
     gcall_fv< ttrait_E_EE_iv, &MyApiWrapper::E__take_EE1 >(env, cls, p0);
-#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-}
-
-JNIEXPORT jint JNICALL
-Java_myjapi_E_deliver_1EE1c(JNIEnv * env, jclass cls)
-{
-    TRACE("jint Java_myjapi_E_deliver_1EE1c(JNIEnv *, jclass)");
-#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_fr< ttrait_E_EE_c_iv, E::deliver_EE1c >(env, cls);
-#else
-    return gcall_fr< ttrait_E_EE_c_iv, &MyApiWrapper::E__deliver_EE1c >(env, cls);
 #endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 

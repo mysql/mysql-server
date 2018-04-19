@@ -1,0 +1,20 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "table_io_waits_summary_by_index_usage";
+let $key_group = 11;
+let $target_type  = TABLE;
+let $target_schema = test;
+let $target_name  = t1;
+let $target_index = index_b;
+
+--echo TABLE: $table
+--echo INDEXES: PK (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME)
+
+--source ../include/idx_compare_setup.inc
+
+--source ../include/idx_compare_load.inc
+
+--source ../include/idx_compare_cleanup.inc

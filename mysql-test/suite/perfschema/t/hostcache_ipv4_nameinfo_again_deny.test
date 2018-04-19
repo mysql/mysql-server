@@ -6,9 +6,7 @@
 # - getnameinfo() fails with AGAIN
 # - reported in COUNT_NAMEINFO_TRANSIENT_ERRORS
 
---source include/not_embedded.inc
 --source include/have_debug.inc
---source include/have_perfschema.inc
 
 # [Warning] IP address '192.0.2.4' could not be resolved:
 # Temporary failure in name resolution

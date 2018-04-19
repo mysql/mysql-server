@@ -32,11 +32,11 @@ select @test_var;
 alter procedure test_proc1 comment 'new comment';
 show create procedure test_proc1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-test_proc1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `test_proc1`(in var_in int)
+test_proc1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `test_proc1`(in var_in int)
     COMMENT 'new comment'
 begin
 select * from t1 where a = var_in;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure test_proc1;
 drop procedure test_proc2;
 drop procedure test_proc3;

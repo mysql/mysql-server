@@ -1,4 +1,4 @@
-call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles!");
+call mtr.add_suppression("The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles!");
 CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
 CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t3 (a INT PRIMARY KEY, b TEXT, c TEXT) ENGINE=InnoDB;
@@ -22,8 +22,8 @@ BEGIN;
 INSERT INTO t1 VALUES (3,REPEAT('c',50000));
 SET DEBUG_SYNC='now WAIT_FOR rec_not_blob';
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 READ-UNCOMMITTED
 SELECT a, RIGHT(b,20) FROM t1;
 a	RIGHT(b,20)
@@ -49,8 +49,8 @@ UPDATE t3 SET c=REPEAT('f',3000) WHERE a=1;
 # Connection con1:
 SET DEBUG_SYNC='now WAIT_FOR go_sel';
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 READ-UNCOMMITTED
 SELECT a, RIGHT(b,20), RIGHT(c,20) FROM t3;
 a	RIGHT(b,20)	RIGHT(c,20)

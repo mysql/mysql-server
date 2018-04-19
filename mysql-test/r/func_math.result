@@ -2,38 +2,34 @@ drop table if exists t1;
 select floor(5.5),floor(-5.5);
 floor(5.5)	floor(-5.5)
 5	-6
-explain extended select floor(5.5),floor(-5.5);
+explain select floor(5.5),floor(-5.5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select floor(5.5) AS `floor(5.5)`,floor(-(5.5)) AS `floor(-5.5)`
 select ceiling(5.5),ceiling(-5.5);
 ceiling(5.5)	ceiling(-5.5)
 6	-5
-explain extended select ceiling(5.5),ceiling(-5.5);
+explain select ceiling(5.5),ceiling(-5.5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select ceiling(5.5) AS `ceiling(5.5)`,ceiling(-(5.5)) AS `ceiling(-5.5)`
 select truncate(52.64,1),truncate(52.64,2),truncate(52.64,-1),truncate(52.64,-2), truncate(-52.64,1),truncate(-52.64,-1);
 truncate(52.64,1)	truncate(52.64,2)	truncate(52.64,-1)	truncate(52.64,-2)	truncate(-52.64,1)	truncate(-52.64,-1)
 52.6	52.64	50	0	-52.6	-50
-explain extended select truncate(52.64,1),truncate(52.64,2),truncate(52.64,-1),truncate(52.64,-2), truncate(-52.64,1),truncate(-52.64,-1);
+explain select truncate(52.64,1),truncate(52.64,2),truncate(52.64,-1),truncate(52.64,-2), truncate(-52.64,1),truncate(-52.64,-1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select truncate(52.64,1) AS `truncate(52.64,1)`,truncate(52.64,2) AS `truncate(52.64,2)`,truncate(52.64,-(1)) AS `truncate(52.64,-1)`,truncate(52.64,-(2)) AS `truncate(52.64,-2)`,truncate(-(52.64),1) AS `truncate(-52.64,1)`,truncate(-(52.64),-(1)) AS `truncate(-52.64,-1)`
 select round(5.5),round(-5.5);
 round(5.5)	round(-5.5)
 6	-6
-explain extended select round(5.5),round(-5.5);
+explain select round(5.5),round(-5.5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select round(5.5,0) AS `round(5.5)`,round(-(5.5),0) AS `round(-5.5)`
 select round(5.64,1),round(5.64,2),round(5.64,-1),round(5.64,-2);
 round(5.64,1)	round(5.64,2)	round(5.64,-1)	round(5.64,-2)
@@ -41,11 +37,10 @@ round(5.64,1)	round(5.64,2)	round(5.64,-1)	round(5.64,-2)
 select abs(-10), sign(-5), sign(5), sign(0);
 abs(-10)	sign(-5)	sign(5)	sign(0)
 10	-1	1	0
-explain extended select abs(-10), sign(-5), sign(5), sign(0);
+explain select abs(-10), sign(-5), sign(5), sign(0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select abs(-(10)) AS `abs(-10)`,sign(-(5)) AS `sign(-5)`,sign(5) AS `sign(5)`,sign(0) AS `sign(0)`
 select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
 log(exp(10))	exp(log(sqrt(10))*2)	log(-1)	log(NULL)	log(1,1)	log(3,9)	log(-1,2)	log(NULL,2)
@@ -54,11 +49,10 @@ Warnings:
 Warning	3020	Invalid argument for logarithm
 Warning	3020	Invalid argument for logarithm
 Warning	3020	Invalid argument for logarithm
-explain extended select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
+explain select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select log(exp(10)) AS `log(exp(10))`,exp((log(sqrt(10)) * 2)) AS `exp(log(sqrt(10))*2)`,log(-(1)) AS `log(-1)`,log(NULL) AS `log(NULL)`,log(1,1) AS `log(1,1)`,log(3,9) AS `log(3,9)`,log(-(1),2) AS `log(-1,2)`,log(NULL,2) AS `log(NULL,2)`
 select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
 ln(exp(10))	exp(ln(sqrt(10))*2)	ln(-1)	ln(0)	ln(NULL)
@@ -66,11 +60,10 @@ ln(exp(10))	exp(ln(sqrt(10))*2)	ln(-1)	ln(0)	ln(NULL)
 Warnings:
 Warning	3020	Invalid argument for logarithm
 Warning	3020	Invalid argument for logarithm
-explain extended select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
+explain select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select ln(exp(10)) AS `ln(exp(10))`,exp((ln(sqrt(10)) * 2)) AS `exp(ln(sqrt(10))*2)`,ln(-(1)) AS `ln(-1)`,ln(0) AS `ln(0)`,ln(NULL) AS `ln(NULL)`
 select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
 log2(8)	log2(15)	log2(-2)	log2(0)	log2(NULL)
@@ -78,11 +71,10 @@ log2(8)	log2(15)	log2(-2)	log2(0)	log2(NULL)
 Warnings:
 Warning	3020	Invalid argument for logarithm
 Warning	3020	Invalid argument for logarithm
-explain extended select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
+explain select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select log2(8) AS `log2(8)`,log2(15) AS `log2(15)`,log2(-(2)) AS `log2(-2)`,log2(0) AS `log2(0)`,log2(NULL) AS `log2(NULL)`
 select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
 log10(100)	log10(18)	log10(-4)	log10(0)	log10(NULL)
@@ -90,39 +82,35 @@ log10(100)	log10(18)	log10(-4)	log10(0)	log10(NULL)
 Warnings:
 Warning	3020	Invalid argument for logarithm
 Warning	3020	Invalid argument for logarithm
-explain extended select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
+explain select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select log10(100) AS `log10(100)`,log10(18) AS `log10(18)`,log10(-(4)) AS `log10(-4)`,log10(0) AS `log10(0)`,log10(NULL) AS `log10(NULL)`
 select pow(10,log10(10)),power(2,4);
 pow(10,log10(10))	power(2,4)
 10	16
-explain extended select pow(10,log10(10)),power(2,4);
+explain select pow(10,log10(10)),power(2,4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select pow(10,log10(10)) AS `pow(10,log10(10))`,pow(2,4) AS `power(2,4)`
 set @@rand_seed1=10000000,@@rand_seed2=1000000;
 select rand(999999),rand();
 rand(999999)	rand()
 0.014231365187309091	0.028870999839968048
-explain extended select rand(999999),rand();
+explain select rand(999999),rand();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select rand(999999) AS `rand(999999)`,rand() AS `rand()`
 select pi(),format(sin(pi()/2),6),format(cos(pi()/2),6),format(abs(tan(pi())),6),format(cot(1),6),format(asin(1),6),format(acos(0),6),format(atan(1),6);
 pi()	format(sin(pi()/2),6)	format(cos(pi()/2),6)	format(abs(tan(pi())),6)	format(cot(1),6)	format(asin(1),6)	format(acos(0),6)	format(atan(1),6)
 3.141593	1.000000	0.000000	0.000000	0.642093	1.570796	1.570796	0.785398
-explain extended select pi(),format(sin(pi()/2),6),format(cos(pi()/2),6),format(abs(tan(pi())),6),format(cot(1),6),format(asin(1),6),format(acos(0),6),format(atan(1),6);
+explain select pi(),format(sin(pi()/2),6),format(cos(pi()/2),6),format(abs(tan(pi())),6),format(cot(1),6),format(asin(1),6),format(acos(0),6),format(atan(1),6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select pi() AS `pi()`,format(sin((pi() / 2)),6) AS `format(sin(pi()/2),6)`,format(cos((pi() / 2)),6) AS `format(cos(pi()/2),6)`,format(abs(tan(pi())),6) AS `format(abs(tan(pi())),6)`,format(cot(1),6) AS `format(cot(1),6)`,format(asin(1),6) AS `format(asin(1),6)`,format(acos(0),6) AS `format(acos(0),6)`,format(atan(1),6) AS `format(atan(1),6)`
 select degrees(pi()),radians(360);
 degrees(pi())	radians(360)
@@ -160,11 +148,10 @@ ASIN(1.2-0.2)
 select format(4.55, 1), format(4.551, 1);
 format(4.55, 1)	format(4.551, 1)
 4.6	4.6
-explain extended select degrees(pi()),radians(360);
+explain select degrees(pi()),radians(360);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select degrees(pi()) AS `degrees(pi())`,radians(360) AS `radians(360)`
 select rand(rand);
 ERROR 42S22: Unknown column 'rand' in 'field list'
@@ -192,7 +179,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `round(1, 6)` int(1) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t1;
 round(1, 6)
 1
@@ -277,8 +264,6 @@ NULL
 Warnings:
 Warning	3020	Invalid argument for logarithm
 set sql_mode='';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select round(111,-10);
 round(111,-10)
 0
@@ -295,17 +280,23 @@ select truncate(15000111000111000155,-1);
 truncate(15000111000111000155,-1)
 15000111000111000150
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1
 (f1 varchar(32) not null,
 f2 smallint(5) unsigned not null,
 f3 int(10) unsigned not null default '0')
-engine=myisam default charset=utf8;
+default charset=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('zombie',0,0),('gold',1,10000),('silver',2,10000);
 create table t2
 (f1 int(10) unsigned not null,
 f2 int(10) unsigned not null,
 f3 smallint(5) unsigned not null)
-engine=myisam default charset=utf8;
+default charset=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t2 values (16777216,16787215,1),(33554432,33564431,2);
 select format(t2.f2-t2.f1+1,0) from t1,t2
 where t1.f2 = t2.f3 order by t1.f1;
@@ -474,7 +465,7 @@ a	ROUND(a)
 -1.0000000000000002e16	-10000000000000002
 1.0000000000000002e16	10000000000000002
 DROP TABLE t1;
-CREATE TABLE t1(f1 LONGTEXT) engine=myisam;
+CREATE TABLE t1(f1 LONGTEXT);
 INSERT INTO t1 VALUES ('a');
 SELECT 1 FROM (SELECT ROUND(f1) AS a FROM t1) AS s WHERE a LIKE 'a';
 1
@@ -543,15 +534,15 @@ CREATE TABLE t1 SELECT CAST((CASE(('')) WHEN (CONVERT(1, CHAR(1))) THEN (('' / 1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `C` varchar(23) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `C` varchar(22) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Bug#11764994  57900: CREATE TABLE .. SELECT ASSERTS SCALE >= 0 && PRECISION > 0 && SCALE <= PR
 #
-CREATE TABLE t1 SELECT CEIL(LINESTRINGFROMWKB(1) DIV NULL);
+CREATE TABLE t1 SELECT CEIL(ST_LINESTRINGFROMWKB(1) DIV NULL);
 ERROR HY000: Incorrect arguments to DIV
-CREATE TABLE t1 SELECT FLOOR(LINESTRINGFROMWKB(1) DIV NULL);
+CREATE TABLE t1 SELECT FLOOR(ST_LINESTRINGFROMWKB(1) DIV NULL);
 ERROR HY000: Incorrect arguments to DIV
 #
 # Bug#11765923  58937: MANY VALGRIND ERRORS AFTER GROUPING BY RESULT OF DECIMAL COLUMN FUNCTION
@@ -664,9 +655,9 @@ ERROR 22003: BIGINT UNSIGNED value is out of range in '(18446744073709551615 DIV
 CREATE TABLE t1(a BIGINT, b BIGINT UNSIGNED);
 INSERT INTO t1 VALUES(-9223372036854775808, 9223372036854775809);
 SELECT -a FROM t1;
-ERROR 22003: BIGINT value is out of range in '-('-9223372036854775808')'
+ERROR 22003: BIGINT value is out of range in '-(`test`.`t1`.`a`)'
 SELECT -b FROM t1;
-ERROR 22003: BIGINT value is out of range in '-('9223372036854775809')'
+ERROR 22003: BIGINT value is out of range in '-(`test`.`t1`.`b`)'
 DROP TABLE t1;
 SET @a:=999999999999999999999999999999999999999999999999999999999999999999999999999999999;
 SELECT @a + @a;
@@ -790,8 +781,6 @@ select 5.9 div 2, 1.23456789e3 DIV 2, 1.23456789e9 DIV 2, 1.23456789e19 DIV 2;
 #              ERROR_FOR_DIVISION_BY_ZERO
 CREATE TABLE t1(a DOUBLE);
 SET sql_mode='';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 INSERT INTO t1 VALUES (ln(1));
 INSERT INTO t1 VALUES (ln(0));
 Warnings:
@@ -820,7 +809,7 @@ NULL
 NULL
 NULL
 0
-SET sql_mode='STRICT_ALL_TABLES';
+SET sql_mode=default;
 INSERT INTO t1 VALUES (ln(1));
 INSERT INTO t1 VALUES (ln(0));
 ERROR 2201E: Invalid argument for logarithm
@@ -844,7 +833,6 @@ NULL
 NULL
 0
 0
-SET sql_mode='STRICT_ALL_TABLES';
 UPDATE t1 SET a = ln(0);
 ERROR 2201E: Invalid argument for logarithm
 SELECT * FROM t1 ORDER BY a;
@@ -878,7 +866,7 @@ NULL
 NULL
 NULL
 NULL
-SET sql_mode='STRICT_ALL_TABLES';
+SET sql_mode=default;
 DELETE FROM t1 WHERE a <=> ln(0);
 ERROR 2201E: Invalid argument for logarithm
 SELECT * FROM t1 ORDER BY a;
@@ -905,8 +893,480 @@ Warning	3020	Invalid argument for logarithm
 SELECT * FROM t1 ORDER BY a;
 a
 DROP TABLE t1;
-SET sql_mode='';
+SET sql_mode=default;
 #
 # Bug#19047527 SQRT() : UNINITIALISED VALUE IN MY_STRTOD
 #
 do sqrt(weight_string(_eucjpms "0E+"));
+#
+# Bug#21279005 - ROUND FUNCTION INCORRECT IN WHERE-CLAUSE
+#                USING LOCAL VARIABLE
+CREATE PROCEDURE test_round_fn()
+BEGIN
+DECLARE num_digits int;
+SET num_digits := 3;
+CREATE TEMPORARY TABLE tmp_test (
+number double
+);
+INSERT INTO tmp_test
+VALUES (1),(0);
+SELECT
+number,
+Round(number, num_digits) > 0,
+Round(number, 3) > 0
+FROM
+tmp_test;
+SELECT
+number,
+Round(number, num_digits) > 0,
+Round(number, 3) > 0
+FROM
+tmp_test
+WHERE
+Round(number, 3) >= 0;
+SELECT
+number,
+Round(number, num_digits) > 0,
+Round(number, 3) > 0
+FROM
+tmp_test
+WHERE
+Round(number, num_digits) >= 0;
+END|
+CALL test_round_fn();
+number	Round(number, num_digits) > 0	Round(number, 3) > 0
+1	1	1
+0	0	0
+number	Round(number, num_digits) > 0	Round(number, 3) > 0
+1	1	1
+0	0	0
+number	Round(number, num_digits) > 0	Round(number, 3) > 0
+1	1	1
+0	0	0
+DROP PROCEDURE test_round_fn;
+#
+# Bug#23013359 FUNCTION FLOOR(CEIL()) TRUNCATES BIGINT UNSIGNED
+#
+SELECT floor(ceil(12345678901234567890));
+floor(ceil(12345678901234567890))
+12345678901234567890
+SELECT floor(18446744073709551616);
+floor(18446744073709551616)
+18446744073709551616
+SELECT floor(floor(18446744073709551616));
+floor(floor(18446744073709551616))
+18446744073709551616
+SELECT floor(floor(floor(18446744073709551616)));
+floor(floor(floor(18446744073709551616)))
+18446744073709551616
+# Bug#25669580: regression: assertion failed: 0 in Item_num_func1::str_op
+DO ROUND(0xe9b1, NULL);
+# Bug#25688504: regression: scale >= 0 && precision >= 0 && ...
+DO COUNT(DISTINCT ROUND(CAST(SLEEP(0) AS DECIMAL), NULL));
+#
+# Bug#26495791 - EXPAND TEST SUITE TO INCLUDE CRC32 TESTS
+#
+SELECT CRC32(NULL), CRC32(''), CRC32('MySQL'), CRC32('mysql');
+CRC32(NULL)	CRC32('')	CRC32('MySQL')	CRC32('mysql')
+NULL	0	3259397556	2501908538
+SELECT CRC32('01234567'), CRC32('012345678');
+CRC32('01234567')	CRC32('012345678')
+763378421	939184570
+SELECT CRC32('~!@$%^*'),  CRC32('-0.0001');
+CRC32('~!@$%^*')	CRC32('-0.0001')
+1533935548	324352530
+SELECT CRC32(99999999999999999999999999999999);
+CRC32(99999999999999999999999999999999)
+3035957051
+SELECT CRC32(-99999999999999999999999999999999);
+CRC32(-99999999999999999999999999999999)
+1052326872
+DROP TABLE IF EXISTS t;
+Warnings:
+Note	1051	Unknown table 'test.t'
+CREATE TABLE t(a INT, b VARCHAR(2));
+INSERT INTO t VALUES (1,'a'), (2,'qw'), (1,'t'), (3,'t');
+SELECT crc32(SUM(a)) FROM t;
+crc32(SUM(a))
+1790921346
+SELECT crc32(AVG(a)) FROM t GROUP BY b;
+crc32(AVG(a))
+768278432
+2875100430
+2875100430
+SELECT crc32(MAX(b)) FROM t GROUP BY a;
+crc32(MAX(b))
+2238339752
+3114057431
+2238339752
+SELECT a, b, crc32(a) FROM t GROUP BY a,b HAVING crc32(MAX(a))=450215437;
+a	b	crc32(a)
+2	qw	450215437
+SELECT a,b,concat(a,b),crc32(concat(a,b)) FROM t ORDER BY crc32(concat(a,b));
+a	b	concat(a,b)	crc32(concat(a,b))
+2	qw	2qw	552289476
+1	a	1a	3174122627
+1	t	1t	3505168488
+3	t	3t	3805987562
+DROP TABLE t;
+SELECT CRC32(4+2);
+CRC32(4+2)
+498629140
+SELECT CRC32(4/2);
+CRC32(4/2)
+2875100430
+SELECT CRC32(4-2);
+CRC32(4-2)
+450215437
+SELECT CRC32(4*2);
+CRC32(4*2)
+4194326291
+SELECT CRC32(ABS(-6));
+CRC32(ABS(-6))
+498629140
+SELECT CRC32(CEILING(1.23));
+CRC32(CEILING(1.23))
+450215437
+SELECT CRC32(FLOOR(1.23));
+CRC32(FLOOR(1.23))
+2212294583
+SELECT CRC32(LOG(10,100));
+CRC32(LOG(10,100))
+450215437
+SELECT CRC32(PI());
+CRC32(PI())
+2969982827
+SELECT CRC32(POWER(2,2));
+CRC32(POWER(2,2))
+4088798008
+SELECT CRC32(ROUND(1.58));
+CRC32(ROUND(1.58))
+450215437
+SELECT CRC32(SIGN(0));
+CRC32(SIGN(0))
+4108050209
+SELECT CRC32(SQRT(4));
+CRC32(SQRT(4))
+450215437
+SELECT CRC32(2 > 4);
+CRC32(2 > 4)
+4108050209
+SELECT CRC32(2 < 4);
+CRC32(2 < 4)
+2212294583
+SELECT CRC32(2 >= 4);
+CRC32(2 >= 4)
+4108050209
+SELECT CRC32(2 <= 4);
+CRC32(2 <= 4)
+2212294583
+SELECT CRC32(2 != 4);
+CRC32(2 != 4)
+2212294583
+SELECT CRC32(NOT 1);
+CRC32(NOT 1)
+4108050209
+SELECT CRC32(1 AND 1);
+CRC32(1 AND 1)
+2212294583
+SELECT CRC32(1 OR 1);
+CRC32(1 OR 1)
+2212294583
+SELECT CRC32(1 XOR 1);
+CRC32(1 XOR 1)
+4108050209
+SELECT CRC32(ASCII('2'));
+CRC32(ASCII('2'))
+3308380389
+SELECT CRC32(BIT_LENGTH('text'));
+CRC32(BIT_LENGTH('text'))
+2103780943
+SELECT CRC32(CHAR('77','121','83','81','76'));
+CRC32(CHAR('77','121','83','81','76'))
+3259397556
+SELECT CRC32(CONCAT('good','year'));
+CRC32(CONCAT('good','year'))
+3441724142
+SELECT CRC32(INSERT('foodyear', 1, 4, 'good'));
+CRC32(INSERT('foodyear', 1, 4, 'good'))
+3441724142
+SELECT CRC32(LEFT('goodyear', 4));
+CRC32(LEFT('goodyear', 4))
+1820610194
+SELECT CRC32(LENGTH('text'));
+CRC32(LENGTH('text'))
+4088798008
+SELECT CRC32(LOWER('GOODYEAR'));
+CRC32(LOWER('GOODYEAR'))
+3441724142
+SELECT CRC32(UPPER('goodyear'));
+CRC32(UPPER('goodyear'))
+186062498
+SELECT CRC32(LTRIM('  goodyear'));
+CRC32(LTRIM('  goodyear'))
+3441724142
+SELECT CRC32(RTRIM('goodyear  '));
+CRC32(RTRIM('goodyear  '))
+3441724142
+SELECT CRC32(REPLACE('godyear','o','oo'));
+CRC32(REPLACE('godyear','o','oo'))
+3441724142
+SELECT CRC32(REVERSE('goodyear'));
+CRC32(REVERSE('goodyear'))
+3423698264
+SELECT CRC32(true);
+CRC32(true)
+2212294583
+SELECT CRC32(false);
+CRC32(false)
+4108050209
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+CREATE TABLE t1 (c1 BIT(5),
+c2 TINYINT,
+c3 MEDIUMINT,
+c4 INTEGER,
+c5 BIGINT,
+c6 DECIMAL(7,5),
+c7 FLOAT(7,5),
+c8 DOUBLE(7,5));
+INSERT INTO t1 VALUES (B'10101', 127, 8388607, 2147483647,
+9223372036854775807, 10.5, 11.5, 12.5);
+SELECT CRC32(c1) FROM t1;
+CRC32(c1)
+3219065702
+SELECT CRC32(c2) FROM t1;
+CRC32(c2)
+2401609675
+SELECT CRC32(c3) FROM t1;
+CRC32(c3)
+1742563487
+SELECT CRC32(c4) FROM t1;
+CRC32(c4)
+365954768
+SELECT CRC32(c5) FROM t1;
+CRC32(c5)
+1122634462
+SELECT CRC32(c6) FROM t1;
+CRC32(c6)
+4255015174
+SELECT CRC32(c7) FROM t1;
+CRC32(c7)
+1542023858
+SELECT CRC32(c8) FROM t1;
+CRC32(c8)
+1778479151
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 DATE,
+c2 DATETIME,
+c3 TIMESTAMP,
+c4 TIME,
+c5 YEAR);
+INSERT INTO t1 VALUES ('2007-01-01', '2007-01-01 12:00:01',
+'2007-01-01 00:00:01.000000',
+'12:00:01.000000', '2007');
+SELECT CRC32(c1) FROM t1;
+CRC32(c1)
+2772295888
+SELECT CRC32(c2) FROM t1;
+CRC32(c2)
+1449026401
+SELECT CRC32(c3) FROM t1;
+CRC32(c3)
+225145558
+SELECT CRC32(c4) FROM t1;
+CRC32(c4)
+1077283474
+SELECT CRC32(c5) FROM t1;
+CRC32(c5)
+955685210
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 CHAR,
+c2 VARCHAR(10),
+c3 BINARY(1),
+c4 VARBINARY(10),
+c5 TINYBLOB,
+c6 TINYTEXT,
+c7 BLOB,
+c8 TEXT,
+c9 MEDIUMBLOB,
+c10 MEDIUMTEXT,
+c11 LONGBLOB,
+c12 LONGTEXT);
+INSERT INTO t1 VALUES ('a', 'a', 0x61, 0x61, 'a', 'a',
+'a', 'a', 'a', 'a', 'a', 'a');
+SELECT CRC32(c1) FROM t1;
+CRC32(c1)
+3904355907
+SELECT CRC32(c2) FROM t1;
+CRC32(c2)
+3904355907
+SELECT CRC32(c3) FROM t1;
+CRC32(c3)
+3904355907
+SELECT CRC32(c4) FROM t1;
+CRC32(c4)
+3904355907
+SELECT CRC32(c5) FROM t1;
+CRC32(c5)
+3904355907
+SELECT CRC32(c6) FROM t1;
+CRC32(c6)
+3904355907
+SELECT CRC32(c7) FROM t1;
+CRC32(c7)
+3904355907
+SELECT CRC32(c8) FROM t1;
+CRC32(c8)
+3904355907
+SELECT CRC32(c9) FROM t1;
+CRC32(c9)
+3904355907
+SELECT CRC32(c10) FROM t1;
+CRC32(c10)
+3904355907
+SELECT CRC32(c11) FROM t1;
+CRC32(c11)
+3904355907
+SELECT CRC32(c12) FROM t1;
+CRC32(c12)
+3904355907
+SELECT CRC32(ST_GeomFromText('POINT(1 1)'));
+CRC32(ST_GeomFromText('POINT(1 1)'))
+1349318989
+CREATE TABLE geom_data(id INT,
+pt POINT NOT NULL,
+lnstr LINESTRING NOT NULL,
+mlnstr MULTILINESTRING NOT NULL,
+poly POLYGON NOT NULL,
+mpoly MULTIPOLYGON NOT NULL);
+INSERT INTO geom_data VALUES (10,
+ST_GEOMFROMTEXT('POINT(10 20)'),
+ST_GEOMFROMTEXT('LINESTRING(0 0,5 5,6 6)'),
+ST_GEOMFROMTEXT('MULTILINESTRING((0 0,2 3,4 5),(6 6,8 8,9 9,10 10))'),
+ST_GEOMFROMTEXT('POLYGON((0 0,6 7,8 8,3 9,0 0),(3 6,4 6,4 7,3 6))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),
+                                ((2 2,4 5,6 2,2 2)))'));
+SELECT CRC32(ST_X(pt)) FROM geom_data;
+CRC32(ST_X(pt))
+2707236321
+SELECT CRC32(ST_NumPoints((lnstr))) FROM geom_data;
+CRC32(ST_NumPoints((lnstr)))
+1842515611
+SELECT CRC32(ST_Length((mlnstr))) FROM geom_data;
+CRC32(ST_Length((mlnstr)))
+2090153432
+SELECT CRC32(ST_Area((poly))) FROM geom_data;
+CRC32(ST_Area((poly)))
+534598600
+SELECT CRC32(ST_Area((mpoly))) FROM geom_data;
+CRC32(ST_Area((mpoly)))
+3832313845
+DROP TABLE geom_data;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (e1 ENUM ('a','b'), s1 SET('a','b'));
+INSERT INTO t1 VALUES(2,'a,b'),('a','b,a');
+SELECT e1, CRC32(e1) FROM t1;
+e1	CRC32(e1)
+b	1908338681
+a	3904355907
+SELECT s1, CRC32(s1) FROM t1;
+s1	CRC32(s1)
+a,b	752423903
+a,b	752423903
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a JSON);
+INSERT INTO t1 VALUES ('{"name" : "goodyear"}'),
+('{"name" : "verygood-year"}');
+SELECT a->>'$.name', CRC32(a) FROM t1;
+a->>'$.name'	CRC32(a)
+goodyear	3664432072
+verygood-year	922278888
+SELECT CRC32(a->>'$.name') FROM t1 WHERE a->>'$.name' = 'goodyear';
+CRC32(a->>'$.name')
+3441724142
+SELECT CRC32(REPLACE(JSON_EXTRACT(a, "$.name"),'\"',''))
+FROM t1 WHERE JSON_EXTRACT(a, "$.name") = 'goodyear';
+CRC32(REPLACE(JSON_EXTRACT(a, "$.name"),'\"',''))
+3441724142
+DROP TABLE t1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES(10);
+CREATE VIEW v1 AS SELECT CRC32(a) AS my_crc FROM t1;
+SELECT * FROM v1;
+my_crc
+2707236321
+SELECT CRC32(CRC32(my_crc)) FROM v1;
+CRC32(CRC32(my_crc))
+3114155452
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE TABLE t1 (a CHAR);
+CREATE TABLE t2 (b BIGINT);
+CREATE TRIGGER trg1
+BEFORE INSERT ON t1
+FOR EACH ROW
+INSERT INTO t2 VALUES(CRC32(NEW.a));
+INSERT INTO t1 VALUES('a');
+SELECT * FROM t2;
+b
+3904355907
+DROP TRIGGER trg1;
+DROP TABLE t2;
+DROP TABLE t1;
+CREATE PROCEDURE crc32_proc (IN a CHAR, OUT b BIGINT)
+SELECT CRC32(a) INTO b;
+CALL crc32_proc('a',@val);
+SELECT @val;
+@val
+3904355907
+DROP PROCEDURE crc32_proc;
+CREATE FUNCTION crc32_func(inputvar CHAR)
+RETURNS BIGINT
+BEGIN
+DECLARE crcval BIGINT;
+SELECT CRC32(inputvar) INTO crcval;
+RETURN crcval;
+END|
+SELECT crc32_func('a');
+crc32_func('a')
+3904355907
+DROP FUNCTION crc32_func;
+PREPARE stmt1 FROM 'SELECT CRC32(?)';
+SET @val = 'a';
+EXECUTE stmt1 USING @val;
+CRC32(?)
+3904355907
+DEALLOCATE PREPARE stmt;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t1 (a TEXT) CHARACTER SET = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1 CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT HEX(a), CRC32(a) from t1;
+HEX(a)	CRC32(a)
+E4B880E4BA8CE4B889	1785250883
+E59B9BE4BA94E585AD	2914501801
+E4B883E585ABE4B99D	2374586519
+E4B880E4BA8CE4B889	1785250883
+E59B9BE4BA94E585AD	2914501801
+E4B883E585ABE4B99D0A	1546750244
+DROP TABLE t1;
+SET NAMES default;
+#
+# Bug#27134168 UBSAN: MY_DOUBLE_ROUND - NEGATION OF BLAH
+#
+SELECT truncate(
+0x123,
+-9223372036854775808
+);
+truncate(
+0x123,
+-9223372036854775808
+)
+0

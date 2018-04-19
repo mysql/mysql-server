@@ -1,6 +1,5 @@
 # Test needs myisam for some myisam specific testcases
 --source include/have_myisam.inc
--- source include/have_latin2_ch.inc
 
 #
 # Tests with latin2_czech_cs
@@ -14,6 +13,7 @@ drop table if exists t1;
 # to find value on columuns with key
 #
 set names latin2;
+--character_set latin2
 select 'A' = 'a' collate latin2_czech_cs;
 create table t1 (
     id  int(5) not null,    
@@ -82,12 +82,7 @@ insert into t1 values (0xDA,'LATIN CAPITAL LETTER U WITH ACUTE');
 insert into t1 values (0xD9,'LATIN CAPITAL LETTER U WITH RING ABOVE');
 insert into t1 values (0xDC,'LATIN CAPITAL LETTER U WITH DIAERESIS');
 insert into t1 values (0xDB,'LATIN CAPITAL LETTER U WITH DOUBLE ACUTE');
-select
-hex(weight_string(ch level 1)) l1,
-hex(weight_string(ch level 2)) l2,
-hex(weight_string(ch level 3)) l3,
-hex(weight_string(ch level 4)) l4,
-name from t1 order by binary l1, binary l2, binary l3, binary l4;
+select hex(weight_string(ch)) w, name from t1 order by ch;
 drop table t1;
 
 #
@@ -109,27 +104,12 @@ insert into t1 values (0xF9,'LATIN _SMALL_ LETTER U WITH RING ABOVE');
 insert into t1 values (0xFC,'LATIN _SMALL_ LETTER U WITH DIAERESIS');
 insert into t1 values (0xFB,'LATIN _SMALL_ LETTER U WITH DOUBLE ACUTE');
 # Testing order by Field_varchar
-select ch,
-  hex(weight_string(ch level 1)) l1,
-  hex(weight_string(ch level 2)) l2,
-  hex(weight_string(ch level 3)) l3,
-  hex(weight_string(ch level 4)) l4,
-  name from t1 order by ch;
+select hex(weight_string(ch)) w, name from t1 order by ch;
 alter table t1 modify ch char(1), modify name char(64);
 # Testing order by Field_char
-select ch,
-  hex(weight_string(ch level 1)) l1,
-  hex(weight_string(ch level 2)) l2,
-  hex(weight_string(ch level 3)) l3,
-  hex(weight_string(ch level 4)) l4,
-  name from t1 order by ch;
+select hex(weight_string(ch)) w, name from t1 order by ch;
 # Testing order by Item
-select ch,
-  hex(weight_string(ch level 1)) l1,
-  hex(weight_string(ch level 2)) l2,
-  hex(weight_string(ch level 3)) l3,
-  hex(weight_string(ch level 4)) l4,
-  name from t1 order by concat(ch);
+select hex(weight_string(ch)) w, name from t1 order by concat(ch);
 drop table t1;
 
 #
@@ -231,12 +211,6 @@ set names latin2 collate latin2_czech_cs;
 --echo #
 --source include/weight_string.inc
 --source include/weight_string_chde.inc
---source include/weight_string_l1.inc
---source include/weight_string_l2.inc
---source include/weight_string_l3.inc
---source include/weight_string_l4.inc
---source include/weight_string_l12.inc
---source include/weight_string_l14.inc
 
 --echo #
 --echo # End of 5.6 tests

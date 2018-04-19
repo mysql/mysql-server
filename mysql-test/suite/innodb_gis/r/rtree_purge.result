@@ -1,0 +1,23 @@
+create table t (
+a point not null,b point not null SRID 0,c point,
+d point not null SRID 0,e point,f point,
+spatial key (d),spatial key (b)
+) engine=innodb;
+create procedure p(i int)
+begin
+declare n int default 0;
+declare continue handler for sqlexception begin end;
+delete from t;
+repeat
+set @p=point(1,1);
+insert into t values(@p,@p,@p,@p,@p,@p);
+insert into t values(@p,@p,@p,@p,@p,@p);
+insert into t select @p,@p,@p,@p,@p,@p
+from t a,t b,t c,t d,t e,t f,t g,t h,t i,t j;
+delete from t;
+set n:=n+1;
+until n >= i end repeat;
+end|
+call p(200);
+drop procedure p;
+drop table t;

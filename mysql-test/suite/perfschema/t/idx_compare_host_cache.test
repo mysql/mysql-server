@@ -1,0 +1,55 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "host_cache";
+
+--echo TABLE: $table
+--echo INDEXES: PK (IP), KEY (HOST)
+
+--source ../include/idx_compare_setup.inc
+
+# Create an entry in the host_cache
+
+# [Warning] IP address '192.0.2.4' could not be resolved:
+# no reverse address mapping.
+call mtr.add_suppression("192.0.2.4");
+
+--source ../include/hostcache_set_state.inc
+
+CREATE USER 'user4'@'santa.claus.ipv4.example.com';
+GRANT SELECT ON test.* TO 'user4'@'santa.claus.ipv4.example.com';
+
+SET global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
+
+connect (con4, "127.0.0.1", user4, , test, $MASTER_MYPORT,);
+SELECT "Con4 is alive" AS "";
+SELECT current_user() AS "";
+disconnect con4;
+
+--connection default
+--source ../include/hostcache_dump.inc
+SET global debug= default;
+
+--echo
+--echo ## Test IP
+let $key_group = 15;
+let $target_ip = 192.0.2.4;
+# Specify columns for the result set tables.
+SET @pfs_columns = "IP, HOST";
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test HOST
+let $key_group = 6.2;
+let $target_ip = 192.0.2.4;
+let $target_host = santa.claus.ipv4.example.com;
+# Specify columns for the result set tables.
+SET @pfs_columns = "IP, HOST";
+--source ../include/idx_compare_load.inc
+
+
+--source ../include/idx_compare_cleanup.inc
+REVOKE SELECT ON test.* FROM 'user4'@'santa.claus.ipv4.example.com';
+DROP USER 'user4'@'santa.claus.ipv4.example.com';

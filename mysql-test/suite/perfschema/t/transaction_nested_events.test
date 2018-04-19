@@ -7,10 +7,8 @@
 #                                                                    #
 ######################################################################
 
---source include/have_perfschema.inc
---source include/not_embedded.inc
---source include/have_innodb.inc
---source ../include/no_protocol.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 --disable_query_log
 --source ../include/transaction_setup.inc
 --enable_query_log
@@ -34,6 +32,32 @@ DROP DATABASE IF EXISTS db;
 CREATE DATABASE db;
 CREATE TABLE db.t1 (s1 int, s2 varchar(64)) ENGINE=INNODB;
 CREATE TABLE db.nt1 (s1 int, s2 varchar(64)) ENGINE=MYISAM;
+CREATE PROCEDURE db.tp_update() UPDATE t1 SET s1 = s1 + 1;
+CREATE PROCEDURE db.tp_start() START TRANSACTION;
+CREATE PROCEDURE db.tp_rollback() ROLLBACK;
+CREATE PROCEDURE db.tp_commit() COMMIT;
+DELIMITER |;
+CREATE FUNCTION db.fn_add(x INT, y INT) RETURNS INT
+BEGIN
+  INSERT INTO t1 VALUES (x, "INSERT x"),(y, "INSERT y");
+RETURN x+y;
+END |
+DELIMITER ;|
+
+
+--echo
+--echo ## Warm-up data-dictionary cache.
+--disable_result_log
+--disable_query_log
+SELECT * FROM db.t1;
+SELECT * FROM db.nt1;
+SHOW CREATE PROCEDURE db.tp_update;
+SHOW CREATE PROCEDURE db.tp_start;
+SHOW CREATE PROCEDURE db.tp_rollback;
+SHOW CREATE PROCEDURE db.tp_commit;
+SHOW CREATE FUNCTION db.fn_add;
+--enable_query_log
+--enable_result_log
 
 --echo
 --echo ## Setup connection 1
@@ -100,7 +124,6 @@ COMMIT;
 --echo # STEP 3.1 - STORED PROCEDURE STARTED WITHIN TRANSACTION
 --echo #
 --connection con1
-CREATE PROCEDURE tp_update() UPDATE t1 SET s1 = s1 + 1;
 --echo
 START TRANSACTION;
 INSERT INTO t1 VALUES (310, "INSERT 310");
@@ -117,7 +140,6 @@ COMMIT;
 --echo # STEP 3.2 - TRANSACTION STARTED WITHIN STORED PROCEDURE
 --echo #
 --connection con1
-CREATE PROCEDURE tp_start() START TRANSACTION;
 --echo
 CALL tp_start();
 INSERT INTO t1 VALUES (320, "INSERT 320"),(321, "INSERT 321");
@@ -134,8 +156,6 @@ COMMIT;
 --echo # STEP 3.3 - TRANSACTION ENDED WITHIN STORED PROCEDURE
 --echo #
 --connection con1
-CREATE PROCEDURE tp_rollback() ROLLBACK;
-CREATE PROCEDURE tp_commit() COMMIT;
 
 --echo
 --echo ## COMMIT within stored procedure
@@ -166,14 +186,6 @@ SELECT * FROM t1 ORDER BY s1;
 --echo # STEP 4.1 - FUNCTION WITHIN A TRANSACTION
 --echo #
 --connection con1
-DELIMITER |;
-CREATE FUNCTION fn_add(x INT, y INT) RETURNS INT
-BEGIN
-  INSERT INTO t1 VALUES (x, "INSERT x"),(y, "INSERT y");
-RETURN x+y;
-END |
-DELIMITER ;|
-
 --echo
 --echo ## Clear history
 --connection default
@@ -280,6 +292,14 @@ BEGIN
   END IF;
 END;|
 DELIMITER ;|
+
+--echo
+--echo ## Warm-up data-dictionary cache.
+--disable_result_log
+--disable_query_log
+SHOW CREATE TABLE t1;
+--enable_query_log
+--enable_result_log
 
 --echo
 --echo ## Clear history

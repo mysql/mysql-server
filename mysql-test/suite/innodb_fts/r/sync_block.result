@@ -1,0 +1,67 @@
+SET @old_log_output = @@global.log_output;
+SET @old_slow_query_log = @@global.slow_query_log;
+SET @old_general_log = @@global.general_log;
+SET @old_long_query_time = @@global.long_query_time;
+SET @old_binlog_order_commits = @@global.binlog_order_commits;
+SET GLOBAL log_output = 'TABLE';
+SET GLOBAL general_log = 1;
+SET GLOBAL slow_query_log = 1;
+SET GLOBAL long_query_time = 1;
+SET GLOBAL binlog_order_commits = 1;
+# Case 1: Sync blocks DML(insert) on the same table.
+CREATE TABLE t1 (
+FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+FULLTEXT(title)
+) ENGINE = InnoDB;
+SET GLOBAL debug="+d,fts_instrument_sync_debug,fts_instrument_sync_sleep";
+SET DEBUG_SYNC= 'fts_sync_begin SIGNAL begin WAIT_FOR continue';
+INSERT INTO t1(title) VALUES('mysql database');
+SET DEBUG_SYNC= 'now WAIT_FOR begin';
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('mysql database');
+SET DEBUG_SYNC= 'now SIGNAL continue';
+/* connection con1 */ INSERT INTO t1(title) VALUES('mysql database');
+/* conneciton con2 */ SELECT * FROM t1 WHERE MATCH(title) AGAINST('mysql database');
+FTS_DOC_ID	title
+# make con1 & con2 show up in mysql.slow_log
+SELECT SLEEP(2);
+SLEEP(2)
+0
+# slow log results should only contain INSERT INTO t1.
+SELECT sql_text FROM mysql.slow_log WHERE query_time >= '00:00:02';
+sql_text
+INSERT INTO t1(title) VALUES('mysql database')
+SET GLOBAL debug="-d,fts_instrument_sync_debug,fts_instrument_sync_sleep";
+TRUNCATE TABLE mysql.slow_log;
+DROP TABLE t1;
+# Case 2: Sync blocks DML(insert) on other tables.
+CREATE TABLE t1 (
+FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+FULLTEXT(title)
+) ENGINE = InnoDB;
+CREATE TABLE t2(id INT);
+SET GLOBAL debug="+d,fts_instrument_sync_request,fts_instrument_sync_sleep";
+SET DEBUG_SYNC= 'fts_instrument_sync_request SIGNAL begin WAIT_FOR continue';
+INSERT INTO t1(title) VALUES('mysql database');
+SET DEBUG_SYNC= 'now WAIT_FOR begin';
+INSERT INTO t2 VALUES(1);
+SET DEBUG_SYNC= 'now SIGNAL continue';
+/* connection con1 */ INSERT INTO t1(title) VALUES('mysql database');
+/* conneciton con2 */ INSERT INTO t2 VALUES(1);
+# make con1 & con2 show up in mysql.slow_log
+SELECT SLEEP(2);
+SLEEP(2)
+0
+# slow log results should be empty here.
+SELECT sql_text FROM mysql.slow_log WHERE query_time >= '00:00:02';
+sql_text
+SET GLOBAL debug="-d,fts_instrument_sync_request,fts_instrument_sync_sleep";
+TRUNCATE TABLE mysql.slow_log;
+DROP TABLE t1,t2;
+# Restore slow log settings.
+SET GLOBAL log_output = @old_log_output;
+SET GLOBAL general_log = @old_general_log;
+SET GLOBAL slow_query_log = @old_slow_query_log;
+SET GLOBAL long_query_time = @old_long_query_time;
+SET GLOBAL binlog_order_commits = @old_binlog_order_commits;

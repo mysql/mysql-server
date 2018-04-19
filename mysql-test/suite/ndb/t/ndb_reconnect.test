@@ -1,10 +1,9 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
---source include/not_windows.inc
+
+if (`select @@log_bin`)
+{
+  die This test is designed to run with --log-bin turned off;
+}
 
 CREATE TABLE t1(a int primary key, b varchar(255), c int) engine=ndb;
 
@@ -50,11 +49,7 @@ select * from t1;
 # cluster has been restored or timeout occurs
 #
 connection default;
---disable_result_log
---disable_query_log
 --source include/ndb_not_readonly.inc
---enable_result_log
---enable_query_log
 
 # Run selects to show that the cluster are back
 
@@ -70,11 +65,7 @@ select * from t1;
 #
 # Wait until mysqld has connected properly to cluster
 #
---disable_result_log
---disable_query_log
 source include/ndb_not_readonly.inc;
---enable_query_log
---enable_result_log
 
 # Do an insert to see table is writable
 insert into t1 values (2, "row 1", 37);
@@ -104,10 +95,10 @@ CREATE TRIGGER trg2 BEFORE UPDATE ON t2 FOR EACH ROW BEGIN
 End //
 delimiter ;//
 
-# drop the ndb table inside ndb
+# drop the table from NDB only
 --exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT 
 
-# Restart cluster nodes and clear all meta-data
+# Restart cluster nodes
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all restart" >> $NDB_TOOLS_OUTPUT
 # Wait for all nodes to enter "started"
 --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
@@ -117,11 +108,7 @@ delimiter ;//
 # cluster has been restored or timeout occurs
 #
 connection default;
---disable_result_log
---disable_query_log
 --source include/ndb_not_readonly.inc
---enable_result_log
---enable_query_log
 
 # Create the table again to check there are no conflicts
 create table t1(a int, b varchar(10), c date) engine=ndb;
@@ -134,7 +121,7 @@ delimiter ;//
 insert into t1 values (1, "row 1", NULL),(2, "row 2", NULL);
 select * from t1 order by a;
 
-# Check that only ndb tables have been cleaned away
+# Check that the non NDB tables still exist
 --error ER_TABLE_EXISTS_ERROR
 create table t2(a int, b varchar(10), c date) engine=myisam;
 drop table t2;

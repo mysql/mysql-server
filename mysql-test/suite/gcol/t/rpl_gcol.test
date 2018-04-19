@@ -27,7 +27,6 @@
 
 ##### Storage engine to be tested
 # Set the session storage engine
---source include/have_innodb.inc
 SET @@session.default_storage_engine = 'InnoDB';
 
 ##### Workarounds for known open engine specific bugs
@@ -55,6 +54,41 @@ save_master_pos;
 
 connection slave;
 sync_with_master;
+
+--echo #
+--echo # Bug#22241015: REPLICATION SERVERS CRASHES WHILE CHANGING A
+--echo #               VALUE OF INDEXED JSON FIELD
+--echo #
+# Use master connection
+--connection master
+CREATE TABLE gtable (doc JSON);
+INSERT INTO gtable (doc) VALUES
+('{"id": 1, "name": "Omar Bras"}'),
+('{"id": 2, "name": "Omar Mex"}');
+ALTER TABLE gtable ADD COLUMN gtext TEXT GENERATED ALWAYS AS
+(JSON_UNQUOTE(JSON_EXTRACT(doc, '$.name'))) VIRTUAL,
+ADD UNIQUE INDEX name_index (gtext(50));
+UPDATE gtable SET doc=JSON_SET(doc,'$.name',"Omar Argentina") WHERE JSON_EXTRACT(doc, "$.id") = 2;
+INSERT INTO gtable(doc) VALUES (NULL);
+SELECT * FROM gtable;
+UPDATE gtable SET doc= '{ "id": 4, "name": "Omar Ara" }' where doc IS NULL;
+SELECT * FROM gtable ORDER BY gtext;
+UPDATE gtable SET doc= NULL WHERE JSON_EXTRACT(doc, "$.id") = 4;
+SELECT * FROM gtable ORDER BY gtext;
+
+--source include/sync_slave_sql_with_master.inc
+SHOW CREATE TABLE gtable;
+--echo # Connection:slave - Row with value 3 is expected on slave.
+SELECT * FROM gtable ORDER BY gtext;
+
+--let $diff_tables= master:gtable, slave:gtable
+--source include/diff_tables.inc
+
+#cleanup
+--connection master
+DROP TABLE gtable;
+## Postamble
+--source include/sync_slave_sql_with_master.inc
 
 #------------------------------------------------------------------------------#
 # Execute storage engine specific tests

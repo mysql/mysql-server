@@ -1,9 +1,5 @@
 use performance_schema;
 select count(name) from mutex_instances
-where name like "wait/synch/mutex/mysys/THR_LOCK_threads";
-count(name)
-1
-select count(name) from mutex_instances
 where name like "wait/synch/mutex/mysys/THR_LOCK_malloc";
 count(name)
 1
@@ -27,10 +23,6 @@ select count(name) from mutex_instances
 where name like "wait/synch/mutex/mysys/THR_LOCK_charset";
 count(name)
 1
-select count(name) from cond_instances
-where name like "wait/synch/cond/mysys/THR_COND_threads";
-count(name)
-1
 select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/LOCK_open";
 count(name)
@@ -38,17 +30,13 @@ count(name)
 select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/LOCK_thd_list";
 count(name)
-1
+8
 select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/LOCK_log_throttle_qni";
 count(name)
 1
 select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/LOCK_status";
-count(name)
-1
-select count(name) from mutex_instances
-where name like "wait/synch/mutex/sql/LOCK_error_log";
 count(name)
 1
 select count(name) from mutex_instances
@@ -61,10 +49,6 @@ count(name)
 1
 select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/LOCK_slave_list";
-count(name)
-1
-select count(name) from mutex_instances
-where name like "wait/synch/mutex/sql/LOCK_msr_map";
 count(name)
 1
 select count(name) from mutex_instances
@@ -89,10 +73,6 @@ count(name)
 1
 select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/LOCK_server_started";
-count(name)
-1
-select count(name) from mutex_instances
-where name like "wait/synch/mutex/sql/Query_cache::structure_guard_mutex";
 count(name)
 1
 select count(name) from mutex_instances
@@ -153,10 +133,6 @@ count(name)
 1
 select count(name) from cond_instances
 where name like "wait/synch/cond/sql/COND_flush_thread_cache";
-count(name)
-1
-select count(name) from cond_instances
-where name like "wait/synch/cond/sql/Query_cache::COND_cache_status_changed";
 count(name)
 1
 select count(name) from cond_instances

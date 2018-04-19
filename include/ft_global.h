@@ -1,16 +1,23 @@
 #ifndef FT_GLOBAL_INCLUDED
 #define FT_GLOBAL_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -18,59 +25,56 @@
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
-/* some definitions for full-text indices */
+/**
+  @file include/ft_global.h
+  Some definitions for full-text indices.
+*/
 
 /* #include "myisam.h" */
 
-#include "my_global.h"
-#include "my_base.h"
+#include <sys/types.h>
+
 #include "m_ctype.h"
+#include "my_base.h"
+#include "my_inttypes.h"
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
-
-#define HA_FT_MAXBYTELEN 254
-#define HA_FT_MAXCHARLEN (HA_FT_MAXBYTELEN/3)
+#define HA_FT_MAXBYTELEN 336
+#define HA_FT_MAXCHARLEN (HA_FT_MAXBYTELEN / 4)
 
 #define DEFAULT_FTB_SYNTAX "+ -><()~*:\"\"&|"
 
-typedef struct st_ft_info FT_INFO;
-struct _ft_vft
-{
-  int       (*read_next)(FT_INFO *, char *);
-  float     (*find_relevance)(FT_INFO *, uchar *, uint);
-  void      (*close_search)(FT_INFO *);
-  float     (*get_relevance)(FT_INFO *);
-  void      (*reinit_search)(FT_INFO *);
+struct FT_INFO;
+struct _ft_vft {
+  int (*read_next)(FT_INFO *, char *);
+  float (*find_relevance)(FT_INFO *, uchar *, uint);
+  void (*close_search)(FT_INFO *);
+  float (*get_relevance)(FT_INFO *);
+  void (*reinit_search)(FT_INFO *);
 };
 
-typedef struct st_ft_info_ext FT_INFO_EXT;
-struct _ft_vft_ext
-{
-  uint      (*get_version)();        // Extended API version
+struct FT_INFO_EXT;
+struct _ft_vft_ext {
+  uint (*get_version)();  // Extended API version
   ulonglong (*get_flags)();
   ulonglong (*get_docid)(FT_INFO_EXT *);
   ulonglong (*count_matches)(FT_INFO_EXT *);
 };
 
 /* Flags for extended FT API */
-#define FTS_ORDERED_RESULT                (1LL << 1)
-#define FTS_DOCID_IN_RESULT               (1LL << 2)
+#define FTS_ORDERED_RESULT (1LL << 1)
+#define FTS_DOCID_IN_RESULT (1LL << 2)
 
 #define FTS_DOC_ID_COL_NAME "FTS_DOC_ID"
 
 #define FTS_NGRAM_PARSER_NAME "ngram"
 
-#ifndef FT_CORE
-struct st_ft_info
-{
+struct FT_INFO {
   struct _ft_vft *please; /* INTERCAL style :-) */
 };
 
-struct st_ft_info_ext
-{
-  struct _ft_vft     *please; /* INTERCAL style :-) */
+#ifndef FT_CORE
+struct FT_INFO_EXT {
+  struct _ft_vft *please; /* INTERCAL style :-) */
   struct _ft_vft_ext *could_you;
 };
 #endif
@@ -91,27 +95,25 @@ void ft_free_stopwords(void);
   Operation types, used in FT_HINTS.
 */
 
-enum ft_operation
-{
+enum ft_operation {
   FT_OP_UNDEFINED, /** Operation undefined, use of hints is impossible */
   FT_OP_NO,        /** No operation, single MATCH function */
   FT_OP_GT,        /** 'Greater than' operation */
   FT_OP_GE         /** 'Greater than or equal to' operation */
 };
 
-#define FT_NL              0   /** Normal mode  */
-#define FT_BOOL            1   /** Boolean mode */
-#define FT_SORTED          2   /** perform internal sorting by rank */
-#define FT_EXPAND          4   /** query expansion */
-#define FT_NO_RANKING      8   /** skip rank calculation */
+#define FT_NL 0         /** Normal mode  */
+#define FT_BOOL 1       /** Boolean mode */
+#define FT_SORTED 2     /** perform internal sorting by rank */
+#define FT_EXPAND 4     /** query expansion */
+#define FT_NO_RANKING 8 /** skip rank calculation */
 
 /**
   Info about FULLTEXT index hints,
   passed to the storage engine.
 */
 
-struct ft_hints
-{
+struct ft_hints {
   /** FULLTEXT flags, see FT_NL, etc */
   uint flags;
   /** Operation type */
@@ -122,11 +124,8 @@ struct ft_hints
   ha_rows limit;
 };
 
-FT_INFO *ft_init_search(uint,void *, uint, uchar *, uint,
-                        const CHARSET_INFO *, uchar *);
-my_bool ft_boolean_check_syntax_string(const uchar *);
+FT_INFO *ft_init_search(uint, void *, uint, uchar *, uint, const CHARSET_INFO *,
+                        uchar *);
+bool ft_boolean_check_syntax_string(const uchar *);
 
-#ifdef  __cplusplus
-}
-#endif
 #endif /* FT_GLOBAL_INCLUDED */

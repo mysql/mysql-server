@@ -1,0 +1,1608 @@
+create table t1(f1 int, key f1_idx(f1 desc)) engine=heap;
+ERROR 42000: The storage engine for the table doesn't support descending indexes
+create table
+t1(a int, b int, key a_desc_b_asc (a desc, b), key a_asc_b_desc (a, b desc))
+engine= innodb;
+flush tables;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  KEY `a_desc_b_asc` (`a` DESC,`b`),
+  KEY `a_asc_b_desc` (`a`,`b` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+insert into t1 values(1,6),(1,5),(2,5),(2,4),(3,4),(3,3),
+(4,3),(4,2),(5,2),(5,1),(6,1),(NULL,NULL);
+analyze table t1;
+# Should use index
+explain select * from t1 order by a desc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a_desc_b_asc	10	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` desc
+select * from t1 order by a desc;
+a	b
+6	1
+5	1
+5	2
+4	2
+4	3
+3	3
+3	4
+2	4
+2	5
+1	5
+1	6
+NULL	NULL
+explain select * from t1 order by a desc, b asc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a_desc_b_asc	10	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` desc,`test`.`t1`.`b` asc
+select * from t1 order by a desc, b asc;
+a	b
+6	1
+5	1
+5	2
+4	2
+4	3
+3	3
+3	4
+2	4
+2	5
+1	5
+1	6
+NULL	NULL
+explain select * from t1 order by a asc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a_asc_b_desc	10	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` asc
+select * from t1 order by a asc, b desc;
+a	b
+NULL	NULL
+1	6
+1	5
+2	5
+2	4
+3	4
+3	3
+4	3
+4	2
+5	2
+5	1
+6	1
+explain select * from t1 order by a asc, b desc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a_asc_b_desc	10	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` asc,`test`.`t1`.`b` desc
+select * from t1 order by a asc, b desc;
+a	b
+NULL	NULL
+1	6
+1	5
+2	5
+2	4
+3	4
+3	3
+4	3
+4	2
+5	2
+5	1
+6	1
+explain select * from t1 group by a,b order by a, b desc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	a_desc_b_asc,a_asc_b_desc	a_asc_b_desc	10	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`b` desc order by `test`.`t1`.`a`,`test`.`t1`.`b` desc
+select * from t1 group by a,b order by a, b desc;
+a	b
+NULL	NULL
+1	6
+1	5
+2	5
+2	4
+3	4
+3	3
+4	3
+4	2
+5	2
+5	1
+6	1
+# For GROUP BY optimizer can pick any order for column,
+# unless it's explicitly specified
+explain select * from t1 group by a, b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	a_desc_b_asc,a_asc_b_desc	a_desc_b_asc	10	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`b`
+explain select * from t1 group by a asc, b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	a_desc_b_asc,a_asc_b_desc	a_asc_b_desc	10	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a` asc,`test`.`t1`.`b`
+explain select * from t1 group by a desc, b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	a_desc_b_asc,a_asc_b_desc	a_desc_b_asc	10	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a` desc,`test`.`t1`.`b`
+explain select * from t1 group by a, b asc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	a_desc_b_asc,a_asc_b_desc	a_desc_b_asc	10	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`b` asc
+explain select * from t1 group by a, b desc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	a_desc_b_asc,a_asc_b_desc	a_asc_b_desc	10	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`b` desc
+alter table t1 drop index a_asc_b_desc;
+explain select * from t1 group by a asc, b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	a_desc_b_asc	a_desc_b_asc	10	NULL	#	#	Backward index scan; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a` asc,`test`.`t1`.`b`
+explain select distinct a from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a_desc_b_asc	a_desc_b_asc	5	NULL	#	#	Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1`
+select distinct a from t1;
+a
+6
+5
+4
+3
+2
+1
+NULL
+explain select a from t1 group by a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a_desc_b_asc	a_desc_b_asc	5	NULL	#	#	Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a`
+select a from t1 group by a;
+a
+6
+5
+4
+3
+2
+1
+NULL
+# Should use index backward
+explain select * from t1 order by a asc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a_desc_b_asc	10	NULL	#	#	Backward index scan; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` asc
+select * from t1 order by a asc, b desc;
+a	b
+NULL	NULL
+1	6
+1	5
+2	5
+2	4
+3	4
+3	3
+4	3
+4	2
+5	2
+5	1
+6	1
+explain select * from t1 order by a asc, b desc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a_desc_b_asc	10	NULL	#	#	Backward index scan; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` asc,`test`.`t1`.`b` desc
+select * from t1 order by a asc, b desc;
+a	b
+NULL	NULL
+1	6
+1	5
+2	5
+2	4
+3	4
+3	3
+4	3
+4	2
+5	2
+5	1
+6	1
+# Should use filesort
+explain select * from t1 order by a desc, b desc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a_desc_b_asc	10	NULL	#	#	Using index; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
+select * from t1 order by a desc, b desc;
+a	b
+6	1
+5	2
+5	1
+4	3
+4	2
+3	4
+3	3
+2	5
+2	4
+1	6
+1	5
+NULL	NULL
+explain select * from t1 order by a asc, b asc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a_desc_b_asc	10	NULL	#	#	Using index; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` asc,`test`.`t1`.`b` asc
+select * from t1 order by a asc, b asc;
+a	b
+NULL	NULL
+1	5
+1	6
+2	4
+2	5
+3	3
+3	4
+4	2
+4	3
+5	1
+5	2
+6	1
+create index i1 on t1 (a desc, a asc);
+ERROR 42S21: Duplicate column name 'a'
+create index i1 on t1 (a desc, b desc);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  KEY `a_desc_b_asc` (`a` DESC,`b`),
+  KEY `i1` (`a` DESC,`b` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+create table t2 (a int auto_increment, primary key (a desc)) engine= innodb;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+insert ignore into t2 select a from t1;
+Warnings:
+Warning	1062	Duplicate entry '5' for key 'PRIMARY'
+Warning	1062	Duplicate entry '4' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3' for key 'PRIMARY'
+Warning	1062	Duplicate entry '2' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+select * from t2;
+a
+7
+6
+5
+4
+3
+2
+1
+create table t3 (a varchar(10), key i1(a(5) desc)) engine= innodb;
+flush tables;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` varchar(10) DEFAULT NULL,
+  KEY `i1` (`a`(5) DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+create index i2 on t3(a(6));
+flush tables;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` varchar(10) DEFAULT NULL,
+  KEY `i1` (`a`(5) DESC),
+  KEY `i2` (`a`(6))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+alter table t3 add fulltext index fts_idx(a desc);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+alter table t3 add fulltext index fts_idx(a asc);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+alter table t3 add column b point not null, add spatial index gis_idx(b desc);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+alter table t3 add column b point not null, add spatial index gis_idx(b asc);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+create table t4 (a text, fulltext key fts(a desc));
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+create table t4 (a point not null, spatial key gis(a desc));
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+create table t4 (a text, fulltext key fts(a asc));
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+create table t4 (a point not null, spatial key gis(a asc));
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+create table t5 (f1 int, key h(f1 asc) using hash) engine= heap;
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+create table t5 (f1 int, key h(f1 desc) using hash) engine= heap;
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+create table t5 (f1 int, key h(f1) using hash) engine= heap;
+drop table t1,t2,t3,t5;
+CREATE TABLE t0 (i INTEGER);
+INSERT INTO t0 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1 (i1 INTEGER NOT NULL, i2 INTEGER NOT NULL,
+i3 INTEGER NOT NULL, KEY k1 (i1 desc, i2)
+) ENGINE= innodb;
+INSERT INTO t1
+SELECT a.i*10 + b.i + 1, a.i*100 + b.i*10 + c.i, a.i
+FROM t0 AS a, t0 AS b, t0 AS c;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1
+WHERE i1 BETWEEN 50 AND 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k1	k1	4	NULL	30	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`i3` AS `i3` from `test`.`t1` where ((`test`.`t1`.`i1` between 50 and 52) and ((`test`.`t1`.`i2` % 2) = 1)) order by `test`.`t1`.`i1` desc
+SELECT * FROM t1
+WHERE i1 BETWEEN 50 AND 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
+i1	i2	i3
+52	511	5
+52	513	5
+52	515	5
+52	517	5
+52	519	5
+51	501	5
+51	503	5
+51	505	5
+51	507	5
+51	509	5
+50	491	4
+50	493	4
+50	495	4
+50	497	4
+50	499	4
+EXPLAIN SELECT * FROM t1
+WHERE (i1 BETWEEN 50 AND 52 OR i1 BETWEEN 70 AND 72) AND MOD(i2,2)=1
+ORDER BY i1 DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k1	k1	4	NULL	60	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`i3` AS `i3` from `test`.`t1` where (((`test`.`t1`.`i1` between 50 and 52) or (`test`.`t1`.`i1` between 70 and 72)) and ((`test`.`t1`.`i2` % 2) = 1)) order by `test`.`t1`.`i1` desc
+SELECT * FROM t1
+WHERE (i1 BETWEEN 50 AND 52 OR i1 BETWEEN 70 AND 72) AND MOD(i2,2)=1
+ORDER BY i1 DESC;
+i1	i2	i3
+72	711	7
+72	713	7
+72	715	7
+72	717	7
+72	719	7
+71	701	7
+71	703	7
+71	705	7
+71	707	7
+71	709	7
+70	691	6
+70	693	6
+70	695	6
+70	697	6
+70	699	6
+52	511	5
+52	513	5
+52	515	5
+52	517	5
+52	519	5
+51	501	5
+51	503	5
+51	505	5
+51	507	5
+51	509	5
+50	491	4
+50	493	4
+50	495	4
+50	497	4
+50	499	4
+EXPLAIN SELECT * FROM t1
+WHERE ( (i1=50 AND i2=495) OR i1 BETWEEN 70 AND 72) AND MOD(i2,2)=1
+ORDER BY i1 DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k1	k1	8	NULL	31	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`i3` AS `i3` from `test`.`t1` where ((((`test`.`t1`.`i2` = 495) and (`test`.`t1`.`i1` = 50)) or (`test`.`t1`.`i1` between 70 and 72)) and ((`test`.`t1`.`i2` % 2) = 1)) order by `test`.`t1`.`i1` desc
+SELECT * FROM t1
+WHERE ( (i1=50 AND i2=495) OR i1 BETWEEN 70 AND 72) AND MOD(i2,2)=1
+ORDER BY i1 DESC;
+i1	i2	i3
+72	711	7
+72	713	7
+72	715	7
+72	717	7
+72	719	7
+71	701	7
+71	703	7
+71	705	7
+71	707	7
+71	709	7
+70	691	6
+70	693	6
+70	695	6
+70	697	6
+70	699	6
+50	495	4
+EXPLAIN SELECT * FROM t1 WHERE i1 >= 50 AND i1 < 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k1	k1	4	NULL	20	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`i3` AS `i3` from `test`.`t1` where ((`test`.`t1`.`i1` >= 50) and (`test`.`t1`.`i1` < 52) and ((`test`.`t1`.`i2` % 2) = 1)) order by `test`.`t1`.`i1` desc
+SELECT * FROM t1 WHERE i1 >= 50 AND i1 < 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
+i1	i2	i3
+51	501	5
+51	503	5
+51	505	5
+51	507	5
+51	509	5
+50	491	4
+50	493	4
+50	495	4
+50	497	4
+50	499	4
+EXPLAIN SELECT * FROM t1 WHERE i1 > 50 AND i1 <= 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k1	k1	4	NULL	20	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`i3` AS `i3` from `test`.`t1` where ((`test`.`t1`.`i1` > 50) and (`test`.`t1`.`i1` <= 52) and ((`test`.`t1`.`i2` % 2) = 1)) order by `test`.`t1`.`i1` desc
+SELECT * FROM t1 WHERE i1 > 50 AND i1 <= 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
+i1	i2	i3
+52	511	5
+52	513	5
+52	515	5
+52	517	5
+52	519	5
+51	501	5
+51	503	5
+51	505	5
+51	507	5
+51	509	5
+ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2);
+EXPLAIN SELECT * FROM t1
+WHERE i1 BETWEEN 50 AND 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k1	k1	4	NULL	30	100.00	Using index condition; Backward index scan
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`i3` AS `i3` from `test`.`t1` where ((`test`.`t1`.`i1` between 50 and 52) and ((`test`.`t1`.`i2` % 2) = 1)) order by `test`.`t1`.`i1` desc
+SELECT * FROM t1
+WHERE i1 BETWEEN 50 AND 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
+i1	i2	i3
+52	519	5
+52	517	5
+52	515	5
+52	513	5
+52	511	5
+51	509	5
+51	507	5
+51	505	5
+51	503	5
+51	501	5
+50	499	4
+50	497	4
+50	495	4
+50	493	4
+50	491	4
+ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC);
+EXPLAIN SELECT * FROM t1
+WHERE i1 BETWEEN 50 AND 52 AND i2 BETWEEN 495 AND 515 ORDER BY i1, i2 DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k1	k1	8	NULL	30	11.11	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`i3` AS `i3` from `test`.`t1` where ((`test`.`t1`.`i1` between 50 and 52) and (`test`.`t1`.`i2` between 495 and 515)) order by `test`.`t1`.`i1`,`test`.`t1`.`i2` desc
+SELECT * FROM t1
+WHERE i1 BETWEEN 50 AND 52 AND i2 BETWEEN 495 AND 515 ORDER BY i1, i2 DESC;
+i1	i2	i3
+50	499	4
+50	498	4
+50	497	4
+50	496	4
+50	495	4
+51	509	5
+51	508	5
+51	507	5
+51	506	5
+51	505	5
+51	504	5
+51	503	5
+51	502	5
+51	501	5
+51	500	5
+52	515	5
+52	514	5
+52	513	5
+52	512	5
+52	511	5
+52	510	5
+ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC, i3);
+EXPLAIN SELECT * FROM t1
+WHERE i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
+i3 BETWEEN 4 AND 5 AND MOD(i1,2)=0 AND MOD(i2,2)=1
+ORDER BY i1, i2 DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k1	k1	12	NULL	150	1.23	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`i3` AS `i3` from `test`.`t1` where ((`test`.`t1`.`i1` between 48 and 62) and (`test`.`t1`.`i2` between 395 and 615) and (`test`.`t1`.`i3` between 4 and 5) and ((`test`.`t1`.`i1` % 2) = 0) and ((`test`.`t1`.`i2` % 2) = 1)) order by `test`.`t1`.`i1`,`test`.`t1`.`i2` desc
+SELECT * FROM t1
+WHERE i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
+i3 BETWEEN 4 AND 5 AND MOD(i1,2)=0 AND MOD(i2,2)=1
+ORDER BY i1, i2 DESC;
+i1	i2	i3
+48	479	4
+48	477	4
+48	475	4
+48	473	4
+48	471	4
+50	499	4
+50	497	4
+50	495	4
+50	493	4
+50	491	4
+52	519	5
+52	517	5
+52	515	5
+52	513	5
+52	511	5
+54	539	5
+54	537	5
+54	535	5
+54	533	5
+54	531	5
+56	559	5
+56	557	5
+56	555	5
+56	553	5
+56	551	5
+58	579	5
+58	577	5
+58	575	5
+58	573	5
+58	571	5
+60	599	5
+60	597	5
+60	595	5
+60	593	5
+60	591	5
+ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC, i3 DESC);
+EXPLAIN SELECT * FROM t1
+WHERE i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
+i3 BETWEEN 4 AND 5 AND MOD(i1,2)=0 AND MOD(i2,2)=1
+ORDER BY i1, i2 DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k1	k1	12	NULL	150	1.23	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`i3` AS `i3` from `test`.`t1` where ((`test`.`t1`.`i1` between 48 and 62) and (`test`.`t1`.`i2` between 395 and 615) and (`test`.`t1`.`i3` between 4 and 5) and ((`test`.`t1`.`i1` % 2) = 0) and ((`test`.`t1`.`i2` % 2) = 1)) order by `test`.`t1`.`i1`,`test`.`t1`.`i2` desc
+SELECT * FROM t1
+WHERE i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
+i3 BETWEEN 4 AND 5 AND MOD(i1,2)=0 AND MOD(i2,2)=1
+ORDER BY i1, i2 DESC;
+i1	i2	i3
+48	479	4
+48	477	4
+48	475	4
+48	473	4
+48	471	4
+50	499	4
+50	497	4
+50	495	4
+50	493	4
+50	491	4
+52	519	5
+52	517	5
+52	515	5
+52	513	5
+52	511	5
+54	539	5
+54	537	5
+54	535	5
+54	533	5
+54	531	5
+56	559	5
+56	557	5
+56	555	5
+56	553	5
+56	551	5
+58	579	5
+58	577	5
+58	575	5
+58	573	5
+58	571	5
+60	599	5
+60	597	5
+60	595	5
+60	593	5
+60	591	5
+ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC, i3);
+EXPLAIN SELECT * FROM t1   WHERE 
+((i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
+i3 BETWEEN 4 AND 5) or i1 between 70 and 72) AND
+MOD(i1,2)=0 AND MOD(i2,2)=1
+ORDER BY i1 desc, i2 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k1	k1	12	NULL	180	100.00	Using where; Using index; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`i3` AS `i3` from `test`.`t1` where ((((`test`.`t1`.`i1` between 48 and 62) and (`test`.`t1`.`i2` between 395 and 615) and (`test`.`t1`.`i3` between 4 and 5)) or (`test`.`t1`.`i1` between 70 and 72)) and ((`test`.`t1`.`i1` % 2) = 0) and ((`test`.`t1`.`i2` % 2) = 1)) order by `test`.`t1`.`i1` desc,`test`.`t1`.`i2`
+SELECT * FROM t1   WHERE 
+((i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
+i3 BETWEEN 4 AND 5) or i1 between 70 and 72) AND
+MOD(i1,2)=0 AND MOD(i2,2)=1
+ORDER BY i1 desc, i2 ;
+i1	i2	i3
+72	711	7
+72	713	7
+72	715	7
+72	717	7
+72	719	7
+70	691	6
+70	693	6
+70	695	6
+70	697	6
+70	699	6
+60	591	5
+60	593	5
+60	595	5
+60	597	5
+60	599	5
+58	571	5
+58	573	5
+58	575	5
+58	577	5
+58	579	5
+56	551	5
+56	553	5
+56	555	5
+56	557	5
+56	559	5
+54	531	5
+54	533	5
+54	535	5
+54	537	5
+54	539	5
+52	511	5
+52	513	5
+52	515	5
+52	517	5
+52	519	5
+50	491	4
+50	493	4
+50	495	4
+50	497	4
+50	499	4
+48	471	4
+48	473	4
+48	475	4
+48	477	4
+48	479	4
+ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1 DESC, i2, i3);
+EXPLAIN SELECT * FROM t1   WHERE 
+((i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
+i3 BETWEEN 4 AND 5) or i1 between 70 and 72) AND
+MOD(i1,2)=0 AND MOD(i2,2)=1
+ORDER BY i1 desc, i2 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k1	k1	12	NULL	180	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`i3` AS `i3` from `test`.`t1` where ((((`test`.`t1`.`i1` between 48 and 62) and (`test`.`t1`.`i2` between 395 and 615) and (`test`.`t1`.`i3` between 4 and 5)) or (`test`.`t1`.`i1` between 70 and 72)) and ((`test`.`t1`.`i1` % 2) = 0) and ((`test`.`t1`.`i2` % 2) = 1)) order by `test`.`t1`.`i1` desc,`test`.`t1`.`i2`
+SELECT * FROM t1   WHERE 
+((i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
+i3 BETWEEN 4 AND 5) or i1 between 70 and 72) AND
+MOD(i1,2)=0 AND MOD(i2,2)=1
+ORDER BY i1 desc, i2 ;
+i1	i2	i3
+72	711	7
+72	713	7
+72	715	7
+72	717	7
+72	719	7
+70	691	6
+70	693	6
+70	695	6
+70	697	6
+70	699	6
+60	591	5
+60	593	5
+60	595	5
+60	597	5
+60	599	5
+58	571	5
+58	573	5
+58	575	5
+58	577	5
+58	579	5
+56	551	5
+56	553	5
+56	555	5
+56	557	5
+56	559	5
+54	531	5
+54	533	5
+54	535	5
+54	537	5
+54	539	5
+52	511	5
+52	513	5
+52	515	5
+52	517	5
+52	519	5
+50	491	4
+50	493	4
+50	495	4
+50	497	4
+50	499	4
+48	471	4
+48	473	4
+48	475	4
+48	477	4
+48	479	4
+ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1 DESC, i2, i3);
+EXPLAIN SELECT * FROM t1
+WHERE ( (i1=50 AND i2=495 and i3=4) OR i1 BETWEEN 70 AND 72) AND
+MOD(i2,2)=1
+ORDER BY i1 DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k1	k1	12	NULL	31	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`i3` AS `i3` from `test`.`t1` where ((((`test`.`t1`.`i3` = 4) and (`test`.`t1`.`i2` = 495) and (`test`.`t1`.`i1` = 50)) or (`test`.`t1`.`i1` between 70 and 72)) and ((`test`.`t1`.`i2` % 2) = 1)) order by `test`.`t1`.`i1` desc
+SELECT * FROM t1
+WHERE ( (i1=50 AND i2=495 and i3=4) OR i1 BETWEEN 70 AND 72) AND
+MOD(i2,2)=1
+ORDER BY i1 DESC;
+i1	i2	i3
+72	711	7
+72	713	7
+72	715	7
+72	717	7
+72	719	7
+71	701	7
+71	703	7
+71	705	7
+71	707	7
+71	709	7
+70	691	6
+70	693	6
+70	695	6
+70	697	6
+70	699	6
+50	495	4
+ALTER TABLE t1 ADD COLUMN (i4 INTEGER NOT NULL);
+UPDATE t1 SET i4=i3;
+ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1 DESC, i2, i3 DESC, i4);
+EXPLAIN SELECT * FROM t1   WHERE
+((i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
+i3 BETWEEN 4 AND 5 AND i4 BETWEEN 5 AND 6) OR
+i1 between 70 and 72) AND MOD(i1,2)=0 AND MOD(i2,2)=1
+ORDER BY i1 desc, i2 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k1	k1	16	NULL	180	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`i3` AS `i3`,`test`.`t1`.`i4` AS `i4` from `test`.`t1` where ((((`test`.`t1`.`i1` between 48 and 62) and (`test`.`t1`.`i2` between 395 and 615) and (`test`.`t1`.`i3` between 4 and 5) and (`test`.`t1`.`i4` between 5 and 6)) or (`test`.`t1`.`i1` between 70 and 72)) and ((`test`.`t1`.`i1` % 2) = 0) and ((`test`.`t1`.`i2` % 2) = 1)) order by `test`.`t1`.`i1` desc,`test`.`t1`.`i2`
+SELECT * FROM t1   WHERE
+((i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
+i3 BETWEEN 4 AND 5 AND i4 BETWEEN 5 AND 6) OR
+i1 between 70 and 72) AND MOD(i1,2)=0 AND MOD(i2,2)=1
+ORDER BY i1 desc, i2 ;
+i1	i2	i3	i4
+72	711	7	7
+72	713	7	7
+72	715	7	7
+72	717	7	7
+72	719	7	7
+70	691	6	6
+70	693	6	6
+70	695	6	6
+70	697	6	6
+70	699	6	6
+60	591	5	5
+60	593	5	5
+60	595	5	5
+60	597	5	5
+60	599	5	5
+58	571	5	5
+58	573	5	5
+58	575	5	5
+58	577	5	5
+58	579	5	5
+56	551	5	5
+56	553	5	5
+56	555	5	5
+56	557	5	5
+56	559	5	5
+54	531	5	5
+54	533	5	5
+54	535	5	5
+54	537	5	5
+54	539	5	5
+52	511	5	5
+52	513	5	5
+52	515	5	5
+52	517	5	5
+52	519	5	5
+DROP TABLE t0, t1;
+CREATE TABLE t1 (a INT, b INT, KEY i1 (a DESC, b DESC));
+INSERT INTO t1 (a, b) VALUES (1,1), (1,2), (1,3);
+INSERT INTO t1 SELECT a + 1, b FROM t1;
+INSERT INTO t1 SELECT a + 2, b FROM t1;
+INSERT INTO t1 SELECT a + 4, b FROM t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN
+SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i1	i1	10	NULL	9	100.00	Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` group by `test`.`t1`.`a` desc order by `test`.`t1`.`a` desc
+SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
+a	MIN(b)	MAX(b)
+8	1	3
+7	1	3
+6	1	3
+5	1	3
+4	1	3
+3	1	3
+2	1	3
+1	1	3
+DROP TABLE t1;
+create table t1 (a int not null, b int, c varchar(10),
+key (a desc, b desc, c desc));
+insert into t1 values (1, NULL, NULL), (1, NULL, 'b'), (1, 1, NULL), (1, 1, 'b'), (1, 1, 'b'), (2, 1, 'a'), (2, 1, 'b'), (2, 2, 'a'), (2, 2, 'b'), (2, 3, 'c'),(1,3,'b');
+insert into t1 values (0, NULL, NULL), (0, NULL, 'b'), (0, 0, NULL), (0, 0, 'b'), (0, 0, 'b'), (0, 0, 'a'), (0, 0, 'b'), (0, 0, 'a'), (0, 0, 'b'), (0, 0, 'c'),(0,0,'b');
+explain select * from t1 where a >= 1 and a < 3 and b >0 order by a desc,b desc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	9	NULL	9	33.33	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` >= 1) and (`test`.`t1`.`a` < 3) and (`test`.`t1`.`b` > 0)) order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
+flush status;
+select * from t1 where a >= 1 and a < 3 and b >0 order by a desc,b desc;
+a	b	c
+2	3	c
+2	2	b
+2	2	a
+2	1	b
+2	1	a
+1	3	b
+1	1	b
+1	1	b
+1	1	NULL
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	9
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+drop table t1;
+create table t1 (a1 int, a2 char(3), key k1(a1 desc));
+insert into t1 values(10,'aaa'), (10,null), (10,'bbb'), (20,'zzz');
+# Shouldn't optimize tables away on DESC index
+explain select min(a1) from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	k1	5	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1`
+select min(a1) from t1;
+min(a1)
+10
+drop table t1;
+CREATE TABLE t1
+(a VARCHAR(10),
+b VARCHAR(10),
+KEY ab_asc (a ASC, b ASC),
+KEY a_asc_b_desc (a ASC, b DESC),
+key a_desc_b_asc (a DESC, b ASC))
+ENGINE = InnoDB 
+PARTITION BY KEY (a, b) PARTITIONS 3;
+INSERT INTO t1 VALUES ("0", "0"), ("1", "1"), ("2", "2"), ("3", "3"),
+("4", "4"), ("55", "55"), ("54", "54"), ("1", "2"), ("1", "4"), ("1", "3"),
+("55", "54"), ("0", "1"), (NULL,NULL),(0, NULL), (1,NULL);
+SELECT * FROM t1 ORDER BY a, b DESC;
+a	b
+NULL	NULL
+0	1
+0	0
+0	NULL
+1	4
+1	3
+1	2
+1	1
+1	NULL
+2	2
+3	3
+4	4
+54	54
+55	55
+55	54
+DROP TABLE t1;
+#
+# Bug#23036049: WL1074:ASSERTION `CTX->CUR <= CTX->LAST' FAILED.
+#
+CREATE TABLE c (
+pk INTEGER AUTO_INCREMENT,
+col_int INTEGER NOT NULL,
+col_varchar VARCHAR(5) NOT NULL,
+unique KEY (pk,col_int DESC)
+) ENGINE= innodb;
+INSERT IGNORE INTO c (col_int,col_varchar) VALUES
+(7, 'm'),(0, 'alukq'),(8, 'lu'),(6, 'uk'), (5, 'kquk'),(9, 'qukko'),(0, 'u'),
+(181, 'kkoei'),(3, 'ko'),(86, 'oei');
+CREATE TABLE cc (
+pk INTEGER AUTO_INCREMENT,
+col_int INTEGER NOT NULL,
+col_varchar VARCHAR(5) NOT NULL,
+unique KEY (pk,col_int DESC)
+) ENGINE= innodb;
+INSERT IGNORE INTO cc (col_int,col_varchar) VALUES 
+(9, 'gktbk'),(0, 'k'),(4, 'tbkj'),(8, 'bk'),(9, 'kjrk'),(2,'j'),(7, 'r'),
+(4, 'kmqmk'),(0, 'm'),(4, 'qmkn');
+SELECT DISTINCT t2.col_int
+FROM ( c AS t1 INNER JOIN cc AS t2 ON (t2.col_varchar = t1.col_varchar))
+WHERE ( t1.col_int IN ( 167, 9))
+AND t1.pk = 122;
+col_int
+DROP TABLE c,cc;
+#
+CREATE TABLE b (
+pk INTEGER AUTO_INCREMENT,
+col_int_key INTEGER /*! NULL */,
+col_varchar_key VARCHAR(10) /*! NULL */,
+PRIMARY KEY (pk DESC),
+KEY (col_varchar_key DESC, col_int_key DESC)
+) ENGINE= innodb;
+INSERT /*! IGNORE */ INTO b (col_int_key,col_varchar_key) VALUES
+(3, 'ceksatef'),(3, 'eks'),(3, 'ksatefqs'),(6, 'sate'),(3, 'a');
+CREATE TABLE cc (
+pk INTEGER ,
+col_int_key INTEGER /*! NULL */,
+col_varchar_key VARCHAR(10) /*! NULL */
+) ENGINE= innodb;
+INSERT /*! IGNORE */ INTO cc (col_int_key, col_varchar_key) VALUES
+(NULL, 'koeiwsgpmf'),(8, 'oeiwsgpm'),(8, 'eiwsg'),(0,'iwsg'),(5, 'wsgpmfy'),
+(1, 'sgpmfyvvu'),(7, 'gpmfyvvu'),(7, 'pmfyvvu'),(147, 'mfyv'),(2, NULL);
+# Shouldn't crash
+SELECT
+DISTINCT  OUTR . col_varchar_key 
+FROM b AS OUTR WHERE ( OUTR . col_int_key , OUTR . pk ) IN
+(
+SELECT DISTINCT
+INNR . pk AS x ,
+INNR . pk AS y
+FROM cc AS INNR WHERE OUTR . col_varchar_key = 'v'
+)
+AND OUTR . pk >= 3 ;
+col_varchar_key
+DROP TABLE b;
+CREATE TABLE b (
+pk INTEGER AUTO_INCREMENT,
+col_int_key INTEGER /*! NULL */,
+col_varchar_key VARCHAR(10) /*! NULL */,
+PRIMARY KEY (pk DESC),
+KEY (col_varchar_key, col_int_key)
+)  ENGINE= innodb;
+INSERT /*! IGNORE */ INTO b (col_int_key,col_varchar_key)
+VALUES (3, 'ceksatef'),(3, 'eks'),(3, 'ksatefqs'),(6, 'sate'),(3, 'a');
+# Shouldn't crash
+SELECT
+DISTINCT  OUTR . col_varchar_key 
+FROM b AS OUTR WHERE ( OUTR . col_int_key , OUTR . pk ) IN
+(
+SELECT DISTINCT
+INNR . pk AS x ,
+INNR . pk AS y
+FROM cc AS INNR WHERE OUTR . col_varchar_key = 'v'
+)
+AND OUTR . pk >= 3 ;
+col_varchar_key
+DROP TABLE b,cc;
+#
+#
+# Bug#23212656:JOIN QUERY WITH RANGE PREDICATES GIVES INCORRECT RESULTS
+#
+CREATE TABLE ee (
+col_int int(11) DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (pk DESC),
+KEY 1col_int_key (col_int_key DESC)
+) ENGINE=innodb;
+INSERT INTO ee VALUES
+(NULL,NULL,1), (NULL,NULL,2), (NULL,286720000,3), (NULL,1,4),
+(2084831232,8,5), (NULL,0,6), (4,763953152,7), (5,NULL,8), (7,9,9);
+SELECT DISTINCT alias1 . col_int_key AS field1 , alias1 . col_int AS field2
+FROM ee AS alias1 JOIN ee AS alias2 ON  alias1 . pk =  alias2 . col_int_key
+WHERE ( alias1 . pk  BETWEEN 8 AND ( 8 + 4 ) AND alias2 . pk <> 2 );
+field1	field2
+9	7
+NULL	5
+DROP TABLE ee;
+#
+#
+# Bug#23217803:QUERY USING INDEX_MERGE_SORT_UNION GIVES INCORRECT
+#              RESULTS WITH DESC KEY
+#
+CREATE TABLE t (
+pk INTEGER AUTO_INCREMENT,
+col_int INTEGER ,
+col_int_key INTEGER ,
+col_varchar_key VARCHAR(10) ,
+col_varchar VARCHAR(10) ,
+PRIMARY KEY (pk DESC),
+KEY (col_varchar_key DESC),
+UNIQUE KEY (col_int_key DESC, pk)
+) ENGINE=innodb;
+INSERT INTO t (col_int_key, col_int, col_varchar_key)
+VALUES (1, 2, NULL),(NULL, 3, 'dks'), (7, 0, 'ksjijcsz'),(172, 84, 'sj');
+SELECT col_int  FROM t  AS table1  WHERE table1 .pk  >  166  OR table1
+.col_varchar_key  = 'c' OR table1 .col_int_key  >  166 LIMIT 1;
+col_int
+84
+DROP TABLE t;
+#
+#
+# BUG#22973383:INNODB ASSERTION IN ROW_SEL_CONVERT_MYSQL_KEY_TO_INNOBASE
+#
+CREATE TABLE c (
+col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+unique key k5 (col_varchar_10_utf8_key(7) DESC)
+) ENGINE=innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE e (
+col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+unique key k5 (col_varchar_10_utf8_key(7) DESC,
+col_varchar_10_latin1_key(5) DESC, col_varchar_255_utf8_key(50) DESC)
+) ENGINE=innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+EXPLAIN SELECT table2 . col_varchar_10_utf8_key AS field1
+FROM  e AS table1 LEFT  JOIN c AS table2
+ON  table1 . col_varchar_10_utf8_key =  table2 . col_varchar_10_utf8_key
+WHERE table1 . col_varchar_255_utf8_key != 'LPGIV'
+AND table1 . col_varchar_10_latin1_key >= 'w'
+AND table1 . col_varchar_10_utf8_key < 'zzzz';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table1	NULL	range	k5	k5	24	NULL	1	100.00	Using where
+1	SIMPLE	table2	NULL	ref	k5	k5	24	test.table1.col_varchar_10_utf8_key	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`table2`.`col_varchar_10_utf8_key` AS `field1` from `test`.`e` `table1` left join `test`.`c` `table2` on((`test`.`table2`.`col_varchar_10_utf8_key` = `test`.`table1`.`col_varchar_10_utf8_key`)) where ((`test`.`table1`.`col_varchar_255_utf8_key` <> 'LPGIV') and (`test`.`table1`.`col_varchar_10_latin1_key` >= 'w') and (`test`.`table1`.`col_varchar_10_utf8_key` < 'zzzz'))
+SELECT table2 . col_varchar_10_utf8_key AS field1
+FROM  e AS table1 LEFT  JOIN c AS table2
+ON  table1 . col_varchar_10_utf8_key =  table2 . col_varchar_10_utf8_key
+WHERE table1 . col_varchar_255_utf8_key != 'LPGIV'
+AND table1 . col_varchar_10_latin1_key >= 'w'
+AND table1 . col_varchar_10_utf8_key < 'zzzz';
+field1
+DROP TABLE c,e;
+CREATE TABLE t1 (
+i int(11) NOT NULL,
+j int(11) DEFAULT NULL,
+k int(11) DEFAULT NULL,
+l int(11) DEFAULT NULL,
+PRIMARY KEY (i),
+KEY j (j,k DESC,l),
+KEY i (i,j,k,l)
+)ENGINE=InnoDB;
+INSERT INTO t1 VALUES
+(11,1,6,3),(4,1,2,3),(8,1,2,3),(10,1,2,3),(1,1,1,1),(2,1,1,1),(3,1,1,1),
+(5,3,2,3),(6,4,2,3),(7,6,2,3),(12,7,6,3),(13,7,6,8),(14,7,6,9),(16,8,7,9),
+(15,8,6,9);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE i < 10 AND j >=1 AND k >=2 AND l <=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY,j,i	PRIMARY	4	NULL	8	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`k` AS `k`,`test`.`t1`.`l` AS `l` from `test`.`t1` where ((`test`.`t1`.`i` < 10) and (`test`.`t1`.`j` >= 1) and (`test`.`t1`.`k` >= 2) and (`test`.`t1`.`l` <= 5))
+SELECT * FROM t1 WHERE i < 10 AND j >=1 AND k >=2 AND l <=5;
+i	j	k	l
+4	1	2	3
+5	3	2	3
+6	4	2	3
+7	6	2	3
+8	1	2	3
+DROP TABLE t1;
+CREATE TABLE t1 (
+pk INTEGER NOT NULL,
+col_int_key INTEGER ,
+col_varchar_key BLOB NOT NULL,
+PRIMARY KEY (pk),
+KEY (col_int_key, col_varchar_key(25) DESC)
+);
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+col_int INTEGER ,
+col_int_key INTEGER ,
+col_varchar_key BLOB ,
+PRIMARY KEY (pk),
+KEY (col_int_key, col_varchar_key(25) DESC)
+);
+EXPLAIN SELECT t1.col_varchar_key
+FROM ( t2 INNER JOIN t1
+ON (t1.col_int_key = t2.col_int  AND (1,5)  IN
+( SELECT alias1.col_int_key, alias1. pk
+FROM ( t2 AS alias2 RIGHT JOIN t1 AS alias1
+ON (alias1.pk = alias2.col_int_key )
+) WHERE alias1.col_varchar_key >= 'y') ) );
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	col_int_key	col_int_key	5	test.t2.col_int	1	100.00	NULL
+1	SIMPLE	alias1	NULL	const	PRIMARY,col_int_key	PRIMARY	4	const	1	100.00	Using where
+1	SIMPLE	alias2	NULL	ref	col_int_key	col_int_key	5	test.alias1.pk	1	100.00	Using index; FirstMatch(t1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t2` semi join (`test`.`t1` `alias1` left join `test`.`t2` `alias2` on((`test`.`alias1`.`pk` = `test`.`alias2`.`col_int_key`))) join `test`.`t1` where ((`test`.`t1`.`col_int_key` = `test`.`t2`.`col_int`) and (`test`.`alias1`.`pk` = 5) and (`test`.`alias1`.`col_int_key` = 1) and (`test`.`alias1`.`col_varchar_key` >= 'y'))
+SELECT t1.col_varchar_key
+FROM ( t2 INNER JOIN t1
+ON (t1.col_int_key = t2.col_int  AND (1,5)  IN
+( SELECT alias1.col_int_key, alias1. pk
+FROM ( t2 AS alias2 RIGHT JOIN t1 AS alias1
+ON (alias1.pk = alias2.col_int_key )
+) WHERE alias1.col_varchar_key >= 'y') ) );
+col_varchar_key
+EXPLAIN SELECT t1.col_varchar_key
+FROM ( t2 INNER JOIN t1
+ON (t1.col_int_key = t2.col_int  AND (1,5)  IN
+( SELECT alias1.col_int_key, alias1. pk
+FROM ( t2 AS alias2 RIGHT JOIN t1 AS alias1
+ON (alias1.pk = alias2.col_int_key )
+) WHERE alias1.col_varchar_key <= 'y') ) );
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	col_int_key	col_int_key	5	test.t2.col_int	1	100.00	NULL
+1	SIMPLE	alias1	NULL	const	PRIMARY,col_int_key	PRIMARY	4	const	1	100.00	Using where
+1	SIMPLE	alias2	NULL	ref	col_int_key	col_int_key	5	test.alias1.pk	1	100.00	Using index; FirstMatch(t1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t2` semi join (`test`.`t1` `alias1` left join `test`.`t2` `alias2` on((`test`.`alias1`.`pk` = `test`.`alias2`.`col_int_key`))) join `test`.`t1` where ((`test`.`t1`.`col_int_key` = `test`.`t2`.`col_int`) and (`test`.`alias1`.`pk` = 5) and (`test`.`alias1`.`col_int_key` = 1) and (`test`.`alias1`.`col_varchar_key` <= 'y'))
+SELECT t1.col_varchar_key
+FROM ( t2 INNER JOIN t1
+ON (t1.col_int_key = t2.col_int  AND (1,5)  IN
+( SELECT alias1.col_int_key, alias1. pk
+FROM ( t2 AS alias2 RIGHT JOIN t1 AS alias1
+ON (alias1.pk = alias2.col_int_key )
+) WHERE alias1.col_varchar_key <= 'y') ) );
+col_varchar_key
+DROP TABLE t1,t2;
+#End of test case for Bug#22973383
+#
+# Bug #23576305:WL1074:STRAIGHT_JOIN QUERY WITH RANGE
+#              CHECKED (MYISAM) GIVES WRONG RESULTS
+#
+CREATE TABLE t1 (
+pk INTEGER NOT NULL ,
+col_varchar_key varchar(10) DEFAULT NULL,
+UNIQUE KEY pk_2 (pk,col_varchar_key DESC)
+);
+INSERT INTO t1 VALUES (3,'ksatefqs'),
+(4,'sate'),(5,'a');
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+col_int_key INTEGER DEFAULT NULL,
+col_varchar_key varchar(10) DEFAULT NULL
+);
+INSERT INTO t2 VALUES
+(10,80,'ukqukkoe'),
+(11,2,'kqukkoe'),
+(12,5,'qukkoeiws'),
+(13,9,'ukko'),
+(14,3,'kkoeiwsgp');
+EXPLAIN SELECT t1.pk, t2.col_int_key, 
+t1.col_varchar_key, t2.col_varchar_key
+FROM t2 JOIN t1 ON ( t1.pk >= t2.col_int_key
+AND t1.col_varchar_key != t2.col_varchar_key );
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	pk_2	pk_2	47	NULL	#	#	Using index
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_key` AS `col_varchar_key` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`pk` >= `test`.`t2`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` <> `test`.`t2`.`col_varchar_key`))
+SELECT t1.pk, t2.col_int_key, 
+t1.col_varchar_key, t2.col_varchar_key
+FROM t2 JOIN t1 ON ( t1.pk >= t2.col_int_key
+AND t1.col_varchar_key != t2.col_varchar_key );
+pk	col_int_key	col_varchar_key	col_varchar_key
+3	2	ksatefqs	kqukkoe
+4	2	sate	kqukkoe
+5	2	a	kqukkoe
+5	5	a	qukkoeiws
+3	3	ksatefqs	kkoeiwsgp
+4	3	sate	kkoeiwsgp
+5	3	a	kkoeiwsgp
+EXPLAIN SELECT STRAIGHT_JOIN t1.pk, t2.col_int_key,
+t1.col_varchar_key, t2.col_varchar_key FROM
+t2 JOIN t1 ON ( t1.pk >= t2.col_int_key AND 
+t1.col_varchar_key != t2.col_varchar_key );
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	SIMPLE	t1	NULL	ALL	pk_2	NULL	NULL	NULL	#	#	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_key` AS `col_varchar_key` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`pk` >= `test`.`t2`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` <> `test`.`t2`.`col_varchar_key`))
+SELECT STRAIGHT_JOIN t1.pk, t2.col_int_key,
+t1.col_varchar_key, t2.col_varchar_key FROM
+t2 JOIN t1 ON ( t1.pk >= t2.col_int_key AND 
+t1.col_varchar_key != t2.col_varchar_key );
+pk	col_int_key	col_varchar_key	col_varchar_key
+3	2	ksatefqs	kqukkoe
+4	2	sate	kqukkoe
+5	2	a	kqukkoe
+5	5	a	qukkoeiws
+3	3	ksatefqs	kkoeiwsgp
+4	3	sate	kkoeiwsgp
+5	3	a	kkoeiwsgp
+DROP TABLE t1,t2;
+#End of test for Bug#23576305
+#
+# Bug#23730559: ASSERTION `TAB->QUICK() == SAVE_QUICK ||
+#               TAB->QUICK() == __NULL' FAILED.
+#
+#
+CREATE TABLE b (
+col_int INTEGER NOT NULL,
+col_int_key INTEGER NOT NULL,
+col_varchar_key VARCHAR(20) NOT NULL,
+col_varchar VARCHAR(20) NOT NULL,
+KEY (col_varchar_key DESC),
+KEY (col_varchar_key(5) DESC),
+KEY (col_varchar_key, col_int_key)
+) ENGINE=InnoDB;
+INSERT INTO b ( col_int_key, col_int, col_varchar_key, col_varchar) VALUES
+(1, 3, 'xceksatefqsdksjijc', 'xceksatefqsdksjijc'),
+(7, 6, 'ce', 'ce'),
+(2, 3, 'eksatefqsdksjij', 'eksatefqsdksjij'),
+(5, 7, 'satefqsd', 'satefqsd');
+CREATE TABLE bb (
+col_int INTEGER NOT NULL,
+col_int_key INTEGER NOT NULL,
+col_varchar_key VARCHAR(20) NOT NULL,
+col_varchar VARCHAR(20) NOT NULL,
+KEY (col_varchar_key(10) DESC, col_int_key DESC)
+) ENGINE=InnoDB;
+INSERT INTO bb ( col_int_key, col_int, col_varchar_key, col_varchar) VALUES
+(181, 88, 'kkoeiwsgpmfyvvuqvtjn', 'kkoeiwsgpmfyvvuqvtjn'),
+(3, 4, 'koeiwsgpmfyv', 'koeiwsgpmfyv'),
+(86, 113, 'oeiwsgpm', 'oeiwsgpm'),
+(6, 1, 'eiwsgpmfyvvuqvtjncds', 'eiwsgpmfyvvuqvtjncds'),
+(8, 5, 'iwsgpmfyvvuqv', 'iwsgpmfyvvuqv');
+ANALYZE TABLE b,bb;
+Table	Op	Msg_type	Msg_text
+test.b	analyze	status	OK
+test.bb	analyze	status	OK
+EXPLAIN SELECT  gp1 . col_varchar AS g1 
+FROM b AS gp1 LEFT JOIN bb AS gp2 USING ( col_varchar_key ) 
+WHERE gp1 . col_int IN ( 
+SELECT  p1 . col_int AS p1 
+FROM bb AS p1 LEFT JOIN bb AS p2 
+ON ( p1 . col_int >= p2 . col_int_key ) 
+WHERE ( p1 . col_int , gp1 . col_int ) IN ( 
+SELECT  c1 . col_int AS C1 
+, c1 . col_int AS C2 
+FROM b AS c1 LEFT JOIN bb AS c2 USING ( col_varchar ) 
+WHERE ( gp1 . col_varchar_key >= 'n' )  
+) 
+AND ( gp1 . col_varchar < 'e' )  
+) 
+AND ( gp1 . col_varchar_key <> 'y' )  
+ORDER BY gp1 . col_varchar_key LIMIT 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gp1	NULL	range	col_varchar_key,col_varchar_key_2,col_varchar_key_3	col_varchar_key_3	82	NULL	3	33.33	Using index condition; Using where
+1	SIMPLE	c1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; FirstMatch(gp1)
+1	SIMPLE	gp2	NULL	ref	col_varchar_key	col_varchar_key	42	test.gp1.col_varchar_key	1	100.00	Using where
+1	SIMPLE	p1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+1	SIMPLE	p2	NULL	index	NULL	col_varchar_key	46	NULL	5	100.00	Using where; Using index
+1	SIMPLE	c2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; FirstMatch(gp2)
+Warnings:
+Note	1276	Field or reference 'test.gp1.col_varchar_key' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.gp1.col_int' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.gp1.col_varchar' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`gp1`.`col_varchar` AS `g1` from `test`.`b` `gp1` semi join (`test`.`b` `c1` left join `test`.`bb` `c2` on((`test`.`c1`.`col_varchar` = `test`.`c2`.`col_varchar`)) join `test`.`bb` `p1` left join `test`.`bb` `p2` on((`test`.`p1`.`col_int` >= `test`.`p2`.`col_int_key`))) left join `test`.`bb` `gp2` on((`test`.`gp2`.`col_varchar_key` = `test`.`gp1`.`col_varchar_key`)) where ((`test`.`c1`.`col_int` = `test`.`gp1`.`col_int`) and (`test`.`p1`.`col_int` = `test`.`gp1`.`col_int`) and (`test`.`gp1`.`col_varchar_key` <> 'y') and (`test`.`gp1`.`col_varchar` < 'e') and (`test`.`gp1`.`col_varchar_key` >= 'n')) order by `test`.`gp1`.`col_varchar_key` limit 4
+SELECT  gp1 . col_varchar AS g1 
+FROM b AS gp1 LEFT JOIN bb AS gp2 USING ( col_varchar_key ) 
+WHERE gp1 . col_int IN ( 
+SELECT  p1 . col_int AS p1 
+FROM bb AS p1 LEFT JOIN bb AS p2 
+ON ( p1 . col_int >= p2 . col_int_key ) 
+WHERE ( p1 . col_int , gp1 . col_int ) IN ( 
+SELECT  c1 . col_int AS C1 
+, c1 . col_int AS C2 
+FROM b AS c1 LEFT JOIN bb AS c2 USING ( col_varchar ) 
+WHERE ( gp1 . col_varchar_key >= 'n' )  
+) 
+AND ( gp1 . col_varchar < 'e' )  
+) 
+AND ( gp1 . col_varchar_key <> 'y' )  
+ORDER BY gp1 . col_varchar_key LIMIT 4;
+g1
+DROP TABLE b,bb;
+#
+#  Bug#23759797: DESC INDEX BACKWARD SCAN SHOWS WRONG RESULTS
+#
+CREATE TABLE t1 (
+col_varchar_255_latin1_key varchar(255) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+KEY (pk DESC),
+KEY k3 (col_varchar_255_latin1_key DESC)
+);
+INSERT INTO t1(col_varchar_255_latin1_key, pk) VALUES
+('l',4), ('something',3), ('ycyoybhug',2), ('l',5), ('my',1),
+('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
+('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
+('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
+('l',4),('l',4),('l',4),('l',4),('l',4),('l',4);
+SELECT
+t1 . pk AS field1,
+t1 . pk AS field2
+FROM  t1  LEFT  JOIN t1 AS t2
+ON  t1 . col_varchar_255_latin1_key =  t2 . col_varchar_255_latin1_key
+WHERE t1 . pk <> 4
+ORDER BY field1, field2 DESC;
+field1	field2
+1	1
+2	2
+3	3
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+EXPLAIN SELECT
+t1 . pk AS field1,
+t1 . pk AS field2
+FROM  t1  LEFT  JOIN t1 AS t2
+ON  t1 . col_varchar_255_latin1_key =  t2 . col_varchar_255_latin1_key
+WHERE t1 . pk <> 4
+ORDER BY field1, field2 DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	pk	pk	4	NULL	#	#	Using index condition; Backward index scan
+1	SIMPLE	t2	NULL	ref	k3	k3	1023	test.t1.col_varchar_255_latin1_key	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `field1`,`test`.`t1`.`pk` AS `field2` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`col_varchar_255_latin1_key` = `test`.`t1`.`col_varchar_255_latin1_key`)) where (`test`.`t1`.`pk` <> 4) order by `field1`
+DROP TABLE t1;
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_key int(11) DEFAULT NULL,
+PRIMARY KEY (pk DESC),
+KEY k3 (col_int_key)
+);
+INSERT INTO t1 VALUES (25,9), (24,1), (23,-74383360), (22,-855900160),
+(21,NULL), (20,1596522496), (19,9), (18,1), (17,NULL), (16,NULL),
+(15,1808465920), (14,NULL), (13,588644352), (12,3), (11,6), (10,NULL),
+(9,NULL), (8,8), (7,NULL), (6,NULL), (5,-1018232832), (4,5), (3,NULL),
+(2,NULL), (1,NULL);
+SELECT DISTINCT
+t1 . pk AS field1
+FROM  t1  LEFT  JOIN t1 AS t2
+ON  t1 . pk =  t2 . pk
+WHERE ( t1 . col_int_key IS  NULL AND t1 . pk != 4 )
+GROUP BY field1
+HAVING field1 != 6
+ORDER BY field1 ASC;
+field1
+1
+2
+3
+7
+9
+10
+14
+16
+17
+21
+EXPLAIN SELECT DISTINCT
+t1 . pk AS field1
+FROM t1  LEFT  JOIN t1 AS t2
+ON  t1 . pk =  t2 . pk
+WHERE ( t1 . col_int_key IS  NULL AND t1 . pk != 4 )
+GROUP BY field1
+HAVING field1 != 6
+ORDER BY field1 ASC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY,k3	k3	9	NULL	11	100.00	Using where; Using index; Using temporary; Using filesort
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `field1` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`pk` = `test`.`t1`.`pk`)) where (isnull(`test`.`t1`.`col_int_key`) and (`test`.`t1`.`pk` <> 4)) group by `field1` having (`field1` <> 6) order by `field1` asc
+EXPLAIN UPDATE t1
+SET t1.pk = pk + 1000
+WHERE ( t1 . col_int_key IS  NULL AND t1 . pk != 4 )
+ORDER BY pk ASC LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	range	PRIMARY,k3	PRIMARY	4	const	24	100.00	Using where; Backward index scan; Using temporary
+DROP TABLE t1;
+#
+#
+# Bug #23738137: WL1074:RESULT DIFFERENCE SEEN FOR
+#                QUERY WITH OR IN JOIN CONDITION
+#
+CREATE TABLE t1 (
+pk INTEGER NOT NULL,
+col_int_key INTEGER DEFAULT NULL,
+col_varchar_key varchar(20) DEFAULT NULL,
+col_varchar varchar(20) DEFAULT NULL,
+PRIMARY KEY (pk DESC),
+KEY col_int_key (col_int_key DESC),
+KEY col_varchar_key (col_varchar_key DESC)
+) charset latin1;
+INSERT INTO t1 VALUES (20,8,'eiw','eiw'),(19,8,'oeiws','oeiws'),
+(18,NULL,'koeiw','koeiw'),(17,3,'kkoei','kkoei'),
+(16,9,'ukkoe','ukkoe'),(15,5,'qukko','qukko'),
+(14,2,'kqukk','kqukk'),(13,80,'ukquk','ukquk'),
+(12,5,'lukqu','lukqu'),(10,NULL,'alukq','alukq'),
+(9,3,'maluk','maluk'),(8,NULL,NULL,NULL),
+(7,9,'ymalu','ymalu'),(6,3,'kymal','kymal'),
+(5,6,'vkyma','vkyma'),(4,8,'vvkym','vvkym'),
+(3,3,'jjvvk','jjvvk'),(1,5,'bjjvv','bjjvv');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT STRAIGHT_JOIN count(t1.col_varchar)  FROM t1 JOIN t1 AS t2 ON
+(t2.pk = t1.col_int_key) OR (t2.col_varchar_key = t1.col_varchar_key);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	18	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	PRIMARY,col_varchar_key	NULL	NULL	NULL	18	19.00	Range checked for each record (index map: 0x5)
+Warnings:
+Note	1003	/* select#1 */ select straight_join count(`test`.`t1`.`col_varchar`) AS `count(t1.col_varchar)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`pk` = `test`.`t1`.`col_int_key`) or (`test`.`t2`.`col_varchar_key` = `test`.`t1`.`col_varchar_key`))
+SELECT STRAIGHT_JOIN count(t1.col_varchar)  FROM t1 JOIN t1 AS t2 ON
+(t2.pk = t1.col_int_key) OR (t2.col_varchar_key = t1.col_varchar_key);
+count(t1.col_varchar)
+29
+EXPLAIN SELECT count(t1.col_varchar) FROM t1 JOIN t1 AS t2 ON (t2.pk = t1.col_int_key)
+OR (t2.col_varchar_key = t1.col_varchar_key);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	18	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	PRIMARY,col_varchar_key	NULL	NULL	NULL	18	19.00	Range checked for each record (index map: 0x5)
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`t1`.`col_varchar`) AS `count(t1.col_varchar)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`pk` = `test`.`t1`.`col_int_key`) or (`test`.`t2`.`col_varchar_key` = `test`.`t1`.`col_varchar_key`))
+SELECT count(t1.col_varchar) FROM t1 JOIN t1 AS t2 ON (t2.pk = t1.col_int_key)
+OR (t2.col_varchar_key = t1.col_varchar_key);
+count(t1.col_varchar)
+29
+DROP TABLE t1;
+# End of test for Bug#23738137
+#
+# Bug#24294552:MULTI KEY DESC INDEX ON GCOL GIVES INCORRECT RESULTS
+#
+CREATE TABLE t2 (
+col_int int(11) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_key int(11),
+PRIMARY KEY (pk DESC),
+KEY k2 (col_int_key, col_int DESC)
+);
+INSERT INTO
+t2(col_int,col_int_key) VALUES (1,2), (2,4), (3,6), (4,8), (5,10), (6,12),
+(7,14), (8,16), (9,18);
+CREATE TABLE t1 (
+col_int int(11) DEFAULT NULL,
+pk int(11) NOT NULL,
+col_int_key int(11)
+);
+INSERT INTO t1(pk, col_int, col_int_key) VALUES (4,3,6), (5,4,8), (6,2,4);
+SELECT STRAIGHT_JOIN
+t1 . col_int_key AS field1 ,
+t2 . col_int AS field2
+FROM  t1  LEFT  JOIN t2 FORCE INDEX(k2)
+ON  t1 . col_int =  t2 . col_int
+WHERE ( t2 . col_int_key <= t1 . col_int_key AND t1 . pk >= t2 . pk )
+ORDER BY field1, field2 DESC;
+field1	field2
+4	2
+6	3
+8	4
+EXPLAIN SELECT STRAIGHT_JOIN
+t1 . col_int_key AS field1 ,
+t2 . col_int AS field2
+FROM  t1  LEFT  JOIN t2 force index(k2)
+ON  t1 . col_int =  t2 . col_int
+WHERE ( t2 . col_int_key <= t1 . col_int_key AND t1 . pk >= t2 . pk )
+ORDER BY field1, field2 DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	k2	NULL	NULL	NULL	#	#	Range checked for each record (index map: 0x2)
+Warnings:
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`col_int_key` AS `field1`,`test`.`t2`.`col_int` AS `field2` from `test`.`t1` join `test`.`t2` FORCE INDEX (`k2`) where ((`test`.`t2`.`col_int` = `test`.`t1`.`col_int`) and (`test`.`t2`.`col_int_key` <= `test`.`t1`.`col_int_key`) and (`test`.`t1`.`pk` >= `test`.`t2`.`pk`)) order by `field1`,`field2` desc
+DROP TABLE t1,t2;
+#
+#
+# Bug#24300848:WL1074: INNODB: ASSERTION FAILURE:
+#              BTR0PCUR.CC:268:CURSOR->OLD_REC
+#
+CREATE TABLE t1(col1 int , col2 int, PRIMARY KEY (col1 DESC))
+PARTITION BY RANGE (col1) (PARTITION p0 VALUES LESS THAN (5));
+INSERT INTO t1 VALUES(1, 10);
+SELECT * FROM  t1 WHERE col1 IN (1, 2);
+col1	col2
+1	10
+DROP TABLE t1;
+# End of test for Bug#24300848
+#
+# Bug#24431177: WL1074:LEFT JOIN QUERY USING INDEX SHOWS
+#               WRONG QEP AND RESULTS ON 2ND EXECUTION
+#
+CREATE TABLE t1(
+pk INTEGER NOT NULL AUTO_INCREMENT,
+col_int_key INTEGER DEFAULT NULL,
+PRIMARY KEY (pk DESC),
+KEY col_int_key (col_int_key DESC)
+);
+INSERT INTO t1 VALUES (3,15),(6,8),(20,6),(15,6),(18,5),(17,5),
+(16,5),(13,5),(12,5),(9,5),(8,5),(7,5),(5,5),(11,4),(4,4),
+(19,3),(10,2),(1,2),(14,1),(2,1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE pk IN (6,2)
+OR (col_int_key >= 7 AND col_int_key < 13);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	PRIMARY,col_int_key	col_int_key	5	NULL	20	28.89	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key` from `test`.`t1` where ((`test`.`t1`.`pk` in (6,2)) or ((`test`.`t1`.`col_int_key` >= 7) and (`test`.`t1`.`col_int_key` < 13)))
+SELECT * FROM t1 WHERE pk IN (6,2)
+OR (col_int_key >= 7 AND col_int_key < 13);
+pk	col_int_key
+6	8
+2	1
+ALTER TABLE t1 ADD INDEX key1 (pk);
+ALTER TABLE t1 ADD INDEX key2 (col_int_key);
+EXPLAIN SELECT * FROM t1 WHERE pk IN (6,2)
+OR (col_int_key >= 7 AND col_int_key < 13);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,col_int_key,key1,key2	key1,col_int_key	4,5	NULL	2	100.00	Using sort_union(key1,col_int_key); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key` from `test`.`t1` where ((`test`.`t1`.`pk` in (6,2)) or ((`test`.`t1`.`col_int_key` >= 7) and (`test`.`t1`.`col_int_key` < 13)))
+SELECT * FROM t1 WHERE pk IN (6,2)
+OR (col_int_key >= 7 AND col_int_key < 13);
+pk	col_int_key
+2	1
+6	8
+DROP TABLE t1;
+# End of test for Bug#24431777
+CREATE TABLE t1(
+a INTEGER NOT NULL,
+b INTEGER NOT NULL,
+KEY ab (a DESC,b DESC)
+);
+INSERT INTO t1 VALUES (78,7),(78,6),(70,1),(47,1),(15,4),(15,1),
+(10,6),(3,6),(2,56),(2,6),(1,56);
+SELECT * FROM t1 WHERE (
+( b =1 AND a BETWEEN 14 AND 21 ) OR
+( b =2 AND a BETWEEN 16 AND 18 ) OR
+( b =3 AND a BETWEEN 15 AND 19 ) OR
+(a BETWEEN 19 AND 47) );
+a	b
+47	1
+15	1
+DROP TABLE t1;
+#
+# Bug #25899921: INCORRECT BEHAVIOR WITH DESC INDEX AND
+#                IMPOSSIBLE CONDITION
+#
+CREATE TABLE t1 (a INT, b DATE, KEY(b,a DESC));
+SET @g:='1';
+DELETE FROM t1 WHERE b=@g ORDER BY b, a LIMIT 1;
+Warnings:
+Warning	1292	Incorrect date value: '1' for column 'b' at row 1
+DROP TABLE t1;
+# End of test for Bug#25899921

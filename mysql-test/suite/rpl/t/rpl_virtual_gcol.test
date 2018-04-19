@@ -1,0 +1,189 @@
+#
+# ==== Purpose ====
+#
+# The test checks if different operations on rows with generated fields as json,
+# geometry, double and json using json function are completed without errors or
+# memory leaks when slave_rows_search_algorithms uses hash scan.
+#
+# ==== References ====
+#
+# BUG#26280724 ASSERT FAILURE WHEN REPLICATING TABLE WITH VIRTUAL JSON COLUMN
+# BUG#25873029 HEAP-USE-AFTER-FREE IN RPL.RPL_JSON, RPL.RPL_VIRTUAL_GCOL
+#
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+set @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
+SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
+--source include/rpl_connection_master.inc
+
+#
+# Generated column as json
+#
+CREATE TABLE gtable (doc JSON);
+INSERT INTO gtable (doc) VALUES
+  ('{"id": 1, "name": "abcd efgh"}'),
+  ('{"id": 2, "name": "abcd ijk"}');
+ALTER TABLE gtable ADD COLUMN gtext JSON
+  GENERATED ALWAYS AS (JSON_EXTRACT(doc, '$.name')) VIRTUAL;
+--source include/sync_slave_sql_with_master.inc
+
+# Update one of the rows
+
+--source include/rpl_connection_master.inc
+UPDATE gtable SET doc = JSON_SET(doc, '$.name', 'abcd lmnopqrstuvxz')
+                          WHERE JSON_EXTRACT(doc, '$.id') = 2;
+--source include/sync_slave_sql_with_master.inc
+
+# Insert a null row and modify it
+
+--source include/rpl_connection_master.inc
+INSERT INTO gtable(doc) VALUES (NULL);
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+UPDATE gtable SET doc = '{ "id": 4, "name": "abc aba" }' where doc IS NULL;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+UPDATE gtable SET doc = NULL WHERE JSON_EXTRACT(doc, '$.id') = 4;
+--source include/sync_slave_sql_with_master.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE gtable;
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Generated column as a json (array)
+#
+--source include/rpl_connection_master.inc
+CREATE TABLE gtable(id INT, doc JSON, gcol JSON AS (JSON_ARRAY(id, doc)));
+INSERT INTO gtable(id, doc) VALUES(10, '{"a": 1}');
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+UPDATE gtable SET doc = JSON_REPLACE(gcol, '$[0].a',"a");
+--source include/sync_slave_sql_with_master.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE gtable;
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Generated as geometry
+#
+--source include/rpl_connection_master.inc
+CREATE TABLE gtable (doc TEXT);
+INSERT INTO gtable (doc) VALUES ('point(1 1)'), ('point(2 2)');
+ALTER TABLE gtable ADD COLUMN gtext GEOMETRY
+  GENERATED ALWAYS AS (ST_GEOMFROMTEXT(doc)) VIRTUAL;
+
+UPDATE gtable SET doc = 'POINT(3 3)' WHERE ST_X(ST_GEOMFROMTEXT(doc)) = 2;
+INSERT INTO gtable(doc) VALUES (NULL);
+UPDATE gtable SET doc = 'POINT(4 4)' where doc IS NULL;
+UPDATE gtable SET doc = NULL WHERE ST_X(ST_GEOMFROMTEXT(doc)) = 4;
+--source include/sync_slave_sql_with_master.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE gtable;
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Generated column as double
+#
+--source include/rpl_connection_master.inc
+CREATE TABLE gtable(a DOUBLE,
+                    b DOUBLE AS (a * a));
+INSERT INTO gtable (a) VALUES (1);
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+UPDATE gtable SET a= 2;
+--source include/sync_slave_sql_with_master.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE gtable;
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Generated column as geometry using a geometry function that reads from another
+# geometry object
+#
+--source include/rpl_connection_master.inc
+CREATE TABLE gtable(geo GEOMETRY, gcol GEOMETRY AS (GEOMETRYCOLLECTION(geo, geo)));
+INSERT INTO gtable (geo) VALUES (POINT(1, 1));
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+UPDATE gtable SET geo = LINESTRING(POINT(1, 1), POINT(2, 2));
+--source include/sync_slave_sql_with_master.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE gtable;
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Generated column as a JSON using JSON function that reads from another JSON
+# object
+#
+
+# Save defaults and setup mts
+SET @slave_parallel_type_saved= @@GLOBAL.SLAVE_PARALLEL_TYPE;
+SET @slave_parallel_workers_saved= @@GLOBAL.SLAVE_PARALLEL_WORKERS;
+SET @slave_preserver_commit_order_saved= @@GLOBAL.SLAVE_PRESERVE_COMMIT_ORDER;
+--source include/stop_slave.inc
+SET GLOBAL slave_parallel_type= 'LOGICAL_CLOCK';
+SET GLOBAL slave_parallel_workers= 4;
+SET GLOBAL slave_preserve_commit_order= ON;
+--source include/start_slave.inc
+CALL mtr.add_suppression("This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'");
+
+--source include/rpl_connection_master.inc
+CREATE TABLE gtable(id INT, jd JSON, td TEXT,
+                    gcol JSON AS (JSON_OBJECT(id,jd,JSON_KEYS(jd),td)));
+INSERT INTO gtable(id,jd,td) VALUES(100, '{"a":1}', 'characters');
+--source include/sync_slave_sql_with_master.inc
+
+# Warnings are disabled so that the warning regarding the lack of support for
+# the sorting of non-scalar JSON values is not printed
+--disable_warnings
+--let diff_tables=master:gtable, slave:gtable
+--source include/diff_tables.inc
+--enable_warnings
+
+--source include/rpl_connection_master.inc
+UPDATE gtable SET jd = JSON_REPLACE(jd, '$[0].a',"a");
+--source include/sync_slave_sql_with_master.inc
+
+--disable_warnings
+--let diff_tables=master:gtable, slave:gtable
+--source include/diff_tables.inc
+--enable_warnings
+
+--source include/rpl_connection_master.inc
+UPDATE gtable SET jd= JSON_SET(jd, '$.key', '["h","e","l","l","o"]');
+--source include/sync_slave_sql_with_master.inc
+
+--disable_warnings
+--let diff_tables=master:gtable, slave:gtable
+--source include/diff_tables.inc
+--enable_warnings
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE gtable;
+--source include/sync_slave_sql_with_master.inc
+SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
+--source include/stop_slave.inc
+SET @@GLOBAL.SLAVE_PARALLEL_TYPE= @slave_parallel_type_saved;
+SET @@GLOBAL.SLAVE_PARALLEL_WORKERS= @slave_parallel_workers_saved;
+SET @@GLOBAL.SLAVE_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
+--source include/start_slave.inc
+--source include/rpl_end.inc

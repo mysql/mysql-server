@@ -1,22 +1,30 @@
 #ifndef THR_RWLOCK_INCLUDED
 #define THR_RWLOCK_INCLUDED
 
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
+  @file include/thr_rwlock.h
   MySQL rwlock implementation.
 
   There are two "layers":
@@ -33,27 +41,24 @@
   are mysql_prlock_*() - see include/mysql/psi/mysql_thread.h
 */
 
-#include "my_global.h"
-#include "my_thread.h"
-#include "thr_cond.h"
-
-C_MODE_START
-
+#include <stddef.h>
+#include <sys/types.h>
 #ifdef _WIN32
-typedef struct st_my_rw_lock_t
-{
-  SRWLOCK srwlock;             /* native reader writer lock */
-  BOOL have_exclusive_srwlock; /* used for unlock */
-} native_rw_lock_t;
-#else
-typedef pthread_rwlock_t native_rw_lock_t;
+#include <windows.h>
 #endif
 
-static inline int native_rw_init(native_rw_lock_t *rwp)
-{
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_thread.h"
+#include "mysql/components/services/thr_rwlock_bits.h"
+#include "thr_cond.h"
+#include "thr_mutex.h"
+
+static inline int native_rw_init(native_rw_lock_t *rwp) {
 #ifdef _WIN32
   InitializeSRWLock(&rwp->srwlock);
-  rwp->have_exclusive_srwlock = FALSE;
+  rwp->have_exclusive_srwlock = false;
   return 0;
 #else
   /* pthread_rwlockattr_t is not used in MySQL */
@@ -61,8 +66,8 @@ static inline int native_rw_init(native_rw_lock_t *rwp)
 #endif
 }
 
-static inline int native_rw_destroy(native_rw_lock_t *rwp)
-{
+static inline int native_rw_destroy(
+    native_rw_lock_t *rwp MY_ATTRIBUTE((unused))) {
 #ifdef _WIN32
   return 0; /* no destroy function */
 #else
@@ -70,8 +75,7 @@ static inline int native_rw_destroy(native_rw_lock_t *rwp)
 #endif
 }
 
-static inline int native_rw_rdlock(native_rw_lock_t *rwp)
-{
+static inline int native_rw_rdlock(native_rw_lock_t *rwp) {
 #ifdef _WIN32
   AcquireSRWLockShared(&rwp->srwlock);
   return 0;
@@ -80,49 +84,41 @@ static inline int native_rw_rdlock(native_rw_lock_t *rwp)
 #endif
 }
 
-static inline int native_rw_tryrdlock(native_rw_lock_t *rwp)
-{
+static inline int native_rw_tryrdlock(native_rw_lock_t *rwp) {
 #ifdef _WIN32
-  if (!TryAcquireSRWLockShared(&rwp->srwlock))
-    return EBUSY;
+  if (!TryAcquireSRWLockShared(&rwp->srwlock)) return EBUSY;
   return 0;
 #else
   return pthread_rwlock_tryrdlock(rwp);
 #endif
 }
 
-static inline int native_rw_wrlock(native_rw_lock_t *rwp)
-{
+static inline int native_rw_wrlock(native_rw_lock_t *rwp) {
 #ifdef _WIN32
   AcquireSRWLockExclusive(&rwp->srwlock);
-  rwp->have_exclusive_srwlock= TRUE;
+  rwp->have_exclusive_srwlock = true;
   return 0;
 #else
   return pthread_rwlock_wrlock(rwp);
 #endif
 }
 
-static inline int native_rw_trywrlock(native_rw_lock_t *rwp)
-{
+static inline int native_rw_trywrlock(native_rw_lock_t *rwp) {
 #ifdef _WIN32
-  if (!TryAcquireSRWLockExclusive(&rwp->srwlock))
-    return EBUSY;
-  rwp->have_exclusive_srwlock= TRUE;
+  if (!TryAcquireSRWLockExclusive(&rwp->srwlock)) return EBUSY;
+  rwp->have_exclusive_srwlock = true;
   return 0;
 #else
   return pthread_rwlock_trywrlock(rwp);
 #endif
 }
 
-static inline int native_rw_unlock(native_rw_lock_t *rwp)
-{
+static inline int native_rw_unlock(native_rw_lock_t *rwp) {
 #ifdef _WIN32
-  if (rwp->have_exclusive_srwlock)
-  {
-    rwp->have_exclusive_srwlock= FALSE;
+  if (rwp->have_exclusive_srwlock) {
+    rwp->have_exclusive_srwlock = false;
     ReleaseSRWLockExclusive(&rwp->srwlock);
-  }
-  else
+  } else
     ReleaseSRWLockShared(&rwp->srwlock);
   return 0;
 #else
@@ -130,85 +126,23 @@ static inline int native_rw_unlock(native_rw_lock_t *rwp)
 #endif
 }
 
-
-/**
-  Portable implementation of special type of read-write locks.
-
-  These locks have two properties which are unusual for rwlocks:
-  1) They "prefer readers" in the sense that they do not allow
-     situations in which rwlock is rd-locked and there is a
-     pending rd-lock which is blocked (e.g. due to pending
-     request for wr-lock).
-     This is a stronger guarantee than one which is provided for
-     PTHREAD_RWLOCK_PREFER_READER_NP rwlocks in Linux.
-     MDL subsystem deadlock detector relies on this property for
-     its correctness.
-  2) They are optimized for uncontended wr-lock/unlock case.
-     This is scenario in which they are most oftenly used
-     within MDL subsystem. Optimizing for it gives significant
-     performance improvements in some of tests involving many
-     connections.
-
-  Another important requirement imposed on this type of rwlock
-  by the MDL subsystem is that it should be OK to destroy rwlock
-  object which is in unlocked state even though some threads might
-  have not yet fully left unlock operation for it (of course there
-  is an external guarantee that no thread will try to lock rwlock
-  which is destroyed).
-  Putting it another way the unlock operation should not access
-  rwlock data after changing its state to unlocked.
-
-  TODO/FIXME: We should consider alleviating this requirement as
-  it blocks us from doing certain performance optimizations.
-*/
-
-typedef struct st_rw_pr_lock_t {
-  /**
-    Lock which protects the structure.
-    Also held for the duration of wr-lock.
-  */
-  native_mutex_t lock;
-  /**
-    Condition variable which is used to wake-up
-    writers waiting for readers to go away.
-  */
-  native_cond_t no_active_readers;
-  /** Number of active readers. */
-  uint active_readers;
-  /** Number of writers waiting for readers to go away. */
-  uint writers_waiting_readers;
-  /** Indicates whether there is an active writer. */
-  my_bool active_writer;
-#ifdef SAFE_MUTEX
-  /** Thread holding wr-lock (for debug purposes only). */
-  my_thread_t writer_thread;
-#endif
-} rw_pr_lock_t;
-
 extern int rw_pr_init(rw_pr_lock_t *);
 extern int rw_pr_rdlock(rw_pr_lock_t *);
 extern int rw_pr_wrlock(rw_pr_lock_t *);
 extern int rw_pr_unlock(rw_pr_lock_t *);
 extern int rw_pr_destroy(rw_pr_lock_t *);
 
-static inline void
-rw_pr_lock_assert_write_owner(const rw_pr_lock_t *rwlock __attribute__((unused)))
-{
 #ifdef SAFE_MUTEX
+static inline void rw_pr_lock_assert_write_owner(const rw_pr_lock_t *rwlock) {
   DBUG_ASSERT(rwlock->active_writer &&
               my_thread_equal(my_thread_self(), rwlock->writer_thread));
-#endif
 }
 
-static inline void
-rw_pr_lock_assert_not_write_owner(const rw_pr_lock_t *rwlock __attribute__((unused)))
-{
-#ifdef SAFE_MUTEX
+static inline void rw_pr_lock_assert_not_write_owner(
+    const rw_pr_lock_t *rwlock) {
   DBUG_ASSERT(!rwlock->active_writer ||
               !my_thread_equal(my_thread_self(), rwlock->writer_thread));
-#endif
 }
-
-C_MODE_END
+#endif
 
 #endif /* THR_RWLOCK_INCLUDED */

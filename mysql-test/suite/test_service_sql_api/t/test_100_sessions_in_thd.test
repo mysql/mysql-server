@@ -1,0 +1,24 @@
+
+--echo ##########################################
+--echo # Run plugin
+--echo ##########################################
+--replace_result $TEST_SESSION_IN_THD TEST_SESSION_IN_THD
+eval INSTALL PLUGIN test_session_in_thd SONAME '$TEST_SESSION_IN_THD';
+
+SHOW VARIABLES LIKE '%test_session%';
+
+# To allow session in plugin to complete (until event is available)
+SELECT sleep(3);
+
+--echo ##########################################
+--echo # Stop plugin
+--echo ##########################################
+UNINSTALL PLUGIN test_session_in_thd;
+
+--echo ##########################################
+--echo # Plugin log
+--echo ##########################################
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_session_in_thd.log;
+remove_file $MYSQLD_DATADIR/test_session_in_thd.log;
+

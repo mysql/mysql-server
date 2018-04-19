@@ -1,0 +1,5694 @@
+# Test of SQL window functions NTH_VALUE
+# ----------------------------------------------------------------------
+SET NAMES utf8mb4;
+CREATE TABLE t1 (d DOUBLE, id INT, sex CHAR(1), n INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(n));
+INSERT INTO t1(d, id, sex) VALUES (1.0, 1, 'M'),
+(2.0, 2, 'F'),
+(3.0, 3, 'F'),
+(4.0, 4, 'F'),
+(5.0, 5, 'M'),
+(NULL, NULL, 'M'),
+(10.0, 10, NULL),
+(10.0, 10, NULL),
+(11.0, 11, NULL);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+Ok, default semantics:
+First without default:
+EXPLAIN FORMAT=JSON SELECT id, sex, LEAD(id, 1) RESPECT NULLS OVER () FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`id`,1) OVER ()  AS `LEAD(id, 1) RESPECT NULLS OVER ()` from `test`.`t1`
+EXPLAIN FORMAT=JSON SELECT id, sex, LAG(id, 1) RESPECT NULLS OVER () FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lag"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`sex` AS `sex`,lag(`test`.`t1`.`id`,1) OVER ()  AS `LAG(id, 1) RESPECT NULLS OVER ()` from `test`.`t1`
+EXPLAIN FORMAT=JSON SELECT id, sex, LEAD(id, 0) RESPECT NULLS OVER () FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`id`,0) OVER ()  AS `LEAD(id, 0) RESPECT NULLS OVER ()` from `test`.`t1`
+Now with default:
+EXPLAIN FORMAT=JSON SELECT id, sex, LEAD(id, 1, id) RESPECT NULLS OVER () FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`id`,1,`test`.`t1`.`id`) OVER ()  AS `LEAD(id, 1, id) RESPECT NULLS OVER ()` from `test`.`t1`
+EXPLAIN FORMAT=JSON SELECT id, sex, LAG(id, 1, id) RESPECT NULLS OVER () FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lag"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`sex` AS `sex`,lag(`test`.`t1`.`id`,1,`test`.`t1`.`id`) OVER ()  AS `LAG(id, 1, id) RESPECT NULLS OVER ()` from `test`.`t1`
+EXPLAIN FORMAT=JSON SELECT id, sex, LEAD(id, 0, 7) RESPECT NULLS OVER () FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`id`,0,7) OVER ()  AS `LEAD(id, 0, 7) RESPECT NULLS OVER ()` from `test`.`t1`
+EXPLAIN FORMAT=JSON SELECT n, id, LEAD(id, 1, 3) OVER
+(ORDER BY id DESC ROWS BETWEEN  CURRENT ROW AND 2 FOLLOWING) L FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window '<unnamed window>' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`n` AS `n`,`test`.`t1`.`id` AS `id`,lead(`test`.`t1`.`id`,1,3) OVER (ORDER BY `test`.`t1`.`id` desc ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING)  AS `L` from `test`.`t1`
+EXPLAIN FORMAT=JSON SELECT n, id,  LAG(id, 0, n*n) OVER
+(ORDER BY id DESC ROWS BETWEEN  CURRENT ROW AND 2 FOLLOWING) L FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lag' ignores the frame clause of window '<unnamed window>' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`n` AS `n`,`test`.`t1`.`id` AS `id`,lag(`test`.`t1`.`id`,0,(`test`.`t1`.`n` * `test`.`t1`.`n`)) OVER (ORDER BY `test`.`t1`.`id` desc ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING)  AS `L` from `test`.`t1`
+EXPLAIN FORMAT=JSON SELECT n, id,  LAG(id, 1, n*n) OVER
+(ORDER BY id DESC ROWS BETWEEN  CURRENT ROW AND 2 FOLLOWING) L FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lag' ignores the frame clause of window '<unnamed window>' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`n` AS `n`,`test`.`t1`.`id` AS `id`,lag(`test`.`t1`.`id`,1,(`test`.`t1`.`n` * `test`.`t1`.`n`)) OVER (ORDER BY `test`.`t1`.`id` desc ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING)  AS `L` from `test`.`t1`
+EXPLAIN FORMAT=JSON SELECT n, id,  LEAD(id, 1, n*n) OVER
+(ORDER BY id DESC ROWS BETWEEN  CURRENT ROW AND 2 FOLLOWING) L FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window '<unnamed window>' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`n` AS `n`,`test`.`t1`.`id` AS `id`,lead(`test`.`t1`.`id`,1,(`test`.`t1`.`n` * `test`.`t1`.`n`)) OVER (ORDER BY `test`.`t1`.`id` desc ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING)  AS `L` from `test`.`t1`
+Check imcompatible character sets
+CREATE TABLE t (c1 CHAR(10) CHARACTER SET big5,
+i INT,
+c2 VARCHAR(10) CHARACTER SET euckr);
+DROP TABLE t;
+Check default char set & collation promotion to result
+CREATE TABLE t (c1 CHAR(10) CHARACTER SET utf8mb4,
+i INT,
+c2 VARCHAR(10) CHARACTER SET latin1);
+INSERT INTO t VALUES('A', 1, '1');
+INSERT INTO t VALUES('A', 3, '3');
+INSERT INTO t VALUES(x'F09F90AC' /* dolphin */, 5, null);
+INSERT INTO t VALUES('A', 5, null);
+INSERT INTO t VALUES(null, 10, '0');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+Result sets should contain dolphin in columns c1 and l1.
+EXPLAIN FORMAT=JSON SELECT c1, c2, LEAD(c1, 0, c2) OVER () l0 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 5,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "320"
+        },
+        "used_columns": [
+          "c1",
+          "c2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`c1` AS `c1`,`test`.`t`.`c2` AS `c2`,lead(`test`.`t`.`c1`,0,convert(`test`.`t`.`c2` using utf8mb4)) OVER ()  AS `l0` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT c1, c2, LEAD(c1, 1, c2) OVER () l1 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 5,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "320"
+        },
+        "used_columns": [
+          "c1",
+          "c2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`c1` AS `c1`,`test`.`t`.`c2` AS `c2`,lead(`test`.`t`.`c1`,1,convert(`test`.`t`.`c2` using utf8mb4)) OVER ()  AS `l1` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT c1, c2, LEAD(c2, 1, c1) OVER () l1 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 5,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "320"
+        },
+        "used_columns": [
+          "c1",
+          "c2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`c1` AS `c1`,`test`.`t`.`c2` AS `c2`,lead(convert(`test`.`t`.`c2` using utf8mb4),1,`test`.`t`.`c1`) OVER ()  AS `l1` from `test`.`t`
+Use CREATE TABLE AS to show type of the resulting LEAD function
+CREATE TABLE tt AS SELECT LEAD(c1, 0, c2) OVER () c FROM t;
+CREATE TABLE ts AS SELECT LEAD(c2, 1, c1) OVER () c FROM t;
+Both tables should have c as VARCHAR(10) CHARACTER SET utf8mb4
+even though only c1 has that type.
+SHOW CREATE TABLE tt;
+Table	Create Table
+tt	CREATE TABLE `tt` (
+  `c` varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE ts;
+Table	Create Table
+ts	CREATE TABLE `ts` (
+  `c` varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t, tt, ts;
+Check non obvious type pairs, comparing with IFNULL whose behavior
+we emulate when combining types in LEAD/LAG with default value.
+CREATE TABLE t (c1 VARCHAR(10),
+j1 JSON,
+g1 POINT,
+i1 INT,
+b1 BLOB,
+d1 DOUBLE,
+e1 DECIMAL(5,4),
+e2 DECIMAL(5,2));
+INSERT INTO t VALUES (null, '[6]', ST_POINTFROMTEXT('POINT(6 6)'), 6, '6', 6.0, 10.0/3, 20.0/3),
+('7', null ,   ST_POINTFROMTEXT('POINT(7 7)'), 7, '7', 7.0, 10.0/3, 20.0/3),
+('8', '[8]' ,  null,                           7, '8', 8.0, 10.0/3, 20.0/3),
+('9', '[9]' , ST_POINTFROMTEXT('POINT(9 9)'), null, '9', 9.0, 10.0/3, 20.0/3),
+('0', '[0]' , ST_POINTFROMTEXT('POINT(0 0)'), 0, null, 0.0, 10.0/3, 20.0/3),
+('1', '[1]' , ST_POINTFROMTEXT('POINT(1 1)'), 1, '1', null, 10.0/3, 20.0/3),
+('2', '[2]' , ST_POINTFROMTEXT('POINT(2 2)'), 2, '2', 2.0, null, 20.0/3),
+('3', '[3]' , ST_POINTFROMTEXT('POINT(3 3)'), 3, '3', 3.0, 10.0/3, null);
+Warnings:
+Note	1265	Data truncated for column 'e1' at row 1
+Note	1265	Data truncated for column 'e2' at row 1
+Note	1265	Data truncated for column 'e1' at row 2
+Note	1265	Data truncated for column 'e2' at row 2
+Note	1265	Data truncated for column 'e1' at row 3
+Note	1265	Data truncated for column 'e2' at row 3
+Note	1265	Data truncated for column 'e1' at row 4
+Note	1265	Data truncated for column 'e2' at row 4
+Note	1265	Data truncated for column 'e1' at row 5
+Note	1265	Data truncated for column 'e2' at row 5
+Note	1265	Data truncated for column 'e1' at row 6
+Note	1265	Data truncated for column 'e2' at row 6
+Note	1265	Data truncated for column 'e2' at row 7
+Note	1265	Data truncated for column 'e1' at row 8
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=JSON SELECT LEAD(c1, 0, j1) OVER () lcj, IFNULL(c1, j1) ifn_cj FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "c1",
+          "j1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`c1`,0,`test`.`t`.`j1`) OVER ()  AS `lcj`,ifnull(`test`.`t`.`c1`,`test`.`t`.`j1`) AS `ifn_cj` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(c1, 0, g1) OVER () lcg, IFNULL(c1, g1) ifn_cg FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "c1",
+          "g1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`c1`,0,`test`.`t`.`g1`) OVER ()  AS `lcg`,ifnull(`test`.`t`.`c1`,`test`.`t`.`g1`) AS `ifn_cg` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(c1, 0, i1) OVER () lci, IFNULL(c1, i1) ifn_ci FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "c1",
+          "i1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`c1`,0,`test`.`t`.`i1`) OVER ()  AS `lci`,ifnull(`test`.`t`.`c1`,`test`.`t`.`i1`) AS `ifn_ci` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(c1, 0, b1) OVER () lcb, IFNULL(c1, b1) ifn_cb FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "c1",
+          "b1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`c1`,0,`test`.`t`.`b1`) OVER ()  AS `lcb`,ifnull(`test`.`t`.`c1`,`test`.`t`.`b1`) AS `ifn_cb` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(c1, 0, d1) OVER () lcd, IFNULL(c1, d1) ifn_cd FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "c1",
+          "d1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`c1`,0,`test`.`t`.`d1`) OVER ()  AS `lcd`,ifnull(`test`.`t`.`c1`,`test`.`t`.`d1`) AS `ifn_cd` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(c1, 0, e1) OVER () lce1, IFNULL(c1, e1) ifn_ce1 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "c1",
+          "e1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`c1`,0,`test`.`t`.`e1`) OVER ()  AS `lce1`,ifnull(`test`.`t`.`c1`,`test`.`t`.`e1`) AS `ifn_ce1` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(c1, 0, e2) OVER () lce2, IFNULL(c1, e2) ifn_ce2 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "c1",
+          "e2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`c1`,0,`test`.`t`.`e2`) OVER ()  AS `lce2`,ifnull(`test`.`t`.`c1`,`test`.`t`.`e2`) AS `ifn_ce2` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(j1, 0, c1) OVER () ljc, IFNULL(j1, c1) ifn_jc FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "c1",
+          "j1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`j1`,0,`test`.`t`.`c1`) OVER ()  AS `ljc`,ifnull(`test`.`t`.`j1`,`test`.`t`.`c1`) AS `ifn_jc` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(j1, 0, g1) OVER () ljg, IFNULL(j1, g1) ifn_jg FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "j1",
+          "g1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`j1`,0,`test`.`t`.`g1`) OVER ()  AS `ljg`,ifnull(`test`.`t`.`j1`,`test`.`t`.`g1`) AS `ifn_jg` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(j1, 0, i1) OVER () lji, IFNULL(j1, i1) ifn_ji FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "j1",
+          "i1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`j1`,0,`test`.`t`.`i1`) OVER ()  AS `lji`,ifnull(`test`.`t`.`j1`,`test`.`t`.`i1`) AS `ifn_ji` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(j1, 0, b1) OVER () ljb, IFNULL(j1, b1) ifn_jb FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "j1",
+          "b1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`j1`,0,`test`.`t`.`b1`) OVER ()  AS `ljb`,ifnull(`test`.`t`.`j1`,`test`.`t`.`b1`) AS `ifn_jb` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(j1, 0, d1) OVER () ljd, IFNULL(j1, d1) ifn_jd FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "j1",
+          "d1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`j1`,0,`test`.`t`.`d1`) OVER ()  AS `ljd`,ifnull(`test`.`t`.`j1`,`test`.`t`.`d1`) AS `ifn_jd` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(j1, 0, e1) OVER () lje1, IFNULL(j1, e1) ifn_je1 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "j1",
+          "e1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`j1`,0,`test`.`t`.`e1`) OVER ()  AS `lje1`,ifnull(`test`.`t`.`j1`,`test`.`t`.`e1`) AS `ifn_je1` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(j1, 0, e2) OVER () lje2, IFNULL(j1, e2) ifn_je2 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "j1",
+          "e2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`j1`,0,`test`.`t`.`e2`) OVER ()  AS `lje2`,ifnull(`test`.`t`.`j1`,`test`.`t`.`e2`) AS `ifn_je2` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(g1, 0, c1) OVER () lgc, IFNULL(g1, c1) ifn_gc FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "c1",
+          "g1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`g1`,0,`test`.`t`.`c1`) OVER ()  AS `lgc`,ifnull(`test`.`t`.`g1`,`test`.`t`.`c1`) AS `ifn_gc` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(g1, 0, j1) OVER () lgj, IFNULL(g1, j1) ifn_gj FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "j1",
+          "g1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`g1`,0,`test`.`t`.`j1`) OVER ()  AS `lgj`,ifnull(`test`.`t`.`g1`,`test`.`t`.`j1`) AS `ifn_gj` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(g1, 0, i1) OVER () lgi, IFNULL(g1, i1) ifn_gi FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "g1",
+          "i1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`g1`,0,`test`.`t`.`i1`) OVER ()  AS `lgi`,ifnull(`test`.`t`.`g1`,`test`.`t`.`i1`) AS `ifn_gi` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(g1, 0, b1) OVER () lgb, IFNULL(g1, b1) ifn_gb FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "g1",
+          "b1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`g1`,0,`test`.`t`.`b1`) OVER ()  AS `lgb`,ifnull(`test`.`t`.`g1`,`test`.`t`.`b1`) AS `ifn_gb` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(g1, 0, d1) OVER () lgd, IFNULL(g1, d1) ifn_gd FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "g1",
+          "d1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`g1`,0,`test`.`t`.`d1`) OVER ()  AS `lgd`,ifnull(`test`.`t`.`g1`,`test`.`t`.`d1`) AS `ifn_gd` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(g1, 0, e1) OVER () lge1, IFNULL(g1, e1) ifn_ge1 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "g1",
+          "e1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`g1`,0,`test`.`t`.`e1`) OVER ()  AS `lge1`,ifnull(`test`.`t`.`g1`,`test`.`t`.`e1`) AS `ifn_ge1` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(g1, 0, e2) OVER () lge2, IFNULL(g1, e2) ifn_ge2 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "g1",
+          "e2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`g1`,0,`test`.`t`.`e2`) OVER ()  AS `lge2`,ifnull(`test`.`t`.`g1`,`test`.`t`.`e2`) AS `ifn_ge2` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(i1, 0, c1) OVER () lic, IFNULL(i1, c1) ifn_ic FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "c1",
+          "i1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`i1`,0,`test`.`t`.`c1`) OVER ()  AS `lic`,ifnull(`test`.`t`.`i1`,`test`.`t`.`c1`) AS `ifn_ic` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(i1, 0, j1) OVER () lij, IFNULL(i1, j1) ifn_ij FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "j1",
+          "i1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`i1`,0,`test`.`t`.`j1`) OVER ()  AS `lij`,ifnull(`test`.`t`.`i1`,`test`.`t`.`j1`) AS `ifn_ij` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(i1, 0, g1) OVER () lig, IFNULL(i1, g1) ifn_ig FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "g1",
+          "i1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`i1`,0,`test`.`t`.`g1`) OVER ()  AS `lig`,ifnull(`test`.`t`.`i1`,`test`.`t`.`g1`) AS `ifn_ig` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(i1, 0, b1) OVER () lib, IFNULL(i1, b1) ifn_ib FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "i1",
+          "b1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`i1`,0,`test`.`t`.`b1`) OVER ()  AS `lib`,ifnull(`test`.`t`.`i1`,`test`.`t`.`b1`) AS `ifn_ib` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(i1, 0, d1) OVER () lid, IFNULL(i1, d1) ifn_id FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "i1",
+          "d1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`i1`,0,`test`.`t`.`d1`) OVER ()  AS `lid`,ifnull(`test`.`t`.`i1`,`test`.`t`.`d1`) AS `ifn_id` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(i1, 0, e1) OVER () lie1, IFNULL(i1, e1) ifn_ie1 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "i1",
+          "e1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`i1`,0,`test`.`t`.`e1`) OVER ()  AS `lie1`,ifnull(`test`.`t`.`i1`,`test`.`t`.`e1`) AS `ifn_ie1` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(i1, 0, e2) OVER () lie2, IFNULL(i1, e2) ifn_ie2 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "i1",
+          "e2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`i1`,0,`test`.`t`.`e2`) OVER ()  AS `lie2`,ifnull(`test`.`t`.`i1`,`test`.`t`.`e2`) AS `ifn_ie2` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(b1, 0, c1) OVER () lbc, IFNULL(b1, c1) ifn_bc FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "c1",
+          "b1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`b1`,0,`test`.`t`.`c1`) OVER ()  AS `lbc`,ifnull(`test`.`t`.`b1`,`test`.`t`.`c1`) AS `ifn_bc` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(b1, 0, j1) OVER () lbj, IFNULL(b1, j1) ifn_bj FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "j1",
+          "b1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`b1`,0,`test`.`t`.`j1`) OVER ()  AS `lbj`,ifnull(`test`.`t`.`b1`,`test`.`t`.`j1`) AS `ifn_bj` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(b1, 0, g1) OVER () lbg, IFNULL(b1, g1) ifn_bg FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "g1",
+          "b1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`b1`,0,`test`.`t`.`g1`) OVER ()  AS `lbg`,ifnull(`test`.`t`.`b1`,`test`.`t`.`g1`) AS `ifn_bg` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(b1, 0, i1) OVER () lbi, IFNULL(b1, i1) ifn_bi FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "i1",
+          "b1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`b1`,0,`test`.`t`.`i1`) OVER ()  AS `lbi`,ifnull(`test`.`t`.`b1`,`test`.`t`.`i1`) AS `ifn_bi` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(b1, 0, d1) OVER () lbd, IFNULL(b1, d1) ifn_bd FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "b1",
+          "d1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`b1`,0,`test`.`t`.`d1`) OVER ()  AS `lbd`,ifnull(`test`.`t`.`b1`,`test`.`t`.`d1`) AS `ifn_bd` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(b1, 0, e1) OVER () lbe1, IFNULL(b1, e1) ifn_be1 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "b1",
+          "e1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`b1`,0,`test`.`t`.`e1`) OVER ()  AS `lbe1`,ifnull(`test`.`t`.`b1`,`test`.`t`.`e1`) AS `ifn_be1` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(b1, 0, e2) OVER () lbe2, IFNULL(b1, e2) ifn_be2 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "b1",
+          "e2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`b1`,0,`test`.`t`.`e2`) OVER ()  AS `lbe2`,ifnull(`test`.`t`.`b1`,`test`.`t`.`e2`) AS `ifn_be2` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(d1, 0, c1) OVER () ldc, IFNULL(d1, c1) ifn_dc FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "c1",
+          "d1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`d1`,0,`test`.`t`.`c1`) OVER ()  AS `ldc`,ifnull(`test`.`t`.`d1`,`test`.`t`.`c1`) AS `ifn_dc` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(d1, 0, j1) OVER () ldj, IFNULL(d1, j1) ifn_dj FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "j1",
+          "d1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`d1`,0,`test`.`t`.`j1`) OVER ()  AS `ldj`,ifnull(`test`.`t`.`d1`,`test`.`t`.`j1`) AS `ifn_dj` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(d1, 0, g1) OVER () ldg, IFNULL(d1, g1) ifn_dg FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "g1",
+          "d1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`d1`,0,`test`.`t`.`g1`) OVER ()  AS `ldg`,ifnull(`test`.`t`.`d1`,`test`.`t`.`g1`) AS `ifn_dg` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(d1, 0, i1) OVER () ldi, IFNULL(d1, i1) ifn_di FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "i1",
+          "d1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`d1`,0,`test`.`t`.`i1`) OVER ()  AS `ldi`,ifnull(`test`.`t`.`d1`,`test`.`t`.`i1`) AS `ifn_di` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(d1, 0, b1) OVER () ldd, IFNULL(d1, b1) ifn_db FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "b1",
+          "d1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`d1`,0,`test`.`t`.`b1`) OVER ()  AS `ldd`,ifnull(`test`.`t`.`d1`,`test`.`t`.`b1`) AS `ifn_db` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(d1, 0, e1) OVER () lde1, IFNULL(d1, e1) ifn_de1 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "d1",
+          "e1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`d1`,0,`test`.`t`.`e1`) OVER ()  AS `lde1`,ifnull(`test`.`t`.`d1`,`test`.`t`.`e1`) AS `ifn_de1` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(d1, 0, e2) OVER () lde2, IFNULL(d1, e2) ifn_de2 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "d1",
+          "e2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`d1`,0,`test`.`t`.`e2`) OVER ()  AS `lde2`,ifnull(`test`.`t`.`d1`,`test`.`t`.`e2`) AS `ifn_de2` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(e1, 0, c1) OVER () le1c, IFNULL(e1, c1) ifn_e1c FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "c1",
+          "e1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`e1`,0,`test`.`t`.`c1`) OVER ()  AS `le1c`,ifnull(`test`.`t`.`e1`,`test`.`t`.`c1`) AS `ifn_e1c` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(e1, 0, j1) OVER () le1j, IFNULL(e1, j1) ifn_e1j FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "j1",
+          "e1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`e1`,0,`test`.`t`.`j1`) OVER ()  AS `le1j`,ifnull(`test`.`t`.`e1`,`test`.`t`.`j1`) AS `ifn_e1j` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(e1, 0, g1) OVER () le1g, IFNULL(e1, g1) ifn_e1g FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "g1",
+          "e1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`e1`,0,`test`.`t`.`g1`) OVER ()  AS `le1g`,ifnull(`test`.`t`.`e1`,`test`.`t`.`g1`) AS `ifn_e1g` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(e1, 0, i1) OVER () le1i, IFNULL(e1, i1) ifn_e1i FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "i1",
+          "e1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`e1`,0,`test`.`t`.`i1`) OVER ()  AS `le1i`,ifnull(`test`.`t`.`e1`,`test`.`t`.`i1`) AS `ifn_e1i` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(e1, 0, b1) OVER () le1d, IFNULL(e1, b1) ifn_e1d FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "b1",
+          "e1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`e1`,0,`test`.`t`.`b1`) OVER ()  AS `le1d`,ifnull(`test`.`t`.`e1`,`test`.`t`.`b1`) AS `ifn_e1d` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(e1, 0, d1) OVER () le1d, IFNULL(e1, d1) ifn_e1d FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "d1",
+          "e1"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`e1`,0,`test`.`t`.`d1`) OVER ()  AS `le1d`,ifnull(`test`.`t`.`e1`,`test`.`t`.`d1`) AS `ifn_e1d` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(e1, 0, e2) OVER () le1e2, IFNULL(e1, e2) ifn_e1e2 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "e1",
+          "e2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`e1`,0,`test`.`t`.`e2`) OVER ()  AS `le1e2`,ifnull(`test`.`t`.`e1`,`test`.`t`.`e2`) AS `ifn_e1e2` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(e2, 0, c1) OVER () le2c, IFNULL(e2, c1) ifn_e2c FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "c1",
+          "e2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`e2`,0,`test`.`t`.`c1`) OVER ()  AS `le2c`,ifnull(`test`.`t`.`e2`,`test`.`t`.`c1`) AS `ifn_e2c` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(e2, 0, j1) OVER () le2j, IFNULL(e2, j1) ifn_e2j FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "j1",
+          "e2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`e2`,0,`test`.`t`.`j1`) OVER ()  AS `le2j`,ifnull(`test`.`t`.`e2`,`test`.`t`.`j1`) AS `ifn_e2j` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(e2, 0, g1) OVER () le2g, IFNULL(e2, g1) ifn_e2g FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "g1",
+          "e2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`e2`,0,`test`.`t`.`g1`) OVER ()  AS `le2g`,ifnull(`test`.`t`.`e2`,`test`.`t`.`g1`) AS `ifn_e2g` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(e2, 0, i1) OVER () le2i, IFNULL(e2, i1) ifn_e2i FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "i1",
+          "e2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`e2`,0,`test`.`t`.`i1`) OVER ()  AS `le2i`,ifnull(`test`.`t`.`e2`,`test`.`t`.`i1`) AS `ifn_e2i` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(e2, 0, b1) OVER () le2d, IFNULL(e2, b1) ifn_e2d FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "b1",
+          "e2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`e2`,0,`test`.`t`.`b1`) OVER ()  AS `le2d`,ifnull(`test`.`t`.`e2`,`test`.`t`.`b1`) AS `ifn_e2d` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(e2, 0, d1) OVER () le2d, IFNULL(e2, d1) ifn_e2d FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "d1",
+          "e2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`e2`,0,`test`.`t`.`d1`) OVER ()  AS `le2d`,ifnull(`test`.`t`.`e2`,`test`.`t`.`d1`) AS `ifn_e2d` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT LEAD(e2, 0, e1) OVER () le2e1, IFNULL(e2, e1) ifn_e2e1 FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "lead"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "768"
+        },
+        "used_columns": [
+          "e1",
+          "e2"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select lead(`test`.`t`.`e2`,0,`test`.`t`.`e1`) OVER ()  AS `le2e1`,ifnull(`test`.`t`.`e2`,`test`.`t`.`e1`) AS `ifn_e2e1` from `test`.`t`
+DROP TABLE t;
+static wf
+EXPLAIN FORMAT=JSON SELECT id, sex, COUNT(*) OVER w cnt, NTILE(3) OVER w `ntile`,
+LEAD(id, 1) OVER w le1,
+LAG(id, 1) OVER w la1,
+LEAD(id, 100) OVER w le100,
+LAG(id, 2, 777) OVER w la2 FROM t1
+WINDOW w AS (ORDER BY id);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "count",
+            "ntile",
+            "lead",
+            "lag",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`sex` AS `sex`,count(0) OVER `w` AS `cnt`,ntile(3) OVER `w` AS `ntile`,lead(`test`.`t1`.`id`,1) OVER `w` AS `le1`,lag(`test`.`t1`.`id`,1) OVER `w` AS `la1`,lead(`test`.`t1`.`id`,100) OVER `w` AS `le100`,lag(`test`.`t1`.`id`,2,777) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` ) 
+EXPLAIN FORMAT=JSON SELECT id, sex, COUNT(*) OVER w cnt, NTH_VALUE(id, 2) OVER w nth,
+LEAD(id, 1) OVER w le1,
+LAG(id, 1) OVER w la1,
+LEAD(id, 100) OVER w le100,
+LAG(id, 2, 777) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY sex);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`sex`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "count",
+            "nth_value",
+            "lead",
+            "lag",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`sex` AS `sex`,count(0) OVER `w` AS `cnt`,nth_value(`test`.`t1`.`id`,2) OVER `w` AS `nth`,lead(`test`.`t1`.`id`,1) OVER `w` AS `le1`,lag(`test`.`t1`.`id`,1) OVER `w` AS `la1`,lead(`test`.`t1`.`id`,100) OVER `w` AS `le100`,lag(`test`.`t1`.`id`,2,777) OVER `w` AS `la2` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`sex` ) 
+EXPLAIN FORMAT=JSON SELECT id, sex, COUNT(*) OVER w cnt, NTH_VALUE(id, 2) OVER w nth,
+LEAD(id, 1) OVER w le1,
+LAG(id, 1) OVER w la1,
+LEAD(id, 100) OVER w le100,
+LAG(id, 2, 777) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY id);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "count",
+            "nth_value",
+            "lead",
+            "lag",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`sex` AS `sex`,count(0) OVER `w` AS `cnt`,nth_value(`test`.`t1`.`id`,2) OVER `w` AS `nth`,lead(`test`.`t1`.`id`,1) OVER `w` AS `le1`,lag(`test`.`t1`.`id`,1) OVER `w` AS `la1`,lead(`test`.`t1`.`id`,100) OVER `w` AS `le100`,lag(`test`.`t1`.`id`,2,777) OVER `w` AS `la2` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`id` ) 
+unbuffered
+EXPLAIN FORMAT=JSON SELECT id, sex, COUNT(*) OVER w cnt,
+LEAD(id, 1) OVER w le1,
+LAG(id, 1) OVER w la1,
+LEAD(id, 100) OVER w le100,
+LAG(id, 2, 777) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY ID ROWS UNBOUNDED PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`sex`",
+            "`id`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "count",
+            "lead",
+            "lag",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`sex` AS `sex`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`id`,1) OVER `w` AS `le1`,lag(`test`.`t1`.`id`,1) OVER `w` AS `la1`,lead(`test`.`t1`.`id`,100) OVER `w` AS `le100`,lag(`test`.`t1`.`id`,2,777) OVER `w` AS `la2` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`id` ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT id, sex, COUNT(*) OVER w cnt, NTH_VALUE(id, 2) OVER w nth,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY ID RANGE UNBOUNDED PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`sex`",
+            "`id`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "count",
+            "nth_value",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`sex` AS `sex`,count(0) OVER `w` AS `cnt`,nth_value(`test`.`t1`.`id`,2) OVER `w` AS `nth`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`id` RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
+test unoptimized path: trick: add DOUBLE type w/SUM which is unoptimized by default
+ascending
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY d ROWS 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`sex`",
+            "`d`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`d` ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY d RANGE 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`sex`",
+            "`d`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`d` RANGE BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d ROWS 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`d`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d ASC ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`d` asc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` asc ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d ASC ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`d` asc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` asc ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING) 
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d RANGE 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`d`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` RANGE BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`d`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING) 
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`d`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING) 
+descending
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY d DESC ROWS 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`sex`",
+            "`d` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`d` desc ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY d DESC RANGE 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`sex`",
+            "`d` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`d` desc RANGE BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d DESC ROWS 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`d` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` desc ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d DESC ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`d` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` desc ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d DESC ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`d` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` desc ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING) 
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d DESC RANGE 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`d` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` desc RANGE BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d DESC RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`d` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` desc RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING) 
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d DESC RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`d` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` desc RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING) 
+Dynamic upper
+EXPLAIN FORMAT=JSON SELECT id, sex, COUNT(*) OVER w cnt, NTILE(3) OVER w `ntile`,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1 WINDOW w as (ORDER BY id);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "count",
+            "ntile",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`sex` AS `sex`,count(0) OVER `w` AS `cnt`,ntile(3) OVER `w` AS `ntile`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` ) 
+optimized path
+ascending
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY id ROWS 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`sex`",
+            "`id`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`id` ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY id RANGE 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`sex`",
+            "`id`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`id` RANGE BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id ROWS 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id ASC ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id` asc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` asc ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id ASC ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id` asc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` asc ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING) 
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id RANGE 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` RANGE BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING) 
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING) 
+descending
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY id DESC ROWS 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`sex`",
+            "`id` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`id` desc ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY id DESC RANGE 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`sex`",
+            "`id` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`id` desc RANGE BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id DESC ROWS 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` desc ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id DESC ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` desc ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id DESC ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` desc ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING) 
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id DESC RANGE 2 PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` desc RANGE BETWEEN 2 PRECEDING AND CURRENT ROW) 
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id DESC RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` desc RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING) 
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id DESC RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "sex",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,`test`.`t1`.`sex` AS `sex`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` desc RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING) 
+many nth_value calls on one window, unoptimized path
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(d, 3) OVER w le3,
+FIRST_VALUE(d) OVER w fv,
+LEAD(d, 1) OVER w le1,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w AS (ORDER BY d ASC ROWS BETWEEN 2 PRECEDING AND CURRENT ROW);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`d` asc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "first_value",
+            "lead",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`d`,3) OVER `w` AS `le3`,first_value(`test`.`t1`.`d`) OVER `w` AS `fv`,lead(`test`.`t1`.`d`,1) OVER `w` AS `le1`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` asc ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
+many nth_value calls on one window, optimized path
+EXPLAIN FORMAT=JSON SELECT id, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(id, 3) OVER w le3,
+FIRST_VALUE(id) OVER w fv,
+LEAD(id, 1) OVER w le1,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w AS (ORDER BY id ASC ROWS BETWEEN 2 PRECEDING AND CURRENT ROW);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id` asc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum",
+            "count",
+            "lead",
+            "first_value",
+            "lead",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "id",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`id`,3) OVER `w` AS `le3`,first_value(`test`.`t1`.`id`) OVER `w` AS `fv`,lead(`test`.`t1`.`id`,1) OVER `w` AS `le1`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` asc ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
+DROP TABLE t1;
+Check interference with other two pass window functions
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES (NULL), (1), (2), (3), (3), (4), (5), (6), (6), (7), (8), (9), (10);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=JSON SELECT i, PERCENT_RANK() OVER w cd
+FROM t WINDOW w AS (ORDER BY i);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "14.55"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`i`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "percent_rank"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "13.00"
+      },
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 13,
+        "rows_produced_per_join": 13,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "1.30",
+          "prefix_cost": "1.55",
+          "data_read_per_join": "104"
+        },
+        "used_columns": [
+          "i"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i`,percent_rank() OVER `w` AS `cd` from `test`.`t` window `w` AS (ORDER BY `test`.`t`.`i` ) 
+EXPLAIN FORMAT=JSON SELECT i, PERCENT_RANK() OVER w cd FROM t
+WINDOW w AS (ORDER BY i ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "14.55"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`i`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "percent_rank"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "13.00"
+      },
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 13,
+        "rows_produced_per_join": 13,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "1.30",
+          "prefix_cost": "1.55",
+          "data_read_per_join": "104"
+        },
+        "used_columns": [
+          "i"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'percent_rank' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i`,percent_rank() OVER `w` AS `cd` from `test`.`t` window `w` AS (ORDER BY `test`.`t`.`i` ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING) 
+EXPLAIN FORMAT=JSON SELECT i, PERCENT_RANK() OVER w cd, NTILE(3) OVER w `ntile`, COUNT(*) OVER w cnt, SUM(i) OVER W `sum` FROM t
+WINDOW w AS (ORDER BY i ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "14.55"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`i`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "percent_rank",
+            "ntile",
+            "count",
+            "sum"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "13.00"
+      },
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 13,
+        "rows_produced_per_join": 13,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "1.30",
+          "prefix_cost": "1.55",
+          "data_read_per_join": "104"
+        },
+        "used_columns": [
+          "i"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'percent_rank' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'ntile' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i`,percent_rank() OVER `w` AS `cd`,ntile(3) OVER `w` AS `ntile`,count(0) OVER `w` AS `cnt`,sum(`test`.`t`.`i`) OVER `w` AS `sum` from `test`.`t` window `w` AS (ORDER BY `test`.`t`.`i` ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING) 
+EXPLAIN FORMAT=JSON SELECT i, PERCENT_RANK() OVER w cd, NTILE(3) OVER w `ntile`, COUNT(*) OVER w cnt, SUM(i) OVER W `sum`,
+LEAD(i,2) OVER w le2,
+LAG(i) OVER w la FROM t
+WINDOW w AS (ORDER BY i ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "14.55"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`i`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "percent_rank",
+            "ntile",
+            "count",
+            "sum",
+            "lead",
+            "lag"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "13.00"
+      },
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 13,
+        "rows_produced_per_join": 13,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "1.30",
+          "prefix_cost": "1.55",
+          "data_read_per_join": "104"
+        },
+        "used_columns": [
+          "i"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'percent_rank' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'ntile' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i`,percent_rank() OVER `w` AS `cd`,ntile(3) OVER `w` AS `ntile`,count(0) OVER `w` AS `cnt`,sum(`test`.`t`.`i`) OVER `w` AS `sum`,lead(`test`.`t`.`i`,2) OVER `w` AS `le2`,lag(`test`.`t`.`i`) OVER `w` AS `la` from `test`.`t` window `w` AS (ORDER BY `test`.`t`.`i` ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING) 
+DROP TABLE t;

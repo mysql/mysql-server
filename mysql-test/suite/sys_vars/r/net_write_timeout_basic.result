@@ -117,11 +117,11 @@ SELECT @@session.net_write_timeout;
 @@session.net_write_timeout
 31536000
 '#------------------FN_DYNVARS_112_06-----------------------#'
-SELECT @@global.net_write_timeout = VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='net_write_timeout';
+SELECT @@global.net_write_timeout = VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='net_write_timeout';
 @@global.net_write_timeout = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_112_07-----------------------#'
-SELECT @@session.net_write_timeout = VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='net_write_timeout';
+SELECT @@session.net_write_timeout = VARIABLE_VALUE FROM performance_schema.session_variables WHERE VARIABLE_NAME='net_write_timeout';
 @@session.net_write_timeout = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_112_08-----------------------#'

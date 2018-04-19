@@ -30,13 +30,13 @@ table7, table8, table9, table10, table11, table12, table13,
 table14, table15, table16, table17, table18, table19, table20,
 table21, table22, table23, table24, table25, table26, table27,
 table28;
-ERROR 42S02: Unknown table 'mysqltest.table1,mysqltest.table2,mysqltest.table3,mysqltest.table4,mysqltest.table5,mysqltest.table'
+ERROR 42S02: Unknown table 'mysqltest.table1,mysqltest.table2,mysqltest.table3,mysqltest.table4,mysqltest.table5,mysqltest.table6,mysqltest.table7,mysqltest.'
 drop table table1, table2, table3, table4, table5, table6,
 table7, table8, table9, table10, table11, table12, table13,
 table14, table15, table16, table17, table18, table19, table20,
 table21, table22, table23, table24, table25, table26, table27,
 table28, table29, table30;
-ERROR 42S02: Unknown table 'mysqltest.table1,mysqltest.table2,mysqltest.table3,mysqltest.table4,mysqltest.table5,mysqltest.table'
+ERROR 42S02: Unknown table 'mysqltest.table1,mysqltest.table2,mysqltest.table3,mysqltest.table4,mysqltest.table5,mysqltest.table6,mysqltest.table7,mysqltest.'
 use test;
 drop database mysqltest;
 flush tables with read lock;
@@ -44,25 +44,27 @@ create database mysqltest;
 Got one of the listed errors
 unlock tables;
 create database mysqltest;
-select schema_name from information_schema.schemata where schema_name != 'sys';
-schema_name
+select schema_name from information_schema.schemata order by schema_name;
+SCHEMA_NAME
 information_schema
 mtr
 mysql
 mysqltest
 performance_schema
+sys
 test
 flush tables with read lock;
 drop database mysqltest;
 Got one of the listed errors
 unlock tables;
 drop database mysqltest;
-select schema_name from information_schema.schemata where schema_name != 'sys';
-schema_name
+select schema_name from information_schema.schemata order by schema_name;
+SCHEMA_NAME
 information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 drop database mysqltest;
 ERROR HY000: Can't drop database 'mysqltest'; database doesn't exist
@@ -109,27 +111,6 @@ ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
 unlock tables;
 drop table t1,t2;
 End of 5.0 tests
-create database mysql_test;
-create table mysql_test.t1(f1 int);
-create table mysql_test.`#sql-347f_7` (f1 int);
-create table mysql_test.`#sql-347f_8` (f1 int);
-drop table mysql_test.`#sql-347f_8`;
-drop database mysql_test;
-
-# --
-# -- Bug#29958: Weird message on DROP DATABASE if mysql.proc does not
-# -- exist.
-# --
-DROP DATABASE IF EXISTS mysql_test;
-CREATE DATABASE mysql_test;
-DROP TABLE mysql.proc;
-DROP DATABASE mysql_test;
-Warnings:
-Error	1146	Table 'mysql.proc' doesn't exist
-
-# --
-# -- End of Bug#29958.
-# --
 
 create database mysqltestbug26703;
 use mysqltestbug26703;

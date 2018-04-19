@@ -18,11 +18,11 @@ CREATE DATABASE db1;
 USE db1;
 SHOW CREATE DATABASE db1;
 Database	Create Database
-db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET latin1 */
+db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 DROP DATABASE db1;
 select @@character_set_database;
 @@character_set_database
-latin1
+utf8mb4
 '---session character_set_server should effects current connection---'
 SET @@session.character_set_server = utf8;
 CREATE DATABASE db1;

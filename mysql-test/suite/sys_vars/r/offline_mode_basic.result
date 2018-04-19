@@ -18,10 +18,10 @@ ERROR 42000: Variable 'offline_mode' can't be set to the value of '100'
 SET @@global.offline_mode= WRONGVALUE;
 ERROR 42000: Variable 'offline_mode' can't be set to the value of 'WRONGVALUE'
 
-# via INFORMATION_SCHEMA.GLOBAL_VARIABLES
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME LIKE 'offline_mode';
+# via performance_schema.global_variables
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'offline_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-OFFLINE_MODE	OFF
+offline_mode	OFF
 SET @global_saved_tmp =  @@global.offline_mode;
 
 # Altering global variable's value

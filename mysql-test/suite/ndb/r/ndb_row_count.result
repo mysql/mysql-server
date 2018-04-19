@@ -14,7 +14,7 @@ insert into t1 values
 (90),(91),(92),(93),(94),(95),(96),(97),(98),(99);
 
 # expected result 0 roundtrips - read stats from share
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using where with pushed condition (`test`.`t1`.`a` < 100); Using MRR
 Warnings:
@@ -24,7 +24,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`
 insert into t1 select a+100 from t1;
 
 # expected result 0 roundtrips - read stats from share
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	20	100.00	Using where with pushed condition (`test`.`t1`.`a` < 100); Using MRR
 Warnings:
@@ -34,7 +34,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`
 delete from t1 where a >= 100;
 
 # expected result 0 roundtrips - read stats from share
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using where with pushed condition (`test`.`t1`.`a` < 100); Using MRR
 Warnings:
@@ -46,7 +46,7 @@ insert into t1 select a+100 from t1;
 commit;
 
 # expected result 0 roundtrips - read stats from share
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	20	100.00	Using where with pushed condition (`test`.`t1`.`a` < 100); Using MRR
 Warnings:
@@ -58,7 +58,7 @@ delete from t1 where a >= 100;
 commit;
 
 # expected result 0 roundtrips - read stats from share
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using where with pushed condition (`test`.`t1`.`a` < 100); Using MRR
 Warnings:
@@ -70,7 +70,7 @@ insert into t1 select a+100 from t1;
 rollback;
 
 # expected result 0 roundtrips - read stats from share
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using where with pushed condition (`test`.`t1`.`a` < 100); Using MRR
 Warnings:
@@ -82,7 +82,7 @@ delete from t1 where a <= 100;
 rollback;
 
 # expected result 0 roundtrips - read stats from share
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using where with pushed condition (`test`.`t1`.`a` < 100); Using MRR
 Warnings:
@@ -93,7 +93,7 @@ insert into t1 select a from t1;
 ERROR 23000: Can't write; duplicate key in table 't1'
 
 # expected result 0 roundtrips - read stats from share
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using where with pushed condition (`test`.`t1`.`a` < 100); Using MRR
 Warnings:
@@ -105,7 +105,7 @@ insert into t1 select a from t1;
 ERROR 23000: Can't write; duplicate key in table 't1'
 
 # expected result 0 roundtrips - read stats from share
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using where with pushed condition (`test`.`t1`.`a` < 100); Using MRR
 Warnings:

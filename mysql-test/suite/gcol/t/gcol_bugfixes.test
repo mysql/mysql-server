@@ -1,0 +1,850 @@
+################################################################################
+# t/gcol_bugfixes.test                                                         #
+#                                                                              #
+# Purpose:                                                                     #
+#  Bug fixes that only need one storage engine                                 #
+#                                                                              #
+################################################################################
+
+--echo # Bug#21230709: Alter table statement fails with division by zero
+
+CREATE TABLE t1 (
+  col1 INTEGER NOT NULL,
+  col2 INTEGER NOT NULL,
+  col3 INTEGER NOT NULL,
+  gcol1 INTEGER GENERATED ALWAYS AS (col3 + col3) VIRTUAL,
+  col4 INTEGER DEFAULT NULL,
+  col5 INTEGER DEFAULT NULL,
+  col6 INTEGER DEFAULT NULL,
+  col7 INTEGER DEFAULT NULL,
+  col8 INTEGER DEFAULT NULL,
+  col9 INTEGER DEFAULT NULL,
+  col10 INTEGER DEFAULT NULL,
+  col11 INTEGER DEFAULT NULL,
+  col12 INTEGER DEFAULT NULL,
+  col13 INTEGER DEFAULT NULL,
+  col14 INTEGER DEFAULT NULL,
+  col15 INTEGER DEFAULT NULL,
+  col16 INTEGER DEFAULT NULL,
+  col17 INTEGER DEFAULT NULL,
+  col18 INTEGER DEFAULT NULL,
+  col19 INTEGER DEFAULT NULL,
+  col20 INTEGER DEFAULT NULL,
+  col21 INTEGER DEFAULT NULL,
+  col22 INTEGER DEFAULT NULL,
+  col23 INTEGER DEFAULT NULL,
+  col24 INTEGER DEFAULT NULL,
+  col25 INTEGER DEFAULT NULL,
+  col26 INTEGER DEFAULT NULL,
+  col27 INTEGER DEFAULT NULL,
+  col28 INTEGER DEFAULT NULL,
+  col29 INTEGER DEFAULT NULL,
+  col30 INTEGER DEFAULT NULL,
+  col31 INTEGER DEFAULT NULL,
+  col32 INTEGER DEFAULT NULL,
+  col33 INTEGER DEFAULT NULL,
+  gcol2 INTEGER GENERATED ALWAYS AS (col2 + col2) VIRTUAL,
+  gcol3 INTEGER GENERATED ALWAYS AS (gcol2 / gcol2) VIRTUAL,
+  PRIMARY KEY (col1),
+  KEY idx1 (gcol1)
+) engine=innodb;
+
+INSERT INTO t1 (col1, col2, col3)
+  VALUES (0,1,2), (1,2,3), (2,3,4), (3,4,5), (4,5,6);
+
+# This is likely needed to ensure we allocate a new record buffer that
+# contains zero in the mis-used field
+FLUSH TABLE t1;
+
+ALTER TABLE t1 ADD COLUMN extra INTEGER;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug 21340801 WL8149:ASSERTION `IS_VIRTUAL_GCOL()' FAILED
+--echo #
+
+CREATE TABLE t1 (
+  c_blob BLOB,
+  c_blob_key BLOB GENERATED ALWAYS AS (REPEAT(c_blob,15)) STORED,
+  KEY (c_blob_key(200))
+); 
+
+INSERT  INTO t1 (c_blob) VALUES ('xceks');
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#21345972 WL8149:JOIN_CACHE::FILTER_VIRTUAL_GCOL_BASE_COLS(): ASSERTION `FALSE' FAILED.
+--echo #
+
+CREATE TABLE c (
+                        pk INTEGER AUTO_INCREMENT,
+                        col_int_nokey INTEGER /*! NULL */,
+                        col_int_key INTEGER GENERATED ALWAYS AS
+(col_int_nokey + col_int_nokey) VIRTUAL not null,
+
+                        col_date_nokey DATE /*! NULL */,
+                        col_date_key DATE GENERATED ALWAYS AS
+(DATE_ADD(col_date_nokey,interval 30 day)) VIRTUAL not null,
+
+                        col_datetime_nokey DATETIME /*! NULL */,
+                        col_time_nokey TIME /*! NULL */,
+
+                        col_datetime_key DATETIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime_nokey, col_time_nokey)) VIRTUAL not null,
+                        col_time_key TIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime_nokey, col_time_nokey)) VIRTUAL not null,
+
+                        col_varchar_nokey VARCHAR(1) /*! NULL */,
+                        col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL not null,
+
+                        PRIMARY KEY (pk),
+                        UNIQUE KEY (col_int_key),
+                        UNIQUE KEY (col_varchar_key),
+                        UNIQUE KEY (col_date_key),
+                        KEY (col_time_key),
+                        KEY (col_datetime_key),
+                        UNIQUE KEY (col_int_key, col_varchar_key),
+                        KEY (col_int_key, col_int_nokey),
+                        KEY(col_int_key,col_date_key),
+                        KEY(col_int_key, col_time_key),
+                        KEY(col_int_key, col_datetime_key),
+                        UNIQUE
+KEY(col_date_key,col_time_key,col_datetime_key),
+                        UNIQUE KEY (col_varchar_key, col_varchar_nokey),
+                        UNIQUE KEY (col_int_key, col_varchar_key,
+col_date_key, col_time_key, col_datetime_key)
+                )  ENGINE=INNODB;
+
+INSERT /*! IGNORE */ INTO c (
+                                col_int_nokey,
+                                col_date_nokey,
+                                col_time_nokey,
+                                col_datetime_nokey,
+                                col_varchar_nokey
+                        ) VALUES (7, '2004-04-09', '14:03:03.042673',
+'2001-11-28 00:50:27.051028', 'c'),(1, '2006-05-13', '01:46:09.016386',
+'2007-10-09 19:53:04.008332', NULL);
+
+CREATE TABLE bb (
+                        pk INTEGER AUTO_INCREMENT,
+                        col_int_nokey INTEGER /*! NULL */,
+                        col_int_key INTEGER GENERATED ALWAYS AS
+(col_int_nokey + col_int_nokey) VIRTUAL not null,
+
+                        col_date_nokey DATE /*! NULL */,
+                        col_date_key DATE GENERATED ALWAYS AS
+(DATE_ADD(col_date_nokey,interval 30 day)) VIRTUAL not null,
+
+                        col_datetime_nokey DATETIME /*! NULL */,
+                        col_time_nokey TIME /*! NULL */,
+
+                        col_datetime_key DATETIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime_nokey, col_time_nokey)) VIRTUAL not null,
+                        col_time_key TIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime_nokey, col_time_nokey)) VIRTUAL not null,
+
+                        col_varchar_nokey VARCHAR(1) /*! NULL */,
+                        col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL not null,
+
+                        PRIMARY KEY (pk),
+                        UNIQUE KEY (col_int_key),
+                        UNIQUE KEY (col_varchar_key),
+                        UNIQUE KEY (col_date_key),
+                        KEY (col_time_key),
+                        KEY (col_datetime_key),
+                        UNIQUE KEY (col_int_key, col_varchar_key),
+                        KEY (col_int_key, col_int_nokey),
+                        KEY(col_int_key,col_date_key),
+                        KEY(col_int_key, col_time_key),
+                        KEY(col_int_key, col_datetime_key),
+                        UNIQUE
+KEY(col_date_key,col_time_key,col_datetime_key),
+                        UNIQUE KEY (col_varchar_key, col_varchar_nokey),
+                        UNIQUE KEY (col_int_key, col_varchar_key,
+col_date_key, col_time_key, col_datetime_key)
+                )  AUTO_INCREMENT=10 ENGINE=INNODB;
+
+INSERT /*! IGNORE */ INTO bb (
+                                col_int_nokey,
+                                col_date_nokey,
+                                col_time_nokey,
+                                col_datetime_nokey,
+                                col_varchar_nokey
+                        ) VALUES (0, '2003-08-04', '01:48:05.048577',
+'2006-11-03 00:00:00', 'p'),(2, '2007-11-06', '00:00:00', '2009-11-26 19:28:11.005115', 'n');
+
+CREATE TABLE cc (
+                        pk INTEGER AUTO_INCREMENT,
+                        col_int_nokey INTEGER /*! NULL */,
+                        col_int_key INTEGER GENERATED ALWAYS AS
+(col_int_nokey + col_int_nokey) VIRTUAL not null,
+
+                        col_date_nokey DATE /*! NULL */,
+                        col_date_key DATE GENERATED ALWAYS AS
+(DATE_ADD(col_date_nokey,interval 30 day)) VIRTUAL not null,
+
+                        col_datetime_nokey DATETIME /*! NULL */,
+                        col_time_nokey TIME /*! NULL */,
+
+                        col_datetime_key DATETIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime_nokey, col_time_nokey)) VIRTUAL not null,
+                        col_time_key TIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime_nokey, col_time_nokey)) VIRTUAL not null,
+
+                        col_varchar_nokey VARCHAR(1) /*! NULL */,
+                        col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL not null,
+
+                        PRIMARY KEY (pk),
+                        UNIQUE KEY (col_int_key),
+                        UNIQUE KEY (col_varchar_key),
+                        UNIQUE KEY (col_date_key),
+                        KEY (col_time_key),
+                        KEY (col_datetime_key),
+                        UNIQUE KEY (col_int_key, col_varchar_key),
+                        KEY (col_int_key, col_int_nokey),
+                        KEY(col_int_key,col_date_key),
+                        KEY(col_int_key, col_time_key),
+                        KEY(col_int_key, col_datetime_key),
+                        UNIQUE
+KEY(col_date_key,col_time_key,col_datetime_key),
+                        UNIQUE KEY (col_varchar_key, col_varchar_nokey),
+                        UNIQUE KEY (col_int_key, col_varchar_key,
+col_date_key, col_time_key, col_datetime_key)
+                )  AUTO_INCREMENT=10 ENGINE=INNODB;
+
+INSERT /*! IGNORE */ INTO cc (
+                                col_int_nokey,
+                                col_date_nokey,
+                                col_time_nokey,
+                                col_datetime_nokey,
+                                col_varchar_nokey
+                        ) VALUES (172, '2009-04-23', '00:00:00', '2000-12-07 10:17:40.013275', 'h'),(NULL, '2002-10-06', '00:50:49.017545', NULL, 'm');
+
+let $query=
+SELECT
+gp1 . col_datetime_key AS g1
+FROM cc AS gp1 LEFT JOIN c AS gp2 ON ( gp2 . col_datetime_key <> gp1 .
+col_time_nokey )
+WHERE
+gp1 . col_varchar_nokey IN
+(
+SELECT
+DISTINCT p1 . col_varchar_key AS p1
+FROM bb AS p1 LEFT JOIN bb AS p2
+ON ( p1 . col_int_key = p2 . pk )
+)
+AND gp1 . col_varchar_nokey = 'b'
+HAVING g1 > 6;
+
+eval EXPLAIN $query;
+eval $query;
+DROP TABLE bb, c, cc;
+
+--echo # Bug#21284646: Assertion !(table || table->read_set || bitmap_is_set())
+
+CREATE TABLE c (
+ pk INTEGER AUTO_INCREMENT,
+ col_int_nokey INTEGER NOT NULL,
+ col_int_key INTEGER GENERATED ALWAYS AS (col_int_nokey + col_int_nokey) VIRTUAL not null,
+ col_date_nokey DATE NOT NULL,
+ col_date_key DATE GENERATED ALWAYS AS (DATE_ADD(col_date_nokey,interval 30 day)) VIRTUAL not null,
+ col_datetime_nokey DATETIME NOT NULL,
+ col_time_nokey TIME NOT NULL,
+ col_datetime_key DATETIME GENERATED ALWAYS AS (ADDTIME(col_datetime_nokey, col_time_nokey)) VIRTUAL not null,
+ col_time_key TIME GENERATED ALWAYS AS (ADDTIME(col_datetime_nokey, col_time_nokey)) VIRTUAL not null,
+ col_varchar_nokey VARCHAR(1) NOT NULL,
+ col_varchar_key VARCHAR(2) GENERATED ALWAYS AS (CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL not null,
+ PRIMARY KEY (pk,col_int_nokey),
+ UNIQUE KEY (col_int_key),
+ UNIQUE KEY (col_varchar_key),
+ UNIQUE KEY (col_date_key),
+ KEY (col_time_key),
+ KEY (col_datetime_key),
+ UNIQUE KEY (col_int_key, col_varchar_key),
+ KEY (col_int_key, col_int_nokey),
+ KEY(col_int_key,col_date_key),
+ KEY(col_int_key, col_time_key),
+ KEY(col_int_key, col_datetime_key),
+ UNIQUE KEY (col_date_key,col_time_key,col_datetime_key),
+ UNIQUE KEY (col_varchar_key, col_varchar_nokey),
+ UNIQUE KEY (col_int_key, col_varchar_key, col_date_key, col_time_key, col_datetime_key)
+)  ENGINE=INNODB;
+
+INSERT INTO c (col_int_nokey, col_date_nokey, col_time_nokey, col_datetime_nokey, col_varchar_nokey) VALUES
+(1, '2009-12-01', '00:21:38.058143', '2007-05-28 00:00:00', 'c'),
+(8, '2004-12-17', '04:08:02.046897', '2009-07-25 09:21:20.064099', 'm'),
+(9, '2000-03-14', '16:25:11.040240', '2002-01-16 00:00:00', 'd'),
+(6, '2006-05-25', '19:47:59.011283', '2001-02-15 03:08:38.035426', 'y'),
+(2, '2002-10-13', '00:00:00', '1900-01-01 00:00:00', 's'),
+(4, '1900-01-01', '15:57:25.019666', '2005-08-15 00:00:00', 'r');
+
+ANALYZE TABLE c;
+let $query=
+SELECT COUNT(DISTINCT col_varchar_key) AS x
+FROM c
+WHERE col_varchar_key IN ('rr', 'rr') OR
+      col_int_nokey <> 9 AND
+      pk >= 8
+HAVING x > '2000-02-06'
+ORDER BY col_time_nokey, pk;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE c;
+
+--echo # Bug#21341044: Conditional jump at sort_param::make_sort_key
+
+CREATE TABLE t1 (
+ pk INTEGER AUTO_INCREMENT,
+ col_int_nokey INTEGER /*! NULL */,
+ col_int_key INTEGER GENERATED ALWAYS AS (col_int_nokey + col_int_nokey) VIRTUAL,
+ col_blob_nokey BLOB /*! NULL */,
+ col_blob_key BLOB GENERATED ALWAYS AS (REPEAT(col_blob_nokey,15)) VIRTUAL,
+ col_longblob_nokey LONGBLOB /*! NULL */,
+ col_longtext_nokey LONGTEXT /*! NULL */,
+ col_longblob_key LONGBLOB GENERATED ALWAYS AS (REPEAT(col_longblob_nokey, 20)) VIRTUAL,
+ col_longtext_key LONGTEXT GENERATED ALWAYS AS (REPEAT(col_longblob_nokey, 18)) VIRTUAL,
+ col_text_nokey TEXT /*! NULL */,
+ col_text_key TEXT GENERATED ALWAYS AS (REPEAT(col_text_nokey, 30)) VIRTUAL,
+ PRIMARY KEY (pk),
+ KEY (col_int_key),
+ KEY (col_text_key(50)),
+ KEY (col_blob_key(200)),
+ KEY (col_longtext_key(200)),
+ KEY (col_longblob_key(200)),
+ KEY (col_int_key, col_text_key(100)),
+ KEY (col_int_key, col_longtext_key(100)),
+ KEY (col_int_key, col_blob_key(100)),
+ KEY (col_int_key, col_longblob_key(100)),
+ KEY (col_longtext_key(10), col_longblob_key(100)),
+ KEY (col_int_key, col_text_key(10), col_blob_key(100), col_longtext_key(50), col_longblob_key(50))
+) engine=innodb;
+
+INSERT INTO t1 (col_int_nokey,col_blob_nokey,col_longtext_nokey,col_longblob_nokey,col_text_nokey)
+VALUES
+(0, 'ijcszxw', 'ijcszxw', 'ijcszxw', 'ijcszxw'),
+(5, 'jcszxwb', 'jcszxwb', 'jcszxwb', 'jcszxwb'),
+(4, 'cszxwbjjvv', 'cszxwbjjvv', 'cszxwbjjvv', 'cszxwbjjvv'),
+(3, 'szxw', 'szxw', 'szxw', 'szxw'),
+(7, 'zxwb', 'zxwb', 'zxwb', 'zxwb'),
+(42, 'xwbjjvvky', 'xwbjjvvky', 'xwbjjvvky', 'xwbjjvvky'),
+(142, 'wbjj', 'wbjj', 'wbjj', 'wbjj'),
+(5, 'bjjv', 'bjjv', 'bjjv', 'bjjv'),
+(0, 'jjvvkymalu', 'jjvvkymalu', 'jjvvkymalu', 'jjvvkymalu'),
+(3, 'j', 'j', 'j', 'j');
+
+SELECT alias1.pk AS field1
+FROM t1 AS alias1 LEFT OUTER JOIN t1 AS alias2
+     ON alias1.col_int_key = alias2.col_int_key
+WHERE alias2.col_int_key BETWEEN 8 AND (8 + 1 ) OR
+      alias2.col_int_key  BETWEEN 8 AND (8 + 5 ) AND
+      alias2.col_int_key != 20 OR
+      alias2.col_int_key IN (8, 5, 8) AND
+      alias2.col_int_key >= 0 AND
+      alias2.col_int_key <= ( 8 + 75 ) AND
+      alias1.pk IS NOT NULL
+ORDER BY field1;
+
+DROP TABLE t1;
+--echo # bug#21487651: gcols: memory leak after failed alter table
+CREATE TABLE t(a int);
+ALTER TABLE t ADD COLUMN b int GENERATED ALWAYS AS (
+date_sub(a,interval a month)) VIRTUAL;
+--error 1111
+ALTER TABLE t ADD COLUMN c int GENERATED ALWAYS AS (sum(a));
+DROP TABLE t;
+
+--echo #
+--echo # Bug#21628840: CRASH/MEMORY CORRUPTION ADDING INDEXES TO VIRTUAL COLUMN
+--echo #               (II)
+--echo #
+CREATE TABLE t1( a INT ) ENGINE = INNODB;
+INSERT INTO t1( a ) VALUES ( 1 ), ( 2 ), ( 3 ), ( 4 ), ( 5 );
+
+ALTER TABLE t1 ADD COLUMN b INT GENERATED ALWAYS AS (a - 1) STORED;
+ALTER TABLE t1 ADD COLUMN c INT GENERATED ALWAYS AS (b + 1) VIRTUAL;
+
+--echo # Used to cause valgrind warning.
+ALTER TABLE t1 ADD INDEX( c );
+
+ANALYZE TABLE t1;
+
+--echo # Make sure the index is correct. That's kinda important.
+EXPLAIN
+SELECT c FROM t1;
+SELECT c FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#21797776 ASSERTION `BIT < MAP->N_BITS' FAILED.
+--echo #
+
+CREATE TABLE C (
+col_int_1 INT,
+col_int_2 INT GENERATED ALWAYS AS (col_int_1 + col_int_1) STORED,
+col_int_3 INT GENERATED ALWAYS AS (col_int_2 + col_int_1) VIRTUAL
+);
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS
+ SELECT
+ col_int_2 AS field1, col_int_2 AS field2,
+ col_int_3 AS field3, col_int_3 AS field4
+ FROM C;
+
+SELECT * FROM v1;
+
+DROP TABLE C;
+DROP VIEW v1;
+
+--echo #
+--echo # Bug#21613615 GCOLS: ASSERTION FAILED: !TABLE || (!TABLE->READ_SET || BITMAP_IS_SET
+--echo #
+
+CREATE TABLE t (a INT);
+CREATE TABLE v (
+a INT,
+c INT,
+b CHAR(2) GENERATED ALWAYS AS (a IN (1)) VIRTUAL,
+KEY(c,b(1)));
+INSERT INTO v (a,c) VALUES (1,1);
+
+let $query=
+SELECT 1 FROM t WHERE ( SELECT 1 FROM t ) >=ANY( SELECT c FROM v );
+eval EXPLAIN $query;
+eval $query;
+
+# A similar one:
+let $query=
+SELECT (SELECT MAX(c) FROM v);
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t, v;
+
+CREATE TABLE v (
+a INT,
+c INT,
+b CHAR(2) GENERATED ALWAYS AS (a IN (1)) VIRTUAL, KEY(c,b(1)));
+INSERT INTO v (a,c) VALUES (1,1);
+SELECT MAX(c), COUNT(b) FROM v;
+DROP TABLE v;
+
+# Using PK suffix of secondary index
+CREATE TABLE v (
+a INT PRIMARY KEY,
+b INT, KEY(b));
+INSERT INTO v (a,b) VALUES (1,1);
+SELECT MAX(a) FROM v WHERE b=1;
+DROP TABLE v;
+
+--echo #
+--echo # Bug#21824519: ASSERTION IN DROP TRIGGER WHEN TABLE HAS
+--echo #               VIRTUAL GENERATED COLUMN
+--echo #
+CREATE TABLE t (a INT, b INT GENERATED ALWAYS AS (a) VIRTUAL);
+CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW BEGIN END;
+INSERT INTO t (a) VALUES (1);
+SELECT * FROM t;
+# DROP TRIGGER used to hit a DBUG_ASSERT.
+DROP TRIGGER tr;
+SELECT * FROM t;
+CREATE FUNCTION f() RETURNS INT RETURN (SELECT COUNT(*) FROM t);
+# And this function call hit the same DBUG_ASSERT.
+SELECT f();
+DROP FUNCTION f;
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#21833760 CALC_DAYNR: ASSERTION `DELSUM+(INT) Y/4-TEMP >= 0' FAILED.
+--echo #
+
+CREATE TABLE C(
+c1 INT AUTO_INCREMENT,
+c8 DATETIME,
+c9 TIME,
+c11 TIME GENERATED ALWAYS AS(ADDTIME(c8,c9)) VIRTUAL,
+c13 TIME GENERATED ALWAYS AS(ADDTIME(c8,c11)) VIRTUAL,
+PRIMARY KEY(c1),
+UNIQUE KEY(c13)
+);
+
+INSERT INTO C (c8,c9) VALUES('1970-01-01',0),('1970-01-01',1);
+
+CREATE VIEW view_C AS SELECT * FROM C;
+
+SELECT /*+ NO_BNL(t1) */ t1.c13 FROM C AS t2 STRAIGHT_JOIN C AS t1 FORCE INDEX(c13);
+SELECT DISTINCT t1.c13 FROM C AS t1, view_C AS t2;
+
+DROP TABLE C;
+DROP VIEW view_C;
+
+--echo #
+--echo # Bug #21808680: JSON + GENERATED COLUMN CORRUPTS TABLE CACHE
+--echo #                MEMORY, CRASHES
+--echo #
+CREATE TABLE t (a INT, b JSON, c TEXT GENERATED ALWAYS AS (REPEAT(a=b, 2)));
+INSERT INTO t (a, b) VALUES (1, '2'), (3, '3');
+# The next statement used to crash.
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#21810529: CRASH IN ITEM_FUNC::WALK WHEN CODE JUMPS TO GARBAGE
+--echo # LOCATION
+--echo #
+CREATE TABLE t (a TIME,b INT GENERATED ALWAYS AS (a=1) VIRTUAL);
+--error ER_BAD_FIELD_ERROR 
+ALTER TABLE t CHANGE COLUMN q w INT;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t CHANGE COLUMN q w INT;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t CHANGE COLUMN q w INT;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t CHANGE COLUMN q w INT;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#21940542 TOO MUCH SPAM: INNODB: COMPUTE VIRTUAL COLUMN VALUES FAILED
+--echo #
+
+CREATE TABLE t(b BLOB);
+--error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+ALTER TABLE t ADD COLUMN c INT GENERATED ALWAYS AS ((1,1)) VIRTUAL;
+DROP TABLE t;
+--error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t(b BLOB, c INT GENERATED ALWAYS AS ((1,1)) VIRTUAL);
+
+--echo #
+--echo # Bug#21929967 GCOLS: GCOL VALUE CHANGES WHEN SESSION CHANGES SQL_MODE
+--echo #
+
+CREATE TABLE t1(a CHAR(1), b CHAR(1), c CHAR(2) AS (a || b));
+SHOW CREATE TABLE t1;
+INSERT INTO t1 (a,b) VALUES('1','1');
+SELECT * FROM t1;
+SET SQL_MODE=PIPES_AS_CONCAT;
+SELECT * FROM t1;
+FLUSH TABLES;
+SELECT * FROM t1;
+DROP TABLE t1;
+# The other way around:
+CREATE TABLE t1(a CHAR(1), b CHAR(1), c CHAR(2) AS (a || b));
+SHOW CREATE TABLE t1;
+INSERT INTO t1 (a,b) VALUES('1','1');
+SELECT * FROM t1;
+SET SQL_MODE=DEFAULT;
+SELECT * FROM t1;
+FLUSH TABLES;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo # Bug#22018999: gcols: assertion failed: !error
+
+SET @save_old_sql_mode= @@sql_mode;
+SET sql_mode="";
+
+--error ER_TRUNCATED_WRONG_VALUE
+CREATE TABLE t (a INTEGER AS (SUBSTR('','a',1))) engine=innodb;
+
+CREATE TABLE t (a INTEGER) engine=innodb;
+
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE t ADD b INTEGER AS (SUBSTR('','a',1));
+
+DROP TABLE t;
+
+set sql_mode= @save_old_sql_mode;
+
+--echo #
+--echo # Bug#22157531 WITH NO MORE .FRM 64K LIMIT WE CAN CREATE MASSIVE TABLES,
+--echo #              BUT TOO SLOWLY..
+--echo #
+
+set @s:=concat("CREATE TABLE t(a LONGBLOB GENERATED ALWAYS AS
+('",REPEAT("a",1024*1024),"') STORED) ENGINE=INNODB;");
+PREPARE r FROM @s;
+EXECUTE r;
+DEALLOCATE PREPARE r;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#22239803 WITH NO MORE .FRM 64K LIMIT WE CAN CREATE MASSIVE TABLES,
+--echo #              BUT TOO SLOW (II)
+--echo #
+
+set @s:=concat("CREATE TABLE t(w INT, A INT GENERATED ALWAYS
+AS('",REPEAT("\\0",1024*1024),"') STORED) ENGINE=INNODB;");
+PREPARE r FROM @s;
+EXECUTE r;
+DEALLOCATE PREPARE r;
+
+DROP TABLE t;
+
+--echo # Bug#21875520 Problems with virtual column indexes
+
+CREATE TABLE t(
+  a TIMESTAMP,
+  b BLOB,
+  c TIMESTAMP GENERATED ALWAYS AS (GREATEST(a, '2000-01-01 00:00:00')) VIRTUAL,
+  UNIQUE KEY(c)
+);
+INSERT INTO t(b) VALUES ('');
+UPDATE t SET a='2001-01-01 00:00:00';
+SELECT c FROM t;
+SELECT c, a FROM t;
+UPDATE t SET b='xyz';
+DO (SELECT @c1:= c FROM t);
+DO (SELECT (@c2:= c) - a FROM t);
+SELECT @c2 - @c1;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#22133710 GCOLS: READ UNCOMMITTED: ASSERT !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET(TA
+--echo #
+
+CREATE TABLE t (
+  a INT,
+  b INT GENERATED ALWAYS AS (1) VIRTUAL,
+  c INT GENERATED ALWAYS AS (1) VIRTUAL,
+  d INT GENERATED ALWAYS AS (1) VIRTUAL,
+  KEY (b,d)
+) ENGINE=INNODB;
+INSERT INTO t VALUES();
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED ;
+SELECT 1 FROM t WHERE c GROUP BY b;
+COMMIT;
+DROP TABLE t;
+
+--echo #
+--echo # bug#21982792: TOO MUCH SPAM: 'GOT ERROR 1 WHEN READING TABLE'
+--echo #
+CREATE TABLE t (
+  a INT GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
+  b DATE GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
+  KEY(b)
+ );
+SET @old_sql_mode=@@sql_mode;
+SET sql_mode='';
+INSERT INTO t VALUES();
+SET sql_mode= STRICT_ALL_TABLES;
+--error ER_TRUNCATED_WRONG_VALUE
+DELETE d2 FROM t AS d1, t AS d2 WHERE d1.a = d2.b;
+DROP TABLE t;
+SET sql_mode=@old_sql_mode;
+
+CREATE TABLE t (
+  a INT,
+  b INT GENERATED ALWAYS AS (1),
+  KEY i(a,b)
+  );
+INSERT INTO t (a) VALUES(1), (2);
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 FROM t a RIGHT JOIN t USING(b)
+WHERE 1 NOT LIKE(SELECT a FROM t WHERE a.b);
+DROP TABLE t;
+
+--echo # Bug#22748217 gcols: assert in Item_func_in::resolve_type
+
+SET @old_sql_mode= @@sql_mode;
+SET sql_mode="";
+CREATE TABLE t (a TIMESTAMP AS (0) VIRTUAL) engine=innodb;
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE t ADD COLUMN b JSON AS (a NOT IN (1,1)) STORED;
+DROP TABLE t;
+SET sql_mode= @old_sql_mode;
+
+
+--echo #
+--echo # Bug#22987899: ALTER TABLE MODIFY COLUMN DOES NOT SET
+--echo #               ALTER_CHANGE_COLUMN_DEFAULT FLAG
+--echo #
+
+CREATE TABLE t1(
+  a INTEGER DEFAULT 5,
+  b INTEGER NOT NULL,
+  gc1 INTEGER AS (a + DEFAULT(a)) VIRTUAL,
+  gc2 INTEGER AS (a + DEFAULT(a)) STORED,
+  KEY k1(gc1)
+);
+
+INSERT INTO t1(a, b) VALUES (1 ,1);
+SELECT * FROM t1;
+SELECT gc1 FROM t1;
+
+# Test 1: Change the default value for a column, this should trigger rebuild
+
+# Check how many rows are accessed: >0 = COPY
+--enable_info
+ALTER TABLE t1 MODIFY COLUMN a INT DEFAULT 6;
+--disable_info
+SELECT * FROM t1;
+SELECT gc1 FROM t1;
+
+# Test 2: Change the NULL property for a column, should not trigger rebuild
+
+# Check how many rows are accessed: >0 = COPY
+--enable_info
+ALTER TABLE t1 MODIFY COLUMN b INTEGER NULL;
+--disable_info
+SELECT * FROM t1;
+SELECT gc1 FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#22991924 GCOLS: UTF16 STRING OPERATIONS GIVE DOUBLED \0\0 STRINGS
+--echo # ON EACH TABLE REBUILD
+--echo #
+CREATE TABLE t1 (
+  a TEXT CHARSET utf16,
+  b BLOB GENERATED ALWAYS AS ( concat( 'ABC', a ) ) VIRTUAL
+);
+
+--echo # Results change due to bug fix.
+INSERT INTO t1 ( a ) VALUES ( 'abc' );
+
+SHOW CREATE TABLE t1;
+SELECT HEX(b) FROM t1;
+OPTIMIZE TABLE t1;
+SELECT HEX(b) FROM t1;
+SHOW CREATE TABLE t1;
+
+
+SELECT
+  length( convert( b USING utf8 ) ),
+  char_length ( convert( b USING utf8 ) )
+FROM t1;
+
+SELECT
+  length( convert( b USING utf16 ) ),
+  char_length ( convert( b USING utf16 ) )
+FROM t1;
+
+SELECT
+  length( convert( b USING latin1 ) ),
+  char_length ( convert( b USING latin1 ) )
+FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25615803: ASSERT IN SQL/FIELD.CC:...
+--echo #               VIRTUAL STRING* FIELD_VARSTRING::VAL_STR
+--echo #
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  c INT,
+  d INT GENERATED ALWAYS AS ( b + 1 ) STORED
+)
+PARTITION BY RANGE( a ) ( PARTITION p0 VALUES LESS THAN (1) );
+
+INSERT INTO t1 ( b ) VALUES ( 1 );
+UPDATE t1 SET c = d;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #25793677 INNODB: FAILING ASSERTION: CLUST_TEMPL_FOR_SEC || LEN ....
+--echo #
+
+CREATE TABLE v (
+a INT,
+c INT,
+b CHAR(2) GENERATED ALWAYS AS (a IN (1)) VIRTUAL,
+KEY(c,b(1))) charset utf8mb4;
+INSERT INTO v (a,c) VALUES (1,1);
+SELECT (SELECT MAX(c) FROM v);
+DROP TABLE v;
+
+--echo # Bug#23021693 gcol:assertion '!table->in_use->is_error()' failed
+
+CREATE TABLE t1 (
+ pk INTEGER AUTO_INCREMENT,
+ c1 INTEGER,
+ gc1 INTEGER GENERATED ALWAYS AS (c1+c1) VIRTUAL,
+ gc2 INTEGER GENERATED ALWAYS AS (gc1 + c1) VIRTUAL,
+ c2 VARCHAR(5),
+ gc3 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(c2, c2)) VIRTUAL,
+ gc4 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(gc3, 'x')) VIRTUAL,
+ PRIMARY KEY (pk DESC),
+ KEY(gc1),
+ KEY(gc3),
+ UNIQUE KEY (gc1, gc3),
+ UNIQUE KEY (gc2, gc4)
+)  ENGINE=InnoDB;
+
+INSERT INTO t1 (c1, c2) VALUES (3, 'cek'),(3,'eks');
+
+CREATE TABLE t2 (
+ pk INTEGER AUTO_INCREMENT,
+ c1 INTEGER,
+ gc1 INTEGER GENERATED ALWAYS AS (c1 + c1) VIRTUAL,
+ gc2 INTEGER GENERATED ALWAYS AS (gc1 + c1) VIRTUAL,
+ c2 VARCHAR(5),
+ gc3 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(c2, c2)) VIRTUAL,
+ gc4 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(gc3, 'x')) VIRTUAL,
+ PRIMARY KEY (pk DESC),
+ KEY(gc1),
+ KEY(gc3),
+ UNIQUE KEY (gc1, gc3),
+ UNIQUE KEY (gc2, gc4)
+)  ENGINE=InnoDB;
+
+INSERT INTO t2 (c1, c2) VALUES
+ (3, 'ksa'), (6,'sate'), (3, 'a'), (NULL, 't'), (9, 'efq'),
+ (NULL, 'f'), (6, 'qsdk'), (63, NULL), (3, 's'), (1,NULL);
+
+--error ER_SUBQUERY_NO_1_ROW
+DELETE outr1.*
+FROM t2 AS outr1 INNER JOIN t1 AS outr2
+     ON outr1.gc4 = outr2.gc4
+WHERE outr1.pk > (SELECT innr1.gc2 AS y
+                  FROM t1 AS innr1
+                  WHERE innr1.pk = 5 OR outr2.pk <> 7
+                 );
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#23321196: GCOLS: ASSERTION FAILURE:
+--echo #               DFIELD_IS_NULL(DFIELD2) || DFIELD2->DATA
+--echo #
+CREATE TABLE t(gc TEXT GENERATED ALWAYS AS (NULL) NOT NULL, KEY (gc(1)));
+INSERT IGNORE INTO t VALUES ();
+SELECT * FROM t;
+DELETE FROM t;
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #27041382: ASSERTION `!TABLE->IN_USE->IS_ERROR()' FAILED.
+--echo #
+
+CREATE TABLE t1 (c1 VARCHAR(100),
+                 c2 VARCHAR(400) GENERATED ALWAYS AS (CONCAT(c1,c1)));
+
+CREATE TRIGGER trg1 BEFORE INSERT ON t1
+ FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1);
+
+--error ER_PARSE_ERROR
+INSERT INTO t1  VALUES (),();
+
+--error ER_PARSE_ERROR
+INSERT INTO t1(c1)  SELECT 1 FROM DUAL;
+
+--error ER_PARSE_ERROR
+LOAD DATA INFILE '../../std_data/loaddata5.dat'
+ INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (c1) ;
+
+DROP TABLE t1;

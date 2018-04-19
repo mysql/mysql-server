@@ -6,20 +6,22 @@
 source include/not_valgrind.inc;
 # Avoid CrashReporter popup on Mac
 source include/not_crashrep.inc;
-# Restarting is not supported under embedded
-source include/not_embedded.inc;
 # Require InnoDB
-source include/have_innodb.inc;
 # Require Debug for SET DEBUG
 source include/have_debug.inc;
 
 --disable_query_log
-CALL mtr.add_suppression("\\[ERROR\\] \\[FATAL\\] InnoDB: Unable to read page \\[page id: space=.*, page number=.*\\] into the buffer pool after 100 attempts");
-CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Database page corruption on disk or a failed");
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Unable to read page \\[page id: space=.*, page number=.*\\] into the buffer pool after 100 attempts");
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Database page corruption on disk or a failed");
+# ib::fatal() calls ut_error
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Assertion failure: ut0ut\.cc:");
 --enable_query_log
 
+# Disable compression for this table, otherwise our pattern matching below
+# will not work
 --echo # Create and populate the table to be corrupted
-CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) COMPRESSION="none",
+ROW_FORMAT=COMPACT ENGINE=InnoDB;
 INSERT INTO t1 (b) VALUES ('corrupt me');
 --disable_query_log
 --let $i = 10
@@ -79,10 +81,9 @@ SET DEBUG = '+d,innodb_page_corruption_retries';
 --error 2013
 SELECT * FROM t1;
 
-# The below mtr command --remove_file fails randomly on windows with
-# error number 13 which is permission denied on nix systems. We sleep
-# 1 second hoping that any process holding lock on t1.ibd is released.
-SLEEP 1;
+# Disconnect all connections to release all locks on t1.ibd file.
+--disable_reconnect
+--source include/wait_until_disconnected.inc
 
 --echo # Restore the original t1.ibd
 --remove_file $MYSQLD_DATADIR/test/t1.ibd

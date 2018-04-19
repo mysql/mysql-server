@@ -1,21 +1,18 @@
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE variable_name LIKE '%offline_mode%';
+SELECT * FROM performance_schema.global_variables WHERE variable_name LIKE '%offline_mode%';
 VARIABLE_NAME	VARIABLE_VALUE
-OFFLINE_MODE	ON
+offline_mode	ON
 SET @global_saved_tmp =  @@global.offline_mode;
-SELECT @user_count:=COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
-@user_count:=COUNT(USER)
-1
 CREATE USER 'user1'@'localhost';
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-1
+2
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	1
 connect conu4,localhost,root;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-2
+3
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	2
@@ -23,18 +20,18 @@ connection default;
 SET GLOBAL offline_mode = OFF;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-2
+3
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	2
 connect conu1,localhost,user1;
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE variable_name LIKE '%offline_mode%';
+SELECT * FROM performance_schema.global_variables WHERE variable_name LIKE '%offline_mode%';
 VARIABLE_NAME	VARIABLE_VALUE
-OFFLINE_MODE	OFF
+offline_mode	OFF
 connection default;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-3
+4
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	3

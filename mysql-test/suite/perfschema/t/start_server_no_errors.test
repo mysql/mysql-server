@@ -1,0 +1,31 @@
+# -------------------------------------------------------
+# Tests for the performance schema Error Instrumentation.
+# -------------------------------------------------------
+
+# Test case to show behavior of error instrumentation when
+# performance_schema_error-size is 0
+
+# Expect 0 for system variable digest
+SHOW GLOBAL VARIABLES LIKE "performance_schema_error_size";
+
+TRUNCATE TABLE performance_schema.events_errors_summary_global_by_error;
+TRUNCATE TABLE performance_schema.events_errors_summary_by_thread_by_error;
+TRUNCATE TABLE performance_schema.events_errors_summary_by_user_by_error;
+TRUNCATE TABLE performance_schema.events_errors_summary_by_host_by_error;
+TRUNCATE TABLE performance_schema.events_errors_summary_by_account_by_error;
+
+# Executing queries
+--error ER_BAD_DB_ERROR
+USE no_db;
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM no_table;
+
+--echo ####################################
+--echo # Fetching Errors' Stastics
+--echo ####################################
+SELECT * FROM performance_schema.events_errors_summary_global_by_error WHERE SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+SELECT * FROM performance_schema.events_errors_summary_by_thread_by_error WHERE SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+SELECT * FROM performance_schema.events_errors_summary_by_user_by_error WHERE SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+SELECT * FROM performance_schema.events_errors_summary_by_host_by_error WHERE SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+SELECT * FROM performance_schema.events_errors_summary_by_account_by_error WHERE SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;

@@ -1,6 +1,6 @@
 #Creating the spatial Geometry object
 USE test;
-CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
 SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
 SET @star_center= 'POINT(15 10)';
@@ -243,8 +243,7 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollec
 MBREQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center))
 0
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'));
-MBREQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'))
-1
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
 MBREQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'))
 0
@@ -267,8 +266,7 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometry
 MBREQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
-MBREQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'))
-1
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
 MBREQUALS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'))
 0
@@ -291,8 +289,7 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star)) FROM gis_geometrycollection WHERE fid
 MBREQUALS(g,ST_GEOMFROMTEXT(@star))
 0
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POLYGON((0 0))'));
-MBREQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POLYGON((0 0))'))
-1
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
 MBREQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'))
 0
@@ -312,8 +309,7 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection 
 MBREQUALS(g,ST_GEOMFROMTEXT(@star_of_elems))
 0
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0)))'));
-MBREQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0)))'))
-1
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),((10 10,10 20,20 20,20 10,10 10)))'));
 MBREQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),((10 10,10 20,20 20,20 10,10 10)))'))
 0
@@ -337,7 +333,7 @@ MBREQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_multilines
 0
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
 MBREQUALS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
-NULL
+0
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'));
 MBREQUALS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'))
 1
@@ -800,8 +796,8 @@ MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical))
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_1));
 MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_1))
 1
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0))'));
-MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0))'))
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
 0
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=203;
 MBREQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical))
@@ -905,8 +901,8 @@ MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_ver
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_1));
 MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_1))
 1
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
-MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0,0 0))'));
+MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0,0 0))'))
 0
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=215;
 MBREQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical))
@@ -1020,8 +1016,7 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollec
 ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center))
 0
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'));
-ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
 ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'))
 0
@@ -1044,8 +1039,7 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometry
 ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
-ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
 ST_EQUALS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'))
 0
@@ -1068,8 +1062,7 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star)) FROM gis_geometrycollection WHERE fid
 ST_EQUALS(g,ST_GEOMFROMTEXT(@star))
 0
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POLYGON((0 0))'));
-ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POLYGON((0 0))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
 ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'))
 0
@@ -1089,8 +1082,7 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection 
 ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems))
 0
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0)))'));
-ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0)))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),((10 10,10 20,20 20,20 10,10 10)))'));
 ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),((10 10,10 20,20 20,20 10,10 10)))'))
 0
@@ -1501,13 +1493,13 @@ ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems))
 #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_1));
 ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_1))
-0
+1
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems))
 0
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
 ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr))
 0
@@ -1571,8 +1563,8 @@ ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical))
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_1));
 ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_1))
 0
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0))'));
-ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0))'))
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
 0
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=203;
 ST_EQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical))
@@ -1675,9 +1667,9 @@ ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_ver
 0
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_1));
 ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_1))
-0
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
-ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
+1
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0,0 0))'));
+ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0,0 0))'))
 0
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=215;
 ST_EQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical))
@@ -1730,30 +1722,30 @@ ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collecti
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 MBREQUALS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 0
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
-MBREQUALS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100))
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+MBREQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
 0
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
-MBREQUALS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000))
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+MBREQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
 0
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
-MBREQUALS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456))
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+MBREQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
 0
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
-MBREQUALS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575))
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+MBREQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
 0
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
-MBREQUALS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+MBREQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
+0
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+MBREQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
 0
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-MBREQUALS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-MBREQUALS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-MBREQUALS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #====================================================================================
 # ST_EQUALS(g1,g2)
 #====================================================================================
@@ -1761,29 +1753,39 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 ST_EQUALS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 0
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
-ST_EQUALS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100))
-0
+ERROR SR001: There's no spatial reference system with SRID 100.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
-ST_EQUALS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000))
-0
+ERROR SR001: There's no spatial reference system with SRID 20000.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
-ST_EQUALS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456))
-0
+ERROR SR001: There's no spatial reference system with SRID 123456.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
-ST_EQUALS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575))
-0
+ERROR SR001: There's no spatial reference system with SRID 1048575.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
-ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
+ERROR SR001: There's no spatial reference system with SRID 4294967295.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
+0
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
+0
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
+0
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
+0
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
+0
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
 0
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-ST_EQUALS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-ST_EQUALS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################
@@ -1792,8 +1794,10 @@ ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,
 #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function st_equals given two geometries of different srids: 0 and 4326, which should have been identical.
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
-ERROR HY000: Binary geometry function st_equals given two geometries of different srids: 1048576 and 4326, which should have been identical.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function st_equals given two geometries of different srids: 4145 and 4326, which should have been identical.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function st_equals given two geometries of different srids: 4145 and 4326, which should have been identical.
 SELECT ST_EQUALS(NULL,ST_GEOMFROMTEXT(@star_top));
 ST_EQUALS(NULL,ST_GEOMFROMTEXT(@star_top))
 NULL
@@ -1814,44 +1818,46 @@ ERROR 22023: Invalid GIS data provided to function st_equals.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ERROR 22023: Invalid GIS data provided to function st_equals.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_EQUALS(,);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',)' at line 1
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT ST_EQUALS(,ST_GEOMFROMTEXT(@star_top));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ST_GEOMFROMTEXT(@star_top))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',ST_GEOMFROMTEXT(@star_top))' at line 1
 #====================================================================================
 # MBREQUALS(g1,g2)
 #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function mbrequals given two geometries of different srids: 0 and 4326, which should have been identical.
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
-ERROR HY000: Binary geometry function mbrequals given two geometries of different srids: 1048576 and 4326, which should have been identical.
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function mbrequals given two geometries of different srids: 4145 and 4326, which should have been identical.
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function mbrequals given two geometries of different srids: 4145 and 4326, which should have been identical.
 SELECT MBREQUALS(NULL,ST_GEOMFROMTEXT(@star_top));
 MBREQUALS(NULL,ST_GEOMFROMTEXT(@star_top))
 NULL
@@ -1872,37 +1878,37 @@ ERROR 22023: Invalid GIS data provided to function mbrequals.
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ERROR 22023: Invalid GIS data provided to function mbrequals.
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBREQUALS(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBREQUALS(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBREQUALS(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBREQUALS(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBREQUALS(,);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',)' at line 1
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT MBREQUALS(,ST_GEOMFROMTEXT(@star_top));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ST_GEOMFROMTEXT(@star_top))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',ST_GEOMFROMTEXT(@star_top))' at line 1
 CREATE TABLE t1 (g GEOMETRY NOT NULL);
 INSERT INTO t1 VALUES (ST_GEOMFROMTEXT('POINT(1 1)'));
 INSERT INTO t1 VALUES (ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)'));
@@ -1985,892 +1991,241 @@ GEOMETRYCOLLECTION(POLYGON(LINESTRING(POINT(1,1), POINT(10,1), POINT(10,10),
 POINT(1,10), POINT(1,1)), LINESTRING(POINT(4,4),POINT(6,4),POINT(6,6),
 POINT(4,6),POINT(4,4))))));
 SELECT ST_EQUALS(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
-ST_EQUALS(a.g, b.g)
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
 SELECT MBREQUALS(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
-MBREQUALS(a.g, b.g)
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-1
-0
-0
-0
-0
-0
-1
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-1
-0
-0
-1
-0
-0
-0
-0
-0
-1
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-1
-0
-0
-0
-0
-0
-1
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-1
-0
-0
-1
-0
-0
-0
-0
-0
-1
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
+SELECT ST_EQUALS(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
+SELECT MBREQUALS(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
 # clean up
 DROP TABLE t1;
 DROP TABLE gis_geometrycollection;
 DROP TABLE gis_geometrycollection_2;
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+SELECT ST_EQUALS(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+ST_EQUALS(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+)
+1
+SELECT MBREQUALS(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+MBREQUALS(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+)
+1
+# Projected SRS (should pass)
+SELECT ST_EQUALS(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+ST_EQUALS(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+)
+1
+SELECT MBREQUALS(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+MBREQUALS(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+)
+1
+# Geographic SRS (should pass)
+SELECT ST_EQUALS(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+ST_EQUALS(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+)
+1
+SELECT MBREQUALS(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+MBREQUALS(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+)
+1
+#
+# WL#10827 Ellipsoidal R-tree support functions
+#
+SET @pt = ST_GeomFromText('POINT(0 0)', 4326);
+SELECT ST_Equals(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+ERROR 22S03: Latitude -91.000000 is out of range in function st_equals. It must be within [-90.000000, 90.000000].
+SELECT ST_Equals(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+ERROR 22S03: Latitude 91.000000 is out of range in function st_equals. It must be within [-90.000000, 90.000000].
+SELECT ST_Equals(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+ERROR 22S02: Longitude -181.000000 is out of range in function st_equals. It must be within (-180.000000, 180.000000].
+SELECT ST_Equals(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+ERROR 22S02: Longitude 181.000000 is out of range in function st_equals. It must be within (-180.000000, 180.000000].
+SELECT MBREquals(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+ERROR 22S03: Latitude -91.000000 is out of range in function mbrequals. It must be within [-90.000000, 90.000000].
+SELECT MBREquals(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+ERROR 22S03: Latitude 91.000000 is out of range in function mbrequals. It must be within [-90.000000, 90.000000].
+SELECT MBREquals(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+ERROR 22S02: Longitude -181.000000 is out of range in function mbrequals. It must be within (-180.000000, 180.000000].
+SELECT MBREquals(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+ERROR 22S02: Longitude 181.000000 is out of range in function mbrequals. It must be within (-180.000000, 180.000000].
+CREATE TABLE t1 (
+id INT,
+c GEOMETRY NOT NULL SRID 0,
+g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL SRID 4326,
+SPATIAL INDEX c_idx (c),
+SPATIAL INDEX g_idx (g)
+);
+INSERT INTO t1 (id, c) VALUES
+(0, ST_GeomFromText('POLYGON((0 0, 10 0, 10 5, 0 5, 0 0))')),
+(1, ST_GeomFromText('POLYGON((1 1, 2 1, 2 2, 1 2, 1 1))')),
+(2, ST_GeomFromText('POINT(3 3)')),
+(3, ST_GeomFromText('MULTIPOINT((0 0), (10 0), (10 5), (0 5), (0 0))')),
+(4, ST_GeomFromText('MULTIPOINT((0 0), (10 5))')),
+(5, ST_GeomFromText('POINT(5 5.00001)')),
+(6, ST_GeomFromText('MULTIPOLYGON(((0 0, 10 0, 10 5, 0 5, 0 0)))')),
+(7, ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 0), POINT(10 5))'));
+SET @py = 'POLYGON((0 0, 10 0, 10 5, 0 5, 0 0))';
+SET @cart_py = ST_GeomFromText(@py);
+SET @geo_py = ST_GeomFromText(@py, 4326, 'axis-order=long-lat');
+SET @mpt = 'MULTIPOINT((0 0), (10 5))';
+SET @cart_mpt = ST_GeomFromText(@mpt);
+SET @geo_mpt = ST_GeomFromText(@mpt, 4326, 'axis-order=long-lat');
+# Cartesian ST_Equals
+SELECT id, ST_AsText(c)
+FROM t1 IGNORE INDEX(c_idx)
+WHERE ST_Equals(c, @cart_py)
+ORDER BY id;
+id	ST_AsText(c)
+0	POLYGON((0 0,10 0,10 5,0 5,0 0))
+6	MULTIPOLYGON(((0 0,10 0,10 5,0 5,0 0)))
+SELECT id, ST_AsText(c)
+FROM t1 FORCE INDEX(c_idx)
+WHERE ST_Equals(c, @cart_py)
+ORDER BY id;
+id	ST_AsText(c)
+0	POLYGON((0 0,10 0,10 5,0 5,0 0))
+6	MULTIPOLYGON(((0 0,10 0,10 5,0 5,0 0)))
+# Geographic ST_Equals
+SELECT id, ST_AsText(g)
+FROM t1 IGNORE INDEX(g_idx)
+WHERE ST_Equals(g, @geo_py)
+ORDER BY id;
+id	ST_AsText(g)
+0	POLYGON((0 0,0 10,5 10,5 0,0 0))
+6	MULTIPOLYGON(((0 0,0 10,5 10,5 0,0 0)))
+SELECT id, ST_AsText(g)
+FROM t1 FORCE INDEX(g_idx)
+WHERE ST_Equals(g, @geo_py)
+ORDER BY id;
+id	ST_AsText(g)
+0	POLYGON((0 0,0 10,5 10,5 0,0 0))
+6	MULTIPOLYGON(((0 0,0 10,5 10,5 0,0 0)))
+# Cartesian MBREquals
+SELECT id, ST_AsText(c)
+FROM t1 IGNORE INDEX(c_idx)
+WHERE MBREquals(c, @cart_py)
+ORDER BY id;
+id	ST_AsText(c)
+0	POLYGON((0 0,10 0,10 5,0 5,0 0))
+3	MULTIPOINT((0 0),(10 0),(10 5),(0 5),(0 0))
+4	MULTIPOINT((0 0),(10 5))
+6	MULTIPOLYGON(((0 0,10 0,10 5,0 5,0 0)))
+7	GEOMETRYCOLLECTION(POINT(0 0),POINT(10 5))
+SELECT id, ST_AsText(c)
+FROM t1 FORCE INDEX(c_idx)
+WHERE MBREquals(c, @cart_py)
+ORDER BY id;
+id	ST_AsText(c)
+0	POLYGON((0 0,10 0,10 5,0 5,0 0))
+3	MULTIPOINT((0 0),(10 0),(10 5),(0 5),(0 0))
+4	MULTIPOINT((0 0),(10 5))
+6	MULTIPOLYGON(((0 0,10 0,10 5,0 5,0 0)))
+7	GEOMETRYCOLLECTION(POINT(0 0),POINT(10 5))
+SELECT id, ST_AsText(c)
+FROM t1 IGNORE INDEX(c_idx)
+WHERE MBREquals(c, @cart_mpt)
+ORDER BY id;
+id	ST_AsText(c)
+0	POLYGON((0 0,10 0,10 5,0 5,0 0))
+3	MULTIPOINT((0 0),(10 0),(10 5),(0 5),(0 0))
+4	MULTIPOINT((0 0),(10 5))
+6	MULTIPOLYGON(((0 0,10 0,10 5,0 5,0 0)))
+7	GEOMETRYCOLLECTION(POINT(0 0),POINT(10 5))
+SELECT id, ST_AsText(c)
+FROM t1 FORCE INDEX(c_idx)
+WHERE MBREquals(c, @cart_mpt)
+ORDER BY id;
+id	ST_AsText(c)
+0	POLYGON((0 0,10 0,10 5,0 5,0 0))
+3	MULTIPOINT((0 0),(10 0),(10 5),(0 5),(0 0))
+4	MULTIPOINT((0 0),(10 5))
+6	MULTIPOLYGON(((0 0,10 0,10 5,0 5,0 0)))
+7	GEOMETRYCOLLECTION(POINT(0 0),POINT(10 5))
+# Geographic MBREquals
+SELECT id, ST_AsText(g)
+FROM t1 IGNORE INDEX(g_idx)
+WHERE MBREquals(g, @geo_py)
+ORDER BY id;
+id	ST_AsText(g)
+0	POLYGON((0 0,0 10,5 10,5 0,0 0))
+3	MULTIPOINT((0 0),(0 10),(5 10),(5 0),(0 0))
+4	MULTIPOINT((0 0),(5 10))
+6	MULTIPOLYGON(((0 0,0 10,5 10,5 0,0 0)))
+7	GEOMETRYCOLLECTION(POINT(0 0),POINT(5 10))
+SELECT id, ST_AsText(g)
+FROM t1 FORCE INDEX(g_idx)
+WHERE MBREquals(g, @geo_py)
+ORDER BY id;
+id	ST_AsText(g)
+0	POLYGON((0 0,0 10,5 10,5 0,0 0))
+3	MULTIPOINT((0 0),(0 10),(5 10),(5 0),(0 0))
+4	MULTIPOINT((0 0),(5 10))
+6	MULTIPOLYGON(((0 0,0 10,5 10,5 0,0 0)))
+7	GEOMETRYCOLLECTION(POINT(0 0),POINT(5 10))
+SELECT id, ST_AsText(g)
+FROM t1 IGNORE INDEX(g_idx)
+WHERE MBREquals(g, @geo_mpt)
+ORDER BY id;
+id	ST_AsText(g)
+0	POLYGON((0 0,0 10,5 10,5 0,0 0))
+3	MULTIPOINT((0 0),(0 10),(5 10),(5 0),(0 0))
+4	MULTIPOINT((0 0),(5 10))
+6	MULTIPOLYGON(((0 0,0 10,5 10,5 0,0 0)))
+7	GEOMETRYCOLLECTION(POINT(0 0),POINT(5 10))
+SELECT id, ST_AsText(g)
+FROM t1 FORCE INDEX(g_idx)
+WHERE MBREquals(g, @geo_mpt)
+ORDER BY id;
+id	ST_AsText(g)
+0	POLYGON((0 0,0 10,5 10,5 0,0 0))
+3	MULTIPOINT((0 0),(0 10),(5 10),(5 0),(0 0))
+4	MULTIPOINT((0 0),(5 10))
+6	MULTIPOLYGON(((0 0,0 10,5 10,5 0,0 0)))
+7	GEOMETRYCOLLECTION(POINT(0 0),POINT(5 10))
+DROP TABLE t1;
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO MBREQUALS(
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
+);
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_EQUALS(
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
+);
+ERROR SR001: There's no spatial reference system with SRID 10.

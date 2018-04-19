@@ -1,5 +1,7 @@
---source include/have_innodb.inc
 --source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--source include/count_sessions.inc
 
 SET NAMES utf8;
 
@@ -26,3 +28,50 @@ SET DEBUG = '-d,ib_rename_column_error';
 SHOW CREATE TABLE t1ć;
 
 DROP TABLE t1ć, ①;
+
+--echo #
+--echo # Bug #21364096	THE BOGUS DUPLICATE KEY ERROR IN ONLINE DDL
+--echo #		WITH INCORRECT KEY NAME
+
+create table t1 (id int auto_increment primary key,
+		 a int,
+		 unique key uk(a))engine=innodb;
+insert into t1 select 1, 1;
+insert into t1 select 2, 2;
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL s1 WAIT_FOR s2';
+--send alter table t1 add b int, ALGORITHM=inplace
+
+--echo /* connection con1 */
+connect (con1,localhost,root,,);
+SET DEBUG_SYNC = 'now WAIT_FOR s1';
+--error ER_DUP_ENTRY
+insert into t1 select NULL, 1;
+SET DEBUG_SYNC = 'now SIGNAL s2';
+
+--echo /* connection default */
+connection default;
+--echo /* reap */ alter table t1 add b int, ALGORITHM=inplace;
+--error ER_DUP_ENTRY
+--reap
+
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL s1 WAIT_FOR s2';
+--send alter table t1 add b int, ALGORITHM=inplace;
+
+--echo /* connection con1 */
+connection con1;
+set DEBUG_SYNC = 'now WAIT_FOR s1';
+--error ER_DUP_ENTRY
+update t1 set a=1 where id=2;
+SET DEBUG_SYNC = 'now SIGNAL s2';
+disconnect con1;
+
+--echo /* connection default */
+connection default;
+--echo /* reap */ alter table t1 add b int, ALGORITHM=inplace;
+--error ER_DUP_ENTRY
+--reap
+
+drop table t1;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

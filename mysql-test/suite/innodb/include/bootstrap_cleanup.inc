@@ -1,0 +1,2 @@
+--force-rmdir $bugdir/data
+--force-cpdir $bugdir/data_backup $bugdir/data

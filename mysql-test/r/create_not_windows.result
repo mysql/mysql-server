@@ -10,22 +10,5 @@ about:text	CREATE TABLE `about:text` (
   `_id` int(11) NOT NULL AUTO_INCREMENT,
   `about:text` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`_id`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table `about:text`;
-use test;
-drop table if exists t1;
-create table t1(a int) engine=myisam;
-insert into t1 values(1);
-"We get an error because the table is in the definition cache"
-create table t1(a int, b int);
-ERROR 42S01: Table 't1' already exists
-"Flush the cache and recreate the table anew to be able to drop it"
-flush tables;
-show open tables like "t%";
-Database	Table	In_use	Name_locked
-create table t1(a int, b int, c int);
-"Try to select from the table. This should not crash the server"
-select count(a) from t1;
-count(a)
-0
-drop table t1;

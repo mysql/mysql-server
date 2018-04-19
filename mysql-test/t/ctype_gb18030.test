@@ -1,4 +1,3 @@
--- source include/have_gb18030.inc
 -- source include/no_valgrind_without_big.inc
 
 #
@@ -80,14 +79,12 @@ SET NAMES utf8mb4;
 SET collation_connection=gb18030_chinese_ci;
 
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 --source include/weight_string_A2A9.inc
 --source include/weight_string_81309D30.inc
 
 SET collation_connection=gb18030_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 --source include/weight_string_A2A9.inc
 --source include/weight_string_81309D30.inc
@@ -258,9 +255,14 @@ INSERT INTO t1 VALUES (_gb18030 0x8BF5819AEDC3), (_gb18030 0x99CC), (_gb18030 0x
 SELECT ANY_VALUE(HEX(c)), COUNT(c) FROM t1 GROUP BY c COLLATE gb18030_chinese_ci;
 DROP TABLE t1;
 
+# Test if LOAD DATA with gb18030 chars can handle invalid chars
+CREATE TABLE t1 (a int) ENGINE=InnoDB;
+--error ER_INVALID_CHARACTER_STRING
+LOAD DATA INFILE '../../std_data/bug21542698.dat' INTO TABLE t1 CHARACTER SET gb18030; 
+DROP TABLE t1;
+
 DROP DATABASE gb18030;
 SET sql_mode = default;
 --echo #
 --echo # End of 5.7 tests
 --echo #
-

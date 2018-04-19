@@ -1,0 +1,109 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Create a table with an index
+CREATE TABLE t1 ( i INT , KEY (i));
+INSERT INTO t1 VALUES (2),(3),(5),(7),(11),(13);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check that the index is on the slave
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	i	1	i	A	6	NULL	NULL	YES	BTREE			YES
+[Connection Master]
+# Make the index invisible
+ALTER TABLE t1 ALTER INDEX i INVISIBLE;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Verify that the index is invisible on the slave
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	i	1	i	A	6	NULL	NULL	YES	BTREE			NO
+EXPLAIN SELECT * FROM t1 WHERE i=3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (`test`.`t1`.`i` = 3)
+[Connection Master]
+ALTER TABLE t1 ALTER INDEX i VISIBLE;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Verify that the index is visible on the slave
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	i	1	i	A	6	NULL	NULL	YES	BTREE			YES
+EXPLAIN SELECT * FROM t1 WHERE i=3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i	i	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (`test`.`t1`.`i` = 3)
+[Connection Master]
+# Create an invisible index on the table
+CREATE UNIQUE INDEX idx ON t1(i) INVISIBLE;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Verify that the invisible is created on the slave
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	idx	1	i	A	6	NULL	NULL	YES	BTREE			NO
+t1	1	i	1	i	A	6	NULL	NULL	YES	BTREE			YES
+[Connection Master]
+ALTER TABLE t1 DROP INDEX i, ALTER INDEX idx VISIBLE, ALTER INDEX idx INVISIBLE, ALTER INDEX idx VISIBLE;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	idx	1	i	A	6	NULL	NULL	YES	BTREE			YES
+[Connection Master]
+# Creation of invisible indexes on MyISAM tables
+CREATE TABLE t2  (i INT, KEY(i) INVISIBLE) ENGINE=MYISAM;
+INSERT INTO t2 VALUES (2),(3),(5),(7),(11);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+[Connection Master]
+# Alter the engine and then alter the index
+ALTER TABLE t1 ENGINE = MYISAM;
+ALTER TABLE t1 ALTER INDEX idx INVISIBLE, ALTER INDEX idx VISIBLE;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	idx	1	i	A	6	NULL	NULL	YES	BTREE			YES
+[Connection Master]
+# Alter the engine and then alter the index
+ALTER TABLE t2 ENGINE = INNODB;
+ALTER TABLE t2 ALTER INDEX i INVISIBLE, ALTER INDEX i VISIBLE, ALTER INDEX i INVISIBLE;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SHOW INDEXES FROM t2;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t2	1	i	1	i	A	5	NULL	NULL	YES	BTREE			NO
+[Connection Master]
+# Clean up
+DROP TABLE t1;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+include/rpl_end.inc

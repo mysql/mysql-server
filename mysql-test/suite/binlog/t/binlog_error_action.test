@@ -17,11 +17,11 @@
 # added to check both the behaviours.
 ###############################################################################
 --source include/have_log_bin.inc
---source include/not_embedded.inc
 --source include/have_binlog_format_statement.inc
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
 --source include/have_debug.inc
+--source include/have_debug_sync.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
@@ -31,9 +31,13 @@ call mtr.add_suppression("Retry in 60 secs. *");
 call mtr.add_suppression("Error writing file*");
 call mtr.add_suppression("Could not open .*");
 call mtr.add_suppression("Could not use .*");
-call mtr.add_suppression("Can't generate a unique log-filename master-bin");
 call mtr.add_suppression("The server was unable to create a new log file *");
-
+call mtr.add_suppression("An error occurred during flush stage of the commit");
+call mtr.add_suppression("An error occurred during sync stage of the commit");
+call mtr.add_suppression("Either disk is full or file system is read only");
+call mtr.add_suppression("Can't open file:*");
+call mtr.add_suppression("Can't generate a unique log-filename*");
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
 let $old=`select @@debug`;
 
 --let $saved_binlog_error_action=`SELECT @@GLOBAL.binlog_error_action`
@@ -43,11 +47,12 @@ RESET MASTER;
 --echo Test case1
 # Make binlog index readonly and check the behaviour with ABORT
 let $MYSQLD_DATADIR= `select @@datadir`;
-let $INDEX=$MYSQLD_DATADIR/master-bin.index;
+let $INDEX=$MYSQLD_DATADIR/binlog.index;
 --chmod 0444 $INDEX
 
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--replace_regex /\.[\\\/]binlog/binlog/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 flush logs;
 --chmod 0666 $INDEX
@@ -93,7 +98,7 @@ flush logs;
 # Make binlog index readonly and check the behaviour with IGNORE
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 --chmod 0444 $INDEX
---replace_regex /\.[\\\/]master/master/ /errno: 13 - .*\)/errno: 13 - Permission denied)/
+--replace_regex /\.[\\\/]binlog/binlog/ /errno: 13 - .*\)/errno: 13 - Permission denied)/
 --error 29
 flush logs;
 CREATE TABLE t1 ( f int );
@@ -107,7 +112,7 @@ DROP TABLE t1;
 # the behaviour in case of IGNORE
 SET SESSION debug="+d,fault_injection_updating_index";
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
---replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
+--replace_regex /\.[\\\/]binlog/binlog/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 --error ER_CANT_OPEN_FILE
 flush logs;
 CREATE TABLE t2 (f int );
@@ -122,7 +127,7 @@ SET SESSION debug="-d,fault_injection_updating_index";
 # after the error.
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET SESSION debug="+d,simulate_disk_full_on_open_binlog";
---replace_regex /\.[\\\/]master/master/ /Errcode: 28 - .*\)/Errcode: 28 - No space left on device)/
+--replace_regex /\.[\\\/]binlog/binlog/ /Errcode: 28 - .*\)/Errcode: 28 - No space left on device)/
 # error EE_WRITE with error code number 3 is expected.
 --error 3
 flush logs;
@@ -132,7 +137,7 @@ SET SESSION debug="-d,simulate_disk_full_on_open_binlog";
 --echo Test case8
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET SESSION debug="+d,fault_injection_init_name";
---replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
+--replace_regex /\.[\\\/]binlog/binlog/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 --error ER_CANT_OPEN_FILE
 flush logs;
 CREATE TABLE t2 (f int );
@@ -141,6 +146,351 @@ DROP TABLE t2;
 SET SESSION debug="-d,fault_injection_init_name";
 --source include/restart_mysqld.inc
 
+###############################################################################
+# Bug#20805298: BINLOG_ERROR_ACTION DOESN'T HANDLE SOME
+# FAILURES DURING BINLOG ROTATION
+#
+# Problem:
+# ========
+# Hardware errors in binlog partition during binlog rotate are not handled by
+# binlog_error_action.
+#
+# Test:
+# =====
+# Simulate failure during creation of new binary log file name. Set
+# binlog_error_action to "IGNORE_ERROR" and observe that the binary log gets
+# disabled and the server continues by logging an appropriate error message in
+# error log file. Set binlog_error_action to "ABORT_ERROR" and observe that
+# the
+# server aborts when creation of new binarylog file name fails.
+###############################################################################
+--echo Test case09
+# Test error scenario with binlog_error_action=IGNORE_ERROR
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+SET SESSION debug='+d,error_unique_log_filename';
+--error ER_NO_UNIQUE_LOGFILE
+FLUSH LOGS;
+DROP TABLE t1;
+eval SET SESSION debug="$debug_save";
+# Test to prove that binary log is disabled
+--error ER_NO_BINARY_LOGGING
+SHOW BINARY LOGS;
+--source include/restart_mysqld.inc
+
+--echo Test case10
+# Test error scenario with binlog_error_action=ABORT_SERVER
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+SET GLOBAL binlog_error_action=ABORT_SERVER;
+SET SESSION debug='+d,error_unique_log_filename';
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+FLUSH LOGS;
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+DROP TABLE t1;
+
+###############################################################################
+# BUG#16666407BINLOG WRITE ERRORS SILENTLY IGNORED
+# BUG#20938915 2PC SUCCEEDS EVEN THOUGH BINLOG FLUSH/SYNC FAILS
+###############################################################################
+
+############################
+--echo Test case11
+############################
+
+# Simulate error during flushing cache to file and test the behaviour
+# when binlog_error_action is set to ABORT_SERVER/IGNORE_ERROR.
+
+# Case 11.1 (binlog_error_action = ABORT_SERVER)
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_error_action.err
+--source include/start_mysqld.inc
+RESET MASTER;
+
+CREATE TABLE t1(i INT);
+--let $log_pos_before = query_get_value("SHOW BINARY LOGS", File_size, 1)
+SET SESSION debug = "+d,simulate_error_during_flush_cache_to_file";
+SET GLOBAL binlog_error_action = ABORT_SERVER;
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Check that flush error causing server to abort and client gets
+# ER_BINLOG_LOGGING_IMPOSSIBLE when binlog_error_action= 'ABORT_SERVER'.
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+INSERT INTO t1 VALUES (1);
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# Check that error present in error log
+--let SEARCH_FILE = $MYSQLTEST_VARDIR/tmp/binlog_error_action.err
+--let SEARCH_PATTERN = An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'.
+--source include/search_pattern.inc
+
+# Check that transaction is not committed
+--let $assert_cond= COUNT(*) = 0 FROM t1;
+--let $assert_text= Count of elements in t1 should be 0.
+--source include/assert.inc
+
+# Check that transaction is not binlogged as well
+--let $log_pos_after = query_get_value("SHOW BINARY LOGS", File_size, 1)
+--let $assert_cond = $log_pos_before = $log_pos_after
+--let $assert_text = Query is not binlogged as expected.
+--source include/assert.inc
+
+# Case 11.2 (binlog_error_action = IGNORE_ERROR)
+RESET MASTER;
+--let $log_pos_before = query_get_value("SHOW BINARY LOGS", File_size, 1)
+SET SESSION debug ="+d,simulate_error_during_flush_cache_to_file";
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
+INSERT INTO t1 VALUES (2);
+
+# Check that transaction is committed
+--let $assert_cond = COUNT(*) = 1 FROM t1;
+--let $assert_text = Count of elements in t1 should be 1.
+--source include/assert.inc
+
+# Restart so that binary log is enabled again and we can do the below test
+--source include/restart_mysqld.inc
+
+# Check that transaction is not binlogged
+--let $log_pos_after = query_get_value("SHOW BINARY LOGS", File_size, 1)
+--let $assert_cond = $log_pos_before = $log_pos_after
+--let $assert_text = Query is not binlogged as expected.
+--source include/assert.inc
+
+# Check that error present in error log
+--let SEARCH_FILE = $MYSQLTEST_VARDIR/tmp/binlog_error_action.err
+--let SEARCH_PATTERN = An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'.
+--source include/search_pattern.inc
+
 # Cleanup
-eval SET SESSION debug="$old";
---eval SET GLOBAL binlog_error_action= $saved_binlog_error_action
+DROP TABLE t1;
+RESET MASTER;
+
+############################
+--echo Test case12
+############################
+
+# Simulate error during syncing binlog file and test the behaviour
+# when binlog_error_action is set to ABORT_SERVER/IGNORE_ERROR.
+# Set sync_binlog=1 just to make sure that logic enters into sync phase.
+
+# Case 12.1 (binlog_error_action = ABORT_SERVER)
+SET GLOBAL sync_binlog = 1;
+CREATE TABLE t1(i INT);
+SET SESSION debug = "+d,simulate_error_during_sync_binlog_file";
+SET GLOBAL binlog_error_action = ABORT_SERVER;
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Check that sync error causing server to abort and client gets
+# ER_BINLOG_LOGGING_IMPOSSIBLE when binlog_error_action= 'ABORT_SERVER'.
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+INSERT INTO t1 VALUES (1);
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# Cleanup
+DELETE FROM t1;
+RESET MASTER;
+
+# Case 12.2 (binlog_error_action = IGNORE_ERROR)
+SET SESSION debug = "+d,simulate_error_during_sync_binlog_file";
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+INSERT INTO t1 VALUES (2);
+
+# Check that transaction is committed
+--let $assert_cond = COUNT(*) = 1 FROM t1;
+--let $assert_text = Count of elements in t1 should be 1.
+--source include/assert.inc
+
+# Cleanup
+DROP table t1;
+SET SESSION debug = "-d,simulate_error_during_sync_binlog_file";
+--source include/restart_mysqld.inc
+RESET MASTER;
+
+############################
+--echo Test case13
+############################
+
+# Simulate error during flushing events to binlog cache and test the behaviour
+# when binlog_error_action is set to ABORT_SERVER/IGNORE_ERROR.
+
+# Case 13.1 (binlog_error_action = ABORT_SERVER)
+CREATE TABLE t1(i INT);
+--let $log_pos_before = query_get_value("SHOW BINARY LOGS", File_size, 1)
+SET SESSION debug = "+d,simulate_do_write_cache_failure";
+SET GLOBAL binlog_error_action = ABORT_SERVER;
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Check that write cache error is causing server to abort and client gets
+# ER_BINLOG_LOGGING_IMPOSSIBLE when binlog_error_action= 'ABORT_SERVER'.
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+INSERT INTO t1 VALUES (1);
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# Check that transaction is not committed
+--let $assert_cond = COUNT(*) = 0 FROM t1;
+--let $assert_text = Count of elements in t1 should be 0.
+--source include/assert.inc
+
+# Check that transaction is not binlogged as well
+--let $log_pos_after = query_get_value("SHOW BINARY LOGS", File_size, 1)
+--let $assert_cond = $log_pos_before = $log_pos_after
+--let $assert_text = Query is not binlogged as expected.
+--source include/assert.inc
+
+# Cleanup
+RESET MASTER;
+
+# Case 13.2 (binlog_error_action = IGNORE_ERROR)
+SET SESSION debug = "+d,simulate_do_write_cache_failure";
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+INSERT INTO t1 VALUES (2);
+
+# Check that transaction is committed (binlog check cannot be done
+# as we would have written STOP_EVENT in the binlog while closing
+# it)
+--let $assert_cond = COUNT(*) = 1 FROM t1;
+--let $assert_text = Count of elements in t1 should be 1.
+--source include/assert.inc
+
+# Cleanup
+DROP table t1;
+--source include/restart_mysqld.inc
+RESET MASTER;
+
+############################
+--echo Test case14
+############################
+
+# Simulating a situation when a transaction is about to
+# enter ordered_commit and another transaction closed
+# binary log due to an error.
+
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+SET GLOBAL sync_binlog = 1;
+CREATE TABLE t1(i INT);
+CREATE TABLE t2(i INT);
+connect(con1,localhost,root,,);
+connect(con2,localhost,root,,);
+
+--connection con1
+SET DEBUG_SYNC = "bgc_before_flush_stage SIGNAL about_to_enter_flush_stage WAIT_FOR binlog_closed";
+--send INSERT INTO t1 values (1);
+
+--connection default
+SET DEBUG_SYNC = "now wait_for about_to_enter_flush_stage";
+
+--connection con2
+SET DEBUG_SYNC = "after_binlog_closed_due_to_error SIGNAL binlog_closed";
+SET SESSION debug = "+d,simulate_error_during_sync_binlog_file";
+--send INSERT INTO t2 values (2);
+
+--connection con1
+--reap
+--connection con2
+--reap
+
+# Cleanup
+--disconnect con1
+--disconnect con2
+
+--connection default
+DROP table t1, t2;
+--source include/restart_mysqld.inc
+
+############################
+--echo Test case15
+############################
+
+# Simulating a situation when a transaction is about to
+# close binary log due to a sync error (about to acquire lock_log)
+# and another transaction in the middle of flush stage (holding
+# lock_log.
+
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+SET GLOBAL sync_binlog = 1;
+CREATE TABLE t1(i INT);
+CREATE TABLE t2(i INT);
+connect(con1,localhost,root,,);
+connect(con2,localhost,root,,);
+
+--connection con1
+SET DEBUG_SYNC = "before_binlog_closed_due_to_error SIGNAL binlog_about_to_be_closed WAIT_FOR in_the_middle_of_flush_stage";
+SET SESSION debug = "+d,simulate_error_during_sync_binlog_file";
+--send INSERT INTO t1 values (1);
+
+--connection default
+SET DEBUG_SYNC = "now wait_for binlog_about_to_be_closed";
+
+--connection con2
+SET DEBUG_SYNC = "waiting_in_the_middle_of_flush_stage SIGNAL in_the_middle_of_flush_stage";
+--send INSERT INTO t2 values (2);
+
+--connection con1
+--reap
+--connection con2
+--reap
+
+# Claenup
+--disconnect con1
+--disconnect con2
+
+--connection default
+DROP table t1, t2;
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_error_action.err
+--source include/start_mysqld.inc
+
+############################
+--echo Test case16
+############################
+
+# Simulating a situation where two binlog groups encounter
+# errors (one flush error, one sync error) at the same time
+# and both of them try to close the binary log.
+
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+SET GLOBAL sync_binlog = 1;
+CREATE TABLE t1(i INT);
+CREATE TABLE t2(i INT);
+connect(con1,localhost,root,,);
+connect(con2,localhost,root,,);
+
+--connection con1
+SET DEBUG_SYNC = "before_binlog_closed_due_to_error SIGNAL binlog_about_to_be_closed WAIT_FOR another_group_encountered_flush_error";
+SET SESSION debug = "+d,simulate_error_during_sync_binlog_file";
+--send INSERT INTO t1 values (1);
+
+--connection default
+SET DEBUG_SYNC = "now wait_for binlog_about_to_be_closed";
+
+--connection con2
+SET DEBUG_SYNC = "before_binlog_closed_due_to_error SIGNAL another_group_encountered_flush_error";
+SET SESSION debug ="+d,simulate_error_during_flush_cache_to_file";
+--send INSERT INTO t2 values (2);
+
+--connection con1
+--reap
+--connection con2
+--reap
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}[-+Z][0-9:]* *[0-9]*/--TIME--/ /flush|sync stage/flush_or_sync stage/
+--let GREP_FILE=$MYSQLTEST_VARDIR/tmp/binlog_error_action.err
+--let GREP_PATTERN=An error occurred during
+--source include/grep_pattern.inc
+
+# Claenup
+--disconnect con1
+--disconnect con2
+
+--connection default
+DROP table t1, t2;
+--source include/restart_mysqld.inc

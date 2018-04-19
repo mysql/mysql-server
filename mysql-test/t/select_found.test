@@ -49,7 +49,7 @@ CREATE TABLE t1 (
 `kid` smallint(5) unsigned NOT NULL default '0',
 PRIMARY KEY (`id`),
 KEY `kid` (`kid`)
-);
+) charset utf8mb4;
 
 CREATE TABLE t2 (
   id smallint(5) unsigned NOT NULL auto_increment,
@@ -57,7 +57,7 @@ CREATE TABLE t2 (
   email varchar(50) NOT NULL default '',
   PRIMARY KEY  (id),
   UNIQUE KEY e_n (email,name)
-);
+) charset utf8mb4;
 
 disable_query_log;
 let $1=200;
@@ -179,7 +179,7 @@ SELECT FOUND_ROWS();
 DROP TABLE t1;
 
 #
-# Bug #6089: queries which don't use any tables
+# Bug #6089: queries which do not use any tables
 #
 
 SELECT 'foo';
@@ -216,6 +216,20 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 2 OFFSET 2)
 UNION ALL
 (SELECT 1 FROM t1 WHERE FALSE);
+SELECT FOUND_ROWS();
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #22155786: GET NEGATIVE FOUND_ROWS() FOR UNION STMT
+--echo #
+
+CREATE TABLE t1 (c1 int) ;
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE false LIMIT 8, 1)
+UNION ALL
+(SELECT * FROM t1 LIMIT 4, 4);
 SELECT FOUND_ROWS();
 
 DROP TABLE t1;

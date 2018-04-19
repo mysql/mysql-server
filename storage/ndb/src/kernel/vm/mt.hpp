@@ -1,26 +1,48 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef ndb_mt_hpp
 #define ndb_mt_hpp
 
 #include <kernel_types.h>
 #include <TransporterDefinitions.hpp>
+#include <portlib/NdbTick.h>
+#include <SimulatedBlock.hpp>
 
 #define JAM_FILE_ID 275
 
+
+#define NUM_MAIN_THREADS 2 // except receiver
+/*
+  MAX_BLOCK_THREADS need not include the send threads since it's
+  used to set size of arrays used by all threads that contains a
+  job buffer and executes signals. The send threads only sends
+  messages directed to other nodes and contains no blocks and
+  executes thus no signals.
+*/
+#define MAX_BLOCK_THREADS (NUM_MAIN_THREADS +       \
+                           MAX_NDBMT_LQH_THREADS +  \
+                           MAX_NDBMT_TC_THREADS +   \
+                           MAX_NDBMT_RECEIVE_THREADS)
 
 Uint32 mt_get_instance_count(Uint32 block);
 
@@ -36,6 +58,37 @@ void sendprioa(Uint32 self, const struct SignalHeader *s,
 void senddelay(Uint32 thr_no, const struct SignalHeader*, Uint32 delay);
 void mt_execSTOP_FOR_CRASH();
 
+/**
+ * Interface methods to SimulatedBlock for ndbtmd.
+ */
+void mt_getSendBufferLevel(Uint32 self, NodeId node, SB_LevelType &level);
+Uint32 mt_getSignalsInJBB(Uint32 self);
+NDB_TICKS mt_getHighResTimer(Uint32 self);
+void mt_setNeighbourNode(NodeId node);
+void mt_setWakeupThread(Uint32 self, Uint32 wakeup_instance);
+void mt_setOverloadStatus(Uint32 self,
+                         OverloadStatus new_status);
+void mt_setNodeOverloadStatus(Uint32 self,
+                             OverloadStatus new_status);
+void mt_setSendNodeOverloadStatus(OverloadStatus new_status);
+void mt_getPerformanceTimers(Uint32 self,
+                             Uint64 & micros_sleep,
+                             Uint64 & spin_time,
+                             Uint64 & buffer_full_sleep,
+                             Uint64 & micros_send);
+Uint32 mt_getSpintime(Uint32 self);
+const char *mt_getThreadName(Uint32 self);
+const char *mt_getThreadDescription(Uint32 self);
+void mt_getSendPerformanceTimers(Uint32 send_instance,
+                                 Uint64 & exec_time,
+                                 Uint64 & sleep_time,
+                                 Uint64 & spin_time,
+                                 Uint64 & user_time_os,
+                                 Uint64 & kernel_time_os,
+                                 Uint64 & elapsed_time_os);
+Uint32 mt_getNumSendThreads();
+Uint32 mt_getNumThreads();
+
 SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                           const Uint32 *data, NodeId nodeId,
                           const LinearSectionPtr ptr[3]);
@@ -43,6 +96,10 @@ SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                           const Uint32 *data, NodeId nodeId,
                           class SectionSegmentPool *thePool,
                           const SegmentedSectionPtr ptr[3]);
+
+#ifdef ERROR_INSERT
+void mt_set_delayed_prepare(Uint32 self);
+#endif
 
 /**
  * Lock/unlock pools for long signal section(s)

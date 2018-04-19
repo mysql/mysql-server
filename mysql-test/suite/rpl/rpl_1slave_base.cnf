@@ -2,12 +2,20 @@
 !include include/default_mysqld.cnf
 !include include/default_client.cnf
 
+# Set innodb-write-io-threads and innodb-read-io-threads to 2,
+# instead of the default value 4, so that the aio-max-nr limit is
+# not exceeded when MTR runs rpl tests with parallel 4 or more due
+# to increased number of concurrent mysqld instances.
+
 [mysqld.1]
 
 # Run the master.sh script before starting this process
 #!run-master-sh
 
 log-bin=                 master-bin
+
+loose-innodb_write_io_threads=    2
+loose-innodb_read_io_threads=     2
 
 [mysqld.2]
 # Run the slave.sh script before starting this process
@@ -20,7 +28,9 @@ log-bin=                 master-bin
 log-bin=                    slave-bin
 relay-log=                  slave-relay-bin
 
-log-slave-updates
+loose-innodb_write_io_threads=    2
+loose-innodb_read_io_threads=     2
+
 master-retry-count=         10
 
 # Values reported by slave when it connect to master
@@ -40,7 +50,9 @@ slave-load-tmpdir=          ../../tmp
 [ENV]
 MASTER_MYPORT=              @mysqld.1.port
 MASTER_MYSOCK=              @mysqld.1.socket
+MASTER_X_MYSOCK=            @mysqld.1.loose-mysqlx-socket
 
 SLAVE_MYPORT=               @mysqld.2.port
 SLAVE_MYSOCK=               @mysqld.2.socket
+SLAVE_X_MYSOCK=             @mysqld.2.loose-mysqlx-socket
 

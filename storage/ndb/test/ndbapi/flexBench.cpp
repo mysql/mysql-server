@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -52,7 +59,6 @@ Arguments:
 #include <ndb_global.h>
 #include "NdbApi.hpp"
 
-#include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include <NdbTick.h>
@@ -69,7 +75,7 @@ Arguments:
 #define MAXLONGKEYTOTALSIZE 1023 // words = 4092 bytes
 
 extern "C" { static void* flexBenchThread(void*); }
-static int readArguments(int argc, const char** argv);
+static int readArguments(int argc, char** argv);
 static int createTables(Ndb*);
 static int dropTables(Ndb*);
 static void sleepBeforeStartingTest(int seconds);
@@ -285,7 +291,7 @@ tellThreads(ThreadData* pt, StartType what)
 
 static Ndb_cluster_connection *g_cluster_connection= 0;
 
-NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
+int main(int argc, char** argv)
 {
   ndb_init();
   ThreadData*           pThreadsData;
@@ -374,7 +380,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
       pThreadsData[i].threadNo = i;
       pThreadsData[i].threadLife = NdbThread_Create(flexBenchThread,
                                                     (void**)&pThreadsData[i],
-                                                    32768,
+                                                    64 * 1024,  // 64K stack
                                                     "flexBenchThread",
                                                     NDB_THREAD_PRIO_LOW);
     }
@@ -655,6 +661,16 @@ static void* flexBenchThread(void* pArg)
   for (int tab= 0; tab<(int)tNoOfTables; tab++)
   {
     const NdbDictionary::Table *table= dict->getTable(tableName[tab]);
+    if (table == NULL)
+    {
+      // This is a fatal error, abort program
+      ndbout << "Failed to find table: " << tableName[tab];
+      ndbout << ", in thread: " << threadNo;
+      ndbout << endl;
+      tResult = 1; // Indicate fatal error
+      break;
+    }
+
     int numPKs= (useLongKeys ? tNoOfLongPK : 1);
 
     /* First create NdbRecord for just the primary key(s). */
@@ -1077,7 +1093,7 @@ static void* flexBenchThread(void* pArg)
 }
 
 
-static int readArguments(int argc, const char** argv)
+static int readArguments(int argc, char** argv)
 {
 
   int i = 1;

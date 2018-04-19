@@ -2,18 +2,26 @@
 # WL#6965: Truncate UNDO logs.
 #
 
---source include/have_innodb.inc
---source include/have_undo_tablespaces.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
 
-# The test is restarting the server to force undo truncation.
---source include/not_embedded.inc
+# The test is shutting down the server to force undo truncation.
 --source include/big_test.inc
 
+SET GLOBAL innodb_undo_tablespaces=2;
+SET GLOBAL innodb_rollback_segments=1;
+SET GLOBAL innodb_undo_log_truncate=1;
+SET GLOBAL innodb_max_undo_log_size=10485760;
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+SET GLOBAL innodb_purge_stop_now=ON;
+SET GLOBAL innodb_stats_auto_recalc=OFF;
+SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
 
 ################################################################################
 # Test-case will test following scenarios.
 #
-# 1. Perform enough DML action so that undo tablespace size grows beyond
+# 1. Perform enough DML action so that undo tablespace sizes grow beyond
 #    set threshold and then wait and see if it is being truncated.
 #
 ################################################################################
@@ -26,58 +34,183 @@ let MYSQLD_DATADIR = `select @@datadir`;
 
 #-----------------------------------------------------------------------------
 #
-# 1. Perform enough DML action so that undo tablespace size grows beyond
+# 1. Perform enough DML action so that undo tablespace sizes grow beyond
 #    set threshold and then wait and see if it is being truncated.
 #
-create table t1
-        (keyc int, c1 char(100), c2 char(100),
-         primary key(keyc)) engine = innodb;
+
+# Storing the initial sizes of the tablespaces before DML action
+
+let CHECKFILE = $MYSQLTEST_VARDIR/tmp/check.txt;
+
+perl;
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$ini1)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_001");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$ini2)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_002");
+open(OUT, ">$ENV{CHECKFILE}") || die;
+print OUT "let \$ini1= $ini1;\n";
+print OUT "let \$ini2= $ini2;\n";
+close(OUT);
+EOF
+--source $CHECKFILE
+
+# Start of the first transaction that performs sufficient DML action
+--connect(con1,localhost,root,,test)
+--connection con1
+
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+create table t1(
+  keyc int,
+  c1 char(255),
+  c2 char(255),
+  c3 char(255),
+  c4 char(255),
+  c5 char(255),
+  c6 char(255),
+  primary key(keyc)) engine = innodb;
+
 delimiter |;
 CREATE PROCEDURE populate_t1()
 BEGIN
         DECLARE i INT DEFAULT 1;
-        while (i <= 40000) DO
-                insert into t1 values (i, 'a', 'b');
+        while (i <= 20000) DO
+                insert into t1 values (i, 'a', 'b', 'c', 'd', 'e', 'f' );
                 SET i = i + 1;
         END WHILE;
 END |
 delimiter ;|
+
 begin;
 call populate_t1();
-delete from t1 where keyc < 20000;
-update t1 set c1 = 'mysql' where  keyc > 20000;
-update t1 set c2 = 'oracle' where  keyc > 20000;
-#
+delete from t1 where keyc < 10000;
+update t1 set c1 = 'mysql' where  keyc > 10000;
+update t1 set c2 = 'mysql' where  keyc > 10000;
+update t1 set c3= 'mysql' where keyc > 10000;
+update t1 set c4= 'mysql' where keyc > 10000;
+update t1 set c5= 'mysql' where keyc > 10000;
+update t1 set c6= 'mysql' where keyc > 10000;
+
+# Starting a new transaction for both tablespaces to get utilized
+--connect(con2,localhost,root,,test)
+--connection con2
+
+create table t2 (
+  keyc int,
+  c1 char(255),
+  c2 char(255),
+  c3 char(255),
+  c4 char(255),
+  c5 char(255),
+  c6 char(255),
+  primary key(keyc)) engine = innodb;
+
+delimiter |;
+CREATE PROCEDURE populate_t2()
+BEGIN
+        DECLARE i INT DEFAULT 1;
+        while (i <= 20000) DO
+                insert into t2 values (i, 'a', 'b', 'c', 'd', 'e', 'f' );
+                SET i = i + 1;
+        END WHILE;
+END |
+delimiter ;|
+
+begin;
+call populate_t2();
+delete from t2 where keyc < 10000;
+update t2 set c1 = 'mysql' where  keyc > 10000;
+update t2 set c2 = 'mysql' where  keyc > 10000;
+update t2 set c3= 'mysql' where keyc > 10000;
+update t2 set c4= 'mysql' where keyc > 10000;
+update t2 set c5= 'mysql' where keyc > 10000;
+update t2 set c6= 'mysql' where keyc > 10000;
+
+--connection con2
 commit;
-drop table t1;
+--connection con1
+commit;
+
+--connection default
+
+# Cleanup
 drop PROCEDURE populate_t1;
+drop PROCEDURE populate_t2;
+drop table t1, t2;
+--disconnect con1
+--disconnect con2
 
-let CHECKFILE = $MYSQLTEST_VARDIR/log/check.txt;
+# Creating a file check.txt to record information about tablespace sizes
+let CHECKFILE = $MYSQLTEST_VARDIR/tmp/check.txt;
 
+# Storing the sizes of both tablespaces before server shutdown
 perl;
 ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size1)
-	= stat("$ENV{MYSQLD_DATADIR}/undo001");
+	= stat("$ENV{MYSQLD_DATADIR}/undo_001");
 ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size2)
-	= stat("$ENV{MYSQLD_DATADIR}/undo002");
+	= stat("$ENV{MYSQLD_DATADIR}/undo_002");
 open(OUT, ">$ENV{CHECKFILE}") || die;
-print OUT "let \$size1='$size1,$size2';\n";
+print OUT "let \$size1= $size1;\n";
+print OUT "let \$size2= $size2;\n";
+print OUT "expr \$before= \$size1 + \$size2;\n";
 close(OUT);
 EOF
-SET GLOBAL innodb_fast_shutdown=0;
---source include/restart_mysqld.inc
---source $CHECKFILE
-perl;
-($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size1)
-	= stat("$ENV{MYSQLD_DATADIR}/undo001");
-($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size2)
-	= stat("$ENV{MYSQLD_DATADIR}/undo002");
-open(OUT, ">$ENV{CHECKFILE}") || die;
-print OUT "let \$size2='$size1,$size2';\n";
-close(OUT);
-EOF
+
+SET GLOBAL innodb_purge_run_now=ON;
+
+# Sourcing file check.txt to compare initial sizes with sizes after DML action
+
 --source $CHECKFILE
 
-if ($size1 == $size2)
+if($ini1 == $size1)
 {
-   echo Truncation did not happen: $size1 == $size2;
+   echo Size increase did not happen for undo_001: initial size: $ini1 final size: $size1;
 }
+
+if($ini2 == $size2)
+{
+   echo Size increase did not happen for undo_002: initial size: $ini2 final size: $size2;
+}
+
+
+# Shutting down the server
+SET GLOBAL innodb_fast_shutdown=0;
+--let $shutdown_server_timeout= 300
+--source include/shutdown_mysqld.inc
+
+# Sourcing file check.txt to record information about tablespaces after server shutdown
+--source $CHECKFILE
+
+# Storing the sizes of both tablespaces after server shutdown
+perl;
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size1)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_001");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size2)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_002");
+open(OUT, ">$ENV{CHECKFILE}") || die;
+print OUT "let \$size4= $size1;\n";
+print OUT "let \$size5= $size2;\n";
+print OUT "expr \$after= \$size4 + \$size5;\n";
+close(OUT);
+EOF
+
+# Sourcing the file to check whether truncation happened
+--source $CHECKFILE
+
+# Checking the sizes before and after the server shutdown
+if ($size4 > $size1)
+{
+   echo Truncation did not happen for undo_001: initial size: $size1 final size: $size4;
+   echo Before shutdown: $before;
+   echo After shutdown: $after;
+}
+
+if ($size5 > $size2)
+{
+   echo Truncation did not happen for undo_002: initial size: $size2 final size: $size5;
+   echo Before shutdown: $before;
+   echo After shutdown: $after;
+}
+
+--let $restart_parameters=
+--source include/start_mysqld.inc
+--remove_file $CHECKFILE

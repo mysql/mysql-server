@@ -1,0 +1,17 @@
+SET GLOBAL group_replication_group_name= "8a84f357-aaa4-10df-85ab-c70aa9429562";
+include/assert.inc [The value of channel name should be group_replication_applier]
+include/assert.inc [The value of member_id should be empty before starting group replication]
+include/assert.inc [The value of member_host should be empty before starting group replication]
+include/assert.inc [The value of member_port should be NULL before starting group replication]
+include/assert.inc [The value of member_state should be offline before starting group replication]
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [The value of channel name should be group_replication_applier]
+include/assert.inc [The value of member_id should be equal to server uuid after starting group replication]
+include/assert.inc [The value of member_host should not be empty after starting group replication]
+include/assert.inc [The value of member_port should not be NULL after starting group replication]
+include/assert.inc [The value of member_state should be online after starting group replication]
+include/stop_group_replication.inc
+include/assert.inc [The value of channel name should be group_replication_applier]
+include/assert.inc [The value of member_state should be offline after stoping group replication]
+# restart
+include/assert.inc [The value of member_state should be offline after restarting server]

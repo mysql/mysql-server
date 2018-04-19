@@ -3,17 +3,17 @@ set @save_master_verify_checksum = @@global.master_verify_checksum;
 set @@global.binlog_checksum = CRC32;
 set @@global.master_verify_checksum = 1;
 reset master;
-must be master-bin.000001 
+must be binlog.000001
 show binary logs;
 Log_name	File_size
-master-bin.000001	#
+binlog.000001	#
 create table t1 (a int);
 flush logs;
 drop table t1;
 RESET MASTER;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)
+binlog.000001	#	Query	#	#	use `test`; create table t1 (a int)
 show tables;
 Tables_in_test
 t1

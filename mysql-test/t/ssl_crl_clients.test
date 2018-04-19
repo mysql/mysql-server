@@ -1,6 +1,4 @@
-# This test should work in embedded server after we fix mysqltest
--- source include/not_embedded.inc
--- source include/have_ssl_communication.inc
+-- source include/have_ssl.inc
 -- source include/have_openssl.inc
 
 let $crllen=`select length(trim(coalesce(@@ssl_crl, ''))) + length(trim(coalesce(@@ssl_crlpath, '')))`;
@@ -21,12 +19,12 @@ let $ssl_crlpath = $ssl_base --ssl-crlpath=$MYSQL_TEST_DIR/std_data/crldir;
 --echo # Test mysql connecting to a server with a certificate revoked by -crl
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --error 1
---exec $MYSQL $ssl_crl test -e "SHOW VARIABLES like '%ssl%';"
+--exec $MYSQL $ssl_crl --ssl-mode=VERIFY_CA test -e "SHOW VARIABLES like '%ssl%';"
 
 --echo # Test mysql connecting to a server with a certificate revoked by -crlpath
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --error 1
---exec $MYSQL $ssl_crlpath test -e "SHOW VARIABLES like '%ssl%';"
+--exec $MYSQL $ssl_crlpath --ssl-mode=VERIFY_CA test -e "SHOW VARIABLES like '%ssl%';"
 
 
 --echo ############ Test mysqladmin ##############
@@ -37,12 +35,12 @@ let $admin_suffix = --default-character-set=latin1 -S $MASTER_MYSOCK -P $MASTER_
 --disable_result_log
 --replace_regex /.*mysqladmin.*: connect/mysqladmin: connect/
 --error 1
---exec $MYSQLADMIN $admin_prefix $ssl_crl $admin_suffix 2>&1
+--exec $MYSQLADMIN $admin_prefix $ssl_crl $admin_suffix --ssl-mode=VERIFY_CA 2>&1
 --enable_result_log
 
 --disable_result_log
 --echo # Test mysqladmin connecting to a server with a certificate revoked by -crlpath
 --replace_regex /.*mysqladmin.*: connect/mysqladmin: connect/
 --error 1
---exec $MYSQLADMIN $admin_prefix $ssl_crlpath $admin_suffix 2>&1
+--exec $MYSQLADMIN $admin_prefix $ssl_crlpath $admin_suffix --ssl-mode=VERIFY_CA 2>&1
 --enable_result_log

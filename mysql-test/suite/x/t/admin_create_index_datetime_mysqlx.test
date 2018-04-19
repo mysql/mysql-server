@@ -1,0 +1,93 @@
+## generated
+## Index of time related types
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+
+--let $xtest_file_create= $MYSQL_TMP_DIR/admin_create_index_datetime_mysqlx.tmp
+--write_file $xtest_file_create
+-->quiet
+## Test data
+
+-->stmtadmin create_collection	{"schema":"xtest", "name":"dt"}
+-->recvresult
+
+
+-->macro Insert  %VALUE%
+Mysqlx.Crud.Insert {
+  collection {
+    name: "dt"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: %VALUE%
+        }
+      }
+    }
+  }
+}
+-->recvresult
+-->endmacro
+
+
+-->macro Create_index  %INDEX%  %UNIQUE%  %DOCUMENT_PATH%  %TYPE%  %REQUIRED%  %ERROR%
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"dt", "name": %INDEX%, "unique": %UNIQUE%, "constraint":{"member": %DOCUMENT_PATH%, "type": %TYPE%,"required": %REQUIRED%}}
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+
+-->callmacro Insert	'{"_id": "1", "data": {"datetime": "1976-02-25T01:12:34", "date":"2015-05-27", "time":"10:36:00"}}'
+-->callmacro Insert	'{"_id": "2", "data": {"datetime": "2010-03-25T12:02:00", "date":"2014-05-27", "time":"11:36:00"}}'
+-->callmacro Insert	'{"_id": "3", "data": {"datetime": "2013-04-05T03:00:34", "date":"2013-05-27", "time":"12:36:00"}}'
+-->callmacro Insert	'{"_id": "4", "data": {"datetime": "1982-12-10T03:12:34", "date":"2012-05-27", "time":"13:36:00"}}'
+
+
+-->callmacro Create_index "datetime"	false	"$.data.datetime"	"DATETIME"	false	0
+-->callmacro Create_index	"time"	false	"$.data.time"	"TIME"	true	0
+-->callmacro Create_index	"date"	true	"$.data.date"	"DATE"	false	0
+
+-->stmtsql SHOW INDEX FROM xtest.dt;
+-->recvresult Table Non_unique Key_name Column_name Null
+EOF
+
+
+
+--let $xtest_file_drop= $MYSQL_TMP_DIR/admin_drop_index_datetime_mysqlx.tmp
+--write_file $xtest_file_drop
+-->quiet
+## Test data
+
+-->macro Drop_index  %INDEX%  %ERROR%
+-->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"dt", "name": %INDEX%}
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+
+-->callmacro Drop_index	"datetime"	0
+-->callmacro Drop_index	"time"	0
+-->callmacro Drop_index	"PRIMARY"	0
+-->callmacro Drop_index	""	5013
+-->callmacro Drop_index	"timedate"	1091
+
+-->stmtsql SHOW INDEX FROM xtest.dt;
+-->recvresult Table Non_unique Key_name Column_name Null
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file_create 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file_drop 2>&1
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $xtest_file_create
+--remove_file $xtest_file_drop
+--source include/xplugin_drop_user.inc

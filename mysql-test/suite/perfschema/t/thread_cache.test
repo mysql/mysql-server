@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 #
 # Important note:
 # this test is extremely sensitive to how threads are running inside the server,

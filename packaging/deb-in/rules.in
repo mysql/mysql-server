@@ -1,0 +1,108 @@
+#!/usr/bin/make -f
+
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+%:
+	dh $@
+
+export DH_VERBOSE=1
+export CFLAGS=
+export CXXFLAGS=
+
+override_dh_auto_configure:
+	@echo "RULES.$@"
+
+	@DEB_RULES_DEBUG_CMAKE@
+
+	mkdir release && cd release && \
+	cmake .. \
+		-DBUILD_CONFIG=mysql_release \
+		-DCMAKE_INSTALL_PREFIX=/usr \
+		-DINSTALL_INCLUDEDIR=include/mysql \
+		-DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \
+		-DINSTALL_MANDIR=share/man \
+		-DINSTALL_MYSQLTESTDIR=lib/mysql-test \
+		-DINSTALL_PLUGINDIR=lib/mysql/plugin \
+		-DINSTALL_SBINDIR=sbin \
+		-DSYSCONFDIR=/etc/mysql \
+		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
+		-DWITH_SSL=bundled \
+		-DWITH_INNODB_MEMCACHED=1 \
+		-DWITH_MECAB=system \
+		-DWITH_NUMA=ON \
+		-DCOMPILATION_COMMENT="MySQL @DEB_PRODUCTNAMEC@ Server - @DEB_LICENSENAME@" \
+		-DINSTALL_LAYOUT=DEB \
+		-DDEB_PRODUCT=@DEB_PRODUCT@ \
+		@DEB_CMAKE_EXTRAS@
+
+	touch $@
+
+override_dh_auto_build:
+	@echo "RULES.$@"
+	@DEB_RULES_DEBUG_MAKE@
+	cd release && \
+	$(MAKE) -j8 VERBOSE=1
+	touch $@
+
+override_dh_auto_test:
+	@echo "RULES.$@"
+	export CTEST_OUTPUT_ON_FAILURE=1
+	cd release && \
+	make test || true
+	touch $@
+
+@DEB_RULES_STRIP@
+
+override_dh_auto_install:
+
+	@echo "RULES.$@"
+	# complete install first
+	cd release && \
+	$(MAKE) install DESTDIR=../debian/tmp
+	@DEB_RULES_DEBUG_EXTRA@
+	# Add helper functions for maintainer scripts
+	install -m 0644 debian/extra/mysql-helpers debian/tmp/usr/share/mysql-@MYSQL_BASE_VERSION@/
+	# add apparmor profile
+	@DEB_RULES_INSTALL_APPARMOR@
+	# add systemd script
+	@DEB_RULES_INSTALL_SYSTEMD@
+	touch $@
+
+override_dh_installinit:
+	@echo "RULES.$@"
+	@DEB_RULES_APPARMOR_LOAD@
+	@DEB_RULES_SYSTEMD_ENABLE@
+	dh_installinit --name=mysql -- defaults 19 21
+	dh_installinit --name=mysql@ -- disable
+	@DEB_RULES_SYSTEMD_START@
+	touch $@
+
+override_dh_install:
+	dh_install --fail-missing \
+		-Xusr/bin/i_mysql_client_test \
+		-Xusr/share/mysql-@MYSQL_BASE_VERSION@/mysql.server \
+		-Xusr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE-test \
+		-Xusr/share/mysql-@MYSQL_BASE_VERSION@/README-test \
+		-Xusr/share/mysql-@MYSQL_BASE_VERSION@/docs/mysql.info \
+		-Xusr/share/mysql-@MYSQL_BASE_VERSION@/docs/ChangeLog \
+		-Xusr/share/man/man1/mysqlman.1

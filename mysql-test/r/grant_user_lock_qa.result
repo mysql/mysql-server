@@ -6,7 +6,7 @@ SELECT host,user,plugin,authentication_string,account_locked
 FROM mysql.user WHERE USER='user1';
 host	%
 user	user1
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 account_locked	N
 SELECT USER();
@@ -17,13 +17,13 @@ SELECT host,user,plugin,authentication_string,account_locked
 FROM mysql.user WHERE USER='user1';
 host	%
 user	user1
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 account_locked	N
 
 SHOW CREATE USER user1;
 CREATE USER for user1@%
-CREATE USER 'user1'@'%' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'user1'@'%' IDENTIFIED WITH '<default_authentication_plugin>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT USER();
 USER()
 user1@localhost
@@ -32,7 +32,7 @@ SELECT host,user,plugin,authentication_string,account_locked
 FROM mysql.user WHERE USER='user2';
 host	localhost
 user	user2
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 account_locked	N
 # Current user ACCOUNT LOCK within own running session.
@@ -57,33 +57,25 @@ SELECT host,user,plugin,authentication_string,account_locked
 FROM mysql.user WHERE USER='user2';
 host	localhost
 user	user2
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 account_locked	Y
 connect(localhost,user2,auth_string,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Access denied for user 'user2'@'localhost'. Account is locked.
-CREATE USER 'user8'@'localhost'
-            IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER 'user8'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
             ACCOUNT UNLOCK;
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 ALTER USER 'user8'@'localhost' ACCOUNT LOCK PASSWORD EXPIRE NEVER;
-CREATE USER 'user9'@'localhost'
-            IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER 'user9'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
             ACCOUNT LOCK;
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
-CREATE USER 'user10'@'localhost'
-            IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER 'user10'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
             PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 ALTER USER 'user10'@'localhost' PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
-CREATE USER 'user11'@'localhost'
-            IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER 'user11'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
             ACCOUNT LOCK PASSWORD EXPIRE NEVER;
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 ALTER USER 'user11'@'localhost' PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
 CREATE USER ACCOUNT UNLOCK user5@localhost;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNLOCK user5@localhost' at line 1
@@ -101,7 +93,7 @@ SELECT host,user,plugin,authentication_string,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='user3';
 host	%
 user	user3
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 password_expired	N
 password_lifetime	NULL
@@ -110,7 +102,7 @@ SELECT host,user,plugin,authentication_string,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='user4';
 host	localhost
 user	user4
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 password_expired	N
 password_lifetime	NULL
@@ -120,7 +112,7 @@ SELECT host,user,plugin,authentication_string,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='user3';
 host	%
 user	user3
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 password_expired	N
 password_lifetime	NULL
@@ -129,7 +121,7 @@ SELECT host,user,plugin,authentication_string,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='user4';
 host	localhost
 user	user4
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 password_expired	N
 password_lifetime	NULL
@@ -138,7 +130,7 @@ SHOW STATUS LIKE 'locked_connects';
 Variable_name	Value
 Locked_connects	2
 FLUSH STATUS;
-SELECT * FROM INFORMATION_SCHEMA.user_privileges WHERE GRANTEE LIKE '%user%';
+SELECT * FROM INFORMATION_SCHEMA.user_privileges WHERE GRANTEE LIKE '%user%' AND GRANTEE NOT IN ("'mysql.session'@'localhost'");
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'user2'@'localhost'	def	CREATE USER	NO
 'user8'@'localhost'	def	USAGE	NO
@@ -158,7 +150,7 @@ CREATE USER u1@localhost ACCOUNT LOCK;
 SELECT user,plugin,authentication_string,account_locked
 FROM mysql.user WHERE USER='u1';
 user	u1
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 account_locked	Y
 connect(localhost,u1,,test,MASTER_PORT,MASTER_SOCKET);
@@ -167,7 +159,7 @@ ALTER USER u1@localhost;
 SELECT user,plugin,authentication_string,account_locked
 FROM mysql.user WHERE USER='u1';
 user	u1
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 account_locked	Y
 connect(localhost,u1,,test,MASTER_PORT,MASTER_SOCKET);
@@ -176,7 +168,7 @@ CREATE USER u2@localhost IDENTIFIED BY 'auth_string' ACCOUNT LOCK;
 SELECT user,plugin,authentication_string,account_locked
 FROM mysql.user WHERE USER='u2';
 user	u2
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 account_locked	Y
 connect(localhost,u2,auth_string,test,MASTER_PORT,MASTER_SOCKET);
@@ -184,7 +176,7 @@ ERROR HY000: Access denied for user 'u2'@'localhost'. Account is locked.
 
 SHOW CREATE USER u2@localhost;
 CREATE USER for u2@localhost
-CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT LOCK
+CREATE USER 'u2'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # Recreating user using SHOW CREATE USER output for u2@localhost
 DROP USER u2@localhost;
 CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password'
@@ -196,7 +188,7 @@ ALTER USER u2@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
 SELECT user,plugin,authentication_string,account_locked
 FROM mysql.user WHERE USER='u2';
 user	u2
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 account_locked	N
 SELECT USER();
@@ -204,7 +196,7 @@ USER()
 u2@localhost
 SHOW CREATE USER u2@localhost;
 CREATE USER for u2@localhost
-CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u2'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u3@localhost IDENTIFIED WITH 'sha256_password'
                          ACCOUNT UNLOCK ACCOUNT LOCK;
 SELECT user,plugin,authentication_string,password_expired,
@@ -218,7 +210,7 @@ account_locked	Y
 
 SHOW CREATE USER u3@localhost;
 CREATE USER for u3@localhost
-CREATE USER 'u3'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT LOCK
+CREATE USER 'u3'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 connect(localhost,u3,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Access denied for user 'u3'@'localhost'. Account is locked.
 ALTER USER u3@localhost IDENTIFIED WITH 'sha256_password'
@@ -232,12 +224,12 @@ password_expired	Y
 password_lifetime	NULL
 account_locked	N
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 SET PASSWORD = 'def';
 
 SHOW CREATE USER u3@localhost;
 CREATE USER for u3@localhost
-CREATE USER 'u3'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u3'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
                          PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
 SELECT user,plugin,authentication_string,password_expired,
@@ -261,12 +253,12 @@ account_locked	N
 
 SHOW CREATE USER u4@localhost;
 CREATE USER for u4@localhost
-CREATE USER 'u4'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u4'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT USER();
 USER()
 u4@localhost
 
-CREATE USER user4@localhost IDENTIFIED WITH 'sha256_password' AS 'auth_string'
+CREATE USER user4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
 ACCOUNT LOCK PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD EXPIRE INTERVAL 90 DAY;
 SELECT user,plugin,authentication_string,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='user4';
@@ -276,10 +268,8 @@ authentication_string	#
 password_expired	N
 password_lifetime	90
 account_locked	N
-CREATE USER user5@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user5@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                             ACCOUNT UNLOCK PASSWORD EXPIRE NEVER;
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 SELECT USER();
 USER()
 user5@localhost
@@ -297,7 +287,7 @@ account_locked	Y
 
 SHOW CREATE USER user6@localhost;
 CREATE USER for user6@localhost
-CREATE USER 'user6'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE PASSWORD EXPIRE NEVER ACCOUNT LOCK
+CREATE USER 'user6'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE PASSWORD EXPIRE NEVER ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 connect(localhost,user6,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Access denied for user 'user6'@'localhost'. Account is locked.
 ALTER USER user6@localhost IDENTIFIED WITH 'mysql_native_password'
@@ -311,7 +301,7 @@ password_expired	Y
 password_lifetime	0
 account_locked	N
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 
 CREATE USER user7@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y'
             PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
@@ -326,7 +316,7 @@ account_locked	N
 
 SHOW CREATE USER user7@localhost;
 CREATE USER for user7@localhost
-CREATE USER 'user7'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
+CREATE USER 'user7'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*1643D320B9787E87A3C6CE2C953B9E4FDBC048BC' REQUIRE NONE PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT USER();
 USER()
 user7@localhost
@@ -360,7 +350,7 @@ account_locked	N
 
 SHOW CREATE USER user8@localhost;
 CREATE USER for user8@localhost
-CREATE USER 'user8'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
+CREATE USER 'user8'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE NONE PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT USER();
 USER()
 user8@localhost
@@ -375,7 +365,7 @@ password_expired	Y
 password_lifetime	0
 account_locked	N
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 SET PASSWORD='auth_string';
 SELECT USER();
 USER()
@@ -385,7 +375,7 @@ CREATE USER u5@localhost REQUIRE SSL ACCOUNT LOCK PASSWORD EXPIRE;
 SELECT user,plugin,authentication_string,ssl_type,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u5';
 user	u5
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 ssl_type	ANY
 password_expired	Y
@@ -394,19 +384,18 @@ account_locked	Y
 
 SHOW CREATE USER u5@localhost;
 CREATE USER for u5@localhost
-CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SSL PASSWORD EXPIRE ACCOUNT LOCK
+CREATE USER 'u5'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' REQUIRE SSL PASSWORD EXPIRE ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 connect(localhost,u5,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Access denied for user 'u5'@'localhost'. Account is locked.
 ALTER USER u5@localhost REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK;
 SELECT USER();
-USER()
-u5@localhost
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509
 ACCOUNT LOCK PASSWORD EXPIRE PASSWORD EXPIRE NEVER;
 SELECT user,plugin,authentication_string,ssl_type,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u6';
 user	u6
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 ssl_type	X509
 password_expired	N
@@ -415,23 +404,23 @@ account_locked	Y
 
 SHOW CREATE USER u6@localhost;
 CREATE USER for u6@localhost
-CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>' REQUIRE X509 PASSWORD EXPIRE NEVER ACCOUNT LOCK
+CREATE USER 'u6'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE X509 PASSWORD EXPIRE NEVER ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 connect(localhost,u6,auth_string,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Access denied for user 'u6'@'localhost'. Account is locked.
 ALTER USER u6@localhost ACCOUNT UNLOCK;
 SELECT user,plugin,authentication_string,ssl_type,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u6';
 user	u6
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 ssl_type	X509
 password_expired	N
-password_lifetime	NULL
+password_lifetime	0
 account_locked	N
 
 SHOW CREATE USER u6@localhost;
 CREATE USER for u6@localhost
-CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>' REQUIRE X509 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u6'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE X509 PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT USER();
 USER()
 u6@localhost
@@ -453,7 +442,7 @@ account_locked	N
 
 SHOW CREATE USER u7@localhost;
 CREATE USER for u7@localhost
-CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
+CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT USER();
 USER()
 u7@localhost
@@ -474,7 +463,7 @@ account_locked	Y
 
 SHOW CREATE USER u7@localhost;
 CREATE USER for u7@localhost
-CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE ACCOUNT LOCK
+CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 connect(localhost,u7,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Access denied for user 'u7'@'localhost'. Account is locked.
 CREATE USER u8@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
@@ -495,7 +484,7 @@ account_locked	N
 
 SHOW CREATE USER u8@localhost;
 CREATE USER for u8@localhost
-CREATE USER 'u8'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
+CREATE USER 'u8'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT USER();
 USER()
 u8@localhost
@@ -522,7 +511,7 @@ REQUIRE SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
 SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u9';
 user	u9
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 ssl_type	SPECIFIED
 ssl_cipher	
@@ -544,12 +533,12 @@ ssl_cipher
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 password_expired	N
-password_lifetime	NULL
+password_lifetime	0
 account_locked	N
 
 SHOW CREATE USER u9@localhost;
 CREATE USER for u9@localhost
-CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT USER();
 USER()
 u9@localhost
@@ -573,7 +562,7 @@ account_locked	N
 
 SHOW CREATE USER u10@localhost;
 CREATE USER for u10@localhost
-CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT USER();
 USER()
 u10@localhost
@@ -582,7 +571,7 @@ ALTER USER u10@localhost REQUIRE CIPHER "DHE-RSA-AES256-SHA"
 SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u10';
 user	u10
-plugin	sha256_password
+plugin	#
 authentication_string	#
 ssl_type	SPECIFIED
 ssl_cipher	DHE-RSA-AES256-SHA
@@ -594,14 +583,14 @@ account_locked	Y
 
 SHOW CREATE USER u10@localhost;
 CREATE USER for u10@localhost
-CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE DEFAULT ACCOUNT LOCK
+CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 connect(localhost,u10,auth_string#y,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Access denied for user 'u10'@'localhost'. Account is locked.
 CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2 ACCOUNT LOCK;
 SELECT user,plugin,authentication_string,max_questions,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u11';
 user	u11
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 max_questions	2
 password_expired	N
@@ -610,14 +599,14 @@ account_locked	Y
 
 SHOW CREATE USER u11@localhost;
 CREATE USER for u11@localhost
-CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT LOCK
+CREATE USER 'u11'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 connect(localhost,u11,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Access denied for user 'u11'@'localhost'. Account is locked.
 ALTER USER u11@localhost WITH MAX_QUERIES_PER_HOUR 6 ACCOUNT UNLOCK ACCOUNT UNLOCK;
 SELECT user,plugin,authentication_string,max_questions,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u11';
 user	u11
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 max_questions	6
 password_expired	N
@@ -626,14 +615,14 @@ account_locked	N
 
 SHOW CREATE USER u11@localhost;
 CREATE USER for u11@localhost
-CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 6 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u11'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 6 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 DROP USER u11@localhost;
 CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'mysql_native_password'
 REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 6 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK;
 SELECT user,plugin,authentication_string,max_questions,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u11';
 user	u11
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 max_questions	6
 password_expired	N
@@ -648,7 +637,7 @@ ACCOUNT LOCK PASSWORD EXPIRE NEVER PASSWORD EXPIRE ACCOUNT UNLOCK;
 SELECT user,plugin,authentication_string,max_questions,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u12';
 user	u12
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 max_questions	4
 password_expired	Y
@@ -657,9 +646,9 @@ account_locked	N
 
 SHOW CREATE USER u12@localhost;
 CREATE USER for u12@localhost
-CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 4 PASSWORD EXPIRE ACCOUNT UNLOCK
+CREATE USER 'u12'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 4 PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER USER() IDENTIFIED BY 'abc';
 SELECT USER();
 USER()
@@ -667,7 +656,7 @@ u12@localhost
 SELECT user,plugin,authentication_string,max_questions,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u12';
 user	u12
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 max_questions	4
 password_expired	N
@@ -679,7 +668,7 @@ ACCOUNT LOCK ACCOUNT LOCK ACCOUNT UNLOCK;
 SELECT user,plugin,authentication_string,max_questions,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u12';
 user	u12
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 max_questions	4
 password_expired	N
@@ -688,7 +677,7 @@ account_locked	N
 
 SHOW CREATE USER u12@localhost;
 CREATE USER for u12@localhost
-CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*0D3CED9BEC10A777AEC23CCC353A8C08A633045E' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 4 PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
+CREATE USER 'u12'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 4 PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT USER();
 USER()
 u12@localhost
@@ -718,7 +707,7 @@ account_locked	N
 
 SHOW CREATE USER u13@localhost;
 CREATE USER for u13@localhost
-CREATE USER 'u13'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE WITH MAX_CONNECTIONS_PER_HOUR 2 PASSWORD EXPIRE INTERVAL 20 DAY ACCOUNT UNLOCK
+CREATE USER 'u13'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE WITH MAX_CONNECTIONS_PER_HOUR 2 PASSWORD EXPIRE INTERVAL 20 DAY ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT USER();
 USER()
 u13@localhost
@@ -763,7 +752,7 @@ account_locked	N
 
 SHOW CREATE USER u14@localhost;
 CREATE USER for u14@localhost
-CREATE USER 'u14'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' WITH MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE INTERVAL 999 DAY ACCOUNT UNLOCK
+CREATE USER 'u14'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' WITH MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE INTERVAL 999 DAY ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT USER();
 USER()
 u14@localhost
@@ -774,13 +763,13 @@ u17@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
 SELECT user,plugin,authentication_string,account_locked
 FROM mysql.user WHERE USER='u15';
 user	u15
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 account_locked	N
 SELECT user,plugin,authentication_string,account_locked
 FROM mysql.user WHERE USER='u16';
 user	u16
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 account_locked	N
 SELECT user,plugin,authentication_string,account_locked
@@ -811,7 +800,7 @@ SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,max_questions,max_user_connections,password_expired,password_lifetime,
 account_locked FROM mysql.user WHERE USER='u18';
 user	u18
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 ssl_type	SPECIFIED
 ssl_cipher	
@@ -826,7 +815,7 @@ SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,max_questions,max_user_connections,password_expired,password_lifetime,
 account_locked FROM mysql.user WHERE USER='u19';
 user	u19
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 ssl_type	SPECIFIED
 ssl_cipher	
@@ -923,7 +912,7 @@ SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,max_questions,max_user_connections,password_expired,password_lifetime,
 account_locked FROM mysql.user WHERE USER='u18';
 user	u18
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 ssl_type	SPECIFIED
 ssl_cipher	DHE-RSA-AES256-SHA
@@ -938,7 +927,7 @@ SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,max_questions,max_user_connections,password_expired,password_lifetime,
 account_locked FROM mysql.user WHERE USER='u19';
 user	u19
-plugin	mysql_native_password
+plugin	#
 authentication_string	#
 ssl_type	SPECIFIED
 ssl_cipher	DHE-RSA-AES256-SHA
@@ -1016,12 +1005,12 @@ SELECT USER();
 USER()
 u19@localhost
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 SELECT USER();
 USER()
 u21@localhost
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 SELECT USER();
 USER()
 u23@localhost

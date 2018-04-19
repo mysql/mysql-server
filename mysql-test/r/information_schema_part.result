@@ -1,4 +1,7 @@
 drop table if exists t1,t2,t3,t4;
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=InnoDB;
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd' ENGINE=InnoDB;
+CREATE TABLESPACE ts3 ADD DATAFILE 'ts3.ibd' ENGINE=InnoDB;
 create table t1 (a int not null,b int not null,c int not null, primary key(a,b))
 partition by list (b*a)
 (partition x1 values in (1) tablespace ts1,
@@ -7,9 +10,9 @@ partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
 select * from information_schema.partitions where table_schema="test"
 and table_name="t1";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	SUBPARTITION_NAME	PARTITION_ORDINAL_POSITION	SUBPARTITION_ORDINAL_POSITION	PARTITION_METHOD	SUBPARTITION_METHOD	PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION	PARTITION_DESCRIPTION	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	PARTITION_COMMENT	NODEGROUP	TABLESPACE_NAME
-def	test	t1	x1	NULL	1	NULL	LIST	NULL	b*a	NULL	1	0	0	0	#	1024	0	#	#	NULL	NULL		default	ts1
-def	test	t1	x2	NULL	2	NULL	LIST	NULL	b*a	NULL	3,11,5,7	0	0	0	#	1024	0	#	#	NULL	NULL		default	ts2
-def	test	t1	x3	NULL	3	NULL	LIST	NULL	b*a	NULL	16,8,24,27	0	0	0	#	1024	0	#	#	NULL	NULL		default	ts3
+def	test	t1	x1	NULL	1	NULL	LIST	NULL	(`b` * `a`)	NULL	1	0	0	16384	#	0	0	#	#	NULL	NULL		default	ts1
+def	test	t1	x2	NULL	2	NULL	LIST	NULL	(`b` * `a`)	NULL	3,11,5,7	0	0	16384	#	0	0	#	#	NULL	NULL		default	ts2
+def	test	t1	x3	NULL	3	NULL	LIST	NULL	(`b` * `a`)	NULL	16,8,24,27	0	0	16384	#	0	0	#	#	NULL	NULL		default	ts3
 create table t2 (a int not null,b int not null,c int not null, primary key(a,b))
 partition by range (a)
 partitions 3
@@ -19,58 +22,60 @@ partition x3 values less than maxvalue tablespace ts3);
 select * from information_schema.partitions where table_schema="test"
 and table_name="t2";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	SUBPARTITION_NAME	PARTITION_ORDINAL_POSITION	SUBPARTITION_ORDINAL_POSITION	PARTITION_METHOD	SUBPARTITION_METHOD	PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION	PARTITION_DESCRIPTION	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	PARTITION_COMMENT	NODEGROUP	TABLESPACE_NAME
-def	test	t2	x1	NULL	1	NULL	RANGE	NULL	a	NULL	5	0	0	0	#	1024	0	#	#	NULL	NULL		default	ts1
-def	test	t2	x2	NULL	2	NULL	RANGE	NULL	a	NULL	10	0	0	0	#	1024	0	#	#	NULL	NULL		default	ts2
-def	test	t2	x3	NULL	3	NULL	RANGE	NULL	a	NULL	MAXVALUE	0	0	0	#	1024	0	#	#	NULL	NULL		default	ts3
+def	test	t2	x1	NULL	1	NULL	RANGE	NULL	`a`	NULL	5	0	0	16384	#	0	0	#	#	NULL	NULL		default	ts1
+def	test	t2	x2	NULL	2	NULL	RANGE	NULL	`a`	NULL	10	0	0	16384	#	0	0	#	#	NULL	NULL		default	ts2
+def	test	t2	x3	NULL	3	NULL	RANGE	NULL	`a`	NULL	MAXVALUE	0	0	16384	#	0	0	#	#	NULL	NULL		default	ts3
 create table t3 (f1 date)
 partition by hash(month(f1))
 partitions 3;
 select * from information_schema.partitions where table_schema="test"
 and table_name="t3";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	SUBPARTITION_NAME	PARTITION_ORDINAL_POSITION	SUBPARTITION_ORDINAL_POSITION	PARTITION_METHOD	SUBPARTITION_METHOD	PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION	PARTITION_DESCRIPTION	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	PARTITION_COMMENT	NODEGROUP	TABLESPACE_NAME
-def	test	t3	p0	NULL	1	NULL	HASH	NULL	month(f1)	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL		default	NULL
-def	test	t3	p1	NULL	2	NULL	HASH	NULL	month(f1)	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL		default	NULL
-def	test	t3	p2	NULL	3	NULL	HASH	NULL	month(f1)	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL		default	NULL
+def	test	t3	p0	NULL	1	NULL	HASH	NULL	month(`f1`)	NULL	NULL	0	0	16384	#	0	0	#	#	NULL	NULL		default	NULL
+def	test	t3	p1	NULL	2	NULL	HASH	NULL	month(`f1`)	NULL	NULL	0	0	16384	#	0	0	#	#	NULL	NULL		default	NULL
+def	test	t3	p2	NULL	3	NULL	HASH	NULL	month(`f1`)	NULL	NULL	0	0	16384	#	0	0	#	#	NULL	NULL		default	NULL
 create table t4 (f1 date, f2 int)
 partition by key(f1,f2)
 partitions 3;
 select * from information_schema.partitions where table_schema="test"
 and table_name="t4";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	SUBPARTITION_NAME	PARTITION_ORDINAL_POSITION	SUBPARTITION_ORDINAL_POSITION	PARTITION_METHOD	SUBPARTITION_METHOD	PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION	PARTITION_DESCRIPTION	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	PARTITION_COMMENT	NODEGROUP	TABLESPACE_NAME
-def	test	t4	p0	NULL	1	NULL	KEY	NULL	`f1`,`f2`	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL		default	NULL
-def	test	t4	p1	NULL	2	NULL	KEY	NULL	`f1`,`f2`	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL		default	NULL
-def	test	t4	p2	NULL	3	NULL	KEY	NULL	`f1`,`f2`	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL		default	NULL
+def	test	t4	p0	NULL	1	NULL	KEY	NULL	`f1`,`f2`	NULL	NULL	0	0	16384	#	0	0	#	#	NULL	NULL		default	NULL
+def	test	t4	p1	NULL	2	NULL	KEY	NULL	`f1`,`f2`	NULL	NULL	0	0	16384	#	0	0	#	#	NULL	NULL		default	NULL
+def	test	t4	p2	NULL	3	NULL	KEY	NULL	`f1`,`f2`	NULL	NULL	0	0	16384	#	0	0	#	#	NULL	NULL		default	NULL
 drop table t1,t2,t3,t4;
+CREATE TABLESPACE tbsp1 ADD DATAFILE 't1.ibd' ENGINE=InnoDB;
+CREATE TABLESPACE tbsp2 ADD DATAFILE 't2.ibd' ENGINE=InnoDB;
 create table t1 (a int not null,b int not null,c int not null,primary key (a,b))
 partition by range (a)
 subpartition by hash (a+b)
 ( partition x1 values less than (1)
-( subpartition x11 tablespace t1,
-subpartition x12 tablespace t2),
+( subpartition x11 tablespace tbsp1,
+subpartition x12 tablespace tbsp2),
 partition x2 values less than (5)
-( subpartition x21 tablespace t1,
-subpartition x22 tablespace t2)
+( subpartition x21 tablespace tbsp1,
+subpartition x22 tablespace tbsp2)
 );
 create table t2 (a int not null,b int not null,c int not null,primary key (a,b))
 partition by range (a)
 subpartition by key (a)
 ( partition x1 values less than (1)
-( subpartition x11 tablespace t1,
-subpartition x12 tablespace t2),
+( subpartition x11 tablespace tbsp1,
+subpartition x12 tablespace tbsp2),
 partition x2 values less than (5)
-( subpartition x21 tablespace t1,
-subpartition x22 tablespace t2)
+( subpartition x21 tablespace tbsp1,
+subpartition x22 tablespace tbsp2)
 );
 select * from information_schema.partitions where table_schema="test";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	SUBPARTITION_NAME	PARTITION_ORDINAL_POSITION	SUBPARTITION_ORDINAL_POSITION	PARTITION_METHOD	SUBPARTITION_METHOD	PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION	PARTITION_DESCRIPTION	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	PARTITION_COMMENT	NODEGROUP	TABLESPACE_NAME
-def	test	t1	x1	x11	1	1	RANGE	HASH	a	a+b	1	0	0	0	#	1024	0	#	#	NULL	NULL		default	t1
-def	test	t1	x1	x12	1	2	RANGE	HASH	a	a+b	1	0	0	0	#	1024	0	#	#	NULL	NULL		default	t2
-def	test	t1	x2	x21	2	1	RANGE	HASH	a	a+b	5	0	0	0	#	1024	0	#	#	NULL	NULL		default	t1
-def	test	t1	x2	x22	2	2	RANGE	HASH	a	a+b	5	0	0	0	#	1024	0	#	#	NULL	NULL		default	t2
-def	test	t2	x1	x11	1	1	RANGE	KEY	a	`a`	1	0	0	0	#	1024	0	#	#	NULL	NULL		default	t1
-def	test	t2	x1	x12	1	2	RANGE	KEY	a	`a`	1	0	0	0	#	1024	0	#	#	NULL	NULL		default	t2
-def	test	t2	x2	x21	2	1	RANGE	KEY	a	`a`	5	0	0	0	#	1024	0	#	#	NULL	NULL		default	t1
-def	test	t2	x2	x22	2	2	RANGE	KEY	a	`a`	5	0	0	0	#	1024	0	#	#	NULL	NULL		default	t2
+def	test	t1	x1	x11	1	1	RANGE	HASH	`a`	(`a` + `b`)	1	0	0	16384	#	0	0	#	#	NULL	NULL		default	tbsp1
+def	test	t1	x1	x12	1	2	RANGE	HASH	`a`	(`a` + `b`)	1	0	0	16384	#	0	0	#	#	NULL	NULL		default	tbsp2
+def	test	t1	x2	x21	2	1	RANGE	HASH	`a`	(`a` + `b`)	5	0	0	16384	#	0	0	#	#	NULL	NULL		default	tbsp1
+def	test	t1	x2	x22	2	2	RANGE	HASH	`a`	(`a` + `b`)	5	0	0	16384	#	0	0	#	#	NULL	NULL		default	tbsp2
+def	test	t2	x1	x11	1	1	RANGE	KEY	`a`	`a`	1	0	0	16384	#	0	0	#	#	NULL	NULL		default	tbsp1
+def	test	t2	x1	x12	1	2	RANGE	KEY	`a`	`a`	1	0	0	16384	#	0	0	#	#	NULL	NULL		default	tbsp2
+def	test	t2	x2	x21	2	1	RANGE	KEY	`a`	`a`	5	0	0	16384	#	0	0	#	#	NULL	NULL		default	tbsp1
+def	test	t2	x2	x22	2	2	RANGE	KEY	`a`	`a`	5	0	0	16384	#	0	0	#	#	NULL	NULL		default	tbsp2
 drop table t1,t2;
 create table t1 (
 a int not null,
@@ -80,18 +85,23 @@ primary key (a,b))
 partition by range (a)
 subpartition by hash (a+b)
 ( partition x1 values less than (1)
-( subpartition x11 tablespace t1 nodegroup 0,
-subpartition x12 tablespace t2 nodegroup 1),
+( subpartition x11 tablespace tbsp1 nodegroup 0,
+subpartition x12 tablespace tbsp2 nodegroup 1),
 partition x2 values less than (5)
-( subpartition x21 tablespace t1 nodegroup 0,
-subpartition x22 tablespace t2 nodegroup 1)
+( subpartition x21 tablespace tbsp1 nodegroup 0,
+subpartition x22 tablespace tbsp2 nodegroup 1),
+partition x3 values less than (10)
+( subpartition x31 tablespace tbsp1 max_rows=50,
+subpartition x32 tablespace tbsp2 nodegroup 1)
 );
 select * from information_schema.partitions where table_schema="test";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	SUBPARTITION_NAME	PARTITION_ORDINAL_POSITION	SUBPARTITION_ORDINAL_POSITION	PARTITION_METHOD	SUBPARTITION_METHOD	PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION	PARTITION_DESCRIPTION	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	PARTITION_COMMENT	NODEGROUP	TABLESPACE_NAME
-def	test	t1	x1	x11	1	1	RANGE	HASH	a	a+b	1	0	0	0	#	1024	0	#	#	NULL	NULL		0	t1
-def	test	t1	x1	x12	1	2	RANGE	HASH	a	a+b	1	0	0	0	#	1024	0	#	#	NULL	NULL		1	t2
-def	test	t1	x2	x21	2	1	RANGE	HASH	a	a+b	5	0	0	0	#	1024	0	#	#	NULL	NULL		0	t1
-def	test	t1	x2	x22	2	2	RANGE	HASH	a	a+b	5	0	0	0	#	1024	0	#	#	NULL	NULL		1	t2
+def	test	t1	x1	x11	1	1	RANGE	HASH	`a`	(`a` + `b`)	1	0	0	16384	#	0	0	#	#	NULL	NULL		0	tbsp1
+def	test	t1	x1	x12	1	2	RANGE	HASH	`a`	(`a` + `b`)	1	0	0	16384	#	0	0	#	#	NULL	NULL		1	tbsp2
+def	test	t1	x2	x21	2	1	RANGE	HASH	`a`	(`a` + `b`)	5	0	0	16384	#	0	0	#	#	NULL	NULL		0	tbsp1
+def	test	t1	x2	x22	2	2	RANGE	HASH	`a`	(`a` + `b`)	5	0	0	16384	#	0	0	#	#	NULL	NULL		1	tbsp2
+def	test	t1	x3	x31	3	1	RANGE	HASH	`a`	(`a` + `b`)	10	0	0	16384	#	0	0	#	#	NULL	NULL		default	tbsp1
+def	test	t1	x3	x32	3	2	RANGE	HASH	`a`	(`a` + `b`)	10	0	0	16384	#	0	0	#	#	NULL	NULL		1	tbsp2
 show tables;
 Tables_in_test
 t1
@@ -99,7 +109,7 @@ drop table t1;
 create table t1(f1 int, f2 int);
 select * from information_schema.partitions where table_schema="test";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	SUBPARTITION_NAME	PARTITION_ORDINAL_POSITION	SUBPARTITION_ORDINAL_POSITION	PARTITION_METHOD	SUBPARTITION_METHOD	PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION	PARTITION_DESCRIPTION	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	PARTITION_COMMENT	NODEGROUP	TABLESPACE_NAME
-def	test	t1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL			NULL
+def	test	t1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	0	0	16384	#	0	0	#	#	NULL	NULL			NULL
 drop table t1;
 create table t1 (f1 date)
 partition by linear hash(month(f1))
@@ -107,9 +117,9 @@ partitions 3;
 select * from information_schema.partitions where table_schema="test"
 and table_name="t1";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	SUBPARTITION_NAME	PARTITION_ORDINAL_POSITION	SUBPARTITION_ORDINAL_POSITION	PARTITION_METHOD	SUBPARTITION_METHOD	PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION	PARTITION_DESCRIPTION	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	PARTITION_COMMENT	NODEGROUP	TABLESPACE_NAME
-def	test	t1	p0	NULL	1	NULL	LINEAR HASH	NULL	month(f1)	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL		default	NULL
-def	test	t1	p1	NULL	2	NULL	LINEAR HASH	NULL	month(f1)	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL		default	NULL
-def	test	t1	p2	NULL	3	NULL	LINEAR HASH	NULL	month(f1)	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL		default	NULL
+def	test	t1	p0	NULL	1	NULL	LINEAR HASH	NULL	month(`f1`)	NULL	NULL	0	0	16384	#	0	0	#	#	NULL	NULL		default	NULL
+def	test	t1	p1	NULL	2	NULL	LINEAR HASH	NULL	month(`f1`)	NULL	NULL	0	0	16384	#	0	0	#	#	NULL	NULL		default	NULL
+def	test	t1	p2	NULL	3	NULL	LINEAR HASH	NULL	month(`f1`)	NULL	NULL	0	0	16384	#	0	0	#	#	NULL	NULL		default	NULL
 drop table t1;
 create table t1 (a int)
 PARTITION BY RANGE (a)
@@ -119,10 +129,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY LINEAR HASH (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM) */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY LINEAR HASH (`a`)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB) */
 select SUBPARTITION_METHOD FROM information_schema.partitions WHERE
 table_schema="test" AND table_name="t1";
 SUBPARTITION_METHOD
@@ -137,9 +147,9 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53) ENGINE = MyISAM) */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
+(PARTITION p0 VALUES IN (10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53) ENGINE = InnoDB) */
 SELECT PARTITION_DESCRIPTION FROM information_schema.partitions WHERE
 table_schema = "test" AND table_name = "t1";
 PARTITION_DESCRIPTION
@@ -148,6 +158,11 @@ drop table t1;
 drop table if exists t1;
 create table t1 (f1 int key) partition by key(f1) partitions 2;
 select create_options from information_schema.tables where table_schema="test";
-create_options
+CREATE_OPTIONS
 partitioned
 drop table t1;
+drop tablespace ts1;
+drop tablespace ts2;
+drop tablespace ts3;
+drop tablespace tbsp1;
+drop tablespace tbsp2;

@@ -1,0 +1,88 @@
+# Created: 2015-05-15  Lalit Choudhary
+
+-- source include/big_test.inc
+
+--echo #
+--echo # WL#7755  mysqlpump: Extend mysqldump functionalities
+--echo #
+
+# Creating DB's and populating different types of data init for MYSQLPUMP testing.
+
+-- source include/mysqlpump_stmt.inc
+
+--echo
+
+# MYSQLPUMP filtering options and --skip-dump-rows
+--exec $MYSQL_PUMP --parallel-schemas=3:db3,db1_1gb --include-databases=db3 --include-databases=db1_1gb > $MYSQLTEST_VARDIR/tmp/include_file_1.sql
+--exec $MYSQL_PUMP --parallel-schemas=4:db3,db1,db2 --parallel-schemas=6:mtr,mysql,sys,test --include-databases=% --skip-dump-rows 2> $MYSQLTEST_VARDIR/tmp/full_bkp.logs> $MYSQLTEST_VARDIR/tmp/include_file_2.sql
+--exec $MYSQL_PUMP --parallel-schemas=1:db3,db2 --exclude-databases=mtr,mysql,sys,test --skip-dump-rows > $MYSQLTEST_VARDIR/tmp/exclude_file_1.sql
+--exec $MYSQL_PUMP --exclude-databases=%  > $MYSQLTEST_VARDIR/tmp/exclude_file_2.sql
+--exec $MYSQL_PUMP --exclude-databases=_% > $MYSQLTEST_VARDIR/tmp/exclude_file_3.sql
+
+DROP DATABASE db3;
+DROP DATABASE db1_1gb;
+
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/include_file_1.sql
+
+# All database name start with db% will dumped in output file.
+--exec $MYSQL_PUMP --parallel-schemas=3:db3,db2 --include-databases=db% --exclude-databases=mtr,mysql,sys,test --exclude-databases=db1,db3 > $MYSQLTEST_VARDIR/tmp/include_exclude_file_4.sql
+
+--exec $MYSQL_PUMP --parallel-schemas=2:db2,db1 --exclude-databases=mtr,mysql,sys,test,db1 --include-databases=db1,db2 > $MYSQLTEST_VARDIR/tmp/include_exclude_file_5.sql
+--exec $MYSQL_PUMP --parallel-schemas=3:db2,db1 --exclude-databases=mtr,mysql,sys,test --include-databases=db* > $MYSQLTEST_VARDIR/tmp/include_exclude_file_6.sql
+
+# only db1_1gb will be dumped.
+--exec $MYSQL_PUMP --parallel-schemas=3:db1,db1_1gb --databases db1_1gb --include-databases=db1,ran_db --exclude-databases=db2 --watch-progress 2>$MYSQLTEST_VARDIR/tmp/include_file_6_logs.txt > $MYSQLTEST_VARDIR/tmp/include_file_6.sql
+
+# include/exclude-tables
+# BUG : adding views in dump for excluded table
+--exec $MYSQL_PUMP --parallel-schemas=1:db1 --exclude-databases=mtr,mysql,sys,test --include-databases=db1,db3 --include-tables=dt1,dt3,ne_tlb > $MYSQLTEST_VARDIR/tmp/include_table_1.sql
+
+--exec $MYSQL_PUMP --parallel-schemas=3:db3 --include-databases=db3 --include-tables=product > $MYSQLTEST_VARDIR/tmp/include_table_2.sql
+
+# views and triggers not getting excluded for excluded tables
+--exec $MYSQL_PUMP --parallel-schemas=2:db3 --exclude-databases=mtr,mysql,sys,test --include-databases=db3,db1,db1_1gb --exclude-tables=d3t1,d3t3,v1,v11 > $MYSQLTEST_VARDIR/tmp/exclude_table_3.sql
+
+# include/exclude-triggers
+--exec $MYSQL_PUMP --parallel-schemas=2:db1 --exclude-databases=mtr,mysql,sys,test --include-databases=db3,db1 --skip-dump-rows --include-triggers=trig2 > $MYSQLTEST_VARDIR/tmp/include_triggers_1.sql
+--exec $MYSQL_PUMP --parallel-schemas=2:db3 --exclude-databases=mtr,mysql,sys,test --include-databases=db3,db1 --skip-dump-rows --exclude-triggers=trig3 > $MYSQLTEST_VARDIR/tmp/exclude_triggers_2.sql
+
+# include/exclude-routines
+--exec $MYSQL_PUMP --parallel-schemas=1:db1 --exclude-databases=mtr,mysql,sys,test --include-databases=db3,db1 --skip-dump-rows --include-routines=db1t_cache,db1_f1 > $MYSQLTEST_VARDIR/tmp/include_routines_1.sql
+--exec $MYSQL_PUMP --parallel-schemas=1:db3 --exclude-databases=mtr,mysql,sys,test --include-databases=db3,db1 --skip-dump-rows --exclude-routines=d3t_cache > $MYSQLTEST_VARDIR/tmp/exclude_routines_2.sql
+
+# include/exclude-events
+--exec $MYSQL_PUMP --parallel-schemas=3:db1 --exclude-databases=mtr,mysql,sys,test --include-databases=db3,db1 --skip-dump-rows --include-events=ev1 > $MYSQLTEST_VARDIR/tmp/include_events_1.sql
+--exec $MYSQL_PUMP --parallel-schemas=2:db3 --exclude-databases=mtr,mysql,sys,test --include-databases=db3,db1 --skip-dump-rows --exclude-events=ev4 > $MYSQLTEST_VARDIR/tmp/exclude_events_2.sql
+
+# include/exclude-user
+--exec $MYSQL_PUMP --exclude-databases=* --include-users='root'@'127.0.0.1','root'@'::1' > $MYSQLTEST_VARDIR/tmp/include_users_1.sql
+--exec $MYSQL_PUMP --exclude-databases=% --exclude-users='root'@'::1' > $MYSQLTEST_VARDIR/tmp/exclude_users_2.sql
+
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp/  include_*
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp/  exclude_*
+
+# MYSQLPUMP users option testing
+--exec $MYSQL_PUMP --users --skip-dump-rows > $MYSQLTEST_VARDIR/tmp/users_file_1.sql
+--exec $MYSQL_PUMP --users --include-databases=test > $MYSQLTEST_VARDIR/tmp/users_file_2.sql
+--exec $MYSQL_PUMP --users --add-drop-user --exclude-databases=% > $MYSQLTEST_VARDIR/tmp/users_file_3.sql
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp/  users_file*
+
+# deffer-table-indexes option testing
+--exec $MYSQL_PUMP --default-parallelism=1 --parallel-schemas=db2 --include-databases=db2  > $MYSQLTEST_VARDIR/tmp/index_file_1.sql
+--exec $MYSQL_PUMP --default-parallelism=2 --parallel-schemas=db2,db3 --defer-table-indexes --include-databases=db2,db3 --skip-dump-rows > $MYSQLTEST_VARDIR/tmp/index_file_2.sql
+--exec $MYSQL_PUMP --default-parallelism=3 --parallel-schemas=db2,db3 --defer-table-indexes=on --include-databases=db2,db3 --skip-dump-rows > $MYSQLTEST_VARDIR/tmp/index_file_3.sql
+--exec $MYSQL_PUMP --default-parallelism=4 --parallel-schemas=db2,db3 --defer-table-indexes=off --include-databases=db2,db3 --skip-dump-rows > $MYSQLTEST_VARDIR/tmp/index_file_4.sql
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp/  index_file*
+
+#  --skip-definer
+--exec $MYSQL_PUMP  --parallel-schemas=1:db1 --include-databases=db1 --skip-definer  > $MYSQLTEST_VARDIR/tmp/skip_definer_file_1.sql
+--exec $MYSQL_PUMP  --parallel-schemas=1:db1 --include-databases=db1 --skip-definer=on  > $MYSQLTEST_VARDIR/tmp/skip_definer_file_2.sql
+--exec $MYSQL_PUMP  --parallel-schemas=2:db1,db2 --include-databases=db1,db2 --skip-dump-rows --skip-definer=off  > $MYSQLTEST_VARDIR/tmp/skip_definer_file_3.sql
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp/  skip_file*
+
+# Cleanup
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db1_1gb;
+# END OF TEST

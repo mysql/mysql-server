@@ -42,10 +42,14 @@ if (!$_sss_slave_timeout)
   --let $_sss_slave_timeout= 300
 }
 
+if ($VALGRIND_TEST) {
+  let $_sss_slave_timeout= `select $_sss_slave_timeout * 6`;
+}
+
 --let $_sss_channel_param=
-if ($_saved_channel_name != '')
+if ($_saved_channel_name)
 {
-  --let $_sss_channel_param= , '$_saved_channel_name'
+  --let $_sss_channel_param= , $_saved_channel_name
 }
 
 if ($rpl_debug)
@@ -64,8 +68,20 @@ if ($rpl_debug)
 #
 --let $_slave_master_file= query_get_value(SHOW SLAVE STATUS, Relay_Master_Log_File, 1)
 --let $_slave_master_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+
+if ($rpl_debug)
+{
+  --echo _saved_file='$_saved_file'
+  --echo _slave_master_file='$_slave_master_file'
+}
+
 if ($_slave_master_file == $_saved_file)
 {
+  if ($rpl_debug)
+  {
+    --echo _saved_pos='$_saved_pos'
+    --echo _slave_master_pos='$_slave_master_pos'
+  }
   if ($_slave_master_pos == $_saved_pos)
   {
     if ($rpl_debug)
@@ -108,7 +124,7 @@ if (!$_sync_with_gtids)
 {
   if ($rpl_debug)
   {
-    --echo debug: MASTER_POS_WAIT('$_saved_file', $_saved_pos, $_sss_slave_timeout,$_sss_channel_param)
+    --echo debug: MASTER_POS_WAIT('$_saved_file', $_saved_pos, $_sss_slave_timeout$_sss_channel_param)
   }
   --let $_sss_result= `SELECT MASTER_POS_WAIT('$_saved_file', $_saved_pos, $_sss_slave_timeout$_sss_channel_param)`
 }
@@ -131,6 +147,7 @@ if ($_sss_result < 0)
   --echo ERROR: _saved_gtids='$_saved_gtids'
   --echo ERROR: _saved_file='$_saved_file'
   --echo ERROR: _saved_pos='$_saved_pos'
+  --echo ERROR: _saved_channel_name=$_saved_channel_name
   --echo ERROR: timeout='$_sss_slave_timeout'
   --echo ERROR: result='$_sss_result'
   --echo ERROR: error type: $error_type

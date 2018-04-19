@@ -1,17 +1,24 @@
-# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 """
 The core of the configurator backend.
@@ -46,14 +53,23 @@ import random
 import stat
 import errno
 import contextlib
-
+#
+import base64
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
+#
 import util
 import config_parser
 import mcc_config
 
+#from Crypto.Cipher import AES
+#from Crypto.Hash import SHA256
 from clusterhost import produce_ABClusterHost 
 
 _logger = logging.getLogger(__name__)
+configFile = None
+passphrase = None
 
 class ShutdownException(Exception):
     """Exception thrown when shutdown command arrives"""
@@ -81,7 +97,6 @@ class ReplyJsonEncoder(json.JSONEncoder):
         # Ordinary json serialization
         return json.JSONEncoder.default(self, obj)
 
-
 def handle_req(req):
     """Primary dispatcher function for messages from the client-frontend. Uses 
     introspection to look for a function named handle_<command name> and
@@ -98,18 +113,63 @@ def make_rep(req, body=None):
     rep = { 'head': { 'seq': req['head']['seq'] +1,
                      'cmd': req['head']['cmd'], 
                      'rSeq': req['head']['seq'] }}
+    _logger.warning('make_rep rep: ' + str(rep))
     if body:
         rep['body'] = body
+        _logger.warning('make_rep body')
     
     return rep
 
-def get_cred(body):
+def is_host_local(HostDesignation):
+    if (HostDesignation == 'localhost' or HostDesignation == '127.0.0.1'):
+        _logger.warning('Host is local (1-1).')
+        return true
+        
+    # Check if proper IP address is provided for localhost:
+    ips = socket.gethostbyname_ex(socket.gethostname())[2]
+    for ipadr in ips:
+        if ipadr == HostDesignation:
+            _logger.warning('Host is local (1-2).')
+            return true
+    
+    return False
+
+def get_cred(HostNm, body):
     """Get the credentials from the message in the form of a (user, pwd) tuple.
-    If there is no ssh object present, or keyBased is present and True, a 
-    (None, None) tuple is returned."""
-    if not body.has_key('ssh') or util.get_val(body['ssh'], 'keyBased', False):
-        return (None, None)
-    return (body['ssh']['user'], body['ssh']['pwd'])
+    If there is no ssh object present, or keyBased is present and True, return 
+    (User, passphrase, key_file) block."""
+    try:
+        if ((not body.has_key('ssh') or util.get_val(body['ssh'], 'keyBased', False)) and 
+            (not is_host_local(HostNm))):
+            # It's key-based, implement new logic. {keyBased: true, key: "", key_user: "", key_passp: "", key_file: ""};
+            return (True, body['ssh']['key_user'], body['ssh']['key_passp'], 
+                    body['ssh']['key_file'])
+    except KeyError:
+        if ((not body.has_key('ssh') or util.get_val(body['ssh'], 'keyBased', False)) and 
+            (not is_host_local(HostNm))):
+            # It's key-based, implement new logic. {keyBased: true, key: "", key_user: "", key_passp: "", key_file: ""};
+            return (True, body['ssh']['key_user'], body['ssh']['key_passp'], 
+                    body['ssh']['key_file'])
+    
+    return (False, body['ssh']['user'], body['ssh']['pwd'], None)
+
+
+def get_key(password):
+    _logger.warning('Getting key from passp.')
+    digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    #digest.update(bytes(password, "utf8")) does not work...
+    digest.update(bytes(password))
+    return base64.urlsafe_b64encode(digest.finalize())
+
+def encrypt(key, token):
+    f = Fernet(get_key(key))
+    _logger.warning('Encrypting.')
+    return f.encrypt(bytes(token))
+
+def decrypt(key, token):
+    f = Fernet(get_key(key))
+    _logger.warning('Decrypting.')
+    return f.decrypt(bytes(token))
 
 def handle_hostInfoReq(req, body):
     """Handler function for hostInfoReq commands. Will connect to the specified
@@ -118,14 +178,31 @@ def handle_hostInfoReq(req, body):
     body - shortcut to the body part of the message
     """
     
-    (user, pwd) = get_cred(body)
-    with produce_ABClusterHost(body['hostName'], user, pwd) as ch:
+    (key_based, user, pwd, key_file) = get_cred(body['hostName'], body)
+    with produce_ABClusterHost(body['hostName'], key_based, user, pwd, key_file) as ch:
         return make_rep(req, { 'host': {'name': ch.host },
                                'hostRes': {'ram':ch.ram, 
                                            'cores': ch.cores, 
                                            'uname': ch.hostInfo.uname,
                                            'installdir': ch.installdir, 
-                                           'datadir': ch.hostInfo.pm.join(ch.homedir, 'MySQL_Cluster') }})
+                                           'datadir': ch.hostInfo.pm.join(ch.homedir, 'MySQL_Cluster'),
+                                           'diskfree': ch.hostInfo.disk_free,
+                                           'fqdn': socket.getfqdn(ch.host),
+                                           'osver': ch.hostInfo.osver,
+                                           'osflavor': ch.hostInfo.osflavor,
+                                           'docker_info': ch.hostInfo.docker_info}})
+
+def handle_hostDockerReq(req, body):
+    """Handler function for hostDockerReq command. Will connect to the specified
+    host through a remote.ClusterHost object to retrieve information.
+    req - top level message object
+    body - shortcut to the body part of the message
+    """
+    
+    (key_based, user, pwd, key_file) = get_cred(body['hostName'], body)
+    with produce_ABClusterHost(body['hostName'], key_based, user, pwd, key_file) as ch:
+        return make_rep(req, { 'host': {'name': ch.host },
+                               'hostRes': {'DockerInfo':ch.hostInfo.docker_info}})
 
 
 def start_proc(proc, body):
@@ -134,9 +211,9 @@ def start_proc(proc, body):
     body - the whole message
     """
     f = proc['file']
-    (user, pwd) = get_cred(body)
- 
-    with produce_ABClusterHost(f['hostName'], user, pwd) as ch:
+    (key_based, user, pwd, key_file) = get_cred(f['hostName'], body)
+
+    with produce_ABClusterHost(f['hostName'], key_based, user, pwd, key_file) as ch:
         pc = proc['procCtrl']
         params = proc['params']
         if f.has_key('autoComplete'): 
@@ -175,15 +252,17 @@ def handle_createFileReq(req, body):
     host with content from the message.
     req - top level message object
     body - shortcut to the body part of the message
+    There is a problem with this function on Windows:
+      Since pathname = ch.path_module.join(pathname, f['name'])
+      DIRECTORY pathname instead of file PATH/NAME is created leading to Access violation :-/
     """
     
-    (user, pwd) = get_cred(body)
     f = body['file']
-    
-    with produce_ABClusterHost(f['hostName'], user, pwd) as ch:
+    (key_based, user, pwd, key_file) = get_cred(f['hostName'], body)
+    with produce_ABClusterHost(f['hostName'], key_based, user, pwd, key_file) as ch:
         pathname = f['path']
         if f.has_key('name'):
-            pathname = ch.path_module.join(f['path'], f['name'])
+            pathname = ch.path_module.join(pathname, f['name'])
             assert not (f.has_key('autoComplete') and f['autoComplete']) 
             assert not (not (f.has_key('overwrite') and f['overwrite']) and ch.file_exists(pathname)), 'File '+pathname+' already exists on host '+ch.host
             ch.mkdir_p(f['path'])
@@ -192,6 +271,7 @@ def handle_createFileReq(req, body):
 
             with ch.open(pathname) as rf:
                 assert rf.read() == body['contentString']
+            
         else:
             ch.mkdir_p(f['path'])
 
@@ -206,14 +286,15 @@ def handle_appendFileReq(req, body):
     body - shortcut to the body part of the message
     """
 
-    (user, pwd) = get_cred(body)
     assert (body.has_key('sourceFile') and body.has_key('destinationFile'))
     sf = body['sourceFile']
     df = body['destinationFile']
     assert (sf.has_key('path') and sf.has_key('name') and sf.has_key('hostName'))
     assert (df.has_key('path') and df.has_key('name') and df.has_key('hostName'))
 
-    with produce_ABClusterHost(sf['hostName'], user, pwd) as ch:
+    (key_based, user, pwd, key_file) = get_cred(sf['hostName'], body)
+
+    with produce_ABClusterHost(sf['hostName'], key_based, user, pwd, key_file) as ch:
         sp = ch.path_module.join(sf['path'], sf['name'])
         dp = ch.path_module.join(df['path'], df['name'])
 
@@ -228,6 +309,157 @@ def handle_appendFileReq(req, body):
 
     return make_rep(req)
 
+def handle_checkFileReq(req, body):
+    """Handler function for checkFileReq commands. Check if a file exists on a remote host.
+    req - top level message object
+    body - shortcut to the body part of the message
+    """
+    
+    f = body['file']
+    (key_based, user, pwd, key_file) = get_cred(f['hostName'], body)
+
+    with produce_ABClusterHost(f['hostName'], key_based, user, pwd, key_file) as ch:
+        sp = ch.path_module.join(f['path'], f['name'])
+        _logger.warning('pathname ' + sp + ' in checking')
+        assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host        
+                
+    _logger.debug('pathname ' + sp + ' checked')
+
+    return  make_rep(req)
+
+def handle_listDirectoryReq(req, body):
+    """Handler function for listDirectoryReq command.
+    req - top level message object
+    body - shortcut to the body part of the message
+    """
+    # This is what new session starts with so reset globals from previous run.
+    global passphrase
+    global configFile
+    passphrase = None
+    configFile = None
+    _logger.warning('Passphrase & ConfigFileName reset.')
+    
+    f = body['file']
+    results = []
+    path = f['path']
+    ext = f['ext']
+    (key_based, user, pwd, key_file) = get_cred(f['hostName'], body)
+    with produce_ABClusterHost(f['hostName'], key_based, user, pwd, key_file) as ch:
+        if (path == "~"):
+            path = ch.homedir #os.path.expanduser(path)
+        path = os.path.join(path, '') #Add last /... Well, IF MCC is not running on localhost, this will fail. Will fix later if needs be.
+        results += [each for each in os.listdir(path) if (each.endswith(ext) and os.path.getsize(path+each) > 10)]
+        return make_rep(req, { 'host': {'name': ch.host },
+            'hostRes': {'listDirectory': results,
+                        'realpath': path.replace("\\","/")}})
+                        #Will return / instead of \ on Windows. repr(path) would return \\
+
+def handle_fileExistsReq(req, body):
+    """Handler function for fileExistsReq command.
+    req - top level message object
+    body - shortcut to the body part of the message
+    Plain file exists on host or not.
+    """
+    path = body['path']
+    filename = body['fname']
+    resStr = ""
+    (key_based, user, pwd, key_file) = get_cred(body['hostName'], body)
+    with produce_ABClusterHost(body['hostName'], key_based, user, pwd, key_file) as ch:
+        _logger.warning('Produced ABC (FER).')
+        if (path == "~"):
+            path = ch.homedir
+        sp = ch.path_module.join(path, filename)
+        _logger.warning('pathname ' + sp + ' in checking.')
+        resStr = ch.file_exists(sp)
+        if not(resStr is None):
+            result = 1
+        else:
+            result = 0
+        _logger.warning('FER result is ' + str(result) + '.')
+        return  make_rep(req, { 'host': {'name': ch.host },
+                'hostRes': {'fname': filename, 'exists': result}})
+
+def handle_createCfgFileReq(req, body):
+    """Handler function for createCfgFileReq command.
+    req - top level message object
+    body - shortcut to the body part of the message
+    Plain file create on host.
+    """
+    global passphrase
+    global configFile
+    path = body['path']
+    #if passphrase is None:
+    passphrase = body['phr']
+    configFile = body['fname']
+    (key_based, user, pwd, key_file) = get_cred(body['hostName'], body)
+    with produce_ABClusterHost(body['hostName'], key_based, user, pwd, key_file) as ch:
+        if (path == "~"):
+            path = ch.homedir
+        _logger.warning('path is ' + path + ' and name is ' + configFile + '.')
+        pathname = ch.path_module.join(path, configFile)
+        if (body.has_key('contentString')):
+            with ch.open(pathname, 'w+') as rf:
+                rf.write(body['contentString'])
+
+            with ch.open(pathname) as rf:
+                assert rf.read() == body['contentString']
+
+            #encrypt(getKey(passphrase), pathname)
+        #"""
+        output_file = pathname + ".encrypted"
+        with open(pathname, 'r') as inputfile:
+            inp = inputfile.read()
+            res = encrypt(passphrase, inp)
+            with open(output_file, 'wb') as outf:
+                outf.write(res)
+
+        #Remove plain text file.
+        if os.path.isfile(pathname):
+            os.remove(pathname)
+        else: #Show an error.
+            print("Encrypt error: Original file %s not found" % pathname)
+        #Rename new file to old name.
+        old_file = output_file #name.mcc.encrypted.
+        new_file = pathname #name.mcc
+        os.rename(old_file, new_file)
+        #"""
+        _logger.warning('File ' + pathname + ' created.')
+        return  make_rep(req, { 'host': {'name': ch.host },
+                'hostRes': {'fname': configFile, 'created': 1}})
+
+def handle_readCfgFileReq(req, body):
+    """Handler function for readCfgFileReq command.
+    req - top level message object
+    body - shortcut to the body part of the message
+    Plain file read on host.
+    Body:
+        hostName
+        path
+        fname
+        phr
+    Ignore passphrase for now.
+    """
+    path = body['path']
+    #name = body['fname']
+    global passphrase
+    global configFile
+    #if passphrase is None:
+    passphrase = body['phr']
+    #if configFile is None:
+    configFile = body['fname']
+    (key_based, user, pwd, key_file) = get_cred(body['hostName'], body)
+    with produce_ABClusterHost(body['hostName'], key_based, user, pwd, key_file) as ch:
+        _logger.warning('Inside produce_ABClusterHost, readcfgfilereq.')
+        if (path == "~"):
+            path = ch.homedir
+        pathname = ch.path_module.join(path, configFile)
+        _logger.warning('pathname ' + pathname + ' in opening.')
+        with open(pathname, 'rb') as rencf:
+            inp = rencf.read()
+            res = decrypt(passphrase, inp)
+        _logger.warning('File ' + pathname + ' read.')
+        return  make_rep(req, { 'host': {'name': ch.host },
+                'hostRes': {'fname': configFile, 'contentString': res}})
 
 def handle_shutdownServerReq(req, body):
     """x"""
@@ -243,11 +475,11 @@ def handle_getLogTailReq(req, body):
     body - shortcut to the body part of the message
     """
 
-    (user, pwd) = get_cred(body)
     sf = body['logFile']
     assert (sf.has_key('path') and sf.has_key('name') and sf.has_key('hostName'))
+    (key_based, user, pwd, key_file) = get_cred(sf['hostName'], body)
 
-    with produce_ABClusterHost(sf['hostName'], user, pwd) as ch:
+    with produce_ABClusterHost(sf['hostName'], key_based, user, pwd, key_file) as ch:
         sp = ch.path_module.join(sf['path'], sf['name'])
         assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host
         with ch.open(sp) as logFile:
@@ -275,39 +507,48 @@ class mgmd_reply(dict):
 def handle_runMgmdCommandReq(req, body):
     """Handler function for runMgmdCommandReq commands. Opens a new connection to mgmd, sends command, parses reply and wraps reply in mcc Rep object."""
 
-    hostname = body['hostname'].encode('ascii', 'ignore')
+    hostname = body['hostName'].encode('ascii', 'ignore')
     port = body['port']
-    with util.socket_shutter(socket.create_connection((hostname, port))) as mgmd:
-        mgmd.sendall(body['mgmd_command']+'\n\n')
-        s = mgmd.recv(4096)
-        
-    status = mgmd_reply(s)
-    sd = {}
-    for nk in status.keys():
-        if 'node.' in nk:
-            (x, n, k) = nk.split('.')
-            if not sd.has_key(n):
-                sd[n] = {}
-            sd[n][k] = status[nk]
-                    
-    return make_rep(req, { 'reply_type': status.reply_type, 'reply_properties':sd})
-                
+    # If none is listening, this will lead to Error 10061 (Can't connect to MySQL server)
+    # so need to test first.
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    result = s.connect_ex((hostname, port))
+    s.close()    
 
+    if result == 0:
+        with util.socket_shutter(socket.create_connection((hostname, port))) as mgmd:
+            mgmd.sendall(body['mgmd_command']+'\n\n')
+            s = mgmd.recv(4096)
+            
+        status = mgmd_reply(s)
+        sd = {}
+        for nk in status.keys():
+            if 'node.' in nk:
+                (x, n, k) = nk.split('.')
+                if not sd.has_key(n):
+                    sd[n] = {}
+                sd[n][k] = status[nk]
+                        
+        return make_rep(req, { 'reply_type': status.reply_type, 'reply_properties':sd})
+    else:
+        #, 'reply_properties':'None listening @ '+str(hostname)+'::' + str(port)
+        return make_rep(req, { 'reply_type': 'ERROR'})
+        
 def handle_getConfigIni(req, body):
-    (user, pwd) = get_cred(body)
     cf = body['configFile']
     assert (cf.has_key('path') and cf.has_key('name') and cf.has_key('hostName'))
+    (key_based, user, pwd, key_file) = get_cred(cf['hostName'], body)
 
-    with produce_ABClusterHost(sf['hostName'], user, pwd) as ch:
+    with produce_ABClusterHost(cf['hostName'], key_based, user, pwd, key_file) as ch:
         sp = ch.path_module.join(sf['path'], sf['name'])
         assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host
         with ch.open(sp) as ini:
             return make_rep(req, {'config': config_parser.parse_cluster_config_ini_(ini)})
     
 def handle_getNdbConfig(req, body):
-    (user, pwd) = get_cred(body)
+    (key_based, user, pwd, key_file) = get_cred(body['hostName'], body)
 
-    with produce_ABClusterHost(body['hostName'], user, pwd) as ch:
+    with produce_ABClusterHost(body['hostName'], key_based, user, pwd, key_file) as ch:
         ndb_config = ch.path_module.join(body['installpath'], 'ndb_config')
         return make_rep(req, { 'ndb_config': json.dumps(util.xml_to_python(ch.exec_cmdv([ndb_config, '--configinfo', '--xml']))) })
     
@@ -326,8 +567,21 @@ class ConfiguratorHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/json')
         self.end_headers()
-        self.server.logger.debug('Will send: %s', json.dumps(obj, indent=2, cls=ReplyJsonEncoder))
-        json.dump(obj, self.wfile, cls=ReplyJsonEncoder)       
+
+        for possible_encoding in ["utf-8", "cp1252"]:
+          try:
+            # obj can contain messages from the OS that could be encoded
+            # in cp1252 character set.
+            json_str = json.dumps(obj, indent=2, cls=ReplyJsonEncoder, encoding=possible_encoding)
+            break
+          except UnicodeDecodeError:
+            self.server.logger.debug('%s encoding failed', possible_encoding)
+            self.server.logger.warning('%s encoding failed', possible_encoding)
+            pass
+        if json_str is None:
+          raise UnicodeDecodeError
+        self.server.logger.debug('Will send: %s', json.dumps(obj, indent=2, cls=ReplyJsonEncoder, encoding=possible_encoding))
+        json.dump(obj, self.wfile, cls=ReplyJsonEncoder, encoding=possible_encoding)       
         
     def _do_file_req(self, rt):
         """Handles file requests. Attempts to guess 
@@ -337,7 +591,8 @@ class ConfiguratorHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             if self.path == '/':
                self.path = '/'+mcc_config.MCC_BROWSER_START_PAGE
             self.server.logger.debug(rt+' fdir='+self.server.opts['fdir']+ " path="+os.path.normpath(self.path))
-            fn = os.path.join(self.server.opts['fdir'], os.path.normpath(self.path[1:]))
+            #Make sure to remove options if there are any.
+            fn = os.path.join(self.server.opts['fdir'], os.path.normpath(self.path[1:]).split("?")[0])
             try:
                 os.stat(fn)                
             except OSError as ose:
@@ -382,6 +637,8 @@ class ConfiguratorHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             dbgmsg = copy.deepcopy(msg)
             if (dbgmsg['body']['ssh'].has_key('pwd')):
                 dbgmsg['body']['ssh']['pwd'] = '*' * len(dbgmsg['body']['ssh']['pwd'])
+            if (dbgmsg['body']['ssh'].has_key('key_passp')):
+                dbgmsg['body']['ssh']['key_passp'] = '*' * len(dbgmsg['body']['ssh']['key_passp'])
             self.server.logger.debug('--> ' + dbgmsg['head']['cmd'] + ':')
             self.server.logger.debug(pprint.pformat(dbgmsg))
             rep = make_rep(msg)
@@ -401,6 +658,8 @@ class ConfiguratorHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
             self.server.logger.debug('<-- ' + rep['head']['cmd'] + ':')
             self.server.logger.debug(pprint.pformat(rep))
+            self.server.logger.warning('<-- ' + rep['head']['cmd'] + ':')
+            #self.server.logger.warning(pprint.pformat(rep))
             self._send_as_json(rep)
         except:
             traceback.print_exc()
@@ -449,12 +708,14 @@ class ConfiguratorServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer)
 configdir = None
 basedir = None
 deathkey = None
-        
+from util import is_port_available
+
 def main(prefix, cfgdir):
     """Server's main-function which parses the command line and starts up the server accordingly.
     """
     global configdir 
     global basedir 
+    true_port_val = 0
     configdir = cfgdir
     basedir = prefix
     frontend = os.path.join(cfgdir, 'frontend')
@@ -490,6 +751,8 @@ def main(prefix, cfgdir):
                             help='log requests to this file. The value - means log to stderr: [default: %default]')
     # option for level/logcfg file
  
+    cmdln_parser.add_option('-H', '--use-http', action='store_true', help='use http for communication with browser.')
+    
     cmdln_parser.add_option('-S', '--use-https', action='store_true', help='use https to secure communication with browser.')
 
     cmdln_parser.add_option('-c', '--cert-file', action='store', type='string', default=os.path.join(cfgdir, 'cfg.pem'), help='file containing X509 certificate which identifies the server (possibly self-signed): [default: %default]')
@@ -505,30 +768,87 @@ def main(prefix, cfgdir):
     else:
         logging.basicConfig(level=dbglvl, format=fmt, filename=options.server_log_file)
 
+    for port_val in range(options.port, options.port + 20):
+        if is_port_available(options.server_name, port_val):
+            true_port_val = port_val
+            break
+    if true_port_val == 0:
+        # no available port in range :-/
+        print("No available port in range[{},{}]!".format(options.port, options.port + 20))
+        sys.exit()
+
+    options.port = true_port_val
+
     srvopts = { 'server' : options.server_name,
                'port': options.port,
                'cdir': cfgdir,
                'fdir': os.path.join(cfgdir, 'frontend') }
+    
+    if not options.use_http:
+        options.use_https = True
     
     if options.use_https:
         srvopts['ssl'] = True
         srvopts['certfile'] = options.cert_file
         srvopts['keyfile'] = options.key_file
         srvopts['ca_certs'] = options.ca_certs_file
-        
+
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+    hpath = os.path.expanduser('~')
+    global pidf
+    pidf = os.path.join(hpath, 'mcc.pid')
+    try:
+        file_handle = os.open(pidf, flags)
+    except OSError as e:
+        if e.errno == errno.EEXIST:  # Failed as the file already exists.
+            file_handle = open(pidf) # , os.O_RDONLY)
+            print 'mcc.pid file found at '+os.path.realpath(file_handle.name)+'. Please remove before restarting process.'
+            file_handle.close()
+            sys.exit("Web server already running!")
+        else:  # Something unexpected went wrong so reraise the exception.
+            raise
+    else:  # No exception, so the file must have been created successfully.
+        with os.fdopen(file_handle, 'w') as file_obj:
+            # Using `os.fdopen` converts the handle to an object that acts like a
+            # regular Python file object, and the `with` context manager means the
+            # file will be automatically closed when we're done with it.
+            file_obj.write("MCC running.")
+            file_obj.close()
+
     print 'Starting web server on port ' + repr(options.port)
     url_host = options.server_name
     if url_host == '':
         url_host = 'localhost'
-    if options.use_https:
-        url = 'https://{0}:{opt.port}/{opt.browser_start_page}'.format(url_host, opt=options)
+    #Here we should send list of config files too.
+    results = []
+    resStr = ""
+    path = os.path.expanduser('~')
+    path = os.path.join(path, '')
+    results += [each for each in os.listdir(path) if (each.endswith('.mcc') and os.path.getsize(path+each) > 10)]
+    resStr = '&'.join(results)
+    #Check there is anything.
+    if len(results):
+        resStr = "?" + resStr + "#"
     else:
-        url = 'http://{0}:{opt.port}/{opt.browser_start_page}'.format(url_host, opt=options)
-        
+        resStr = ""
+    
+    if options.use_https:
+        if not resStr:
+            url = 'https://{0}:{opt.port}/{opt.browser_start_page}'.format(url_host, opt=options)
+        else:
+            url = 'https://{0}:{opt.port}/{opt.browser_start_page}{1}'.format(url_host, resStr, opt=options)
+    else:
+        if not resStr:
+            url = 'http://{0}:{opt.port}/{opt.browser_start_page}'.format(url_host, opt=options)
+        else:
+            url = 'http://{0}:{opt.port}/{opt.browser_start_page}{1}'.format(url_host, resStr, opt=options)
+    print("URL is {}.".format(url))
+
     httpsrv = None
     global deathkey
     deathkey = random.randint(100000, 1000000)
     print 'deathkey='+str(deathkey)
+    print 'Press CTRL+C to stop web server.'
 #    dkf = open('deathkey.txt','w')
 #    dkf.write(str(deathkey))
 #    dkf.close()
@@ -555,4 +875,5 @@ def main(prefix, cfgdir):
         if httpsrv:
             httpsrv.socket.close()
         #os.remove('deathkey.txt')
-
+        print 'Removing ' + pidf
+        os.remove(pidf)

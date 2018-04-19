@@ -1,5 +1,4 @@
 -- source include/have_ndb.inc
--- source include/not_embedded.inc
 
 --result_format 2
 --enable_connect_log
@@ -249,8 +248,8 @@ connection ddl;
 --exec $NDB_MGM -e "drop nodegroup 1"
 
 # Cleanup
-ALTER TABLESPACE ts_1 DROP DATAFILE 'data_1.dat' ENGINE NDB;
-DROP TABLESPACE ts_1 ENGINE NDB;
+ALTER TABLESPACE ts_1 DROP DATAFILE 'data_1.dat';
+DROP TABLESPACE ts_1;
 DROP LOGFILE GROUP lg_1 ENGINE NDB;
 disconnect ddl;
 

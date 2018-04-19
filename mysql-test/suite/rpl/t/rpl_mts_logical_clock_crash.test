@@ -1,6 +1,5 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
---source include/have_innodb.inc
 --source include/master-slave.inc
 ################################################################################
 # Bug#18363515 MULTIPLE THREADED SLAVE MAY BE CRASHED BY STOP SLAVE SQL
@@ -72,7 +71,7 @@ LOCK TABLE t1 WRITE;
 # Wait unti coordinator enters the wait status.
 --let $show_statement= SHOW PROCESSLIST
 --let $field= State
---let $condition= = 'Waiting for slave workers to finish.'
+--let $condition= = 'Waiting for slave workers to process their queues'
 --source include/wait_show_condition.inc
 
 # Release metadata lock on t1, so workers can go ahead.
@@ -80,6 +79,7 @@ LOCK TABLE t1 WRITE;
 UNLOCK TABLES;
 
 # Workers encounter duplicate error and abort coordinator
+--let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
 --source include/wait_for_slave_sql_to_stop.inc
 
 SET GLOBAL slave_parallel_workers = @save_slave_parallel_workers;

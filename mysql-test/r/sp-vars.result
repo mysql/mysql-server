@@ -6,8 +6,6 @@ DROP FUNCTION IF EXISTS sp_vars_check_ret3;
 DROP FUNCTION IF EXISTS sp_vars_check_ret4;
 DROP FUNCTION IF EXISTS sp_vars_div_zero;
 SET @@sql_mode = 'ansi';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE PROCEDURE sp_vars_check_dflt()
 BEGIN
 DECLARE v1 TINYINT DEFAULT 1e200;
@@ -157,8 +155,6 @@ SELECT sp_vars_div_zero();
 sp_vars_div_zero()
 NULL
 SET @@sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 ---------------------------------------------------------------
 Calling in TRADITIONAL mode the routines, created in ANSI mode.
@@ -337,8 +333,6 @@ Note	1265	Data truncated for column 'sp_vars_check_ret4()' at row 1
 SELECT sp_vars_div_zero();
 ERROR 22012: Division by 0
 SET @@sql_mode = 'ansi';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP PROCEDURE sp_vars_check_dflt;
 DROP PROCEDURE sp_vars_check_assignment;
 DROP FUNCTION sp_vars_check_ret1;
@@ -761,8 +755,6 @@ DROP PROCEDURE IF EXISTS p4;
 DROP PROCEDURE IF EXISTS p5;
 DROP PROCEDURE IF EXISTS p6;
 SET @@sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE PROCEDURE p1()
 BEGIN
 DECLARE v TINYINT DEFAULT 1e200;
@@ -809,8 +801,6 @@ ERROR 22001: Data too long for column 'var' at row 1
 CALL p6(10);
 ERROR 22003: Out of range value for column 'var' at row 1
 SET @@sql_mode = 'ansi';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP PROCEDURE p3;
@@ -857,8 +847,6 @@ f1(-2500)
 Warnings:
 Warning	1264	Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT f1(-2500);
 ERROR 22003: Out of range value for column 'arg' at row 1
 DROP FUNCTION f1;
@@ -869,8 +857,6 @@ END|
 SELECT f1(-2500);
 ERROR 22003: Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'ansi';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP FUNCTION f1;
 
 ---------------------------------------------------------------
@@ -888,8 +874,6 @@ f1(8388699)
 Warnings:
 Warning	1264	Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT f1(8388699);
 ERROR 22003: Out of range value for column 'arg' at row 1
 DROP FUNCTION f1;
@@ -900,8 +884,6 @@ END|
 SELECT f1(8388699);
 ERROR 22003: Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'ansi';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP FUNCTION f1;
 
 ---------------------------------------------------------------
@@ -1011,15 +993,21 @@ CREATE PROCEDURE p2(arg VARCHAR(255) CHARACTER SET UTF8)
 BEGIN
 SELECT CHARSET(arg);
 END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p1('t');
 CHARSET(arg)
-latin1
+utf8mb4
 CALL p1(_UTF8 't');
 CHARSET(arg)
-latin1
+utf8mb4
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p2('t');
 CHARSET(arg)
 utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p2(_LATIN1 't');
 CHARSET(arg)
 utf8
@@ -1095,7 +1083,7 @@ BUG#13665
 ---------------------------------------------------------------
 
 DROP FUNCTION IF EXISTS f1;
-CREATE FUNCTION f1() RETURNS VARCHAR(20000)
+CREATE FUNCTION f1() RETURNS VARCHAR(2000)
 BEGIN
 DECLARE var VARCHAR(2000);
 SET var = '';
@@ -1203,7 +1191,7 @@ SET j= 1 + i;
 END|
 CALL ctest();
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'string          '
+Warning	1292	Truncated incorrect DOUBLE value: 'string'
 DROP PROCEDURE ctest;
 CREATE PROCEDURE vctest()
 BEGIN

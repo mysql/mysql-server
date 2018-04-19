@@ -1,0 +1,126 @@
+#
+# Different partitions can have different row format
+# Case one: between dynamic and redundant
+#
+SET GLOBAL innodb_default_row_format = REDUNDANT;
+CREATE TABLESPACE tbs01 ADD DATAFILE './tbs01.ibd';
+CREATE TABLE t1 (a INT NOT NULL, d INT NOT NULL, index(a, d)) ENGINE=InnoDB TABLESPACE tbs01 PARTITION BY LIST COLUMNS (a,d)  (PARTITION p36_1 VALUES IN ((10,5),(10,6)), PARTITION p36_2 VALUES IN ((11,5),(11,6)));
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT name, se_private_data FROM mysql.table_partitions;
+name	se_private_data
+p36_1	NULL
+p36_2	NULL
+# restart
+CREATE TABLESPACE tbs02 ADD DATAFILE './tbs02.ibd';
+ALTER TABLE t1 ADD PARTITION (PARTITION p_r13 VALUES IN ((741,377), (21,728)), PARTITION p_r23 VALUES IN ((102,337), (453,337), (-9,179)) TABLESPACE=tbs02);
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT name, se_private_data FROM mysql.table_partitions;
+name	se_private_data
+p36_1	NULL
+p36_2	NULL
+p_r13	format=2;
+p_r23	format=2;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `d` int(11) NOT NULL,
+  KEY `a` (`a`,`d`)
+) /*!50100 TABLESPACE `tbs01` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(a,d)
+(PARTITION p36_1 VALUES IN ((10,5),(10,6)) TABLESPACE = `tbs01` ENGINE = InnoDB,
+ PARTITION p36_2 VALUES IN ((11,5),(11,6)) TABLESPACE = `tbs01` ENGINE = InnoDB,
+ PARTITION p_r13 VALUES IN ((741,377),(21,728)) TABLESPACE = `tbs01` ENGINE = InnoDB,
+ PARTITION p_r23 VALUES IN ((102,337),(453,337),(-9,179)) TABLESPACE = `tbs02` ENGINE = InnoDB) */
+# restart
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT name, se_private_data FROM mysql.table_partitions;
+name	se_private_data
+p36_1	NULL
+p36_2	NULL
+p_r13	format=2;
+p_r23	format=2;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+DROP TABLESPACE tbs01;
+DROP TABLESPACE tbs02;
+SET GLOBAL innodb_default_row_format = Default;
+#
+# Different partitions can have different row format
+# Case two: between dynamic and compressed
+#
+CREATE TABLE t1 (a INT, b INT, key(a)) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 PARTITION BY RANGE (a % 7) (PARTITION p1 VALUES LESS THAN(1), PARTITION p2 VALUES LESS THAN (2), PARTITION p3 VALUES LESS THAN (5), PARTITION p4 VALUES LESS THAN(MAXVALUE));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2
+/*!50100 PARTITION BY RANGE ((`a` % 7))
+(PARTITION p1 VALUES LESS THAN (1) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (2) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (5) ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 0;
+SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
+SET SESSION innodb_strict_mode = 0;
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT name, se_private_data FROM mysql.table_partitions;
+name	se_private_data
+p1	NULL
+p2	NULL
+p3	NULL
+p4	NULL
+ALTER TABLE t1 REORGANIZE PARTITION p1, p2 INTO (PARTITION p1 VALUES LESS THAN(2));
+Warnings:
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=2.
+Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
+SELECT name, se_private_data FROM mysql.table_partitions;
+name	se_private_data
+p1	format=2;
+p3	NULL
+p4	NULL
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2
+/*!50100 PARTITION BY RANGE ((`a` % 7))
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (5) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN MAXVALUE TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
+SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
+# restart
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT name, se_private_data FROM mysql.table_partitions;
+name	se_private_data
+p1	format=2;
+p3	NULL
+p4	NULL
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2
+/*!50100 PARTITION BY RANGE ((`a` % 7))
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (5) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN MAXVALUE TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
+DROP TABLE t1;

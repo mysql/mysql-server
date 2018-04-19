@@ -25,7 +25,9 @@ if ($sql_init2)
 --eval XA START   'trx$index$type'
 if ($sql_doit)
 {
+  --disable_result_log
   --eval $sql_doit
+  --enable_result_log
 }
 --eval XA END     'trx$index$type'
 --eval XA PREPARE 'trx$index$type'

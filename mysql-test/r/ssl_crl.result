@@ -8,6 +8,7 @@ ssl_cert	MYSQL_TEST_DIR/std_data/crl-server-cert.pem
 ssl_cipher	
 ssl_crl	MYSQL_TEST_DIR/std_data/crl-client-revoked.crl
 ssl_crlpath	
+ssl_fips_mode	OFF
 ssl_key	MYSQL_TEST_DIR/std_data/crl-server-key.pem
 # test --crlpath for the client : should connect
 Variable_name	Value
@@ -19,5 +20,18 @@ ssl_cert	MYSQL_TEST_DIR/std_data/crl-server-cert.pem
 ssl_cipher	
 ssl_crl	MYSQL_TEST_DIR/std_data/crl-client-revoked.crl
 ssl_crlpath	
+ssl_fips_mode	OFF
 ssl_key	MYSQL_TEST_DIR/std_data/crl-server-key.pem
 # try logging in with a certificate in the server's --ssl-crl : should fail
+#
+# Bug#21920678: SSL-CA DOES NOT ACCEPT ~USER TILDE HOME DIRECTORY
+#               PATH SUBSTITUTION
+#
+# try to connect with '--ssl-crl' option using tilde home directoy
+# path substitution : should connect
+Variable_name	Value
+Ssl_cipher	SSL_CIPHER
+# try to connect with '--ssl-crlpath' option using tilde home directoy
+# path substitution : should connect
+Variable_name	Value
+Ssl_cipher	SSL_CIPHER

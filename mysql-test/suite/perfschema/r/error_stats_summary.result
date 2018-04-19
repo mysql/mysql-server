@@ -1,0 +1,133 @@
+
+========================================================================
+STEP 1 - SETUP
+========================================================================
+CREATE PROCEDURE handleError() 
+BEGIN
+DECLARE no_such_table CONDITION FOR 1146;
+DECLARE CONTINUE HANDLER FOR no_such_table select 1;
+INSERT INTO test.no_table values (1);
+END//
+CREATE PROCEDURE signalError() 
+BEGIN
+DECLARE mycond CONDITION FOR SQLSTATE '42S02';
+SIGNAL mycond SET MESSAGE_TEXT = 'An error occurred';
+END//
+CREATE PROCEDURE bigError()
+BEGIN
+SIGNAL SQLSTATE "HY000" SET MYSQL_ERRNO = 40000, MESSAGE_TEXT = "A big error number";
+END//
+truncate  performance_schema.events_errors_summary_by_thread_by_error;
+truncate  performance_schema.events_errors_summary_by_user_by_error;
+truncate  performance_schema.events_errors_summary_by_host_by_error;
+truncate  performance_schema.events_errors_summary_by_account_by_error;
+truncate  performance_schema.events_errors_summary_global_by_error;
+
+# Control thread
+
+
+# Create new user user1.
+
+create user user1@localhost;
+grant ALL on *.* to user1@localhost;
+
+# Create new user user2.
+
+create user user2@localhost;
+grant ALL on *.* to user2@localhost;
+
+# Connection 1
+
+use bad_db;
+ERROR 42000: Unknown database 'bad_db'
+SELECT * from test.no_table;
+ERROR 42S02: Table 'test.no_table' doesn't exist
+call signalError();
+ERROR 42S02: An error occurred
+call bigError();
+ERROR HY000: A big error number
+
+# Connection 2
+
+SELECT * from test.no_table;
+ERROR 42S02: Table 'test.no_table' doesn't exist
+I dont know the syntax;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'I dont know the syntax' at line 1
+call handleError();
+1
+1
+#-------------------------------------------------------------
+# Now see the error stats from P_S tables.
+#-------------------------------------------------------------
+
+# events_errors_summary_by_thread_by_error.
+ERROR_NUMBER	ERROR_NAME	SQL_STATE	SUM_ERROR_RAISED	SUM_ERROR_HANDLED
+NULL	NULL	NULL	1	0
+1049	ER_BAD_DB_ERROR	42000	1	0
+1146	ER_NO_SUCH_TABLE	42S02	1	0
+1644	ER_SIGNAL_EXCEPTION	HY000	1	0
+ERROR_NUMBER	ERROR_NAME	SQL_STATE	SUM_ERROR_RAISED	SUM_ERROR_HANDLED
+1064	ER_PARSE_ERROR	42000	1	0
+1146	ER_NO_SUCH_TABLE	42S02	1	1
+
+# events_errors_summary_by_user_by_error.
+SELECT USER, ERROR_NUMBER, ERROR_NAME, SQL_STATE, SUM_ERROR_RAISED, SUM_ERROR_HANDLED from performance_schema.events_errors_summary_by_user_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+USER	ERROR_NUMBER	ERROR_NAME	SQL_STATE	SUM_ERROR_RAISED	SUM_ERROR_HANDLED
+user1	NULL	NULL	NULL	1	0
+user1	1049	ER_BAD_DB_ERROR	42000	1	0
+user1	1146	ER_NO_SUCH_TABLE	42S02	1	0
+user1	1644	ER_SIGNAL_EXCEPTION	HY000	1	0
+user2	1064	ER_PARSE_ERROR	42000	1	0
+user2	1146	ER_NO_SUCH_TABLE	42S02	1	1
+
+# events_errors_summary_by_host_by_error.
+SELECT HOST, ERROR_NUMBER, ERROR_NAME, SQL_STATE, SUM_ERROR_RAISED, SUM_ERROR_HANDLED from performance_schema.events_errors_summary_by_host_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+HOST	ERROR_NUMBER	ERROR_NAME	SQL_STATE	SUM_ERROR_RAISED	SUM_ERROR_HANDLED
+localhost	NULL	NULL	NULL	1	0
+localhost	1049	ER_BAD_DB_ERROR	42000	1	0
+localhost	1064	ER_PARSE_ERROR	42000	1	0
+localhost	1146	ER_NO_SUCH_TABLE	42S02	2	1
+localhost	1644	ER_SIGNAL_EXCEPTION	HY000	1	0
+
+# events_errors_summary_by_account_by_error.
+SELECT USER, HOST, ERROR_NUMBER, ERROR_NAME, SQL_STATE, SUM_ERROR_RAISED, SUM_ERROR_HANDLED from performance_schema.events_errors_summary_by_account_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+USER	HOST	ERROR_NUMBER	ERROR_NAME	SQL_STATE	SUM_ERROR_RAISED	SUM_ERROR_HANDLED
+user1	localhost	NULL	NULL	NULL	1	0
+user1	localhost	1049	ER_BAD_DB_ERROR	42000	1	0
+user1	localhost	1146	ER_NO_SUCH_TABLE	42S02	1	0
+user1	localhost	1644	ER_SIGNAL_EXCEPTION	HY000	1	0
+user2	localhost	1064	ER_PARSE_ERROR	42000	1	0
+user2	localhost	1146	ER_NO_SUCH_TABLE	42S02	1	1
+
+# events_errors_summary_global_by_error.
+SELECT ERROR_NUMBER, ERROR_NAME, SQL_STATE, SUM_ERROR_RAISED, SUM_ERROR_HANDLED from performance_schema.events_errors_summary_global_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+ERROR_NUMBER	ERROR_NAME	SQL_STATE	SUM_ERROR_RAISED	SUM_ERROR_HANDLED
+NULL	NULL	NULL	1	0
+1049	ER_BAD_DB_ERROR	42000	1	0
+1064	ER_PARSE_ERROR	42000	1	0
+1146	ER_NO_SUCH_TABLE	42S02	2	1
+1644	ER_SIGNAL_EXCEPTION	HY000	1	0
+
+#-----------------------------------------------------
+# Truncate stats
+#-----------------------------------------------------
+TRUNCATE performance_schema.events_errors_summary_by_thread_by_error;
+TRUNCATE performance_schema.events_errors_summary_by_user_by_error;
+TRUNCATE performance_schema.events_errors_summary_by_host_by_error;
+TRUNCATE performance_schema.events_errors_summary_by_account_by_error;
+TRUNCATE performance_schema.events_errors_summary_global_by_error;
+SELECT * from performance_schema.events_errors_summary_by_thread_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+THREAD_ID	ERROR_NUMBER	ERROR_NAME	SQL_STATE	SUM_ERROR_RAISED	SUM_ERROR_HANDLED	FIRST_SEEN	LAST_SEEN
+SELECT * from performance_schema.events_errors_summary_by_user_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+USER	ERROR_NUMBER	ERROR_NAME	SQL_STATE	SUM_ERROR_RAISED	SUM_ERROR_HANDLED	FIRST_SEEN	LAST_SEEN
+SELECT * from performance_schema.events_errors_summary_by_host_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+HOST	ERROR_NUMBER	ERROR_NAME	SQL_STATE	SUM_ERROR_RAISED	SUM_ERROR_HANDLED	FIRST_SEEN	LAST_SEEN
+SELECT * from performance_schema.events_errors_summary_by_account_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+USER	HOST	ERROR_NUMBER	ERROR_NAME	SQL_STATE	SUM_ERROR_RAISED	SUM_ERROR_HANDLED	FIRST_SEEN	LAST_SEEN
+SELECT * from performance_schema.events_errors_summary_global_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+ERROR_NUMBER	ERROR_NAME	SQL_STATE	SUM_ERROR_RAISED	SUM_ERROR_HANDLED	FIRST_SEEN	LAST_SEEN
+drop procedure handleError;
+drop procedure signalError;
+drop procedure bigError;
+drop user user1@localhost;
+drop user user2@localhost;

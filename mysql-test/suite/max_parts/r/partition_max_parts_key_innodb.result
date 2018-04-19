@@ -1,3 +1,4 @@
+call mtr.add_suppression("A long semaphore wait");
 create table t2 (a int not null, primary key(a)) engine='InnoDB'
 partition by key (a) partitions 8192;
 show create table t2;
@@ -5,7 +6,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 8192 */
 65535 inserts;

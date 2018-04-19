@@ -7,20 +7,18 @@ length(@test_compress_string)
 select uncompress(compress(@test_compress_string));
 uncompress(compress(@test_compress_string))
 string for test compress function aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 
-explain extended select uncompress(compress(@test_compress_string));
+explain select uncompress(compress(@test_compress_string));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select uncompress(compress((@`test_compress_string`))) AS `uncompress(compress(@test_compress_string))`
 select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
 uncompressed_length(compress(@test_compress_string))=length(@test_compress_string)
 1
-explain extended select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
+explain select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (uncompressed_length(compress((@`test_compress_string`))) = length((@`test_compress_string`))) AS `uncompressed_length(compress(@test_compress_string))=length(@test_compress_string)`
 select uncompressed_length(compress(@test_compress_string));
 uncompressed_length(compress(@test_compress_string))
@@ -28,7 +26,7 @@ uncompressed_length(compress(@test_compress_string))
 select length(compress(@test_compress_string))<length(@test_compress_string);
 length(compress(@test_compress_string))<length(@test_compress_string)
 1
-create table t1 (a text, b char(255), c char(4)) engine=myisam;
+create table t1 (a blob, b binary(255), c char(4)) engine=myisam;
 insert into t1 (a,b,c) values (compress(@test_compress_string),compress(@test_compress_string),'d ');
 select uncompress(a) from t1;
 uncompress(a)
@@ -52,7 +50,7 @@ uncompress(compress(""))
 select uncompressed_length("");
 uncompressed_length("")
 0
-create table t1 (a text);
+create table t1 (a blob);
 insert t1 values (compress(null)), ('A\0\0\0BBBBBBBB'), (compress(space(50000))), (space(50000));
 select length(a) from t1;
 length(a)
@@ -68,7 +66,7 @@ NULL
 NULL
 Warnings:
 Warning	1259	ZLIB: Input data corrupted
-Warning	1256	Uncompressed data size too large; the maximum size is 4194304 (probably, length of uncompressed data was corrupted)
+Warning	1256	Uncompressed data size too large; the maximum size is 67108864 (probably, length of uncompressed data was corrupted)
 drop table t1;
 set @@global.max_allowed_packet=1048576*100;
 select compress(repeat('aaaaaaaaaa', IF(XXX, 10, 10000000))) is null;
@@ -94,12 +92,14 @@ drop table t1;
 End of 4.1 tests
 create table t1 (a varchar(32) not null);
 insert into t1 values ('foo');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select * from t1 where uncompress(a) is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1259	ZLIB: Input data corrupted
-Note	1003	/* select#1 */ select 'foo' AS `a` from dual where isnull(uncompress('foo'))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where isnull(uncompress(`test`.`t1`.`a`))
 select * from t1 where uncompress(a) is null;
 a
 foo
@@ -107,9 +107,9 @@ Warnings:
 Warning	1259	ZLIB: Input data corrupted
 explain select *, uncompress(a) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select 'foo' AS `a`,uncompress('foo') AS `uncompress(a)` from dual
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,uncompress(`test`.`t1`.`a`) AS `uncompress(a)` from `test`.`t1`
 select *, uncompress(a) from t1;
 a	uncompress(a)
 foo	NULL
@@ -129,7 +129,7 @@ UNCOMPRESS(c1)	UNCOMPRESSED_LENGTH(c1)
 NULL	0
 NULL	0
 NULL	825307441
-EXPLAIN EXTENDED SELECT * FROM (SELECT UNCOMPRESSED_LENGTH(c1) FROM t1) AS s;
+EXPLAIN SELECT * FROM (SELECT UNCOMPRESSED_LENGTH(c1) FROM t1) AS s;
 DROP TABLE t1;
 End of 5.0 tests
 #

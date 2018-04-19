@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -31,15 +38,15 @@
 #define MAX_NDB_OBJECTS 32678
 
 #define CHECK(b) if (!(b)) { \
-  ndbout << "ERR: failed on line " << __LINE__ << endl; \
+  g_err.println("ERR: failed on line %u", __LINE__); \
   return -1; } 
 
-#define CHECKE(b) if (!(b)) { \
-  errors++; \
-  ndbout << "ERR: "<< step->getName() \
-         << " failed on line " << __LINE__ << endl; \
-  result = NDBT_FAILED; \
-  continue; } 
+#define CHECKE(b,obj) if (!(b)) {                          \
+    g_err.println("ERR:failed on line %u with err %u %s",  \
+                  __LINE__,                                \
+                  obj.getNdbError().code,                 \
+                  obj.getNdbError().message); \
+    return -1; }
 
 static const char* ApiFailTestRun = "ApiFailTestRun";
 static const char* ApiFailTestComplete = "ApiFailTestComplete";
@@ -275,6 +282,82 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
     hugoOps.closeTransaction(pNdb);
 
     l++;
+  }
+
+  /**
+   * After the peak usage of NdbOperations comes a cool down periode
+   * with lower usage. Check that the NdbOperations free list manager
+   * will gradually reduce number of free NdbOperations kept for 
+   * later reuse.
+   */
+  Uint32 hiFreeOperations = 0;
+  Uint32 freeOperations = 0;
+  {
+    Ndb::Free_list_usage usage_stat;
+    usage_stat.m_name= NULL;
+    while (pNdb->get_free_list_usage(&usage_stat))
+    {
+      if (strcmp(usage_stat.m_name, "NdbOperation") == 0)
+      {
+        hiFreeOperations = usage_stat.m_free;
+        break;
+      }
+    }
+  }
+
+  maxOpsLimit = 100;
+  Uint32 coolDownLoops = 25;
+  while (coolDownLoops-- > 0){
+    int errors = 0;
+    const int maxErrors = 5;
+
+    if (hugoOps.startTransaction(pNdb) != NDBT_OK){
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+    
+    for (int rowNo = 0; rowNo < 100; rowNo++)
+    {
+      if(hugoOps.pkReadRecord(pNdb, rowNo, 1) != NDBT_OK){
+        errors++;
+        if (errors >= maxErrors){
+          result = NDBT_FAILED;
+          break;
+        }
+      }
+    }
+
+    const int execResult = hugoOps.execute_Commit(pNdb);
+    if (execResult != NDBT_OK)
+    {
+      result = NDBT_FAILED;
+    }
+    hugoOps.closeTransaction(pNdb);
+
+    {
+      Ndb::Free_list_usage usage_stat;
+      usage_stat.m_name= NULL;
+      while (pNdb->get_free_list_usage(&usage_stat))
+      {
+        if (strcmp(usage_stat.m_name, "NdbOperation") == 0)
+        {
+          freeOperations = usage_stat.m_free;
+          ndbout << usage_stat.m_name << ", free: " << usage_stat.m_free
+                 << endl;
+          break;
+        }
+      }
+    }
+  } //while (coolDownLoops...
+
+  /**
+   * It is a pass criteria that cool down periode
+   * reduced the number of free NdbOperations kept.
+   */
+  if (freeOperations >= hiFreeOperations)
+  {
+    ndbout << "Cool down periode didn't shrink NdbOperation free-list" << endl;
+    result = NDBT_FAILED;
   }
 
   delete pNdb;
@@ -1766,6 +1849,141 @@ int runCheckNdbObjectList(NDBT_Context* ctx, NDBT_Step* step)
   
   return (cnt1 == do_cnt(con)) ? NDBT_OK : NDBT_FAILED;
 }
+
+
+static Ndb_cluster_connection* g_cluster_connection;
+
+int runNdbClusterConnectionDelete_connection_owner(NDBT_Context* ctx,
+                                                   NDBT_Step* step)
+{
+  // Get connectstring from main connection
+  char constr[256];
+  if (!ctx->m_cluster_connection.get_connectstring(constr,
+                                                   sizeof(constr)))
+  {
+    g_err << "Too short buffer for connectstring" << endl;
+    return NDBT_FAILED;
+  }
+
+  // Create a new cluster connection, connect it and assign
+  // to pointer so the other thread can access it.
+  Ndb_cluster_connection* con = new Ndb_cluster_connection(constr);
+
+  const int retries = 12;
+  const int retry_delay = 5;
+  const int verbose = 1;
+  if (con->connect(retries, retry_delay, verbose) != 0)
+  {
+    delete con;
+    g_err << "Ndb_cluster_connection.connect failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  g_cluster_connection = con;
+
+  // Signal other thread that cluster connection has been creted
+  ctx->setProperty("CREATED", 1);
+
+  // Now wait for the other thread to use the connection
+  // until it signals this thread to continue and
+  // delete the cluster connection(since the
+  // other thread still have live Ndb objects created
+  // in the connection, this thread should hang in
+  // the delete until other thread has finished cleaning up)
+  ctx->getPropertyWait("CREATED", 2);
+
+  g_cluster_connection = NULL;
+  delete con;
+
+  return NDBT_OK;
+}
+
+int runNdbClusterConnectionDelete_connection_user(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Wait for the cluster connection to be created by other thread
+  ctx->getPropertyWait("CREATED", 1);
+
+  Ndb_cluster_connection* con = g_cluster_connection;
+
+  // Create some Ndb objects and start transactions
+  class ActiveTransactions
+  {
+    Vector<NdbTransaction*> m_transactions;
+
+  public:
+    void release()
+    {
+      while(m_transactions.size())
+      {
+        NdbTransaction* trans = m_transactions[0];
+        Ndb* ndb = trans->getNdb();
+        g_info << "Deleting Ndb object " << ndb <<
+                  "and transaction " << trans << endl;
+        ndb->closeTransaction(trans);
+        delete ndb;
+        m_transactions.erase(0);
+      }
+      // The list should be empty
+      assert(m_transactions.size() == 0);
+    }
+
+    ~ActiveTransactions()
+    {
+      release();
+    }
+
+    void push_back(NdbTransaction* trans)
+    {
+      m_transactions.push_back(trans);
+    }
+  } active_transactions;
+
+  g_info << "Creating Ndb objects and transactions.." << endl;
+  for (Uint32 i = 0; i<100; i++)
+  {
+    Ndb* ndb = new Ndb(con, "TEST_DB");
+    if (ndb == NULL){
+      g_err << "ndb == NULL" << endl;
+      return NDBT_FAILED;
+    }
+    if (ndb->init(256) != 0){
+      NDB_ERR(ndb->getNdbError());
+      delete ndb;
+      return NDBT_FAILED;
+    }
+
+    if (ndb->waitUntilReady() != 0){
+      NDB_ERR(ndb->getNdbError());
+      delete ndb;
+      return NDBT_FAILED;
+    }
+
+    NdbTransaction* trans = ndb->startTransaction();
+    if (trans == NULL){
+      g_err << "trans == NULL" << endl;
+      NDB_ERR(ndb->getNdbError());
+      delete ndb;
+      return NDBT_FAILED;
+    }
+
+    active_transactions.push_back(trans);
+  }
+  g_info << "  ok!" << endl;
+
+  // Signal to cluster connection owner that Ndb objects have been created
+  ctx->setProperty("CREATED", 2);
+
+  // Delay a little and then start closing transactions and
+  // deleting the Ndb objects
+  NdbSleep_SecSleep(1);
+
+  g_info << "Releasing transactions and related Ndb objects..." << endl;
+  active_transactions.release();
+  g_info << "  ok!" << endl;
+  return NDBT_OK;
+}
+
+
   
 static void
 testExecuteAsynchCallback(int res, NdbTransaction *con, void *data_ptr)
@@ -3373,17 +3591,17 @@ runBug51775(NDBT_Context* ctx, NDBT_Step* step)
   while (pNdb->pollNdb() + res == 0);
 
   return NDBT_OK;
-}  
+}
 
-int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
+int setupOtherConnection(NDBT_Context* ctx, NDBT_Step* step)
 {
-  /* Setup a separate connection for running scan operations
-   * with that will be disconnected without affecting
+  /* Setup a separate connection for running operations
+   * that can be disconnected without affecting
    * the test framework
    */
   if (otherConnection != NULL)
   {
-    ndbout << "FragApiFail : Connection not null" << endl;
+    g_err.println("otherConnection not null");
     return NDBT_FAILED;
   }
   
@@ -3395,7 +3613,7 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
   
   if (otherConnection == NULL)
   {
-    ndbout << "FragApiFail : Connection is null" << endl;
+    g_err.println("otherConnection is null");
     return NDBT_FAILED;
   }
   
@@ -3403,16 +3621,43 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
   
   if (rc!= 0)
   {
-    ndbout << "FragApiFail : Connect failed with rc " << rc << endl;
+    g_err.println("Connect failed with rc %d", rc);
     return NDBT_FAILED;
   }
   
-  /* Check that all nodes are alive - if one has failed
-   * then probably we exposed bad API_FAILREQ handling
-   */
+  /* Check that all nodes are alive */
   if (otherConnection->wait_until_ready(10,10) != 0)
   {
-    ndbout << "FragApiFail : Cluster connection was not ready" << endl;
+    g_err.println("Cluster connection was not ready");
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+int tearDownOtherConnection(NDBT_Context* ctx, NDBT_Step* step)
+{
+  if (otherConnection == NULL)
+  {
+    g_err << "otherConnection is NULL" << endl;
+    return NDBT_OK;
+  }
+
+  delete otherConnection;
+  otherConnection = NULL;
+
+  return NDBT_OK;
+}
+
+
+int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Setup a separate connection for running scan operations
+   * that will be disconnected without affecting
+   * the test framework
+   */
+  if (setupOtherConnection(ctx, step) != NDBT_OK)
+  {
     return NDBT_FAILED;
   }
   
@@ -3428,7 +3673,7 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
     
     if (rc != 0)
     {
-      ndbout << "FragApiFail : Ndb " << i << " was not ready" << endl;
+      g_err.println("FragApiFail : Ndb %d was not ready", i);
       return NDBT_FAILED;
     }
     
@@ -3463,8 +3708,7 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
    */
   int otherNodeId = otherConnection->node_id();
   
-  ndbout << "FragApiFail : Forcing disconnect of node " 
-         << otherNodeId << endl;
+  g_info.println("FragApiFail : Forcing disconnect of node %u", otherNodeId);
   
   /* All dump 900 <nodeId> */
   int args[2]= {900, otherNodeId};
@@ -3489,8 +3733,7 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
     stepNdbs[i]= NULL;
   }
   
-  delete otherConnection;
-  otherConnection= NULL;
+  tearDownOtherConnection(ctx, step);
   
   return NDBT_OK;
 }
@@ -3556,7 +3799,7 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
     if (ctx->isTestStopped() ||
         (ctx->getProperty(ApiFailTestComplete) != 0))
     {
-      ndbout << stepNo << ": Test stopped, exiting thread" << endl;
+      g_info.println("%u: Test stopped, exiting thread", stepNo);
       /* Asked to stop by main test thread */
       delete[] buff;
       return NDBT_OK;
@@ -3572,27 +3815,47 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
       NdbTransaction* trans= otherNdb->startTransaction();
       if (!trans)
       {
-        ndbout << stepNo << ": Failed to start transaction from Ndb object" 
-               << " Error : " 
-               << otherNdb->getNdbError().code << " "
-               << otherNdb->getNdbError().message << endl;
+        const NdbError err = otherNdb->getNdbError();
         
         /* During this test, if we attempt to get a transaction
          * when the API is disconnected, we can get error 4009
-         * (Cluster failure).  We treat this similarly to the
+         * (Cluster failure) or 4035 (Cluster temporarily unavailable).
+         * We treat this similarly to the
          * "Node failure caused abort of transaction" case
          */
-        if (otherNdb->getNdbError().code == 4009)
+        if (err.code == 4009 || err.code == 4035)
         {
+          g_info.println("%u: Failed to start transaction from Ndb object Error : %u %s",
+                   stepNo, err.code, err.message);
           break;
         }
+        g_err.println("ERR: %u: %u: Failed to start transaction from Ndb object Error : %u %s",
+                      __LINE__, stepNo, err.code, err.message);
         delete[] buff;
         return NDBT_FAILED;
       }
       
       NdbScanOperation* scan= trans->getNdbScanOperation(ctx->getTab());
       
-      CHECK(scan != NULL);
+      if (scan == NULL)
+      {
+        /* getNdbScanOperation can fail in same way as startTransaction
+         * since it starts a buddy transaction for scan operations.
+         */
+        const NdbError err = trans->getNdbError();
+        if (err.code == 4009 || err.code == 4035)
+        {
+          g_info.println("%u: Failed to get scan operation transaction Error : %u %s",
+                   stepNo, err.code, err.message);
+          trans->close();
+          break;
+        }
+        g_err.println("ERR: %u: %u: Failed to get scan operation transaction Error : %u %s",
+                 __LINE__, stepNo, err.code, err.message);
+        trans->close();
+        delete[] buff;
+        return NDBT_FAILED;
+      }
       
       CHECK(0 == scan->readTuples());
       
@@ -3608,19 +3871,37 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
       
       CHECK(0 == scan->setInterpretedCode(&prog));
       
-      CHECK(0 == trans->execute(NdbTransaction::NoCommit));
-      
-      Uint32 execError= trans->getNdbError().code;
-      
+      int ret = trans->execute(NdbTransaction::NoCommit);
+
+      const NdbError execError= trans->getNdbError();
+
+      if (ret != 0)
+      {
+        /* Transaction was aborted.  Should be due to node disconnect. */
+        if(execError.classification != NdbError::NodeRecoveryError)
+        {
+          g_err.println("ERR: %u: %u: Execute aborted transaction with invalid error code: %u",
+                   __LINE__, stepNo, execError.code);
+          NDB_ERR_OUT(g_err, execError);
+          trans->close();
+          delete[] buff;
+          return NDBT_FAILED;
+        }
+        g_info.println("%u: Execute aborted transaction with NR error code: %u",
+                 stepNo, execError.code);
+        trans->close();
+        break;
+      }
+
       /* Can get success (0), or 874 for too much AttrInfo, depending
        * on timing
        */
-      if ((execError != 0) &&
-          (execError != 874) && 
-          (execError != 4002))
+      if ((execError.code != 0) &&
+          (execError.code != 874) &&
+          (execError.code != 4002))
       {
-        ndbout_c("%u incorrect error code: %u", __LINE__, execError);
-        NDB_ERR(trans->getNdbError());
+        g_err.println("ERR: %u: %u: incorrect error code: %u", __LINE__, stepNo, execError.code);
+        NDB_ERR_OUT(g_err, execError);
         trans->close();
         delete[] buff;
         return NDBT_FAILED;
@@ -3634,19 +3915,18 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
       /* 'Success case' is 874 for too much AttrInfo */
       if (scanError.code != 874)
       {
-       /* When disconnected, we get 
-         * 4028 : 'Node failure caused abort of transaction' 
-         */
+       /* When disconnected, we get should get a node failure related error */
         if (scanError.classification == NdbError::NodeRecoveryError)
         {
-          ndbout << stepNo << ": Scan failed due to node failure/disconnect" << endl;
+          g_info.println("%u: Scan failed due to node failure/disconnect with error code %u",
+                         stepNo, scanError.code);
           trans->close();
           break;
         }
         else
         {
-          ndbout_c("%u incorrect error code: %u", __LINE__, execError);
-          NDB_ERR(scan->getNdbError());
+          g_err.println("ERR: %u: %u: incorrect error code: %u", __LINE__, stepNo, scanError.code);
+          NDB_ERR_OUT(g_err, scanError);
           trans->close();
           delete[] buff;
           return NDBT_FAILED;
@@ -3659,7 +3939,7 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
     } // while (true)
     
     /* Node failure case - as expected */
-    ndbout << stepNo << ": Scan thread finished iteration" << endl;
+    g_info.println("%u: Scan thread finished iteration", stepNo);
 
     /* Signal that we've finished running this iteration */
     ctx->decProperty(ApiFailTestsRunning);
@@ -5687,6 +5967,1532 @@ runReceiveTRANSIDAIAfterRollback(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_FAILED;
 }
 
+int
+testNdbRecordSpecificationCompatibility(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Test for checking the compatibility of RecordSpecification
+   * when compiling old code with newer header.
+   * Create an instance of RecordSpecification_v1 and try to pass
+   * it to the NdbApi createRecord.
+   */
+
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab= ctx->getTab();
+  int numCols= pTab->getNoOfColumns();
+  const NdbRecord* defaultRecord= pTab->getDefaultRecord();
+
+  NdbDictionary::RecordSpecification_v1 rsArray[ NDB_MAX_ATTRIBUTES_IN_TABLE ];
+
+  for (int attrId=0; attrId< numCols; attrId++)
+  {
+    NdbDictionary::RecordSpecification_v1& rs= rsArray[attrId];
+
+    rs.column= pTab->getColumn(attrId);
+    rs.offset= 0;
+    rs.nullbit_byte_offset= 0;
+    rs.nullbit_bit_in_byte= 0;
+    CHECK(NdbDictionary::getOffset(defaultRecord,
+                                   attrId,
+                                   rs.offset));
+    CHECK(NdbDictionary::getNullBitOffset(defaultRecord,
+                                          attrId,
+                                          rs.nullbit_byte_offset,
+                                          rs.nullbit_bit_in_byte));
+  }
+  const NdbRecord* tabRec= pNdb->getDictionary()->createRecord(pTab,
+                              (NdbDictionary::RecordSpecification*)rsArray,
+                              numCols,
+                              sizeof(NdbDictionary::RecordSpecification_v1));
+  CHECK(tabRec != 0);
+
+  char keyRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
+  char attrRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
+  bzero(keyRowBuf, sizeof(keyRowBuf));
+  bzero(attrRowBuf, sizeof(attrRowBuf));
+
+  HugoCalculator calc(*pTab);
+
+  const int numRecords= 100;
+
+  for (int record=0; record < numRecords; record++)
+  {
+    int updates= 0;
+    /* calculate the Hugo values for this row */
+    for (int col=0; col<pTab->getNoOfColumns(); col++)
+    {
+      char* valPtr= NdbDictionary::getValuePtr(tabRec,
+                                               keyRowBuf,
+                                               col);
+      CHECK(valPtr != NULL);
+      int len= pTab->getColumn(col)->getSizeInBytes();
+      Uint32 real_len;
+      bool isNull= (calc.calcValue(record, col, updates, valPtr,
+                                   len, &real_len) == NULL);
+      if (pTab->getColumn(col)->getNullable())
+      {
+        NdbDictionary::setNull(tabRec,
+                               keyRowBuf,
+                               col,
+                               isNull);
+      }
+    }
+
+    /* insert the row */
+    NdbTransaction* trans=pNdb->startTransaction();
+    CHECK(trans != 0);
+    CHECK(trans->getNdbError().code == 0);
+
+    const NdbOperation* op= NULL;
+    op= trans->insertTuple(tabRec,
+                           keyRowBuf);
+    CHECK(op != 0);
+
+    CHECK(trans->execute(Commit) == 0);
+    trans->close();
+
+    /* Now read back */
+    Uint32 pkVal= 0;
+    memcpy(&pkVal, NdbDictionary::getValuePtr(tabRec,
+                                              keyRowBuf,
+                                              0),
+           sizeof(pkVal));
+
+    trans= pNdb->startTransaction();
+    op= trans->readTuple(tabRec,
+                         keyRowBuf,
+                         tabRec,
+                         attrRowBuf);
+    CHECK(op != 0);
+    CHECK(trans->execute(Commit) == 0);
+    CHECK(trans->getNdbError().code == 0);
+    trans->close();
+
+    /* Verify the values read back */
+    for (int col=0; col<pTab->getNoOfColumns(); col++)
+    {
+      const char* valPtr= NdbDictionary::getValuePtr(tabRec,
+                                                     attrRowBuf,
+                                                     col);
+      CHECK(valPtr != NULL);
+
+      char calcBuff[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
+      int len= pTab->getColumn(col)->getSizeInBytes();
+      Uint32 real_len;
+      bool isNull= (calc.calcValue(record, col, updates, calcBuff,
+                                   len, &real_len) == NULL);
+      bool colIsNullable= pTab->getColumn(col)->getNullable();
+      if (isNull)
+      {
+        CHECK(colIsNullable);
+        if (!NdbDictionary::isNull(tabRec,
+                                   attrRowBuf,
+                                   col))
+        {
+          ndbout << "Error, col " << col
+              << " (pk=" <<  pTab->getColumn(col)->getPrimaryKey()
+                  << ") should be Null, but is not" << endl;
+          return NDBT_FAILED;
+        }
+      }
+      else
+      {
+        if (colIsNullable)
+        {
+          if (NdbDictionary::isNull(tabRec,
+                                    attrRowBuf,
+                                    col))
+          {
+            ndbout << "Error, col " << col
+                << " (pk=" << pTab->getColumn(col)->getPrimaryKey()
+                << ") should be non-Null but is null" << endl;
+            return NDBT_FAILED;
+          };
+        }
+
+        /* Compare actual data read back */
+        if( memcmp(calcBuff, valPtr, real_len) != 0 )
+        {
+          ndbout << "Error, col " << col
+              << " (pk=" << pTab->getColumn(col)->getPrimaryKey()
+              << ") should be equal, but isn't for record "
+              << record << endl;
+          ndbout << "Expected :";
+          for (Uint32 i=0; i < real_len; i++)
+          {
+            ndbout_c("%x ", calcBuff[i]);
+          }
+          ndbout << endl << "Received :";
+          for (Uint32 i=0; i < real_len; i++)
+          {
+            ndbout_c("%x ", valPtr[i]);
+          }
+          ndbout << endl;
+
+          return NDBT_FAILED;
+        }
+      }
+    }
+
+    /* Now delete the tuple */
+    trans= pNdb->startTransaction();
+    op= trans->deleteTuple(tabRec,
+                           keyRowBuf,
+                           tabRec);
+    CHECK(op != 0);
+    CHECK(trans->execute(Commit) == 0);
+
+    trans->close();
+  }
+
+  return NDBT_OK;
+}
+
+int testSchemaObjectOwnerCheck(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* const ndb = GETNDB(step);
+  Ndb *otherNdb = NULL;
+  NdbDictionary::Dictionary* const dict = ndb->getDictionary();
+  NdbTransaction *trans = ndb->startTransaction();
+  NdbRestarter restarter;
+  int result = NDBT_OK;
+
+  do
+  {
+    ndbout << "Creating table with index" << endl;
+    NdbDictionary::Table tab;
+    NdbDictionary::Index idx;
+    tab.setName("SchemaObjOwnerCheck_tab");
+    tab.setLogging(true);
+
+    // create column
+    NdbDictionary::Column col("col1");
+    col.setType(NdbDictionary::Column::Unsigned);
+    col.setPrimaryKey(true);
+    tab.addColumn(col);
+
+    // create index on column
+    idx.setTable("SchemaObjOwnerCheck_tab");
+    idx.setName("SchemaObjOwnerCheck_idx");
+    idx.setType(NdbDictionary::Index::UniqueHashIndex);
+    idx.setLogging(false);
+    idx.addColumnName("col1");
+
+    NdbError error;
+    if(tab.validate(error) == -1)
+    {
+      ndbout << "Failed to create table" << endl;
+      break;
+    }
+    
+    if (dict->createTable(tab) == -1) {
+      g_err << "Failed to create SchemaObjOwnerCheck_tab table." << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    if (dict->createIndex(idx) == -1) {
+      g_err << "Failed to create index, error: " << dict->getNdbError() << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    ndbout << "Setting up other connection to acquire schema objects." << endl;
+    char connectString[256];
+    ctx->m_cluster_connection.get_connectstring(connectString,
+                                                sizeof(connectString));
+    otherConnection= new Ndb_cluster_connection(connectString);
+    if (otherConnection == NULL)
+    {
+      ndbout << "otherConnection is null" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    int rc= otherConnection->connect();
+    if (rc != 0)
+    {
+      ndbout << "Connect of otherConnection failed with rc " << rc << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    if (otherConnection->wait_until_ready(10,10) != 0)
+    {
+      ndbout << "Cluster connection otherConnection was not ready" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    otherNdb = new Ndb(otherConnection, "TEST_DB");
+    if(!otherNdb)
+    {
+      ndbout << "Failed to acquire Ndb object from otherConnection" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    otherNdb->init();
+    if(otherNdb->waitUntilReady(10) != 0)
+    {
+      ndbout << "Failed to init Ndb object from otherConnection" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    const NdbDictionary::Table *otherTable = otherNdb->getDictionary()->getTable("SchemaObjOwnerCheck_tab");
+    if(!otherTable)
+    {
+      ndbout << "Failed to get Ndb table from otherConnection" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    const NdbDictionary::Index *otherIndex = otherNdb->getDictionary()->getIndex("SchemaObjOwnerCheck_idx", "SchemaObjOwnerCheck_tab");
+    if(!otherIndex)
+    {
+      ndbout << "Failed to get Ndb index from otherConnection" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+  
+    ndbout << "Enabling schema object ownership check on ctx connection" << endl;
+    trans->setSchemaObjOwnerChecks(true);
+  
+    ndbout << "Attempting to acquire Ndb*Operations on schema objects ";
+    ndbout << "which belong to other connection" << endl;
+    NdbOperation *op = trans->getNdbOperation(otherTable);
+    const NdbError err1 = trans->getNdbError();
+    if(err1.code != 1231)
+    {
+      ndbout << "Failed to detect Table with wrong owner for NdbOperation" << endl;
+      result = NDBT_FAILED;
+      break;
+    } 
+    NdbScanOperation *scanop = trans->getNdbScanOperation(otherTable);
+    const NdbError err2 = trans->getNdbError();
+    if(err2.code != 1231)
+    {
+      ndbout << "Failed to detect Table with wrong owner for NdbScanOperation" << endl;
+      result = NDBT_FAILED;
+      break;
+    } 
+    NdbIndexScanOperation *idxscanop = trans->getNdbIndexScanOperation(otherIndex, otherTable);
+    const NdbError err3 = trans->getNdbError();
+    if(err3.code != 1231)
+    {
+      ndbout << "Failed to detect Table/Index with wrong owner for NdbIndexScanOperation" << endl;
+      result = NDBT_FAILED;
+      break;
+    } 
+    NdbIndexOperation *idxop = trans->getNdbIndexOperation(otherIndex);
+    const NdbError err4 = trans->getNdbError();
+    if(err4.code != 1231)
+    {
+      ndbout << "Failed to detect Index with wrong owner for NdbIndexOperation" << endl;
+      result = NDBT_FAILED;
+      break;
+    } 
+    ndbout << "Success: ownership check detected wrong owner" << endl;   
+ 
+    ndbout << "Disabling schema object ownership check on valid connection" << endl;
+    trans->setSchemaObjOwnerChecks(false);
+  
+    ndbout << "Attempting to acquire Ndb*Operations ";
+    ndbout << "on valid schema objects from other connection" << endl;
+    op = trans->getNdbOperation(otherTable);
+    scanop = trans->getNdbScanOperation(otherTable);
+    idxscanop = trans->getNdbIndexScanOperation(otherIndex, otherTable);
+    idxop = trans->getNdbIndexOperation(otherIndex);
+    
+    if(!op || !scanop || !idxscanop || !idxop)  // failure to acquire at least one op
+    {
+      ndbout << "Failed to acquire ";
+      if(!op)        ndbout << "NdbOperation, ";
+      if(!scanop)    ndbout << "NdbScanOperation, ";
+      if(!idxscanop) ndbout << "NdbIndexScanOperation, ";
+      if(!idxop)     ndbout << "NdbIndexOperation, ";
+      ndbout << "error: " << trans->getNdbError().message << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    ndbout << "Success: ownership check skipped, wrong owner not detected" << endl;   
+
+    ndbout << "Enabling schema object ownership check on valid connection" << endl;
+    trans->setSchemaObjOwnerChecks(true);
+ 
+    ndbout << "Acquiring schema objects from current connection" << endl;
+    const NdbDictionary::Table *table = ndb->getDictionary()->getTable("SchemaObjOwnerCheck_tab");
+    if(!table)
+    {
+      ndbout << "Failed to get Ndb table from connection" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    const NdbDictionary::Index *index = ndb->getDictionary()->getIndex("SchemaObjOwnerCheck_idx", "SchemaObjOwnerCheck_tab");
+    if(!index)
+    {
+      ndbout << "Failed to get Ndb index from connection" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+ 
+    ndbout << "Attempting to acquire Ndb*Operations ";
+    ndbout << "on owned schema objects with different db" << endl;
+    ndb->setDatabaseName("notexist");
+    NdbOperation *op2 = trans->getNdbOperation(table);
+    NdbScanOperation *scanop2 = trans->getNdbScanOperation(table);
+    NdbIndexScanOperation *idxscanop2 = trans->getNdbIndexScanOperation(index, table);
+    NdbIndexOperation *idxop2 = trans->getNdbIndexOperation(index, table);
+
+    if(!op2 || !scanop2 || !idxscanop2 || !idxop2)  // failure to acquire at least one op
+    {
+      ndbout << "Failed to acquire ";
+      if(!op)        ndbout << "NdbOperation, ";
+      if(!scanop)    ndbout << "NdbScanOperation, ";
+      if(!idxscanop) ndbout << "NdbIndexScanOperation, ";
+      if(!idxop)     ndbout << "NdbIndexOperation, ";
+      ndbout << "error: " << trans->getNdbError().message << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    ndbout << "Success: acquired Ndb*Operations on owned schema objects" << endl;   
+  } while(false);
+
+  ndbout << "Cleanup" << endl; 
+  ndb->setDatabaseName("TEST_DB");
+  if (dict->dropIndex("SchemaObjOwnerCheck_idx", "SchemaObjOwnerCheck_tab") == -1) 
+  {
+    g_err << "Failed to drop SchemaObjOwnerCheck_idx index." << endl;
+    result = NDBT_FAILED;
+  }
+  if (dict->dropTable("SchemaObjOwnerCheck_tab") == -1) 
+  {
+    g_err << "Failed to drop SchemaObjOwnerCheck_tab table." << endl;
+    result = NDBT_FAILED;
+  }
+
+  trans->setSchemaObjOwnerChecks(false);
+  ndb->closeTransaction(trans);
+
+  if(otherNdb)
+  {
+    delete otherNdb;
+    otherNdb = NULL;
+  }
+  if(otherConnection)
+  {
+    delete otherConnection;
+    otherConnection = NULL;
+  }
+  return result;
+}
+
+int 
+testMgmdSendBufferExhaust(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* 1 : Get MGMD node id
+   * 2 : Get a data node node id
+   * 3 : Consume most SB in MGMD
+   * 4 : Block sending from MGMD -> data node
+   * 5 : Observe whether MGMD is alive + well
+   * 6 : Unblock sending
+   * 7 : Release SB
+   * 8 : Completed
+   */
+  NdbRestarter restarter;
+  int result = NDBT_OK;
+  
+  int dataNodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+  int mgmdNodeId = ndb_mgm_get_mgmd_nodeid(restarter.handle);
+
+  ndbout << "MGMD node id : " << mgmdNodeId << endl;
+  ndbout << "Data node id : " << dataNodeId << endl;
+  
+  ndbout << "Reducing MGMD SB memory + blocking send to data node" << endl;
+  const int leftSbBytes = 96 * 1024;
+  const int dumpCodeConsumeSb [] = {9996, leftSbBytes};
+  const int dumpCodeBlockSend [] = {9994, dataNodeId};
+  CHECK(restarter.dumpStateOneNode(mgmdNodeId, dumpCodeConsumeSb, 2) == 0);
+  CHECK(restarter.dumpStateOneNode(mgmdNodeId, dumpCodeBlockSend, 2) == 0);
+
+  ndbout << "Checking ability of MGMD to respond to requests" << endl;
+  
+  Uint32 count = 30;
+
+  while (count--)
+  {
+    ndbout << "  - Getting node status " << count;
+    ndb_mgm_cluster_state* state = ndb_mgm_get_status(restarter.handle);
+    if (state == NULL)
+    {
+      ndbout << "ndb_mgm_get_status failed"
+	     << ", error: " << ndb_mgm_get_latest_error(restarter.handle)
+             << " - " <<  ndb_mgm_get_latest_error_msg(restarter.handle)
+	     << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    
+    ndbout << " - ok." << endl;
+    free(state);
+    NdbSleep_MilliSleep(1000);
+  }
+
+  ndbout << "Cleaning up" << endl;
+  const int dumpCodeUnblockSend [] = {9995, dataNodeId};
+  const int dumpCodeReleaseSb [] = {9997};
+  CHECK(restarter.dumpStateOneNode(mgmdNodeId, dumpCodeUnblockSend, 2) == 0);
+  CHECK(restarter.dumpStateOneNode(mgmdNodeId, dumpCodeReleaseSb, 1) == 0);
+  CHECK(ndb_mgm_get_latest_error(restarter.handle) == 0);
+
+  return result;
+}
+
+/*
+ * Create Unique Index in the given table using ndbapi
+ * Returns
+ *   NDBT_OK     if index creation was successful
+ *   NDBT_FAILED if the index creation failed
+ * */
+int
+createUniqueIndex(NdbDictionary::Dictionary* pDict,
+                  const char* tableName,
+                  const char* indexName,
+                  const char* columnName)
+{
+  /* create a new index on the table */
+  NdbDictionary::Index tmpIndex;
+  tmpIndex.setName(indexName);
+  tmpIndex.setTable(tableName);
+  tmpIndex.setType(NdbDictionary::Index::UniqueHashIndex);
+  tmpIndex.setLogging(false);
+  tmpIndex.addIndexColumn(columnName);
+
+  /* create an index on the table */
+  ndbout << "Creating index " << indexName
+         << " on " << tableName << endl;
+  CHECKN(pDict->createIndex(tmpIndex) == 0, pDict, NDBT_FAILED);
+  return NDBT_OK;
+}
+
+/**
+ * Runs a transaction using the passed index data.
+ * Returns the errorCode on failure. 0 on success.
+ */
+int
+runTransactionUsingNdbIndexOperation(Ndb* pNdb,
+                                     Vector<const NdbDictionary::Index*> pIndexes,
+                                     const NdbDictionary::Table *tab)
+{
+  /*
+   * 1. Start a transaction and fetch NdbIndexOperations using the
+   *    sent indexes.
+   * 2. Execute the transaction.
+   * 3. Return the error-code or 0
+   */
+  /* start a transaction */
+  NdbTransaction *pTransaction= pNdb->startTransaction();
+  CHECKN(pTransaction != NULL, pNdb, pNdb->getNdbError().code);
+
+  for(uint i = 0; i < pIndexes.size(); i++){
+    /* use the obsolete index to fetch a NdbIndexOperation */
+    NdbIndexOperation *pIndexOperation=
+        pTransaction->getNdbIndexOperation(pIndexes[i], tab);
+    CHECKN(pIndexOperation != NULL, pTransaction,
+           pTransaction->getNdbError().code);
+
+    /* add where field */
+    pIndexOperation->readTuple(NdbOperation::LM_Read);
+    pIndexOperation->equal(pIndexes[i]->getColumn(0)->getName(), 10);
+
+    /* add select field */
+    NdbRecAttr *pRecAttr= pIndexOperation->getValue(1, NULL);
+    CHECKN(pRecAttr != NULL, pTransaction, pTransaction->getNdbError().code);
+  }
+
+  /* execute the transaction */
+  ndbout << "Executing the transaction." << endl;
+  if(pTransaction->execute( NdbTransaction::Commit,
+                            NdbOperation::AbortOnError) == -1)
+  {
+    /* Transaction failed. */
+    NdbError ndbError = pTransaction->getNdbError();
+    /* Ignore - Tuple did not exist errors */
+    if(ndbError.code != 626)
+    {
+      pNdb->closeTransaction(pTransaction);
+      NDB_ERR(ndbError);
+      return ndbError.code;
+    }
+  }
+  pNdb->closeTransaction(pTransaction);
+  ndbout << "Transaction ran successfully." << endl;
+  return NDBT_OK;
+}
+
+int
+runGetNdbIndexOperationTest(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * 1. Obtain the index using getIndex()
+   * 2. Drop that index from that table.
+   * 3. Execute transaction using that index
+   * 5. Verify that the transaction returns error code 284.
+   * 6. Create another index - this will take the same index id as the
+   *    one previously dropped.
+   * 7. Repeat 3 the previously dropped index object.
+   * 8. Verify that the transaction returns error code 241.
+   */
+  Ndb* pNdb = GETNDB(step);
+  const char* tableName = "I3";
+  const char* indexName = "I3$NDBT_IDX0";
+  const NdbDictionary::Table *tab = ctx->getTab();
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  /* load the index */
+  const NdbDictionary::Index *pIndex;
+  Vector<const NdbDictionary::Index*> pIndexes;
+  CHECKN((pIndex = pDict->getIndex(indexName,tableName)) != NULL,
+         pDict, NDBT_FAILED);
+  pIndexes.push_back(pIndex);
+  /* drop the index from the table */
+  ndbout << "Dropping index " << indexName << " from " << tableName << endl;
+  CHECKN(pDict->dropIndexGlobal(*pIndex) == 0, pDict, NDBT_FAILED);
+  /*
+    perform a transaction using the dropped index
+    Expected Error : 284 - Table not defined in transaction coordinator
+   */
+  if(runTransactionUsingNdbIndexOperation(pNdb, pIndexes, tab) != 284)
+  {
+    ndberr << "Transaction was supposed to fail with error 284 but didn't."
+           << endl;
+    return NDBT_FAILED;
+  }
+
+  /* create a new index on the table */
+  CHECK(createUniqueIndex(pDict, tableName, indexName,
+                          pIndex->getColumn(0)->getName()) != NDBT_FAILED);
+
+  /*
+    perform a transaction using the dropped index
+    Expected Error : 241 - Invalid schema object version
+   */
+  if(runTransactionUsingNdbIndexOperation(pNdb, pIndexes, tab) != 241)
+  {
+    ndberr << "Transaction was supposed to fail with error 241 but didn't."
+           << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+int
+runCreateIndexesOnI3(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Create indexes on table I3 */
+  Ndb* pNdb = GETNDB(step);
+  const char* tableName = "I3";
+  const uint numOfIndexes = 4;
+  const char* columnNames[] = {"PORT", "MAC", "HOSTNAME", "GW"};
+  ctx->setProperty("numOfIndexes", numOfIndexes);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  /* create the indexes */
+  Vector<const NdbDictionary::Index*> pIndexes;
+  for(uint i = 0; i < numOfIndexes; i++)
+  {
+    BaseString name;
+    name.assfmt("I3$NDBT_UIDX%d", i);
+    CHECK(createUniqueIndex(pDict, tableName, name.c_str(),
+                            columnNames[i]) != NDBT_FAILED);
+  }
+  return NDBT_OK;
+}
+
+int
+runGetNdbIndexOperationBatchTest(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * 1. In a loop, use all the indexes to perform batch transactions
+   *    but, drop an index at every turn at different positions.
+   * 2. Verify that the transactions fail with expected error.
+   */
+  Ndb* pNdb = GETNDB(step);
+  const char* tableName = "I3";
+  const NdbDictionary::Table *tab = ctx->getTab();
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  const uint numOfIndexes = ctx->getProperty("numOfIndexes");
+
+  /* load the indexes */
+  Vector<const NdbDictionary::Index*> pIndexes;
+  for(uint i = 0; i < numOfIndexes; i++)
+  {
+    BaseString name;
+    const NdbDictionary::Index *pIndex;
+    name.assfmt("I3$NDBT_UIDX%d", i);
+    CHECKN((pIndex = pDict->getIndex(name.c_str(),tableName)) != NULL,
+           pDict, NDBT_FAILED);
+    pIndexes.push_back(pIndex);
+  }
+
+  /* start batch operations */
+  ndbout << "Starting batch transactions." << endl;
+  for(uint i=0; i < numOfIndexes; i++)
+  {
+    /* drop ith index */
+    ndbout << "Dropping index " << pIndexes[i]->getName()
+           << " from " << tableName << endl;
+    CHECKN(pDict->dropIndexGlobal(*pIndexes[i]) == 0, pDict, NDBT_FAILED);
+
+    /* run batch operations in a loop,
+     * changing the position of dropped indexes every time */
+    for(uint loops = 0; loops < numOfIndexes; loops++)
+    {
+      /*
+      perform a transaction using the dropped index
+      Expected Error : 284 - Table not defined in transaction coordinator
+       */
+      if(runTransactionUsingNdbIndexOperation(pNdb, pIndexes, tab) != 284)
+      {
+        ndberr << "Transaction was supposed to fail with error 284 but didn't."
+               << endl;
+        return NDBT_FAILED;
+      }
+
+      /* rotate positions of obsolete indexes */
+      pIndexes.push_back(pIndexes[0]);
+      pIndexes.erase(0);
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int
+runGetNdbIndexOperationTransactions(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * 1. In a loop, use all the indexes to perform batch transactions
+   * 2. Verify that the transactions fail with one of the expected error.
+   */
+  Ndb* pNdb = GETNDB(step);
+  const char* tableName = "I3";
+  const NdbDictionary::Table *tab = ctx->getTab();
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  const uint numOfIndexes = ctx->getProperty("numOfIndexes");
+
+  /* start batch operations */
+  ndbout << "Starting batch transactions." << endl;
+  uint l = 0;
+  while(ctx->getProperty("StopTransactions") == 0)
+  {
+    Vector<const NdbDictionary::Index*> pIndexes;
+    if(l++ % 50 == 0)
+    {
+      /* load the indexes every 50th loop */
+      pIndexes.clear();
+      for(uint i = 0; i < numOfIndexes; i++)
+      {
+        BaseString name;
+        const NdbDictionary::Index *pIndex;
+        name.assfmt("I3$NDBT_UIDX%d", i);
+        pIndex = pDict->getIndex(name.c_str(),tableName);
+        if(pIndex != NULL)
+          pIndexes.push_back(pIndex);
+      }
+    }
+
+    /*
+      perform a transaction
+      Expected Errors : 284 - Table not defined in transaction coordinator (or)
+                        241 - Invalid schema object version (or)
+                   283/1226 - Table is being dropped
+    */
+    int result = runTransactionUsingNdbIndexOperation(pNdb, pIndexes, tab);
+    if(result != NDBT_OK && result != 241 && result != 284 &&
+       result != 283 && result != 1226)
+    {
+      /* Transaction failed with an unexpected error */
+      ndberr << "Transaction failed with an unexpected error : " << result << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int
+runDropIndexesOnI3(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const char* tableName = "I3";
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  const uint numOfIndexes = ctx->getProperty("numOfIndexes");
+  uint loops = ctx->getNumLoops();
+
+  while(loops-- > 0)
+  {
+    for(uint i =0; i < numOfIndexes; i++)
+    {
+      BaseString name;
+      name.assfmt("I3$NDBT_UIDX%d", i);
+      /* drop the index. */
+      ndbout << "Dropping index " << name.c_str()
+                 << " from " << tableName << endl;
+      CHECKN(pDict->dropIndex(name.c_str(), tableName) == 0,
+             pDict, NDBT_FAILED);
+
+      /* sleep for a random ms */
+      const int max_sleep = 100;
+      NdbSleep_MilliSleep(rand() % max_sleep);
+    }
+
+    /* recreate the indexes and start again */
+    runCreateIndexesOnI3(ctx, step);
+  }
+  ctx->setProperty("StopTransactions", 1);
+
+  return NDBT_OK;
+}
+
+static void unusedCallback(int, NdbTransaction*, void*)
+{}
+
+/**
+ * Test that Ndb::closeTransaction() and/or Ndb-d'tor is
+ * able to do propper cleanup of NdbTransactions which
+ * are in some 'incomplete' states:
+ *  - Transactions being closed before executed.
+ *  - Transactions being closed without, or only partially
+ *    defined operations.
+ *  - Transactions being closed with prepared async operations
+ *    not yet executed.
+ *  - Ndb instance destructed with NdbTransactions still open
+ *    or in 'incomplete' states as described above.
+ *
+ * Pass verification is no unexpected errors being returned,
+ * no asserts hit (Normally found in Ndb::free_list's), and
+ * no datanode crashed. (All of these used to be a problem!)
+ */
+int runTestNoExecute(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  {
+    Ndb ndb(&ctx->m_cluster_connection, "TEST_DB");
+  }
+  {
+    Ndb ndb(&ctx->m_cluster_connection, "TEST_DB");
+    if (ndb.init()){
+      NDB_ERR(ndb.getNdbError());
+      return NDBT_FAILED;
+    }
+  }
+
+  Ndb* pNdb = NULL;
+  NdbConnection* pCon = NULL;
+  for (int i = 0; i < 1000; i++)
+  {
+    if (pNdb == NULL)
+    {
+      pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
+      if (pNdb == NULL){
+        ndbout << "pNdb == NULL" << endl;      
+        return NDBT_FAILED;  
+      }
+      if (pNdb->init()){
+        NDB_ERR(pNdb->getNdbError());
+        delete pNdb;
+        return NDBT_FAILED;
+      }
+    }
+    pCon = pNdb->startTransaction();
+    if (pCon == NULL){
+      NDB_ERR(pNdb->getNdbError());
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+
+    const int testcase = ((i >> 2) % 10);
+    switch (testcase)
+    {
+      case 0:   //Do nothing
+        break;
+ 
+      case 1:
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+      {
+        NdbOperation *pOp = pCon->getNdbOperation(pTab->getName());
+        if (pOp == NULL){
+          NDB_ERR(pCon->getNdbError());
+          delete pNdb;
+          return NDBT_FAILED;
+        }
+        if (testcase == 1)
+          break;
+
+        if (pOp->readTuple() != 0){
+          NDB_ERR(pOp->getNdbError());
+          delete pNdb;
+          return NDBT_FAILED;
+        }
+        if (testcase == 2)
+          break;
+
+        if (pOp->getLockHandle() == NULL){
+          NDB_ERR(pOp->getNdbError());
+          delete pNdb;
+          return NDBT_FAILED;
+        }
+        if (testcase == 3)
+          break;
+
+        pCon->executeAsynchPrepare(NdbTransaction::Commit, &unusedCallback, NULL);
+        if (testcase == 4)
+          break;
+
+        pNdb->sendPollNdb(0, 0);
+        break;
+      }
+
+      case 6:
+      case 7:
+      case 8:
+      case 9:
+      {
+        NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
+        if (pOp == NULL){
+          NDB_ERR(pCon->getNdbError());
+          delete pNdb;
+          return NDBT_FAILED;
+        }
+        if (testcase == 6)
+          break;
+
+        if (pOp->readTuples() != 0){
+          NDB_ERR(pOp->getNdbError());
+          delete pNdb;
+          return NDBT_FAILED;
+        }
+        if (testcase == 7)
+          break;
+
+        if (pOp->getValue(pTab->getColumn(1)->getName()) == NULL){
+          NDB_ERR(pOp->getNdbError());
+          delete pNdb;
+          return NDBT_FAILED;
+        }
+        if (testcase == 8)
+          break;
+
+        if (pCon->execute(Commit) != 0){
+          NDB_ERR(pCon->getNdbError());
+          delete pNdb;
+          return NDBT_FAILED;
+        }
+        break;
+      }
+    }
+
+    if ((i >> 0) & 0x01)
+    {
+      pNdb->closeTransaction(pCon);
+      pCon = NULL;
+    }
+    if ((i >> 1) & 0x01)
+    {
+      delete pNdb;
+      pNdb = NULL;
+      pCon = NULL;
+    }
+  }
+  delete pNdb;
+
+  return result;
+}
+
+
+int
+runCheckTransId(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* stepNdb = GETNDB(step);
+  Ndb_cluster_connection* ncc = &stepNdb->get_ndb_cluster_connection();
+
+  /**
+   * Coverage of problem in bug#23709232
+   *
+   * Shared 'max transid' concept assumes that when a block
+   * reference is reused, the old Ndb's 'max transid' is passed 
+   * to the new Ndb.
+   * However this had a bug, exposed by interleaving of
+   * Ndb(), Ndb->init(), and ~Ndb(), which might be expected
+   * to occur in any multithreaded environment.
+   */
+  
+  Ndb* ndb1 = new Ndb(ncc); // Init transid from connection
+
+  ndb1->init(); // Determine block-ref
+
+  NdbTransaction* trans1 = ndb1->startTransaction();
+  Uint64 transId1 = trans1->getTransactionId();
+  trans1->close();
+
+  ndbout << "Transid1 : " << transId1 << endl;
+
+  Ndb* ndb2 = new Ndb(ncc); // Init transid from connection
+
+  delete ndb1;  // Free block-ref
+
+  ndb2->init(); // Determine block-ref
+
+  NdbTransaction* trans2 = ndb2->startTransaction();
+  Uint64 transId2 = trans2->getTransactionId();
+  trans2->close();
+
+  ndbout << "Transid2 : " << transId2 << endl;
+  
+  delete ndb2;
+  
+  if (transId1 == transId2)
+  {
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+/* CheckTransIdMt
+ * Can control threading + iterations here
+ */
+const int CheckTransIdSteps = 8;
+const Uint32 CheckTransIdIterations = 10000;
+const Uint32 CheckTransIdEntries = CheckTransIdSteps * CheckTransIdIterations;
+
+static Uint64* g_checkTransIdArrays;
+
+int
+runInitCheckTransIdMt(NDBT_Context* ctx, NDBT_Step* step)
+{
+  g_checkTransIdArrays = new Uint64[CheckTransIdEntries];
+
+  ndbout << "Running" << endl;
+
+  return NDBT_OK;
+}
+
+int
+runCheckTransIdMt(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* stepNdb = GETNDB(step);
+  Ndb_cluster_connection* ncc = &stepNdb->get_ndb_cluster_connection();
+  
+  Uint32 stepIdx = step->getStepNo() - 1;
+  Uint64* myIds = g_checkTransIdArrays + (stepIdx * CheckTransIdIterations);
+  
+  for (Uint32 i=0; i<CheckTransIdIterations; i++)
+  {
+    /* New Ndb, create a transaction, get id, close it, delete Ndb */
+    Ndb newNdb(ncc);
+    newNdb.init();
+    
+    NdbTransaction* newTrans = newNdb.startTransaction();
+    myIds[i] = newTrans->getTransactionId();
+    newTrans->close();
+  }
+
+  return NDBT_OK;
+}
+
+int cmpUint64(const void* a, const void* b)
+{
+  Uint64 va = *((const Uint64*)a);
+  Uint64 vb = *((const Uint64*)b);
+  
+  return ((va > vb)? 1 :
+          (vb > va)? -1 :
+          0);
+} 
+
+int
+runVerifyCheckTransIdMt(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Look for duplicates */
+  ndbout << "Checking" << endl;
+  
+  /* First sort */
+  qsort(g_checkTransIdArrays, CheckTransIdEntries, sizeof(Uint64), cmpUint64);
+  
+  int result = NDBT_OK;
+  Uint32 contigCount = 0;
+  Uint32 errorCount = 0;
+  Uint32 maxContigError = 0;
+  Uint32 contigErrorCount = 0;
+
+  /* Then check */
+  for (Uint32 i=1; i<CheckTransIdEntries; i++)
+  {
+    //ndbout << g_checkTransIdArrays[i-1] << endl;
+    if (g_checkTransIdArrays[i] == g_checkTransIdArrays[i-1])
+    {
+      ndbout << "Error : Duplicate transid found "
+             << " (" << g_checkTransIdArrays[i]
+             << ")" << endl;
+      errorCount ++;
+      contigErrorCount++;
+      
+      result = NDBT_FAILED;
+    }
+    else
+    {
+      if (contigErrorCount > 0)
+      {
+        if (contigErrorCount > maxContigError)
+        {
+          maxContigError = contigErrorCount;
+        }
+        contigErrorCount = 0;
+      }
+      if (g_checkTransIdArrays[i] == g_checkTransIdArrays[i-1] + 1)
+      {
+        contigCount++;
+      }
+    }
+  }
+
+  ndbout << CheckTransIdEntries << " transaction ids of which "
+         << contigCount << " are contiguous, giving "
+         << CheckTransIdEntries - contigCount << " gaps." << endl;
+
+  ndbout << errorCount << " duplicates found, with max of "
+         << maxContigError + 1 << " uses of the same transaction id" << endl;
+
+  return result;
+}
+
+int
+runFinaliseCheckTransIdMt(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Free the storage */
+  delete g_checkTransIdArrays;
+
+  return NDBT_OK;
+}
+
+int
+runTestColumnNameLookupPerf(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table *tab = ctx->getTab();
+  
+  ndbout_c("Table lookups on columns in table %s",
+           tab->getName());
+
+  const char* colNames[512];
+  for (int c=0; c<tab->getNoOfColumns(); c++)
+  {
+    colNames[c] = tab->getColumn(c)->getName();
+    ndbout_c("  %d %s",
+             c, colNames[c]);
+  }
+
+  const Uint32 iterations=10000000;
+  for (int c=0; c < tab->getNoOfColumns(); c++)
+  {
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
+    const char* name = colNames[c];
+    for (Uint32 i=0; i < iterations; i++)
+    {
+      const NdbDictionary::Column* col = tab->getColumn(colNames[c]);
+      (void) col;
+    };
+    const Uint64 time = NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).milliSec();
+    ndbout_c("Col %u %s : %u iterations in %llu millis",
+             c, name, iterations, time);
+  }
+
+  return NDBT_OK;
+}
+
+
+void
+asyncCallback(int res, NdbTransaction* trans, void* obj)
+{
+  
+}
+
+int
+runTestOldApiScanFinalise(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table *tab = ctx->getTab();
+
+  /**
+   * Test behaviour of 'old api' scan prepare + send 
+   * without subsequent execAsynchPrepare()
+   * Note that use of async API with scans is not 
+   * currently documented, but it is possible.
+   */
+  {
+    NdbTransaction * trans = pNdb->startTransaction();
+    CHECK(trans != NULL);
+    
+    /**
+     *  Prepare transaction, so that it is considered for
+     * sending
+     */
+    trans->executeAsynchPrepare(NdbTransaction::NoCommit,
+                                asyncCallback,
+                                NULL);
+
+    /**
+     * Now define a scan, which is not prepared
+     */
+
+    NdbScanOperation* scanOp = trans->getNdbScanOperation(tab);
+    CHECK(scanOp != NULL);
+
+    CHECK(scanOp->readTuples(NdbScanOperation::LM_CommittedRead,
+                             0,
+                             16) == 0);
+    
+    for(int a = 0; a<tab->getNoOfColumns(); a++)
+    {
+      CHECK(scanOp->getValue(tab->getColumn(a)) != 0);
+    }
+
+    /**
+     * Now call send and check behaviour
+     * Expect : 
+     *   send will finalise + send the scan
+     *   scan will proceed as expected (no rows in resultset)
+     */
+
+    CHECK(pNdb->sendPollNdb() != 0);
+
+    ndbout_c("Trans error : %u %s\n"
+             "Scan error : %u %s\n",
+             trans->getNdbError().code,
+             trans->getNdbError().message,
+             scanOp->getNdbError().code,
+             scanOp->getNdbError().message);
+
+    /* Specific error for this case now */
+    CHECK(trans->getNdbError().code == 4342);
+    CHECK(scanOp->getNdbError().code == 4342);
+
+    /**
+     * Now attempt nextResult
+     */
+    int nextRes = scanOp->nextResult();
+    
+    ndbout_c("Next result : %d\n"
+             "ScanError : %u %s",
+             nextRes,
+             scanOp->getNdbError().code,
+             scanOp->getNdbError().message);
+    CHECK(nextRes == -1);
+    CHECK(scanOp->getNdbError().code == 4342); /* Scan defined but not prepared */
+
+    trans->close();
+  }
+
+/* Test requires DBUG error injection */
+#ifndef DBUG_OFF
+  /**
+   * Test behaviour of 'old api' scan finalisation
+   * failure
+   */
+  {
+    NdbTransaction * trans = pNdb->startTransaction();
+    CHECK(trans != NULL);
+
+    NdbScanOperation* scanOp = trans->getNdbScanOperation(tab);
+    CHECK(scanOp != NULL);
+
+    CHECK(scanOp->readTuples(NdbScanOperation::LM_CommittedRead,
+                             0,
+                             16) == 0);
+    
+    for(int a = 0; a<tab->getNoOfColumns(); a++)
+    {
+      CHECK(scanOp->getValue(tab->getColumn(a)) != 0);
+    }
+
+    /* Force failure in finalisation via error-insert */
+    DBUG_SET_INITIAL("+d,ndb_scanbuff_oom");
+
+    int execRes = trans->execute(NdbTransaction::NoCommit,
+                                 NdbOperation::AbortOnError);
+
+    DBUG_SET_INITIAL("-d,ndb_scanbuff_oom");
+
+    NdbError transError = trans->getNdbError();
+    NdbError scanError1 = scanOp->getNdbError();
+
+    int nextRes = scanOp->nextResult();
+    
+    NdbError scanError2 = scanOp->getNdbError();
+
+    ndbout_c("execRes : %d\n"
+             "transError : %u %s\n"
+             "scanError : %u %s\n"
+             "nextRes + scanError : %d %u %s",
+             execRes, 
+             transError.code, transError.message,
+             scanError1.code, scanError1.message,
+             nextRes,
+             scanError2.code, scanError2.message);
+    
+    CHECK(execRes == 0);
+    CHECK(transError.code == 4000);
+    CHECK(scanError1.code == 4000);
+    CHECK(nextRes == -1);
+    CHECK(scanError2.code == 4000);
+
+    trans->close();
+  }
+#endif
+
+  return NDBT_OK;
+}
+
+
+
+
+static int reCreateTableHook(Ndb* ndb,
+                             NdbDictionary::Table & table,
+                             int when,
+                             void* arg)
+{
+  if (when == 0)
+  {
+    NDBT_Context* ctx = (NDBT_Context*) arg;
+    
+    bool readBackup = (ctx->getProperty("CreateRB", Uint32(0)) != 0);
+    bool fullyReplicated = (ctx->getProperty("CreateFR", Uint32(0)) != 0);
+
+    /* Add others as necessary... */
+
+    if (readBackup)
+    {
+      ndbout << "rCTH : Setting ReadBackup property" << endl;
+    }
+    table.setReadBackupFlag(readBackup);
+
+    if (fullyReplicated)
+    {
+      ndbout << "rCTH : Setting Fully Replicated property" << endl;
+    }
+    table.setFullyReplicated(fullyReplicated);
+  }
+
+  return 0;
+
+}
+
+int
+runReCreateTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+
+  /* Drop table by name if it exists */
+  NdbDictionary::Table tab = * ctx->getTab();
+  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
+  
+  BaseString tabName(tab.getName());
+
+  ndbout << "Dropping table " << tabName << endl;
+  
+  pDict->dropTable(tabName.c_str());
+  
+  ndbout << "Recreating table " << tabName << endl;
+                   
+  /* Now re-create, perhaps with different options */
+  if (NDBT_Tables::createTable(pNdb,
+                               tabName.c_str(),
+                               false,
+                               false,
+                               reCreateTableHook,
+                               ctx) != 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  const NdbDictionary::Table* newTab = pDict->getTable(tabName.c_str());
+
+  if (newTab == NULL)
+  {
+    return NDBT_FAILED;
+  }
+  
+  ctx->setTab(newTab);
+
+  return NDBT_OK;
+}
+
+int runDropTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Table tab = * ctx->getTab();
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  ndbout << "Dropping table " << tab.getName() << endl;
+  
+  pDict->dropTable(tab.getName());
+
+  return NDBT_OK;
+}
+
+int runCheckLateDisconnect(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table* tab = ctx->getTab();
+  HugoTransactions hugoTrans(*tab);
+  NdbRestarter restarter;
+  //Ndb* pNdb = GETNDB(step);
+  
+  Ndb otherNdb(otherConnection, "TEST_DB");
+  otherNdb.init();
+  int rc = otherNdb.waitUntilReady(10);
+  
+  if (rc != 0)
+  {
+    ndbout << "Ndb was not ready" << endl;
+    
+    return NDBT_FAILED;
+  }
+
+  ndbout << "Loading data" << endl;
+  /* Put some data into the table */
+  if (hugoTrans.loadTable(&otherNdb,
+                          1024) != NDBT_OK)
+  {
+    ndbout << "Data load failed " << endl;
+    return NDBT_FAILED;
+  }
+  
+  const Uint32 code = ctx->getProperty("ErrorCode", Uint32(0));
+
+  ndbout << "Setting error insert : " << code << endl;
+    
+  /* TC error insert causing API disconnection 
+   * at some point
+   */
+  
+  if (restarter.insertErrorInAllNodes(code) != 0)
+  {
+    ndbout << "Failed to insert error" << endl;
+  }
+  
+  ndbout << "Updating data, expect disconnection" << endl;
+  /* Perform a bulk update */
+  /* We expect to be disconnected at the end of this... */
+  rc = hugoTrans.pkUpdateRecords(&otherNdb,
+                                 1024);
+  
+  
+  restarter.insertErrorInAllNodes(0);
+  
+  /* We rely on the test framework to detect a problem
+   * if the data nodes failed here
+   */
+  
+  return NDBT_OK;
+}
+
+int
+runCheckWriteTransaction(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  
+  HugoOperations hugoOps(*pTab);
+  Ndb* pNdb = GETNDB(step);
+  
+  CHECKE((hugoOps.startTransaction(pNdb) == NDBT_OK),
+         hugoOps);
+  
+  CHECKE((hugoOps.pkWriteRecord(pNdb,
+                                0) == NDBT_OK),
+         hugoOps);
+  CHECKE((hugoOps.execute_Commit(pNdb) == NDBT_OK),
+         hugoOps);
+  CHECKE((hugoOps.closeTransaction(pNdb) == NDBT_OK),
+         hugoOps);  
+  
+  return NDBT_OK;
+}
+
+
+int runCheckSlowCommit(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  /* Want to test the 'slow' commit protocol behaves
+   * correctly for various table types
+   */
+  for (int table_type = 0; table_type < 3; table_type++)
+  {
+    switch (table_type)
+    {
+    case 0:
+    {
+      ndbout << "Normal table" << endl;
+      ctx->setProperty("CreateRB", Uint32(0));
+      ctx->setProperty("CreateFR", Uint32(0));
+      break;
+    }
+    case 1:
+    {
+      ndbout << "ReadBackup table" << endl;
+      ctx->setProperty("CreateRB", Uint32(1));
+      ctx->setProperty("CreateFR", Uint32(0));
+      break;
+    }
+    case 2:
+    {
+      ndbout << "FullyReplicated" << endl;
+      /* Need RB set, as can create !RB FR table... */
+      ctx->setProperty("CreateRB", Uint32(1));
+      ctx->setProperty("CreateFR", Uint32(1));
+      break;
+    }
+    }
+    
+    if (runReCreateTable(ctx, step) != NDBT_OK)
+    {
+      return NDBT_FAILED;
+    }
+    
+    for (int test_type=0; test_type < 3; test_type++)
+    {
+      Uint32 errorCode = 0;
+      switch (test_type)
+      {
+      case 0:
+        /* As normal */
+        break;
+      case 1:
+        /* Timeout during commit phase */
+        errorCode = 8113; 
+        break;
+      case 2:
+        /* Timeout during complete phase */
+        errorCode = 8114;
+        break;
+      }
+      ndbout << "Inserting error " << errorCode 
+             << " in all nodes." << endl;
+      
+      restarter.insertErrorInAllNodes(errorCode);
+        
+      int ret = runCheckWriteTransaction(ctx,step);
+      
+      restarter.insertErrorInAllNodes(0);
+      if (ret != NDBT_OK)
+      {
+        return NDBT_FAILED;
+      }
+    }
+  }
+
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
 	 "Create Ndb objects until no more can be created\n"){ 
@@ -5790,6 +7596,12 @@ TESTCASE("IgnoreError", ""){
 TESTCASE("CheckNdbObjectList", 
 	 ""){ 
   INITIALIZER(runCheckNdbObjectList);
+}
+TESTCASE("DeleteClusterConnectionWhileUsed",
+         "Make sure that deleting of Ndb_cluster_connection will"
+         "not return until all it's Ndb objects has been deleted."){
+  STEP(runNdbClusterConnectionDelete_connection_owner)
+  STEP(runNdbClusterConnectionDelete_connection_user);
 }
 TESTCASE("ExecuteAsynch", 
 	 "Check that executeAsync() works (BUG#27495)\n"){ 
@@ -5972,6 +7784,111 @@ TESTCASE("ReceiveTRANSIDAIAfterRollback",
   STEP(runReceiveTRANSIDAIAfterRollback);
   FINALIZER(runClearTable);
 }
+TESTCASE("RecordSpecificationBackwardCompatibility",
+         "Test RecordSpecification struct's backward compatibility"){
+  STEP(testNdbRecordSpecificationCompatibility);
+}
+TESTCASE("SchemaObjectOwnerCheck",
+         "Test use of schema objects with non-owning connections"){
+  STEP(testSchemaObjectOwnerCheck);
+}
+TESTCASE("MgmdSendbufferExhaust",
+         "")
+{
+  INITIALIZER(testMgmdSendBufferExhaust);
+}
+TESTCASE("GetNdbIndexOperationTest",
+         "Send an obsolete index into getNdbIndexOperation and execute." \
+         "Confirm that this doesn't crash the ndbd.")
+{
+  //To be run only on Table I3
+  INITIALIZER(runLoadTable);
+  STEP(runGetNdbIndexOperationTest);
+  VERIFIER(runCheckAllNodesStarted);
+  FINALIZER(runClearTable)
+}
+TESTCASE("GetNdbIndexOperationBatchTest",
+         "Send an obsolete index into getNdbIndexOperation in a batch" \
+         "and execute. Confirm that this doesn't crash the ndbd.")
+{
+  //To be run only on Table I3
+  INITIALIZER(runCreateIndexesOnI3);
+  INITIALIZER(runLoadTable);
+  STEP(runGetNdbIndexOperationBatchTest);
+  VERIFIER(runCheckAllNodesStarted);
+  FINALIZER(runClearTable)
+}
+TESTCASE("GetNdbIndexOperationParallelDroppingTest",
+         "1. Start transactions batch/normal in a step" \
+         "2. Start dropping/creating indexes in a parallel thread " \
+         "Confirm that this doesn't crash the ndbd.")
+{
+  //To be run only on Table I3
+  INITIALIZER(runCreateIndexesOnI3);
+  INITIALIZER(runLoadTable);
+  STEPS(runGetNdbIndexOperationTransactions, 100);
+  STEP(runDropIndexesOnI3);
+  VERIFIER(runCheckAllNodesStarted);
+  FINALIZER(runClearTable)
+}
+TESTCASE("CloseBeforeExecute", 
+	 "Check that objects allocated within a Ndb/NdbTransaction " \
+         "is released even if Txn is not executed"){ 
+  INITIALIZER(runTestNoExecute);
+}
+TESTCASE("CheckTransId",
+         "Check transid uniqueness across multiple Ndb instances")
+{
+  INITIALIZER(runCheckTransId);
+}
+TESTCASE("CheckTransIdMt",
+         "Check transid uniqueness across multiple threads")
+{
+  INITIALIZER(runInitCheckTransIdMt);
+  STEPS(runCheckTransIdMt, CheckTransIdSteps);
+  VERIFIER(runVerifyCheckTransIdMt);
+  FINALIZER(runFinaliseCheckTransIdMt);
+}
+TESTCASE("OldApiScanFinalise",
+         "Test error during finalise behaviour")
+{
+  VERIFIER(runTestOldApiScanFinalise);
+}
+TESTCASE("TestColumnNameLookupPerf",
+         "")
+{
+  INITIALIZER(runTestColumnNameLookupPerf);
+}
+TESTCASE("CheckDisconnectCommit",
+         "Check commit post API disconnect")
+{
+  TC_PROPERTY("CreateRB", Uint32(1)); // ReadBackup
+  TC_PROPERTY("ErrorCode", Uint32(8110)); // API disconnect during COMMIT
+  INITIALIZER(runReCreateTable);
+  INITIALIZER(setupOtherConnection);
+  STEP(runCheckLateDisconnect);
+  FINALIZER(runDropTable);
+  FINALIZER(tearDownOtherConnection);
+}
+TESTCASE("CheckDisconnectComplete",
+         "Check complete post API disconnect")
+{
+  TC_PROPERTY("CreateRB", Uint32(1)); // ReadBackup
+  TC_PROPERTY("ErrorCode", Uint32(8111)); // API disconnect during COMPLETE
+  INITIALIZER(runReCreateTable);
+  INITIALIZER(setupOtherConnection);
+  STEP(runCheckLateDisconnect);
+  FINALIZER(runDropTable);
+  FINALIZER(tearDownOtherConnection);
+}
+TESTCASE("CheckSlowCommit",
+         "Check slow commit protocol + table types")
+{
+  STEP(runCheckSlowCommit);
+  FINALIZER(runDropTable);
+}
+
+
 NDBT_TESTSUITE_END(testNdbApi);
 
 int main(int argc, const char** argv){

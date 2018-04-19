@@ -1,8 +1,6 @@
 # This test takes long time, so only run it with the --big-test mtr-flag.
 --source include/big_test.inc
 
---source include/have_partition.inc
---source include/have_innodb.inc
 --source include/master-slave.inc
 
 --vertical_results
@@ -31,18 +29,18 @@ connection master;
 eval CREATE TABLE t1(id MEDIUMINT NOT NULL AUTO_INCREMENT,
                            dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
                            fkid MEDIUMINT, filler VARCHAR(255),
-                           PRIMARY KEY(id)) ENGINE=$engine_type;
+                           PRIMARY KEY(id)) charset latin1 ENGINE=$engine_type;
 
 eval CREATE TABLE t2(id MEDIUMINT NOT NULL AUTO_INCREMENT,
                            dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
                            fkid MEDIUMINT, filler VARCHAR(255),
-                           PRIMARY KEY(id)) ENGINE=$engine_type
+                           PRIMARY KEY(id)) charset latin1 ENGINE=$engine_type
 				PARTITION BY KEY(id) partitions 5;
 
 eval CREATE TABLE t3(id MEDIUMINT NOT NULL AUTO_INCREMENT,
                            dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
                            fkid MEDIUMINT, filler VARCHAR(255),
-                           PRIMARY KEY(id)) ENGINE=$engine_type 
+                           PRIMARY KEY(id)) ENGINE=$engine_type charset latin1
 				PARTITION BY RANGE(id) 
                                 SUBPARTITION BY hash(id) subpartitions 2
 				(PARTITION pa1 values less than (10),

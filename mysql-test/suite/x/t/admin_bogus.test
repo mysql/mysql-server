@@ -1,0 +1,31 @@
+## generated
+## Invalid admin command
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/admin_bogus.tmp
+Mysqlx.Sql.StmtExecute {
+  stmt: "whatever"
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Error
+-->expecterror 5157
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "whatever"
+  namespace: "bogus"
+}
+
+## expect Mysqlx.Error
+-->recv
+
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_bogus.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/admin_bogus.tmp
+--source include/xplugin_drop_user.inc

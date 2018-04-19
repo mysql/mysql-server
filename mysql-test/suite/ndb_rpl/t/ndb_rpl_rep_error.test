@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Some negative tests of the ndb_replication table
 #
@@ -18,13 +13,13 @@ call mtr.add_suppression("NDB: .*Bad schema for mysql.ndb_replication table.*");
 call mtr.add_suppression("NDB Slave: .* unknown conflict resolution function .*");
 call mtr.add_suppression("NDB Slave: .* has wrong datatype.*");
 call mtr.add_suppression("NDB Slave: .* missing function argument .*");
-call mtr.add_suppression("NDB Slave: .* missing \')\' .*");
+call mtr.add_suppression("NDB Slave: .* missing \'\\)\' .*");
 --connection server2
 call mtr.add_suppression("NDB: .*Bad schema for mysql.ndb_replication table.*");
 call mtr.add_suppression("NDB Slave: .* unknown conflict resolution function .*");
 call mtr.add_suppression("NDB Slave: .* has wrong datatype.*");
 call mtr.add_suppression("NDB Slave: .* missing function argument .*");
-call mtr.add_suppression("NDB Slave: .* missing \')\' .*");
+call mtr.add_suppression("NDB Slave: .* missing \'\\)\' .*");
 --connection default
 --enable_query_log
 
@@ -180,7 +175,7 @@ CREATE TABLE mysql.ndb_replication
 #call mtr.add_suppression("NDB Slave: .* unknown conflict resolution function .*");
 
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$X(X)");
---error 1296 
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table t1 (a int key, X int) engine ndb;
 show warnings;
 delete from mysql.ndb_replication;
@@ -199,7 +194,7 @@ delete from mysql.ndb_replication;
 #call mtr.add_suppression("NDB Slave: .* missing function argument .*");
 
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX()");
---error 1296 
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table t1 (a int key, X int) engine ndb;
 show warnings;
 delete from mysql.ndb_replication;
@@ -208,7 +203,7 @@ delete from mysql.ndb_replication;
 # gives error when creating table
 #call mtr.add_suppression("NDB Slave: .* missing \')\' .*");
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X Y)");
---error 1296
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table t1 (a int key, X int) engine ndb;
 show warnings;
 delete from mysql.ndb_replication;
@@ -230,14 +225,14 @@ insert into mysql.ndb_replication values ("europenorth", "france", 1, NULL, "NDB
 insert into mysql.ndb_replication values ("europenorth", "france", 0, NULL, "NDB$B()");
 
 --echo Should match specific entry (1) with algorithm A.
---error 1296
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table europenorth.france (a int primary key) engine=ndb;
 show warnings;
 
 delete from mysql.ndb_replication where server_id=1;
 
 --echo Should match generic entry (0) with algorthin B.
---error 1296
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table europenorth.france (a int primary key) engine=ndb;
 show warnings;
 
@@ -248,17 +243,17 @@ insert into mysql.ndb_replication values ("europenorth", "fr_nce", 1, NULL, "NDB
 insert into mysql.ndb_replication values ("europenorth", "%any", 1, NULL, "NDB$B()");
 
 --echo Should match specific entry (fr_nce) with algorithm A.
---error 1296
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table europenorth.france (a int primary key) engine=ndb;
 show warnings;
 
 --echo Should match specific entry (%any) with algorithm B.
---error 1296
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table europenorth.germany (a int primary key) engine=ndb;
 show warnings;
 
 --echo Should match specific entry (%any) with algorithm B.
---error 1296
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table europenorth.romany (a int primary key) engine=ndb;
 show warnings;
 
@@ -274,22 +269,22 @@ insert into mysql.ndb_replication values ("%north", "countries", 1, NULL, "NDB$A
 insert into mysql.ndb_replication values ("%south", "countries", 1, NULL, "NDB$B()");
 
 --echo Should match north with A
---error 1296
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table europenorth.countries (a int primary key) engine=ndb;
 show warnings;
 
 --echo Should match north with A
---error 1296
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table usnorth.countries (a int primary key) engine=ndb;
 show warnings;
 
 --echo Should match south with B
---error 1296
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table europesouth.countries (a int primary key) engine=ndb;
 show warnings;
 
 --echo Should match south with B
---error 1296 
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table ussouth.countries (a int primary key) engine=ndb;
 show warnings;
 
@@ -351,14 +346,14 @@ insert into mysql.ndb_replication values ("%North", "nether%s", 0, NULL, "NDB$N(
 
 
 --echo Unique match (A)
---error 1296
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table europenorth.netherlands (a int primary key) engine=ndb;
 show warnings;
 
 delete from mysql.ndb_replication where db="europenorth" and table_name="netherlands" and server_id=1;
 
 --echo Unique match with wild serverid (B)
---error 1296
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table europenorth.netherlands (a int primary key) engine=ndb;
 show warnings;
 
@@ -372,7 +367,7 @@ drop table europenorth.netherlands;
 delete from mysql.ndb_replication where db="europenorth" and table_name="%lands" and server_id=1;
 
 --echo Wild table name (D)
---error 1296
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table europenorth.netherlands (a int primary key) engine=ndb;
 show warnings;
 
@@ -386,7 +381,7 @@ drop table europenorth.netherlands;
 delete from mysql.ndb_replication where db="europenorth" and table_name="nether%s" and server_id=0;
 
 --echo Wild server id and table name (E)
---error 1296
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table europenorth.netherlands (a int primary key) engine=ndb;
 show warnings;
 
@@ -400,7 +395,7 @@ drop table europenorth.netherlands;
 delete from mysql.ndb_replication where db="Europe%" and table_name="netherlands" and server_id=1;
 
 --echo Wild db (H)
---error 1296 
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table europenorth.netherlands (a int primary key) engine=ndb;
 show warnings;
 
@@ -414,7 +409,7 @@ drop table europenorth.netherlands;
 delete from mysql.ndb_replication where db="Europe%" and table_name="netherlands" and server_id=0;
 
 --echo Wild db + server id (J)
---error 1296 
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table europenorth.netherlands (a int primary key) engine=ndb;
 show warnings;
 
@@ -428,7 +423,7 @@ drop table europenorth.netherlands;
 delete from mysql.ndb_replication where db="Europe%" and table_name="%lands" and server_id=1;
 
 --echo Wild db + table_name (L)
---error 1296 
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table europenorth.netherlands (a int primary key) engine=ndb;
 show warnings;
 
@@ -442,7 +437,7 @@ drop table europenorth.netherlands;
 delete from mysql.ndb_replication where db="Europe%" and table_name="%lands" and server_id=0;
 
 --echo All wild (N)
---error 1296
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table europenorth.netherlands (a int primary key) engine=ndb;
 show warnings;
 

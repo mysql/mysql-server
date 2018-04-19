@@ -22,10 +22,12 @@ SELECT * FROM test.t2;
 c1	c2	c1
 abc	def	abc
 Warnings:
-Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1' by a query rewrite plugin
 DROP PROCEDURE query_rewrite.flush_rewrite_rules;
 DROP FUNCTION load_rewrite_rules;
 UNINSTALL PLUGIN rewriter;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
 # Check that the table is still present and didn't get dropped.
 SELECT pattern, replacement FROM query_rewrite.rewrite_rules;
 pattern	replacement
@@ -54,6 +56,8 @@ SELECT * FROM test.t2;
 c1	c2	c1
 abc	def	abc
 Warnings:
-Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1' by a query rewrite plugin
 DROP TABLE t1, t2;
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

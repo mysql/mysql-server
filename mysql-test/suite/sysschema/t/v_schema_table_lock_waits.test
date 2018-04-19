@@ -1,0 +1,52 @@
+-- source ../include/ps_truncate_all_tables.inc
+# Tests for sys schema
+# Verify the sys.schema_table_lock_waits view
+
+# Ensure structure changes don't slip in
+DESC sys.schema_table_lock_waits;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.schema_table_lock_waits;
+--enable_result_log
+
+
+# Ensure structure changes don't slip in
+DESC sys.x$schema_table_lock_waits;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.x$schema_table_lock_waits;
+--enable_result_log
+
+# Ensure lock waits show up correctly
+--connect(con1,localhost,root,,)
+--connect(con2,localhost,root,,)
+
+connection con1;
+CREATE TABLE test.lock_waits (i INT PRIMARY KEY, j INT) ENGINE = InnoDB;
+LOCK TABLE lock_waits WRITE;
+
+connection con2;
+send ALTER TABLE test.lock_waits ADD k VARCHAR(20);
+
+connection default;
+SELECT SLEEP(1);
+SELECT object_schema, object_name,
+       waiting_account, waiting_lock_type, waiting_query,
+       blocking_account, blocking_lock_type, blocking_lock_duration
+  FROM sys.schema_table_lock_waits;
+
+disconnect con1;
+
+connection default;
+SELECT SLEEP(1);
+SELECT object_schema, object_name,
+       waiting_account, waiting_lock_type, waiting_query,
+       blocking_account, blocking_lock_type, blocking_lock_duration
+  FROM sys.schema_table_lock_waits;
+
+disconnect con2;
+connection default;
+
+DROP TABLE test.lock_waits;

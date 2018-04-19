@@ -3,7 +3,6 @@
 # http://bugs.mysql.com/35220
 #
 
--- source include/have_innodb.inc
 
 SET default_storage_engine=InnoDB;
 

@@ -3,18 +3,17 @@ set @@session.optimizer_trace="enabled=on";
 create table t1(a int);
 insert into t1 values(1);
 set names latin1;
-explain extended select '¡¬√ƒ≈', _latin1'¡¬√ƒ≈' from t1 limit 1;
+explain select '¡¬√ƒ≈', _latin1'¡¬√ƒ≈' from t1 limit 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '¡¬√ƒ≈' AS `¡¬√ƒ≈`,_latin1'\xC1\xC2\xC3\xC4\xC5' AS `¡¬√ƒ≈` from `test`.`t1` limit 1
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
 (@query:=QUERY)+NULL	(@trace:=TRACE)+NULL
 NULL	NULL
 select @query, @trace;
 @query	@trace
-explain extended select '¡¬√ƒ≈', _latin1'¡¬√ƒ≈' from t1 limit 1	{
+explain select '¡¬√ƒ≈', _latin1'¡¬√ƒ≈' from t1 limit 1	{
   "steps": [
     {
       "join_preparation": {
@@ -47,7 +46,7 @@ explain extended select '¡¬√ƒ≈', _latin1'¡¬√ƒ≈' from t1 limit 1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -64,14 +63,14 @@ explain extended select '¡¬√ƒ≈', _latin1'¡¬√ƒ≈' from t1 limit 1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -109,9 +108,11 @@ explain extended select '¡¬√ƒ≈', _latin1'¡¬√ƒ≈' from t1 limit 1	{
   ] /* steps */
 }
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select @query, @trace;
 @query	@trace
-explain extended select '√Å√Ç√É√Ñ√Ö', _latin1'√Å√Ç√É√Ñ√Ö' from t1 limit 1	{
+explain select '√Å√Ç√É√Ñ√Ö', _latin1'√Å√Ç√É√Ñ√Ö' from t1 limit 1	{
   "steps": [
     {
       "join_preparation": {
@@ -144,7 +145,7 @@ explain extended select '√Å√Ç√É√Ñ√Ö', _latin1'√Å√Ç√É√Ñ√Ö' from t1 limit 1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -161,14 +162,14 @@ explain extended select '√Å√Ç√É√Ñ√Ö', _latin1'√Å√Ç√É√Ñ√Ö' from t1 limit 1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -214,6 +215,8 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 (@query:=QUERY)+NULL	(@trace:=TRACE)+NULL
 NULL	NULL
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select @query, @trace;
 @query	@trace
 select * from v1 where v1.col = '√Å√Ç√É√Ñ√Ö'	{
@@ -270,7 +273,7 @@ select * from v1 where v1.col = '√Å√Ç√É√Ñ√Ö'	{
                       "table": "`t1`",
                       "table_scan": {
                         "rows": 1,
-                        "cost": 1
+                        "cost": 0.25
                       } /* table_scan */
                     }
                   ] /* rows_estimation */
@@ -287,14 +290,14 @@ select * from v1 where v1.col = '√Å√Ç√É√Ñ√Ö'	{
                             "rows_to_scan": 1,
                             "access_type": "scan",
                             "resulting_rows": 1,
-                            "cost": 1.2,
+                            "cost": 0.35,
                             "chosen": true
                           }
                         ] /* considered_access_paths */
                       } /* best_access_path */,
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 1,
-                      "cost_for_plan": 1.2,
+                      "cost_for_plan": 0.35,
                       "chosen": true
                     }
                   ] /* considered_execution_plans */
@@ -326,11 +329,13 @@ select * from v1 where v1.col = '√Å√Ç√É√Ñ√Ö'	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "`v1`",
+                "columns": 1,
                 "row_length": 7,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 149796
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -360,6 +365,10 @@ select * from v1 where v1.col = '√Å√Ç√É√Ñ√Ö'	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -419,7 +428,7 @@ select * from v1 where v1.col = '√Å√Ç√É√Ñ√Ö'	{
 drop table t1;
 drop view v1;
 set names latin1;
-create table t1(c char(4) primary key);
+create table t1(c char(4) primary key) charset latin1;
 insert into t1 values ('aaa'), ('¡¬√ƒ');
 select * from t1 where c < '¡¬√ƒ≈';
 c
@@ -429,6 +438,8 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 (@query:=QUERY)+NULL	(@trace:=TRACE)+NULL
 NULL	NULL
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select @query, @trace;
 @query	@trace
 select * from t1 where c < '√Å√Ç√É√Ñ√Ö'	{
@@ -468,6 +479,10 @@ select * from t1 where c < '√Å√Ç√É√Ñ√Ö'	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -489,7 +504,7 @@ select * from t1 where c < '√Å√Ç√É√Ñ√Ö'	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2,
-                    "cost": 3.5
+                    "cost": 2.55
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -502,7 +517,7 @@ select * from t1 where c < '√Å√Ç√É√Ñ√Ö'	{
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "PRIMARY",
-                    "cost": 1.401,
+                    "cost": 0.4502,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -522,8 +537,8 @@ select * from t1 where c < '√Å√Ç√É√Ñ√Ö'	{
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": true,
-                        "rows": 3,
-                        "cost": 1.612,
+                        "rows": 2,
+                        "cost": 0.71,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -549,14 +564,14 @@ select * from t1 where c < '√Å√Ç√É√Ñ√Ö'	{
                       "rows_to_scan": 2,
                       "access_type": "scan",
                       "resulting_rows": 2,
-                      "cost": 1.4,
+                      "cost": 0.45,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
-                "cost_for_plan": 1.4,
+                "cost_for_plan": 0.45,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -679,6 +694,10 @@ select `col
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t\n1\ta`",
@@ -700,7 +719,7 @@ select `col
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2,
-                    "cost": 3.5
+                    "cost": 2.55
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -713,7 +732,7 @@ select `col
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "index\n1\ta",
-                    "cost": 1.4013,
+                    "cost": 0.4503,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -733,29 +752,17 @@ select `col
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
-                        "rows": 1,
-                        "cost": 1.21,
-                        "chosen": true
+                        "rows": 2,
+                        "cost": 0.4603,
+                        "chosen": false,
+                        "cause": "cost"
                       }
                     ] /* range_scan_alternatives */,
                     "analyzing_roworder_intersect": {
                       "usable": false,
                       "cause": "too_few_roworder_scans"
                     } /* analyzing_roworder_intersect */
-                  } /* analyzing_range_alternatives */,
-                  "chosen_range_access_summary": {
-                    "range_access_plan": {
-                      "type": "range_scan",
-                      "index": "index\n1\ta",
-                      "rows": 1,
-                      "ranges": [
-                        "NULL < col\n1\ta < 6"
-                      ] /* ranges */
-                    } /* range_access_plan */,
-                    "rows_for_plan": 1,
-                    "cost_for_plan": 1.21,
-                    "chosen": true
-                  } /* chosen_range_access_summary */
+                  } /* analyzing_range_alternatives */
                 } /* range_analysis */
               }
             ] /* rows_estimation */
@@ -769,20 +776,17 @@ select `col
                 "best_access_path": {
                   "considered_access_paths": [
                     {
-                      "rows_to_scan": 1,
-                      "access_type": "range",
-                      "range_details": {
-                        "used_index": "index\n1\ta"
-                      } /* range_details */,
-                      "resulting_rows": 1,
-                      "cost": 1.41,
+                      "rows_to_scan": 2,
+                      "access_type": "scan",
+                      "resulting_rows": 2,
+                      "cost": 0.45,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
-                "rows_for_plan": 1,
-                "cost_for_plan": 1.41,
+                "rows_for_plan": 2,
+                "cost_for_plan": 0.45,
                 "chosen": true
               }
             ] /* considered_execution_plans */

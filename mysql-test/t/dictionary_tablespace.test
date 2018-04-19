@@ -1,0 +1,137 @@
+--source include/have_debug.inc
+
+#
+--echo # Bug#26142776 : DIFFERENT MYSQL SCHEMA AFTER UPGRADE
+#
+
+# For data directory created in current 8.0 branch.
+# Display contents of mysql schema
+--LET $mysqld_datadir=`select @@DATADIR`
+--echo #files in mysql schema
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR/mysql/
+
+SET debug='+d,skip_dd_table_access_check';
+let $OUTFILE1 = $MYSQLTEST_VARDIR/tmp/mysql_schema.out;
+# Display name, tablespace name for all tables in mysql schema
+--replace_result $OUTFILE1 <OUTFILE1>
+eval SELECT tables1.name, mysql.tablespaces.name INTO OUTFILE '$OUTFILE1' FROM
+  (SELECT * FROM mysql.tables WHERE schema_id IN
+    (SELECT id FROM mysql.schemata WHERE name='mysql')) AS tables1 LEFT JOIN
+  mysql.tablespaces ON tables1.tablespace_id = tablespaces.id
+  WHERE tables1.name NOT IN ('ndb_binlog_index') ORDER BY tables1.name;
+--cat_file $OUTFILE1
+
+# Display table names from mysql.tables that belong to mysql schema
+# and mysql tablespace. It should be as same as displayed by upgrade.
+let $OUTFILE2 = $MYSQLTEST_VARDIR/tmp/mysql_tablespace.out;
+--replace_result $OUTFILE2 <OUTFILE2>
+eval SELECT name INTO OUTFILE '$OUTFILE2' FROM mysql.tables WHERE
+  tablespace_id IN (SELECT id FROM mysql.tablespaces WHERE name='mysql') AND
+  name NOT IN ('ndb_binlog_index')
+  ORDER BY name ASC;
+--cat_file $OUTFILE2
+
+# For data directory created in mysql-5.7 branch.
+--source include/not_valgrind.inc
+#Zipped data directory was created with default 16K page size
+#Innodb does not recognizes partition table created in linux from windows
+#due to difference in path format.
+--source include/not_windows.inc
+
+call mtr.add_suppression("Resizing redo log from");
+call mtr.add_suppression("Upgrading redo log");
+call mtr.add_suppression("Starting to delete and rewrite log files");
+call mtr.add_suppression("New log files created");
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+call mtr.add_suppression("Creating routine without parsing routine body");
+call mtr.add_suppression("Storage engine '.*' does not support system tables. \\[mysql.*\\]");
+call mtr.add_suppression("Table 'mysql.component' doesn't exist");
+call mtr.add_suppression("is expected to be transactional");
+call mtr.add_suppression("table is missing or has an incorrect definition");
+call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is executed");
+call mtr.add_suppression(".* Native table .* has the wrong structure");
+call mtr.add_suppression("Column count of mysql.* is wrong");
+call mtr.add_suppression("The privilege system failed to initialize correctly.*");
+call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+call mtr.add_suppression("ACL table mysql.[a-z_]* missing. Some operations may fail.");
+call mtr.add_suppression("Info table is not ready to be used. Table 'mysql.slave_master_info' cannot be opened");
+call mtr.add_suppression("Error in checking mysql.slave_master_info repository info type of TABLE");
+call mtr.add_suppression("Error creating master info: Error checking repositories.");
+call mtr.add_suppression("Slave: Failed to initialize the master info structure for channel");
+call mtr.add_suppression("Failed to create or recover replication info repositories.");
+
+# Set different paths for --datadir
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_partition;
+
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/data57_partition.zip $MYSQL_TMP_DIR/data57_partition.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data57_partition.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data57_partition.zip -d $MYSQL_TMP_DIR
+
+--let $MYSQLD_DATADIR=`SELECT @@datadir`
+
+--echo # Stop DB server which was created by MTR default
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+# Create a bootstrap file in temp location
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--exec echo $MYSQL_TMP_DIR/bootstrap.log
+
+--exec echo "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SHOW CREATE TABLE partitions.t1;
+
+--echo # Execute mysql_upgrade
+--source include/mysql_upgrade_preparation.inc
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--source include/mysql_upgrade_cleanup.inc
+
+--echo #files in mysql schema
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR1/mysql/
+
+SET debug='+d,skip_dd_table_access_check';
+let $OUTFILE3 = $MYSQLTEST_VARDIR/tmp/mysql_schema_upgrade.out;
+# Display name, tablespace name for all tables in mysql schema
+--replace_result $OUTFILE3 <OUTFILE3>
+eval SELECT tables1.name, mysql.tablespaces.name INTO OUTFILE '$OUTFILE3' FROM
+  (SELECT * FROM mysql.tables WHERE schema_id IN
+    (SELECT id FROM mysql.schemata WHERE name='mysql')) AS tables1 LEFT JOIN
+  mysql.tablespaces ON tables1.tablespace_id = tablespaces.id
+  WHERE tables1.name NOT IN ('ndb_binlog_index') ORDER BY tables1.name;
+
+# Display table names from mysql.tables that belong to mysql schema
+# and mysql tablespace. It should be as same as displayed by upgrade.
+let $OUTFILE4 = $MYSQLTEST_VARDIR/tmp/mysql_tablespace_upgrade.out;
+--replace_result $OUTFILE4 <OUTFILE4>
+eval SELECT name INTO OUTFILE '$OUTFILE4' FROM mysql.tables WHERE
+  tablespace_id IN (SELECT id FROM mysql.tablespaces WHERE name='mysql') AND
+  name NOT IN ('ndb_binlog_index')
+  ORDER BY name ASC;
+
+# The contents of the files should be identical
+--echo # Difference between files from in-place upgrade and new data directory.
+--diff_files $OUTFILE1 $OUTFILE3
+--diff_files $OUTFILE2 $OUTFILE4
+--echo # Stop the server
+--source include/shutdown_mysqld.inc
+
+#Remove copied files
+--remove_file $MYSQL_TMP_DIR/data57_partition.zip
+--remove_file $OUTFILE1
+--remove_file $OUTFILE2
+--remove_file $OUTFILE3
+--remove_file $OUTFILE4
+--force-rmdir $MYSQL_TMP_DIR/data57_partition
+
+--echo # Restart the server with default options.
+--source include/start_mysqld.inc

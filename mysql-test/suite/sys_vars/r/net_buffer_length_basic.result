@@ -101,13 +101,13 @@ SELECT @@session.net_buffer_length;
 16384
 '#------------------FN_DYNVARS_109_06-----------------------#'
 SELECT @@global.net_buffer_length = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='net_buffer_length';
 @@global.net_buffer_length = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_109_07-----------------------#'
 SELECT @@session.net_buffer_length = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='net_buffer_length';
 @@session.net_buffer_length = VARIABLE_VALUE
 1

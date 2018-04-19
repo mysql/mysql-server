@@ -1,0 +1,294 @@
+SET @@session.default_storage_engine = 'ndbcluster';
+create table t1 (a int not null,
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored);
+insert into t1 (a) values (1), (1), (2), (2), (3);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+create view v1 (d,e) as select abs(b), abs(c) from t1;
+select d,e from v1;
+d	e
+1	1
+1	1
+2	2
+2	2
+3	3
+select is_updatable from information_schema.views where table_name='v1';
+IS_UPDATABLE
+NO
+explain select d,e from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select abs(`test`.`t1`.`b`) AS `d`,abs(`test`.`t1`.`c`) AS `e` from `test`.`t1`
+create algorithm=temptable view v2 (d,e) as select abs(b), abs(c) from t1;
+show create view v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` (`d`,`e`) AS select abs(`t1`.`b`) AS `abs(b)`,abs(`t1`.`c`) AS `abs(c)` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
+select d,e from v2;
+d	e
+1	1
+1	1
+2	2
+2	2
+3	3
+explain select d,e from v2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
+2	DERIVED	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `v2`.`d` AS `d`,`v2`.`e` AS `e` from `test`.`v2`
+create view v3 (d,e) as select d*2, e*2 from v1;
+select * from v3;
+d	e
+2	2
+2	2
+4	4
+4	4
+6	6
+explain select * from v3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (abs(`test`.`t1`.`b`) * 2) AS `d`,(abs(`test`.`t1`.`c`) * 2) AS `e` from `test`.`t1`
+drop view v1,v2,v3;
+drop table t1;
+create table t1 (a int not null,
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored);
+insert into t1 (a) values (1), (2), (3), (1), (2), (3);
+create view v1 as select distinct b from t1;
+select * from v1;
+b
+-1
+-2
+-3
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
+2	DERIVED	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	X	100.00	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `v1`.`b` AS `b` from `test`.`v1`
+select * from t1;
+a	b	c
+1	-1	-1
+1	-1	-1
+2	-2	-2
+2	-2	-2
+3	-3	-3
+3	-3	-3
+drop view v1;
+create view v1 as select distinct c from t1;
+select * from v1;
+c
+-1
+-2
+-3
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
+2	DERIVED	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	X	100.00	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `v1`.`c` AS `c` from `test`.`v1`
+select * from t1;
+a	b	c
+1	-1	-1
+1	-1	-1
+2	-2	-2
+2	-2	-2
+3	-3	-3
+3	-3	-3
+drop view v1;
+drop table t1;
+create table t1 (a int not null,
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored);
+insert into t1 (a) values (1), (2), (3), (4);
+create view v1 as select b+1 from t1 order by 1 desc limit 2;
+select * from v1;
+b+1
+0
+-1
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
+2	DERIVED	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	X	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `v1`.`b+1` AS `b+1` from `test`.`v1`
+drop view v1;
+create view v1 as select c+1 from t1 order by 1 desc limit 2;
+select * from v1;
+c+1
+-1
+0
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
+2	DERIVED	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	X	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `v1`.`c+1` AS `c+1` from `test`.`v1`
+drop view v1;
+drop table t1;
+create table t1 (a int,
+b int,
+c int generated always as (-a) virtual,
+d int generated always as (-a) stored,
+primary key(a));
+insert into t1 (a,b) values (10,2), (20,3), (30,4), (40,5), (50,10);
+create view v1 (a,e,f,g) as select a, b+1,c+1,d+1 from t1;
+update v1 set a=a+e;
+select * from v1 order by a;
+a	e	f	g
+13	3	-12	-12
+24	4	-23	-23
+35	5	-34	-34
+46	6	-45	-45
+61	11	-60	-60
+select * from t1 order by a;
+a	b	c	d
+13	2	-13	-13
+24	3	-24	-24
+35	4	-35	-35
+46	5	-46	-46
+61	10	-61	-61
+delete from v1;
+select * from v1;
+a	e	f	g
+select * from t1;
+a	b	c	d
+insert into v1 (a,e) values (60,15);
+ERROR HY000: Column 'e' is not updatable
+drop table t1;
+drop view v1;
+create table t1 (a int, 
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored,
+primary key(a));
+insert into t1 (a) values (1), (2), (3);
+create view v1 (x,y,z) as select a,b,c from t1 where b < -1;
+select t1.a, v1.x, v1.y, v1.z from t1 left join v1 on (t1.b= v1.y);
+a	x	y	z
+1	NULL	NULL	NULL
+2	2	-2	-2
+3	3	-3	-3
+drop view v1;
+create view v1 (x,y,z) as select a,b,c from t1 where c < -1;
+select t1.a, v1.x, v1.y, v1.z from t1 left join v1 on (t1.c= v1.z);
+a	x	y	z
+1	NULL	NULL	NULL
+2	2	-2	-2
+3	3	-3	-3
+drop view v1;
+drop table t1;
+create table t1 (a1 int,
+b1 int generated always as (-a1) virtual,
+c1 int generated always as (-a1) stored);
+create table t2 (a2 int,
+b2 int generated always as (-a2) virtual,
+c2 int generated always as (-a2) stored);
+insert into t1 (a1) values (1), (2);
+insert into t2 (a2) values (2), (3);
+create view v1 as select * from t1,t2 union all select * from t1,t2;
+select * from v1;
+a1	b1	c1	a2	b2	c2
+1	-1	-1	2	-2	-2
+1	-1	-1	2	-2	-2
+1	-1	-1	3	-3	-3
+1	-1	-1	3	-3	-3
+2	-2	-2	2	-2	-2
+2	-2	-2	2	-2	-2
+2	-2	-2	3	-3	-3
+2	-2	-2	3	-3	-3
+drop view v1;
+drop table t1, t2;
+create table t1 (a int,
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored);
+create table t2 like t1;
+create view v1 as select a,b,c from t1;
+create view v2 as select a,b,c from t2 where b in (select b from v1);
+show create view v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`a` AS `a`,`t2`.`b` AS `b`,`t2`.`c` AS `c` from `t2` where `t2`.`b` in (select `v1`.`b` from `v1`)	utf8mb4	utf8mb4_0900_ai_ci
+drop view v2, v1;
+drop table t1, t2;
+create table t1 (a int,
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored);
+insert into t1 (a) values (1),(1),(2),(2),(3),(3);
+create view v1 as select b from t1;
+select distinct b from v1;
+b
+-1
+-2
+-3
+select distinct b from v1 order by b limit 2;
+b
+-3
+-2
+select distinct b from t1 order by b limit 2;
+b
+-3
+-2
+prepare stmt1 from "select distinct b from v1 order by b limit 2";
+execute stmt1;
+b
+-3
+-2
+execute stmt1;
+b
+-3
+-2
+deallocate prepare stmt1;
+drop view v1;
+create view v1 as select c from t1;
+select distinct c from v1;
+c
+-1
+-2
+-3
+select distinct c from v1 order by c limit 2;
+c
+-3
+-2
+select distinct c from t1 order by c limit 2;
+c
+-3
+-2
+prepare stmt1 from "select distinct c from v1 order by c limit 2";
+execute stmt1;
+c
+-3
+-2
+execute stmt1;
+c
+-3
+-2
+deallocate prepare stmt1;
+drop view v1;
+drop table t1;
+create table t1 (a int,
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored);
+create view v1 as select * from t1 where b > -2 && c >-2 with check option;
+insert into v1 (a) values (1);
+insert into v1 (a) values (3);
+ERROR HY000: CHECK OPTION failed 'test.v1'
+insert ignore into v1 (a) values (2),(3),(0);
+Warnings:
+Warning	1369	CHECK OPTION failed 'test.v1'
+Warning	1369	CHECK OPTION failed 'test.v1'
+select * from t1;
+a	b	c
+0	0	0
+1	-1	-1
+drop view v1;
+drop table t1;
+DROP VIEW  IF EXISTS v1,v2;
+DROP TABLE IF EXISTS t1,t2,t3;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP TRIGGER IF EXISTS trg1;
+DROP TRIGGER IF EXISTS trg2;
+set sql_warnings = 0;

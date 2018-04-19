@@ -1,0 +1,54 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+#setup
+let $select_column = SUM_CONNECT_ERRORS;
+let $table = performance_schema.host_cache;
+
+# Create an entry in the host_cache
+
+# [Warning] IP address '192.0.2.4' could not be resolved:
+# no reverse address mapping.
+call mtr.add_suppression("192.0.2.4");
+
+--source ../include/hostcache_set_state.inc
+
+CREATE USER 'user4'@'santa.claus.ipv4.example.com';
+GRANT SELECT ON test.* TO 'user4'@'santa.claus.ipv4.example.com';
+--enable_warnings
+
+SET global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
+
+connect (con4, "127.0.0.1", user4, , test, $MASTER_MYPORT,);
+SELECT "Con4 is alive" AS "";
+SELECT current_user() AS "";
+disconnect con4;
+
+--connection default
+SET global debug= default;
+
+###########################################################################
+# Test index on IP
+###########################################################################
+
+let $column_count = 1;
+let $col1 = IP;
+let $col1_act = "192.0.2.4";
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on HOST
+###########################################################################
+
+let $column_count = 1;
+let $col1 = HOST;
+let $col1_act = "santa.claus.ipv4.example.com";
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+REVOKE SELECT ON test.* FROM 'user4'@'santa.claus.ipv4.example.com';
+DROP USER 'user4'@'santa.claus.ipv4.example.com';

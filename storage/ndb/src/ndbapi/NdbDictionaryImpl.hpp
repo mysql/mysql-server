@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -160,9 +167,14 @@ public:
   const char * getName() const;
   void setFragmentCount(Uint32 count);
   Uint32 getFragmentCount() const;
+  Uint32 getPartitionCount() const;
   int setFrm(const void* data, Uint32 len);
   const void * getFrmData() const;
   Uint32 getFrmLength() const;
+  int setExtraMetadata(Uint32 version,
+                       const void* data, Uint32 data_length);
+  int getExtraMetadata(Uint32& extra_metadata_version,
+                       void** data, Uint32* data_length) const;
 
   int setFragmentData(const Uint32* data, Uint32 cnt);
   const Uint32 * getFragmentData() const;
@@ -231,11 +243,15 @@ public:
   bool m_row_checksum;
   bool m_force_var_part;
   bool m_has_default_values; 
+  bool m_read_backup;
+  bool m_fully_replicated;
   int m_kvalue;
   int m_minLoadFactor;
   int m_maxLoadFactor;
   Uint16 m_keyLenInWords;
+  Uint16 m_partitionCount;
   Uint16 m_fragmentCount;
+  NdbDictionary::Object::PartitionBalance m_partitionBalance;
   Uint8 m_single_user_mode;
   Uint8 m_storageType;  // NDB_STORAGETYPE_MEMORY or _DISK or DEFAULT
   Uint8 m_extra_row_gci_bits;
@@ -246,7 +262,13 @@ public:
   NdbColumnImpl * getColumn(const char * name);
   const NdbColumnImpl * getColumn(unsigned attrId) const;
   const NdbColumnImpl * getColumn(const char * name) const;
-  
+
+private:
+  NdbColumnImpl * getColumnByHash(const char * name) const;
+  void dumpColumnHash() const;
+  bool checkColumnHash() const;
+public:
+
   /**
    * Index only stuff
    */
@@ -621,11 +643,13 @@ public:
     NdbError m_error;
     Uint32 m_transId;   // API
     Uint32 m_transKey;  // DICT
+    Uint32 m_requestId;
     Vector<Op> m_op;
     Tx() :
       m_state(NotStarted),
       m_transId(0),
-      m_transKey(0)
+      m_transKey(0),
+      m_requestId(0)
     {
       m_error.code = 0;
     }
@@ -634,6 +658,21 @@ public:
     }
     Uint32 transKey() const {
       return (m_state == Started) ? m_transKey : 0;
+    }
+    Uint32 nextRequestId() {
+      return ++m_requestId;
+    }
+    bool checkRequestId(Uint32 requestId, const char *signalName) {
+      /* NdbDictInterface protocols are synchronous/serial, so each
+       * NdbDictInterface object will have only one outstanding
+       * request at a time */
+      if(m_requestId != 0 && m_requestId != requestId)
+      {
+        // signal from different (possibly timed-out) transaction
+        DBUG_PRINT("info", ("Discarding %s with bad request ID, expected: %u, received: %u", signalName, m_requestId, requestId));
+        return false;
+      }
+      return true;
     }
     Uint32 requestFlags() const {
       Uint32 flags = 0;
@@ -692,8 +731,9 @@ public:
   int dropEvent(const NdbEventImpl &);
   int dropEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3], int noLSP);
 
-  int executeSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &, Uint32&);
-  int stopSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &);
+  int executeSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &);
+  int stopSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &,
+                         Uint64& stop_gci);
   
   int listObjects(NdbDictionary::Dictionary::List& list,
                   ListTablesReq& ltreq, bool fullyQualifiedNames);
@@ -745,7 +785,10 @@ public:
 					 NdbTableImpl* index_table,
 					 const NdbTableImpl* primary_table);
 
-  int create_hashmap(const NdbHashMapImpl&, NdbDictObjectImpl*, Uint32 flags);
+  int create_hashmap(const NdbHashMapImpl&,
+                     NdbDictObjectImpl*,
+                     Uint32 flags,
+                     Uint32 partitionBalance_Count);
   int get_hashmap(NdbHashMapImpl&, Uint32 id);
   int get_hashmap(NdbHashMapImpl&, const char * name);
 
@@ -859,9 +902,6 @@ private:
   UtilBuffer m_tableNames;
 
   union {
-    struct SubStartConfData {
-      Uint32 m_buckets;
-    } m_sub_start_conf;
     struct WaitGcpData {
       Uint32 gci_hi;
       Uint32 gci_lo;
@@ -930,15 +970,15 @@ public:
   int dropBlobEvents(const NdbEventImpl &);
   int listEvents(List& list);
 
-  int executeSubscribeEvent(NdbEventOperationImpl &, Uint32 & buckets);
-  int stopSubscribeEvent(NdbEventOperationImpl &);
+  int executeSubscribeEvent(NdbEventOperationImpl &);
+  int stopSubscribeEvent(NdbEventOperationImpl &, Uint64& stop_gci);
 
   int forceGCPWait(int type);
   int getRestartGCI(Uint32*);
 
   int listObjects(List& list, NdbDictionary::Object::Type type, 
                   bool fullyQualified);
-  int listIndexes(List& list, Uint32 indexId);
+  int listIndexes(List& list, Uint32 indexId, bool fullyQualified=false);
   int listDependentObjects(List& list, Uint32 tableId);
 
   NdbTableImpl * getTableGlobal(const char * tableName);
@@ -1026,6 +1066,12 @@ public:
                           Uint32 elemSize,
                           Uint32 flags,
                           bool defaultRecord);
+  NdbRecord *createRecordInternal(const NdbTableImpl *table,
+                                  const NdbDictionary::RecordSpecification *recSpec,
+                                  Uint32 length,
+                                  Uint32 elemSize,
+                                  Uint32 flags,
+                                  bool defaultRecord);
   void releaseRecord_impl(NdbRecord *rec);
 
   static NdbDictionary::RecordType 
@@ -1202,79 +1248,28 @@ NdbTableImpl::matchDb(const char * name, size_t len) const
     memcmp(name, m_internalName.c_str(), len) == 0;
 }
 
-inline
-Uint32
-Hash( const char* str ){
-  Uint32 h = 0;
-  size_t len = strlen(str);
-  while(len >= 4){
-    h = (h << 5) + h + str[0];
-    h = (h << 5) + h + str[1];
-    h = (h << 5) + h + str[2];
-    h = (h << 5) + h + str[3];
-    len -= 4;
-    str += 4;
-  }
-  
-  switch(len){
-  case 3:
-    h = (h << 5) + h + *str++;
-  case 2:
-    h = (h << 5) + h + *str++;
-  case 1:
-    h = (h << 5) + h + *str++;
-  }
-  return h + h;
-}
-
+static const Uint32 ColNameHashThresh = 5;
 
 inline
 NdbColumnImpl *
 NdbTableImpl::getColumn(const char * name){
-
-  Uint32 sz = m_columns.size();
-  NdbColumnImpl** cols = m_columns.getBase();
-  const Uint32 * hashtable = m_columnHash.getBase();
-
-  if(sz > 5 && false){
-    Uint32 hashValue = Hash(name) & 0xFFFE;
-    Uint32 bucket = hashValue & m_columnHashMask;
-    bucket = (bucket < sz ? bucket : bucket - sz);
-    hashtable += bucket;
-    Uint32 tmp = * hashtable;
-    if((tmp & 1) == 1 ){ // No chaining
-      sz = 1;
-    } else {
-      sz = (tmp >> 16);
-      hashtable += (tmp & 0xFFFE) >> 1;
-      tmp = * hashtable;
-    }
-    do {
-      if(hashValue == (tmp & 0xFFFE)){
-	NdbColumnImpl* col = cols[tmp >> 16];
-	if(strncmp(name, col->m_name.c_str(), col->m_name.length()) == 0){
-	  return col;
-	}
-      }
-      hashtable++;
-      tmp = * hashtable;
-    } while(--sz > 0);
-#if 0
-    Uint32 dir = m_columnHash[bucket];
-    Uint32 pos = bucket + ((dir & 0xFFFE) >> 1); 
-    Uint32 cnt = dir >> 16;
-    ndbout_c("col: %s hv: %x bucket: %d dir: %x pos: %d cnt: %d tmp: %d -> 0", 
-	     name, hashValue, bucket, dir, pos, cnt, tmp);
-#endif
-    return 0;
-  } else {
-    for(Uint32 i = 0; i<sz; i++){
+  const Uint32 sz = m_columns.size();
+  
+  if (sz > ColNameHashThresh)
+  {
+    return getColumnByHash(name);
+  } 
+  else 
+  {
+    NdbColumnImpl** cols = m_columns.getBase();
+    for(Uint32 i = 0; i<sz; i++)
+    {
       NdbColumnImpl* col = * cols++;
       if(col != 0 && strcmp(name, col->m_name.c_str()) == 0)
 	return col;
     }
   }
-  return 0;
+  return NULL;
 }
 
 inline
@@ -1283,20 +1278,28 @@ NdbTableImpl::getColumn(unsigned attrId) const {
   if(m_columns.size() > attrId){
     return m_columns[attrId];
   }
-  return 0;
+  return NULL;
 }
 
 inline
 const NdbColumnImpl *
 NdbTableImpl::getColumn(const char * name) const {
   Uint32 sz = m_columns.size();
-  NdbColumnImpl* const * cols = m_columns.getBase();
-  for(Uint32 i = 0; i<sz; i++, cols++){
-    NdbColumnImpl* col = * cols;
-    if(col != 0 && strcmp(name, col->m_name.c_str()) == 0)
-      return col;
+  
+  if (sz > ColNameHashThresh)
+  {
+    return getColumnByHash(name);
   }
-  return 0;
+  else
+  {
+    NdbColumnImpl* const * cols = m_columns.getBase();
+    for(Uint32 i = 0; i<sz; i++, cols++){
+      NdbColumnImpl* col = * cols;
+      if(col != 0 && strcmp(name, col->m_name.c_str()) == 0)
+        return col;
+    }
+    return NULL;
+  }
 }
 
 inline
@@ -1508,7 +1511,11 @@ NdbDictionaryImpl::getIndexGlobal(const char * index_name,
       break;
     }
   }
-  m_error.code= 4243;
+  // Indexes are treated as tables while fetching them from the
+  // NdbDictionary. So if an index is not found, the error 723
+  // "table not found" is returned. Map 723 to 4243 "index not found"
+  if(m_error.code == 0 || m_error.code == 723)
+    m_error.code= 4243;
   DBUG_RETURN(0);
 }
 
@@ -1554,7 +1561,11 @@ NdbDictionaryImpl::getIndex(const char * index_name,
   if (table_name == 0)
   {
     assert(0);
-    m_error.code= 4243;
+    // Indexes are treated as tables while fetching them from the
+    // NdbDictionary. So if an index is not found, the error 723
+    // "table not found" is returned. Map 723 to 4243 "index not found"
+    if(m_error.code == 0 || m_error.code == 723)
+      m_error.code= 4243;
     return 0;
   }
   
@@ -1562,7 +1573,11 @@ NdbDictionaryImpl::getIndex(const char * index_name,
   NdbTableImpl* prim = getTable(table_name);
   if (prim == 0)
   {
-    m_error.code= 4243;
+    // Indexes are treated as tables while fetching them from the
+    // NdbDictionary. So if an index is not found, the error 723
+    // "table not found" is returned. Map 723 to 4243 "index not found"
+    if(m_error.code == 0 || m_error.code == 723)
+      m_error.code= 4243;
     return 0;
   }
 
@@ -1623,7 +1638,11 @@ retry:
   return tab->m_index;
   
 err:
-  m_error.code= 4243;
+  // Indexes are treated as tables while fetching them from the
+  // NdbDictionary. So if an index is not found, the error 723
+  // "table not found" is returned. Map 723 to 4243 "index not found"
+  if(m_error.code == 0 || m_error.code == 723)
+    m_error.code= 4243;
   return 0;
 }
 

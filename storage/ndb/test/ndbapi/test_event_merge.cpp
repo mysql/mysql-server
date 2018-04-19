@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -22,6 +29,7 @@
 #include <ndb_version.h>
 
 #include <ndb_rand.h>
+#include <NdbHost.h>
 
 // version >= 5.1 required
 
@@ -67,24 +75,24 @@
  */
 
 struct Opts {
-  my_bool abort_on_error;
+  bool abort_on_error;
   int blob_version;
   int loglevel;
   uint loop;
   uint maxops;
   uint maxpk;
-  my_bool no_blobs;
-  my_bool no_implicit_nulls;
-  my_bool no_missing_update;
-  my_bool no_multiops;
-  my_bool no_nulls;
-  my_bool one_blob;
+  bool no_blobs;
+  bool no_implicit_nulls;
+  bool no_missing_update;
+  bool no_multiops;
+  bool no_nulls;
+  bool one_blob;
   const char* opstring;
   uint seed;
   int maxtab;
-  my_bool separate_events;
+  bool separate_events;
   uint tweak; // whatever's useful
-  my_bool use_table;
+  bool use_table;
 };
 
 static Opts g_opts;
@@ -2189,7 +2197,7 @@ setseed(int n)
     if (g_opts.seed != (uint)-1)
       seed = (uint)g_opts.seed;
     else
-      seed = 1 + (ushort)getpid();
+      seed = 1 + NdbHost_GetProcessId();
   } else {
     if (g_opts.seed != 0)
       return;

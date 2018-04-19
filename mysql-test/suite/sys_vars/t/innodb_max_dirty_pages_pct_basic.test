@@ -23,7 +23,6 @@
 #  server-system-variables.html                                               #
 #                                                                             #
 ###############################################################################
---source include/have_innodb.inc
 --source include/load_sysvars.inc
 
 ######################################################################
@@ -142,12 +141,12 @@ SELECT @@global.innodb_max_dirty_pages_pct;
 
 --disable_warnings
 SELECT @@global.innodb_max_dirty_pages_pct =
- VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='innodb_max_dirty_pages_pct';
 --enable_warnings
 SELECT @@global.innodb_max_dirty_pages_pct;
 --disable_warnings
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
  WHERE VARIABLE_NAME='innodb_max_dirty_pages_pct';
 --enable_warnings
 

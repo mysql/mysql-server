@@ -1,15 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -17,6 +24,11 @@
 -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <properties>
+    <subproject>tie</subproject>
+    <subproject.source-dir>${project.source-dir}/clusterj-${subproject}</subproject.source-dir>
+  </properties>
+
   <parent>
     <groupId>com.mysql.clusterj</groupId>
     <artifactId>clusterj-aggregate</artifactId>
@@ -30,18 +42,25 @@
   <name>ClusterJ Tie</name>
   <description>The ndbj-tie implementation of ClusterJ storage spi</description>
   <build>
-  	<resources>
-  		<resource>
-  			<directory>src/main/resources</directory>
-  		</resource>
-  	</resources>
+    <sourceDirectory>${subproject.source-dir}/src/main/java</sourceDirectory>
+    <testSourceDirectory>${subproject.source-dir}/src/test/java</testSourceDirectory>
+    <resources>
+      <resource>
+        <directory>${subproject.source-dir}/src/main/resources</directory>
+      </resource>
+    </resources>
+    <testResources>
+      <testResource>
+        <directory>${subproject.source-dir}/src/test/resources</directory>
+      </testResource>
+    </testResources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <source>1.5</source>
-          <target>1.5</target>
+          <source>1.7</source>
+          <target>1.7</target>
         </configuration>
       </plugin>
      <plugin>
@@ -110,7 +129,7 @@
         <configuration>
           <instructions>
             <Export-Package>com.mysql.clusterj.tie.*</Export-Package>
-            <Import-Package>com.mysql.clusterj,com.mysql.clusterj.core, com.mysql.clusterj.core.metadata,com.mysql.clusterj.core.store,com.mysql.clusterj.core.spi,com.mysql.clusterj.core.util,com.mysql.ndbjtie.mysql,com.mysql.ndbjtie.ndbapi</Import-Package>
+            <Import-Package>sun.misc,com.mysql.clusterj,com.mysql.clusterj.core, com.mysql.clusterj.core.metadata,com.mysql.clusterj.core.store,com.mysql.clusterj.core.spi,com.mysql.clusterj.core.util,com.mysql.ndbjtie.mysql,com.mysql.ndbjtie.ndbapi</Import-Package>
           </instructions>
         </configuration>
       </plugin>
@@ -154,10 +173,6 @@
       <scope>compile</scope>
     </dependency>
   </dependencies>   
-  <properties>
-    <project.license>gpl</project.license>
-    <netbeans.hint.useExternalMaven>false</netbeans.hint.useExternalMaven>
-  </properties>
   <licenses>
     <license>
       <name>GPLv2</name>

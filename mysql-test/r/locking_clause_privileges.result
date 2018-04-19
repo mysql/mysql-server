@@ -1,0 +1,184 @@
+#
+# Test of locking clause privileges.
+#
+#
+#  Test of the parser tokens for use as role names.
+#
+CREATE ROLE of;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'of' at line 1
+CREATE ROLE skip;
+CREATE ROLE locked;
+CREATE ROLE nowait;
+DROP ROLE skip, locked, nowait;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1( a INT );
+CREATE TABLE db1.t2( a INT );
+CREATE USER mysqltestuser1@localhost;
+GRANT SELECT ON db1.* TO mysqltestuser1@localhost;;
+SELECT * FROM t1;
+a
+SELECT HIGH_PRIORITY * FROM t1;
+a
+SELECT * FROM t1 FOR UPDATE;
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+SELECT (SELECT * FROM t1 FOR UPDATE);
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+SELECT 1 FROM (SELECT * FROM t1 FOR UPDATE) a1;
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+SELECT 1 WHERE 1 IN (SELECT * FROM t1 FOR UPDATE);
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+SELECT 1 FROM t1, t2 FOR UPDATE OF t1;
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+SELECT (SELECT 1 FROM t1, t2 FOR UPDATE OF t1);
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+SELECT 1 FROM (SELECT 1 FROM t1, t2 FOR UPDATE OF t1) a1;
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+SELECT 1 WHERE 1 IN (SELECT 1 FROM t1, t2 FOR UPDATE OF t1);
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+SELECT * FROM t1 FOR SHARE;
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+SELECT (SELECT * FROM t1 FOR SHARE);
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+SELECT 1 FROM (SELECT * FROM t1 FOR SHARE) a1;
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+SELECT 1 WHERE 1 IN (SELECT * FROM t1 FOR SHARE);
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+SELECT 1 FROM t1, t2 FOR SHARE OF t1;
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+SELECT (SELECT 1 FROM t1, t2 FOR SHARE OF t1);
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+SELECT 1 FROM (SELECT 1 FROM t1, t2 FOR SHARE OF t1) a1;
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+SELECT 1 WHERE 1 IN (SELECT 1 FROM t1, t2 FOR SHARE OF t1);
+ERROR 42000: SELECT with locking clause command denied to user 'mysqltestuser1'@'localhost' for table 't1'
+DROP USER mysqltestuser1@localhost;
+CREATE USER mysqltestuser1@localhost;
+GRANT SELECT, UPDATE ON db1.* TO mysqltestuser1@localhost;;
+SELECT * FROM t1;
+a
+SELECT HIGH_PRIORITY * FROM t1;
+a
+SELECT * FROM t1 FOR UPDATE;
+a
+SELECT (SELECT * FROM t1 FOR UPDATE);
+(SELECT * FROM t1 FOR UPDATE)
+NULL
+SELECT 1 FROM (SELECT * FROM t1 FOR UPDATE) a1;
+1
+SELECT 1 WHERE 1 IN (SELECT * FROM t1 FOR UPDATE);
+1
+SELECT 1 FROM t1, t2 FOR UPDATE OF t1;
+1
+SELECT (SELECT 1 FROM t1, t2 FOR UPDATE OF t1);
+(SELECT 1 FROM t1, t2 FOR UPDATE OF t1)
+NULL
+SELECT 1 FROM (SELECT 1 FROM t1, t2 FOR UPDATE OF t1) a1;
+1
+SELECT 1 WHERE 1 IN (SELECT 1 FROM t1, t2 FOR UPDATE OF t1);
+1
+SELECT * FROM t1 FOR SHARE;
+a
+SELECT (SELECT * FROM t1 FOR SHARE);
+(SELECT * FROM t1 FOR SHARE)
+NULL
+SELECT 1 FROM (SELECT * FROM t1 FOR SHARE) a1;
+1
+SELECT 1 WHERE 1 IN (SELECT * FROM t1 FOR SHARE);
+1
+SELECT 1 FROM t1, t2 FOR SHARE OF t1;
+1
+SELECT (SELECT 1 FROM t1, t2 FOR SHARE OF t1);
+(SELECT 1 FROM t1, t2 FOR SHARE OF t1)
+NULL
+SELECT 1 FROM (SELECT 1 FROM t1, t2 FOR SHARE OF t1) a1;
+1
+SELECT 1 WHERE 1 IN (SELECT 1 FROM t1, t2 FOR SHARE OF t1);
+1
+DROP USER mysqltestuser1@localhost;
+CREATE USER mysqltestuser1@localhost;
+GRANT SELECT, DELETE ON db1.* TO mysqltestuser1@localhost;;
+SELECT * FROM t1;
+a
+SELECT HIGH_PRIORITY * FROM t1;
+a
+SELECT * FROM t1 FOR UPDATE;
+a
+SELECT (SELECT * FROM t1 FOR UPDATE);
+(SELECT * FROM t1 FOR UPDATE)
+NULL
+SELECT 1 FROM (SELECT * FROM t1 FOR UPDATE) a1;
+1
+SELECT 1 WHERE 1 IN (SELECT * FROM t1 FOR UPDATE);
+1
+SELECT 1 FROM t1, t2 FOR UPDATE OF t1;
+1
+SELECT (SELECT 1 FROM t1, t2 FOR UPDATE OF t1);
+(SELECT 1 FROM t1, t2 FOR UPDATE OF t1)
+NULL
+SELECT 1 FROM (SELECT 1 FROM t1, t2 FOR UPDATE OF t1) a1;
+1
+SELECT 1 WHERE 1 IN (SELECT 1 FROM t1, t2 FOR UPDATE OF t1);
+1
+SELECT * FROM t1 FOR SHARE;
+a
+SELECT (SELECT * FROM t1 FOR SHARE);
+(SELECT * FROM t1 FOR SHARE)
+NULL
+SELECT 1 FROM (SELECT * FROM t1 FOR SHARE) a1;
+1
+SELECT 1 WHERE 1 IN (SELECT * FROM t1 FOR SHARE);
+1
+SELECT 1 FROM t1, t2 FOR SHARE OF t1;
+1
+SELECT (SELECT 1 FROM t1, t2 FOR SHARE OF t1);
+(SELECT 1 FROM t1, t2 FOR SHARE OF t1)
+NULL
+SELECT 1 FROM (SELECT 1 FROM t1, t2 FOR SHARE OF t1) a1;
+1
+SELECT 1 WHERE 1 IN (SELECT 1 FROM t1, t2 FOR SHARE OF t1);
+1
+DROP USER mysqltestuser1@localhost;
+CREATE USER mysqltestuser1@localhost;
+GRANT SELECT, LOCK TABLES ON db1.* TO mysqltestuser1@localhost;;
+SELECT * FROM t1;
+a
+SELECT HIGH_PRIORITY * FROM t1;
+a
+SELECT * FROM t1 FOR UPDATE;
+a
+SELECT (SELECT * FROM t1 FOR UPDATE);
+(SELECT * FROM t1 FOR UPDATE)
+NULL
+SELECT 1 FROM (SELECT * FROM t1 FOR UPDATE) a1;
+1
+SELECT 1 WHERE 1 IN (SELECT * FROM t1 FOR UPDATE);
+1
+SELECT 1 FROM t1, t2 FOR UPDATE OF t1;
+1
+SELECT (SELECT 1 FROM t1, t2 FOR UPDATE OF t1);
+(SELECT 1 FROM t1, t2 FOR UPDATE OF t1)
+NULL
+SELECT 1 FROM (SELECT 1 FROM t1, t2 FOR UPDATE OF t1) a1;
+1
+SELECT 1 WHERE 1 IN (SELECT 1 FROM t1, t2 FOR UPDATE OF t1);
+1
+SELECT * FROM t1 FOR SHARE;
+a
+SELECT (SELECT * FROM t1 FOR SHARE);
+(SELECT * FROM t1 FOR SHARE)
+NULL
+SELECT 1 FROM (SELECT * FROM t1 FOR SHARE) a1;
+1
+SELECT 1 WHERE 1 IN (SELECT * FROM t1 FOR SHARE);
+1
+SELECT 1 FROM t1, t2 FOR SHARE OF t1;
+1
+SELECT (SELECT 1 FROM t1, t2 FOR SHARE OF t1);
+(SELECT 1 FROM t1, t2 FOR SHARE OF t1)
+NULL
+SELECT 1 FROM (SELECT 1 FROM t1, t2 FOR SHARE OF t1) a1;
+1
+SELECT 1 WHERE 1 IN (SELECT 1 FROM t1, t2 FOR SHARE OF t1);
+1
+DROP USER mysqltestuser1@localhost;
+DROP DATABASE db1;

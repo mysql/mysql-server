@@ -1,5 +1,6 @@
 # Making sure not to run when ps-protocol is set.
---source ../include/no_protocol.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
 --echo ####################################
 --echo # SETUP

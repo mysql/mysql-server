@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --result_format 2
 --source include/have_ndb.inc
 
@@ -15,8 +10,6 @@ FROM information_schema.plugins WHERE PLUGIN_NAME = 'ndbinfo';
 CREATE TEMPORARY TABLE `t1` (
   `dummy` INT UNSIGNED
 ) ENGINE=NDBINFO;
-
---source ndbinfo_create.inc
 
 USE ndbinfo;
 
@@ -44,7 +37,10 @@ SELECT COUNT(*) FROM ndb$tables;
 SELECT * FROM ndb$tables WHERE table_id = 2;
 SELECT * FROM ndb$tables WHERE table_id > 5;
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
-SELECT COUNT(*) FROM ndb$tables t1, ndb$tables t2 WHERE t1.table_id = t1.table_id;
+# Show a simple join is working
+SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
+  WHERE t.table_id = c.table_id AND
+    t.table_id in (1,2,3,4,5,6);
 
 SELECT table_id, table_name, comment from ndb$tables
   WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
@@ -108,6 +104,7 @@ SELECT count(*) >= 20 FROM blocks;
 
 # Test incompatible table definition between NDB and MySQL Server
 # using the ndb$test table which originally looks like
+show create table ndb$test;
 # CREATE TABLE `ndb$test` (
 #   `node_id` int unsigned DEFAULT NULL,
 #   `block_number` int unsigned DEFAULT NULL,
@@ -194,6 +191,16 @@ CREATE TABLE ndb$test (node_id int, block_number blob) ENGINE = ndbinfo;
 --error ER_TABLE_CANT_HANDLE_AUTO_INCREMENT
 CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;
 
+## Restore original ndb$test table to avoid test side-effects
+CREATE TABLE ndb$test (
+  node_id int(10) unsigned DEFAULT NULL,
+  block_number int(10) unsigned DEFAULT NULL,
+  block_instance int(10) unsigned DEFAULT NULL,
+  counter int(10) unsigned DEFAULT NULL,
+  counter2 bigint(20) unsigned DEFAULT NULL
+) ENGINE=NDBINFO DEFAULT CHARSET=latin1 COMMENT='for testing';
+
+
 # wl#5567 - exercise table...
 #   only node_id is guranteed to be same...
 #   (unless we change cluster config for test)
@@ -229,10 +236,47 @@ select distinct block_name from threadblocks order by 1;
 desc threadstat;
 select count(*) > 0 block_name from threadstat;
 
+desc disk_write_speed_aggregate;
+select count(*) from disk_write_speed_aggregate;
+
+desc disk_write_speed_base;
+select node_id from disk_write_speed_base group by node_id, thr_no;
+
+select count(*) from disk_write_speed_aggregate_node;
+
+desc restart_info;
+select * from restart_info;
+
+desc tc_time_track_stats;
+select distinct node_id from tc_time_track_stats;
+
+desc threads;
+
 desc cluster_transactions;
 desc server_transactions;
 desc cluster_operations;
 desc server_operations;
+
+select count(*) from table_distribution_status;
+select count(*) from ndb$table_distribution_status_all;
+select count(*) from table_fragments;
+select count(*) from ndb$table_fragments_all;
+select count(*) from table_replicas;
+select count(*) from ndb$table_replicas_all;
+
+# DESCRIBE columns of the views
+desc table_distribution_status;
+desc table_fragments;
+desc table_replicas;
+
+# DESCRIBE columns of the hidden table
+# (turn show_hidden on since otherwise columns
+#  of the table is supposed to be hidden)
+set @@ndbinfo_show_hidden=TRUE;
+desc ndb$table_distribution_status_all;
+desc ndb$table_fragments_all;
+desc ndb$table_replicas_all;
+set @@ndbinfo_show_hidden=default;
 
 create table t1 (a int primary key) engine = ndb;
 begin;
@@ -277,7 +321,7 @@ select @@ndbinfo_offline;
 CREATE TABLE ndb$does_not_exist_in_ndb(
   node_id int,
   message varchar(255)
-) ENGINE = ndbinfo;
+) ENGINE = ndbinfo CHARACTER SET latin1;
 
 CREATE VIEW view_on_table_which_does_not_exist_in_ndb AS
   SELECT node_id, message
@@ -307,6 +351,66 @@ select table_schema, table_name, definer from information_schema.views
   where table_schema = 'ndbinfo' and
         definer != 'root@localhost';
 
+
+#
+# Test buffered joining
+#
+# BUG#20075747 RND_INIT() ON AN OPEN SCAN IS USED TO REPOSITION THE CURSOR
+# - rnd_init() on an open scan is used to reposition the "cursor"
+#   back to first row
+#
+set @@optimizer_switch='block_nested_loop=off';
+
+
+--disable_result_log
+
+select @a:=0;
+
+select
+  @a:=@a+1,
+  a.node_id, b.node_id,
+  a.block_name, b.block_name,
+  a.block_instance, b.block_instance,
+  a.counter_id, b.counter_id,
+  a.counter_name, b.counter_name,
+  a.val, b.val
+from
+  ndbinfo.counters a join
+  ndbinfo.counters b
+on
+  a.node_id = b.node_id;
+
+select @b:=0;
+
+select
+  @b:=@b+1,
+  a.node_id, b.node_id,
+  a.block_name, b.block_name,
+  a.block_instance, b.block_instance,
+  a.counter_id, b.counter_id,
+  a.counter_name, b.counter_name,
+  a.val, b.val
+from
+  ndbinfo.counters a join
+  ndbinfo.counters b
+on
+  a.node_id = b.node_id;
+
+--enable_result_log
+
+--echo Expect both joins to give same row count
+--echo (0 diff)
+select @a - @b;
+
+
+create temporary table old_count
+       select counter_name, sum(val) as val
+       from ndbinfo.counters
+       where block_name='DBSPJ'
+       group by counter_name;
+drop table old_count;
+set @@optimizer_switch=default;
+
 # ################################
 # Test memory_per_fragment table.
 # ################################
@@ -324,7 +428,7 @@ create table t1(
   c1 char(255),
   vc1 varchar(1024),
   tx1 text
-)engine=ndbcluster;
+)engine=ndbcluster character set latin1;
 
 # Popultate t1 with 1000 rows, including som sizable varsize data.
 insert into t1 select x1.i+x2.i*10+x3.i*100, x1.i-x2.i*10-x3.i*100, repeat('x', 1+x1.i), repeat('y', 1000+x1.i), repeat('z', x1.i*100) from numbers as x1, numbers as x2, numbers as x3;
@@ -341,10 +445,16 @@ create unique index ix2 on t1(b) using hash;
 set @t1_id = (select cast(id as signed integer) from ndbinfo.ndb$dict_obj_info where fq_name REGEXP "def/t1$");
 
 
-# Test the dict_obj_info table. Replace table id of t1 in 'fq_name' values that
-# contain it (index and blob table names do), since the table id may vary 
-# between runs.
-select type, state, parent_obj_type, replace(fq_name, cast(@t1_id as char(10)), "<t1 id>") as fq_name, if(parent_obj_id=@t1_id, "child_of_t1", if(parent_obj_id=0, "root", "error!")) as  nesting from ndbinfo.ndb$dict_obj_info where id >= @t1_id and type <= 6 order by type, id;
+# Test the dict_obj_info table by showing t1 and it's four releated objects.
+# Replace table id of t1 in 'fq_name' values that contain it (index and blob
+# table names do), since the table id may vary between runs.
+select type, state, parent_obj_type,
+  replace(fq_name, cast(@t1_id as char(10)), "<t1 id>") as fq_name,
+  if(parent_obj_id=@t1_id, "child_of_t1",
+    if(parent_obj_id=0, "root", "error!")) as  nesting
+  from ndbinfo.ndb$dict_obj_info
+  where id >= @t1_id and id < @t1_id + 5 and type <= 6
+  order by type, id;
 
 # Disable query log while defining the view below, since view definition
 # conatins the table id of t1, which may vary between runs.
@@ -353,7 +463,7 @@ let $t1_id = query_get_value(select @t1_id as id, id, 1);
 
 # Create som views that we reuse after modifying t1 below.
 # This one sums usage counts for all fragments of each table.
-# Some values, such as fixed_elem_free_rows and fixed_elem_count for ordered 
+# Some values, such as fixed_elem_free_count and fixed_elem_count for ordered 
 # indexes may vary depending on the number of fragments and other factors. 
 # These are therefore not returned directly, but used in calculations that 
 # should provide stable results.
@@ -368,9 +478,9 @@ if (type="Ordered index",
     sum(fixed_elem_count)) as fixed_elem_count,
 max(fixed_elem_size_bytes) as fixed_elem_size_bytes,
 round(sum(fixed_elem_alloc_bytes/fixed_elem_size_bytes)
-  /sum(fixed_elem_count+fixed_elem_free_rows),1) as fixed_elem_alloc_ok,
+  /sum(fixed_elem_count+fixed_elem_free_count),1) as fixed_elem_alloc_ok,
 sum(fixed_elem_free_bytes/fixed_elem_size_bytes) = 
-   sum(fixed_elem_free_rows) as fixed_elem_free_bytes_ok,
+   sum(fixed_elem_free_count) as fixed_elem_free_bytes_ok,
 sum(var_elem_count) as var_elem_count,
 sum(var_elem_alloc_bytes) >= sum(var_elem_free_bytes) as var_bytes_ok
 from ndbinfo.memory_per_fragment
@@ -476,4 +586,355 @@ drop view sum_per_tab;
 drop view pool_sum;
 drop view frag_sum; 
 
---source ndbinfo_drop.inc
+# ################################
+# Test operations_per_fragment table.
+# ################################
+
+# Create a view that sums counters across all fragments, so that results
+# will not depend on endianness.
+# Observe that operations_per_fragment.fq_name, parent_fq_name, type are all
+# functionally dependent on 'table_id', but since this cannot be deduced from
+# the schema, they are all included in the 'group by' clause.
+create view frag_ops as select 
+  if(type in ('Ordered index', 'Unique hash index'), 
+    substring(fq_name from 1+locate('/', fq_name, 9)), 
+    if(fq_name like '%BLOB%', left(fq_name, locate('_', fq_name)), fq_name)) 
+    as fq_name,
+  parent_fq_name,
+  type,
+  count(fragment_num) as frag_count,
+  sum(tot_key_reads) as tot_key_reads, 
+  sum(tot_key_inserts) as tot_key_inserts, 
+  sum(tot_key_updates) as tot_key_updates, 
+  sum(tot_key_writes) as tot_key_writes, 
+  sum(tot_key_deletes) as tot_key_deletes, 
+  sum(tot_key_refs) as tot_key_refs,
+  round(log2(1+sum(tot_key_attrinfo_bytes))) as log_tot_key_attrinfo_bytes,
+  sum(tot_key_keyinfo_bytes) as tot_key_keyinfo_bytes,
+  sum(tot_key_prog_bytes) as tot_key_prog_bytes,
+  sum(tot_key_inst_exec) as tot_key_inst_exec,
+  sum(tot_key_bytes_returned) as tot_key_bytes_returned,
+  sum(tot_frag_scans) as tot_frag_scans, 
+  sum(tot_scan_rows_examined) as tot_scan_rows_examined, 
+  sum(tot_scan_rows_returned) as tot_scan_rows_returned, 
+  sum(tot_scan_bytes_returned) as tot_scan_bytes_returned, 
+  sum(tot_scan_prog_bytes) as tot_scan_prog_bytes,
+  sum(tot_scan_bound_bytes) as tot_scan_bound_bytes,
+  sum(tot_scan_inst_exec) as tot_scan_inst_exec,
+  # Ignore concurrent frag_scans, as all tests below expect them to be 0
+  # but this is not stable as LCP scans are counted as concurrent
+  # frag scans while they are running (but not counted as tot_frag_scans
+  # when they complete).
+  # Arguably it is useful to see a live LCP scan, and this test has no
+  # use for conc_frag_scans!=0, so avoid looking at it for determinism
+  #sum(conc_frag_scans) as conc_frag_scans,
+  sum(conc_qd_frag_scans) as conc_qd_frag_scans, 
+  sum(tot_commits) as tot_commits
+  from ndbinfo.operations_per_fragment
+  where fq_name like 'ndbinfo%' or parent_fq_name like 'ndbinfo%'
+  group by table_id, type, operations_per_fragment.fq_name, parent_fq_name
+  order by table_id;
+
+
+# Create and populate test tables.
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null,
+  t text not null,
+  primary key (b,a)
+) engine=ndbcluster
+partition by key(b,a) partitions 8;
+
+create unique index ix1 on t1(d) using hash;
+
+
+# A helper table for populating t1.
+create table numbers(
+  i int
+); 
+
+insert into numbers values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+insert into t1 select x1.i+x2.i*10, 1, 1+x1.i+x2.i*10, 1+x1.i+x2.i*10,
+  repeat('x', 512)
+  from numbers as x1, numbers as x2;
+
+drop table numbers;
+
+create table t2 (
+  a int, 
+  b int, 
+  primary key(a) using hash)
+engine = ndb 
+partition by key(a) partitions 8;
+
+insert into t2 values (1, 2);
+insert into t2 values (2, 3);
+insert into t2 values (3, 1);
+
+# Check counters before the test queries.
+--query_vertical select * from frag_ops;
+
+# Do a table scan with a pushed condition.
+--replace_column 4 #
+explain select count(*) from t1 where d<10;
+select count(*) from t1 where d<10;
+
+# Do an index scan.
+--replace_column 4 #
+explain select count(*) from t1 where b=1 and a<10;
+select count(*) from t1 where b=1 and a<10;
+
+# Do a PK read.
+--replace_column 4 #
+explain select * from t1 where b=1 and a = -5;
+select * from t1 where b=1 and a = -5;
+
+# Try to insert a duplicate key.
+--error ER_DUP_ENTRY
+insert into t1 values (1,1,1,1,'');
+
+# Use replace to generate PK write operations.
+replace t1 values (-1,-1,-1,-1,'');
+replace t1 values (1,1,5,500,'');
+
+# Do update and delete.
+update t1 set d = -d, t = repeat('a', 300) where b=1 and a > 90;
+
+delete from t1 where a%30=0;
+
+# This error insert causes the next index scan from SPJ to be queued on node 2.
+# This command may fail if error inserts is not available on this build,
+# therefore we permit return code 255.
+--error 0,255
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "2 error 5084" >> $NDB_TOOLS_OUTPUT
+
+# Do a pushed query that starts multiple index scans on each t1 fragment.
+# That way the first scan (on node 2) will be queued until the next finishes.
+--replace_column 4 #
+explain select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
+select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
+
+# Check number of queued scans. Test for debug build
+# to handle builds without error inserts (i.e. non-debug builds).
+select 
+  if ((select version() like '%debug'),
+      sum(tot_qd_frag_scans),
+      4) as tot_qd_frag_scans
+  from ndbinfo.operations_per_fragment
+  where fq_name like 'ndbinfo%' or parent_fq_name like 'ndbinfo%';
+
+# Check how these operations changed the counters. 
+--query_vertical select * from frag_ops;
+
+# This query should give PK read operations with an interpreted program.
+# (Multi-range read mapped to PK reads.)
+--replace_column 4 #
+explain select count(*)
+from t2 as tx, t2 as ty
+where tx.a in (1,3,5)
+and ty.a = tx.b;
+
+# The 'explain' above triggers an implicit 'analyze table'. That increments
+# operations_per_fragment counters in a way that is endian-dependent.
+# We therefore save the current values of the counters to isolate the 
+# effect of the query below.
+create table save_counters as select * from frag_ops;
+
+select count(*)
+from t2 as tx, t2 as ty
+where tx.a in (1,3,5)
+and ty.a = tx.b;
+
+create view changes as select 
+new.fq_name,
+new.parent_fq_name,
+new.type,
+new.frag_count,
+new.tot_key_reads - old.tot_key_reads,
+new.tot_key_inserts - old.tot_key_inserts,
+new.tot_key_updates - old.tot_key_updates,
+new.tot_key_writes - old.tot_key_writes,
+new.tot_key_deletes - old.tot_key_deletes,
+new.tot_key_refs - old.tot_key_refs,
+new.log_tot_key_attrinfo_bytes - old.log_tot_key_attrinfo_bytes,
+new.tot_key_keyinfo_bytes - old.tot_key_keyinfo_bytes,
+new.tot_key_prog_bytes - old.tot_key_prog_bytes,
+new.tot_key_inst_exec - old.tot_key_inst_exec,
+new.tot_key_bytes_returned - old.tot_key_bytes_returned,
+new.tot_frag_scans - old.tot_frag_scans,
+new.tot_scan_rows_examined - old.tot_scan_rows_examined,
+new.tot_scan_rows_returned - old.tot_scan_rows_returned,
+new.tot_scan_bytes_returned - old.tot_scan_bytes_returned,
+new.tot_scan_prog_bytes - old.tot_scan_prog_bytes,
+new.tot_scan_bound_bytes - old.tot_scan_bound_bytes,
+new.tot_scan_inst_exec - old.tot_scan_inst_exec,
+new.tot_commits  - old.tot_commits
+from frag_ops as new, save_counters as old
+where new.fq_name=old.fq_name and new.fq_name like '%t2';
+
+--query_vertical select * from changes
+
+
+
+# Drop test views and tables.
+drop view changes;
+drop table save_counters;
+drop view frag_ops;
+drop table t1;
+drop table t2;
+
+
+
+#
+# WL#7575 Remove ndbinfo's usage of other engine
+# - the five lookup tables which resided in another engine
+#   was converted to virtual(aka. hardcoded) tables inside ha_ndbinfo
+# - three new views was added to preserve backwards compatibility
+#   for those tabes which was changed to prefix ndb$
+
+## Check that the new tables return data and exists.
+select count(*) > 10 from ndb$blocks;
+select param_number, param_name, param_description, param_default,
+       param_min, param_max from ndb$config_params
+  where param_name = "DataMemory";
+select * from ndb$dict_obj_types where type_id < 3;
+--disable_result_log
+select * from ndb$dbtc_apiconnect_state;
+select * from ndb$dblqh_tcconnect_state;
+--enable_result_log
+
+## Check that the new views return data and exists.
+select block_number from blocks where block_name = "DBTC";
+select param_name from config_params where param_number = 101;
+select type_name from ndb$dict_obj_types where type_id = 3;
+
+## All tables in ndbinfo/ should now be using engine=NDBINFO
+select count(*) from information_schema.tables
+  where table_schema = 'ndbinfo' and engine != 'ndbinfo';
+
+#
+# Bug#16731538 MYSQLD CRITICAL FAILURE DURING ORDERED SELECT FROM NDBINFO.CLUSTER_OPERATIONS
+#  - ha_ndbinfo::estimate_rows_upper_bound() returned 0 rows
+#
+--disable_result_log
+select * from ndbinfo.config_params order by param_number;
+--enable_result_log
+
+#
+# Bug#11762750 TABLE NDBINFO.CONFIG_PARAMS SHOULD BE READ-ONLY (FOR NOW)
+#
+#
+# Checking the table
+--error ER_OPEN_AS_READONLY
+UPDATE ndb$config_params SET param_number=1 WHERE param_name = "NoOfReplicas";
+
+# Checking the view
+--error ER_OPEN_AS_READONLY
+UPDATE config_params SET param_number=1 WHERE param_name = "NoOfReplicas";
+
+
+#
+# WL#8703 ndbinfo config parameter tables
+#
+select node_id, param_name, config_param, config_value
+  from ndbinfo.config_values cv, ndbinfo.config_params cp
+  where cv.config_param = cp.param_number and
+        cp.param_name = 'MaxNoOfConcurrentTransactions'
+  order by node_id;
+
+select node_id, param_name, config_value
+  from ndbinfo.config_values cv, ndbinfo.config_params cp
+  where cv.config_param = cp.param_number and
+        cp.param_name = 'NodeId'
+  order by node_id;
+
+select node_id, concat(config_value / 1024 / 1024, 'M') as DataMemory
+  from ndbinfo.config_values
+  where config_param = 112 /* DataMemory */
+  order by node_id;
+
+#
+# wl#9819 ndbinfo.processes
+#
+# Because port number and host address vary in the test environment,
+# we can not test the content of the service_URI column.
+
+# (A) Normative tests of table and view definition
+# (turn show_hidden on since otherwise columns
+#  of the table is supposed to be hidden)
+set @@ndbinfo_show_hidden=TRUE;
+desc ndb$processes;
+set @@ndbinfo_show_hidden=default;
+show create table processes;
+
+# (B) Tests of table content.
+# These results will change if the cluster config used when running
+# this test case changes.
+
+# Query the base table
+SELECT reporting_node_id, node_id, node_type,
+replace(replace(process_name,"-debug",""),".exe","") AS process_name
+FROM ndb$processes
+ORDER BY reporting_node_id, node_id;
+
+# Query the view
+SELECT node_id,
+node_type,
+replace(replace(process_name,"-debug",""),".exe","") AS process_name,
+if(process_id is null, "null", "not_null") as proc_id,
+if(angel_process_id is null, "null", "not_null") as angel_proc_id
+FROM processes
+ORDER BY node_id;
+
+#
+# wl#10147 ndbinfo.config_nodes
+#
+# (A) Normative tests of table and view definition
+# (turn show_hidden on since otherwise columns
+#  of the table is supposed to be hidden)
+set @@ndbinfo_show_hidden=TRUE;
+desc ndb$config_nodes;
+set @@ndbinfo_show_hidden=default;
+select view_definition, is_updatable, security_type
+  FROM information_schema.views
+  WHERE table_schema = 'ndbinfo' AND table_name = 'config_nodes';
+
+# (B) Tests of table content.
+# These results will change if the cluster config used when running
+# this test case changes.
+SELECT * from ndb$config_nodes order by reporting_node_id, node_id;
+
+# (C) Tests of view: SELECT DISTINCT, removing reporting_node_id
+SELECT node_type, count(*),
+ GROUP_CONCAT(node_id order by 1 asc separator " ") ids
+ FROM config_nodes group by node_type order by node_type;
+
+
+
+--echo #
+--echo # Bug#26048272  IMPLEMENT NDBINFO TABLE FOR LOOKUP OF ERROR CODES AND MESSAGES
+--echo #
+
+# Check that row is returned for NDB error 920
+select *
+  from ndbinfo.error_messages
+  where error_code = 920;
+
+
+# Check that row is returned for NDB exit code 2304
+select *
+  from ndbinfo.error_messages
+  where error_code = 2304;
+
+# Check that row is returned for MgmApi error code 5001
+select *
+  from ndbinfo.error_messages
+  where error_code = 5001;
+
+# Check that there are at last 700 rows in the error_message table, don't
+# use a hard limit as it will grow when someone add a new error message
+select count(*) > 700
+  from ndbinfo.error_messages;

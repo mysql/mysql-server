@@ -1,6 +1,5 @@
---source include/not_embedded.inc
---source include/have_perfschema.inc
---source suite/perfschema/include/no_protocol.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
 --source ../include/start_server_common.inc
 

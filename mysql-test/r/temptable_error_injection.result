@@ -1,0 +1,11 @@
+CREATE TABLE t (c INT);
+INSERT INTO t VALUES (1);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SET debug = '+d,temptable_create_return_full';
+SELECT * FROM t AS t1, t AS t2 ORDER BY 1 LIMIT 1;
+c	c
+1	1
+SET debug = '-d,temptable_create_return_full';
+DROP TABLE t;

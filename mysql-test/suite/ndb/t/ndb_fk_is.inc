@@ -31,7 +31,7 @@ create table emp (
   id int primary key auto_increment,
   manager int,
   key (manager),
-  foreign key fk1 (manager) references emp (id))
+  foreign key emp_fk1 (manager) references emp (id))
 engine=$engine;
 
 select *

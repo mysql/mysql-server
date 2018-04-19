@@ -1,16 +1,16 @@
 select * from information_schema.columns
 where table_name = "t1";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-def	test	t1	a1	1	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(6)	PRI		#	
-def	test	t1	a2	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			#	
-def	test	t1	a3	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			#	
-def	test	t1	a4	4	NULL	YES	char	10	10	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(10)			#	
-def	test	t1	a5	5	NULL	YES	decimal	NULL	NULL	5	1	NULL	NULL	NULL	decimal(5,1)			#	
-def	test	t1	a6	6	NULL	YES	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			#	
-def	test	t1	a7	7	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			#	
-def	test	t1	a8	8	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			#	
-def	test	t1	a9	9	NULL	YES	varchar	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(255)			#	
-def	test	t1	a10	10	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			#	
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
+def	test	t1	a1	1	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(6)	PRI		#		
+def	test	t1	a2	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			#		
+def	test	t1	a3	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			#		
+def	test	t1	a4	4	NULL	YES	char	10	10	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(10)			#		
+def	test	t1	a5	5	NULL	YES	decimal	NULL	NULL	5	1	NULL	NULL	NULL	decimal(5,1)			#		
+def	test	t1	a6	6	NULL	YES	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			#		
+def	test	t1	a7	7	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			#		
+def	test	t1	a8	8	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			#		
+def	test	t1	a9	9	NULL	YES	varchar	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(255)			#		
+def	test	t1	a10	10	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			#		
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -25,7 +25,7 @@ t1	CREATE TABLE `t1` (
   `a9` varchar(255) DEFAULT NULL,
   `a10` blob,
   PRIMARY KEY (`a1`)
-) /*!50100 TABLESPACE ts */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 Attributes:
 a1 Smallint PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 a2 Int NOT NULL AT=FIXED ST=DISK
@@ -62,7 +62,7 @@ t1	CREATE TABLE `t1` (
   `a10` blob,
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a1`)
-) /*!50100 TABLESPACE ts */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 FLUSH TABLES;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -79,12 +79,10 @@ t1	CREATE TABLE `t1` (
   `a10` blob,
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a1`)
-) /*!50100 TABLESPACE ts */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 drop table t1;
 ALTER TABLESPACE ts
-DROP DATAFILE 'datafile.dat'
-ENGINE NDB;
-drop tablespace ts
-engine ndb;
+DROP DATAFILE 'datafile.dat';
+drop tablespace ts;
 drop logfile group lg
 engine ndb;

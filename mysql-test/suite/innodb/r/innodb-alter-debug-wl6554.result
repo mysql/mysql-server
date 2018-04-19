@@ -38,7 +38,7 @@ a	c
 DROP TABLE t1;
 # Bug#15863023 - case1
 SET DEBUG_SYNC = 'RESET';
-CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b VARCHAR(254)) ENGINE = Innodb;
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b VARCHAR(254) charset latin1) ENGINE = Innodb;
 INSERT IGNORE INTO t1 (b) VALUES (repeat('a',254)),(repeat('b',254)),(repeat('c',300));
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 3
@@ -48,7 +48,7 @@ a	LEFT(b,10)	LENGTH(b) = 254
 2	bbbbbbbbbb	1
 3	cccccccccc	1
 SET DEBUG_SYNC = 'innodb_commit_inplace_alter_table_enter SIGNAL s1 WAIT_FOR s2';
-ALTER TABLE t1 CHANGE b b varchar(255);;
+ALTER TABLE t1 CHANGE b b varchar(255) charset latin1;;
 SET lock_wait_timeout = 1;
 SET DEBUG_SYNC='now WAIT_FOR s1';
 INSERT INTO t1 (b) VALUES (repeat('d',300));
@@ -68,9 +68,9 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` varchar(255) DEFAULT NULL,
+  `b` varchar(255) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t1 (b) VALUES (repeat('d',300));
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 1
@@ -98,7 +98,7 @@ a	LEFT(b,10)	LENGTH(b) = 254
 DROP TABLE t1;
 # Bug#15863023 - case2 . enlarge varchar with add.drop index/column
 SET DEBUG_SYNC = 'RESET';
-CREATE TABLE t1 (a INT , b VARCHAR(254)) ENGINE=Innodb;
+CREATE TABLE t1 (a INT , b VARCHAR(254) charset latin1) ENGINE=Innodb;
 INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 3
@@ -108,7 +108,7 @@ a	LEFT(b,10)	LENGTH(b) = 254
 2	bbbbbbbbbb	1
 3	cccccccccc	1
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
-ALTER TABLE t1 ADD INDEX idx(b),CHANGE b b varchar(255) ,ALGORITHM=INPLACE;;
+ALTER TABLE t1 ADD INDEX idx(b),CHANGE b b varchar(255) charset latin1 ,ALGORITHM=INPLACE;;
 SET DEBUG_SYNC='now WAIT_FOR s1';
 INSERT IGNORE INTO t1 (a,b) VALUES (4,repeat('d',300));
 Warnings:
@@ -139,9 +139,9 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` varchar(255) DEFAULT NULL,
+  `b` varchar(255) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
   KEY `idx` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t1 (a,b) VALUES (5,repeat('d',300));
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 1
@@ -171,6 +171,9 @@ DROP TABLE t1;
 SET DEBUG_SYNC = 'RESET';
 CREATE TABLE t1 (a INT DEFAULT 100 , b VARCHAR(254) CHARACTER SET latin1,
 c VARCHAR(254) CHARACTER SET utf8) ENGINE=Innodb CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE INDEX c1 ON t1(c);
 INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 Warnings:
@@ -217,12 +220,14 @@ a	LEFT(b,10)	LENGTH(b) = 254	c
 4	dddddddddd	1	NULL
 100	zzzzzzzzzz	1	Môžem
 SET DEBUG_SYNC='now SIGNAL s2';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT '100',
-  `b` varchar(255) CHARACTER SET latin1 DEFAULT NULL,
-  `c` varchar(255) DEFAULT NULL,
+  `b` varchar(255) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+  `c` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   KEY `idx` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 INSERT IGNORE INTO t1 (a,b,c) VALUES (5,repeat('d',300),"Môžem");
@@ -258,6 +263,9 @@ DROP TABLE t1;
 SET DEBUG_SYNC = 'RESET';
 CREATE TABLE t1 (a INT DEFAULT 100 , b VARCHAR(254) CHARACTER SET latin1,
 c VARCHAR(254) CHARACTER SET utf8, d CHAR(10) DEFAULT 'test') ENGINE=Innodb CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE INDEX c1 ON t1(c);
 INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 Warnings:
@@ -274,111 +282,14 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column ty
 ALTER TABLE t1 ADD INDEX idx1(b),CHANGE d d VARCHAR(100) ,ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
 ALTER TABLE t1 ADD INDEX idx(b),CHANGE b b varchar(355) CHARACTER SET latin1,CHANGE c c varchar(255) CHARACTER SET utf8,DROP INDEX c1 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1;
-# Bug#15863023 - case5 assert(bug#15989081). enlarge varchar other
-# alter operations with fk on child
-SET DEBUG_SYNC = 'RESET';
-CREATE TABLE t1 (a INT , b VARCHAR(254) PRIMARY KEY) ENGINE=Innodb;
-CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) , CONSTRAINT fk FOREIGN KEY (b2) REFERENCES t1 (b) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
-INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
-Warnings:
-Warning	1265	Data truncated for column 'b' at row 3
-INSERT IGNORE INTO t2 (a2,b2) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
-Warnings:
-Warning	1265	Data truncated for column 'b2' at row 3
-SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1,t2 WHERE t1.a = t2.a2 ORDER BY a;
-a	LEFT(b,10)	LENGTH(b) = 254
-1	aaaaaaaaaa	1
-2	bbbbbbbbbb	1
-3	cccccccccc	1
-SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
-ALTER TABLE t2 CHANGE b2 b2 varchar(255),DROP FOREIGN KEY fk,ADD CONSTRAINT fk FOREIGN KEY (b2) REFERENCES t1 (b),ADD INDEX idx(a2) ,ALGORITHM=INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding foreign keys needs foreign_key_checks=OFF. Try ALGORITHM=COPY.
-SET foreign_key_checks = 0;
-ALTER TABLE t2 CHANGE b2 b2 varchar(255),DROP FOREIGN KEY fk,ADD CONSTRAINT fk_1 FOREIGN KEY (b2) REFERENCES t1 (b) ON UPDATE CASCADE,ADD INDEX idx(a2) ,ALGORITHM=INPLACE;;
-SET DEBUG_SYNC='now WAIT_FOR s1';
-INSERT IGNORE INTO t1 (a,b) VALUES (4,repeat('d',300));
-Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
-SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
-a	LEFT(b,10)	LENGTH(b) = 254
-1	aaaaaaaaaa	1
-2	bbbbbbbbbb	1
-3	cccccccccc	1
-4	dddddddddd	1
-UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
-Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
-SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
-a	LEFT(b,10)	LENGTH(b) = 254
-1	yyyyyyyyyy	1
-2	bbbbbbbbbb	1
-3	cccccccccc	1
-4	dddddddddd	1
-DELETE FROM t1 WHERE b = repeat('y',254);
-SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
-a	LEFT(b,10)	LENGTH(b) = 254
-2	bbbbbbbbbb	1
-3	cccccccccc	1
-4	dddddddddd	1
-SELECT a2,LEFT(b2,10),LENGTH(b2) = 254 FROM t2 ORDER BY a2;
-a2	LEFT(b2,10)	LENGTH(b2) = 254
-2	bbbbbbbbbb	1
-3	cccccccccc	1
-SET DEBUG_SYNC='now SIGNAL s2';
-SET foreign_key_checks = 1;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(254) NOT NULL,
-  PRIMARY KEY (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `a2` int(11) DEFAULT NULL,
-  `b2` varchar(255) DEFAULT NULL,
-  KEY `fk_1` (`b2`),
-  KEY `idx` (`a2`),
-  CONSTRAINT `fk_1` FOREIGN KEY (`b2`) REFERENCES `t1` (`b`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-INSERT IGNORE INTO t1 (a,b) VALUES (5,repeat('k',300));
-Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
-SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
-a	LEFT(b,10)	LENGTH(b) = 254
-2	bbbbbbbbbb	1
-3	cccccccccc	1
-4	dddddddddd	1
-5	kkkkkkkkkk	1
-UPDATE IGNORE t1 SET b = repeat('z',300) WHERE b = repeat('b',254) ;
-Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
-SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
-a	LEFT(b,10)	LENGTH(b) = 254
-2	zzzzzzzzzz	1
-3	cccccccccc	1
-4	dddddddddd	1
-5	kkkkkkkkkk	1
-DELETE FROM t1 WHERE b = repeat('c',254);
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk_1` FOREIGN KEY (`b2`) REFERENCES `t1` (`b`) ON UPDATE CASCADE)
-SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
-a	LEFT(b,10)	LENGTH(b) = 254
-2	zzzzzzzzzz	1
-3	cccccccccc	1
-4	dddddddddd	1
-5	kkkkkkkkkk	1
-SELECT a2,LEFT(b2,10),LENGTH(b2) = 254 FROM t2 ORDER BY a2;
-a2	LEFT(b2,10)	LENGTH(b2) = 254
-2	zzzzzzzzzz	1
-3	cccccccccc	1
-DROP TABLE t2,t1;
 # Bug#15863023 - case6 enlarge varchar other
 # alter operations with fk on parent
 SET DEBUG_SYNC = 'RESET';
-CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(254) ) ENGINE=Innodb;
-CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) , CONSTRAINT fk FOREIGN KEY (a2) REFERENCES t1 (a) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(254) charset latin1) ENGINE=Innodb;
+CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) charset latin1, CONSTRAINT fk FOREIGN KEY (a2) REFERENCES t1 (a) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
 INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 3
@@ -390,10 +301,10 @@ a	LEFT(b,10)	LENGTH(b) = 254
 1	aaaaaaaaaa	1
 2	bbbbbbbbbb	1
 3	cccccccccc	1
-ALTER TABLE t2 CHANGE b2 b2 varchar(255),DROP FOREIGN KEY fk,ADD CONSTRAINT fk FOREIGN KEY (b2) REFERENCES t1 (b),ADD INDEX idx(a2) ,ALGORITHM=INPLACE;
+ALTER TABLE t2 CHANGE b2 b2 varchar(255) charset latin1, DROP FOREIGN KEY fk,ADD CONSTRAINT fk FOREIGN KEY (b2) REFERENCES t1 (b),ADD INDEX idx(a2) ,ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding foreign keys needs foreign_key_checks=OFF. Try ALGORITHM=COPY.
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
-ALTER TABLE t1 ADD INDEX idx(a),CHANGE b b varchar(255) ,ALGORITHM=INPLACE;;
+ALTER TABLE t1 ADD INDEX idx(a),CHANGE b b varchar(255) charset latin1, ALGORITHM=INPLACE;;
 SET DEBUG_SYNC='now WAIT_FOR s1';
 INSERT IGNORE INTO t1 (a,b) VALUES (4,repeat('d',300));
 Warnings:
@@ -425,10 +336,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
-  `b` varchar(255) DEFAULT NULL,
+  `b` varchar(255) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `idx` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t1 (a,b) VALUES (5,repeat('k',300));
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 1

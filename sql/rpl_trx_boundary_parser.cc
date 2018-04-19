@@ -1,33 +1,44 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_trx_boundary_parser.h"
+#include "sql/rpl_trx_boundary_parser.h"
 
-#include "log.h"           // sql_print_warning
-#include "log_event.h"     // Log_event
+#include <string.h>
+#include <sys/types.h>
 
+#include "binlog_event.h"
+#include "m_string.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_loglevel.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysqld_error.h"
+#include "sql/log.h"
+#include "sql/log_event.h"  // Log_event
 
 #ifndef DBUG_OFF
 /* Event parser state names */
-static const char *event_parser_state_names[]= {
-  "None",
-  "GTID",
-  "DDL",
-  "DML",
-  "Error"
-};
+static const char *event_parser_state_names[] = {"None", "GTID", "DDL", "DML",
+                                                 "Error"};
 #endif
 
 /*
@@ -41,14 +52,14 @@ static const char *event_parser_state_names[]= {
 
    This method initialize the boundary parser state.
 */
-void Transaction_boundary_parser::reset()
-{
+void Transaction_boundary_parser::reset() {
   DBUG_ENTER("Transaction_boundary_parser::reset");
   DBUG_PRINT("info", ("transaction boundary parser is changing state "
                       "from '%s' to '%s'",
                       event_parser_state_names[current_parser_state],
                       event_parser_state_names[EVENT_PARSER_NONE]));
-  current_parser_state= EVENT_PARSER_NONE;
+  current_parser_state = EVENT_PARSER_NONE;
+  last_parser_state = EVENT_PARSER_NONE;
   DBUG_VOID_RETURN;
 }
 
@@ -70,14 +81,12 @@ void Transaction_boundary_parser::reset()
    @return  false if the transaction boundary parser accepted the event.
             true if the transaction boundary parser didn't accepted the event.
 */
-bool Transaction_boundary_parser::feed_event(const char *buf, size_t length,
-                                             const Format_description_log_event
-                                             *fd_event,
-                                             bool throw_warnings)
-{
+bool Transaction_boundary_parser::feed_event(
+    const char *buf, size_t length,
+    const Format_description_log_event *fd_event, bool throw_warnings) {
   DBUG_ENTER("Transaction_boundary_parser::feed_event");
-  enum_event_boundary_type event_boundary_type=
-    get_event_boundary_type(buf, length, fd_event, throw_warnings);
+  enum_event_boundary_type event_boundary_type =
+      get_event_boundary_type(buf, length, fd_event, throw_warnings);
   DBUG_RETURN(update_state(event_boundary_type, throw_warnings));
 }
 
@@ -87,7 +96,7 @@ bool Transaction_boundary_parser::feed_event(const char *buf, size_t length,
 
    @param buf               Pointer to the event buffer.
    @param length            The size of the event buffer.
-   @param description_event The description event of the master which logged
+   @param fd_event          The description event of the master which logged
                             the event.
    @param throw_warnings    If the function should throw warnings getting the
                             event boundary type.
@@ -97,44 +106,39 @@ bool Transaction_boundary_parser::feed_event(const char *buf, size_t length,
 */
 Transaction_boundary_parser::enum_event_boundary_type
 Transaction_boundary_parser::get_event_boundary_type(
-  const char *buf, size_t length, const Format_description_log_event *fd_event,
-  bool throw_warnings)
-{
+    const char *buf, size_t length,
+    const Format_description_log_event *fd_event, bool throw_warnings) {
   DBUG_ENTER("Transaction_boundary_parser::get_event_boundary_type");
 
   Log_event_type event_type;
-  enum_event_boundary_type boundary_type= EVENT_BOUNDARY_TYPE_ERROR;
-  uint header_size= fd_event->common_header_len;
+  enum_event_boundary_type boundary_type = EVENT_BOUNDARY_TYPE_ERROR;
+  uint header_size = fd_event->common_header_len;
 
   /* Error if the event content is smaller than header size for the format */
-  if (length < header_size)
-    goto end;
+  if (length < header_size) goto end;
 
-  event_type= (Log_event_type)buf[EVENT_TYPE_OFFSET];
-  DBUG_PRINT("info",("trx boundary parser was fed with an event of type %s",
-                     Log_event::get_type_str(event_type)));
+  event_type = (Log_event_type)buf[EVENT_TYPE_OFFSET];
+  DBUG_PRINT("info", ("trx boundary parser was fed with an event of type %s",
+                      Log_event::get_type_str(event_type)));
 
-  switch (event_type)
-  {
+  switch (event_type) {
     case binary_log::GTID_LOG_EVENT:
     case binary_log::ANONYMOUS_GTID_LOG_EVENT:
-      boundary_type= EVENT_BOUNDARY_TYPE_GTID;
+      boundary_type = EVENT_BOUNDARY_TYPE_GTID;
       break;
 
     /*
       There are four types of queries that we have to deal with: BEGIN, COMMIT,
       ROLLBACK and the rest.
     */
-    case binary_log::QUERY_EVENT:
-    {
-      char *query= NULL;
-      size_t qlen= 0;
+    case binary_log::QUERY_EVENT: {
+      char *query = NULL;
+      size_t qlen = 0;
       /* Get the query to let us check for BEGIN/COMMIT/ROLLBACK */
-      qlen= Query_log_event::get_query(buf, length, fd_event, &query);
-      if (qlen == 0)
-      {
+      qlen = Query_log_event::get_query(buf, length, fd_event, &query);
+      if (qlen == 0) {
         DBUG_ASSERT(query == NULL);
-        boundary_type= EVENT_BOUNDARY_TYPE_ERROR;
+        boundary_type = EVENT_BOUNDARY_TYPE_ERROR;
         break;
       }
 
@@ -143,20 +147,25 @@ Transaction_boundary_parser::get_event_boundary_type(
       */
       if (!strncmp(query, "BEGIN", qlen) ||
           !strncmp(query, STRING_WITH_LEN("XA START")))
-        boundary_type= EVENT_BOUNDARY_TYPE_BEGIN_TRX;
+        boundary_type = EVENT_BOUNDARY_TYPE_BEGIN_TRX;
       /*
         COMMIT and ROLLBACK are always the end of a transaction.
       */
       else if (!strncmp(query, "COMMIT", qlen) ||
                (!native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK")) &&
                 native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO "))))
-        boundary_type= EVENT_BOUNDARY_TYPE_END_TRX;
+        boundary_type = EVENT_BOUNDARY_TYPE_END_TRX;
       /*
-        If the query is not ( BEGIN | COMMIT | ROLLBACK ), it can be considered
-        an ordinary statement.
+        XA ROLLBACK is always the end of a XA transaction.
+      */
+      else if (!native_strncasecmp(query, STRING_WITH_LEN("XA ROLLBACK")))
+        boundary_type = EVENT_BOUNDARY_TYPE_END_XA_TRX;
+      /*
+        If the query is not (BEGIN | XA START | COMMIT | [XA] ROLLBACK), it can
+        be considered an ordinary statement.
       */
       else
-        boundary_type= EVENT_BOUNDARY_TYPE_STATEMENT;
+        boundary_type = EVENT_BOUNDARY_TYPE_STATEMENT;
 
       break;
     }
@@ -165,13 +174,14 @@ Transaction_boundary_parser::get_event_boundary_type(
       XID events are always the end of a transaction.
     */
     case binary_log::XID_EVENT:
-      boundary_type= EVENT_BOUNDARY_TYPE_END_TRX;
+      boundary_type = EVENT_BOUNDARY_TYPE_END_TRX;
       break;
     /*
-      XA_prepare event ends XA-prepared group of events (prepared XA transaction).
+      XA_prepare event ends XA-prepared group of events (prepared XA
+      transaction).
     */
     case binary_log::XA_PREPARE_LOG_EVENT:
-      boundary_type= EVENT_BOUNDARY_TYPE_END_TRX;
+      boundary_type = EVENT_BOUNDARY_TYPE_END_TRX;
       break;
 
     /*
@@ -180,7 +190,7 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::INTVAR_EVENT:
     case binary_log::RAND_EVENT:
     case binary_log::USER_VAR_EVENT:
-      boundary_type= EVENT_BOUNDARY_TYPE_PRE_STATEMENT;
+      boundary_type = EVENT_BOUNDARY_TYPE_PRE_STATEMENT;
       break;
 
     /*
@@ -198,11 +208,16 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::WRITE_ROWS_EVENT_V1:
     case binary_log::UPDATE_ROWS_EVENT_V1:
     case binary_log::DELETE_ROWS_EVENT_V1:
-    case binary_log::PRE_GA_WRITE_ROWS_EVENT:
-    case binary_log::PRE_GA_DELETE_ROWS_EVENT:
-    case binary_log::PRE_GA_UPDATE_ROWS_EVENT:
     case binary_log::VIEW_CHANGE_EVENT:
-      boundary_type= EVENT_BOUNDARY_TYPE_STATEMENT;
+    case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
+      boundary_type = EVENT_BOUNDARY_TYPE_STATEMENT;
+      break;
+
+    /*
+      Incident events have their own boundary type.
+    */
+    case binary_log::INCIDENT_EVENT:
+      boundary_type = EVENT_BOUNDARY_TYPE_INCIDENT;
       break;
 
     /*
@@ -214,17 +229,11 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::FORMAT_DESCRIPTION_EVENT:
     case binary_log::HEARTBEAT_LOG_EVENT:
     case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
-    case binary_log::START_EVENT_V3:
     case binary_log::STOP_EVENT:
-    case binary_log::LOAD_EVENT:
     case binary_log::SLAVE_EVENT:
-    case binary_log::CREATE_FILE_EVENT:
     case binary_log::DELETE_FILE_EVENT:
-    case binary_log::NEW_LOAD_EVENT:
-    case binary_log::EXEC_LOAD_EVENT:
-    case binary_log::INCIDENT_EVENT:
     case binary_log::TRANSACTION_CONTEXT_EVENT:
-      boundary_type= EVENT_BOUNDARY_TYPE_IGNORE;
+      boundary_type = EVENT_BOUNDARY_TYPE_IGNORE;
       break;
 
     /*
@@ -234,14 +243,11 @@ Transaction_boundary_parser::get_event_boundary_type(
     */
     default:
       if (uint2korr(buf + FLAGS_OFFSET) & LOG_EVENT_IGNORABLE_F)
-        boundary_type= EVENT_BOUNDARY_TYPE_IGNORE;
-      else
-      {
-        boundary_type= EVENT_BOUNDARY_TYPE_ERROR;
+        boundary_type = EVENT_BOUNDARY_TYPE_IGNORE;
+      else {
+        boundary_type = EVENT_BOUNDARY_TYPE_ERROR;
         if (throw_warnings)
-          sql_print_warning(
-            "Unsupported non-ignorable event fed into the "
-            "event stream.");
+          LogErr(WARNING_LEVEL, ER_RPL_UNSUPPORTED_UNIGNORABLE_EVENT_IN_STREAM);
       }
   } /* End of switch(event_type) */
 
@@ -262,160 +268,191 @@ end:
             true  There was an error updating the state.
 */
 bool Transaction_boundary_parser::update_state(
-  enum_event_boundary_type event_boundary_type, bool throw_warnings)
-{
+    enum_event_boundary_type event_boundary_type, bool throw_warnings) {
   DBUG_ENTER("Transaction_boundary_parser::update_state");
 
-  enum_event_parser_state new_parser_state= EVENT_PARSER_NONE;
+  enum_event_parser_state new_parser_state = EVENT_PARSER_NONE;
 
-  bool error= false;
+  bool error = false;
 
-  switch (event_boundary_type)
-  {
-  /*
-    GTIDs are always the start of a transaction stream.
-  */
-  case EVENT_BOUNDARY_TYPE_GTID:
-    /* In any case, we will update the state to GTID */
-    new_parser_state= EVENT_PARSER_GTID;
-    /* The following switch is mostly to differentiate the warning messages */
-    switch(current_parser_state) {
-    case EVENT_PARSER_GTID:
-    case EVENT_PARSER_DDL:
-    case EVENT_PARSER_DML:
-      if (throw_warnings)
-        sql_print_warning(
-          "GTID_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT "
-          "is not expected in an event stream %s.",
-          current_parser_state == EVENT_PARSER_GTID ?
-            "after a GTID_LOG_EVENT or an ANONYMOUS_GTID_LOG_EVENT" :
-            current_parser_state == EVENT_PARSER_DDL ?
-              "in the middle of a DDL" :
-              "in the middle of a DML"); /* EVENT_PARSER_DML */
-      error= true;
+  switch (event_boundary_type) {
+    /*
+      GTIDs are always the start of a transaction stream.
+    */
+    case EVENT_BOUNDARY_TYPE_GTID:
+      /* In any case, we will update the state to GTID */
+      new_parser_state = EVENT_PARSER_GTID;
+      /* The following switch is mostly to differentiate the warning messages */
+      switch (current_parser_state) {
+        case EVENT_PARSER_GTID:
+        case EVENT_PARSER_DDL:
+        case EVENT_PARSER_DML:
+          if (throw_warnings)
+            LogErr(WARNING_LEVEL, ER_RPL_GTID_LOG_EVENT_IN_STREAM,
+                   current_parser_state == EVENT_PARSER_GTID
+                       ? "after a GTID_LOG_EVENT or an ANONYMOUS_GTID_LOG_EVENT"
+                       : current_parser_state == EVENT_PARSER_DDL
+                             ? "in the middle of a DDL"
+                             : "in the middle of a DML"); /* EVENT_PARSER_DML */
+          error = true;
+          break;
+        case EVENT_PARSER_ERROR: /* we probably threw a warning before */
+          error = true;
+          /* FALL THROUGH */
+        case EVENT_PARSER_NONE:
+          break;
+      }
       break;
-    case EVENT_PARSER_ERROR: /* we probably threw a warning before */
-      error= true;
-      /* FALL THROUGH */
-    case EVENT_PARSER_NONE:
-      break;
-    }
-    break;
 
-  /*
-    There are four types of queries that we have to deal with: BEGIN, COMMIT,
-    ROLLBACK and the rest.
-  */
-  case EVENT_BOUNDARY_TYPE_BEGIN_TRX:
-    /* In any case, we will update the state to DML */
-    new_parser_state= EVENT_PARSER_DML;
-    /* The following switch is mostly to differentiate the warning messages */
-    switch(current_parser_state) {
-    case EVENT_PARSER_DDL:
-    case EVENT_PARSER_DML:
-      if (throw_warnings)
-        sql_print_warning(
-          "QUERY(BEGIN) is not expected in an event stream "
-          "in the middle of a %s.",
-          current_parser_state == EVENT_PARSER_DDL ? "DDL" : "DML");
-      error= true;
+    /*
+      There are four types of queries that we have to deal with: BEGIN, COMMIT,
+      ROLLBACK and the rest.
+    */
+    case EVENT_BOUNDARY_TYPE_BEGIN_TRX:
+      /* In any case, we will update the state to DML */
+      new_parser_state = EVENT_PARSER_DML;
+      /* The following switch is mostly to differentiate the warning messages */
+      switch (current_parser_state) {
+        case EVENT_PARSER_DDL:
+        case EVENT_PARSER_DML:
+          if (throw_warnings)
+            LogErr(WARNING_LEVEL, ER_RPL_UNEXPECTED_BEGIN_IN_STREAM,
+                   current_parser_state == EVENT_PARSER_DDL ? "DDL" : "DML");
+          error = true;
+          break;
+        case EVENT_PARSER_ERROR: /* we probably threw a warning before */
+          error = true;
+          /* FALL THROUGH */
+        case EVENT_PARSER_NONE:
+        case EVENT_PARSER_GTID:
+          break;
+      }
       break;
-    case EVENT_PARSER_ERROR: /* we probably threw a warning before */
-      error= true;
-      /* FALL THROUGH */
-    case EVENT_PARSER_NONE:
-    case EVENT_PARSER_GTID:
-      break;
-    }
-    break;
 
-  case EVENT_BOUNDARY_TYPE_END_TRX:
-    /* In any case, we will update the state to NONE */
-    new_parser_state= EVENT_PARSER_NONE;
-    /* The following switch is mostly to differentiate the warning messages */
-    switch(current_parser_state) {
-    case EVENT_PARSER_NONE:
-    case EVENT_PARSER_GTID:
-    case EVENT_PARSER_DDL:
-      if (throw_warnings)
-        sql_print_warning(
-          "QUERY(COMMIT or ROLLBACK) or "
-          "XID_LOG_EVENT is not expected "
-          "in an event stream %s.",
-          current_parser_state == EVENT_PARSER_NONE ? "outside a transaction" :
-          current_parser_state == EVENT_PARSER_GTID ? "after a GTID_LOG_EVENT" :
-          "in the middle of a DDL"); /* EVENT_PARSER_DDL */
-      error= true;
+    case EVENT_BOUNDARY_TYPE_END_TRX:
+      /* In any case, we will update the state to NONE */
+      new_parser_state = EVENT_PARSER_NONE;
+      /* The following switch is mostly to differentiate the warning messages */
+      switch (current_parser_state) {
+        case EVENT_PARSER_NONE:
+        case EVENT_PARSER_GTID:
+        case EVENT_PARSER_DDL:
+          if (throw_warnings)
+            LogErr(WARNING_LEVEL,
+                   ER_RPL_UNEXPECTED_COMMIT_ROLLBACK_OR_XID_LOG_EVENT_IN_STREAM,
+                   current_parser_state == EVENT_PARSER_NONE
+                       ? "outside a transaction"
+                       : current_parser_state == EVENT_PARSER_GTID
+                             ? "after a GTID_LOG_EVENT"
+                             : "in the middle of a DDL"); /* EVENT_PARSER_DDL */
+          error = true;
+          break;
+        case EVENT_PARSER_ERROR: /* we probably threw a warning before */
+          error = true;
+          /* FALL THROUGH */
+        case EVENT_PARSER_DML:
+          break;
+      }
       break;
-    case EVENT_PARSER_ERROR: /* we probably threw a warning before */
-      error= true;
-      /* FALL THROUGH */
-    case EVENT_PARSER_DML:
-      break;
-    }
-    break;
 
-  case EVENT_BOUNDARY_TYPE_STATEMENT:
-    switch(current_parser_state) {
-    case EVENT_PARSER_NONE:
-      new_parser_state= EVENT_PARSER_NONE;
+    case EVENT_BOUNDARY_TYPE_END_XA_TRX:
+      /* In any case, we will update the state to NONE */
+      new_parser_state = EVENT_PARSER_NONE;
+      /* The following switch is mostly to differentiate the warning messages */
+      switch (current_parser_state) {
+        case EVENT_PARSER_NONE:
+        case EVENT_PARSER_DDL:
+          if (throw_warnings)
+            LogErr(WARNING_LEVEL, ER_RPL_UNEXPECTED_XA_ROLLBACK_IN_STREAM,
+                   current_parser_state == EVENT_PARSER_NONE
+                       ? "outside a transaction"
+                       : "in the middle of a DDL"); /* EVENT_PARSER_DDL */
+          error = true;
+          break;
+        case EVENT_PARSER_ERROR: /* we probably threw a warning before */
+          error = true;
+          /* FALL THROUGH */
+        case EVENT_PARSER_DML:
+        /* XA ROLLBACK can appear after a GTID event */
+        case EVENT_PARSER_GTID:
+          break;
+      }
       break;
-    case EVENT_PARSER_GTID:
-    case EVENT_PARSER_DDL:
-      new_parser_state= EVENT_PARSER_NONE;
-      break;
-    case EVENT_PARSER_DML:
-      new_parser_state= current_parser_state;
-      break;
-    case EVENT_PARSER_ERROR: /* we probably threw a warning before */
-      error= true;
-      break;
-    }
-    break;
 
-  /*
-    Intvar, Rand and User_var events might be inside of a transaction stream if
-    any Intvar, Rand and User_var was fed before, if BEGIN was fed before or if
-    GTID was fed before.
-    In the case of no GTID, no BEGIN and no previous Intvar, Rand or User_var
-    it will be considered the start of a transaction stream.
-  */
-  case EVENT_BOUNDARY_TYPE_PRE_STATEMENT:
-    switch(current_parser_state) {
-    case EVENT_PARSER_NONE:
-    case EVENT_PARSER_GTID:
-      new_parser_state= EVENT_PARSER_DDL;
+    case EVENT_BOUNDARY_TYPE_STATEMENT:
+      switch (current_parser_state) {
+        case EVENT_PARSER_NONE:
+          new_parser_state = EVENT_PARSER_NONE;
+          break;
+        case EVENT_PARSER_GTID:
+        case EVENT_PARSER_DDL:
+          new_parser_state = EVENT_PARSER_NONE;
+          break;
+        case EVENT_PARSER_DML:
+          new_parser_state = current_parser_state;
+          break;
+        case EVENT_PARSER_ERROR: /* we probably threw a warning before */
+          error = true;
+          break;
+      }
       break;
-    case EVENT_PARSER_DDL:
-    case EVENT_PARSER_DML:
-      new_parser_state= current_parser_state;
-      break;
-    case EVENT_PARSER_ERROR: /* we probably threw a warning before */
-      error= true;
-      break;
-    }
-    break;
 
-  /*
-    Rotate, Format_description and Heartbeat should be ignored.
-    The rotate might be fake, like when the IO thread receives from dump thread
-    Previous_gtid and Heartbeat events due to reconnection/auto positioning.
-  */
-  case EVENT_BOUNDARY_TYPE_IGNORE:
-    new_parser_state= current_parser_state;
-    break;
+    /*
+      Intvar, Rand and User_var events might be inside of a transaction stream
+      if any Intvar, Rand and User_var was fed before, if BEGIN was fed before
+      or if GTID was fed before. In the case of no GTID, no BEGIN and no
+      previous Intvar, Rand or User_var it will be considered the start of a
+      transaction stream.
+    */
+    case EVENT_BOUNDARY_TYPE_PRE_STATEMENT:
+      switch (current_parser_state) {
+        case EVENT_PARSER_NONE:
+        case EVENT_PARSER_GTID:
+          new_parser_state = EVENT_PARSER_DDL;
+          break;
+        case EVENT_PARSER_DDL:
+        case EVENT_PARSER_DML:
+          new_parser_state = current_parser_state;
+          break;
+        case EVENT_PARSER_ERROR: /* we probably threw a warning before */
+          error = true;
+          break;
+      }
+      break;
 
-  case EVENT_BOUNDARY_TYPE_ERROR:
-    error= true;
-    new_parser_state= EVENT_PARSER_ERROR;
-    break;
+    /*
+      Incident events can happen without a GTID (before BUG#19594845 fix) or
+      with its own GTID in order to be skipped. In any case, it should always
+      mark "the end" of a transaction.
+    */
+    case EVENT_BOUNDARY_TYPE_INCIDENT:
+      /* In any case, we will update the state to NONE */
+      new_parser_state = EVENT_PARSER_NONE;
+      break;
+
+    /*
+      Rotate, Format_description and Heartbeat should be ignored.
+      The rotate might be fake, like when the IO thread receives from dump
+      thread Previous_gtid and Heartbeat events due to reconnection/auto
+      positioning.
+    */
+    case EVENT_BOUNDARY_TYPE_IGNORE:
+      new_parser_state = current_parser_state;
+      break;
+
+    case EVENT_BOUNDARY_TYPE_ERROR:
+      error = true;
+      new_parser_state = EVENT_PARSER_ERROR;
+      break;
   }
 
   DBUG_PRINT("info", ("transaction boundary parser is changing state "
                       "from '%s' to '%s'",
                       event_parser_state_names[current_parser_state],
                       event_parser_state_names[new_parser_state]));
-  current_parser_state= new_parser_state;
+
+  last_parser_state = current_parser_state;
+  current_parser_state = new_parser_state;
 
   DBUG_RETURN(error);
 }

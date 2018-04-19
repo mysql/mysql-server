@@ -1,0 +1,734 @@
+
+
+--echo #
+--echo # Bug#22469130: FOREIGN KEY ON DELETE CASCADE NOT ALLOWED
+--echo #               WHEN A VIRTUAL INDEX EXISTS.
+
+
+--echo # UPDATE CASCADE
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+		FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # UPDATE SET NULL
+CREATE TABLE t1(fld1 INT NOT NULL, fld2 INT NOT NULL PRIMARY KEY,
+                KEY(fld1));
+CREATE TABLE t2(fld1 INT, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+                FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE SET NULL);
+INSERT INTO t1 VALUES(1, 2);
+INSERT INTO t2 VALUES(1, DEFAULT);
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # DELETE CASCADE
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+		FOREIGN KEY(fld1) REFERENCES t1(fld1) ON DELETE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+INSERT INTO t2 VALUES(1, DEFAULT);
+INSERT INTO t2 VALUES(2, DEFAULT);
+DELETE FROM t1 WHERE fld1= 1;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # DELETE SET NULL
+CREATE TABLE t1(fld1 INT NOT NULL, fld2 INT NOT NULL PRIMARY KEY, KEY(fld1));
+CREATE TABLE t2(fld1 INT, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+		FOREIGN KEY(fld1) REFERENCES t1(fld1) ON DELETE SET NULL);
+INSERT INTO t1 VALUES(1, 1);
+INSERT INTO t1 VALUES(2, 2);
+INSERT INTO t2 VALUES(1, DEFAULT);
+INSERT INTO t2 VALUES(2, DEFAULT);
+DELETE FROM t1 WHERE fld1= 1;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # VIRTUAL INDEX CONTAINS FK CONSTRAINT COLUMN
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT, fld3 INT AS (fld2) VIRTUAL,
+		KEY(fld3, fld1),
+		FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1, fld2) VALUES(1, 3);
+UPDATE t1 SET fld1= 2;
+SELECT fld3, fld1 FROM t2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld3, fld1 FROM t2;
+--enable_warnings
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # Multiple level of VIRTUAL columns.
+
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
+		fld3 INT AS (fld2) VIRTUAL, KEY(fld3), KEY(fld2),
+		FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1) VALUES(1);
+UPDATE t1 SET fld1= 2;
+SELECT fld2 FROM t2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+SELECT fld3 FROM t2;
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld3 FROM t2;
+--enable_warnings
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # Drop the VIRTUAL INDEX using alter copy ALGORITHM
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL, KEY vk(fld2),
+                KEY(fld1), FOREIGN KEY(fld1) REFERENCES t1(fld1)
+                ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1) VALUES(1);
+UPDATE t1 SET fld1= 2;
+SELECT fld2, fld1 FROM t2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2, fld1 FROM t2;
+--enable_warnings
+ALTER TABLE t2 DROP INDEX vk, ALGORITHM= COPY;
+UPDATE t1 SET fld1= 3;
+SELECT fld2, fld1 FROM t2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2, fld1 FROM t2;
+--enable_warnings
+DROP TABLE t2, t1;
+
+--echo # Drop the VIRTUAL INDEX using INPLACE alter ALGORITHM
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
+		KEY vk(fld2), KEY(fld1), FOREIGN KEY(fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1) VALUES(1);
+UPDATE t1 SET fld1= 2;
+SELECT fld2, fld1 FROM t2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2, fld1 FROM t2;
+--enable_warnings
+ALTER TABLE t2 DROP INDEX vk, ALGORITHM= COPY;
+UPDATE t1 SET fld1= 3;
+SELECT fld2, fld1 FROM t2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2, fld1 FROM t2;
+--enable_warnings
+DROP TABLE t2, t1;
+
+--echo # Add the VIRTUAL INDEX using COPY alter ALGORITHM
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
+		KEY(fld1), FOREIGN KEY(fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1) VALUES(1);
+UPDATE t1 SET fld1= 2;
+SELECT fld2, fld1 FROM t2;
+ALTER TABLE t2 ADD INDEX vk(fld2), ALGORITHM= COPY;
+UPDATE t1 SET fld1= 3;
+SELECT fld2, fld1 FROM t2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2, fld1 FROM t2;
+--enable_warnings
+DROP TABLE t2, t1;
+
+--echo # Add the VIRTUAL INDEX using INPLACE alter ALGORITHM
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,fld2 INT AS (fld1) VIRTUAL,
+		KEY(fld1), FOREIGN KEY(fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1) VALUES(1);
+UPDATE t1 SET fld1= 2;
+SELECT fld2, fld1 FROM t2;
+ALTER TABLE t2 ADD INDEX vk(fld2), ALGORITHM= INPLACE;
+UPDATE t1 SET fld1= 3;
+SELECT fld2, fld1 FROM t2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2, fld1 FROM t2;
+--enable_warnings
+DROP TABLE t2, t1;
+
+--echo # Drop the VIRTUAL INDEX contains fk constraint column
+--echo # using alter copy ALGORITHM
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT NOT NULL,
+		fld3 INT AS (fld2) VIRTUAL, KEY vk(fld3, fld1),
+		KEY(fld1), FOREIGN KEY(fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1, fld2) VALUES(1, 2);
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld3, fld1 FROM t2;
+--enable_warnings
+SELECT fld3, fld1 FROM t2;
+ALTER TABLE t2 DROP INDEX vk, ALGORITHM= COPY;
+UPDATE t1 SET fld1= 3;
+SELECT fld3, fld1 FROM t2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld3, fld1 FROM t2;
+--enable_warnings
+DROP TABLE t2, t1;
+
+--echo # Drop the VIRTUAL INDEX which contains fk constraint column
+--echo # using INPLACE alter operation
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT NOT NULL,
+		fld3 INT AS (fld2) VIRTUAL, KEY vk(fld3, fld1),
+		KEY(fld1), FOREIGN KEY(fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1, fld2) VALUES(1, 2);
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld3, fld1 FROM t2;
+--enable_warnings
+SELECT fld3, fld1 FROM t2;
+alter TABLE t2 DROP INDEX vk, ALGORITHM= INPLACE;
+UPDATE t1 SET fld1= 3;
+SELECT fld3, fld1 FROM t2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld3, fld1 FROM t2;
+--enable_warnings
+DROP TABLE t2, t1;
+
+--echo # Add the VIRTUAL INDEX contains fk constraint column
+--echo # using copy alter operatiON
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT NOT NULL,
+		fld3 INT AS (fld2) VIRTUAL, KEY(fld1),
+                FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1, fld2) VALUES(1, 2);
+UPDATE t1 SET fld1= 2;
+SELECT fld3, fld1 FROM t2;
+alter TABLE t2 ADD INDEX vk(fld3, fld1), ALGORITHM= COPY;
+UPDATE t1 SET fld1= 3;
+SELECT fld3, fld1 FROM t2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld3, fld1 FROM t2;
+--enable_warnings
+DROP TABLE t2, t1;
+
+--echo # Cascading UPDATEs and DELETEs for the multiple
+--echo # fk dependent TABLEs
+
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
+                KEY(fld1), KEY(fld2, fld1),
+                FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+CREATE TABLE t3(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
+                KEY(fld2, fld1),
+                FOREIGN KEY(fld1) REFERENCES t2(fld1) ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2(fld1) VALUES(1), (2);
+INSERT INTO t3(fld1) VALUES(1), (2);
+UPDATE t1 SET fld1= 4 WHERE fld1= 1;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2, fld1 FROM t2;
+SELECT fld2, fld1 FROM t2;
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2, fld1 FROM t3;
+--enable_warnings
+SELECT fld2, fld1 FROM t3;
+DROP TABLE t3, t2, t1;
+
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT NOT NULL,
+		fld3 INT AS (fld2) VIRTUAL, KEY(fld3, fld1), KEY(fld1),
+		FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+CREATE TABLE t3(fld1 INT NOT NULL, fld2 INT NOT NULL,
+		fld3 INT AS (fld2) VIRTUAL, KEY(fld3, fld1),
+		FOREIGN KEY(fld1) REFERENCES t2(fld1) ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2 VALUES(1, 1, DEFAULT), (2, 2, default);
+INSERT INTO t3 VALUES(1, 1, DEFAULT), (2, 2, default);
+UPDATE t1 SET fld1= 4 WHERE fld1= 1;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld3, fld1 FROM t2;
+SELECT fld3, fld1 FROM t2;
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld3, fld1 FROM t3;
+--enable_warnings
+SELECT fld3, fld1 FROM t3;
+DROP TABLE t3, t2, t1;
+
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
+                KEY(fld1), KEY(fld2, fld1),
+                FOREIGN KEY(fld1) REFERENCES t1(fld1) ON DELETE CASCADE);
+CREATE TABLE t3(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
+                KEY(fld2, fld1), FOREIGN KEY(fld1) REFERENCES t2(fld1)
+                ON DELETE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2(fld1) VALUES(1), (2);
+INSERT INTO t3(fld1) VALUES(1), (2);
+DELETE FROM t1 WHERE fld1= 1;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2, fld1 FROM t2;
+SELECT fld2, fld1 FROM t2;
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2, fld1 FROM t3;
+--enable_warnings
+SELECT fld2, fld1 FROM t3;
+DROP TABLE t3, t2, t1;
+
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT NOT NULL,
+		fld3 INT AS (fld2) VIRTUAL,
+		KEY(fld3, fld1), KEY(fld1),
+		FOREIGN KEY(fld1) REFERENCES t1(fld1)
+		ON DELETE CASCADE);
+CREATE TABLE t3(fld1 INT NOT NULL, fld2 INT NOT NULL,
+		fld3 INT AS (fld2) VIRTUAL, KEY(fld3, fld1),
+		FOREIGN KEY(fld1) REFERENCES t2(fld1)
+		ON DELETE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2 VALUES(1, 1, DEFAULT), (2, 2, default);
+INSERT INTO t3 VALUES(1, 1, DEFAULT), (2, 2, default);
+DELETE FROM t1 WHERE fld1= 1;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld3, fld1 FROM t2;
+SELECT fld3, fld1 FROM t2;
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld3, fld1 FROM t3;
+--enable_warnings
+SELECT fld3, fld1 FROM t3;
+DROP TABLE t3, t2, t1;
+
+--echo # RENAME TABLE
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (fld1) VIRTUAL,
+		KEY(fld2, fld1),
+		FOREIGN KEY(fld1) REFERENCES t1(fld1)
+		ON DELETE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2 VALUES(1, DEFAULT), (2, default);
+RENAME TABLE t2 to t3;
+DELETE FROM t1 WHERE fld1= 1;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2, fld1 FROM t3;
+--enable_warnings
+SELECT fld2, fld1 FROM t3;
+DROP TABLE t3, t1;
+
+--echo # FOREIGN_KEY_CHECKS disabled DURING INPLACE ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (fld1) VIRTUAL,
+		FOREIGN KEY(fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2 VALUES(1, DEFAULT), (2, default);
+SET foreign_key_checks = 0;
+ALTER TABLE t2 ADD INDEX vk(fld2), ALGORITHM=INPLACE;
+SET foreign_key_checks = 1;
+UPDATE t1 SET fld1= 3 WHERE fld1= 2;
+SELECT fld2 FROM t2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+DROP TABLE t2, t1;
+
+--echo # GENERATED COLUMN COMPUTATION FAILS when SQL_MODE
+--echo # is set to ERROR_FOR_DIVISION_BY_ZERO
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (100/fld1) VIRTUAL,
+		KEY(fld2),
+		FOREIGN KEY(fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2 VALUES(1, DEFAULT), (2, default);
+--error ER_DIVISION_BY_ZERO
+UPDATE t1 SET fld1= 0 WHERE fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+SELECT fld2 FROM t2;
+--enable_warnings
+DROP TABLE t2, t1;
+
+--echo # CHANGE SQL_MODE and try the ERROR_FOR_DIVISION_BY_ZERO
+SET sql_mode = STRICT_ALL_TABLES;
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (100/fld1) VIRTUAL,
+		KEY(fld2),
+		FOREIGN KEY(fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2 VALUES(1, DEFAULT), (2, default);
+UPDATE t1 SET fld1= 0 WHERE fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+--enable_warnings
+DROP TABLE t2, t1;
+SET sql_mode = default;
+
+--echo # ADD FOREIGN CONSTRAINT USING COPY
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (fld1) VIRTUAL, KEY(fld2));
+ALTER TABLE t2 ADD FOREIGN KEY (fld1)
+		REFERENCES t1(fld1) ON UPDATE CASCADE,
+		ALGORITHM=copy;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # ADD FOREIGN CONSTRAINT USING INPLACE
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (fld1) VIRTUAL, KEY(fld2));
+SET foreign_key_checks = 0;
+ALTER TABLE t2 ADD FOREIGN KEY (fld1)
+		REFERENCES t1(fld1) ON UPDATE CASCADE,
+		ALGORITHM=inplace;
+SET foreign_key_checks = 1;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # DROP FOREIGN CONSTRAINT USING COPY
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+		CONSTRAINT fidx FOREIGN KEY (fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+ALTER TABLE t2 DROP FOREIGN KEY fidx, ALGORITHM=COPY;
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # DROP FOREIGN CONSTRAINT USING INPLACE
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+		CONSTRAINT fidx FOREIGN KEY (fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE);
+SET foreign_key_checks = 0;
+ALTER TABLE t2 DROP FOREIGN KEY fidx, ALGORITHM=INPLACE;
+SET foreign_key_checks = 1;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # ADD VC INDEX and ADD FK IN SAME COPY ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (fld1) VIRTUAL);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+ALTER TABLE t2 ADD INDEX(fld2), ADD FOREIGN KEY (fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE, ALGORITHM=copy;
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # ADD VC INDEX and ADD FK IN SAME INPLACE ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (fld1) VIRTUAL);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+SET foreign_key_checks = 0;
+ALTER TABLE t2 ADD INDEX(fld2), ADD FOREIGN KEY (fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE, ALGORITHM=inplace;
+SET foreign_key_checks = 1;
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # ADD VC INDEX and DROP FK IN SAME COPY ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (fld1) VIRTUAL,
+		CONSTRAINT fidx FOREIGN KEY(fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+ALTER TABLE t2 ADD INDEX(fld2), DROP FOREIGN KEY fidx, ALGORITHM=copy;
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # ADD VC INDEX and DROP FK IN SAME INPLACE ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (fld1) VIRTUAL,
+		CONSTRAINT fidx FOREIGN KEY(fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+SET foreign_key_checks = 0;
+ALTER TABLE t2 ADD INDEX(fld2), DROP FOREIGN KEY fidx, ALGORITHM=inplace;
+SET foreign_key_checks = 1;
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # DROP VC INDEX and ADD FK IN SAME COPY ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (fld1) VIRTUAL,
+		KEY idx(fld2));
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+ALTER TABLE t2 DROP INDEX idx, ADD FOREIGN KEY (fld1) REFERENCES t1(fld1)
+	       ON UPDATE CASCADE, ALGORITHM=COPY;
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # DROP VC INDEX and ADD FK IN SAME INPLACE ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (fld1) VIRTUAL,
+		KEY idx(fld2));
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+SET foreign_key_checks = 0;
+ALTER TABLE t2 DROP INDEX idx, ADD FOREIGN KEY (fld1) REFERENCES t1(fld1)
+	       ON UPDATE CASCADE, ALGORITHM=INPLACE;
+SET foreign_key_checks = 1;
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # DROP VC INDEX and DROP FK IN SAME COPY ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (fld1) VIRTUAL,
+		KEY idx(fld2),
+		CONSTRAINT fidx FOREIGN KEY(fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+ALTER TABLE t2 DROP KEY idx, DROP FOREIGN KEY fidx, ALGORITHM=COPY;
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+--echo # DROP VC INDEX and DROP FK IN SAME INPLACE ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+		fld2 INT AS (fld1) VIRTUAL,
+		KEY idx(fld2),
+		CONSTRAINT fidx FOREIGN KEY(fld1) REFERENCES t1(fld1)
+		ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+SET foreign_key_checks = 0;
+ALTER TABLE t2 DROP KEY idx, DROP FOREIGN KEY fidx, ALGORITHM=INPLACE;
+SET foreign_key_checks = 1;
+UPDATE t1 SET fld1= 2;
+--disable_warnings
+--replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
+EXPLAIN SELECT fld2 FROM t2;
+--enable_warnings
+SELECT fld2 FROM t2;
+SELECT * FROM t2;
+DROP TABLE t2, t1;
+
+# Foreign key constraint references to virtual index
+CREATE TABLE t1 (f1 INT NOT NULL PRIMARY KEY)ENGINE=INNODB;
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT AS (f1) VIRTUAL,
+		 KEY (f1, f2), FOREIGN KEY(f1) REFERENCES t1(f1))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+EXPLAIN SELECT f1, f2 FROM t2;
+SELECT f1, f2 FROM t2;
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO t2(f1) VALUES(2);
+DROP TABLE t2, t1;
+
+# Update foreign key constraint references to virtual index
+CREATE TABLE t1 (f1 INT NOT NULL PRIMARY KEY)ENGINE=INNODB;
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT AS (f1) VIRTUAL,
+		 KEY (f1, f2), FOREIGN KEY(f1) REFERENCES t1(f1)
+		 ON UPDATE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+EXPLAIN SELECT f1, f2 FROM t2;
+SELECT f1, f2 FROM t2;
+UPDATE t1 SET f1 = 2 WHERE f1 = 1;
+EXPLAIN SELECT f1, f2 FROM t2;
+SELECT f1, f2 FROM t2;
+DROP TABLE t2, t1;
+
+# Add foreign key constraint via inplace alter references to virtual index
+
+CREATE TABLE t1 (f1 INT NOT NULL PRIMARY KEY)ENGINE=INNODB;
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT AS (f1) VIRTUAL,
+		 KEY (f1, f2))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE t2 ADD FOREIGN KEY (f1) REFERENCES t1(f1)
+		   ON UPDATE CASCADE, ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 1;
+UPDATE t1 SET f1 = 3;
+EXPLAIN SELECT f1, f2 FROM t2;
+SELECT f1, f2 FROM t2;
+DROP TABLE t2, t1;
+
+# Add foreign key constraint via copy alter references to virtual index
+
+CREATE TABLE t1 (f1 INT NOT NULL PRIMARY KEY)ENGINE=INNODB;
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT AS (f1) VIRTUAL,
+		 KEY (f1, f2))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+ALTER TABLE t2 ADD FOREIGN KEY (f1) REFERENCES t1(f1)
+		   ON UPDATE CASCADE, ALGORITHM=COPY;
+UPDATE t1 SET f1 = 3;
+EXPLAIN SELECT f1, f2 FROM t2;
+SELECT f1, f2 FROM t2;
+DROP TABLE t2, t1;
+
+# Drop column via inplace alter which triggers to remove the FK index idx
+
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1))ENGINE=INNODB;
+CREATE TABLE t2(f1 INT NOT NULL, f2 INT AS (1) VIRTUAL,
+		f3 INT AS (2) VIRTUAL,
+		FOREIGN KEY idx (f1) REFERENCES t1(f1) ON UPDATE CASCADE,
+		KEY idx1 (f2, f1, f3))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+ALTER TABLE t2 DROP COLUMN f2, ALGORITHM=INPLACE;
+UPDATE t1 SET f1 = 3;
+EXPLAIN SELECT f1, f3 FROM t2;
+SELECT f1, f3 FROM t2;
+DROP TABLE t2, t1;
+
+# Drop column via copy alter which triggers to remove the FK index idx
+
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1))ENGINE=INNODB;
+CREATE TABLE t2(f1 INT NOT NULL, f2 INT AS (1) VIRTUAL,
+		f3 INT AS (2) VIRTUAL,
+		FOREIGN KEY idx (f1) REFERENCES t1(f1) ON UPDATE CASCADE,
+		KEY idx1 (f2, f1, f3))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+ALTER TABLE t2 DROP COLUMN f2, ALGORITHM=COPY;
+UPDATE t1 SET f1 = 3;
+EXPLAIN SELECT f1, f3 FROM t2;
+SELECT f1, f3 FROM t2;
+DROP TABLE t2, t1;

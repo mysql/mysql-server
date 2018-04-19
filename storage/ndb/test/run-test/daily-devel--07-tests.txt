@@ -1,0 +1,170 @@
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: test_event
+args: -n createDropEvent_NF T1
+max-time: 1200
+
+cmd: test_event
+args: -n Apiv2-check_event_received_after_restart T1
+max-time: 300
+
+cmd: test_event
+args: -n Apiv2-check_drop_event_op_after_restart T1
+max-time: 300
+
+cmd: test_event
+args: -n SubscribeUnsubscribe -l1000 T1
+max-time: 180
+
+cmd: test_event
+args: -n SubscribeUnsubscribeWithLoad -l1000 T1
+max-time: 180
+
+cmd: testFK
+args: -n DropTableWithFKDuringRestart T1
+max-time : 300
+
+cmd: test_event
+args: -n getEventBufferUsage2 T1
+max-time : 300
+
+cmd: testNdbApi
+args: -n GetNdbIndexOperationTest I3
+max-time : 180
+
+cmd: testNdbApi
+args: -n GetNdbIndexOperationBatchTest I3
+max-time : 180
+
+cmd: testNdbApi
+args: -n GetNdbIndexOperationParallelDroppingTest I3
+max-time : 300
+
+cmd: testNodeRestart
+args: -n ArbitrationWithApiNodeFailure T1
+
+cmd: testScan
+args: -n ScanDuringExpandAndShrinkBack T1
+max-time : 180
+
+cmd: testScan
+args: -n ScanDuringShrinkAndExpandBack T1
+max-time : 180
+
+cmd: testSystemRestart
+args: -n StaleNodeTakeoverDuringSR T1
+max-time : 300
+
+cmd: testFK
+args: -n AbortWithSlowChildScans T1
+max-time : 180
+
+cmd: testNodeRestart
+args: -n RestoreOlderLCP T1
+
+cmd: testNdbApi
+args: -n CheckTransId T1
+max-time : 180
+
+cmd: testNdbApi
+args: -n CheckTransIdMt T1
+max-time : 180
+
+cmd: testNdbApi
+args: -n OldApiScanFinalise T1
+max-time : 180
+
+cmd: testNdbApi
+args: -n CheckDisconnectCommit T1
+max-time : 180
+
+cmd: testNdbApi
+args: -n CheckDisconnectComplete T1
+max-time : 180
+
+cmd: testNdbApi
+args: -n CheckSlowCommit T1
+max-time : 180
+
+cmd: testNodeRestart
+args: -n StartDuringNodeRestart T1
+max-time : 300
+ 
+cmd: testRedo
+args: -n CheckLCPStartsAfterSR T1
+max-time: 1440
+ 
+cmd: testRedo
+args: -n CheckLCPStartsAfterNR T1
+max-time: 1440
+
+cmd: testDict
+args: -n StoreExtraMetadata T2
+max-time: 180
+
+cmd: testDict
+args: -n StoreExtraMetadataError T3
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadError8095 T1
+max-time : 60
+
+cmd: testScan
+args: -n ScanDihError7240 T1
+max-time : 60
+
+cmd: testRedo
+args: -n CheckNextRedoFileOpened T1
+max-time: 1440
+
+cmd: testNodeRestart
+args: -n NR_Disk_data_undo_log_local_lcp D1 D2
+max-time : 2000
+
+cmd: testNodeRestart
+args: -n InitialNodeRestartTest D1 D2
+max-time : 1200
+
+cmd: testScan
+args: -n ScanReadError8115 T1 T6 I3
+max-time : 60
+
+cmd: testSpj
+args: -n MultiFrag_OOM T1 T6 I3
+max-time : 60
+
+cmd: testSpj
+args: -n MultiFrag_OOM_rand T1 T6 I3
+max-time : 60
+
+cmd: testBasic
+args: -n DeleteNdbInFlight T1
+max-time : 60
+
+cmd: testIndex
+args: -r 10 -n NF_Mixed T1 T6 T13
+max-time: 1200
+

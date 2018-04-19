@@ -1,7 +1,7 @@
 DESC sys.latest_file_io;
 Field	Type	Null	Key	Default	Extra
 thread	varchar(149)	YES		NULL	
-file	varchar(260)	YES		NULL	
+file	varchar(512)	YES		NULL	
 latency	text	YES		NULL	
 operation	varchar(32)	NO		NULL	
 requested	text	YES		NULL	

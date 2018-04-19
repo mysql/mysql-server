@@ -29,12 +29,18 @@ let $condition= ='3';
 source include/wait_show_condition.inc;
 --replace_column 3 'SLAVE_PORT'
 --replace_result $SLAVE_MYPORT SLAVE_PORT $DEFAULT_MASTER_PORT DEFAULT_PORT
+--sorted_result
 source include/show_slave_hosts.inc;
 
 connection slave2;
 --source include/stop_slave_io.inc
 
 connection master;
+
+# Run dummy DDL to wake up dump thread and detect the disconnected slave
+CREATE TABLE t1(a int);
+DROP TABLE t1;
+
 let $show_statement= SHOW SLAVE HOSTS;
 let $field= Server_id;
 # 3 is server_id of slave2.

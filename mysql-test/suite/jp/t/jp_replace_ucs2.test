@@ -1,6 +1,4 @@
---source include/have_ucs2.inc
---source include/have_innodb.inc
-
+--character_set ujis
 --disable_warnings
 drop table if exists `£Ô£±`;
 drop table if exists `£Ô£²`;

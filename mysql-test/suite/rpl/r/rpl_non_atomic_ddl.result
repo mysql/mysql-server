@@ -1,0 +1,29 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("Slave worker thread has failed to apply an event");
+call mtr.add_suppression("Error writing relay log configuration");
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+[connection master]
+CREATE TABLE tm (a int) ENGINE=MYISAM;
+include/sync_slave_io_with_master.inc
+[connection slave]
+include/stop_slave_io.inc
+*** Query: 'CREATE TABLE tm (a int) ENGINE=MYISAM'. Crash right after the non-atomic DDL's event has updated slave relay log info. ***
+SET @@GLOBAL.debug="+d,slave_crash_after_commit_no_atomic_ddl";
+START SLAVE SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/assert.inc [The table tm must be present]
+include/assert.inc [The executed coordinates must be as after the crashing 'CREATE TABLE tm (a int) ENGINE=MYISAM']
+include/start_slave.inc
+[connection master]
+DROP TABLE tm;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

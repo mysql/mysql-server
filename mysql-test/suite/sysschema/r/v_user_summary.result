@@ -1,6 +1,6 @@
 DESC sys.user_summary;
 Field	Type	Null	Key	Default	Extra
-user	varchar(16)	YES		NULL	
+user	varchar(32)	YES		NULL	
 statements	decimal(64,0)	YES		NULL	
 statement_latency	text	YES		NULL	
 statement_avg_latency	text	YES		NULL	
@@ -15,7 +15,7 @@ total_memory_allocated	text	YES		NULL
 SELECT * FROM sys.user_summary;
 DESC sys.x$user_summary;
 Field	Type	Null	Key	Default	Extra
-user	varchar(16)	YES		NULL	
+user	varchar(32)	YES		NULL	
 statements	decimal(64,0)	YES		NULL	
 statement_latency	decimal(64,0)	YES		NULL	
 statement_avg_latency	decimal(65,4)	NO		0.0000	

@@ -7,8 +7,8 @@ select @@session.old;
 show global variables like 'old';
 show session variables like 'old';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='old';
-select * from information_schema.session_variables where variable_name='old';
+select * from performance_schema.global_variables where variable_name='old';
+select * from performance_schema.session_variables where variable_name='old';
 --enable_warnings
 
 #

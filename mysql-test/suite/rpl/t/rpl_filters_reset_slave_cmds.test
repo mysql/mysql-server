@@ -1,0 +1,133 @@
+################################################################################
+# ==== Purpose ====
+# Verify that global replication filters are not reset by RESET SLAVE [ALL]
+# commands.
+#
+# ==== Implementation ====
+# 1. Setup filters on the Slave.
+# 2. Create a channel and verify filters on P_S tables.
+# 3. Execute 'RESET SLAVE'. Verify filters on P_S tables. Expect no impact.
+# 4. Execute 'RESET SLAVE ALL FOR CHANNEL..'. Verify filters on P_S tables.
+#    Expect channel and per channel filters are removed. But, global filters
+#    will remain the same.
+# 5. Execute 'RESET SLAVE ALL'. Verify filters on P_S tables. Expect default
+#    channel and per channel filters are removed. But, global filters
+#    will remain the same.
+# 6. Execute CHANGE REPLICATION FILTER..(). Verify global filters are reset.
+#
+# ==== References ====
+# WL#7361 MSR: per-channel replication filters
+################################################################################
+# Test in this file only makes sense in standard replication,
+# so it is skipped in group replication.
+--source include/not_group_replication_plugin.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--echo #
+--echo # Setup filters on the Slave.
+--echo #
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=        ((db1, db2));
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=      (test.itable);
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=          (test.t1);
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=     ('test.t%');
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE= ('test.i%');
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=         (nodb);
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=             (test, db1, db2);
+
+--disable_warnings
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT FOR CHANNEL 'ch1'
+--enable_warnings
+
+--echo
+# Global filters as set above.
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
+# Count should be 14.
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+# Per channel filters are same as global filters set above.
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME='ch1' ORDER BY FILTER_NAME;
+
+--echo #
+--echo # Verify that filters doesn't reset by
+--echo # "RESET SLAVE [FOR CHANNEL 'ch1']" command.
+--echo #
+RESET MASTER;
+RESET SLAVE;
+RESET SLAVE FOR CHANNEL 'ch1';
+
+--echo
+# Global filters are intact.
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
+# Count should be 14.
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+# Per channel filters are intact and same as global filters.
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME='ch1' ORDER BY FILTER_NAME;
+
+--echo #
+--echo # Verify the channel and per channel filters are removed
+--echo # after "RESET SLAVE [ALL] [FOR CHANNEL 'ch1']" command.
+--echo #
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+
+--echo
+# Global filters are intact.
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
+# Count should be 7.
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+# Should be empty set.
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME='ch1' ORDER BY FILTER_NAME;
+
+RESET SLAVE ALL;
+
+--echo
+# Global filters are intact.
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
+# Count should be 0.
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+# Should be empty set.
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME='' ORDER BY FILTER_NAME;
+
+# Setup slave
+--disable_warnings
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT
+--enable_warnings
+
+--echo
+# Global filters are intact.
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
+# Count should be 7. Default channel.
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+# Per channel filters are same as global filters set above.
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME='' ORDER BY FILTER_NAME;
+
+
+--echo #
+--echo # Clean up and Verify filter gets reset through
+--echo # CHANGE REPLICATION FILTER command
+--echo #
+# Unset/reset filter rules.
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=        ();
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=      ();
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=          ();
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=     ();
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE= ();
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=         ();
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=             ();
+--echo
+# Global filters are reset.
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
+# Count should be 7. Default channel.
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+# Per channel filters are same as global filters reset above.
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters ORDER BY FILTER_NAME;
+--source include/start_slave.inc
+--source include/rpl_end.inc

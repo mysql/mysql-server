@@ -1,7 +1,5 @@
 # Test needs myisam for some myisam specific testcases
 --source include/have_myisam.inc
-# Can't run test of external client with embedded server
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 
 --exec $MYSQL_SLAP --silent --concurrency=5 --iterations=20 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql
@@ -91,3 +89,28 @@ DROP DATABASE bug58090;
 --error 1
 --exec $MYSQL_SLAP -uroot --password="" --sql_mode='abc'
 --echo End of tests
+
+--echo #
+--echo # Bug #11762644: MYSQLSLAP OPTION --AUTO-GENERATE-SQL-SECONDARY-INDEXES DOESNT WORK
+--echo #
+
+--exec $MYSQL_SLAP --concurrency=1 --silent --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-guid-primary --create-schema=slap
+
+--exec $MYSQL_SLAP --concurrency=1 --silent --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-secondary-indexes=1 --create-schema=slap
+
+
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
+GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
+
+--exec $MYSQL_SLAP --silent --host=127.0.0.1 -P $MASTER_MYPORT --user=user_with_length_32_abcdefghijkl --protocol=TCP --create-schema=mysql
+
+DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
+
+
+--echo #
+--echo # End of 5.7 tests
+--echo #

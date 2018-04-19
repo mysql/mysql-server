@@ -1,10 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_multi_ndb.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -66,3 +60,73 @@ alter table t6 add unique key ui_t(b);
 delete from t6;
 drop table t6;
 
+--echo #
+--echo # Bug#22173891 : CIRCULAR FOREIGN KEYS + INDEX = FAILURE
+--echo #
+
+--echo #create table t1
+create table t1(
+  a int primary key,
+  b int unique key
+)engine = ndb;
+
+--echo #create table t2 with fks referring columns from t1
+create table t2(
+  a int,
+  b int,
+  c int unique key,
+  foreign key fk1(a) references t1(a),
+  foreign key fk2(b) references t1(b)
+)engine = ndb;
+
+--echo #t2 now has additional keys on col `a` and `b` to support fks.
+--disable_warnings
+show create table t2;
+--enable_warnings
+
+--echo #create an index on t2(a) using 'create index'
+create index id1 on t2(a);
+
+--echo #verify that the implicit key on col `a` is gone now and fk is intact.
+--disable_warnings
+show create table t2;
+--enable_warnings
+insert into t1 values (1,10), (2,20), (3,30), (4,40);
+insert into t2 values (1,10,100), (2,20,200);
+# Mask the column names and fk names, as the following query violates
+# multiple FK constraints and the fk getting printed in the error might
+# vary based on which FK trigger gets executed first.
+--replace_regex /fk1/fk_name/ /fk2/fk_name/ /`a`/`col_name`/ /`b`/`col_name`/
+--error ER_NO_REFERENCED_ROW_2
+insert into t2 values (5,50,500);
+
+--echo #create a table t3 with an fk refering to t2(c)
+create table t3(
+  a int,
+  foreign key fk3(a) references t2(c)
+)engine = ndb;
+
+--echo #create an index on col `b` on t2
+create unique index id2 on t2(b);
+
+--echo #verify that the implicit key on col `b` is also gone now.
+--disable_warnings
+show create table t2;
+--enable_warnings
+
+--echo #verify that the fks are intact in t2 and t3
+insert into t2 values (3,30,300), (4,40,400);
+# Mask the column names and fk names, as the following query violates
+# multiple FK constraints and the fk getting printed in the error might
+# vary based on which FK trigger gets executed first.
+--replace_regex /fk1/fk_name/ /fk2/fk_name/ /`a`/`col_name`/ /`b`/`col_name`/
+--error ER_NO_REFERENCED_ROW_2
+insert into t2 values (5,50,500);
+insert into t3 values (100), (200);
+--error ER_NO_REFERENCED_ROW_2
+insert into t3 values (500);
+
+--echo #cleanup
+drop table t3, t2, t1;
+
+# end of tests

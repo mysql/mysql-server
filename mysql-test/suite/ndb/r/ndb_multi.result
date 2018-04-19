@@ -84,20 +84,18 @@ alter table t1 engine=ndb;
 show tables;
 Tables_in_test
 t1
-Warnings:
-Warning	1050	Local table test.t1 shadows ndb table
 select * from t1 order by c1;
 c1
 100
 344
 533
-drop table t1;
+drop table t1 /* engine = MyISAM */;
 select * from t1 order by c1;
 c1
 1
 3
 5
-drop table t1;
+drop table t1 /* engine = NDB */;
 create database db;
 use db;
 create table t1(x int) engine=ndb;
@@ -122,16 +120,6 @@ show tables;
 Tables_in_db
 t2
 drop database db;
-create database db;
-use db;
-create table t1(x int) engine=ndb;
-use db;
-show tables;
-Tables_in_db
-t1
-drop database db;
-use db;
-ERROR 42000: Unknown database 'db'
 use test;
 create table `test`.`t1$EX`
  (server_id int unsigned,
@@ -181,8 +169,6 @@ insert into t1 values ("g"),("h"),("i");
 show tables;
 Tables_in_test
 t1
-Warnings:
-Warning	1050	Local table test.t1 shadows ndb table
 select * from t1 order by s;
 s
 a
@@ -197,28 +183,6 @@ insert into t1 values(37);
 alter table t1 engine ndb;
 truncate t1;
 drop table t1;
-create table t1(a int primary key, b int not null, index(b)) engine = ndb;
-insert into t1 values (1,1), (2,2);
-set autocommit=0;
-begin;
-select count(*) from t1;
-count(*)
-2
-ALTER TABLE t1 algorithm=copy, ADD COLUMN c int;
-select a from t1 where b = 2;
-a
-2
-commit;
-show tables;
-Tables_in_test
-t1
-drop table t1;
-SHOW TABLES FROM mysql LIKE 'ndb_schema';
-Tables_in_mysql (ndb_schema)
-SELECT count(1) FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema';
-count(1)
-0
 create table mysql.dummy(a int primary key, b int) engine=myisam;
 create table mysql.dummy(a int primary key, b int) engine=myisam;
 drop table mysql.dummy;
@@ -228,5 +192,101 @@ dummy	CREATE TABLE `dummy` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table mysql.dummy;
+#
+# Testing schema identifier with length 63
+# NDB's identifier length limit is 63
+#
+CREATE DATABASE
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12;
+#create and drop NDB tables to test the database
+CREATE TABLE 
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12.t1
+(a int) 
+ENGINE=NDB;
+DROP TABLE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12.t1;
+DROP DATABASE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12;
+#
+# Testing schema identifier with length 64
+# mysqld allows until 64, but ndb's limit is 63
+#
+CREATE DATABASE
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+Warnings:
+Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+#verify database existence
+USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+#create normal table
+CREATE TABLE t1
+(a int);
+#create ndb table and fail
+CREATE TABLE t2
+(a int)
+ENGINE=NDB;
+ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
+show warnings;
+Level	Code	Message
+Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+Error	1059	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
+Error	1031	Table storage engine for 't2' doesn't have this option
+#dbs with identifier length = 64 won't be replicated to other mysqlds 
+#verify the above created db is not present in the other mysqld
+USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+ERROR 42000: Unknown database 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123'
+#testing alter database
+ALTER DATABASE
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123
+character set=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+#test alter table with this database
+CREATE DATABASE db1;
+CREATE TABLE db1.t1
+(a int)
+ENGINE=NDB;
+ALTER TABLE db1.t1
+RENAME abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123.t3;
+ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+Error	1059	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
+Error	1025	Error on rename of './db1/t1' to './abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123/t3' (errno: 140 - Wrong create options)
+ALTER TABLE db1.t1
+RENAME db1.abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+Error	1059	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
+Error	1025	Error on rename of './db1/t1' to './db1/abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' (errno: 140 - Wrong create options)
+DROP DATABASE db1;
+DROP DATABASE
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+Warnings:
+Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+#checking database doesn't exists
+USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+ERROR 42000: Unknown database 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123'
+#
+# Testing schema identifier with length 65
+# mysqld rejects length of 65 and more
+#
+CREATE DATABASE
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz1234;
+ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz1234' is too long
+CREATE DATABASE tmp_db;
+Let server2 create the table tmp_db.t1 in the background.
+CREATE TABLE tmp_db.t1 (k int primary key) ENGINE NDB;
+Attempt to recreate 'tmp_db', expect 'EXISTS' failure - Not MDL deadlocks
+CREATE DATABASE IF NOT EXISTS tmp_db;
+Warnings:
+Note	1007	Can't create database 'tmp_db'; database exists
+Wait for server2 table creation to complete.
+Select count(*) from tmp_db.t1;
+count(*)
+0
+DROP TABLE tmp_db.t1;
+DROP DATABASE tmp_db;

@@ -1,12 +1,13 @@
 --source include/have_debug.inc
---source include/not_embedded.inc
---source include/have_sha256_rsa_auth.inc
+--source include/have_openssl.inc
 
 --echo # 1. Setup
 --echo # We let our server restart attempts write to the file $error_log.
 let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
+
 --error 0,1
 --remove_file $error_log
+
 let SEARCH_FILE= $error_log;
 
 --echo # Stop the server
@@ -15,6 +16,23 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server 
 --source include/wait_until_disconnected.inc
 --sleep 1
+
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-cert.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-key.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-cert.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-key.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 
 --echo # 2. Checks for --auto_generate_certs
 let generate_ssl_certs=ON;
@@ -84,6 +102,8 @@ let error_pattern= Could not write public key file: ;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
+
 --error 0,1
 --remove_file $restart_file
---remove_file $error_log
+--remove_file $error_log 10
+

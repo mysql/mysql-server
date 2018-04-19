@@ -1,0 +1,48 @@
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+--source include/master-slave.inc
+--connection master
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS");
+call mtr.add_suppression("Following users were specified in ALTER USER IF EXISTS");
+SET SESSION sql_log_bin= 1;
+
+--echo #
+--echo # WL#8540: Support IF [NOT] EXISTS clause in CREATE/DROP USER
+--echo #
+
+CREATE USER u1@localhost;
+CREATE USER IF NOT EXISTS u1@localhost, u2@localhost;
+ALTER USER IF EXISTS u1@localhost ACCOUNT LOCK;
+DROP USER u1@localhost;
+DROP USER IF EXISTS u2@localhost;
+
+--echo #
+--echo # Bug #21807286: "CREATE USER IF NOT EXISTS" REPORTS AN ERROR
+--echo #
+
+
+CREATE USER IF NOT EXISTS b21807286@localhost IDENTIFIED BY 'haha';
+CREATE USER IF NOT EXISTS b21807286@localhost IDENTIFIED BY 'haha2';
+ALTER USER IF EXISTS b21807286@localhost IDENTIFIED BY 'haha3';
+ALTER USER IF EXISTS b21807286_not_exists@localhost IDENTIFIED BY 'haha4';
+DROP USER b21807286@localhost;
+
+
+--source include/sync_slave_sql_with_master.inc
+--echo [On Slave]
+--let $mask_user_password_events=1
+--source include/show_binlog_events.inc
+--let $mask_user_password_events=0
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS");
+call mtr.add_suppression("Following users were specified in ALTER USER IF EXISTS");
+SET SESSION sql_log_bin= 1;
+
+--source include/rpl_end.inc
+
+--echo
+--echo End of 5.7 tests!
+--echo

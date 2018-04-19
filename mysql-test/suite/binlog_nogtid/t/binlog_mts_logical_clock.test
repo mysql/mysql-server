@@ -1,0 +1,96 @@
+#
+# The test verifies proper computation of logical timestamps in
+# few situations having GTID mode OFF.
+#
+--source include/have_binlog_format_mixed.inc
+--source include/have_myisam.inc
+
+
+#
+# Tests that are independent of GTID_MODE
+#
+--source extra/binlog_tests/logical_timestamping.inc
+
+
+#
+# Tests that require GTID_MODE=OFF follow.
+#
+# Testing the mixed engine transaction logging.
+# There must be two groups per transaction in the binary log. Each group
+# is tagged with own sequence_number.
+#
+
+CALL mtr.add_suppression("Some non-transactional changed tables couldn't be rolled back");
+CREATE TABLE t1 (a int) ENGINE= innodb;
+CREATE TABLE tm (a int) ENGINE= MyISAM;
+
+--delimiter |
+CREATE PROCEDURE p1 ()
+BEGIN
+  START TRANSACTION;
+  INSERT INTO t1 SET a=1;
+  INSERT INTO tm SET a=2;
+  COMMIT;
+  START TRANSACTION;
+  INSERT INTO t1 SET a=1;
+  INSERT INTO tm SET a=2;
+  ROLLBACK;
+END|
+# multiple reqular transactions
+CREATE PROCEDURE p2 ()
+BEGIN
+  START TRANSACTION;
+  INSERT INTO t1 SET a=1;
+  COMMIT;
+  START TRANSACTION;
+  INSERT INTO t1 SET a=2;
+  COMMIT;
+  START TRANSACTION;
+  INSERT INTO t1 SET a=3;
+  COMMIT;
+END|
+--delimiter ;
+
+# Now the proof: the mixed transactions are logged as two parts.
+# In case of ROLLBACK the transactional engine part is gone.
+# p1() produces two groups, p2() one, and p3() three.
+
+RESET MASTER;
+# transaction that mixes transactional and nontransactional tables and commits
+START TRANSACTION;
+  INSERT INTO t1 SET a=1;
+  INSERT INTO tm SET a=2;
+COMMIT;
+--let $binlog_file= binlog.000001
+--let $logical_timestamps= 0 1;1 2
+--source include/assert_logical_timestamps.inc
+
+RESET MASTER;
+# transaction that mixes transactional and nontransactional tables and rolls back
+START TRANSACTION;
+  INSERT INTO t1 SET a=1;
+  INSERT INTO tm SET a=2;
+ROLLBACK;
+
+--let $logical_timestamps= 0 1
+--source include/assert_logical_timestamps.inc
+
+RESET MASTER;
+# One query gets logged to as multiple transactions, due to both mixed
+# engines and multiple transactions executed by a stored procedure.
+
+CALL p1();
+
+--let $logical_timestamps= 0 1;1 2;2 3
+--source include/assert_logical_timestamps.inc
+
+RESET MASTER;
+# few regular transactions logged with one query
+CALL p2();
+
+--let $logical_timestamps= 0 1;1 2;2 3
+--source include/assert_logical_timestamps.inc
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE tm,t1;

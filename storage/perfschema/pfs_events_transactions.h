@@ -1,13 +1,20 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
@@ -21,10 +28,15 @@
   Events transactions data structures (declarations).
 */
 
-#include "pfs_column_types.h"
-#include "pfs_events.h"
-#include "rpl_gtid.h"
+#include <sys/types.h>
+#include <atomic>
+
+#include "my_inttypes.h"
 #include "mysql/plugin.h" /* MYSQL_XIDDATASIZE */
+#include "sql/rpl_gtid.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_events.h"
+#include "storage/perfschema/pfs_global.h"
 
 struct PFS_thread;
 struct PFS_account;
@@ -43,8 +55,7 @@ struct PFS_host;
   @see XID in sql/handler.h
   @see MYSQL_XID in mysql/plugin.h
 */
-struct PSI_xid
-{
+struct PSI_xid {
   /** Format identifier. */
   long formatID;
   /** GTRID length, value 1-64. */
@@ -54,15 +65,18 @@ struct PSI_xid
   /** XID raw data, not \0-terminated */
   char data[MYSQL_XIDDATASIZE];
 
-  PSI_xid() {null();}
+  PSI_xid() { null(); }
   bool is_null() { return formatID == -1; }
-  void null() { formatID= -1; gtrid_length= 0; bqual_length= 0;}
+  void null() {
+    formatID = -1;
+    gtrid_length = 0;
+    bqual_length = 0;
+  }
 };
 typedef struct PSI_xid PSI_xid;
 
 /** A transaction record. */
-struct PFS_events_transactions : public PFS_events
-{
+struct PFS_events_transactions : public PFS_events {
   /** Source identifier, mapped from internal format. */
   rpl_sid m_sid;
   /** InnoDB transaction ID. */
@@ -72,7 +86,7 @@ struct PFS_events_transactions : public PFS_events
   /** Global Transaction ID specifier. */
   Gtid_specification m_gtid_spec;
   /** True if XA transaction. */
-  my_bool m_xa;
+  bool m_xa;
   /** XA transaction ID. */
   PSI_xid m_xid;
   /** XA status */
@@ -80,9 +94,9 @@ struct PFS_events_transactions : public PFS_events
   /** Transaction isolation level. */
   enum_isolation_level m_isolation_level;
   /** True if read-only transaction, otherwise read-write. */
-  my_bool m_read_only;
+  bool m_read_only;
   /** True if autocommit transaction. */
-  my_bool m_autocommit;
+  bool m_autocommit;
   /** Total number of savepoints. */
   ulonglong m_savepoint_count;
   /** Number of rollback_to_savepoint. */
@@ -93,19 +107,22 @@ struct PFS_events_transactions : public PFS_events
 
 bool xid_printable(PSI_xid *xid, size_t offset, size_t length);
 
-void insert_events_transactions_history(PFS_thread *thread, PFS_events_transactions *transaction);
-void insert_events_transactions_history_long(PFS_events_transactions *transaction);
+void insert_events_transactions_history(PFS_thread *thread,
+                                        PFS_events_transactions *transaction);
+void insert_events_transactions_history_long(
+    PFS_events_transactions *transaction);
 
 extern bool flag_events_transactions_current;
 extern bool flag_events_transactions_history;
 extern bool flag_events_transactions_history_long;
 
 extern bool events_transactions_history_long_full;
-extern PFS_cacheline_uint32 events_transactions_history_long_index;
+extern PFS_cacheline_atomic_uint32 events_transactions_history_long_index;
 extern PFS_events_transactions *events_transactions_history_long_array;
 extern ulong events_transactions_history_long_size;
 
-int init_events_transactions_history_long(uint events_transactions_history_long_sizing);
+int init_events_transactions_history_long(
+    uint events_transactions_history_long_sizing);
 void cleanup_events_transactions_history_long();
 
 void reset_events_transactions_current();
@@ -121,4 +138,3 @@ void aggregate_user_transactions(PFS_user *user);
 void aggregate_host_transactions(PFS_host *host);
 
 #endif
-

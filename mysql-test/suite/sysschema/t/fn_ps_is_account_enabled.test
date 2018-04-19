@@ -1,4 +1,3 @@
--- source include/not_embedded.inc
 # Tests for sys schema
 # Verify the sys.ps_is_account_enabled() function perfoms as expected
 
@@ -9,7 +8,7 @@ SELECT sys.ps_is_account_enabled('foo', 'bar');
 DELETE FROM performance_schema.setup_actors;
 
 INSERT INTO performance_schema.setup_actors VALUES
-  ('test', 'test', '%', 'YES');
+  ('test', 'test', '%', 'YES', 'NO');
 
 # Now the random account should not be enabled
 SELECT sys.ps_is_account_enabled('foo', 'bar');

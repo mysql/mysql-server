@@ -67,6 +67,7 @@ SET AUTOCOMMIT = 0;
 --source extra/binlog_tests/enforce_gtid_consistency_statement.inc
 COMMIT;
 DROP TEMPORARY TABLE t1;
+COMMIT;
 
 --echo ---- CREATE TEMPORARY in trx, SQL_LOG_BIN=0 (MyISAM, AUTOCOMMIT=0) ----
 --let $statement= CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM
@@ -94,12 +95,14 @@ SET AUTOCOMMIT = 0;
 
 --echo ---- DROP TEMPORARY in trx, SQL_LOG_BIN=0 (InnoDB, AUTOCOMMIT=0) ----
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
+COMMIT;
 --let $statement= DROP TEMPORARY TABLE t1
 --source extra/binlog_tests/enforce_gtid_consistency_statement.inc
 COMMIT;
 
 --echo ---- DROP TEMPORARY in trx, SQL_LOG_BIN=0 (MyISAM, AUTOCOMMIT=0) ----
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
+COMMIT;
 --let $statement= DROP TEMPORARY TABLE t1
 --source extra/binlog_tests/enforce_gtid_consistency_statement.inc
 COMMIT;

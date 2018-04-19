@@ -22,13 +22,13 @@ select if(u=1,st,st) s from t1 order by s;
 select if(u=1,binary st,st) s from t1 order by s;
 select if(u=1,st,binary st) s from t1 where st like "%a%" order by s;
 analyze table t1;
-explain extended select if(u=1,st,binary st) s from t1 where st like "%a%" order by s;
+explain select if(u=1,st,binary st) s from t1 where st like "%a%" order by s;
 
 #
 # NULLIF test
 #
 select nullif(u, 1) from t1;
-explain extended select nullif(u, 1) from t1;
+explain select nullif(u, 1) from t1;
 drop table t1;
 select nullif(1,'test');
 
@@ -205,3 +205,60 @@ sum(distinct(if('a',
                 (select adddate(elt(convert($nines,decimal(64,0)),count(*)),
                                 interval 1 day))
                 , .1))) as foo;
+
+--echo #
+--echo # Bug#22148586 IF(BOOL, DATE STR, DATE STR) THROWS ERROR IN UPDATE
+--echo #
+
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES(1);
+
+UPDATE t1 SET c1 = 2 WHERE IF(true, '2015-01-01', '2015-01-01') IS NOT NULL;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#24492965 ERROR RESULTS FROM CALCULATION
+--echo #
+
+CREATE TABLE test_grids_1 (
+  unq_id int(11) NOT NULL DEFAULT '0',
+  var_fld int(11) DEFAULT '0'
+);
+
+INSERT INTO test_grids_1 VALUES
+  (1,4500),
+  (2,6000);
+
+CREATE TABLE test_grid_dtl_1 (
+  dtl_id int(11) NOT NULL DEFAULT '0',
+  unq_id int(11) DEFAULT '0'
+);
+
+INSERT INTO test_grid_dtl_1 VALUES
+  (1,1),
+  (2,1),
+  (3,2);
+
+SELECT g.calc_var, g.if_var, g.case_var
+FROM
+  (
+  SELECT unq_id,
+    IF ( var_fld  > 5000, (     1 / var_fld ) , 5000 ) calc_var,
+    IF ( var_fld  > 5000, ( 00001 / var_fld ) , 5000 ) if_var,
+    CASE  var_fld  > 5000 WHEN TRUE THEN ( 1 / var_fld ) ELSE 5000 END case_var
+  FROM
+    test_grids_1
+  ) g
+  JOIN
+    test_grid_dtl_1 d USING (unq_id)
+ORDER BY 1
+;
+
+DROP TABLE test_grids_1, test_grid_dtl_1;
+
+--echo # Bug#25669606: regression: assertion failed: !is_temporal()
+
+DO NULLIF(CAST(DATABASE() AS TIME), 1);
+DO NULLIF(CAST(DATABASE() AS DATE), 1);
+DO NULLIF(CAST(DATABASE() AS DATETIME), 1);

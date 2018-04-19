@@ -1,21 +1,17 @@
-DROP TABLE IF EXISTS t1;
-set @val = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
-set @val2 = 0x0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF;
 CREATE TABLE t1 (
 pk INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
 attr1 VARCHAR(1024),
 attr2 VARBINARY(1024),
 attr3 TEXT
-) ROW_FORMAT=DYNAMIC ENGINE=ndbcluster;
+) ROW_FORMAT=DYNAMIC ENGINE=ndbcluster CHARACTER SET latin1;
 CREATE UNIQUE INDEX ui on t1(pk,attr1,attr2);
-set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set @val = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
+set @val2 = 0x0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF;
 set ndb_autoincrement_prefetch_sz = 256;
-set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
 select count(*) from t1;
 count(*)
 10000
-flush tables;
-select data_length from information_schema.tables where table_name like 't1' into @data_length0;
+SET SESSION information_schema_stats_expiry=0;
 delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
 delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
 delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
@@ -31,16 +27,10 @@ count(*)
 select count(*) from t1 where mod(pk, 100) < 75;
 count(*)
 0
-flush tables;
-select data_length from information_schema.tables where table_name like 't1' into @data_length;
 set ndb_optimization_delay = 0;
 optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
-flush tables;
-select data_length from information_schema.tables where table_name like 't1' into @data_length2;
-select 100*(@data_length-@data_length2)/@data_length into @opt_level;
-select @opt_level > 30;
-@opt_level > 30
-1
+optimize worked ok!
 drop table t1;
+SET SESSION information_schema_stats_expiry=default;

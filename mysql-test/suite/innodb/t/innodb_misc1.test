@@ -1,4 +1,4 @@
--- source include/have_innodb.inc
+
 -- source include/have_innodb_max_16k.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -13,8 +13,8 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 -- disable_query_log
 
 call mtr.add_suppression("Cannot add field .* in table .* because after adding it, the row size is");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: in ALTER TABLE `test`.`t1`");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: in RENAME TABLE table `test`.`t1`");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* in ALTER TABLE `test`.`t1`");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* in RENAME TABLE table `test`.`t1`");
 SET @innodb_thread_concurrency_orig = @@innodb_thread_concurrency;
 -- enable_query_log
 
@@ -24,7 +24,7 @@ drop database if exists mysqltest;
 --enable_warnings
 
 # InnoDB specific varchar tests
-create table t1 (v varchar(16384)) engine=innodb;
+create table t1 (v varchar(16384)) charset latin1 engine=innodb;
 drop table t1;
 
 #
@@ -63,15 +63,16 @@ select * from t1;
 drop table t1;
 
 #
-# Test that update does not change internal auto-increment value
+# Test that update does change internal auto-increment value
 #
 
 create table t1 (a int not null auto_increment primary key, val int) engine=InnoDB;
 insert into t1 (val) values (1);
 update t1 set a=2 where a=1;
-# We should get the following error because InnoDB does not update the counter
+# We should get the following error because InnoDB does update the counter
 --error ER_DUP_ENTRY
-insert into t1 (val) values (1);
+insert into t1 values (2, 2);
+insert into t1 (val) value (3);
 select * from t1;
 drop table t1;
 #
@@ -172,37 +173,52 @@ drop table t1, t2, t3, t4, t5, t6, t7, t8;
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
-# these should have their index length trimmed
-SET GLOBAL innodb_large_prefix=OFF;
-create table t1 (col1 varchar(768), index(col1))
+SET GLOBAL innodb_default_row_format=compact;
+--error ER_INDEX_COLUMN_TOO_LONG
+create table t1 (col1 varchar(768) primary key)
  character set = latin1 engine = innodb;
-create table t2 (col1 varbinary(768), index(col1))
+--error ER_INDEX_COLUMN_TOO_LONG
+create table t2 (col1 varbinary(768) primary key)
  character set = latin1 engine = innodb;
-create table t3 (col1 text, index(col1(768)))
+--error ER_INDEX_COLUMN_TOO_LONG
+create table t3 (col1 text, primary key(col1(768)))
  character set = latin1 engine = innodb;
-create table t4 (col1 blob, index(col1(768)))
+--error ER_INDEX_COLUMN_TOO_LONG
+create table t4 (col1 blob, primary key(col1(768)))
  character set = latin1 engine = innodb;
 
-show create table t1;
-
-drop table t1, t2, t3, t4;
+SET GLOBAL innodb_default_row_format=dynamic;
+create table t1 (col1 varchar(768) primary key)
+ character set = latin1 engine = innodb;
+drop table t1;
+create table t2 (col1 varbinary(768) primary key)
+ character set = latin1 engine = innodb;
+drop table t2;
+create table t3 (col1 text, primary key(col1(768)))
+ character set = latin1 engine = innodb;
+drop table t3;
+create table t4 (col1 blob, primary key(col1(768)))
+ character set = latin1 engine = innodb;
+drop table t4;
+SET GLOBAL innodb_default_row_format=default;
 
 SET sql_mode = default;
 
 # these should be refused
---error ER_TOO_LONG_KEY
+SET GLOBAL innodb_default_row_format=compact;
+--error ER_INDEX_COLUMN_TOO_LONG
 create table t1 (col1 varchar(768) primary key)
  character set = latin1 engine = innodb;
---error ER_TOO_LONG_KEY
+--error ER_INDEX_COLUMN_TOO_LONG
 create table t2 (col1 varbinary(768) primary key)
  character set = latin1 engine = innodb;
---error ER_TOO_LONG_KEY
+--error ER_INDEX_COLUMN_TOO_LONG
 create table t3 (col1 text, primary key(col1(768)))
  character set = latin1 engine = innodb;
---error ER_TOO_LONG_KEY
+--error ER_INDEX_COLUMN_TOO_LONG
 create table t4 (col1 blob, primary key(col1(768)))
  character set = latin1 engine = innodb;
-SET GLOBAL innodb_large_prefix=default;
+SET GLOBAL innodb_default_row_format=default;
 
 #
 # Test improved foreign key error messages (bug #3443)
@@ -286,13 +302,13 @@ disconnect b;
 # tests for bugs #9802 and #13778
 
 # test that FKs between invalid types are not accepted
-
-set foreign_key_checks=0;
-create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
---error ER_CANNOT_ADD_FOREIGN
-create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
-set foreign_key_checks=1;
-drop table t2;
+# NewDD TODO: Enable following test case once WL#6049 is done
+#set foreign_key_checks=0;
+#create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
+#--error ER_CANNOT_ADD_FOREIGN
+#create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
+#set foreign_key_checks=1;
+#drop table t2;
 
 # test that FKs between different charsets are not accepted in CREATE even
 # when f_k_c is 0
@@ -306,13 +322,14 @@ drop table t1;
 
 # test that invalid datatype conversions with ALTER are not allowed
 
-set foreign_key_checks=0;
-create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb;
-create table t1(a varchar(10) primary key) engine = innodb;
--- error 1025,1025
-alter table t1 modify column a int;
-set foreign_key_checks=1;
-drop table t2,t1;
+--echo TODO: NEWDD: Bug 25722927 - NEWDD FK: ALTER TABLE CHANGE COLUMN TYPE SHOULD CHECK FK CONSTRAINT
+#set foreign_key_checks=0;
+#create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb;
+#create table t1(a varchar(10) primary key) engine = innodb;
+#-- error 1025,1025
+#alter table t1 modify column a int;
+#set foreign_key_checks=1;
+#drop table t2,t1;
 
 # test that charset conversions with ALTER are allowed when f_k_c is 0
 
@@ -325,15 +342,17 @@ drop table t2,t1;
 
 # test that RENAME does not allow invalid charsets when f_k_c is 0
 
-set foreign_key_checks=0;
-create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
-create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
+--echo TODO: NEWDD: Bug 25722927 - NEWDD FK: ALTER TABLE CHANGE COLUMN TYPE SHOULD CHECK FK CONSTRAINT
+
+#set foreign_key_checks=0;
+#create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
+#create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
 # Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
--- error 1025
-rename table t3 to t1;
-set foreign_key_checks=1;
-drop table t2,t3;
+#--replace_result $MYSQLD_DATADIR ./ master-data/ ''
+#-- error 1025
+#rename table t3 to t1;
+#set foreign_key_checks=1;
+#drop table t2,t3;
 
 # test that foreign key errors are reported correctly (Bug #15550)
 
@@ -964,11 +983,8 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
 # NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.
-SET @old_sql_mode = @@sql_mode;
-SET @@sql_mode = 'STRICT_TRANS_TABLES';
 --error ER_FK_COLUMN_NOT_NULL
 ALTER TABLE t2 MODIFY a INT NOT NULL;
-SET @@sql_mode = @old_sql_mode;
 DELETE FROM t1;
 DROP TABLE t2,t1;
 
@@ -1019,7 +1035,7 @@ CREATE TABLE t1 (
 	c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
 	c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
 	c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
-	) ENGINE = InnoDB;
+	) ENGINE = InnoDB charset latin1;
 SET innodb_strict_mode=OFF;
 
 #
@@ -1042,53 +1058,6 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 #
-# Bug #21409 Incorrect result returned when in READ-COMMITTED with
-# query_cache ON
-#
-CONNECT (c1,localhost,root,,);
-CONNECT (c2,localhost,root,,);
-CONNECTION c1;
-SET binlog_format='MIXED';
-SET TX_ISOLATION='read-committed';
-SET AUTOCOMMIT=0;
-DROP TABLE IF EXISTS t1, t2;
-CREATE TABLE t1 ( a int ) ENGINE=InnoDB;
-CREATE TABLE t2 LIKE t1;
-SELECT * FROM t2;
-CONNECTION c2;
-SET binlog_format='MIXED';
-SET TX_ISOLATION='read-committed';
-SET AUTOCOMMIT=0;
-INSERT INTO t1 VALUES (1);
-COMMIT;
-CONNECTION c1;
-SELECT * FROM t1 WHERE a=1;
-DISCONNECT c1;
-DISCONNECT c2;
-CONNECT (c1,localhost,root,,);
-CONNECT (c2,localhost,root,,);
-CONNECTION c1;
-SET binlog_format='MIXED';
-SET TX_ISOLATION='read-committed';
-SET AUTOCOMMIT=0;
-SELECT * FROM t2;
-CONNECTION c2;
-SET binlog_format='MIXED';
-SET TX_ISOLATION='read-committed';
-SET AUTOCOMMIT=0;
-INSERT INTO t1 VALUES (2);
-COMMIT;
-CONNECTION c1;
-# The result set below should be the same for both selects
-SELECT * FROM t1 WHERE a=2;
-SELECT * FROM t1 WHERE a=2;
-DROP TABLE t1;
-DROP TABLE t2;
-DISCONNECT c1;
-DISCONNECT c2;
-CONNECTION default;
-
-#
 # Bug #29157 UPDATE, changed rows incorrect
 #
 create table t1 (i int, j int) engine=innodb;
@@ -1105,6 +1074,7 @@ drop table t1;
 set @save_innodb_file_per_table= @@global.innodb_file_per_table;
 set @@global.innodb_file_per_table=0;
 create table t1 (id int) comment='this is a comment' engine=innodb;
+ANALYZE TABLE t1;
 select table_comment, data_free > 0 as data_free_is_set
   from information_schema.tables
   where table_schema='test' and table_name = 't1';
@@ -1127,6 +1097,7 @@ CREATE TABLE t2 (
 	PRIMARY KEY(c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=200;
 
+ANALYZE TABLE t2;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
 ALTER TABLE t2 ADD CONSTRAINT t1_t2_1 FOREIGN KEY(c1) REFERENCES t1(c1);
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
@@ -1183,4 +1154,15 @@ CONNECTION default;
 SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
 -- enable_query_log
+
+--echo #
+--echo # Bug#27041288: ASSERTION FAILURE:
+--echo # ROW0SEL.CC:3955:PREBUILT->MYSQL_PREFIX_LEN <= RECORD_BUFFER..
+--echo #
+CREATE TABLE t(a INT PRIMARY KEY, b CHAR(0), c CHAR(1));
+INSERT INTO t VALUES (1, '', 'a'), (2, '', 'b');
+--sorted_result
+SELECT * FROM t;
+DROP TABLE t;
+
 -- source suite/innodb/include/check_pfs_mem_other_is_zero.inc

@@ -1,0 +1,239 @@
+# Bug#26142776 : DIFFERENT MYSQL SCHEMA AFTER UPGRADE
+#files in mysql schema
+general_log.CSM
+general_log.CSV
+general_log_XXX.sdi
+slow_log.CSM
+slow_log.CSV
+slow_log_XXX.sdi
+SET debug='+d,skip_dd_table_access_check';
+SELECT tables1.name, mysql.tablespaces.name INTO OUTFILE '<OUTFILE1>' FROM
+(SELECT * FROM mysql.tables WHERE schema_id IN
+(SELECT id FROM mysql.schemata WHERE name='mysql')) AS tables1 LEFT JOIN
+mysql.tablespaces ON tables1.tablespace_id = tablespaces.id
+WHERE tables1.name NOT IN ('ndb_binlog_index') ORDER BY tables1.name;
+catalogs	mysql
+character_sets	mysql
+collations	mysql
+column_statistics	mysql
+column_type_elements	mysql
+columns	mysql
+columns_priv	mysql
+component	mysql
+db	mysql
+dd_properties	mysql
+default_roles	mysql
+engine_cost	mysql
+events	mysql
+foreign_key_column_usage	mysql
+foreign_keys	mysql
+func	mysql
+general_log	\N
+global_grants	mysql
+gtid_executed	mysql
+help_category	mysql
+help_keyword	mysql
+help_relation	mysql
+help_topic	mysql
+index_column_usage	mysql
+index_partitions	mysql
+index_stats	mysql
+indexes	mysql
+innodb_ddl_log	mysql
+innodb_dynamic_metadata	mysql
+innodb_index_stats	mysql
+innodb_table_stats	mysql
+parameter_type_elements	mysql
+parameters	mysql
+password_history	mysql
+plugin	mysql
+procs_priv	mysql
+proxies_priv	mysql
+resource_groups	mysql
+role_edges	mysql
+routines	mysql
+schemata	mysql
+server_cost	mysql
+servers	mysql
+slave_master_info	mysql
+slave_relay_log_info	mysql
+slave_worker_info	mysql
+slow_log	\N
+st_spatial_reference_systems	mysql
+table_partition_values	mysql
+table_partitions	mysql
+table_stats	mysql
+tables	mysql
+tables_priv	mysql
+tablespace_files	mysql
+tablespaces	mysql
+time_zone	mysql
+time_zone_leap_second	mysql
+time_zone_name	mysql
+time_zone_transition	mysql
+time_zone_transition_type	mysql
+triggers	mysql
+user	mysql
+view_routine_usage	mysql
+view_table_usage	mysql
+SELECT name INTO OUTFILE '<OUTFILE2>' FROM mysql.tables WHERE
+tablespace_id IN (SELECT id FROM mysql.tablespaces WHERE name='mysql') AND
+name NOT IN ('ndb_binlog_index')
+ORDER BY name ASC;
+catalogs
+character_sets
+collations
+column_statistics
+column_type_elements
+columns
+columns_priv
+component
+db
+dd_properties
+default_roles
+engine_cost
+events
+foreign_key_column_usage
+foreign_keys
+func
+global_grants
+gtid_executed
+help_category
+help_keyword
+help_relation
+help_topic
+index_column_usage
+index_partitions
+index_stats
+indexes
+innodb_ddl_log
+innodb_dynamic_metadata
+innodb_index_stats
+innodb_table_stats
+parameter_type_elements
+parameters
+password_history
+plugin
+procs_priv
+proxies_priv
+resource_groups
+role_edges
+routines
+schemata
+server_cost
+servers
+slave_master_info
+slave_relay_log_info
+slave_worker_info
+st_spatial_reference_systems
+table_partition_values
+table_partitions
+table_stats
+tables
+tables_priv
+tablespace_files
+tablespaces
+time_zone
+time_zone_leap_second
+time_zone_name
+time_zone_transition
+time_zone_transition_type
+triggers
+user
+view_routine_usage
+view_table_usage
+call mtr.add_suppression("Resizing redo log from");
+call mtr.add_suppression("Upgrading redo log");
+call mtr.add_suppression("Starting to delete and rewrite log files");
+call mtr.add_suppression("New log files created");
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+call mtr.add_suppression("Creating routine without parsing routine body");
+call mtr.add_suppression("Storage engine '.*' does not support system tables. \\[mysql.*\\]");
+call mtr.add_suppression("Table 'mysql.component' doesn't exist");
+call mtr.add_suppression("is expected to be transactional");
+call mtr.add_suppression("table is missing or has an incorrect definition");
+call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is executed");
+call mtr.add_suppression(".* Native table .* has the wrong structure");
+call mtr.add_suppression("Column count of mysql.* is wrong");
+call mtr.add_suppression("The privilege system failed to initialize correctly.*");
+call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+call mtr.add_suppression("ACL table mysql.[a-z_]* missing. Some operations may fail.");
+call mtr.add_suppression("Info table is not ready to be used. Table 'mysql.slave_master_info' cannot be opened");
+call mtr.add_suppression("Error in checking mysql.slave_master_info repository info type of TABLE");
+call mtr.add_suppression("Error creating master info: Error checking repositories.");
+call mtr.add_suppression("Slave: Failed to initialize the master info structure for channel");
+call mtr.add_suppression("Failed to create or recover replication info repositories.");
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Stop DB server which was created by MTR default
+MYSQL_TMP_DIR/bootstrap.log
+SHOW CREATE TABLE partitions.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(50) CHARACTER SET koi8r COLLATE koi8r_bin DEFAULT NULL,
+  `b` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50500 PARTITION BY RANGE  COLUMNS(a)
+(PARTITION p0 VALUES LESS THAN ('ц├ц┤') ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+# Execute mysql_upgrade
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+partitions.t1                                      OK
+sys.sys_config                                     OK
+#files in mysql schema
+general_log.CSM
+general_log.CSV
+general_log_XXX.sdi
+innodb_index_stats_backup57.ibd
+innodb_table_stats_backup57.ibd
+slow_log.CSM
+slow_log.CSV
+slow_log_XXX.sdi
+SET debug='+d,skip_dd_table_access_check';
+SELECT tables1.name, mysql.tablespaces.name INTO OUTFILE '<OUTFILE3>' FROM
+(SELECT * FROM mysql.tables WHERE schema_id IN
+(SELECT id FROM mysql.schemata WHERE name='mysql')) AS tables1 LEFT JOIN
+mysql.tablespaces ON tables1.tablespace_id = tablespaces.id
+WHERE tables1.name NOT IN ('ndb_binlog_index') ORDER BY tables1.name;
+SELECT name INTO OUTFILE '<OUTFILE4>' FROM mysql.tables WHERE
+tablespace_id IN (SELECT id FROM mysql.tablespaces WHERE name='mysql') AND
+name NOT IN ('ndb_binlog_index')
+ORDER BY name ASC;
+# Difference between files from in-place upgrade and new data directory.
+# Stop the server
+# Restart the server with default options.
+# restart

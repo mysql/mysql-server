@@ -1,16 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
-# test uses multiple mysqld by necessity, hence not in embedded
--- source include/not_embedded.inc
 -- source include/have_multi_ndb.inc
--- source include/ndb_default_cluster.inc
-
---disable_warnings
-drop table if exists t1,t2;
---enable_warnings
 
 # operations allowed while cluster is in single user mode
 
@@ -68,21 +56,17 @@ ENGINE NDB;
 --connection server2
 --error ER_ALTER_FILEGROUP_FAILED
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE NDB;
+DROP DATAFILE 'datafile.dat';
 show warnings;
 --connection server1
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE NDB;
+DROP DATAFILE 'datafile.dat';
 --connection server2
 --error ER_DROP_FILEGROUP_FAILED
-DROP TABLESPACE ts1
-ENGINE NDB;
+DROP TABLESPACE ts1;
 show warnings;
 --connection server1
-DROP TABLESPACE ts1
-ENGINE NDB;
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
 insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0),(6,6,0),(7,7,0),(8,8,0),(9,9,0),(10,10,0);
@@ -112,7 +96,7 @@ drop table t2;
 
 # test some sql on other mysqld
 --connection server2
---error 1051
+--error ER_ENGINE_CANT_DROP_TABLE
 drop table t1;
 --error 1296
 create index new_index_fail on t1 (c);

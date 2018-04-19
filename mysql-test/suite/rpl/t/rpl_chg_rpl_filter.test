@@ -3,11 +3,14 @@
 #
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
+# Clean all configuration changes after running the test.
+--source include/force_restart.inc
+
 --connection slave
 --let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
 --source include/show_slave_status.inc
 
---error ER_SLAVE_SQL_THREAD_MUST_STOP
+--error ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1,db2,`db32`, `db,3`);
 
 --source include/stop_slave_sql.inc
@@ -32,6 +35,7 @@ CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db3), (db4,db5));
 
 CHANGE REPLICATION FILTER REPLICATE_DO_DB= (one, two, three ), REPLICATE_REWRITE_DB=((db_pair1, db_pair2), (db_pair3, db_pair4)), REPLICATE_DO_TABLE=(db1.`table`), REPLICATE_IGNORE_DB= (four, five, six), REPLICATE_IGNORE_TABLE=(db2.t1), REPLICATE_WILD_DO_TABLE=('sample.table%'), REPLICATE_WILD_IGNORE_TABLE=('sample2.ignore%table', 'dbsampe.%');
 
+--let $rewrite_ts_before=`SELECT ACTIVE_SINCE FROM performance_schema.replication_applier_global_filters WHERE FILTER_NAME='REPLICATE_REWRITE_DB';`
 --let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
 --source include/show_slave_status.inc
 
@@ -40,6 +44,13 @@ CHANGE REPLICATION FILTER REPLICATE_DO_DB= (), REPLICATE_REWRITE_DB=(), REPLICAT
 
 --let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
 --source include/show_slave_status.inc
+
+--let $rewrite_ts_after=`SELECT ACTIVE_SINCE FROM performance_schema.replication_applier_global_filters WHERE FILTER_NAME='REPLICATE_REWRITE_DB';`
+
+--let $assert_text= REPLICATE_REWRITE_DB ACTIVE_SINCE changed after cleanup
+--let $assert_cond= "$rewrite_ts_before" <> "$rewrite_ts_after"
+--source include/assert.inc
+
 #
 # Check ER_SPECIFIC_ACCESS_DENIED_ERROR
 #

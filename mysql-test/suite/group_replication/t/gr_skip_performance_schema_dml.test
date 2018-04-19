@@ -1,0 +1,23 @@
+################################################################################
+# This test verifies the behavior of the dml opertions in group_replication.
+# Since performance schema tables are not logged in the binary log, they
+# should not be used during the compatibility check for the Group replication.
+# Therefore it should not cause any error during DML operations to tables in
+# the performance schema database.
+#
+# Test:
+# 0. The test requires one server.
+# 1. With a member ONLINE, try executing UPDATE on a P_S table. It should not
+#    error out.
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--echo # This should not error out as performance schema tables are not used in the before dml hook process.
+UPDATE performance_schema.setup_instruments SET ENABLED='YES', TIMED='YES' WHERE name='wait/lock/metadata/sql/mdl';
+
+--source include/group_replication_end.inc

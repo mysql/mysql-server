@@ -1,0 +1,13 @@
+--echo #
+--echo # Bug#23102944: MYSQLPUMP LEAKS MEMORY IN CASE OF ERRORS.
+--echo #
+
+--echo # testing a failed connection: must not crash
+--replace_regex /\([0-9]*\) while connecting/(errno) while connecting/
+--exec $MYSQL_PUMP --host=non_existent_ghost --add-locks 2>&1
+--echo # testing an invalid option: must not crash
+--replace_regex /\([0-9]*\) while connecting/(errno) while connecting/
+--exec $MYSQL_PUMP --host=non_existent_ghost --parallelism=3 2>&1
+
+
+--echo # End of 8.0 tests

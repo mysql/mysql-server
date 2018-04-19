@@ -1,0 +1,70 @@
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+--echo #
+--echo # Bug #17479594 AVOID INTERMEDIATE COMMIT WHILE DOING
+--echo #		ALTER TABLE...ALGORITHM=COPY
+--echo #
+
+CREATE TABLE t(a SERIAL, b INT, c INT, d INT) ENGINE=InnoDB;
+INSERT INTO t(a) VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
+INSERT INTO t(a) SELECT a+16 FROM t;
+INSERT INTO t(a) SELECT a+33 FROM t;
+INSERT INTO t(a) VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
+INSERT INTO t(a) SELECT a+81 FROM t;
+INSERT INTO t(a) SELECT a+162 FROM t;
+INSERT INTO t(a) SELECT a+324 FROM t;
+INSERT INTO t(a) SELECT a+648 FROM t;
+INSERT INTO t(a) SELECT a+1296 FROM t;
+INSERT INTO t(a) SELECT a+2592 FROM t;
+INSERT INTO t(a) SELECT a+5186 FROM t;
+INSERT INTO t(a) VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
+
+select count(*) from t;
+
+# try to make the to-be-created secondary index keys randomly distributed
+UPDATE t SET b=a%7, c=a%11, d=a%13;
+# crash right after the last write_row(), before the first commit of ALTER TABLE
+--source include/expect_crash.inc
+
+SET DEBUG='+d,crash_copy_before_commit';
+--error 2013
+# create 32 secondary indexes
+ALTER TABLE t ADD INDEX(b,c,d,a),ADD INDEX(b,c,a,d),ADD INDEX(b,a,c,d),ADD INDEX(b,a,d,c),
+	      ADD INDEX(b,d,a,c),ADD INDEX(b,d,c,a),ADD INDEX(a,b,c,d),ADD INDEX(a,b,d,c),
+	      ADD INDEX(a,c,b,d),ADD INDEX(a,c,d,b),ADD INDEX(a,d,b,c),ADD INDEX(a,d,c,b),
+	      ADD INDEX(c,a,b,d),ADD INDEX(c,a,d,b),ADD INDEX(c,b,a,d),ADD INDEX(c,b,d,a),
+	      ADD INDEX(c,d,a,b),ADD INDEX(c,d,b,a),ADD INDEX(d,a,b,c),ADD INDEX(d,a,c,b),
+	      ADD INDEX(d,b,a,c),ADD INDEX(d,b,c,a),ADD INDEX(d,c,a,b),ADD INDEX(d,c,b,a),
+	      ADD INDEX(a,b,c), ADD INDEX(a,c,b), ADD INDEX(a,c,d), ADD INDEX(a,d,c),
+	      ADD INDEX(a,b,d), ADD INDEX(a,d,b), ADD INDEX(b,c,d), ADD INDEX(b,d,c),
+	      ALGORITHM=COPY;
+
+
+--source include/start_mysqld.inc
+
+SHOW CREATE TABLE t;
+CHECK TABLE t;
+DROP TABLE t;
+
+CREATE TABLE t1(a INT, b TEXT, c TEXT,
+		FULLTEXT(b), FULLTEXT(c(3)), FULLTEXT(b,c))ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1, "This is a first b column", "This is a first c column");
+INSERT INTO t1 VALUES(2, "This is a second b column", "This is a second c column");
+INSERT INTO t1(a) VALUES(3);
+INSERT INTO t1 VALUES(4, "This is a third b column", "This is a third c column");
+DELETE FROM t1 WHERE a = 2;
+SELECT * FROM t1 WHERE MATCH(b) AGAINST ("first");
+SELECT * FROM t1 WHERE MATCH(c) AGAINST ("first");
+SELECT * FROM t1 WHERE MATCH(b,c) AGAINST ("column");
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 FORCE, ALGORITHM=COPY;
+SELECT * FROM t1 WHERE MATCH(b) AGAINST ("first");
+SELECT * FROM t1 WHERE MATCH(c) AGAINST ("first");
+SELECT * FROM t1 WHERE MATCH(b,c) AGAINST ("column");
+SHOW CREATE TABLE t1;
+DROP TABLE t1;

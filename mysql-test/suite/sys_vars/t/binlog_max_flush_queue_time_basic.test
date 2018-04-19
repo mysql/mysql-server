@@ -24,3 +24,4 @@ SET GLOBAL binlog_max_flush_queue_time = 100001;
 SET GLOBAL binlog_max_flush_queue_time = 200000;
 
 SET GLOBAL binlog_max_flush_queue_time = @saved_value;
+

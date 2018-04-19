@@ -514,3 +514,362 @@ SELECT SHA2("hello", 1);
 SELECT SHA2("hello", 0);
 SELECT SHA2("hello", NULL);
 SELECT SHA2("hello", -4294966784); # 512 when cast to uint
+
+--echo #
+--echo # The statement_digest() native function.
+--echo #
+
+
+--echo #
+--echo # Error handling/edge cases.
+--echo #
+
+--error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( (SELECT * FROM( SELECT user() ) t) );
+
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( 'This can''t be parsed but yields a digest.' ) IS NULL;
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT statement_digest();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT statement_digest( 'too many', 'arguments' );
+SELECT statement_digest( NULL );
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( '/*' ) IS NULL;
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( '@@' ) IS NULL;
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( "SELECT 1; SELECT 2" );
+SELECT statement_digest( "SELECT 1;" ) IS NULL;
+
+--error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( repeat( 'a', character_maximum_length ) ) IS NULL
+FROM information_schema.columns
+WHERE table_name = 'events_statements_history' AND column_name = 'digest';
+
+--error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( point(1, 2) ) IS NULL;
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( _utf8 x'e298ba' ) IS NULL; # White Smiling Face U+263A
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( 'a\0bc' ) IS NULL;
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( '\0abc' ) IS NULL;
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( '' );
+SELECT statement_digest( statement_digest( NULL ) );
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( statement_digest( '' ) );
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( statement_digest( '\0' ) );
+--error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( statement_digest( 'SELECT 1, 2, 3' ) );
+--echo # Prepared statement syntax is not supported...
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( 'SELECT ?' );
+--echo # ... which is why we get the text in this case; The error stems from
+--echo # the inner call.
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest( statement_digest( 'SELECT ?' ) );
+
+SET sql_mode = ''; # Un-strict
+CREATE TABLE t1 ( g GEOMETRY NOT NULL );
+INSERT INTO t1 VALUES ( POINT(1,2) );
+--error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
+SELECT concat( statement_digest(g), 'x' ) FROM t1;
+SET sql_mode = DEFAULT;
+DROP TABLE t1;
+
+
+--echo # Let's check that warnings in the parser are silenced.
+SELECT statement_digest( "INSERT DELAYED INTO t1 VALUES(1)" );
+
+--echo #
+--echo # Test queries.
+--echo #
+
+# We have to run the query in order to get the digest from performance_schema,
+# so all table references must be resolved.
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT );
+CREATE TABLE t3 ( c INT );
+
+--let $check_digest_statement=SELECT 1
+--source include/check_digest.inc
+
+--let $check_digest_statement=SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c
+--source include/check_digest.inc
+
+--echo # The first NULL should be treated as a literal and not influence the
+--echo # digest. The second NULL is a NULL token, however.
+--echo # In order to know, the string must be parsed.
+--let $check_digest_statement=SELECT NULL IS NULL
+--source include/check_digest.inc
+
+--let $compare_digests_fn=statement_digest
+--let $compare_digests_query=SELECT 1
+--let $compare_digests_pfs_query=SELECT 2
+--let $compare_digests_pfs_column=digest
+--source include/compare_digests.inc
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Let's make sure that our 'borrowing' the token buffer does not upset
+--echo # performance_schema. To do that we need to go to a meta-level. I.e. the
+--echo # digest of the statement calling statement_digest() should not be
+--echo # ruined by the execution of said statement.
+--echo #
+--let $inner_query = 'SELECT something FROM DUAL WHERE something'
+--let $check_digest_statement=SELECT statement_digest( $inner_query ) IS NULL
+--source include/check_digest.inc
+
+--echo #
+--echo # Test of the data type.
+--echo #
+CREATE TABLE t1 AS SELECT statement_digest( 'select 1, 2, 3' ) AS digest;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # It cannot be used as a generated column.
+--echo #
+--error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE digest_gcol (
+  query VARCHAR ( 100 ),
+  digest VARCHAR ( 32 ) GENERATED ALWAYS AS ( statement_digest(query) )
+);
+
+
+--echo #
+--echo # The statement_digest_text() native function.
+--echo #
+
+
+--echo #
+--echo # Error handling/edge cases.
+--echo #
+
+--error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( (SELECT * FROM( SELECT user() ) t) );
+
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( 'This can''t be parsed but yields a digest.' ) IS NULL;
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT statement_digest_text();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT statement_digest_text( 'too many', 'arguments' );
+SELECT statement_digest_text( NULL );
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( '/*' ) IS NULL;
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( '@@' ) IS NULL;
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( "SELECT 1; SELECT 2" );
+SELECT statement_digest_text( "SELECT 1;" );
+
+
+--error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( repeat( 'a', character_maximum_length ) ) IS NULL
+FROM information_schema.columns
+WHERE table_name = 'events_statements_history' AND column_name = 'digest';
+
+--error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( point(1, 2) ) IS NULL;
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( _utf8 x'e298ba' ) IS NULL; # White Smiling Face U+263A
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( 'a\0bc' ) IS NULL;
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( '\0abc' ) IS NULL;
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( '' );
+SELECT statement_digest_text( statement_digest_text( NULL ) );
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( statement_digest_text( '' ) );
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( statement_digest_text( '\0' ) );
+--error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( statement_digest_text( 'SELECT 1, 2, 3' ) );
+--echo # Prepared statement syntax is not supported...
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( 'SELECT ?' );
+--echo # ... which is why we get the text in this case; The error stems from
+--echo # the inner call.
+--error ER_PARSE_ERROR_IN_DIGEST_FN
+SELECT statement_digest_text( statement_digest_text( 'SELECT ?' ) );
+
+SET sql_mode = ''; # Un-strict
+CREATE TABLE t1 ( g GEOMETRY NOT NULL );
+INSERT INTO t1 VALUES ( POINT(1,2) );
+--error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
+SELECT concat( statement_digest_text(g), 'x' ) FROM t1;
+SET sql_mode = DEFAULT;
+DROP TABLE t1;
+
+
+--echo # Let's check that warnings in the parser are silenced.
+SELECT statement_digest_text( "INSERT DELAYED INTO t1 VALUES(1)" );
+
+--echo #
+--echo # Test queries.
+--echo #
+
+# We have to run the query in order to get the digest from performance_schema,
+# so all table references must be resolved.
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT );
+CREATE TABLE t3 ( c INT );
+
+--let $check_digest_text_query=SELECT 1
+--source include/check_digest_text.inc
+
+--let $check_digest_text_query=SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c
+--source include/check_digest_text.inc
+
+--let $compare_digests_fn=statement_digest_text
+--let $compare_digests_query=SELECT 1
+--let $compare_digests_pfs_query=SELECT 2
+--let $compare_digests_pfs_column=digest_text
+--source include/compare_digests.inc
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Test of the data type.
+--echo #
+
+SET NAMES utf8mb4;
+CREATE TABLE t1 AS SELECT statement_digest_text( 'select 1, 2, 3' ) AS digest;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+SET NAMES latin1;
+CREATE TABLE t1 AS SELECT statement_digest_text( 'select 1, 2, 3' ) AS digest;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+SET NAMES DEFAULT;
+
+
+--echo #
+--echo # It cannot be used as a generated column.
+--echo #
+--error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE digest_gcol (
+  query VARCHAR ( 100 ),
+  digest VARCHAR ( 32 ) GENERATED ALWAYS AS ( digest_gcol (query) )
+);
+
+--echo #
+--echo # Test of multibyte characters.
+--echo #
+--echo # Here we test with two -, three -, and four byte characters that will
+--echo # actually be part of the digest text. Four-byte-characters will not
+--echo # work, i.e. they will be replaced by a "?". The limitation here is the
+--echo # character set encoding in the table
+--echo # performance_schema.events_statements_history, which is "utf8", a.k.a
+--echo # utf8mb3. But we still test that the strings are equal.
+--echo # Nonetheless we test that they get converted the same way.
+--echo #
+
+SET NAMES utf8mb4;
+SELECT statement_digest_text("CREATE TABLE åäö( a int )");
+SELECT statement_digest_text("CREATE TABLE 日本語( a int )");
+SELECT statement_digest_text("CREATE TABLE  𩸽( a int )");
+
+--echo # We get warnings here for the supplementary plane characters when
+--echo # Performance Schema scans the table. They don't show up under
+--echo # --ps-protocol for obvious reasons (see compare_digests.inc), so we
+--echo # silence them.
+
+--disable_warnings
+
+--let $check_digest_text_query=CREATE TABLE åäö( a int )
+--source include/check_digest_text.inc
+
+--let $check_digest_text_query=CREATE TABLE 日本語( a int )
+--source include/check_digest_text.inc
+
+--let $check_digest_text_query=CREATE TABLE  𩸽( a int )
+--source include/check_digest_text.inc
+
+--enable_warnings
+
+DROP TABLE åäö, 日本語,  𩸽;
+SET NAMES DEFAULT;
+
+--echo #
+--echo # Bug#27021852: WL#9637: INT MYSQL_EXECUTE_COMMAND(THD*, BOOL):
+--echo # ASSERTION `! THD->IN_SUB_STMT' F
+--echo #
+
+delimiter //;
+
+CREATE FUNCTION f1() RETURNS longblob
+BEGIN
+  DECLARE ret longblob;
+  SELECT statement_digest_text( "DROP TABLE t" ) INTO ret;
+  RETURN ret;
+END;
+//
+
+delimiter ;//
+
+SELECT f1();
+DROP FUNCTION f1;
+
+--echo #
+--echo # Bug#27015951: WL#9637 ASSERTION `M_BASE_OPTIONS == 0 &&
+--echo # M_ACTIVE_OPTIONS == 0' FAILED
+--echo #
+--echo # Test that the parse tree is not contextualized. We test some syntax
+--echo # where the rules call the CONTEXTUALIZE macro. At least the first one
+--echo # is known to crash if the call to Item::contextualize() goes through.
+--echo #
+
+SELECT statement_digest( "CREATE VIEW v1 AS SELECT 1" ) IS NULL;
+SELECT statement_digest( "SET PASSWORD = 'a'" ) IS NULL;
+SELECT statement_digest( "CREATE FUNCTION f() RETURNS INT BEGIN RETURN 0; END" )
+IS NULL;
+
+--echo #
+--echo # Various tests to verify that the AST is not touched. The pointer to the
+--echo # AST is temporarily set to null during parsing of the query string, so
+--echo # a crash would be seen. This fixes the following bugs:
+--echo #
+--echo # Bug#27081301: SERVER CRASHED AT GET_TABLE_SHARE(THD*, CHAR CONST*,
+--echo #   CHAR CONST*, CHAR CONST*, U
+--echo #
+--echo # Bug#27076188: SERVER CRASHED AT TABLE_LIST::FETCH_NUMBER_OF_ROWS()
+--echo #   DURING MULTITHREAD RQG RUN
+--echo #
+--echo # Bug#27076027: SERVER CRASHED AT REINIT_STMT_BEFORE_USE(THD*, LEX*)
+--echo #   DURING MULTITHREAD RQG RUNS
+--echo #
+--echo # Bug#27066260: WL#9637 MYSQLD CRASHED BY RUNNING ./MTR MAIN.FUNC_DIGEST
+--echo #   --PS-PROTOCOL
+SELECT statement_digest( "CHECKSUM TABLE t" ) IS NULL;
+SELECT statement_digest( "DROP VIEW v" ) IS NULL;
+SELECT statement_digest( "SHOW OPEN TABLES WHERE 1 = 1" ) IS NULL;
+SELECT statement_digest( "SHOW TRIGGERS WHERE 1 = 1" ) IS NULL;
+SELECT statement_digest( "SHOW EVENTS WHERE 1 = 1" ) IS NULL;
+SELECT statement_digest( "SHOW TABLE STATUS WHERE 1 = 1" ) IS NULL;
+SELECT statement_digest( "SHOW CREATE TABLE t1" ) IS NULL;
+SELECT statement_digest( "SHOW CREATE VIEW t1" ) IS NULL;
+SELECT statement_digest( "DESCRIBE t1" ) IS NULL;
+SELECT statement_digest( "USE db1" ) IS NULL;
+SELECT statement_digest(
+  "CREATE TRIGGER trg BEFORE INSERT ON t1 FOR EACH ROW SET @a := 1" ) IS NULL;
+SELECT statement_digest( "FLUSH TABLES t1" ) IS NULL;
+SELECT statement_digest( "LOCK TABLE t1 READ" ) IS NULL;
+
+--echo #
+--echo # Bug#27015951: WL#9637 ASSERTION `M_BASE_OPTIONS == 0 &&
+--echo #  M_ACTIVE_OPTIONS == 0' FAILED
+--echo #
+SET sql_mode = 'PIPES_AS_CONCAT';
+--replace_column 1 X
+SELECT statement_digest( " CREATE ALGORITHM = MERGE VIEW v1 AS " ||
+                         "SELECT a FROM ( SELECT a1 FROM v2 ) AS SELECT1" );
+SET sql_mode = DEFAULT;

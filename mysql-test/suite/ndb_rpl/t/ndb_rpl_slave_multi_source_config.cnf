@@ -1,0 +1,5 @@
+!include ndb_rpl_3_cluster.cnf
+
+[mysqld.1.cluster2]
+master-info-repository=       TABLE
+relay-log-info-repository=    TABLE

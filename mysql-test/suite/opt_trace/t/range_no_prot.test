@@ -1,11 +1,8 @@
 #Start server with MyISAM
 --source include/force_myisam_default.inc
 
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
-            + $VIEW_PROTOCOL > 0`)
-{
-   --skip Need normal protocol
-}
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
 # The main testing script
 --source suite/opt_trace/include/range.inc
@@ -36,13 +33,13 @@ drop table t;
 # Must be an engine that supports spatial indexes
 CREATE TABLE t1(
  pk INT AUTO_INCREMENT PRIMARY KEY,
- col_geom GEOMETRY NOT NULL
+ col_geom GEOMETRY NOT NULL SRID 0
 ) ENGINE=MyISAM;
 
 INSERT INTO t1 VALUES (1, ST_GeomFromText('POINT(10 10)'));
 INSERT INTO t1 VALUES (2, ST_GeomFromText('POINT(11 11)'));
 
-CREATE SPATIAL INDEX idx3 on t1(col_geom DESC);
+CREATE SPATIAL INDEX idx3 on t1(col_geom);
 
 --echo # Show that geometry data is traced as "unprintable_geometry_value"
 EXPLAIN

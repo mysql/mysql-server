@@ -1,0 +1,74 @@
+#
+# WL#8688: Support ability to persist SET GLOBAL settings
+#
+SET PERSIST server_id=47, @@persist.general_log=0;
+SET PERSIST concurrent_insert=NEVER;
+# TEST plugin variables
+call mtr.add_suppression("Dictionary file not specified");
+INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+# before restart
+SELECT @@global.validate_password_policy, @@global.validate_password_length;
+@@global.validate_password_policy	@@global.validate_password_length
+MEDIUM	8
+# persist plugin variables
+SET PERSIST validate_password_policy= 2;
+SET PERSIST validate_password_length= 13;
+# Restart server
+# after restart
+SELECT @@global.server_id;
+@@global.server_id
+47
+SELECT @@global.general_log;
+@@global.general_log
+0
+SELECT @@global.concurrent_insert;
+@@global.concurrent_insert
+NEVER
+SELECT @@global.validate_password_policy;
+@@global.validate_password_policy
+STRONG
+SELECT @@global.validate_password_length;
+@@global.validate_password_length
+13
+# uninstall plugin
+UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+CALL mtr.add_suppression("currently unknown variable 'validate_password_*");
+# Restart server after plugin uninstall this should report
+# warnings in server log
+# Search for warnings in error log.
+CALL mtr.add_suppression("currently unknown variable 'validate_password_*");
+# Restart server
+# Test RESET PERSIST for plugin variables.
+INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+SET PERSIST validate_password_policy= 2;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+validate_password_policy	STRONG
+SET PERSIST validate_password_length= 13;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+validate_password_length	13
+validate_password_policy	STRONG
+RESET PERSIST validate_password_length;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+validate_password_policy	STRONG
+# uninstall plugin
+UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+validate_password_policy	STRONG
+# Test RESET PERSIST after plugin is uninstalled
+RESET PERSIST;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE

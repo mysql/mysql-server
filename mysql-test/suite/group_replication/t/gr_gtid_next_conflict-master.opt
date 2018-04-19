@@ -1,0 +1,1 @@
+--log_error=$MYSQLTEST_VARDIR/tmp/gr_gtid_next_conflict.1.err

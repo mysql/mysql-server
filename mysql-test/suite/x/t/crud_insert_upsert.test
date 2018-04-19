@@ -1,0 +1,307 @@
+## Inserting with upsert
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/crud_insert_upsert.xpl
+## Test data
+-->quiet
+-->import crud_insert.macro
+-->import crud_find.macro
+
+-->varlet %DOC1_FOOBARCOM_FOO% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "1", "email": "foo@bar.com", "name":"foo"}' content_type:2}}
+-->varlet %DOC2_BLABARCOM_BLA% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "2", "email": "bla@bar.com", "name":"bla"}' content_type:2}}
+-->varlet %DOC2_FOO%           type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "2", "name":"foo"}' content_type:2}}
+-->varlet %DOC3_NULL_BLA%      type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "3", "email": null, "name":"bla"}' content_type:2}}
+-->varlet %DOC3_BLA%           type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "3", "name":"bla"}' content_type:2}}
+-->varlet %DOC3_FOOORACOM_FOO% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "3", "email": "foo@ora.com", "name":"foo"}' content_type:2}}
+-->varlet %DOC1_FOOORACOM_FOO% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "1", "email": "foo@ora.com", "name":"foo"}' content_type:2}}
+-->varlet %DOC1_FOOBARCOM_BLA% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "1", "email": "foo@bar.com", "name":"bla"}' content_type:2}}
+-->varlet %DOC3_FOOBARCOM_BLA% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "3", "email": "foo@bar.com", "name":"bla"}' content_type:2}}
+-->varlet %DOC1_BLA%           type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "1", "name":"bla"}' content_type:2}}
+-->varlet %DOC1_NULL_BLA%      type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "1", "name":"bla", "email": null}' content_type:2}}
+-->varlet %DOC1_BLABARCOM_FOO% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "1", "email": "bla@bar.com", "name":"foo"}' content_type:2}}
+-->varlet %DOC4_BLABLACOM_BLA% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "4", "email": "bla@bla.com", "name":"bla"}' content_type:2}}
+-->varlet %DOC4_FOO%           type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "4", "name":"foo"}' content_type:2}}
+
+
+-->title =Data model: TABLE
+
+-->sql
+CREATE TABLE xtest.xtable (doc JSON);
+-->endsql
+-->title -Insert two docs
+-->callmacro Insert_two	TABLE	xtable	%DOC1_FOOBARCOM_FOO%	%DOC2_BLABARCOM_BLA%	ER_SUCCESS
+-->callmacro Show	xtable
+-->title -Upsert one doc
+-->callmacro Upsert_one	TABLE	xtable	%DOC3_FOOORACOM_FOO%	ER_X_BAD_INSERT_DATA
+
+
+
+-->title =Data model: DOCUMENT
+
+-->macro Setup %NAME%
+-->stmtadmin create_collection	{"schema":"xtest","name":"%NAME%"}
+-->recvresult
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "constraint":{"member":"$.email", "type":"TEXT(20)","required":false}}
+-->recvresult
+-->callmacro Insert_two	DOCUMENT	%NAME%	%DOC1_FOOBARCOM_FOO%	%DOC2_BLABARCOM_BLA%	ER_SUCCESS
+-->callmacro Show	%NAME%
+-->endmacro
+
+-->macro Setup_without_data %NAME%
+-->stmtadmin create_collection	{"schema":"xtest","name":"%NAME%"}
+-->recvresult
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "constraint":{"member":"$.email", "type":"TEXT(20)","required":false}}
+-->recvresult
+-->endmacro
+
+
+-->macro Setup_drop_id %NAME%
+-->callmacro Setup	%NAME%
+-->stmtsql ALTER TABLE xtest.%NAME% DROP COLUMN `_id`;
+-->recvresult
+-->endmacro
+
+
+-->title -Test0 - No matches
+-->callmacro Setup	col0
+-->callmacro Upsert_one	DOCUMENT	col0	%DOC3_FOOORACOM_FOO%	ER_SUCCESS
+-->callmacro Show	col0
+
+-->title -Test1 - Match on _id
+-->callmacro Setup	col1
+-->callmacro Upsert_one	DOCUMENT	col1	%DOC1_FOOORACOM_FOO%	ER_SUCCESS
+-->callmacro Show	col1
+
+-->title -Test2 - Match on secondary key only
+-->callmacro Setup	col2
+-->callmacro Upsert_one	DOCUMENT	col2	%DOC3_FOOBARCOM_BLA%	ER_X_BAD_UPSERT_DATA
+-->callmacro Show	col2
+
+-->title -Test3 - Match on _id only, missing secondary index
+-->callmacro Setup	col3
+-->callmacro Upsert_one	DOCUMENT	col3	%DOC1_BLA%	ER_SUCCESS
+-->callmacro Show	col3
+
+-->title -Test4 - Match on _id and secondary, but from different rows
+-->callmacro Setup	col4
+-->callmacro Upsert_one	DOCUMENT	col4	%DOC1_BLABARCOM_FOO%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Show	col4
+
+-->title -Test5 - Match on _id and secondary key (other field value updated)
+-->callmacro Setup	col5
+-->callmacro Upsert_one	DOCUMENT	col5	%DOC1_FOOBARCOM_BLA%	ER_SUCCESS
+-->callmacro Show	col5
+
+-->title -Test6 - New unique document, with null on secondary key
+-->callmacro Setup	col6
+-->callmacro Upsert_one	DOCUMENT	col5	%DOC3_NULL_BLA%	ER_SUCCESS
+-->callmacro Show	col5
+
+-->title -Test7 - New unique document, with missing field on secondary key
+-->callmacro Setup	col7
+-->callmacro Upsert_one	DOCUMENT	col7	%DOC3_BLA%	ER_SUCCESS
+-->callmacro Show	col7
+
+-->title -Test8 - Match on _id only, null at secondary index
+-->callmacro Setup	col8
+-->callmacro Upsert_one	DOCUMENT	col8	%DOC1_NULL_BLA%	ER_SUCCESS
+-->callmacro Show	col8
+
+-->title -Test9 - Match on _id and null value at secondary index
+-->callmacro Setup_without_data	col9
+-->callmacro Insert_one	DOCUMENT	col9	%DOC1_BLA%	ER_SUCCESS
+-->callmacro Insert_one	DOCUMENT	col9	%DOC2_BLABARCOM_BLA%	ER_SUCCESS
+-->callmacro Insert_one	DOCUMENT	col9	%DOC3_BLA%	ER_SUCCESS
+-->callmacro Show	col9
+-->callmacro Upsert_one	DOCUMENT	col9	%DOC2_FOO%	ER_SUCCESS
+-->callmacro Show	col9
+
+-->title -Test10 - No match, null value at secondary index
+-->callmacro Setup_without_data	col10
+-->callmacro Insert_one	DOCUMENT	col10	%DOC1_BLA%	ER_SUCCESS
+-->callmacro Insert_one	DOCUMENT	col10	%DOC2_BLABARCOM_BLA%	ER_SUCCESS
+-->callmacro Insert_one	DOCUMENT	col10	%DOC3_BLA%	ER_SUCCESS
+-->callmacro Show	col10
+-->callmacro Upsert_one	DOCUMENT	col10	%DOC4_FOO%	ER_SUCCESS
+-->callmacro Show	col10
+
+-->title -Test1-2 - Match on _id and secondary key (upsert two rows)
+-->callmacro Setup	col21
+-->callmacro Upsert_two	DOCUMENT	col21	%DOC4_BLABLACOM_BLA%	%DOC1_FOOORACOM_FOO%	ER_SUCCESS
+-->callmacro Show	col21
+
+-->title -Test2-2 - Match on secondary key only (upsert two rows)
+-->callmacro Setup	col22
+-->callmacro Upsert_two	DOCUMENT	col22	%DOC4_BLABLACOM_BLA%	%DOC3_FOOBARCOM_BLA%	ER_X_BAD_UPSERT_DATA
+-->callmacro Show	col22
+
+-->title -Test3-2 - Match on _id only (upsert two rows)
+-->callmacro Setup	col23
+-->callmacro Upsert_two	DOCUMENT	col23	%DOC4_BLABLACOM_BLA%	%DOC1_BLA%	ER_SUCCESS
+-->callmacro Show	col23
+
+-->title -Test4-2 - Match on _id and secondary, but from different rows (upsert two rows)
+-->callmacro Setup	col24
+-->callmacro Upsert_two	DOCUMENT	col24	%DOC4_BLABLACOM_BLA%	%DOC1_BLABARCOM_FOO%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Show	col24
+
+
+-->title -Test0-3 - No matches (insert instead upsert)
+-->callmacro Setup	col30
+-->callmacro Insert_one	DOCUMENT	col30	%DOC3_FOOORACOM_FOO%	ER_SUCCESS
+-->callmacro Show	col30
+
+-->title -Test1-3 - Match on _id and secondary key (insert instead upsert)
+-->callmacro Setup	col31
+-->callmacro Insert_one	DOCUMENT	col31	%DOC1_FOOORACOM_FOO%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Show	col31
+
+-->title -Test2-3 - Match on secondary key only (insert instead upsert)
+-->callmacro Setup	col32
+-->callmacro Insert_one	DOCUMENT	col32	%DOC3_FOOBARCOM_BLA%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Show	col32
+
+-->title -Test3-3 - Match on _id only (insert instead upsert)
+-->callmacro Setup	col33
+-->callmacro Insert_one	DOCUMENT	col33	%DOC1_BLA%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Show	col33
+
+-->title -Test4-3 - Match on _id and secondary, but from different rows (insert instead upsert)
+-->callmacro Setup	col34
+-->callmacro Insert_one	DOCUMENT	col34	%DOC1_BLABARCOM_FOO%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Show	col34
+
+
+-->title -Test0-4 - No matches (drop _id column)
+-->callmacro Setup_drop_id	col40
+-->callmacro Upsert_one	DOCUMENT	col40	%DOC3_FOOORACOM_FOO%	ER_SUCCESS
+-->callmacro Show	col40
+
+-->title -Test1-4 - Match on _id and secondary key (drop _id coulmn)
+-->callmacro Setup_drop_id	col41
+-->callmacro Upsert_one	DOCUMENT	col41	%DOC1_FOOORACOM_FOO%	ER_SUCCESS
+-->callmacro Show	col41
+
+-->title -Test2-4 - Match on secondary key only (drop _id coulmn)
+-->callmacro Setup_drop_id	col42
+-->callmacro Upsert_one	DOCUMENT	col42	%DOC3_FOOBARCOM_BLA%	ER_X_BAD_UPSERT_DATA
+-->callmacro Show	col42
+
+-->title -Test3-4 - Match on _id only (drop _id coulmn)
+-->callmacro Setup_drop_id	col43
+-->callmacro Upsert_one	DOCUMENT	col43	%DOC1_BLA%	ER_SUCCESS
+-->callmacro Show	col43
+
+-->title -Test4-4 - Match on _id and secondary, but from different rows (drop _id coulmn)
+-->callmacro Setup_drop_id	col44
+-->callmacro Upsert_one	DOCUMENT	col44	%DOC1_BLABARCOM_FOO%	ER_X_BAD_UPSERT_DATA
+-->callmacro Show	col44
+
+EOF
+
+--write_file $MYSQL_TMP_DIR/crud_insert_upsert_dual_index.xpl
+## Test data
+-->quiet
+-->import crud_insert.macro
+-->import crud_find.macro
+
+-->stmtadmin create_collection	{"schema":"xtest","name":"add_or_replace"}
+-->recvresult
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"add_or_replace", "name":"_name", "unique":true, "constraint":{"member":"$.name", "type":"TEXT(50)","required":true}}
+-->recvresult
+
+-->varlet %DOC1_BASIC% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"document_001", "name":"basic"}' content_type:2}}
+-->varlet %DOC2_TO_UPDATE% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"document_002", "name":"to update"}' content_type:2}}
+-->varlet %DOC3_BASIC% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"document_003", "name":"basic"}' content_type:2}}
+-->varlet %DOC2_BASIC% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"document_002", "name":"basic"}' content_type:2}}
+-->varlet %DOC2_ADVENCED% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"document_002", "name":"advenced"}' content_type:2}}
+
+-->callmacro Upsert_one	DOCUMENT	add_or_replace	%DOC1_BASIC%	ER_SUCCESS
+-->callmacro Upsert_one	DOCUMENT	add_or_replace	%DOC2_TO_UPDATE%	ER_SUCCESS
+-->callmacro Upsert_one	DOCUMENT	add_or_replace	%DOC3_BASIC%	ER_X_BAD_UPSERT_DATA
+-->callmacro Upsert_one	DOCUMENT	add_or_replace	%DOC2_BASIC%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Upsert_one	DOCUMENT	add_or_replace	%DOC2_ADVENCED%	ER_SUCCESS
+-->callmacro Show	add_or_replace
+
+EOF
+
+--write_file $MYSQL_TMP_DIR/crud_insert_upsert_multi_index.xpl
+## Test data
+-->quiet
+-->import crud_insert.macro
+-->import crud_find.macro
+
+-->stmtadmin create_collection	{"schema":"xtest","name":"multi"}
+-->recvresult
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"multi", "name":"_first", "unique":true, "constraint":{"member":"$.first", "type":"TEXT(20)","required":true}}
+-->recvresult
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"multi", "name":"_second", "unique":true, "constraint":{"member":"$.second", "type":"TEXT(20)","required":true}}
+-->recvresult
+
+-->varlet %DOC1_A_A% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"001", "first":"A", "second":"A"}' content_type:2}}
+-->varlet %DOC2_B_B% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"002", "first":"B", "second":"B"}' content_type:2}}
+-->varlet %DOC3_A_B% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"003", "first":"A", "second":"B"}' content_type:2}}
+-->varlet %DOC1_A_B% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"001", "first":"A", "second":"B"}' content_type:2}}
+-->varlet %DOC2_A_B% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"002", "first":"A", "second":"B"}' content_type:2}}
+-->varlet %DOC3_B_A% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"003", "first":"B", "second":"A"}' content_type:2}}
+-->varlet %DOC1_B_A% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"001", "first":"B", "second":"A"}' content_type:2}}
+-->varlet %DOC2_B_A% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"002", "first":"B", "second":"A"}' content_type:2}}
+
+-->callmacro Upsert_one	DOCUMENT	multi	%DOC1_A_A%	ER_SUCCESS
+-->callmacro Upsert_one	DOCUMENT	multi	%DOC2_B_B%	ER_SUCCESS
+-->callmacro Upsert_one	DOCUMENT	multi	%DOC3_A_B%	ER_X_BAD_UPSERT_DATA
+-->callmacro Upsert_one	DOCUMENT	multi	%DOC1_A_B%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Upsert_one	DOCUMENT	multi	%DOC2_A_B%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Upsert_one	DOCUMENT	multi	%DOC3_B_A%	ER_X_BAD_UPSERT_DATA
+-->callmacro Upsert_one	DOCUMENT	multi	%DOC1_B_A%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Upsert_one	DOCUMENT	multi	%DOC2_B_A%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Show	multi
+
+EOF
+
+--write_file $MYSQL_TMP_DIR/crud_insert_upsert_numerical_id.xpl
+## Test data
+-->quiet
+-->import crud_insert.macro
+-->import crud_find.macro
+
+-->stmtadmin create_collection	{"schema":"xtest","name":"num"}
+-->recvresult
+
+-->varlet %DOC123_A_A% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"123", "first":"A", "second":"A"}' content_type:2}}
+-->varlet %DOC123_B_B% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":123, "first":"B", "second":"B"}' content_type:2}}
+
+-->title -Numerical _id
+-->callmacro Insert_one	DOCUMENT	num	%DOC123_A_A%	ER_SUCCESS
+-->callmacro Show	num
+-->callmacro Upsert_one	DOCUMENT	num	%DOC123_B_B%	ER_SUCCESS
+-->callmacro Show	num
+
+EOF
+
+CREATE SCHEMA xtest;
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/crud_insert_upsert.xpl 2>&1;
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/crud_insert_upsert_dual_index.xpl 2>&1;
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/crud_insert_upsert_multi_index.xpl 2>&1;
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/crud_insert_upsert_numerical_id.xpl 2>&1;
+
+## Cleanup
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc
+DROP SCHEMA IF EXISTS xtest;

@@ -1,0 +1,106 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+CREATE TABLE t (
+  a INTEGER,
+  b BLOB GENERATED ALWAYS AS (a) VIRTUAL,
+  INDEX (b(57))
+)ENGINE=INNODB;
+
+INSERT INTO t (a) VALUES (9);
+BEGIN;
+SAVEPOINT a;
+UPDATE t set a = 12;
+DELETE FROM t where a = 12;
+ROLLBACK TO SAVEPOINT a;
+COMMIT;
+
+CHECK TABLE t;
+
+SELECT * FROM t;
+
+BEGIN;
+INSERT INTO t (a) VALUES (10);
+--source include/kill_and_restart_mysqld.inc
+SELECT * FROM t;
+DROP TABLE t;
+
+CREATE TABLE t (
+  a INTEGER,
+  b BLOB GENERATED ALWAYS AS (a) VIRTUAL,
+  c INTEGER
+)ENGINE=INNODB;
+
+INSERT INTO t (a,c) VALUES (9, 10);
+SELECT * FROM t;
+
+connect (con1,localhost,root,,);
+connection con1;
+
+# This DEBUG_SYNC should not kick in yet, because the duplicate key will be
+# detected before we get a chance to apply the online log.
+
+SET DEBUG_SYNC = 'row_log_apply_after SIGNAL created WAIT_FOR dml_done';
+--send
+ALTER TABLE t ADD KEY(b(57)), ALGORITHM=INPLACE;
+
+connection default;
+SET DEBUG_SYNC = 'now WAIT_FOR created';
+BEGIN;
+INSERT INTO t (a,c) VALUES (10, 12);
+SELECT * FROM t;
+ROLLBACK;
+SET DEBUG_SYNC = 'now SIGNAL dml_done';
+
+connection con1;
+reap;
+disconnect con1;
+connection default;
+
+SELECT * FROM t;
+DROP TABLE t;
+
+# drop virtual column and alter index
+CREATE TABLE t (
+  a INT,
+  b INT,
+  c INT GENERATED ALWAYS AS(a+b),
+  d INT GENERATED ALWAYS AS(a+b+b),
+  KEY(c, d)
+)ENGINE=INNODB;
+
+INSERT INTO t (a,b) VALUES (9, 10);
+SELECT * FROM t;
+
+connect (con1,localhost,root,,);
+connection con1;
+
+# This DEBUG_SYNC should not kick in yet, because the duplicate key will be
+# detected before we get a chance to apply the online log.
+
+SET DEBUG_SYNC = 'row_log_apply_after SIGNAL created WAIT_FOR dml_done';
+--send
+ALTER TABLE t DROP COLUMN c, ALGORITHM=INPLACE;
+
+connection default;
+SET DEBUG_SYNC = 'now WAIT_FOR created';
+BEGIN;
+INSERT INTO t (a,b) VALUES (10, 12);
+SELECT * FROM t;
+ROLLBACK;
+SET DEBUG_SYNC = 'now SIGNAL dml_done';
+
+connection con1;
+reap;
+disconnect con1;
+connection default;
+
+SELECT * FROM t;
+
+DROP TABLE t;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

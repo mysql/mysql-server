@@ -1,15 +1,21 @@
 /*
-   Copyright (C) 2003, 2005, 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -45,14 +51,69 @@ printFIRE_TRIG_ORD(FILE * output, const Uint32 * theData, Uint32 len,
   fprintf(output, " TriggerId: %d TriggerEvent: %s\n",
 	  sig->getTriggerId(),
 	  trigEvent(sig->getTriggerEvent()));
-  fprintf(output, " UserRef: (%d, %d) User data: %x\n",
+  fprintf(output, " UserRef: (%d, %d, %d) User data: %x\n",
 	  refToNode(sig->getUserRef()),
-	  refToBlock(sig->getUserRef()),
+	  refToInstance(sig->getUserRef()),
+	  refToMain(sig->getUserRef()),
 	  sig->getConnectionPtr());
   fprintf(output, " Signal: PK=%d BEFORE=%d AFTER=%d\n",
 	  sig->getNoOfPrimaryKeyWords(),
 	  sig->getNoOfBeforeValueWords(),
 	  sig->getNoOfAfterValueWords());
+  fprintf(output, " fragId: %u ",
+          sig->fragId);
   
+  /* Variants, see DbtupTrigger.cpp */
+  if (len == FireTrigOrd::SignalWithGCILength)
+  {
+    fprintf(output, "gci_hi: %u\n", sig->m_gci_hi);
+  }
+  else if (len == FireTrigOrd::SignalLength)
+  {
+    fprintf(output, " Triggertype: %s\n",
+            TriggerInfo::triggerTypeName(sig->m_triggerType));
+    fprintf(output, " transId: (H\'%.8x, H\'%.8x)\n",
+            sig->m_transId1,
+            sig->m_transId2);
+  }
+  else if (len == FireTrigOrd::SignalLengthSuma)
+  {
+    fprintf(output, " transId: (H\'%.8x, H\'%.8x)\n",
+             sig->m_transId1,
+             sig->m_transId2);
+    fprintf(output, " gci: %u/%u Hash: %u Any: %u\n",
+            sig->m_gci_hi,
+            sig->m_gci_lo,
+            sig->m_hashValue,
+            sig->m_any_value);
+  }
+  else
+  {
+    fprintf(output, " Unexpected length\n");
+    if (len > 8)
+    {
+      fprintf(output, " -- Variable data -- \n");
+      
+      Uint32 remain = len - 8;
+      const Uint32* data = &theData[8];
+      while (remain >= 7)
+      {
+        fprintf(output, 
+                " H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x\n",
+                data[0], data[1], data[2], data[3], 
+                data[4], data[5], data[6]);
+        remain -= 7;
+        data += 7;
+      }
+      if(remain > 0){
+        for(Uint32 i = 0; i<remain; i++)
+        {
+          fprintf(output, " H\'%.8x", data[i]);
+        }
+        fprintf(output, "\n");
+      }
+    }
+  }   
+    
   return true;
 }

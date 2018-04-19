@@ -46,6 +46,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0,p1,p2,p3,p4	range	PRIMARY,b	b	9	NULL	10	13.09	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` between 1 and 450) and (`test`.`t1`.`b` between 1 and 10))
+SELECT * FROM performance_schema.session_status
+WHERE VARIABLE_NAME LIKE 'dummy';
+VARIABLE_NAME	VARIABLE_VALUE
 FLUSH STATUS;
 SELECT * FROM t1 WHERE a BETWEEN 1 AND 450 AND b BETWEEN 1 AND 10;
 a	b	c
@@ -59,14 +62,11 @@ a	b	c
 7	7	MATCH!
 8	8	MATCH!
 9	9	MATCH!
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
-WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
-HANDLER_COMMIT	1
-HANDLER_EXTERNAL_LOCK	2
-HANDLER_READ_KEY	5
-HANDLER_READ_NEXT	10
-HANDLER_WRITE	17
+Handler_commit	1
+Handler_external_lock	3
+Handler_read_key	5
+Handler_read_next	10
 DROP TABLE t1;
 # Test of index_merge and delete
 CREATE TABLE `t1` (
@@ -171,4 +171,1428 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 DELETE FROM t1 WHERE a BETWEEN 0 AND 20 OR b BETWEEN 10 AND 20;
+DROP TABLE t1;
+#
+# Bug#20584754: CAN'T FIND RECORD IN 'TABLE100_KEY_PK_PARTS_2_DATETIME_3'
+#
+CREATE TABLE `t1` (
+`c1` tinyint unsigned DEFAULT NULL,
+`c2` char(1) DEFAULT NULL,
+`pk` tinyint NOT NULL,
+PRIMARY KEY (`pk`),
+KEY `c1` (`c1`),
+KEY `c2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (pk)
+PARTITIONS 2 */;
+# Create the dataset in a separate table, so it can be loaded
+# directly without update/delete which may give unstable EXPLAIN
+# due to background pruning.
+CREATE TABLE t0
+(a tinyint not null auto_increment primary key,
+b char(1) DEFAULT 'a',
+c tinyint DEFAULT 1);
+INSERT INTO t0 (a) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+INSERT INTO t0 (a) SELECT NULL FROM t0, t0 t0_2 LIMIT 50;
+UPDATE t0 SET c = NULL WHERE a IN (2,3,6,13,18);
+INSERT INTO t1 SELECT c,b,a FROM t0;
+DROP TABLE t0;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT
+pk
+FROM `t1`
+WHERE `c1` IS  NULL OR `c2` = '0';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1	index_merge	c1,c2	c1,c2	2,2	NULL	#	100.00	Using union(c1,c2); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where (isnull(`test`.`t1`.`c1`) or (`test`.`t1`.`c2` = '0'))
+SELECT
+pk
+FROM `t1`
+WHERE `c1` IS  NULL OR `c2` = '0';
+pk
+2
+3
+6
+13
+18
+DROP TABLE t1;
+#
+# Bug#20516390: PARTITIONED TABLE, TBLSPACE MOVE, ALTER, ASSERT
+# !(M_FILE_PER_TABLE && M_USE_SHAR
+#
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLE t1
+(a int not null,
+d int not null,
+b varchar(198) not null,
+c varchar(177),
+index(d),
+index(a),
+PRIMARY KEY (b(10), a, d),
+INDEX (c(95), b(95)),
+INDEX (b(5), c(10), a))
+ENGINE=InnoDB stats_persistent=DEFAULT
+PARTITION BY LINEAR HASH(d) PARTITIONS 2;
+ALTER TABLE t1 TABLESPACE ts1;
+ALTER TABLE t1 DROP PRIMARY KEY, ALGORITHM=DEFAULT;
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+#
+# Bug #20593808: CRASH WITH PARTITIONED TABLES
+# MULTITABLE DELETE
+#
+Test DML with index scan on partitioned table
+#1. test delete with join using PK index scan on partitioned table
+CREATE TABLE t1 (
+col_1_int int,
+col_2_text text)
+ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col_1_int` int(11) DEFAULT NULL,
+  `col_2_text` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#insert two records in t1
+INSERT INTO t1 VALUES (5, 'row to delete');
+INSERT INTO t1 VALUES (3, 'row to keep');
+SELECT * FROM t1 ORDER BY col_1_int;
+col_1_int	col_2_text
+3	row to keep
+5	row to delete
+CREATE TABLE t2 (
+col_1_int int,
+col_2_int int,
+col_3_text text,
+PRIMARY KEY(col_1_int, col_3_text(100)),
+KEY idx1 (col_2_int, col_1_int))
+ENGINE=InnoDB
+PARTITION BY KEY(col_1_int) partitions 5;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col_1_int` int(11) NOT NULL,
+  `col_2_int` int(11) DEFAULT NULL,
+  `col_3_text` text NOT NULL,
+  PRIMARY KEY (`col_1_int`,`col_3_text`(100)),
+  KEY `idx1` (`col_2_int`,`col_1_int`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY (col_1_int)
+PARTITIONS 5 */
+#insert five records in t2
+INSERT INTO t2 VALUES (91, 11, 'bigger value for no-op');
+INSERT INTO t2 VALUES ( 4, 25, 'smaller value to trigger delete');
+INSERT INTO t2 VALUES (35, 33, 'bigger value for no-op addlen');
+INSERT INTO t2 VALUES (55, 42, 'bigger value for no-op addlen + addlen + addlen');
+INSERT INTO t2 VALUES (82, 54, 'bigger value for no-op addlen + addlen');
+SELECT * FROM t2 ORDER BY col_1_int;
+col_1_int	col_2_int	col_3_text
+4	25	smaller value to trigger delete
+35	33	bigger value for no-op addlen
+55	42	bigger value for no-op addlen + addlen + addlen
+82	54	bigger value for no-op addlen + addlen
+91	11	bigger value for no-op
+# test delete with join and index scan
+DELETE t1 FROM t2, t1  WHERE t2.col_1_int <= t1.col_1_int;
+expect one record
+SELECT * FROM t1;
+col_1_int	col_2_text
+3	row to keep
+DROP TABLE t1;
+DROP TABLE t2;
+#2. test delete with join using secondary index scan on partitioned table
+CREATE TABLE t1 (
+col_1_int int,
+col_2_text text)
+ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col_1_int` int(11) DEFAULT NULL,
+  `col_2_text` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#insert two records in t1
+INSERT INTO t1 VALUES (5, 'row to delete');
+INSERT INTO t1 VALUES (3, 'row to keep');
+SELECT * FROM t1 ORDER BY col_1_int;
+col_1_int	col_2_text
+3	row to keep
+5	row to delete
+CREATE TABLE t2 (
+col_1_int int,
+col_2_int int,
+col_3_text text,
+PRIMARY KEY(col_2_int, col_1_int),
+KEY idx1(col_1_int, col_3_text(100)))
+ENGINE=InnoDB
+PARTITION BY KEY(col_2_int) partitions 5;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col_1_int` int(11) NOT NULL,
+  `col_2_int` int(11) NOT NULL,
+  `col_3_text` text,
+  PRIMARY KEY (`col_2_int`,`col_1_int`),
+  KEY `idx1` (`col_1_int`,`col_3_text`(100))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY (col_2_int)
+PARTITIONS 5 */
+#insert five records in t2
+INSERT INTO t2 VALUES (91, 11, 'bigger value for no-op');
+INSERT INTO t2 VALUES ( 4, 25, 'smaller value to trigger delete');
+INSERT INTO t2 VALUES (35, 33, 'bigger value for no-op addlen');
+INSERT INTO t2 VALUES (55, 42, 'bigger value for no-op addlen + addlen + addlen');
+INSERT INTO t2 VALUES (82, 54, 'bigger value for no-op addlen + addlen');
+SELECT * FROM t2 ORDER BY col_1_int;
+col_1_int	col_2_int	col_3_text
+4	25	smaller value to trigger delete
+35	33	bigger value for no-op addlen
+55	42	bigger value for no-op addlen + addlen + addlen
+82	54	bigger value for no-op addlen + addlen
+91	11	bigger value for no-op
+# test delete with join and index scan
+DELETE t1 FROM t2, t1  WHERE t2.col_1_int <= t1.col_1_int;
+expect one record
+SELECT * FROM t1;
+col_1_int	col_2_text
+3	row to keep
+DROP TABLE t1;
+DROP TABLE t2;
+#
+# Bug #20949314: PARTITION_HELPER::PH_RND_INIT(BOOL): ASSERTION
+#
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (3), (4), (5), (1), (2);
+CREATE TABLE t2 PARTITION BY KEY (c1) PARTITIONS 3
+AS
+SELECT * FROM t1;
+DELETE A FROM t1 AS A WHERE A.c1 IN
+(SELECT c1 FROM t2 AS B WHERE B.c1 = A.c1);
+SELECT * from t1;
+c1
+DROP TABLE t1;
+DROP TABLE t2;
+#
+# Bug#21211524: CRASH IN ACTUAL_KEY_PARTS WITH PARTITIONED TABLES
+#
+CREATE TABLE t1(
+col1 SET('') CHARACTER SET UTF16 COLLATE UTF16_SPANISH_CI,
+col2 INT,
+PRIMARY KEY (col2, col1),
+UNIQUE KEY (col1, col2))
+ENGINE=INNODB
+PARTITION BY KEY (col1);
+SELECT * from t1 WHERE col1 BETWEEN 0x92 AND "";
+col1	col2
+DROP TABLE t1;
+#
+# Bug#21794110: ASSERTION `MP->COUNT > 0 && MY_THREAD_EQUAL
+#
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 CHAR(10))
+ENGINE=INNODB
+PARTITION BY HASH(col1) PARTITIONS 2;
+INSERT INTO t1 VALUES(0, 'string1');
+ALTER TABLE t1 CHANGE col1 col1 INT UNSIGNED AUTO_INCREMENT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `col2` char(10) DEFAULT NULL,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`col1`)
+PARTITIONS 2 */
+DROP TABLE t1;
+#
+# Bug#21620577: ASSERTION H->ACTIVE_INDEX == 64
+#
+CREATE TABLE t1(col1 YEAR(4) not null, col2 int, KEY(col1), KEY(col1, col2))
+ENGINE=INNODB
+PARTITION BY KEY(col1) PARTITIONS 2;
+INSERT INTO t1 VALUES('2015', 10);
+SELECT /*+ bka()*/ a.col2 from t1 AS a
+RIGHT JOIN t1 AS b on a.col1<=>null
+RIGHT JOIN t1 AS c on 1;
+col2
+NULL
+DROP TABLE t1;
+#
+# Bug#21754608: HANDLE_FATAL_SIGNAL PARTITION_HELPER::PH_READ_RANGE_FIRST
+#
+CREATE TABLE t1(col1 int PRIMARY KEY, col2 int, col3 int)
+ENGINE=INNODB
+PARTITION BY LIST(col1) PARTITIONS 2
+(PARTITION p0 VALUES IN (11,12),
+PARTITION p1 VALUES IN (0,1));
+INSERT INTO t1 values(1, 10, 100);
+SELECT * from t1 WHERE col1 BETWEEN '2000-01-01 01:02:00' AND '2000-01-01 01:03:00';
+col1	col2	col3
+DROP TABLE t1;
+#
+# Bug#21796845 ASSERT ERR == DB_SUCCESS, ROW_QUIESCE_TABLE_START(), FLUSH TABLES FOR EXPORT
+#
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLE t1 (a INT, b INT) ENGINE = InnoDB
+PARTITION BY RANGE(a) (
+PARTITION p1 VALUES LESS THAN (100) TABLESPACE innodb_system,
+PARTITION p2 VALUES LESS THAN (200),
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE ts1,
+PARTITION p4 VALUES LESS THAN (400) TABLESPACE innodb_system);
+FLUSH table t1 FOR EXPORT;
+Warnings:
+Warning	1809	InnoDB: Table '`test`.`t1` /* Partition `p1` */' in system tablespace
+Warning	1235	InnoDB: This version of MySQL doesn't yet support 'FLUSH TABLES FOR EXPORT on table `test`.`t1` /* Partition `p3` */ in a general tablespace.'
+Warning	1809	InnoDB: Table '`test`.`t1` /* Partition `p4` */' in system tablespace
+UNLOCK TABLES;
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+#
+# Bug#21957001 INNODB: FAILING ASSERTION: 0 IN FILE HA_INNOPART.CC LINE 3526
+#
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Trying to access missing tablespace .*");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Missing .ibd file for table `test`\.`t1` .* ");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics for table .*");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot open datafile for read-only:");
+CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
+ALTER TABLE t1 DISCARD PARTITION p3 TABLESPACE;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	status	Operation failed
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+TABLE_ROWS
+0
+ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	status	Operation failed
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+TABLE_ROWS
+0
+ALTER TABLE t1 DISCARD PARTITION p2 TABLESPACE;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p2` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p2` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	status	Operation failed
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+TABLE_ROWS
+0
+ALTER TABLE t1 DISCARD PARTITION p0 TABLESPACE;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p0` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p2` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p0` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p2` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	status	Operation failed
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+TABLE_ROWS
+0
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
+ALTER TABLE t1 DISCARD TABLESPACE;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p0` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p2` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p0` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p2` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+test.t1	analyze	status	Operation failed
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+TABLE_ROWS
+0
+DROP TABLE t1;
+#
+# Bug#21864838: SIG11 IN FIELD_BLOB::CMP| AT SQL/FIELD.CC
+#
+CREATE TABLE t1 (col1 INT PRIMARY KEY, col2 VARCHAR(1), col3 BLOB AS (REPEAT(col2, 500)) VIRTUAL, KEY(col3(100)))
+ENGINE=INNODB
+PARTITION BY HASH(col1) PARTITIONS 2;
+CREATE TABLE t2 (col1 INT PRIMARY KEY, col2 VARCHAR(1), col3 BLOB AS (REPEAT(col2, 500)) VIRTUAL, KEY(col3(100)))
+ENGINE=INNODB
+PARTITION BY HASH(col1) PARTITIONS 2;
+INSERT INTO t1 (col1, col2) VALUES(1, 'd'), (2, 'c'), (3, 'b'), (4, 'a');
+INSERT INTO t2 (col1, col2) VALUES(1, 'd'), (2, 'c'), (3, 'b'), (4, 'a');
+SELECT t1.col1 FROM t1, t2 where t1.col1 = 3 AND t1.col3 = t2.col3 ORDER BY t2.col1 DESC;
+col1
+3
+DROP TABLE t1;
+DROP TABLE t2;
+#
+# Bug #21881155: UNINTIALIZED READ IN KEY_REC_CMP CAUSE CRASH LATER
+#
+CREATE TABLE t1 (col1 int, col2 BLOB AS ('a') VIRTUAL, col3 INT,
+PRIMARY KEY(col1), KEY (col3, col2(1), col1))
+ENGINE=INNODB
+PARTITION BY KEY (col1) PARTITIONS 2;
+INSERT INTO t1(col1) values (1),(2);
+SELECT 1 FROM t1 WHERE col2 > 'a' GROUP BY col3;
+1
+DROP TABLE t1;
+#
+# Bug#21914047 SHOW CREATE DUMPS AFTER ALTER ON INNODB TABLE WITH PARTITIONS USING TABLESPACE
+#
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
+CREATE TABLE t1 (a INT NOT NULL, PRIMARY KEY (a))
+ENGINE=InnoDB TABLESPACE ts2
+PARTITION BY RANGE(a)
+PARTITIONS 4
+( PARTITION p1 VALUES LESS THAN (2) TABLESPACE ts1,
+PARTITION p2 VALUES LESS THAN (4) TABLESPACE innodb_system,
+PARTITION p3 VALUES LESS THAN (6),
+PARTITION p4  VALUES LESS THAN (8) TABLESPACE innodb_file_per_table);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (4) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+partition_name	space_type	space_name
+test/t1#p#p1	General	ts1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	General	ts2
+test/t1#p#p4	Single	test/t1#p#p4
+ALTER TABLE t1 ADD COLUMN b int;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (4) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+partition_name	space_type	space_name
+test/t1#p#p1	General	ts1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	General	ts2
+test/t1#p#p4	Single	test/t1#p#p4
+ALTER TABLE t1 ADD COLUMN c int, TABLESPACE ts1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (4) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+partition_name	space_type	space_name
+test/t1#p#p1	General	ts1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	General	ts2
+test/t1#p#p4	Single	test/t1#p#p4
+ALTER TABLE t1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10) TABLESPACE ts2);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (4) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB) */
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+partition_name	space_type	space_name
+test/t1#p#p1	General	ts1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	General	ts2
+test/t1#p#p4	Single	test/t1#p#p4
+test/t1#p#p5	General	ts2
+ALTER TABLE t1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (12));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (4) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p6 VALUES LESS THAN (12) TABLESPACE = `ts1` ENGINE = InnoDB) */
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+partition_name	space_type	space_name
+test/t1#p#p1	General	ts1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	General	ts2
+test/t1#p#p4	Single	test/t1#p#p4
+test/t1#p#p5	General	ts2
+test/t1#p#p6	General	ts1
+ALTER TABLE t1 REORGANIZE PARTITION p4 INTO (PARTITION p4 VALUES LESS THAN (8));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (4) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p6 VALUES LESS THAN (12) TABLESPACE = `ts1` ENGINE = InnoDB) */
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+partition_name	space_type	space_name
+test/t1#p#p1	General	ts1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	General	ts2
+test/t1#p#p4	General	ts1
+test/t1#p#p5	General	ts2
+test/t1#p#p6	General	ts1
+ALTER TABLE t1 REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN (6) TABLESPACE innodb_system);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (4) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p6 VALUES LESS THAN (12) TABLESPACE = `ts1` ENGINE = InnoDB) */
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+partition_name	space_type	space_name
+test/t1#p#p1	General	ts1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	System	NULL
+test/t1#p#p4	General	ts1
+test/t1#p#p5	General	ts2
+test/t1#p#p6	General	ts1
+DROP TABLE t1;
+CREATE TABLE t1 (a INT NOT NULL, PRIMARY KEY (a))
+ENGINE=InnoDB
+PARTITION BY RANGE(a)
+PARTITIONS 4
+( PARTITION p1 VALUES LESS THAN (2) TABLESPACE ts1,
+PARTITION p2 VALUES LESS THAN (4) TABLESPACE innodb_system,
+PARTITION p3 VALUES LESS THAN (6),
+PARTITION p4  VALUES LESS THAN (8) TABLESPACE innodb_file_per_table);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (4) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+partition_name	space_type	space_name
+test/t1#p#p1	General	ts1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	Single	test/t1#p#p3
+test/t1#p#p4	Single	test/t1#p#p4
+ALTER TABLE t1 ADD COLUMN b int;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (4) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+partition_name	space_type	space_name
+test/t1#p#p1	General	ts1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	Single	test/t1#p#p3
+test/t1#p#p4	Single	test/t1#p#p4
+ALTER TABLE t1 ADD COLUMN c int, TABLESPACE ts1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (4) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+partition_name	space_type	space_name
+test/t1#p#p1	General	ts1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	Single	test/t1#p#p3
+test/t1#p#p4	Single	test/t1#p#p4
+ALTER TABLE t1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10) TABLESPACE ts2);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (4) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB) */
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+partition_name	space_type	space_name
+test/t1#p#p1	General	ts1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	Single	test/t1#p#p3
+test/t1#p#p4	Single	test/t1#p#p4
+test/t1#p#p5	General	ts2
+ALTER TABLE t1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (12));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (4) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p6 VALUES LESS THAN (12) TABLESPACE = `ts1` ENGINE = InnoDB) */
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+partition_name	space_type	space_name
+test/t1#p#p1	General	ts1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	Single	test/t1#p#p3
+test/t1#p#p4	Single	test/t1#p#p4
+test/t1#p#p5	General	ts2
+test/t1#p#p6	General	ts1
+ALTER TABLE t1 REORGANIZE PARTITION p4 INTO (PARTITION p4 VALUES LESS THAN (8));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (4) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p6 VALUES LESS THAN (12) TABLESPACE = `ts1` ENGINE = InnoDB) */
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+partition_name	space_type	space_name
+test/t1#p#p1	General	ts1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	Single	test/t1#p#p3
+test/t1#p#p4	General	ts1
+test/t1#p#p5	General	ts2
+test/t1#p#p6	General	ts1
+ALTER TABLE t1 REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN (6) TABLESPACE innodb_system);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (4) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (6) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (8) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION p5 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION p6 VALUES LESS THAN (12) TABLESPACE = `ts1` ENGINE = InnoDB) */
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+partition_name	space_type	space_name
+test/t1#p#p1	General	ts1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	System	NULL
+test/t1#p#p4	General	ts1
+test/t1#p#p5	General	ts2
+test/t1#p#p6	General	ts1
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+#
+# Bug#22245554 OUTPUT OF SHOW CREATE TABLE INVOLVING PARTITION TABLESPACE
+# LEADS TO CONFUSION
+#
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+# CASE A
+# file_per_table OFF for CREATE, ON for ALTER
+SET GLOBAL innodb_file_per_table = OFF;
+CREATE TABLE t1 (a INT NOT NULL, b INT)
+ENGINE=InnoDB
+PARTITION BY RANGE(a)
+(PARTITION p1 VALUES LESS THAN (5) ,
+PARTITION p2 VALUES LESS THAN (10) TABLESPACE innodb_system,
+PARTITION p3 VALUES LESS THAN (15) TABLESPACE innodb_file_per_table);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (5) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (10) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (15) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
+partition_name	space_type	space_name
+test/t1#p#p1	System	NULL
+test/t1#p#p2	System	NULL
+test/t1#p#p3	Single	test/t1#p#p3
+SET GLOBAL innodb_file_per_table = ON;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p4 VALUES LESS THAN (20) );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (5) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (10) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (15) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (20) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
+partition_name	space_type	space_name
+test/t1#p#p1	System	NULL
+test/t1#p#p2	System	NULL
+test/t1#p#p3	Single	test/t1#p#p3
+test/t1#p#p4	Single	test/t1#p#p4
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table = OFF;
+CREATE TABLE t2 (a INT NOT NULL, b INT)
+ENGINE=InnoDB
+PARTITION BY RANGE(a)
+SUBPARTITION BY KEY(b)
+(PARTITION p1 VALUES LESS THAN (5)
+(SUBPARTITION sp1 ),
+PARTITION p2 VALUES LESS THAN (10)
+(SUBPARTITION sp2 TABLESPACE innodb_system),
+PARTITION p3 VALUES LESS THAN (15)
+(SUBPARTITION sp3 TABLESPACE innodb_file_per_table));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (5)
+ (SUBPARTITION sp1 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (10)
+ (SUBPARTITION sp2 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (15)
+ (SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
+partition_name	space_type	space_name
+test/t2#p#p1#sp#sp1	System	NULL
+test/t2#p#p2#sp#sp2	System	NULL
+test/t2#p#p3#sp#sp3	Single	test/t2#p#p3#sp#sp3
+SET GLOBAL innodb_file_per_table = ON;
+ALTER TABLE t2 ADD PARTITION
+(PARTITION p4 VALUES LESS THAN (20)
+(SUBPARTITION sp4 ));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (5)
+ (SUBPARTITION sp1 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (10)
+ (SUBPARTITION sp2 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (15)
+ (SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION p4 VALUES LESS THAN (20)
+ (SUBPARTITION sp4 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
+partition_name	space_type	space_name
+test/t2#p#p1#sp#sp1	System	NULL
+test/t2#p#p2#sp#sp2	System	NULL
+test/t2#p#p3#sp#sp3	Single	test/t2#p#p3#sp#sp3
+test/t2#p#p4#sp#sp4	Single	test/t2#p#p4#sp#sp4
+DROP TABLE t2;
+# CASE B
+# file_per_table ON for CREATE, OFF for ALTER
+SET GLOBAL innodb_file_per_table = ON;
+CREATE TABLE t1 (a INT NOT NULL, b INT)
+ENGINE=InnoDB
+PARTITION BY RANGE(a)
+(PARTITION p1 VALUES LESS THAN (5) ,
+PARTITION p2 VALUES LESS THAN (10) TABLESPACE innodb_system,
+PARTITION p3 VALUES LESS THAN (15) TABLESPACE innodb_file_per_table);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (5) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (10) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (15) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
+partition_name	space_type	space_name
+test/t1#p#p1	Single	test/t1#p#p1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	Single	test/t1#p#p3
+SET GLOBAL innodb_file_per_table = OFF;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p4 VALUES LESS THAN (20) );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (5) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (10) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (15) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (20) TABLESPACE = `innodb_system` ENGINE = InnoDB) */
+partition_name	space_type	space_name
+test/t1#p#p1	Single	test/t1#p#p1
+test/t1#p#p2	System	NULL
+test/t1#p#p3	Single	test/t1#p#p3
+test/t1#p#p4	System	NULL
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table = ON;
+CREATE TABLE t2 (a INT NOT NULL, b INT)
+ENGINE=InnoDB
+PARTITION BY RANGE(a)
+SUBPARTITION BY KEY(b)
+(PARTITION p1 VALUES LESS THAN (5)
+(SUBPARTITION sp1 ),
+PARTITION p2 VALUES LESS THAN (10)
+(SUBPARTITION sp2 TABLESPACE innodb_system),
+PARTITION p3 VALUES LESS THAN (15)
+(SUBPARTITION sp3 TABLESPACE innodb_file_per_table));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (5)
+ (SUBPARTITION sp1 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (10)
+ (SUBPARTITION sp2 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (15)
+ (SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
+partition_name	space_type	space_name
+test/t2#p#p1#sp#sp1	Single	test/t2#p#p1#sp#sp1
+test/t2#p#p2#sp#sp2	System	NULL
+test/t2#p#p3#sp#sp3	Single	test/t2#p#p3#sp#sp3
+SET GLOBAL innodb_file_per_table = OFF;
+ALTER TABLE t2 ADD PARTITION
+(PARTITION p4 VALUES LESS THAN (20)
+(SUBPARTITION sp4 ));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (5)
+ (SUBPARTITION sp1 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (10)
+ (SUBPARTITION sp2 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (15)
+ (SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION p4 VALUES LESS THAN (20)
+ (SUBPARTITION sp4 TABLESPACE = `innodb_system` ENGINE = InnoDB)) */
+partition_name	space_type	space_name
+test/t2#p#p1#sp#sp1	Single	test/t2#p#p1#sp#sp1
+test/t2#p#p2#sp#sp2	System	NULL
+test/t2#p#p3#sp#sp3	Single	test/t2#p#p3#sp#sp3
+test/t2#p#p4#sp#sp4	System	NULL
+DROP TABLE t2;
+# CASE C
+# file_per_table OFF for CREATE, OFF for ALTER
+SET GLOBAL innodb_file_per_table = OFF;
+CREATE TABLE t1 (a INT NOT NULL, b INT)
+ENGINE=InnoDB
+PARTITION BY RANGE(a)
+(PARTITION p1 VALUES LESS THAN (5) ,
+PARTITION p2 VALUES LESS THAN (10) ,
+PARTITION p3 VALUES LESS THAN (15) );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (5) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (10) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (15) TABLESPACE = `innodb_system` ENGINE = InnoDB) */
+partition_name	space_type	space_name
+test/t1#p#p1	System	NULL
+test/t1#p#p2	System	NULL
+test/t1#p#p3	System	NULL
+SET GLOBAL innodb_file_per_table = OFF;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p4 VALUES LESS THAN (20) );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (5) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (10) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (15) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (20) TABLESPACE = `innodb_system` ENGINE = InnoDB) */
+partition_name	space_type	space_name
+test/t1#p#p1	System	NULL
+test/t1#p#p2	System	NULL
+test/t1#p#p3	System	NULL
+test/t1#p#p4	System	NULL
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table = OFF;
+CREATE TABLE t2 (a INT NOT NULL, b INT)
+ENGINE=InnoDB
+PARTITION BY RANGE(a)
+SUBPARTITION BY KEY(b)
+(PARTITION p1 VALUES LESS THAN (5)
+(SUBPARTITION sp1 ),
+PARTITION p2 VALUES LESS THAN (10)
+(SUBPARTITION sp2 ),
+PARTITION p3 VALUES LESS THAN (15)
+(SUBPARTITION sp3 ));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (5)
+ (SUBPARTITION sp1 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (10)
+ (SUBPARTITION sp2 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (15)
+ (SUBPARTITION sp3 TABLESPACE = `innodb_system` ENGINE = InnoDB)) */
+partition_name	space_type	space_name
+test/t2#p#p1#sp#sp1	System	NULL
+test/t2#p#p2#sp#sp2	System	NULL
+test/t2#p#p3#sp#sp3	System	NULL
+SET GLOBAL innodb_file_per_table = OFF;
+ALTER TABLE t2 ADD PARTITION
+(PARTITION p4 VALUES LESS THAN (20)
+(SUBPARTITION sp4 ));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (5)
+ (SUBPARTITION sp1 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (10)
+ (SUBPARTITION sp2 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (15)
+ (SUBPARTITION sp3 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p4 VALUES LESS THAN (20)
+ (SUBPARTITION sp4 TABLESPACE = `innodb_system` ENGINE = InnoDB)) */
+partition_name	space_type	space_name
+test/t2#p#p1#sp#sp1	System	NULL
+test/t2#p#p2#sp#sp2	System	NULL
+test/t2#p#p3#sp#sp3	System	NULL
+test/t2#p#p4#sp#sp4	System	NULL
+DROP TABLE t2;
+# CASE D
+# file_per_table ON for CREATE, ON for ALTER
+SET GLOBAL innodb_file_per_table = ON;
+CREATE TABLE t1 (a INT NOT NULL, b INT)
+ENGINE=InnoDB
+PARTITION BY RANGE(a)
+(PARTITION p1 VALUES LESS THAN (5) ,
+PARTITION p2 VALUES LESS THAN (10) ,
+PARTITION p3 VALUES LESS THAN (15) );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (15) ENGINE = InnoDB) */
+partition_name	space_type	space_name
+test/t1#p#p1	Single	test/t1#p#p1
+test/t1#p#p2	Single	test/t1#p#p2
+test/t1#p#p3	Single	test/t1#p#p3
+SET GLOBAL innodb_file_per_table = ON;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p4 VALUES LESS THAN (20) );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (15) ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (20) ENGINE = InnoDB) */
+partition_name	space_type	space_name
+test/t1#p#p1	Single	test/t1#p#p1
+test/t1#p#p2	Single	test/t1#p#p2
+test/t1#p#p3	Single	test/t1#p#p3
+test/t1#p#p4	Single	test/t1#p#p4
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table = ON;
+CREATE TABLE t2 (a INT NOT NULL, b INT)
+ENGINE=InnoDB
+PARTITION BY RANGE(a)
+SUBPARTITION BY KEY(b)
+(PARTITION p1 VALUES LESS THAN (5)
+(SUBPARTITION sp1 ),
+PARTITION p2 VALUES LESS THAN (10)
+(SUBPARTITION sp2 ),
+PARTITION p3 VALUES LESS THAN (15)
+(SUBPARTITION sp3 ));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (5)
+ (SUBPARTITION sp1 ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (10)
+ (SUBPARTITION sp2 ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (15)
+ (SUBPARTITION sp3 ENGINE = InnoDB)) */
+partition_name	space_type	space_name
+test/t2#p#p1#sp#sp1	Single	test/t2#p#p1#sp#sp1
+test/t2#p#p2#sp#sp2	Single	test/t2#p#p2#sp#sp2
+test/t2#p#p3#sp#sp3	Single	test/t2#p#p3#sp#sp3
+SET GLOBAL innodb_file_per_table = ON;
+ALTER TABLE t2 ADD PARTITION
+(PARTITION p4 VALUES LESS THAN (20)
+(SUBPARTITION sp4 ));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (5)
+ (SUBPARTITION sp1 ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (10)
+ (SUBPARTITION sp2 ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (15)
+ (SUBPARTITION sp3 ENGINE = InnoDB),
+ PARTITION p4 VALUES LESS THAN (20)
+ (SUBPARTITION sp4 ENGINE = InnoDB)) */
+partition_name	space_type	space_name
+test/t2#p#p1#sp#sp1	Single	test/t2#p#p1#sp#sp1
+test/t2#p#p2#sp#sp2	Single	test/t2#p#p2#sp#sp2
+test/t2#p#p3#sp#sp3	Single	test/t2#p#p3#sp#sp3
+test/t2#p#p4#sp#sp4	Single	test/t2#p#p4#sp#sp4
+DROP TABLE t2;
+# CASE E
+# file_per_table ON for CREATE, OFF for ALTER
+SET GLOBAL innodb_file_per_table = ON;
+CREATE TABLE t1 (a INT NOT NULL, b INT)
+ENGINE=InnoDB
+PARTITION BY RANGE(a)
+(PARTITION p1 VALUES LESS THAN (5) ,
+PARTITION p2 VALUES LESS THAN (10) ,
+PARTITION p3 VALUES LESS THAN (15) );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (15) ENGINE = InnoDB) */
+partition_name	space_type	space_name
+test/t1#p#p1	Single	test/t1#p#p1
+test/t1#p#p2	Single	test/t1#p#p2
+test/t1#p#p3	Single	test/t1#p#p3
+SET GLOBAL innodb_file_per_table = OFF;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p4 VALUES LESS THAN (20) );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (5) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (10) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (15) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (20) TABLESPACE = `innodb_system` ENGINE = InnoDB) */
+partition_name	space_type	space_name
+test/t1#p#p1	Single	test/t1#p#p1
+test/t1#p#p2	Single	test/t1#p#p2
+test/t1#p#p3	Single	test/t1#p#p3
+test/t1#p#p4	System	NULL
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table = ON;
+CREATE TABLE t2 (a INT NOT NULL, b INT)
+ENGINE=InnoDB
+PARTITION BY RANGE(a)
+SUBPARTITION BY KEY(b)
+(PARTITION p1 VALUES LESS THAN (5)
+(SUBPARTITION sp1 ),
+PARTITION p2 VALUES LESS THAN (10)
+(SUBPARTITION sp2 ),
+PARTITION p3 VALUES LESS THAN (15)
+(SUBPARTITION sp3 ));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (5)
+ (SUBPARTITION sp1 ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (10)
+ (SUBPARTITION sp2 ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (15)
+ (SUBPARTITION sp3 ENGINE = InnoDB)) */
+partition_name	space_type	space_name
+test/t2#p#p1#sp#sp1	Single	test/t2#p#p1#sp#sp1
+test/t2#p#p2#sp#sp2	Single	test/t2#p#p2#sp#sp2
+test/t2#p#p3#sp#sp3	Single	test/t2#p#p3#sp#sp3
+SET GLOBAL innodb_file_per_table = OFF;
+ALTER TABLE t2 ADD PARTITION
+(PARTITION p4 VALUES LESS THAN (20)
+(SUBPARTITION sp4 ));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (b)
+(PARTITION p1 VALUES LESS THAN (5)
+ (SUBPARTITION sp1 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (10)
+ (SUBPARTITION sp2 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (15)
+ (SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION p4 VALUES LESS THAN (20)
+ (SUBPARTITION sp4 TABLESPACE = `innodb_system` ENGINE = InnoDB)) */
+partition_name	space_type	space_name
+test/t2#p#p1#sp#sp1	Single	test/t2#p#p1#sp#sp1
+test/t2#p#p2#sp#sp2	Single	test/t2#p#p2#sp#sp2
+test/t2#p#p3#sp#sp3	Single	test/t2#p#p3#sp#sp3
+test/t2#p#p4#sp#sp4	System	NULL
+DROP TABLE t2;
+SET GLOBAL innodb_file_per_table=1;
+DROP TABLESPACE ts1;
+# Bug#22444530 - GCOLS + PARTITIONED TABLE, CRASH IN
+#
+set sql_mode='';
+create table t (
+a int not null,
+b int generated always as (1) virtual not null,
+c int generated always as (1) virtual not null,
+key (c)
+) engine=innodb partition by key (a) partitions 2;
+insert into t(a) values(1);
+select b from t group by c;
+b
+1
+drop table t;
+create table t (
+a int not null,
+b blob generated always as ("a") virtual not null,
+c int generated always as (1) virtual not null,
+key (c)
+) engine=innodb partition by key (a) partitions 2;
+insert into t(a) values(1);
+select b from t group by c;
+b
+a
+drop table t;
+#
+# Bug#23037025 COL+PARTITION SIG11 IN ROW_SEL_STORE_MYSQL_REC
+#
+set sql_mode='';
+CREATE TABLE t1 (
+col1 INT,
+col2 INT AS (col1) VIRTUAL NOT NULL,
+col3 INT AS (1) VIRTUAL,
+KEY (col3)
+) ENGINE=INNODB PARTITION BY KEY (col1) PARTITIONS 2;
+CREATE TABLE t2 (col1 INTEGER);
+CREATE TABLE t3 (col1 INTEGER);
+CREATE TRIGGER t2_trig1 BEFORE INSERT ON t2 FOR EACH ROW
+INSERT INTO t3 SELECT col2 FROM t1 GROUP BY col3;
+INSERT IGNORE INTO t1(col1) values(NULL);
+INSERT INTO t2 VALUES(1);
+ERROR 23000: Column 'col2' cannot be null
+DROP TRIGGER t2_trig1;
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Bug#23194259 ASSERTION FAILURE:TRX0TRX.H:1416:SRV_READ_ONLY_MODE
+#
+CREATE TABLE t1(col1 INT AS(1), KEY(col1))
+ENGINE=INNODB
+PARTITION BY KEY(col1) PARTITIONS 2;
+SELECT * FROM t1 WHERE sha(uuid_short());
+col1
+DROP TABLE t1;
+#
+# Bug#25516367 - CRASH IN HA_INNOBASE::COMMIT_INPLACE_ALTER_TABLE_IMPL
+#
+CREATE TABLESPACE s1 ADD DATAFILE '1.ibd' ENGINE = InnoDB;
+CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB ROW_FORMAT = DYNAMIC TABLESPACE s1;
+ALTER TABLE t1 PARTITION BY RANGE(col1)
+( PARTITION p0 VALUES LESS THAN (128), PARTITION p3 VALUES LESS THAN MAXVALUE );
+ALTER TABLE t1 ROW_FORMAT = COMPRESSED;
+ERROR HY000: InnoDB: Tablespace `s1` cannot contain a COMPRESSED table
+DROP TABLE t1;
+DROP TABLESPACE s1;
+#
+# This checks if operation bit is set properly for REORGANIZE PARTITION
+#
+CREATE TABLE t1 (a INTEGER, b INTEGER NOT NULL, KEY(b)) ENGINE = INNODB /*!50100 PARTITION BY KEY(b) PARTITIONS 3 */;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) NOT NULL,
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY (b)
+PARTITIONS 3 */
+ALTER TABLE t1 REORGANIZE PARTITION;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) NOT NULL,
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY (b)
+PARTITIONS 1 */
+DROP TABLE t1;
+# Ignore incompatible options of a table which was created in not strict mode
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 0;
+SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
+SET SESSION innodb_strict_mode = 0;
+CREATE TABLE t1(a INT NOT NULL, d INT NOT NULL, KEY(a), KEY(d)) ENGINE = InnoDB PARTITION BY HASH(d) PARTITIONS 02;
+SET SESSION innodb_strict_mode = 0;
+ALTER TABLE t1 COMPRESSION='zlib', ALGORITHM=INPLACE;
+ALTER TABLE t1 TABLESPACE innodb_system, ALGORITHM=INPLACE, LOCK=DEFAULT;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `d` int(11) NOT NULL,
+  KEY `a` (`a`),
+  KEY `d` (`d`)
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='zlib'
+/*!50100 PARTITION BY HASH (`d`)
+PARTITIONS 2 */
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
+SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 VALUES(0, 1), (2, 3), (5, 6), (10, 11);
+SELECT * FROM t1 ORDER BY a;
+a	d
+0	1
+2	3
+5	6
+10	11
+DROP TABLE t1;
+# DATA DIRECTORY should be read correctly after restart
+CREATE TABLE t1 (a INT, b INT) PARTITION BY RANGE(a)
+(PARTITION P0 VALUES LESS THAN (10) DATA DIRECTORY 'MYSQL_TMP_DIR',
+PARTITION p1 VALUES LESS THAN (20) DATA DIRECTORY 'MYSQL_TMP_DIR');
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION P0 VALUES LESS THAN (10) DATA DIRECTORY = 'MYSQL_TMP_DIR/' ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (20) DATA DIRECTORY = 'MYSQL_TMP_DIR/' ENGINE = InnoDB) */
+# restart
+TRUNCATE TABLE t1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION P0 VALUES LESS THAN (10) DATA DIRECTORY = 'MYSQL_TMP_DIR' ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (20) DATA DIRECTORY = 'MYSQL_TMP_DIR' ENGINE = InnoDB) */
 DROP TABLE t1;

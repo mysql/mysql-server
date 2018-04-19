@@ -11,6 +11,7 @@
 # ==== Usage ====
 #
 # [--let $rpl_gtid_mode= [OFF|OFF_PERMISSIVE|ON_PERMISSIVE|ON|0|1|2|3]]
+# [--let $rpl_set_enforce_gtid_consistency= [0|1]]
 # [--let $rpl_server_numbers= [X[,Y[,Z...]]]
 # [--let $rpl_skip_sync= 1]
 # [--let $rpl_only_running_threads= 1]
@@ -20,6 +21,10 @@
 # Parameters:
 #   $rpl_gtid_mode= [OFF|OFF_PERMISSIVE|ON_PERMISSIVE|ON|0|1|2|3]
 #     By default, switches to ON. Set this to switch to any other mode.
+#
+#   $rpl_set_enforce_gtid_consistency
+#     By default, leaves ENFORCE_GTID_CONSISTENCY unchagned. If this is
+#     set, changes ENFORCE_GTID_CONSISTENCY to the specified value.
 #
 #   $rpl_server_numbers= [X[,Y[,Z...]]]
 #     By default, switches GTID_MODE on all servers configured by
@@ -103,6 +108,25 @@ if ($rpl_debug)
   --echo OLD:$_rsgm_current_mode NEW:$_rsgm_new_mode
 }
 
+if ($rpl_set_enforce_gtid_consistency == 1)
+{
+  --let $_rsgm_server_todo= $_rsgm_server_list
+
+  while ($_rsgm_server_todo)
+  {
+    if ($rpl_inited)
+    {
+      --let $_rsgm_server_number= `SELECT SUBSTRING_INDEX('$_rsgm_server_todo', ',', 1)`
+
+      --let $rpl_connection_name= server_$_rsgm_server_number
+      --source include/rpl_connection.inc
+    }
+    eval SET @@GLOBAL.ENFORCE_GTID_CONSISTENCY= 1;
+
+    --let $_rsgm_server_todo= `SELECT SUBSTRING('$_rsgm_server_todo', LENGTH('$_rsgm_server_number') + 2)`
+  }
+}
+
 while ($_rsgm_current_mode != $_rsgm_new_mode)
 {
   if ($rpl_debug)
@@ -130,6 +154,25 @@ while ($_rsgm_current_mode != $_rsgm_new_mode)
       --source include/rpl_connection.inc
     }
     eval SET @@GLOBAL.GTID_MODE= $_rsgm_current_mode;
+
+    --let $_rsgm_server_todo= `SELECT SUBSTRING('$_rsgm_server_todo', LENGTH('$_rsgm_server_number') + 2)`
+  }
+}
+
+if ($rpl_set_enforce_gtid_consistency == 0)
+{
+  --let $_rsgm_server_todo= $_rsgm_server_list
+
+  while ($_rsgm_server_todo)
+  {
+    if ($rpl_inited)
+    {
+      --let $_rsgm_server_number= `SELECT SUBSTRING_INDEX('$_rsgm_server_todo', ',', 1)`
+
+      --let $rpl_connection_name= server_$_rsgm_server_number
+      --source include/rpl_connection.inc
+    }
+    eval SET @@GLOBAL.ENFORCE_GTID_CONSISTENCY= 0;
 
     --let $_rsgm_server_todo= `SELECT SUBSTRING('$_rsgm_server_todo', LENGTH('$_rsgm_server_number') + 2)`
   }

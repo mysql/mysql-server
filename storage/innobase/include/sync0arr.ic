@@ -1,85 +1,84 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/sync0arr.ic
-The wait array for synchronization primitives
+/** @file include/sync0arr.ic
+ The wait array for synchronization primitives
 
-Inline code
+ Inline code
 
-Created 9/5/1995 Heikki Tuuri
-*******************************************************/
+ Created 9/5/1995 Heikki Tuuri
+ *******************************************************/
 
-extern ulint		sync_array_size;
-extern sync_array_t**	sync_wait_array;
+extern ulint sync_array_size;
+extern sync_array_t **sync_wait_array;
 
 #include "ut0counter.h"
 
-/**********************************************************************//**
-Get an instance of the sync wait array.
-@return an instance of the sync wait array. */
+/** Get an instance of the sync wait array.
+ @return an instance of the sync wait array. */
 
 UNIV_INLINE
-sync_array_t*
-sync_array_get()
-/*============*/
-{
-	if (sync_array_size <= 1) {
-		return(sync_wait_array[0]);
-	}
+sync_array_t *sync_array_get() {
+  if (sync_array_size <= 1) {
+    return (sync_wait_array[0]);
+  }
 
-	return(sync_wait_array[default_indexer_t<>::get_rnd_index()
-			       % sync_array_size]);
+  return (
+      sync_wait_array[default_indexer_t<>::get_rnd_index() % sync_array_size]);
 }
 
-/******************************************************************//**
-Get an instance of the sync wait array and reserve a wait array cell
-in the instance for waiting for an object. The event of the cell is
-reset to nonsignalled state.
-If reserving cell of the instance fails, try to get another new
-instance until we can reserve an empty cell of it.
-@return the sync array reserved, never NULL. */
+/** Get an instance of the sync wait array and reserve a wait array cell
+ in the instance for waiting for an object. The event of the cell is
+ reset to nonsignalled state.
+ If reserving cell of the instance fails, try to get another new
+ instance until we can reserve an empty cell of it.
+ @return the sync array reserved, never NULL. */
 UNIV_INLINE
-sync_array_t*
-sync_array_get_and_reserve_cell(
-/*============================*/
-	void*		object, /*!< in: pointer to the object to wait for */
-	ulint		type,	/*!< in: lock request type */
-	const char*	file,	/*!< in: file where requested */
-	ulint		line,	/*!< in: line where requested */
-	sync_cell_t**	cell)	/*!< out: the cell reserved, never NULL */
+sync_array_t *sync_array_get_and_reserve_cell(
+    void *object,       /*!< in: pointer to the object to wait for */
+    ulint type,         /*!< in: lock request type */
+    const char *file,   /*!< in: file where requested */
+    ulint line,         /*!< in: line where requested */
+    sync_cell_t **cell) /*!< out: the cell reserved, never NULL */
 {
-	sync_array_t*	sync_arr = NULL;
+  sync_array_t *sync_arr = NULL;
 
-	*cell = NULL;
-	for (ulint i = 0; i < sync_array_size && *cell == NULL; ++i) {
-		/* Although the sync_array is get in a random way currently,
-		we still try at most sync_array_size times, in case any
-		of the sync_array we get is full */
-		sync_arr = sync_array_get();
-		*cell = sync_array_reserve_cell(sync_arr, object, type,
-					       file, line);
-        }
+  *cell = NULL;
+  for (ulint i = 0; i < sync_array_size && *cell == NULL; ++i) {
+    /* Although the sync_array is get in a random way currently,
+    we still try at most sync_array_size times, in case any
+    of the sync_array we get is full */
+    sync_arr = sync_array_get();
+    *cell = sync_array_reserve_cell(sync_arr, object, type, file, line);
+  }
 
-	/* This won't be true every time, for the loop above may execute
-	more than srv_sync_array_size times to reserve a cell.
-	But an assertion here makes the code more solid. */
-	ut_a(*cell != NULL);
+  /* This won't be true every time, for the loop above may execute
+  more than srv_sync_array_size times to reserve a cell.
+  But an assertion here makes the code more solid. */
+  ut_a(*cell != NULL);
 
-	return sync_arr;
+  return (sync_arr);
 }

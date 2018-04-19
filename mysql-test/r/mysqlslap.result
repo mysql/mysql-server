@@ -241,8 +241,8 @@ test
 # 'bug58090' database should be present.
 SHOW DATABASES;
 Database
-information_schema
 bug58090
+information_schema
 mtr
 mysql
 performance_schema
@@ -263,3 +263,15 @@ mysqlslap: [Warning] option 'iterations': unsigned value 0 adjusted to 1
 #WL7764 : Make STRICT mode for transactional SEs default in 5.7
 #Adding negative test for added option --sql_mode
 End of tests
+#
+# Bug #11762644: MYSQLSLAP OPTION --AUTO-GENERATE-SQL-SECONDARY-INDEXES DOESNT WORK
+#
+#
+# WL#2284: Increase the length of a user name
+#
+CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
+GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
+DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
+#
+# End of 5.7 tests
+#

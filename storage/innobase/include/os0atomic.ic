@@ -1,106 +1,196 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/os0atomics.ic
-The interface to the operating system synchronization primitives.
+/** @file include/os0atomics.ic
+ The interface to the operating system synchronization primitives.
 
-Created 2012-09-23 Sunny Bains (Split from include/os0sync.ic)
-*******************************************************/
+ Created 2012-09-23 Sunny Bains (Split from include/os0sync.ic)
+ *******************************************************/
 
 #ifdef _WIN32
 #include <winbase.h>
+#include "ut0dbg.h"
 
 /* Use inline functions to make 64 and 32 bit versions of windows atomic
 functions so that typecasts are evaluated at compile time. Take advantage
 that lint is either __int64 or long int and windows atomic functions work
 on __int64 and LONG */
 
-/**********************************************************//**
-Atomic compare and exchange of unsigned integers.
-@return value found before the exchange.
-If it is not equal to old_value the exchange did not happen. */
+/** Atomic compare and exchange of unsigned integers.
+ @return value found before the exchange.
+ If it is not equal to old_value the exchange did not happen. */
 UNIV_INLINE
-lint
-win_cmp_and_xchg_lint(
-/*==================*/
-	volatile lint*	ptr,		/*!< in/out: source/destination */
-	lint		new_val,	/*!< in: exchange value */
-	lint		old_val)	/*!< in: value to compare to */
-{
-# ifdef _WIN64
-	return(InterlockedCompareExchange64(ptr, new_val, old_val));
-# else
-	return(InterlockedCompareExchange(ptr, new_val, old_val));
-# endif /* _WIN64 */
-}
-
-/**********************************************************//**
-Atomic addition of signed integers.
-@return Initial value of the variable pointed to by ptr */
-UNIV_INLINE
-lint
-win_xchg_and_add(
-/*=============*/
-	volatile lint*	ptr,	/*!< in/out: address of destination */
-	lint		val)	/*!< in: number to be added */
+lint win_cmp_and_xchg_lint(
+    volatile lint *ptr, /*!< in/out: source/destination */
+    lint new_val,       /*!< in: exchange value */
+    lint old_val)       /*!< in: value to compare to */
 {
 #ifdef _WIN64
-	return(InterlockedExchangeAdd64(ptr, val));
+  return (InterlockedCompareExchange64(ptr, new_val, old_val));
 #else
-	return(InterlockedExchangeAdd(ptr, val));
+  return (InterlockedCompareExchange(ptr, new_val, old_val));
 #endif /* _WIN64 */
 }
 
-/**********************************************************//**
-Atomic compare and exchange of unsigned integers.
-@return value found before the exchange.
-If it is not equal to old_value the exchange did not happen. */
+/** Atomic addition of signed integers.
+ @return Initial value of the variable pointed to by ptr */
 UNIV_INLINE
-ulint
-win_cmp_and_xchg_ulint(
-/*===================*/
-	volatile ulint*	ptr,		/*!< in/out: source/destination */
-	ulint		new_val,	/*!< in: exchange value */
-	ulint		old_val)	/*!< in: value to compare to */
+lint win_xchg_and_add(volatile lint *ptr, /*!< in/out: address of destination */
+                      lint val)           /*!< in: number to be added */
 {
-	return((ulint) win_cmp_and_xchg_lint(
-		(volatile lint*) ptr,
-		(lint) new_val,
-		(lint) old_val));
+#ifdef _WIN64
+  return (InterlockedExchangeAdd64(ptr, val));
+#else
+  return (InterlockedExchangeAdd(ptr, val));
+#endif /* _WIN64 */
 }
 
-/**********************************************************//**
-Atomic compare and exchange of 32-bit unsigned integers.
-@return value found before the exchange.
-If it is not equal to old_value the exchange did not happen. */
+/** Atomic compare and exchange of unsigned integers.
+ @return value found before the exchange.
+ If it is not equal to old_value the exchange did not happen. */
+UNIV_INLINE
+ulint win_cmp_and_xchg_ulint(
+    volatile ulint *ptr, /*!< in/out: source/destination */
+    ulint new_val,       /*!< in: exchange value */
+    ulint old_val)       /*!< in: value to compare to */
+{
+  return ((ulint)win_cmp_and_xchg_lint((volatile lint *)ptr, (lint)new_val,
+                                       (lint)old_val));
+}
+
+/** Atomic compare and exchange of 32-bit unsigned integers.
+ @return value found before the exchange.
+ If it is not equal to old_value the exchange did not happen. */
 UNIV_INLINE
 DWORD
-win_cmp_and_xchg_dword(
-/*===================*/
-	volatile DWORD*	ptr,		/*!< in/out: source/destination */
-	DWORD		new_val,	/*!< in: exchange value */
-	DWORD		old_val)	/*!< in: value to compare to */
+win_cmp_and_xchg_dword(volatile DWORD *ptr, /*!< in/out: source/destination */
+                       DWORD new_val,       /*!< in: exchange value */
+                       DWORD old_val)       /*!< in: value to compare to */
 {
-	ut_ad(sizeof(DWORD) == sizeof(LONG));	/* We assume this. */
-	return(InterlockedCompareExchange(
-		(volatile LONG*) ptr,
-		(LONG) new_val,
-		(LONG) old_val));
+  ut_ad(sizeof(DWORD) == sizeof(LONG)); /* We assume this. */
+  return (InterlockedCompareExchange((volatile LONG *)ptr, (LONG)new_val,
+                                     (LONG)old_val));
 }
+
+/** Do an atomic test and set.
+@param[in,out]	ptr	Memory location to set
+@param[in]	new_val	new value
+@return	old value of memory location. */
+UNIV_INLINE
+lock_word_t os_atomic_test_and_set(volatile lock_word_t *ptr,
+                                   lock_word_t new_val) {
+  return (InterlockedExchange(ptr, new_val));
+}
+
+/** Do an atomic compare and set
+@param[in,out]	ptr	Memory location to set
+@param[in]	old_val	old value to compare
+@param[in]	new_val	new value to set
+@return the value of ptr before the operation. */
+UNIV_INLINE
+lock_word_t os_atomic_val_compare_and_swap(volatile lock_word_t *ptr,
+                                           lock_word_t old_val,
+                                           lock_word_t new_val) {
+  return (static_cast<lock_word_t>(win_cmp_and_xchg_lint(
+      reinterpret_cast<volatile lint *>(ptr), static_cast<lint>(new_val),
+      static_cast<lint>(old_val))));
+}
+
+#elif defined(HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE)
+
+/** Do an atomic test and set.
+@param[in,out]	ptr	Memory location to set
+@param[in]	new_val	new value
+@return	old value of memory location. */
+UNIV_INLINE
+lock_word_t os_atomic_test_and_set(volatile lock_word_t *ptr,
+                                   lock_word_t new_val) {
+  lock_word_t ret;
+
+  /* Silence a compiler warning about unused ptr. */
+  (void)ptr;
+
+#if defined(__powerpc__) || defined(__aarch64__)
+  __atomic_exchange(ptr, &new_val, &ret, __ATOMIC_SEQ_CST);
+#else
+  __atomic_exchange(ptr, &new_val, &ret, __ATOMIC_RELEASE);
+#endif
+
+  return (ret);
+}
+
+/** Do an atomic compare and set
+@param[in,out]	ptr	Memory location to set
+@param[in]	old_val	old value to compare
+@param[in]	new_val	new value to set
+@return the value of ptr before the operation. */
+UNIV_INLINE
+lock_word_t os_atomic_val_compare_and_swap(volatile lock_word_t *ptr,
+                                           lock_word_t old_val,
+                                           lock_word_t new_val) {
+  /* Silence a compiler warning about unused ptr. */
+  (void)ptr;
+
+#if defined(__powerpc__) || defined(__aarch64__)
+  __atomic_compare_exchange(ptr, &old_val, &new_val, false, __ATOMIC_SEQ_CST,
+                            __ATOMIC_SEQ_CST);
+#else
+  __atomic_compare_exchange(ptr, &old_val, &new_val, false, __ATOMIC_RELEASE,
+                            __ATOMIC_ACQUIRE);
+#endif
+
+  return (old_val);
+}
+
+#elif defined(IB_STRONG_MEMORY_MODEL)
+
+/** Do an atomic test and set.
+@param[in,out]	ptr	Memory location to set
+@param[in]	new_val	new value
+@return	old value of memory location. */
+UNIV_INLINE
+lock_word_t os_atomic_test_and_set(volatile lock_word_t *ptr,
+                                   lock_word_t new_val) {
+  return (__sync_lock_test_and_set(ptr, new_val));
+}
+
+/** Do an atomic compare and set
+@param[in,out]	ptr	Memory location to set
+@param[in]	old_val	old value to compare
+@param[in]	new_val	new value to set
+@return the value of ptr before the operation. */
+UNIV_INLINE
+lock_word_t os_atomic_val_compare_and_swap(volatile lock_word_t *ptr,
+                                           lock_word_t old_val,
+                                           lock_word_t new_val) {
+  return (__sync_val_compare_and_swap(ptr, old_val, new_val));
+}
+
+#else
+
+#error "Unsupported platform"
+
 #endif /* _WIN32 */

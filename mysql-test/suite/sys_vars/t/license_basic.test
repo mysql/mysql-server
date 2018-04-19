@@ -52,7 +52,7 @@ SELECT COUNT(@@GLOBAL.license);
 
 --disable_warnings
 SELECT @@GLOBAL.license = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='license';
 --enable_warnings
 --echo 1 Expected
@@ -62,7 +62,7 @@ SELECT COUNT(@@GLOBAL.license);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='license';
 --enable_warnings
 --echo 1 Expected

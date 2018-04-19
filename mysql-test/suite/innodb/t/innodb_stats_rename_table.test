@@ -3,7 +3,6 @@
 # mysql.innodb_table_stats and mysql.innodb_index_stats
 #
 
--- source include/have_innodb.inc
 
 -- vertical_results
 

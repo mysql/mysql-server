@@ -182,8 +182,11 @@ USE mysql;
 SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
 OPTIMIZE TABLES columns_priv, db, user;
 Table	Op	Msg_type	Msg_text
+mysql.columns_priv	optimize	note	Table does not support optimize, doing recreate + analyze instead
 mysql.columns_priv	optimize	status	OK
+mysql.db	optimize	note	Table does not support optimize, doing recreate + analyze instead
 mysql.db	optimize	status	OK
+mysql.user	optimize	note	Table does not support optimize, doing recreate + analyze instead
 mysql.user	optimize	status	OK
 UNLOCK TABLES;
 Select_priv
@@ -554,12 +557,14 @@ LOCK TABLE t2 WRITE;
 # Sending:
 DROP TABLE t1, t2;
 # Connection con2
-SELECT table_name, table_comment FROM information_schema.tables
+SET SESSION information_schema_stats_expiry=0;
+SELECT table_name, table_rows, table_comment FROM information_schema.tables
 WHERE table_schema= 'test' AND table_name= 't1';
-table_name	table_comment
-t1	Lock wait timeout exceeded; try restarting transaction
+TABLE_NAME	TABLE_ROWS	TABLE_COMMENT
+t1	0	Lock wait timeout exceeded; try restarting transaction
 Warnings:
 Warning	1205	Lock wait timeout exceeded; try restarting transaction
+SET SESSION information_schema_stats_expiry=default;
 # Connection default
 UNLOCK TABLES;
 # Connection con3

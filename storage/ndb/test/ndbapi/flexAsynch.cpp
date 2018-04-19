@@ -1,26 +1,30 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
-
 #include <ndb_global.h>
 #include "NdbApi.hpp"
 #include <NdbSchemaCon.hpp>
-#include <NdbMain.h>
 #include <md5_hash.hpp>
 
 #include <NdbThread.h>
@@ -34,6 +38,7 @@
 
 #include <NdbTest.hpp>
 #include <NDBT_Stats.hpp>
+#include <NdbLockCpuUtil.h>
 
 #define MAX_PARTS 4 
 #define MAX_SEEK 16 
@@ -41,11 +46,12 @@
 #define MAXATTR 511 
 #define MAXTABLES 128
 #define MAXINDEXES 16
-#define NDB_MAXTHREADS 128
-#define MAX_EXECUTOR_THREADS 128
+#define NDB_MAXTHREADS 384
+#define MAX_EXECUTOR_THREADS 384
 #define MAX_DEFINER_THREADS 32
-#define MAX_REAL_THREADS 160
+#define MAX_REAL_THREADS 416
 #define NDB_MAX_NODES 48
+#define NDB_MAX_RECEIVE_CPUS 128
 /*
   NDB_MAXTHREADS used to be just MAXTHREADS, which collides with a
   #define from <sys/thread.h> on AIX (IBM compiler).  We explicitly
@@ -83,10 +89,50 @@ struct ThreadNdb
   char * record;
 };
 
+typedef struct KeyOperation KEY_OPERATION;
+struct KeyOperation
+{
+  Uint32 first_key;
+  Uint32 second_key;
+  Uint32 table_id;
+  Uint32 definer_thread_id;
+  Uint32 executor_thread_id;
+  RunType operation_type;
+  KEY_OPERATION *next_key_op;
+};
+
+typedef struct key_list_header KEY_LIST_HEADER;
+struct key_list_header
+{
+  KEY_OPERATION *first_in_list;
+  KEY_OPERATION *last_in_list;
+  Uint32 num_in_list;
+};
+
+
+typedef struct thread_data_struct THREAD_DATA;
+struct thread_data_struct
+{
+  KEY_LIST_HEADER list_header;
+  Uint32 thread_id;
+  bool ready;
+  bool stop;
+  bool start;
+  Uint32 rand_seed;
+
+  char *record;
+  NdbMutex *transport_mutex;
+  struct NdbCondition *transport_cond;
+  struct NdbCondition *main_cond;
+  struct NdbCondition *start_cond;
+  char not_used[52];
+};
+THREAD_DATA thread_data_array[MAX_DEFINER_THREADS + MAX_EXECUTOR_THREADS];
+
 extern "C" { static void* threadLoop(void*); }
 static void setAttrNames(void);
 static void setTableNames(void);
-static int readArguments(int argc, const char** argv);
+static int readArguments(int argc, char** argv);
 static void dropTables(Ndb* pMyNdb);
 static int createTables(Ndb*);
 static void defineOperation(NdbConnection* aTransObject, StartType aType, 
@@ -96,7 +142,8 @@ static void defineNdbRecordOperation(char*,
                                      NdbConnection* aTransObject,
                                      StartType aType,
                                      Uint32 base,
-                                     Uint32 aIndex);
+                                     Uint32 aIndex,
+                                     THREAD_DATA *my_thread_data);
 static void execute(StartType aType);
 static bool executeThread(ThreadNdb*, StartType aType, Ndb* aNdbObject, unsigned int);
 static bool executeTransLoop(ThreadNdb* pThread, StartType aType, Ndb* aNdbObject,
@@ -107,8 +154,9 @@ static bool error_handler(const NdbError & err);
 static void input_error();
 static Uint32 get_my_node_id(Uint32 tableNo, Uint32 threadNo);
 
-static void main_thread(RunType run_type, NdbTimer & timer);
+static bool main_thread(RunType run_type, NdbTimer & timer);
 static Uint64 get_total_transactions();
+static Uint64 get_total_rounds();
 static void run_old_flexAsynch(ThreadNdb *pThreadData, NdbTimer & timer);
 
 static int                              retry_opt = 3 ;
@@ -120,6 +168,7 @@ static NdbThread*                       threadLife[MAX_REAL_THREADS];
 static int                              tNodeId;
 static int                              ThreadReady[MAX_REAL_THREADS];
 static longlong                         ThreadExecutions[MAX_REAL_THREADS];
+static Uint64                           ThreadExecutionRounds[MAX_REAL_THREADS];
 static StartType                        ThreadStart[NDB_MAXTHREADS];
 static char                             tableName[MAXTABLES][MAXSTRLEN+1];
 static char                             indexName[MAXTABLES][MAXINDEXES][MAXSTRLEN+1];
@@ -127,6 +176,12 @@ static const NdbDictionary::Table *     tables[MAXTABLES];
 static char                             attrName[MAXATTR][MAXSTRLEN+1];
 static bool                             nodeTableArray[MAXTABLES][NDB_MAX_NODES + 1];
 static Uint32                           numberNodeTable[MAXTABLES];
+static Uint16                           receiveCPUArray[NDB_MAX_RECEIVE_CPUS];
+static Uint16                           definerCPUArray[NDB_MAX_RECEIVE_CPUS];
+static Uint16                           executorCPUArray[NDB_MAX_RECEIVE_CPUS];
+static Uint32                           numberOfReceiveCPU = 0;
+static Uint32                           numberOfDefinerCPU = 0;
+static Uint32                           numberOfExecutorCPU = 0;
 static RunType                          tRunType = RunAll;
 static int                              tStdTableNum = 0;
 static int                              tWarmupTime = 10; //Seconds
@@ -218,9 +273,9 @@ tellThreads(StartType what)
     ThreadStart[i] = what;
 }
 
-static Ndb_cluster_connection * g_cluster_connection = 0;
+static Ndb_cluster_connection *g_cluster_connection[64];
 
-NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
+int main(int argc, char** argv)
 {
   ndb_init();
   ThreadNdb*            pThreadData;
@@ -285,7 +340,6 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
   setAttrNames();
   setTableNames();
 
-  g_cluster_connection = new Ndb_cluster_connection [tConnections];
   if (tConnections > 1)
   {
     printf("Creating %u connections...", tConnections);
@@ -293,8 +347,18 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
   }
   for (int i = 0; i < tConnections; i++)
   {
-    if(g_cluster_connection[i].connect(12, 5, 1) != 0)
+    g_cluster_connection[i] = new Ndb_cluster_connection();
+    ndbout_c("CPU for this connection: %u", receiveCPUArray[i]);
+  }
+  for (int i = 0; i < tConnections; i++)
+  {
+    if(g_cluster_connection[i]->connect(12, 5, 1) != 0)
       return NDBT_ProgramExit(NDBT_FAILED);
+    if (numberOfReceiveCPU != 0)
+    {
+      g_cluster_connection[i]->set_recv_thread_cpu(&receiveCPUArray[i],
+                                                   Uint32(1));
+    }
   }
   if (tConnections > 1)
   {
@@ -302,7 +366,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
     fflush(stdout);
   }
   
-  Ndb * pNdb = new Ndb(g_cluster_connection+0, "TEST_DB");      
+  Ndb * pNdb = new Ndb(g_cluster_connection[0], "TEST_DB");      
   pNdb->init();
   tNodeId = pNdb->getNodeId();
 
@@ -332,7 +396,8 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
     }
   }
 
-  if (tNdbRecord && !tNew)
+  if (returnValue == NDBT_OK &&
+      tNdbRecord && !tNew)
   {
     Uint32 sz = NdbDictionary::getRecordRowLength(g_record[0]);
     sz += 3;
@@ -348,7 +413,10 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
      tRunType != RunDropTable){
     if (tNew)
     {
-      main_thread(tRunType, timer);
+      if (!main_thread(tRunType, timer))
+      {
+        returnValue = NDBT_FAILED;
+      }
     }
     else
     {
@@ -378,17 +446,20 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       print("read  ", a_r);
     }
   }
-  if (tRunType == RunInsert ||
-      tRunType == RunRead ||
-      tRunType == RunUpdate ||
-      tRunType == RunDelete)
+  if ((tRunType == RunInsert ||
+       tRunType == RunRead ||
+       tRunType == RunUpdate ||
+       tRunType == RunDelete) &&
+       returnValue == NDBT_OK)
   {
     Uint64 total_transactions = 0;
+    Uint64 total_rounds = 0;
     Uint64 exec_time;
 
     if (tNew)
     {
       total_transactions = get_total_transactions();
+      total_rounds = get_total_rounds();
     }
     else
     {
@@ -403,8 +474,18 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
         for (Uint32 i = 0; i < tNoOfThreads; i++)
         {
           total_transactions += ThreadExecutions[i];
+          total_rounds += ThreadExecutionRounds[i];
         }
       }
+    }
+    Uint64 mean_rounds;
+    if (total_rounds)
+    {
+      mean_rounds = total_transactions / total_rounds;
+    }
+    else
+    {
+      mean_rounds = 0;
     }
     if (tRunType == RunInsert || tRunType == RunDelete) {
       exec_time = (Uint64)timer.elapsedTime();
@@ -423,9 +504,13 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
     total_transactions = (total_transactions * 1000) / exec_time;
     int trans_per_sec = (int)total_transactions;
     ndbout << "Total transactions per second " << trans_per_sec << endl;
+    ndbout << "Mean executions per round is " << mean_rounds << endl;
   }
 
-  delete [] g_cluster_connection;
+  for (int i = 0; i < tConnections; i++)
+  {
+    delete g_cluster_connection[i];
+  }
 
   return NDBT_ProgramExit(returnValue);
 }//main()
@@ -445,7 +530,7 @@ threadLoop(void* ThreadData)
   StartType tType;
   ThreadNdb* tabThread = (ThreadNdb*)ThreadData;
   int threadNo = tabThread->ThreadNo;
-  localNdb = new Ndb(g_cluster_connection+(threadNo % tConnections), "TEST_DB");
+  localNdb = new Ndb(g_cluster_connection[threadNo % tConnections], "TEST_DB");
   localNdb->init(MAXPAR);
   localNdb->waitUntilReady(10000);
   unsigned int threadBase = threadNo;
@@ -589,7 +674,8 @@ executeTrans(ThreadNdb* pThread,
                                    tConArray[num_ops],
                                    aType,
                                    threadBaseLoc2,
-                                   (tBase2+k));
+                                   (tBase2+k),
+                                   NULL);
         else
           defineOperation(tConArray[num_ops],
                           aType,
@@ -640,12 +726,12 @@ executeTransLoop(ThreadNdb* pThread,
                  int threadNo) {
   bool continue_flag = true;
   int time_expired;
-  longlong executions = 0;
   unsigned int i = 0;
   Uint32 nodeId;
   int ops = 0;
   int record;
   Uint32 local_count = 0;
+  Uint64 executions = 0;
   bool execute_all = true;
   DEFINE_TIMER;
   NdbConnection* tConArray[MAXPAR];
@@ -658,9 +744,11 @@ executeTransLoop(ThreadNdb* pThread,
   else
     nodeId = 0;
   ThreadExecutions[threadNo] = 0;
+  ThreadExecutionRounds[threadNo] = 0;
   START_TIMER;
   do
   {
+    executions++;
     if (tLocal == 2)
     {
       /* Select node on round robin basis */
@@ -703,6 +791,7 @@ executeTransLoop(ThreadNdb* pThread,
       i = 0;
   } while (1);
   ThreadExecutions[threadNo] = executions;
+  ThreadExecutionRounds[threadNo] = executions;
   return true;
 }//executeTransLoop()
 
@@ -730,23 +819,24 @@ executeThread(ThreadNdb* pThread,
 }//executeThread()
 
 static void
-executeCallback(int result, NdbConnection* NdbObject, void* aObject)
+executeCallback(int result, NdbConnection* transObject, void* aObject)
 {
   NdbConnection **array_ref = (NdbConnection**)aObject;
-  require(NdbObject == *array_ref);
+  require(transObject == *array_ref);
   *array_ref = NULL;
   if (result == -1 && failed < 100)
   {
 
     // Add complete error handling here
 
-    int retCode = flexAsynchErrorData->handleErrorCommon(NdbObject->getNdbError());
+    int retCode = flexAsynchErrorData->handleErrorCommon(transObject->getNdbError());
     if (retCode == 1)
     {
-      if (NdbObject->getNdbError().code != 626 && NdbObject->getNdbError().code != 630)
+      if (transObject->getNdbError().code != 626 &&
+          transObject->getNdbError().code != 630)
       {
-        ndbout_c("execute: %s", NdbObject->getNdbError().message);
-        ndbout_c("Error code = %d", NdbObject->getNdbError().code);
+        ndbout_c("execute: %s", transObject->getNdbError().message);
+        ndbout_c("Error code = %d", transObject->getNdbError().code);
       }
     }
     else if (retCode == 2)
@@ -756,13 +846,13 @@ executeCallback(int result, NdbConnection* NdbObject, void* aObject)
     else if (retCode == 3)
     {
       /* What can we do here? */
-      ndbout_c("execute: %s", NdbObject->getNdbError().message);
+      ndbout_c("execute: %s", transObject->getNdbError().message);
     }//if(retCode == 3)
     //    ndbout << "Error occured in poll:" << endl;
     //    ndbout << NdbObject->getNdbError() << endl;
     failed++ ;
   }//if
-  NdbObject->close(); /* Close transaction */
+  transObject->close(); /* Close transaction */
   return;
 }//executeCallback()
 
@@ -870,22 +960,34 @@ defineNdbRecordOperation(char *record,
                          NdbConnection* pTrans,
                          StartType aType,
                          Uint32 threadBase,
-                         Uint32 aIndex)
+                         Uint32 aIndex,
+                         THREAD_DATA *my_thread_data)
 {
   Uint32 offset;
+  Uint32 rand_val = 0;
   NdbRecord *ndb_record = g_record[table_id];
   NdbDictionary::getOffset(ndb_record, 0, offset);
   * (Uint32*)(record + offset) = threadBase;
-  * (Uint32*)(record + offset + 4) = aIndex;
-  
+  NdbDictionary::getOffset(ndb_record, 1, offset);
+  * (Uint32*)(record + offset) = aIndex;
+ 
   //-------------------------------------------------------
   // Set-up the attribute values for this operation.
   //-------------------------------------------------------
   if (aType != stRead && aType != stDelete)
   {
+    if (my_thread_data != NULL && aType != stInsert)
+    {
+#ifdef _WIN32
+      rand_val = rand();
+#else
+      my_thread_data->rand_seed++;
+      rand_val = (Uint32)rand_r(&my_thread_data->rand_seed);
+#endif
+    }
     for (unsigned k = 1; k < tNoOfAttributes; k++) {
-      NdbDictionary::getOffset(ndb_record, k, offset);
-      * (Uint32*)(record + offset) = aIndex;    
+      NdbDictionary::getOffset(ndb_record, k + 1, offset);
+      * (Uint32*)(record + offset) = aIndex + rand_val;
     }//for
   }
   
@@ -1003,6 +1105,7 @@ static int
 setUpNodeTableArray(Uint32 tableNo, const NdbDictionary::Table *pTab)
 {
   Uint32 numFragments = pTab->getFragmentCount();
+  printf("numFragments = %u\n", numFragments);
   Uint32 nodeId;
   for (Uint32 i = 1; i <= NDB_MAX_NODES; i++)
     nodeTableArray[tableNo][i] = false;
@@ -1020,6 +1123,7 @@ setUpNodeTableArray(Uint32 tableNo, const NdbDictionary::Table *pTab)
     if (nodeTableArray[tableNo][i])
       numberNodeTable[tableNo]++;
   }
+  printf("number of nodes = %u\n", numberNodeTable[tableNo]);
   return 0;
 }
 
@@ -1214,6 +1318,9 @@ static void* executor_thread(void *data);
 
 static Uint32 tNoOfExecutorThreads = 0;
 static Uint32 tNoOfDefinerThreads = 0;
+static Uint32 tNumThreadGroups = 0;
+static Uint32 tNumThreadGroupsPerDefinerThread = 0;
+static Uint32 tNumNodes = 0;
 
 enum RunState
 {
@@ -1223,45 +1330,6 @@ enum RunState
 };
 
 RunState tRunState = WARMUP;
-
-typedef struct KeyOperation KEY_OPERATION;
-struct KeyOperation
-{
-  Uint32 first_key;
-  Uint32 second_key;
-  Uint32 table_id;
-  Uint32 definer_thread_id;
-  Uint32 executor_thread_id;
-  RunType operation_type;
-  KEY_OPERATION *next_key_op;
-};
-
-typedef struct key_list_header KEY_LIST_HEADER;
-struct key_list_header
-{
-  KEY_OPERATION *first_in_list;
-  KEY_OPERATION *last_in_list;
-  Uint32 num_in_list;
-};
-
-
-typedef struct thread_data_struct THREAD_DATA;
-struct thread_data_struct
-{
-  KEY_LIST_HEADER list_header;
-  Uint32 thread_id;
-  bool ready;
-  bool stop;
-  bool start;
-
-  char *record;
-  NdbMutex *transport_mutex;
-  struct NdbCondition *transport_cond;
-  struct NdbCondition *main_cond;
-  struct NdbCondition *start_cond;
-  char not_used[52];
-};
-THREAD_DATA thread_data_array[MAX_DEFINER_THREADS + MAX_EXECUTOR_THREADS];
 
 static Uint64
 get_total_transactions()
@@ -1273,6 +1341,18 @@ get_total_transactions()
     total_transactions += ThreadExecutions[i];
   }
   return total_transactions;
+}
+
+static Uint64
+get_total_rounds()
+{
+  Uint64 total_rounds = 0;
+
+  for (Uint32 i = tNoOfDefinerThreads; i < tNoOfThreads; i++)
+  {
+    total_rounds += ThreadExecutionRounds[i];
+  }
+  return total_rounds;
 }
 
 static void
@@ -1311,7 +1391,9 @@ static void
 wait_for_threads_ready(Uint32 num_threads)
 {
   for (Uint32 i = 0; i < num_threads; i++)
+  {
     wait_thread_ready(&thread_data_array[i]);
+  }
 }
 
 static void
@@ -1328,14 +1410,18 @@ static void
 signal_definer_threads_to_start()
 {
   for (Uint32 i = 0; i < tNoOfDefinerThreads; i++)
+  {
     signal_thread_to_start(&thread_data_array[i]);
+  }
 }
 
 static void
 signal_executor_threads_to_start()
 {
   for (Uint32 i = 0; i < tNoOfExecutorThreads; i++)
+  {
     signal_thread_to_start(&thread_data_array[tNoOfDefinerThreads + i]);
+  }
 }
 
 static void
@@ -1368,14 +1454,18 @@ static void
 signal_definer_threads_to_stop()
 {
   for (Uint32 i = 0; i < tNoOfDefinerThreads; i++)
+  {
     signal_thread_to_stop(&thread_data_array[i]);
+  }
 }
 
 static void
 signal_executor_threads_to_stop()
 {
   for (Uint32 i = tNoOfDefinerThreads; i < tNoOfThreads; i++)
+  {
     signal_thread_to_stop(&thread_data_array[i]);
+  }
 }
 
 static void
@@ -1398,6 +1488,10 @@ init_thread_data(THREAD_DATA *my_thread_data, Uint32 thread_id)
   my_thread_data->stop = false;
   my_thread_data->ready = false;
   my_thread_data->start = false;
+  my_thread_data->rand_seed = 1;
+#ifdef _WIN32
+  srand(my_thread_data->rand_seed);
+#endif
   my_thread_data->transport_mutex = NdbMutex_Create();
   my_thread_data->transport_cond = NdbCondition_Create();
   my_thread_data->main_cond = NdbCondition_Create();
@@ -1419,10 +1513,20 @@ create_definer_thread(THREAD_DATA *my_thread_data, Uint32 thread_id)
 static void
 create_definer_threads()
 {
+  Uint32 cpu_id = 0;
   for (Uint32 i = 0; i < tNoOfDefinerThreads; i++)
   {
     Uint32 thread_id = i;
     create_definer_thread(&thread_data_array[thread_id], thread_id);
+    if (numberOfDefinerCPU != 0)
+    {
+      Ndb_LockCPU(threadLife[thread_id], Uint32(definerCPUArray[cpu_id]));
+      cpu_id++;
+      if (cpu_id == numberOfDefinerCPU)
+      {
+        cpu_id = 0;
+      }
+    }
   }
 }
 
@@ -1440,30 +1544,80 @@ create_executor_thread(THREAD_DATA *my_thread_data, Uint32 thread_id)
 static void
 create_executor_threads()
 {
+  Uint32 cpu_id = 0;
   for (Uint32 i = 0; i < tNoOfExecutorThreads; i++)
   {
     Uint32 thread_id = tNoOfDefinerThreads + i;
     create_executor_thread(&thread_data_array[thread_id], thread_id);
+    if (numberOfExecutorCPU != 0)
+    {
+      Ndb_LockCPU(threadLife[thread_id], Uint32(executorCPUArray[cpu_id]));
+      cpu_id++;
+      if (cpu_id == numberOfExecutorCPU)
+      {
+        cpu_id = 0;
+      }
+    }
   }
 }
 
-static void
+static bool
 main_thread(RunType start_type, NdbTimer & timer)
 {
   bool insert_delete;
+  void * tmp;
 
   tNoOfExecutorThreads = tNoOfThreads;
+  tNumNodes = get_node_count((Uint32)0);
+
+  if ((tNoOfExecutorThreads % tNumNodes) != 0)
+  {
+    printf("Number of executor threads (-t, now set to %u) must be multiple"
+           "of number nodes (number of nodes = %u)\n",
+           tNoOfExecutorThreads,
+           tNumNodes);
+    return false;
+  }
+  tNumThreadGroups = tNoOfExecutorThreads / tNumNodes;
+  printf("Number of nodes are %u, number of thread groups are %u\n",
+         tNumNodes,
+         tNumThreadGroups);
+
   if (tNoOfDefinerThreads == 0)
   {
-    tNoOfDefinerThreads = (tNoOfThreads + 3)/4;
+    tNoOfDefinerThreads = tNumThreadGroups;
+  }
+  if (tNumThreadGroups >= tNoOfDefinerThreads)
+  {
+    if ((tNumThreadGroups % tNoOfDefinerThreads) != 0)
+    {
+      printf("Number of definer threads (now %u), must be multiple of"
+             " number of thread groups (now %u)\n",
+             tNoOfDefinerThreads,
+             tNumThreadGroups);
+      return false;
+    }
+    tNumThreadGroupsPerDefinerThread = tNumThreadGroups / tNoOfDefinerThreads;
+  }
+  else
+  {
+    printf("The number of thread groups (now %u) must be a multiple of the"
+           " number of definer threads (now %u)\n",
+           tNumThreadGroups,
+           tNoOfDefinerThreads);
+    return false;
   }
   tNoOfThreads = tNoOfExecutorThreads + tNoOfDefinerThreads;
 
   if (start_type == RunInsert ||
       start_type == RunDelete)
+  {
     insert_delete = true;
+  }
   else
+  {
     insert_delete = false;
+  }
 
   create_definer_threads();
   create_executor_threads();
@@ -1501,12 +1655,12 @@ main_thread(RunType start_type, NdbTimer & timer)
   signal_definer_threads_to_start();
   signal_executor_threads_to_start();
 
-  void * tmp;
   for (Uint32 i = 0; i < tNoOfThreads; i++)
   {
     NdbThread_WaitFor(threadLife[i], &tmp);
     NdbThread_Destroy(&threadLife[i]);
   }
+  return true;
 }
 
 static NdbConnection*
@@ -1534,7 +1688,8 @@ get_trans_object(Uint32 first_key,
 static Ndb*
 get_ndb_object(Uint32 my_thread_id)
 {
-  Ndb *my_ndb = new Ndb(g_cluster_connection+(my_thread_id % tConnections),
+  Uint32 node_rel_id = my_thread_id % tNumNodes;
+  Ndb *my_ndb = new Ndb(g_cluster_connection[node_rel_id % tConnections],
                         "TEST_DB");
   my_ndb->init(MAXPAR);
   my_ndb->waitUntilReady(10000);
@@ -1549,9 +1704,13 @@ insert_list(KEY_LIST_HEADER *list_header,
   insert_op->next_key_op = NULL;
   list_header->last_in_list = insert_op;
   if (current_last)
+  {
     current_last->next_key_op = insert_op;
+  }
   else
+  {
     list_header->first_in_list = insert_op;
+  }
   list_header->num_in_list++;
 }
 
@@ -1619,17 +1778,16 @@ recheck:
       break;
     NdbCondition_Wait(my_thread_data->transport_cond,
                       my_thread_data->transport_mutex);
-    first = false;
   }
   NdbMutex_Unlock(my_thread_data->transport_mutex);
   if (first && wait &&
-      thread_list_header->num_in_list < ((tNoOfParallelTrans + 1) / 2))
+      list_header->num_in_list < ((tNoOfParallelTrans + 1) / 2))
   {
     /**
-     * We will wait for at least 200 microseconds if we haven't yet received
-     * at least half of the number of records we desire to execute.
+     * We will wait for at least 1 milliseconds extra if we haven't yet
+     * received at least half of the number of records we desire to execute.
      */
-    NdbSleep_MicroSleep(200);
+    NdbSleep_MicroSleep(1000);
     first = false;
     goto recheck;
   }
@@ -1659,7 +1817,8 @@ init_key_op_list(char *key_op_ptr,
                  Uint32 my_thread_id,
                  RunType my_run_type)
 {
-  KEY_OPERATION *key_op;
+  KEY_OPERATION *key_op = NULL;
+  assert(max_outstanding > 0);
 
   list_header->first_in_list = (KEY_OPERATION*)key_op_ptr;
   for (Uint32 i = 0;
@@ -1680,61 +1839,38 @@ init_key_op_list(char *key_op_ptr,
 
 static Uint32
 get_thread_id_for_record(Uint32 record_id,
-                         Uint32 node_count,
-                         Uint32 thread_count,
-                         Uint32 thread_group,
-                         Uint32 num_thread_groups,
+                         Uint32 start_thread_id,
                          Ndb *my_ndb)
 {
-  Uint32 thread_id;
   NdbConnection *trans = get_trans_object(record_id, record_id, my_ndb);
   Uint32 node_id = trans->getConnectedNodeId();
   trans->close();
   Uint32 node_rel_id = get_node_relative_id((Uint32)0, node_id);
-  if (node_count >= thread_count)
-  {
-    thread_id = node_rel_id % thread_count;
-    return thread_id;
-  }
-
-recalculate:
-  thread_id = thread_group * node_count + node_rel_id;
-  if (thread_id >= thread_count)
-  {
-    /**
-     * Only the last thread group may have less than
-     * node_count threads, so choosing a random group
-     * except the last will always give a valid
-     * thread_id.
-     */
-    thread_group = rand() % (num_thread_groups - 1);
-    goto recalculate;
-  }
-  return thread_id;
+  return (start_thread_id + node_rel_id);
 }
 
-void init_thread_id_mem(char *thread_id_mem,
+void init_thread_id_mem(Uint32 *thread_id_mem,
+                        Uint32 first_thread_id,
                         Uint32 first_record,
                         Uint32 total_records,
                         Ndb *my_ndb)
 {
-  Uint32 node_count = get_node_count((Uint32)0);
-  Uint32 thread_count = tNoOfExecutorThreads;
-  Uint32 num_thread_groups = (thread_count + node_count - 1) / node_count;
   Uint32 thread_group = 0;
+  Uint32 start_thread_id = first_thread_id;
   for (Uint32 record_id = first_record, i = 0;
        i < total_records;
        i++, record_id++)
   {
-    thread_id_mem[i] = (char)get_thread_id_for_record(record_id,
-                                                      node_count,
-                                                      thread_count,
-                                                      thread_group,
-                                                      num_thread_groups,
-                                                      my_ndb);
+    thread_id_mem[i] = get_thread_id_for_record(record_id,
+                                                start_thread_id,
+                                                my_ndb);
     thread_group++;
-    if (thread_group == num_thread_groups)
+    start_thread_id += tNumNodes;
+    if (thread_group == tNumThreadGroupsPerDefinerThread)
+    {
       thread_group = 0;
+      start_thread_id = first_thread_id;
+    }
   }
 }
 
@@ -1780,7 +1916,7 @@ wait_until_all_completed(THREAD_DATA *my_thread_data,
 }
 
 static Uint32
-prepare_operations(char *thread_id_mem,
+prepare_operations(Uint32 *thread_id_mem,
                    KEY_LIST_HEADER *free_list_header,
                    Uint32 *thread_state,
                    Uint32 first_record_to_define,
@@ -1798,7 +1934,7 @@ prepare_operations(char *thread_id_mem,
        record_id++, i++)
   {
     KEY_OPERATION *define_op = get_first_free(free_list_header);
-    Uint32 thread_id = (Uint32)thread_id_mem[record_id - first_record];
+    Uint32 thread_id = thread_id_mem[record_id - first_record];
     define_op->first_key = record_id;
     define_op->second_key = record_id;
     define_op->table_id = record_id % tNumTables;
@@ -1812,6 +1948,7 @@ prepare_operations(char *thread_id_mem,
        * One thread has max number of records, we won't define any
        * more to keep the code simple.
        */
+      i++;
       break;
     }
   }
@@ -1827,6 +1964,18 @@ prepare_operations(char *thread_id_mem,
   return num_records;
 }
 
+/**
+ * Each definer thread works with one or more thread groups of executor
+ * threads. Each executor thread handles transactions towards one node
+ * in the cluster, one thread group is a set of threads handling all nodes
+ * in the cluster. One definer thread can handle one or more such thread
+ * groups. This means that we will only send operations to those threads
+ * and to no other threads. So the different definer threads will work
+ * quite independent of each other.
+ *
+ * Each executor thread will receive input from one definer thread. So
+ * there is a 1-n mapping between definer threads and executor threads.
+ */
 static void*
 definer_thread(void *data)
 {
@@ -1836,14 +1985,16 @@ definer_thread(void *data)
   Uint32 thread_state[MAX_EXECUTOR_THREADS];
   Uint32 max_outstanding = (tNoOfExecutorThreads * tNoOfParallelTrans) /
                             tNoOfDefinerThreads;
-  Uint32 max_per_thread = 1000 / tNoOfDefinerThreads;
+  Uint32 max_per_thread = 1000;
+  Uint32 first_thread_id = my_thread_id *
+                           (tNumNodes * tNumThreadGroupsPerDefinerThread);
   Uint32 total_records = max_outstanding * tNoOfTransactions;
   Uint32 first_record = total_records * my_thread_id;
   Uint32 my_last_record = first_record + total_records - 1;
   Uint32 current_record = first_record;
   KEY_LIST_HEADER free_list_header;
   void *key_op_mem = malloc(sizeof(KEY_OPERATION) * max_outstanding);
-  char *thread_id_mem = (char*)malloc(total_records);
+  Uint32 *thread_id_mem = (Uint32*)malloc(total_records*sizeof(Uint32));
   memset((char*)&thread_state[0], 0, sizeof(thread_state));
 
   init_key_op_list((char*)key_op_mem,
@@ -1853,13 +2004,14 @@ definer_thread(void *data)
                    run_type);
   Ndb *my_ndb = get_ndb_object(my_thread_id);
   init_thread_id_mem(thread_id_mem,
+                     first_thread_id,
                      first_record,
                      total_records,
                      my_ndb);
   delete my_ndb;
   ThreadExecutions[my_thread_id] = 0;
+  ThreadExecutionRounds[my_thread_id] = 0;
   signal_thread_ready_wait_for_start(my_thread_data);
-
   while (!my_thread_data->stop)
   {
     Uint32 defined_ops = prepare_operations(thread_id_mem,
@@ -1907,7 +2059,8 @@ definer_thread(void *data)
  *               -1 Failure, stop test
  */
 static int
-execute_operations(char *record,
+execute_operations(THREAD_DATA *my_thread_data,
+                   char *record,
                    Ndb* my_ndb,
                    KEY_OPERATION *key_op)
 {
@@ -1919,9 +2072,11 @@ execute_operations(char *record,
     ndb_conn_array[num_ops] = get_trans_object(key_op->first_key,
                                                key_op->second_key,
                                                my_ndb);
-    if (ndb_conn_array[num_ops] == NULL){
+    if (ndb_conn_array[num_ops] == NULL)
+    {
       error_handler(my_ndb->getNdbError());
-      ndbout << endl << "Unable to recover! Quitting now" << endl ;
+      ndbout << endl << "Unable to recover in " << num_ops;
+      ndbout << " op! Quitting now" << endl ;
       return -1;
     }
     //-------------------------------------------------------
@@ -1932,7 +2087,8 @@ execute_operations(char *record,
                              ndb_conn_array[num_ops],
                              (StartType)key_op->operation_type,
                              key_op->first_key,
-                             key_op->second_key);
+                             key_op->second_key,
+                             my_thread_data);
 
     ndb_conn_array[num_ops]->executeAsynchPrepare(Commit,
                                         &executeCallback,
@@ -1999,14 +2155,14 @@ executor_thread(void *data)
   THREAD_DATA *my_thread_data = (THREAD_DATA*)data;
   Uint32 my_thread_id = my_thread_data->thread_id;
   Uint64 exec_count = 0;
-  Uint32 error_count = 0;
-  Uint32 executions = 0;
+  Uint64 executions = 0;
   Uint32 error_flag = false;
   int ret_code;
   KEY_LIST_HEADER list_header;
 
   Ndb *my_ndb = get_ndb_object(my_thread_id);
   ThreadExecutions[my_thread_id] = 0;
+  ThreadExecutionRounds[my_thread_id] = 0;
 
   signal_thread_ready_wait_for_start(my_thread_data);
 
@@ -2021,14 +2177,17 @@ executor_thread(void *data)
     if (!error_flag)
     {
       /* Ignore to execute after errors to simplify error handling */
-      ret_code = execute_operations(my_thread_data->record,
+      ret_code = execute_operations(my_thread_data,
+                                    my_thread_data->record,
                                     my_ndb,
                                     list_header.first_in_list);
     }
     report_back_operations(list_header.first_in_list);
     if (ret_code < 0)
     {
-      ndbout_c("executor thread id = %u received error", my_thread_id);
+      ndbout_c("executor thread id = %u received error after %u executions",
+               my_thread_id,
+               (Uint32)executions);
       error_flag = true;
     }
     else if (!error_flag &&
@@ -2042,11 +2201,7 @@ executor_thread(void *data)
   }
 
   ThreadExecutions[my_thread_id] = exec_count;
-  if (error_count)
-  {
-    ndbout_c("Received %u errors in executor thread, id = %u",
-             error_count, my_thread_id);
-  }
+  ThreadExecutionRounds[my_thread_id] = executions;
   signal_thread_ready_wait_for_start(my_thread_data);
   delete my_ndb;
   destroy_thread_data(my_thread_data);
@@ -2055,9 +2210,117 @@ executor_thread(void *data)
 
 /* End NEW Module */
 
+static int
+add_receive_cpus(Uint16 first,
+                 Uint16 last,
+                 Uint32 *num_cpus,
+                 Uint16 *cpu_array)
+{
+  Uint32 num_added_cpus;
+  Uint32 i;
+
+  if (last < first)
+    goto number_error;
+  num_added_cpus = last - first + 1;
+
+  if ((*num_cpus) + num_added_cpus > NDB_MAX_RECEIVE_CPUS)
+    goto too_many_error;
+
+  for (i = 0 ; i < num_added_cpus; i++)
+  {
+    cpu_array[numberOfReceiveCPU + i] = Uint16(first + i);
+  }
+  (*num_cpus) += num_added_cpus;
+  return 0;
+
+number_error:
+  ndbout_c("Range error in -receive_cpus, first-last with bigger first");
+  return 1;
+
+too_many_error:
+  ndbout_c("More than %u CPUs specified", Uint32(NDB_MAX_RECEIVE_CPUS));
+  return 1;
+}
+
+/**
+ * Very simple parser to allow for specifying the receive thread CPU to be used
+ * by NDB cluster connections. One CPU per NDB cluster connection should always
+ * be specified, no more, no less.
+ */
+static int
+read_cpus(const char *str, Uint32 *num_cpus, Uint16 *cpu_array)
+{
+  Uint32 i;
+  bool range_found = false;
+  bool number_found = false;
+  Uint16 start = 0;
+  Uint32 current_number = 0;
+  Uint32 len = (Uint32)strlen(str);
+
+  for (i = 0; i < len + 1; i++)
+  {
+    char c;
+    if (i == len)
+      c = ',';
+    else
+     c = str[i];
+
+    if (c == ',')
+    {
+      Uint16 end;
+      if (!number_found)
+        goto parse_error;
+      end = Uint16(current_number);
+      if (range_found)
+      {
+        if (add_receive_cpus(start, end, num_cpus, cpu_array) != 0)
+          return 1;
+      }
+      else
+      {
+        if (add_receive_cpus(end, end, num_cpus, cpu_array) != 0)
+          return 1;
+      }
+      range_found = false;
+      number_found = false;
+      current_number = 0;
+    }
+    else if (c == '-')
+    {
+      if (!number_found)
+        goto parse_error;
+      ndbout_c("- found");
+      range_found = true;
+      number_found = false;
+      start = Uint16(current_number);
+      current_number = 0;
+    }
+    else if (c >= '0' && c <= '9')
+    {
+      Uint32 number = c - '0';
+      current_number *= 10;
+      current_number += number;
+      if (current_number > 65536)
+        goto too_large_number_error;
+      number_found = true;
+    }
+    else
+      goto parse_error;
+  }
+  return 0;
+
+parse_error:
+  ndbout_c("Invalid specification in receive_cpus");
+  return 1;
+
+too_large_number_error:
+  ndbout_c("Number larger than 65536 not allowed for CPU id");
+  return 1;
+}
+
 static
 int 
-readArguments(int argc, const char** argv){
+readArguments(int argc, char** argv){
   
   int i = 1;
   while (argc > 1){
@@ -2194,8 +2457,14 @@ readArguments(int argc, const char** argv){
       i--;
     } else if (strcmp(argv[i], "-r") == 0){
       tExtraReadLoop = atoi(argv[i+1]);
-    } else if (strcmp(argv[i], "-con") == 0){
+    } else if (strcmp(argv[i], "-con") == 0)
+    {
       tConnections = atoi(argv[i+1]);
+      if (tConnections > 64)
+      {
+        ndbout_c("Max 64 NDB cluster connections can be used");
+        return -1;
+      }
     } else if (strcmp(argv[i], "-insert") == 0){
       setAggregateRun();
       tRunType = RunInsert;
@@ -2219,6 +2488,7 @@ readArguments(int argc, const char** argv){
     } else if (strcmp(argv[i], "-create_table") == 0){
       tRunType = RunCreateTable;
       argc++;
+      i--;
     }
     else if (strcmp(argv[i], "-new") == 0)
     {
@@ -2245,7 +2515,29 @@ readArguments(int argc, const char** argv){
     } else if (strcmp(argv[i], "-table") == 0){
       tStdTableNum = atoi(argv[i+1]);
       theStdTableNameFlag = 1;
+    } else if (strcmp(argv[i], "-receive_cpus") == 0) {
+      if (read_cpus(argv[i+1],
+                    &numberOfReceiveCPU,
+                    &receiveCPUArray[0]) != 0)
+      {
+        return -1;
+      }
+    } else if (strcmp(argv[i], "-definer_cpus") == 0) {
+      if (read_cpus(argv[i+1],
+                    &numberOfDefinerCPU,
+                    &definerCPUArray[0]) != 0)
+      {
+        return -1;
+      }
+    } else if (strcmp(argv[i], "-executor_cpus") == 0) {
+      if (read_cpus(argv[i+1],
+                    &numberOfExecutorCPU,
+                    &executorCPUArray[0]) != 0)
+      {
+        return -1;
+      }
     } else {
+      ndbout_c("No such parameter: %s", argv[i]);
       return -1;
     }
     
@@ -2260,6 +2552,12 @@ readArguments(int argc, const char** argv){
       ndbout_c("Not valid to use no_hint with local");
     }//if
   }//if
+  if (numberOfReceiveCPU != 0 &&
+      int(numberOfReceiveCPU) != tConnections)
+  {
+    ndbout_c("One CPU per NDB connection is used, inconsistency in -receive_cpus");
+    return -1;
+  }
   return 0;
 }
 
@@ -2304,6 +2602,8 @@ input_error(){
   ndbout_c("   -table Number of standard table, default 0");
   ndbout_c("   -num_tables Number of tables in benchmark, default 1");
   ndbout_c("   -num_indexes Number of ordered indexes per table in benchmark, default 0");
+  ndbout_c("   -receive_cpus A set of CPUs for receive threads, one per connection,"
+           " comma separated list with ranges, e.g. 0-2,4");
 }
   
 static void
@@ -2315,6 +2615,7 @@ run_old_flexAsynch(ThreadNdb *pThreadData,
    *  Create NDB objects.                                   *
   ****************************************************************/
   resetThreads();
+  Uint32 cpu_id = 0;
   for (Uint32 i = 0; i < tNoOfThreads ; i++)
   {
     pThreadData[i].ThreadNo = i;
@@ -2323,6 +2624,15 @@ run_old_flexAsynch(ThreadNdb *pThreadData,
                                      32768,
                                      "flexAsynchThread",
                                      NDB_THREAD_PRIO_LOW);
+    if (numberOfExecutorCPU != 0)
+    {
+      Ndb_LockCPU(threadLife[i], Uint32(executorCPUArray[cpu_id]));
+      cpu_id++;
+      if (cpu_id == numberOfExecutorCPU)
+      {
+        cpu_id = 0;
+      }
+    }
   }//for
   ndbout << endl <<  "All NDB objects and table created" << endl << endl;
   int noOfTransacts = tNoOfParallelTrans*tNoOfTransactions*tNoOfThreads;
@@ -2350,7 +2660,7 @@ run_old_flexAsynch(ThreadNdb *pThreadData,
     }
     if (tRunType == RunAll)
     {
-      a_i.addObservation((1000*noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
+      a_i.addObservation((1000ULL*noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("insert", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed)
@@ -2400,7 +2710,7 @@ run_old_flexAsynch(ThreadNdb *pThreadData,
         STOP_TIMER;
         if (tRunType == RunAll)
         {
-          a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
+          a_r.addObservation((1000ULL * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
           PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
         }//if
       }//for
@@ -2455,7 +2765,7 @@ run_old_flexAsynch(ThreadNdb *pThreadData,
     }//if
     if (tRunType == RunAll)
     {
-      a_u.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
+      a_u.addObservation((1000ULL * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("update", noOfTransacts, tNoOfOpsPerTrans) ;
 
       if (0 < failed)
@@ -2503,7 +2813,7 @@ run_old_flexAsynch(ThreadNdb *pThreadData,
         START_TIMER;
         execute(stRead);
         STOP_TIMER;
-        a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
+        a_r.addObservation((1000ULL * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
         PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
       }
 
@@ -2554,7 +2864,7 @@ run_old_flexAsynch(ThreadNdb *pThreadData,
     }//if
     if (tRunType == RunAll)
     {
-      a_d.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
+      a_d.addObservation((1000ULL * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("delete", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {

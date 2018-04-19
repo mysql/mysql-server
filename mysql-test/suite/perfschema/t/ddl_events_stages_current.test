@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 alter table performance_schema.events_stages_current add column foo integer;
 
@@ -19,3 +16,6 @@ CREATE UNIQUE INDEX test_index ON performance_schema.events_stages_current(EVENT
 select * from information_schema.columns where TABLE_NAME = 'events_stages_current' and column_name in ('WORK_COMPLETED','WORK_ESTIMATED')
 and table_schema='performance_schema';
 --enable_query_log
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.events_stages_current;

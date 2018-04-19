@@ -1,7 +1,6 @@
 --source include/have_myisam.inc
-# There are test for bug which contain MyISAM specific tests
 
--- source include/have_utf32.inc
+# There are test for bug which contain MyISAM specific tests
 
 --echo #
 --echo # Start of 5.5 tests
@@ -480,17 +479,6 @@ DROP TABLE t1;
 #select password(name) from bug20536;
 #select old_password(name) from bug20536;
 #
-## Disable test case as encrypt relies on 'crypt' function.
-## "decrypt" is noramlly tested in func_crypt.test which have a
-## "have_crypt.inc" test
-#--disable_parsing
-## ENCRYPT relies on OS function crypt() which takes a NUL-terminated string; it
-## doesn't return good results for strings with embedded 0 bytes.  It won't be
-## fixed unless we choose to re-implement the crypt() function ourselves to take
-## an extra size_t string_length argument.
-#select encrypt(name, 'SALT') from bug20536;
-#--enable_parsing
-#
 ## QUOTE doesn't work with UCS2 data.  It would require a total rewrite
 ## of Item_func_quote::val_str(), which isn't worthwhile until UCS2 is
 ## supported fully as a client character set.
@@ -734,21 +722,20 @@ create table t1 (a varchar(334) character set utf32 primary key) engine=MyISAM;
 create table t1 (a varchar(150) character set utf32 primary key);
 show create table t1;
 drop table t1;
-SET GLOBAL innodb_large_prefix=OFF;
---error ER_TOO_LONG_KEY
-create table t1 (a varchar(334) character set utf32 primary key);
+--error ER_INDEX_COLUMN_TOO_LONG
+create table t1 (a varchar(334) character set utf32 primary key) ROW_FORMAT=COMPACT;
 
 #
 # Testing mi_check with long key values
 #
 SET sql_mode = '';
-create table t1 (a varchar(333) character set utf32, key(a));
+create table t1 (a varchar(333) character set utf32, key(a))
+row_format=dynamic;
 insert into t1 values (repeat('a',333)), (repeat('b',333));
 flush tables;
 check table t1;
 drop table t1;
 SET sql_mode = default;
-SET GLOBAL innodb_large_prefix=default;
 #
 # Test how character set works with date/time
 #
@@ -896,12 +883,10 @@ set collation_connection=utf32_general_ci;
 --source include/weight_string_euro.inc
 select hex(weight_string(_utf32 0x10000));
 select hex(weight_string(_utf32 0x10001));
---source include/weight_string_l1.inc
 
 set collation_connection=utf32_bin;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 --echo #
 --echo # End of 5.6 tests

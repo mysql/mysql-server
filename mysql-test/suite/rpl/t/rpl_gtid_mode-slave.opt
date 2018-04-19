@@ -1,1 +1,0 @@
---log-error=$MYSQLTEST_VARDIR/tmp/slave-rpl-gtid-mode.err

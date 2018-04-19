@@ -128,27 +128,27 @@ select t2.fld3 from t2 where fld3 LIKE 'don_t_find_me_please%';
 fld3
 explain select t2.fld3 from t2 where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	fld3	fld3	30	const	1	100.00	Using index
+1	SIMPLE	t2	NULL	ref	fld3	fld3	120	const	#	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 ignore index (fld3) where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	10.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` IGNORE INDEX (`fld3`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 use index (fld1) where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	10.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` USE INDEX (`fld1`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 use index (fld3) where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	fld3	fld3	30	const	1	100.00	Using index
+1	SIMPLE	t2	NULL	ref	fld3	fld3	120	const	#	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` USE INDEX (`fld3`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 use index (fld1,fld3) where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	fld3	fld3	30	const	1	100.00	Using index
+1	SIMPLE	t2	NULL	ref	fld3	fld3	120	const	#	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` USE INDEX (`fld3`) USE INDEX (`fld1`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 ignore index (fld3,not_used);
@@ -161,7 +161,7 @@ honeysuckle
 honoring
 explain select t2.fld3 from t2 where fld3 >= 'honeysuckle' and fld3 <= 'honoring' order by fld3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	fld3	fld3	30	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	range	fld3	fld3	120	NULL	#	#	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where ((`test`.`t2`.`fld3` >= 'honeysuckle') and (`test`.`t2`.`fld3` <= 'honoring')) order by `test`.`t2`.`fld3`
 select fld1,fld3 from t2 where fld3="Colombo" or fld3 = "nondecreasing" order by fld3;
@@ -183,7 +183,7 @@ fld1
 250502
 explain select fld1 from t2 where fld1=250501 or fld1="250502";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	fld1	fld1	4	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	range	fld1	fld1	4	NULL	#	#	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld1` AS `fld1` from `test`.`t2` where ((`test`.`t2`.`fld1` = 250501) or (`test`.`t2`.`fld1` = '250502'))
 select fld1 from t2 where fld1=250501 or fld1=250502 or fld1 >= 250505 and fld1 <= 250601 or fld1 between 250501 and 250502;
@@ -194,7 +194,7 @@ fld1
 250601
 explain select fld1 from t2 where fld1=250501 or fld1=250502 or fld1 >= 250505 and fld1 <= 250601 or fld1 between 250501 and 250502;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	fld1	fld1	4	NULL	4	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	range	fld1	fld1	4	NULL	#	#	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld1` AS `fld1` from `test`.`t2` where ((`test`.`t2`.`fld1` = 250501) or (`test`.`t2`.`fld1` = 250502) or ((`test`.`t2`.`fld1` >= 250505) and (`test`.`t2`.`fld1` <= 250601)) or (`test`.`t2`.`fld1` between 250501 and 250502))
 select fld1,fld3 from t2 where companynr = 37 and fld3 like 'f%';
@@ -504,7 +504,7 @@ price2     double(11,0),
 key (period),
 key (name)
 );
-create temporary table tmp engine = myisam select * from t3;
+create temporary table tmp select * from t3;
 insert into t3 select * from tmp;
 insert into tmp select * from t3;
 insert into t3 select * from tmp;
@@ -562,7 +562,7 @@ attainments
 fanatic
 measures
 rightfulness
-select distinct fld3,count(*) from t2 group by companynr,fld3 limit 10;
+select distinct fld3,count(*) from t2 group by companynr asc,fld3 asc limit 10;
 fld3	count(*)
 affixed	1
 and	1
@@ -575,7 +575,7 @@ bedlam	1
 bedpost	1
 boasted	1
 SET BIG_TABLES=1;
-select distinct fld3,count(*) from t2 group by companynr,fld3 limit 10;
+select distinct fld3,count(*) from t2 group by companynr asc,fld3 asc limit 10;
 fld3	count(*)
 affixed	1
 and	1
@@ -613,26 +613,26 @@ select distinct fld3 from t2,t3 where t2.companynr = 34 and t2.fld1=t3.t2nr orde
 fld3
 explain select t3.t2nr,fld3 from t2,t3 where t2.companynr = 34 and t2.fld1=t3.t2nr order by t3.t2nr,fld3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	fld1	NULL	NULL	NULL	1199	10.00	Using where; Using temporary; Using filesort
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.fld1	1	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	ALL	fld1	NULL	NULL	NULL	#	#	Using where; Using temporary; Using filesort
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.fld1	#	#	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`t2nr` AS `t2nr`,`test`.`t2`.`fld3` AS `fld3` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`companynr` = 34) and (`test`.`t2`.`fld1` = `test`.`t3`.`t2nr`)) order by `test`.`t3`.`t2nr`,`test`.`t2`.`fld3`
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	period	NULL	NULL	NULL	41810	100.00	Using temporary; Using filesort
-1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	4181	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	period	NULL	NULL	NULL	#	#	Using temporary; Using filesort
+1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t2nr` AS `t2nr`,`test`.`t1`.`period` AS `period`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`companynr` AS `companynr`,`test`.`t1`.`price` AS `price`,`test`.`t1`.`price2` AS `price2`,`test`.`t3`.`t2nr` AS `t2nr`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`name` AS `name`,`test`.`t3`.`companynr` AS `companynr`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t3` `t1` join `test`.`t3` where (`test`.`t3`.`period` = `test`.`t1`.`period`) order by `test`.`t3`.`period`
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period limit 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	period	period	4	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ref	period	period	4	test.t3.period	4181	100.00	NULL
+1	SIMPLE	t3	NULL	index	period	period	4	NULL	#	#	NULL
+1	SIMPLE	t1	NULL	ref	period	period	4	test.t3.period	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t2nr` AS `t2nr`,`test`.`t1`.`period` AS `period`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`companynr` AS `companynr`,`test`.`t1`.`price` AS `price`,`test`.`t1`.`price2` AS `price2`,`test`.`t3`.`t2nr` AS `t2nr`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`name` AS `name`,`test`.`t3`.`companynr` AS `companynr`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t3` `t1` join `test`.`t3` where (`test`.`t1`.`period` = `test`.`t3`.`period`) order by `test`.`t3`.`period` limit 10
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t1.period limit 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	period	period	4	NULL	1	100.00	NULL
-1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	4181	100.00	NULL
+1	SIMPLE	t1	NULL	index	period	period	4	NULL	#	#	NULL
+1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t2nr` AS `t2nr`,`test`.`t1`.`period` AS `period`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`companynr` AS `companynr`,`test`.`t1`.`price` AS `price`,`test`.`t1`.`price2` AS `price2`,`test`.`t3`.`t2nr` AS `t2nr`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`name` AS `name`,`test`.`t3`.`companynr` AS `companynr`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t3` `t1` join `test`.`t3` where (`test`.`t3`.`period` = `test`.`t1`.`period`) order by `test`.`t1`.`period` limit 10
 select period from t1;
@@ -648,600 +648,600 @@ fld3	period
 breaking	1001
 explain select fld3,period from t2,t3 where t2.fld1 = 011401 and t3.t2nr=t2.fld1 and 1001 = t3.period;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	const	fld1	fld1	4	const	1	100.00	NULL
-1	SIMPLE	t3	NULL	const	PRIMARY,period	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	const	fld1	fld1	4	const	#	#	NULL
+1	SIMPLE	t3	NULL	const	PRIMARY,period	PRIMARY	4	const	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select 'breaking' AS `fld3`,'1001' AS `period` from `test`.`t2` join `test`.`t3` where (('11401' = 11401))
 select fld3,period from t2,t1 where companynr*10 = 37*10;
 fld3	period
-breaking	9410
-Romans	9410
-intercepted	9410
-bewilderingly	9410
-astound	9410
-admonishing	9410
-sumac	9410
-flanking	9410
-combed	9410
-subjective	9410
-scatterbrain	9410
-Eulerian	9410
-Kane	9410
-overlay	9410
-perturb	9410
-goblins	9410
-annihilates	9410
-Wotan	9410
-snatching	9410
-concludes	9410
-laterally	9410
-yelped	9410
-grazing	9410
-Baird	9410
-celery	9410
-misunderstander	9410
-handgun	9410
-foldout	9410
-mystic	9410
-succumbed	9410
-Nabisco	9410
-fingerings	9410
-aging	9410
-afield	9410
-ammonium	9410
-boat	9410
-intelligibility	9410
-Augustine	9410
-teethe	9410
-dreaded	9410
-scholastics	9410
-audiology	9410
-wallet	9410
-parters	9410
-eschew	9410
-quitter	9410
-neat	9410
-Steinberg	9410
-jarring	9410
-tinily	9410
-balled	9410
-persist	9410
-attainments	9410
-fanatic	9410
-measures	9410
-rightfulness	9410
-capably	9410
-impulsive	9410
-starlet	9410
-terminators	9410
-untying	9410
-announces	9410
-featherweight	9410
-pessimist	9410
-daughter	9410
-decliner	9410
-lawgiver	9410
-stated	9410
-readable	9410
-attrition	9410
-cascade	9410
-motors	9410
-interrogate	9410
-pests	9410
-stairway	9410
-dopers	9410
-testicle	9410
-Parsifal	9410
-leavings	9410
-postulation	9410
-squeaking	9410
-contrasted	9410
-leftover	9410
-whiteners	9410
-erases	9410
-Punjab	9410
-Merritt	9410
-Quixotism	9410
-sweetish	9410
-dogging	9410
-scornfully	9410
-bellow	9410
-bills	9410
-cupboard	9410
-sureties	9410
-puddings	9410
-fetters	9410
-bivalves	9410
-incurring	9410
-Adolph	9410
-pithed	9410
-Miles	9410
-trimmings	9410
-tragedies	9410
-skulking	9410
-flint	9410
-flopping	9410
-relaxing	9410
-offload	9410
-suites	9410
-lists	9410
-animized	9410
-multilayer	9410
-standardizes	9410
-Judas	9410
-vacuuming	9410
-dentally	9410
-humanness	9410
-inch	9410
-Weissmuller	9410
-irresponsibly	9410
-luckily	9410
-culled	9410
-medical	9410
-bloodbath	9410
-subschema	9410
-animals	9410
-Micronesia	9410
-repetitions	9410
-Antares	9410
-ventilate	9410
-pityingly	9410
-interdependent	9410
-Graves	9410
-neonatal	9410
-chafe	9410
-honoring	9410
-realtor	9410
-elite	9410
-funereal	9410
-abrogating	9410
-sorters	9410
-Conley	9410
-lectured	9410
 Abraham	9410
-Hawaii	9410
-cage	9410
-hushes	9410
-Simla	9410
-reporters	9410
-Dutchman	9410
-descendants	9410
-groupings	9410
-dissociate	9410
-coexist	9410
-Beebe	9410
-Taoism	9410
-Connally	9410
-fetched	9410
-checkpoints	9410
-rusting	9410
-galling	9410
-obliterates	9410
-traitor	9410
-resumes	9410
-analyzable	9410
-terminator	9410
-gritty	9410
-firearm	9410
-minima	9410
-Selfridge	9410
-disable	9410
-witchcraft	9410
-betroth	9410
-Manhattanize	9410
-imprint	9410
-peeked	9410
-swelling	9410
-interrelationships	9410
-riser	9410
-Gandhian	9410
-peacock	9410
-bee	9410
-kanji	9410
-dental	9410
-scarf	9410
-chasm	9410
-insolence	9410
-syndicate	9410
-alike	9410
-imperial	9410
-convulsion	9410
-railway	9410
-validate	9410
-normalizes	9410
-comprehensive	9410
-chewing	9410
-denizen	9410
-schemer	9410
-chronicle	9410
-Kline	9410
-Anatole	9410
-partridges	9410
-brunch	9410
-recruited	9410
-dimensions	9410
-Chicana	9410
-announced	9410
-praised	9410
-employing	9410
-linear	9410
-quagmire	9410
-western	9410
-relishing	9410
-serving	9410
-scheduling	9410
-lore	9410
-eventful	9410
-arteriole	9410
-disentangle	9410
-cured	9410
-Fenton	9410
-avoidable	9410
-drains	9410
-detectably	9410
-husky	9410
-impelling	9410
-undoes	9410
-evened	9410
-squeezes	9410
-destroyer	9410
-rudeness	9410
-beaner	9410
-boorish	9410
-Everhart	9410
-encompass	9410
-mushrooms	9410
+Aden	9410
+Adolph	9410
+Aldrich	9410
 Alison	9410
-externally	9410
-pellagra	9410
-cult	9410
-creek	9410
-Huffman	9410
-Majorca	9410
-governing	9410
-gadfly	9410
-reassigned	9410
-intentness	9410
-craziness	9410
-psychic	9410
-squabbled	9410
-burlesque	9410
-capped	9410
-extracted	9410
+Anatole	9410
+Antarctica	9410
+Antares	9410
+Arabia	9410
+Artemia	9410
+Augustine	9410
+Baird	9410
+Beebe	9410
+Butterfield	9410
+CERN	9410
+Cassites	9410
+Chicana	9410
+Chippewa	9410
+Clayton	9410
+Conley	9410
+Connally	9410
+Crays	9410
 DiMaggio	9410
-exclamation	9410
-subdirectory	9410
+Dutchman	9410
+Eulerian	9410
+Evanston	9410
+Everhart	9410
+Fenton	9410
+Fitzpatrick	9410
+Galatean	9410
+Gandhian	9410
+Ganymede	9410
+Goldstine	9410
 Gothicism	9410
-feminine	9410
-metaphysically	9410
-sanding	9410
+Graves	9410
+Greenberg	9410
+Gurkha	9410
+Hawaii	9410
+Hegelian	9410
+Hornblower	9410
+Huffman	9410
+Hunter	9410
+Joplin	9410
+Judas	9410
+Kane	9410
+Kantian	9410
+Kevin	9410
+Kinsey	9410
+Kline	9410
+Lars	9410
+Latinizes	9410
+Lillian	9410
+Lizzy	9410
+Majorca	9410
+Manhattanize	9410
+McGovern	9410
+Melinda	9410
+Merritt	9410
+Micronesia	9410
+Miles	9410
 Miltonism	9410
-freakish	9410
-index	9410
-straight	9410
-flurried	9410
-denotative	9410
+Nabisco	9410
+Nazis	9410
+Newtonian	9410
+Norwalk	9410
+Pandora	9410
+Parsifal	9410
+Peruvian	9410
+Punjab	9410
+Pyle	9410
+Quixotism	9410
+Romano	9410
+Romans	9410
+Sabine	9410
+Sault	9410
+Saxony	9410
+Selfridge	9410
+Shanghais	9410
+Simla	9410
+Simon	9410
+Stalin	9410
+Steinberg	9410
+Taoism	9410
+Teresa	9410
+Tipperary	9410
+Weissmuller	9410
+Winsett	9410
+Wotan	9410
+abates	9410
+abrogating	9410
+accessed	9410
+admiring	9410
+admonishing	9410
+afield	9410
+afore	9410
+aging	9410
+airships	9410
+alike	9410
+allot	9410
+already	9410
+amenities	9410
+ammonium	9410
+analogy	9410
+analyzable	9410
+animals	9410
+animized	9410
+annihilates	9410
+announced	9410
+announces	9410
+apiary	9410
+appendixes	9410
+appendixes	9410
+appendixes	9410
+appendixes	9410
+appendixes	9410
+appendixes	9410
+arriving	9410
+arteriole	9410
+assails	9410
+astound	9410
+attainments	9410
+attrition	9410
+audiology	9410
+avenge	9410
+avoidable	9410
+babies	9410
+babysitting	9410
+balled	9410
+beaner	9410
+beaters	9410
+bee	9410
+befouled	9410
+bellow	9410
+bestseller	9410
+betroth	9410
+bewilderingly	9410
+bills	9410
+bitterroot	9410
+bivalves	9410
+bloater	9410
+bloodbath	9410
+boat	9410
+boom	9410
+boorish	9410
+boulder	9410
+breaking	9410
+brunch	9410
+buckboards	9410
+burlesque	9410
+cage	9410
+capably	9410
+capped	9410
+cascade	9410
+causality	9410
+cautioned	9410
+ceiling	9410
+celery	9410
+certificates	9410
+chafe	9410
+chaperone	9410
+charges	9410
+chasm	9410
+checkpoints	9410
+chewing	9410
+chews	9410
+chillingly	9410
+chronicle	9410
+ciphers	9410
+civics	9410
+clamored	9410
+clenched	9410
+clockers	9410
+coexist	9410
+cokes	9410
+combed	9410
 coming	9410
 commencements	9410
+commonplace	9410
+communicants	9410
+compartment	9410
+comprehensive	9410
+comprised	9410
+conceptions	9410
+concludes	9410
+congregates	9410
+contrary	9410
+contrasted	9410
+convenient	9410
+convulsion	9410
+corset	9410
+count	9410
+coverings	9410
+craziness	9410
+creak	9410
+creek	9410
+critiques	9410
+crunches	9410
+culled	9410
+cult	9410
+cupboard	9410
+cured	9410
+cute	9410
+daughter	9410
+decliner	9410
+decomposition	9410
+deductions	9410
+dehydrate	9410
+deludes	9410
+denizen	9410
+denotative	9410
+denounces	9410
+dental	9410
+dentally	9410
+descendants	9410
+despot	9410
+destroyer	9410
+detectably	9410
+dialysis	9410
+dimensions	9410
+disable	9410
+discounts	9410
+disentangle	9410
+disobedience	9410
+dissociate	9410
+dogging	9410
+dopers	9410
+drains	9410
+dreaded	9410
+ducks	9410
+dusted	9410
+effortlessly	9410
+electroencephalography	9410
+elite	9410
+embassies	9410
+employing	9410
+encompass	9410
+encompasses	9410
+environing	9410
+epistle	9410
+equilibrium	9410
+erases	9410
+error	9410
+eschew	9410
+eternal	9410
+evened	9410
+evenhandedly	9410
+eventful	9410
+excises	9410
+exclamation	9410
+excrete	9410
+exhausts	9410
+expelled	9410
+extents	9410
+externally	9410
+extracted	9410
+faithful	9410
+fanatic	9410
+fated	9410
+featherweight	9410
+feed	9410
+feminine	9410
+fetched	9410
+fetters	9410
+fiftieth	9410
+filial	9410
+fingerings	9410
+finishers	9410
+firearm	9410
+fitting	9410
+fixedly	9410
+flanking	9410
+flint	9410
+flopping	9410
+flurried	9410
+foldout	9410
+foothill	9410
+forgivably	9410
+forthcoming	9410
+freakish	9410
+freest	9410
+freezes	9410
+funereal	9410
+furnishings	9410
+furthermore	9410
+gadfly	9410
+gainful	9410
+galling	9410
+garage	9410
 gentleman	9410
 gifted	9410
-Shanghais	9410
-sportswriting	9410
-sloping	9410
-navies	9410
-leaflet	9410
-shooter	9410
-Joplin	9410
-babies	9410
-assails	9410
-admiring	9410
-swaying	9410
-Goldstine	9410
-fitting	9410
-Norwalk	9410
-analogy	9410
-deludes	9410
-cokes	9410
-Clayton	9410
-exhausts	9410
-causality	9410
-sating	9410
-icon	9410
-throttles	9410
-communicants	9410
-dehydrate	9410
-priceless	9410
-publicly	9410
-incidentals	9410
-commonplace	9410
-mumbles	9410
-furthermore	9410
-cautioned	9410
-parametrized	9410
-registration	9410
-sadly	9410
-positioning	9410
-babysitting	9410
-eternal	9410
-hoarder	9410
-congregates	9410
-rains	9410
-workers	9410
-sags	9410
-unplug	9410
-garage	9410
-boulder	9410
-specifics	9410
-Teresa	9410
-Winsett	9410
-convenient	9410
-buckboards	9410
-amenities	9410
-resplendent	9410
-sews	9410
-participated	9410
-Simon	9410
-certificates	9410
-Fitzpatrick	9410
-Evanston	9410
-misted	9410
-textures	9410
-save	9410
-count	9410
-rightful	9410
-chaperone	9410
-Lizzy	9410
-clenched	9410
-effortlessly	9410
-accessed	9410
-beaters	9410
-Hornblower	9410
-vests	9410
-indulgences	9410
-infallibly	9410
-unwilling	9410
-excrete	9410
-spools	9410
-crunches	9410
-overestimating	9410
-ineffective	9410
-humiliation	9410
-sophomore	9410
-star	9410
-rifles	9410
-dialysis	9410
-arriving	9410
-indulge	9410
-clockers	9410
-languages	9410
-Antarctica	9410
-percentage	9410
-ceiling	9410
-specification	9410
-regimented	9410
-ciphers	9410
-pictures	9410
-serpents	9410
-allot	9410
-realized	9410
-mayoral	9410
-opaquely	9410
-hostess	9410
-fiftieth	9410
-incorrectly	9410
-decomposition	9410
-stranglings	9410
-mixture	9410
-electroencephalography	9410
-similarities	9410
-charges	9410
-freest	9410
-Greenberg	9410
-tinting	9410
-expelled	9410
-warm	9410
-smoothed	9410
-deductions	9410
-Romano	9410
-bitterroot	9410
-corset	9410
-securing	9410
-environing	9410
-cute	9410
-Crays	9410
-heiress	9410
-inform	9410
-avenge	9410
-universals	9410
-Kinsey	9410
-ravines	9410
-bestseller	9410
-equilibrium	9410
-extents	9410
-relatively	9410
-pressure	9410
-critiques	9410
-befouled	9410
-rightfully	9410
-mechanizing	9410
-Latinizes	9410
-timesharing	9410
-Aden	9410
-embassies	9410
-males	9410
-shapelessly	9410
-mastering	9410
-Newtonian	9410
-finishers	9410
-abates	9410
-teem	9410
-kiting	9410
-stodgy	9410
-feed	9410
-guitars	9410
-airships	9410
-store	9410
-denounces	9410
-Pyle	9410
-Saxony	9410
-serializations	9410
-Peruvian	9410
-taxonomically	9410
-kingdom	9410
-stint	9410
-Sault	9410
-faithful	9410
-Ganymede	9410
-tidiness	9410
-gainful	9410
-contrary	9410
-Tipperary	9410
-tropics	9410
-theorizers	9410
-renew	9410
-already	9410
-terminal	9410
-Hegelian	9410
-hypothesizer	9410
-warningly	9410
-journalizing	9410
-nested	9410
-Lars	9410
-saplings	9410
-foothill	9410
-labeled	9410
-imperiously	9410
-reporters	9410
-furnishings	9410
-precipitable	9410
-discounts	9410
-excises	9410
-Stalin	9410
-despot	9410
-ripeness	9410
-Arabia	9410
-unruly	9410
-mournfulness	9410
-boom	9410
-slaughter	9410
-Sabine	9410
-handy	9410
-rural	9410
-organizer	9410
-shipyard	9410
-civics	9410
-inaccuracy	9410
-rules	9410
-juveniles	9410
-comprised	9410
-investigations	9410
-stabilizes	9410
-seminaries	9410
-Hunter	9410
-sporty	9410
-test	9410
-weasels	9410
-CERN	9410
-tempering	9410
-afore	9410
-Galatean	9410
-techniques	9410
-error	9410
-veranda	9410
-severely	9410
-Cassites	9410
-forthcoming	9410
-guides	9410
-vanish	9410
-lied	9410
-sawtooth	9410
-fated	9410
-gradually	9410
-widens	9410
-preclude	9410
-evenhandedly	9410
-percentage	9410
-disobedience	9410
-humility	9410
 gleaning	9410
-petted	9410
-bloater	9410
-minion	9410
-marginal	9410
-apiary	9410
-measures	9410
-precaution	9410
-repelled	9410
-primary	9410
-coverings	9410
-Artemia	9410
-navigate	9410
-spatial	9410
-Gurkha	9410
-meanwhile	9410
-Melinda	9410
-Butterfield	9410
-Aldrich	9410
-previewing	9410
 glut	9410
-unaffected	9410
-inmate	9410
-mineral	9410
-impending	9410
-meditation	9410
+goblins	9410
+governing	9410
+gradually	9410
+grazing	9410
+gritty	9410
+groupings	9410
+guides	9410
+guitars	9410
+handgun	9410
+handy	9410
+heiress	9410
+hoarder	9410
+honoring	9410
+hostess	9410
+humanness	9410
+humiliation	9410
+humility	9410
+hushes	9410
+husky	9410
+hypothesizer	9410
+icon	9410
 ideas	9410
-miniaturizes	9410
-lewdly	9410
-title	9410
-youthfulness	9410
-creak	9410
-Chippewa	9410
-clamored	9410
-freezes	9410
-forgivably	9410
-reduce	9410
-McGovern	9410
-Nazis	9410
-epistle	9410
-socializes	9410
-conceptions	9410
-Kevin	9410
-uncovering	9410
-chews	9410
-appendixes	9410
-appendixes	9410
-appendixes	9410
-appendixes	9410
-appendixes	9410
-appendixes	9410
-raining	9410
+impelling	9410
+impending	9410
+imperial	9410
+imperiously	9410
+imprint	9410
+impulsive	9410
+inaccuracy	9410
+inch	9410
+incidentals	9410
+incorrectly	9410
+incurring	9410
+index	9410
+indulge	9410
+indulgences	9410
+ineffective	9410
+infallibly	9410
 infest	9410
-compartment	9410
-minting	9410
-ducks	9410
-roped	9410
-waltz	9410
-Lillian	9410
-repressions	9410
-chillingly	9410
-noncritical	9410
-lithograph	9410
-spongers	9410
-parenthood	9410
-posed	9410
+inform	9410
+inmate	9410
+insolence	9410
 instruments	9410
-filial	9410
-fixedly	9410
-relives	9410
-Pandora	9410
-watering	9410
-ungrateful	9410
-secures	9410
+intelligibility	9410
+intentness	9410
+intercepted	9410
+interdependent	9410
+interrelationships	9410
+interrogate	9410
+investigations	9410
+irresponsibly	9410
+jarring	9410
+journalizing	9410
+juveniles	9410
+kanji	9410
+kingdom	9410
+kiting	9410
+labeled	9410
+languages	9410
+laterally	9410
+lawgiver	9410
+leaflet	9410
+leavings	9410
+lectured	9410
+leftover	9410
+lewdly	9410
+lied	9410
+linear	9410
+lists	9410
+lithograph	9410
+lore	9410
+luckily	9410
+males	9410
+marginal	9410
+mastering	9410
+mayoral	9410
+meanwhile	9410
+measures	9410
+measures	9410
+mechanizing	9410
+medical	9410
+meditation	9410
+metaphysically	9410
+mineral	9410
+miniaturizes	9410
+minima	9410
+minion	9410
+minting	9410
+misted	9410
+misunderstander	9410
+mixture	9410
+motors	9410
+mournfulness	9410
+multilayer	9410
+mumbles	9410
+mushrooms	9410
+mystic	9410
+navies	9410
+navigate	9410
+neat	9410
+neonatal	9410
+nested	9410
+noncritical	9410
+normalizes	9410
+obliterates	9410
+offload	9410
+opaquely	9410
+organizer	9410
+overestimating	9410
+overlay	9410
+parametrized	9410
+parenthood	9410
+parters	9410
+participated	9410
+partridges	9410
+peacock	9410
+peeked	9410
+pellagra	9410
+percentage	9410
+percentage	9410
+persist	9410
+perturb	9410
+pessimist	9410
+pests	9410
+petted	9410
+pictures	9410
+pithed	9410
+pityingly	9410
 poison	9410
-dusted	9410
-encompasses	9410
+posed	9410
+positioning	9410
+postulation	9410
+praised	9410
+precaution	9410
+precipitable	9410
+preclude	9410
 presentation	9410
-Kantian	9410
+pressure	9410
+previewing	9410
+priceless	9410
+primary	9410
+psychic	9410
+publicly	9410
+puddings	9410
+quagmire	9410
+quitter	9410
+railway	9410
+raining	9410
+rains	9410
+ravines	9410
+readable	9410
+realized	9410
+realtor	9410
+reassigned	9410
+recruited	9410
+reduce	9410
+regimented	9410
+registration	9410
+relatively	9410
+relaxing	9410
+relishing	9410
+relives	9410
+renew	9410
+repelled	9410
+repetitions	9410
+reporters	9410
+reporters	9410
+repressions	9410
+resplendent	9410
+resumes	9410
+rifles	9410
+rightful	9410
+rightfully	9410
+rightfulness	9410
+ripeness	9410
+riser	9410
+roped	9410
+rudeness	9410
+rules	9410
+rural	9410
+rusting	9410
+sadly	9410
+sags	9410
+sanding	9410
+saplings	9410
+sating	9410
+save	9410
+sawtooth	9410
+scarf	9410
+scatterbrain	9410
+scheduling	9410
+schemer	9410
+scholastics	9410
+scornfully	9410
+secures	9410
+securing	9410
+seminaries	9410
+serializations	9410
+serpents	9410
+serving	9410
+severely	9410
+sews	9410
+shapelessly	9410
+shipyard	9410
+shooter	9410
+similarities	9410
+skulking	9410
+slaughter	9410
+sloping	9410
+smoothed	9410
+snatching	9410
+socializes	9410
+sophomore	9410
+sorters	9410
+spatial	9410
+specification	9410
+specifics	9410
+spongers	9410
+spools	9410
+sportswriting	9410
+sporty	9410
+squabbled	9410
+squeaking	9410
+squeezes	9410
+stabilizes	9410
+stairway	9410
+standardizes	9410
+star	9410
+starlet	9410
+stated	9410
+stint	9410
+stodgy	9410
+store	9410
+straight	9410
+stranglings	9410
+subdirectory	9410
+subjective	9410
+subschema	9410
+succumbed	9410
+suites	9410
+sumac	9410
+sureties	9410
+swaying	9410
+sweetish	9410
+swelling	9410
+syndicate	9410
+taxonomically	9410
+techniques	9410
+teem	9410
+teethe	9410
+tempering	9410
+terminal	9410
+terminator	9410
+terminators	9410
+test	9410
+testicle	9410
+textures	9410
+theorizers	9410
+throttles	9410
+tidiness	9410
+timesharing	9410
+tinily	9410
+tinting	9410
+title	9410
+tragedies	9410
+traitor	9410
+trimmings	9410
+tropics	9410
+unaffected	9410
+uncovering	9410
+undoes	9410
+ungrateful	9410
+universals	9410
+unplug	9410
+unruly	9410
+untying	9410
+unwilling	9410
+vacuuming	9410
+validate	9410
+vanish	9410
+ventilate	9410
+veranda	9410
+vests	9410
+wallet	9410
+waltz	9410
+warm	9410
+warningly	9410
+watering	9410
+weasels	9410
+western	9410
+whiteners	9410
+widens	9410
+witchcraft	9410
+workers	9410
+yelped	9410
+youthfulness	9410
 select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
 fld3	period	price	price2
 admonishing	1002	28357832	8723648
@@ -1314,34 +1314,34 @@ companynr tinyint(2) unsigned zerofill NOT NULL default '00',
 companyname char(30) NOT NULL default '',
 PRIMARY KEY (companynr),
 UNIQUE KEY companyname(companyname)
-) ENGINE=MyISAM MAX_ROWS=50 PACK_KEYS=1 COMMENT='companynames';
+) MAX_ROWS=50 PACK_KEYS=1 COMMENT='companynames';
 select STRAIGHT_JOIN t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 companynr	companyname
 00	Unknown
-29	company 1
-34	company 2
-36	company 3
 37	company 4
-40	company 5
-41	company 6
+36	company 3
 50	company 11
-53	company 7
 58	company 8
+29	company 1
+40	company 5
+53	company 7
 65	company 9
+41	company 6
+34	company 2
 68	company 10
 select SQL_SMALL_RESULT t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 companynr	companyname
 00	Unknown
-29	company 1
-34	company 2
-36	company 3
 37	company 4
-40	company 5
-41	company 6
+36	company 3
 50	company 11
-53	company 7
 58	company 8
+29	company 1
+40	company 5
+53	company 7
 65	company 9
+41	company 6
+34	company 2
 68	company 10
 select * from t1,t1 t12;
 Period	Varor_period	Period	Varor_period
@@ -1374,6 +1374,10 @@ fld1	fld1
 250504	250505
 250505	250505
 insert into t2 (fld1, companynr) values (999999,99);
+analyze table t2,t4;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+test.t4	analyze	status	OK
 select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
 companynr	companyname
 99	NULL
@@ -1382,14 +1386,14 @@ count(*)
 1199
 explain select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1200	100.00	NULL
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	10.00	Using where; Not exists; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
+1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	#	100.00	Using where; Not exists
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t2` left join `test`.`t4` on((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`)) where isnull(`test`.`t4`.`companynr`)
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1200	10.00	Using where; Not exists; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	index	NULL	companyname	120	NULL	#	100.00	Using index
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Not exists; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where isnull(`test`.`t2`.`companynr`)
 select companynr,companyname from t2 left join t4 using (companynr) where companynr is null;
@@ -1399,85 +1403,85 @@ count(*)
 1200
 explain select companynr,companyname from t2 left join t4 using (companynr) where companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t2` left join `test`.`t4` on(multiple equal(`test`.`t2`.`companynr`, `test`.`t4`.`companynr`)) where 0
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on(multiple equal(`test`.`t4`.`companynr`, `test`.`t2`.`companynr`)) where 0
 delete from t2 where fld1=999999;
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	33.33	Using where
-1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
+1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` join `test`.`t2` where ((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`) and (`test`.`t2`.`companynr` > 0))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	55.55	Using where
-1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
+1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` join `test`.`t2` where ((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`) and ((`test`.`t2`.`companynr` > 0) or (`test`.`t2`.`companynr` < 0)))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 and t4.companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	33.33	Using where
-1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
+1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` join `test`.`t2` where ((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`) and (`test`.`t2`.`companynr` > 0) and (`test`.`t2`.`companynr` > 0))
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	91.67	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	#	#	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (`test`.`t4`.`companynr` > 0)
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr < 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	100.00	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	index	PRIMARY	companyname	120	NULL	#	#	Using where; Using index
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t4`.`companynr` > 0) or (`test`.`t4`.`companynr` < 0))
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 and companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	91.67	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	#	#	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t4`.`companynr` > 0) and (`test`.`t4`.`companynr` > 0))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	40.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	index	NULL	companyname	120	NULL	#	#	Using index
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t2`.`companynr` > 0) or isnull(`test`.`t2`.`companynr`))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0 or t4.companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	index	PRIMARY	companyname	120	NULL	#	#	Using index
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t2`.`companynr` > 0) or (`test`.`t2`.`companynr` < 0) or (`test`.`t4`.`companynr` > 0))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where ifnull(t2.companynr,1)>0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	index	NULL	companyname	120	NULL	#	#	Using index
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (ifnull(`test`.`t2`.`companynr`,1) > 0)
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	91.67	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	#	#	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (`test`.`t4`.`companynr` > 0)
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr < 0 or companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	100.00	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	index	PRIMARY	companyname	120	NULL	#	#	Using where; Using index
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t4`.`companynr` > 0) or (`test`.`t4`.`companynr` < 0) or (`test`.`t4`.`companynr` > 0))
 explain select companynr,companyname from t4 left join t2 using (companynr) where ifnull(companynr,1)>0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	index	NULL	companyname	120	NULL	#	#	Using where; Using index
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (ifnull(`test`.`t4`.`companynr`,1) > 0)
 select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
@@ -1486,8 +1490,8 @@ companynr	companynr
 41	40
 explain select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	index	NULL	PRIMARY	1	NULL	12	100.00	Using index; Using temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	10.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	index	NULL	companyname	120	NULL	#	#	Using index; Using temporary
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companynr` AS `companynr` from `test`.`t2` join `test`.`t4` where (`test`.`t2`.`companynr` = (`test`.`t4`.`companynr` + 1))
 select t2.fld1,t2.companynr,fld3,period from t3,t2 where t2.fld1 = 38208 and t2.fld1=t3.t2nr and period = 1008 or t2.fld1 = 38008 and t2.fld1 =t3.t2nr and period = 1008;
@@ -1540,16 +1544,16 @@ count(*)
 select companynr,count(*),sum(fld1) from t2 group by companynr;
 companynr	count(*)	sum(fld1)
 00	82	10355753
-29	95	14473298
-34	70	17788966
-36	215	22786296
 37	588	83602098
-40	37	6618386
-41	52	12816335
+36	215	22786296
 50	11	1595438
-53	4	793210
 58	23	2254293
+29	95	14473298
+40	37	6618386
+53	4	793210
 65	10	2284055
+41	52	12816335
+34	70	17788966
 68	12	3097288
 select companynr,count(*) from t2 group by companynr order by companynr desc limit 5;
 companynr	count(*)
@@ -1561,18 +1565,17 @@ companynr	count(*)
 select count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 where companynr = 34 and fld4<>"";
 count(*)	min(fld4)	max(fld4)	sum(fld1)	avg(fld1)	std(fld1)	variance(fld1)
 70	absentee	vest	17788966	254128.0857	3272.5939722090234	10709871.306938833
-explain extended select count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 where companynr = 34 and fld4<>"";
+explain select count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 where companynr = 34 and fld4<>"";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	9.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select count(0) AS `count(*)`,min(`test`.`t2`.`fld4`) AS `min(fld4)`,max(`test`.`t2`.`fld4`) AS `max(fld4)`,sum(`test`.`t2`.`fld1`) AS `sum(fld1)`,avg(`test`.`t2`.`fld1`) AS `avg(fld1)`,std(`test`.`t2`.`fld1`) AS `std(fld1)`,variance(`test`.`t2`.`fld1`) AS `variance(fld1)` from `test`.`t2` where ((`test`.`t2`.`companynr` = 34) and (`test`.`t2`.`fld4` <> ''))
-select companynr,count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 group by companynr limit 3;
+select companynr,count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 group by companynr asc limit 3;
 companynr	count(*)	min(fld4)	max(fld4)	sum(fld1)	avg(fld1)	std(fld1)	variance(fld1)
 00	82	Anthony	windmills	10355753	126289.6707	115550.97568479746	13352027981.708656
 29	95	abut	wetness	14473298	152350.5053	8368.547956641249	70032594.90260443
 34	70	absentee	vest	17788966	254128.0857	3272.5939722090234	10709871.306938833
-select companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from t3 where companynr = 37 group by companynr,t2nr limit 10;
+select companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from t3 where companynr = 37 group by companynr asc,t2nr asc limit 10;
 companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	1	1	5987435	5987435	5987435	5987435.0000
 37	2	1	28357832	28357832	28357832	28357832.0000
@@ -1584,7 +1587,8 @@ companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	22	1	28357832	28357832	28357832	28357832.0000
 37	23	1	39654943	39654943	39654943	39654943.0000
 37	31	1	5987435	5987435	5987435	5987435.0000
-select /*! SQL_SMALL_RESULT */ companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from t3 where companynr = 37 group by companynr,t2nr limit 10;
+select /*! SQL_SMALL_RESULT */
+companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from t3 where companynr = 37 group by companynr asc, t2nr asc limit 10;
 companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	1	1	5987435	5987435	5987435	5987435.0000
 37	2	1	28357832	28357832	28357832	28357832.0000
@@ -1607,14 +1611,14 @@ companynr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 512	4181	3288532102	786542	786542	786542.0000
 select distinct mod(companynr,10) from t4 group by companynr;
 mod(companynr,10)
-0
 9
+8
+0
 4
 6
 7
 1
 3
-8
 5
 select distinct 1 from t4 group by companynr;
 1
@@ -1639,16 +1643,16 @@ companynr	count(distinct fld1)
 select companynr,count(*) from t2 group by companynr;
 companynr	count(*)
 00	82
-29	95
-34	70
-36	215
 37	588
-40	37
-41	52
+36	215
 50	11
-53	4
 58	23
+29	95
+40	37
+53	4
 65	10
+41	52
+34	70
 68	12
 select companynr,count(distinct concat(fld1,repeat(65,1000))) from t2 group by companynr;
 companynr	count(distinct concat(fld1,repeat(65,1000)))
@@ -1735,18 +1739,18 @@ fld3	count(*)
 spates	4181
 select companynr|0,companyname from t4 group by 1;
 companynr|0	companyname
-0	Unknown
 29	company 1
+68	company 10
+50	company 11
 34	company 2
 36	company 3
 37	company 4
 40	company 5
 41	company 6
-50	company 11
 53	company 7
 58	company 8
 65	company 9
-68	company 10
+0	Unknown
 select t2.companynr,companyname,count(*) from t2,t4 where t2.companynr=t4.companynr group by t2.companynr order by companyname;
 companynr	companyname	count(*)
 29	company 1	95
@@ -1852,7 +1856,6 @@ interdependent	018051	1	5987435	5987435	5987435	5987435.0000
 Graves	018052	1	28357832	28357832	28357832	28357832.0000
 neonatal	018053	1	39654943	39654943	39654943	39654943.0000
 sorters	018061	1	5987435	5987435	5987435	5987435.0000
-epistle	018062	1	28357832	28357832	28357832	28357832.0000
 Conley	018101	1	5987435	5987435	5987435	5987435.0000
 lectured	018102	1	28357832	28357832	28357832	28357832.0000
 Abraham	018103	1	39654943	39654943	39654943	39654943.0000
@@ -1890,23 +1893,24 @@ partridges	038103	1	39654943	39654943	39654943	39654943.0000
 recruited	038201	1	5987435	5987435	5987435	5987435.0000
 dimensions	038202	1	28357832	28357832	28357832	28357832.0000
 Chicana	038203	1	39654943	39654943	39654943	39654943.0000
+epistle	018062	1	28357832	28357832	28357832	28357832.0000
 select t3.companynr,fld3,sum(price) from t3,t2 where t2.fld1 = t3.t2nr and t3.companynr = 512 group by companynr,fld3;
 companynr	fld3	sum(price)
 512	boat	786542
 512	capably	786542
-512	cupboard	786542
 512	decliner	786542
-512	descendants	786542
 512	dopers	786542
 512	erases	786542
-512	Micronesia	786542
+512	cupboard	786542
 512	Miles	786542
+512	Micronesia	786542
+512	descendants	786542
 512	skies	786542
 select t2.companynr,count(*),min(fld3),max(fld3),sum(price),avg(price) from t2,t3 where t3.companynr >= 30 and t3.companynr <= 58 and t3.t2nr = t2.fld1 and 1+1=2 group by t2.companynr;
 companynr	count(*)	min(fld3)	max(fld3)	sum(price)	avg(price)
 00	1	Omaha	Omaha	5987435	5987435.0000
-36	1	dubbed	dubbed	28357832	28357832.0000
 37	83	Abraham	Wotan	1908978016	22999735.1325
+36	1	dubbed	dubbed	28357832	28357832.0000
 50	2	scribbled	tapestry	68012775	34006387.5000
 select t3.companynr+0,t3.t2nr,fld3,sum(price) from t3,t2 where t2.fld1 = t3.t2nr and t3.companynr = 37 group by 1,t3.t2nr,fld3,fld3,fld3,fld3,fld3 order by fld1;
 t3.companynr+0	t2nr	fld3	sum(price)
@@ -2005,12 +2009,12 @@ fld1	sum(price)
 038008	234298
 explain select fld3 from t2 where 1>2 or 2>3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	Impossible WHERE
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where 0
 explain select fld3 from t2 where fld1=fld1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where 1
 select companynr,fld1 from t2 HAVING fld1=250501 or fld1=250502;
@@ -2024,26 +2028,26 @@ companynr	fld1
 select companynr,count(*) as count,sum(fld1) as sum from t2 group by companynr having count > 40 and sum/count >= 120000;
 companynr	count	sum
 00	82	10355753
-29	95	14473298
-34	70	17788966
 37	588	83602098
+29	95	14473298
 41	52	12816335
+34	70	17788966
 select companynr from t2 group by companynr having count(*) > 40 and sum(fld1)/count(*) >= 120000 ;
 companynr
 00
-29
-34
 37
+29
 41
+34
 select t2.companynr,companyname,count(*) from t2,t4 where t2.companynr=t4.companynr group by companyname having t2.companynr >= 40;
 companynr	companyname	count(*)
-68	company 10	12
 50	company 11	11
-40	company 5	37
-41	company 6	52
-53	company 7	4
 58	company 8	23
+40	company 5	37
+53	company 7	4
 65	company 9	10
+41	company 6	52
+68	company 10	12
 select count(*) from t2;
 count(*)
 1199
@@ -2064,7 +2068,7 @@ count(*)
 4181
 explain select min(fld1),max(fld1),count(*) from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	Select tables optimized away
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t2`.`fld1`) AS `min(fld1)`,max(`test`.`t2`.`fld1`) AS `max(fld1)`,count(0) AS `count(*)` from `test`.`t2`
 select min(fld1),max(fld1),count(*) from t2;
@@ -2134,31 +2138,32 @@ show tables from test like "t?";
 Tables_in_test (t?)
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	int(11)	NULL	NO	PRI	NULL	auto_increment	#	
-fld1	int(6) unsigned zerofill	NULL	NO	UNI	000000		#	
-companynr	tinyint(2) unsigned zerofill	NULL	NO		00		#	
-fld3	char(30)	latin1_swedish_ci	NO	MUL			#	
-fld4	char(35)	latin1_swedish_ci	NO				#	
-fld5	char(35)	latin1_swedish_ci	NO				#	
-fld6	char(4)	latin1_swedish_ci	NO				#	
+auto	int(11)	NULL	NO	PRI	NULL	auto_increment	select,insert,update,references	
+fld1	int(6) unsigned zerofill	NULL	NO	UNI	000000		select,insert,update,references	
+companynr	tinyint(2) unsigned zerofill	NULL	NO		00		select,insert,update,references	
+fld3	char(30)	utf8mb4_0900_ai_ci	NO	MUL			select,insert,update,references	
+fld4	char(35)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
+fld5	char(35)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
+fld6	char(4)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
 show full columns from t2 from test like 'f%';
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-fld1	int(6) unsigned zerofill	NULL	NO	UNI	000000		#	
-fld3	char(30)	latin1_swedish_ci	NO	MUL			#	
-fld4	char(35)	latin1_swedish_ci	NO				#	
-fld5	char(35)	latin1_swedish_ci	NO				#	
-fld6	char(4)	latin1_swedish_ci	NO				#	
+fld1	int(6) unsigned zerofill	NULL	NO	UNI	000000		select,insert,update,references	
+fld3	char(30)	utf8mb4_0900_ai_ci	NO	MUL			select,insert,update,references	
+fld4	char(35)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
+fld5	char(35)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
+fld6	char(4)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
 show full columns from t2 from test like 's%';
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 show keys from t2;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t2	0	PRIMARY	1	auto	A	1199	NULL	NULL		BTREE		
-t2	0	fld1	1	fld1	A	1199	NULL	NULL		BTREE		
-t2	1	fld3	1	fld3	A	NULL	NULL	NULL		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t2	0	PRIMARY	1	auto	A	#	NULL	NULL		BTREE			YES
+t2	0	fld1	1	fld1	A	#	NULL	NULL		BTREE			YES
+t2	1	fld3	1	fld3	A	#	NULL	NULL		BTREE			YES
 drop table t4, t3, t2, t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (
 cont_nr int(11) NOT NULL auto_increment,
 ver_nr int(11) NOT NULL default '0',
@@ -2207,7 +2212,7 @@ KEY prov_hdl_nr(prov_hdl_nr),
 KEY mcbs_aufnr(mcbs_aufnr),
 KEY kundentyp(kundentyp),
 KEY p_nr(p_nr,suffix)
-) ENGINE=MyISAM;
+);
 SET sql_mode = default;
 INSERT INTO t1 VALUES (3359356,405,3359356,'Mustermann Musterfrau',52500,'2000-05-20','workflow','Auftrag erledigt','Originalvertrag eingegangen und geprüft','','privat',1485525,2122316,'+','','N',1909160,'MobilComSuper92000D2',NULL,NULL,'MS9ND2',3,24,'MobilCom Shop Koeln',52500,NULL,'auto',20010202105916,'Mobilfunk','PP','','','');
 INSERT INTO t1 VALUES (3359357,468,3359357,'Mustermann Musterfrau',7001,'2000-05-20','workflow','Auftrag erledigt','Originalvertrag eingegangen und geprüft','','privat',1503580,2139699,'+','','P',1909171,'MobilComSuper9D1T10SFreisprech(Akquise)',NULL,NULL,'MS9NS1',327,24,'MobilCom Intern',7003,NULL,'auto',20010202105916,'Mobilfunk','PP','','','');

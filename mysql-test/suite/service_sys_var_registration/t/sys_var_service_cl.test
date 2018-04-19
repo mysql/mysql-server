@@ -1,0 +1,92 @@
+# Verify that registered system variables can be set in config files.
+# Actually not working.
+
+--source ../include/have_component_test_sys_var_service.inc
+
+call mtr.add_suppression("duplicate variable name");
+call mtr.add_suppression("variable name.*not found");
+call mtr.add_suppression("INNODB:");
+call mtr.add_suppression("Failed to set up SSL");
+
+INSTALL COMPONENT "file://component_test_sys_var_service";
+
+SELECT VARIABLE_NAME, MIN_VALUE, MAX_VALUE FROM performance_schema.variables_info
+       WHERE VARIABLE_NAME LIKE '%component%'
+       ORDER BY VARIABLE_NAME;
+
+SELECT @@test_component.str_sys_var;
+SELECT @@test_component.uint_sys_var;
+
+# Set variables to be used in parameters of mysqld.
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $MYSQL_BASEDIR= `SELECT @@basedir`;
+let $MYSQL_SOCKET= `SELECT @@socket`;
+let $MYSQL_PIDFILE= `SELECT @@pid_file`;
+let $MYSQL_PORT= `SELECT @@port`;
+let $MYSQL_MESSAGESDIR= `SELECT @@lc_messages_dir`;
+let $MYSQL_HOME=`SELECT @@basedir`;
+let $MYSQL_SERVER_ID= `SELECT @@server_id`;
+
+--write_file $MYSQLTEST_VARDIR/tmp/sys_reg.cnf
+[mysqld]
+loose-test-component.uint-sys-var=1234
+loose-test-component.str-sys-var="before restart"
+mysqlx=OFF
+EOF
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/sys_reg.cnf --log-bin" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --server-id=$MYSQL_SERVER_ID --sort_buffer_size=462144 --secure-file-priv="" --innodb_dedicated_server=OFF > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # restart mysqld
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT @@test_component.str_sys_var;
+SELECT @@test_component.uint_sys_var;
+
+--write_file $MYSQLTEST_VARDIR/tmp/sys_reg_2.cnf
+[mysqld]
+loose-test-component.uint-sys-var=1234
+loose-test-component.str-sys-var="before 2nd restart"
+mysqlx=OFF
+EOF
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/sys_reg_2.cnf --log-bin" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --server-id=$MYSQL_SERVER_ID --sort_buffer_size=462144 --secure-file-priv="" --innodb_dedicated_server=OFF > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # restart mysqld
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT @@test_component.str_sys_var;
+SELECT @@test_component.uint_sys_var;
+
+--write_file $MYSQLTEST_VARDIR/tmp/sys_reg_3.cnf
+[mysqld]
+loose-test-component.uint-sys-var=5678
+loose-test-component.str-sys-var=9999
+mysqlx=OFF
+EOF
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/sys_reg_3.cnf --log-bin" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --server-id=$MYSQL_SERVER_ID --sort_buffer_size=462144 --secure-file-priv="" --innodb_dedicated_server=OFF > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # restart mysqld
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT @@test_component.str_sys_var;
+SELECT @@test_component.uint_sys_var;
+
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test_component_sys_var_service.log;

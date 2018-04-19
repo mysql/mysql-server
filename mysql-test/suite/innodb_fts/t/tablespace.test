@@ -1,0 +1,75 @@
+--echo Test Case 1 : System Tablespace
+CREATE TABLE articles (
+       id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+       title VARCHAR(200),
+       body TEXT,
+       FULLTEXT (title, body)
+) ENGINE=InnoDB tablespace innodb_system;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+--source include/restart_mysqld.inc
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+DROP TABLE articles;
+
+--echo Test Case 2 : User-defined Tablespace
+CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd';
+
+CREATE TABLE articles (
+       id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+       title VARCHAR(200),
+       body TEXT,
+       FULLTEXT (title, body)
+) ENGINE=InnoDB tablespace s_def;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+--source include/restart_mysqld.inc
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+DROP TABLE articles;
+
+DROP TABLESPACE s_def;
+
+--echo Test Case 3 : File-Per-Tablespace
+CREATE TABLE articles (
+       id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+       title VARCHAR(200),
+       body TEXT,
+       FULLTEXT (title, body)
+) ENGINE=InnoDB;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+--source include/restart_mysqld.inc
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+DROP TABLE articles;

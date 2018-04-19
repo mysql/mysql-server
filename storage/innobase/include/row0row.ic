@@ -1,174 +1,206 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/row0row.ic
-General row routines
+/** @file include/row0row.ic
+ General row routines
 
-Created 4/20/1996 Heikki Tuuri
-*******************************************************/
+ Created 4/20/1996 Heikki Tuuri
+ *******************************************************/
 
 #include "dict0dict.h"
 #include "rem0rec.h"
 #include "trx0undo.h"
 
-/*********************************************************************//**
-Gets the offset of the DB_TRX_ID field, in bytes relative to the origin of
-a clustered index record.
-@return offset of DATA_TRX_ID */
+/** Gets the offset of the DB_TRX_ID field, in bytes relative to the origin of
+ a clustered index record.
+ @return offset of DATA_TRX_ID */
 UNIV_INLINE
-ulint
-row_get_trx_id_offset(
-/*==================*/
-	const dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*		offsets)/*!< in: record offsets */
+ulint row_get_trx_id_offset(
+    const dict_index_t *index, /*!< in: clustered index */
+    const ulint *offsets)      /*!< in: record offsets */
 {
-	ulint	pos;
-	ulint	offset;
-	ulint	len;
+  ulint pos;
+  ulint offset;
+  ulint len;
 
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(rec_offs_validate(NULL, index, offsets));
+  ut_ad(index->is_clustered());
+  ut_ad(rec_offs_validate(NULL, index, offsets));
 
-	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
+  pos = index->get_sys_col_pos(DATA_TRX_ID);
 
-	offset = rec_get_nth_field_offs(offsets, pos, &len);
+  offset = rec_get_nth_field_offs(offsets, pos, &len);
 
-	ut_ad(len == DATA_TRX_ID_LEN);
+  ut_ad(len == DATA_TRX_ID_LEN);
 
-	return(offset);
+  return (offset);
 }
 
-/*********************************************************************//**
-Reads the trx id field from a clustered index record.
-@return value of the field */
+/** Reads the trx id field from a clustered index record.
+ @return value of the field */
 UNIV_INLINE
-trx_id_t
-row_get_rec_trx_id(
-/*===============*/
-	const rec_t*		rec,	/*!< in: record */
-	const dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
+trx_id_t row_get_rec_trx_id(
+    const rec_t *rec,          /*!< in: record */
+    const dict_index_t *index, /*!< in: clustered index */
+    const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
 {
-	ulint	offset;
+  ulint offset;
 
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(rec_offs_validate(rec, index, offsets));
+  ut_ad(index->is_clustered());
+  ut_ad(rec_offs_validate(rec, index, offsets));
 
-	offset = index->trx_id_offset;
+  offset = index->trx_id_offset;
 
-	if (!offset) {
-		offset = row_get_trx_id_offset(index, offsets);
-	}
+  if (!offset) {
+    offset = row_get_trx_id_offset(index, offsets);
+  }
 
-	return(trx_read_trx_id(rec + offset));
+  return (trx_read_trx_id(rec + offset));
 }
 
-/*********************************************************************//**
-Reads the roll pointer field from a clustered index record.
-@return value of the field */
+/** Reads the roll pointer field from a clustered index record.
+ @return value of the field */
 UNIV_INLINE
-roll_ptr_t
-row_get_rec_roll_ptr(
-/*=================*/
-	const rec_t*		rec,	/*!< in: record */
-	const dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
+roll_ptr_t row_get_rec_roll_ptr(
+    const rec_t *rec,          /*!< in: record */
+    const dict_index_t *index, /*!< in: clustered index */
+    const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
 {
-	ulint	offset;
+  ulint offset;
 
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(rec_offs_validate(rec, index, offsets));
+  ut_ad(index->is_clustered());
+  ut_ad(rec_offs_validate(rec, index, offsets));
 
-	offset = index->trx_id_offset;
+  offset = index->trx_id_offset;
 
-	if (!offset) {
-		offset = row_get_trx_id_offset(index, offsets);
-	}
+  if (!offset) {
+    offset = row_get_trx_id_offset(index, offsets);
+  }
 
-	return(trx_read_roll_ptr(rec + offset + DATA_TRX_ID_LEN));
+  return (trx_read_roll_ptr(rec + offset + DATA_TRX_ID_LEN));
 }
 
-/*****************************************************************//**
-When an insert or purge to a table is performed, this function builds
-the entry to be inserted into or purged from an index on the table.
-@return index entry which should be inserted or purged, or NULL if the
-externally stored columns in the clustered index record are
-unavailable and ext != NULL */
+/** When an insert or purge to a table is performed, this function builds
+ the entry to be inserted into or purged from an index on the table.
+ @return index entry which should be inserted or purged, or NULL if the
+ externally stored columns in the clustered index record are
+ unavailable and ext != NULL */
 UNIV_INLINE
-dtuple_t*
-row_build_index_entry(
-/*==================*/
-	const dtuple_t*		row,	/*!< in: row which should be
-					inserted or purged */
-	const row_ext_t*	ext,	/*!< in: externally stored column
-					prefixes, or NULL */
-	dict_index_t*		index,	/*!< in: index on the table */
-	mem_heap_t*		heap)	/*!< in: memory heap from which
-					the memory for the index entry
-					is allocated */
+dtuple_t *row_build_index_entry(
+    const dtuple_t *row,  /*!< in: row which should be
+                          inserted or purged */
+    const row_ext_t *ext, /*!< in: externally stored column
+                          prefixes, or NULL */
+    dict_index_t *index,  /*!< in: index on the table */
+    mem_heap_t *heap)     /*!< in: memory heap from which
+                          the memory for the index entry
+                          is allocated */
 {
-	dtuple_t*	entry;
+  dtuple_t *entry;
 
-	ut_ad(dtuple_check_typed(row));
-	entry = row_build_index_entry_low(row, ext, index, heap, false);
-	ut_ad(!entry || dtuple_check_typed(entry));
-	return(entry);
+  ut_ad(dtuple_check_typed(row));
+  entry = row_build_index_entry_low(row, ext, index, heap, ROW_BUILD_NORMAL);
+  ut_ad(!entry || dtuple_check_typed(entry));
+  return (entry);
 }
 
-/*******************************************************************//**
-Builds from a secondary index record a row reference with which we can
-search the clustered index record. */
+/** Builds from a secondary index record a row reference with which we can
+ search the clustered index record. */
 UNIV_INLINE
-void
-row_build_row_ref_fast(
-/*===================*/
-	dtuple_t*	ref,	/*!< in/out: typed data tuple where the
-				reference is built */
-	const ulint*	map,	/*!< in: array of field numbers in rec
-				telling how ref should be built from
-				the fields of rec */
-	const rec_t*	rec,	/*!< in: record in the index; must be
-				preserved while ref is used, as we do
-				not copy field values to heap */
-	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
+void row_build_row_ref_fast(
+    dtuple_t *ref,        /*!< in/out: typed data tuple where the
+                          reference is built */
+    const ulint *map,     /*!< in: array of field numbers in rec
+                          telling how ref should be built from
+                          the fields of rec */
+    const rec_t *rec,     /*!< in: record in the index; must be
+                          preserved while ref is used, as we do
+                          not copy field values to heap */
+    const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
 {
-	dfield_t*	dfield;
-	const byte*	field;
-	ulint		len;
-	ulint		ref_len;
-	ulint		field_no;
-	ulint		i;
+  dfield_t *dfield;
+  const byte *field;
+  ulint len;
+  ulint ref_len;
+  ulint field_no;
+  ulint i;
 
-	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	ut_ad(!rec_offs_any_extern(offsets));
-	ref_len = dtuple_get_n_fields(ref);
+  ut_ad(rec_offs_validate(rec, NULL, offsets));
+  ut_ad(!rec_offs_any_extern(offsets));
+  ref_len = dtuple_get_n_fields(ref);
 
-	for (i = 0; i < ref_len; i++) {
-		dfield = dtuple_get_nth_field(ref, i);
+  for (i = 0; i < ref_len; i++) {
+    dfield = dtuple_get_nth_field(ref, i);
 
-		field_no = *(map + i);
+    field_no = *(map + i);
 
-		if (field_no != ULINT_UNDEFINED) {
+    if (field_no != ULINT_UNDEFINED) {
+      field = rec_get_nth_field(rec, offsets, field_no, &len);
+      dfield_set_data(dfield, field, len);
+    }
+  }
+}
 
-			field = rec_get_nth_field(rec, offsets,
-						  field_no, &len);
-			dfield_set_data(dfield, field, len);
-		}
-	}
+/** Parse the integer data from specified data, which could be
+DATA_INT, DATA_FLOAT or DATA_DOUBLE. If the value is less than 0
+and the type is not unsigned then we reset the value to 0
+@param[in]	data		data to read
+@param[in]	len		length of data
+@param[in]	mtype		mtype of data
+@param[in]	unsigned_type	if the data is unsigned
+@return the integer value from the data */
+ib_uint64_t row_parse_int(const byte *data, ulint len, ulint mtype,
+                          bool unsigned_type) {
+  ib_uint64_t value = 0;
+
+  switch (mtype) {
+    case DATA_INT:
+
+      ut_a(len <= sizeof value);
+      value = mach_read_int_type(data, len, unsigned_type);
+      break;
+
+    case DATA_FLOAT:
+
+      ut_a(len == sizeof(float));
+      value = static_cast<ib_uint64_t>(mach_float_read(data));
+      break;
+
+    case DATA_DOUBLE:
+
+      ut_a(len == sizeof(double));
+      value = static_cast<ib_uint64_t>(mach_double_read(data));
+      break;
+
+    default:
+      ut_error;
+  }
+
+  if (!unsigned_type && static_cast<int64_t>(value) < 0) {
+    value = 0;
+  }
+
+  return (value);
 }

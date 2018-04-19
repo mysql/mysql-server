@@ -1,0 +1,58 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+
+--source include/master-slave.inc
+# --source include/have_binlog_format_mixed.inc
+
+--connection slave
+
+--source include/stop_slave.inc
+SET @old_slave_parallel_workers= @@global.slave_parallel_workers;
+SET GLOBAL slave_parallel_workers= 4;
+--source include/start_slave.inc
+
+# Debug
+# select * from performance_schema.replication_applier_status_by_worker;
+
+select THREAD_ID
+  into @worker_thread_id
+  from performance_schema.replication_applier_status_by_worker
+  where WORKER_ID = 1
+  limit 1;
+
+# Make sure we found a thread to have data to test.
+select NAME from performance_schema.threads
+  where THREAD_ID = @worker_thread_id;
+
+--source ../include/idx_compare_setup_index_test.inc
+
+let $table = "replication_applier_status_by_worker";
+SET @pfs_columns = "CHANNEL_NAME, WORKER_ID, THREAD_ID";
+let $key_group = 18.1;
+let $target_channel_name = '';
+let $target_worker_id = 4;
+
+--echo TABLE: $table
+--echo INDEXES: PK (CHANNEL_NAME)
+
+--source ../include/idx_compare_load.inc
+
+let $key_group = 14;
+let $id_column = THREAD_ID;
+SET @target_id = @worker_thread_id;
+
+--echo TABLE: $table
+--echo INDEXES: THREAD_ID
+
+--source ../include/idx_compare_load.inc
+
+--source ../include/idx_compare_cleanup_index_test.inc
+
+--connection slave
+--source include/stop_slave.inc
+SET GLOBAL slave_parallel_workers= @old_slave_parallel_workers;
+--source include/start_slave.inc
+
+--source include/rpl_end.inc
+

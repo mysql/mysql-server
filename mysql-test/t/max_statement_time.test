@@ -1,94 +1,70 @@
 # WL#6936 - Implementation of server-side statement timeout
 
---source include/not_embedded.inc
 --source include/have_statement_timeout.inc
---source include/have_query_cache.inc
 --source include/have_debug.inc
---source include/not_valgrind.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
-SET SESSION query_cache_type= 0;
-
 --echo #
---echo # 1. Test MAX_STATEMENT_TIME option syntax.
+--echo # 1. Test MAX_EXECUTION_TIME option syntax.
 --echo #
 
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (10);
 
---error ER_PARSE_ERROR
-SET @var= (SELECT MAX_STATEMENT_TIME=0 1);
---error ER_PARSE_ERROR
-SELECT 1 FROM t1 WHERE a IN (SELECT MAX_STATEMENT_TIME=0 1);
+SET @var= (SELECT /*+ MAX_EXECUTION_TIME(0) */ 1);
+SELECT 1 FROM t1 WHERE a IN (SELECT /*+ MAX_EXECUTION_TIME(0) */ 1);
 
---error ER_BAD_FIELD_ERROR
-SELECT (SELECT MAX_STATEMENT_TIME=0 a FROM t1);
---error ER_BAD_FIELD_ERROR
-SELECT a FROM t1 WHERE a IN (SELECT MAX_STATEMENT_TIME=0 a FROM t1);
---error ER_BAD_FIELD_ERROR
-SELECT * FROM t1 WHERE a IN (SELECT MAX_STATEMENT_TIME=0 a FROM t1);
---error ER_BAD_FIELD_ERROR
-SELECT MAX_STATEMENT_TIME=0 * FROM t1
-  WHERE a IN (SELECT MAX_STATEMENT_TIME=0 a FROM t1);
---error ER_BAD_FIELD_ERROR
+SELECT (SELECT /*+ MAX_EXECUTION_TIME(0) */ a FROM t1);
+SELECT a FROM t1 WHERE a IN (SELECT /*+ MAX_EXECUTION_TIME(0) */ a FROM t1);
+SELECT * FROM t1 WHERE a IN (SELECT /*+ MAX_EXECUTION_TIME(0) */ a FROM t1);
+SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1
+  WHERE a IN (SELECT /*+ MAX_EXECUTION_TIME(0) */ a FROM t1);
 SELECT * FROM t1
-  WHERE a IN (SELECT a FROM t1 UNION SELECT MAX_STATEMENT_TIME=0 a FROM t1);
---error ER_BAD_FIELD_ERROR
-SELECT MAX_STATEMENT_TIME=0 * FROM t1
-  WHERE a IN (SELECT a FROM t1 UNION SELECT MAX_STATEMENT_TIME=0 a FROM t1);
+  WHERE a IN (SELECT a FROM t1 UNION SELECT /*+ MAX_EXECUTION_TIME(0) */ a FROM t1);
+SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1
+  WHERE a IN (SELECT a FROM t1 UNION SELECT /*+ MAX_EXECUTION_TIME(0) */ a FROM t1);
 
---error ER_CANT_USE_OPTION_HERE
-SELECT * FROM t1 UNION SELECT MAX_STATEMENT_TIME=0 * FROM t1;
---error ER_CANT_USE_OPTION_HERE
-SELECT MAX_STATEMENT_TIME=0 * FROM t1
-  UNION SELECT MAX_STATEMENT_TIME=0 * FROM t1;
---error ER_CANT_USE_OPTION_HERE
-INSERT INTO t1 SELECT MAX_STATEMENT_TIME=0 * FROM t1;
---error ER_CANT_USE_OPTION_HERE
-CREATE TABLE t1 AS SELECT MAX_STATEMENT_TIME=0 * FROM t1;
---error ER_CANT_USE_OPTION_HERE
-CREATE TABLE t1 AS SELECT 1 A UNION SELECT 2 UNION SELECT MAX_STATEMENT_TIME=0 3;
---error ER_PARSE_ERROR
-CREATE TABLE MAX_STATEMENT_TIME=100 t2 (a int);
---error ER_PARSE_ERROR
-CREATE MAX_STATEMENT_TIME=100 TABLE t2 (a int);
---error ER_PARSE_ERROR
-DELETE MAX_STATEMENT_TIME=100 FROM t1;
---error ER_PARSE_ERROR
-UPDATE MAX_STATEMENT_TIME=100 t1 SET a=20;
---error ER_PARSE_ERROR
-ALTER TABLE MAX_STATEMENT_TIME=100 t1 ADD b VARCHAR(200);
---error ER_PARSE_ERROR
-ALTER MAX_STATEMENT_TIME=100 TABLE t1 ADD b VARCHAR(200);
+SELECT * FROM t1 UNION SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1;
+SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1
+  UNION SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1;
+INSERT INTO t1 SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1;
+CREATE TABLE t2 AS SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1;
+CREATE TABLE t3 AS SELECT 1 A UNION SELECT 2 UNION SELECT /*+ MAX_EXECUTION_TIME(0) */ 3;
+CREATE TABLE /*+ MAX_EXECUTION_TIME(100) */ t4 (a int);
+CREATE /*+ MAX_EXECUTION_TIME(100) */ TABLE t5 (a int);
+DELETE /*+ MAX_EXECUTION_TIME(100) */ FROM t1;
+UPDATE /*+ MAX_EXECUTION_TIME(100) */ t1 SET a=20;
+ALTER TABLE /*+ MAX_EXECUTION_TIME(100) */ t1 ADD b VARCHAR(200);
+ALTER /*+ MAX_EXECUTION_TIME(100) */ TABLE t1 ADD c VARCHAR(200);
 
-SELECT MAX_STATEMENT_TIME=0 * FROM t1;
+SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1;
 
-DROP TABLE t1;
+DROP TABLE t1, t2, t3, t4, t5;
 
 --echo #
---echo # 2. Test MAX_STATEMENT_TIME value set at session level.
+--echo # 2. Test MAX_EXECUTION_TIME value set at session level.
 --echo #
 # Statement level timeout value setting.
-SELECT @@max_statement_time;
-SET @@SESSION.max_statement_time= 1;
-SELECT @@max_statement_time;
-SET @@SESSION.max_statement_time= 0;
+SELECT @@max_execution_time;
+SET @@SESSION.max_execution_time= 1;
+SELECT @@max_execution_time;
+SET @@SESSION.max_execution_time= 0;
 
 --echo #
---echo # 3. Test the MAX_STATEMENT_TIME option by setting value for it at,
+--echo # 3. Test the MAX_EXECUTION_TIME option by setting value for it at,
 --echo #        - STATEMENT
 --echo #        - SESSION
 --echo #
 
 # timeout value set at statement level.
-SELECT MAX_STATEMENT_TIME=1 SLEEP(5);
+SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(5);
 
 # timeout value set at session level.
-SET @@SESSION.max_statement_time= 1;
+SET @@SESSION.max_execution_time= 1;
 SELECT SLEEP(5);
-SET @@SESSION.max_statement_time= 0;
+SET @@SESSION.max_execution_time= 0;
 
 --echo # 
 --echo # 4. Test statement timeout functionality.
@@ -111,8 +87,8 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 
-# Set Session max_statement_time to 2 millisecond
-SET @@SESSION.max_statement_time= 2;
+# Set Session max_execution_time to 2 millisecond
+SET @@SESSION.max_execution_time= 2;
 
 # Case 4.1: Following select should timeout
 --error ER_QUERY_TIMEOUT
@@ -129,24 +105,24 @@ SELECT * FROM t1;
 
 # Following select should timeout
 --error ER_QUERY_TIMEOUT
-SELECT MAX_STATEMENT_TIME=1 * FROM t1;
+SELECT /*+ MAX_EXECUTION_TIME(1) */ * FROM t1;
 
 connection con1;
 UNLOCK TABLES;
 connection default;
 disconnect con1;
 
-# Case 4.3: max_statement_time is not applicable to DDL statement.
+# Case 4.3: max_execution_time is not applicable to DDL statement.
 CREATE TABLE t2 SELECT * FROM t1;
 ALTER TABLE t2 ADD c VARCHAR(200) default 'new_col';
 
-# Case 4.4: max_statement_time is not applicable to UPDATE statement.
+# Case 4.4: max_execution_time is not applicable to UPDATE statement.
 UPDATE t1 SET b= 'new_string';
 
-# Case 4.5: max_statement_time is not applicable to INSERT statement.
+# Case 4.5: max_execution_time is not applicable to INSERT statement.
 INSERT INTO t1 SELECT * FROM t1;
 
-# Case 4.6: max_statement_time is not applicable to DELETE statement.
+# Case 4.6: max_execution_time is not applicable to DELETE statement.
 DELETE FROM t2;
 
 --echo #
@@ -154,14 +130,14 @@ DELETE FROM t2;
 --echo #
 
 # Timeout is not applicable to subqueries.
-SELECT MAX_STATEMENT_TIME=3600000 (SELECT SLEEP(0.5)) AS true_if_subquery_is_timedout;
+SELECT /*+ MAX_EXECUTION_TIME(3600000) */ (SELECT SLEEP(0.5)) AS true_if_subquery_is_timedout;
 
 --echo #
---echo # 6. Test max_statement_time with prepared statements.
+--echo # 6. Test max_execution_time with prepared statements.
 --echo #
 PREPARE stmt1 FROM "SELECT *, SLEEP(0.5) FROM t1 WHERE b= 'new_string'";
-PREPARE stmt2 FROM "SELECT MAX_STATEMENT_TIME=2 *, SLEEP(0.5) FROM t1 WHERE b= 'new_string'";
-PREPARE stmt3 FROM "SELECT MAX_STATEMENT_TIME=3600000 count(*) FROM t1";
+PREPARE stmt2 FROM "SELECT /*+ MAX_EXECUTION_TIME(2) */ *, SLEEP(0.5) FROM t1 WHERE b= 'new_string'";
+PREPARE stmt3 FROM "SELECT /*+ MAX_EXECUTION_TIME(3600000) */ count(*) FROM t1";
 
 # Following EXECUTE stmt1 should timeout.
 --error ER_QUERY_TIMEOUT
@@ -178,20 +154,20 @@ DEALLOCATE PREPARE stmt2;
 DEALLOCATE PREPARE stmt3;
 
 --echo #
---echo # 7. Test max_statement_time with Stored Routines.
+--echo # 7. Test max_execution_time with Stored Routines.
 --echo #
 # Case 7.1: Stored functions.
 #           Execution time limit applies to only top-level select statement.
 #
 DELIMITER |;
 
-# Specifying MAX_STATEMENT_TIME for SELECTs of stored function is not allowed.
---error ER_CANT_USE_OPTION_HERE
+# Specifying MAX_EXECUTION_TIME for SELECTs of stored function is ignored.
 CREATE FUNCTION f1() RETURNS INT
 BEGIN
-  SELECT MAX_STATEMENT_TIME=1 SLEEP(1.5) INTO @a;
+  SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(1.5) INTO @a;
   RETURN 1;
 END|
+DROP FUNCTION f1|
 
 CREATE FUNCTION f1() RETURNS INT
 BEGIN
@@ -209,15 +185,15 @@ DELIMITER ;|
 
 INSERT INTO t2 VALUES (1, 'string1', 'string2');
 
-# Set Session max_statement_time to 2 millisecond
-SET @@SESSION.max_statement_time= 2;
-# Following SELECT should timeout as max_statement_time is set for top level select now.
+# Set Session max_execution_time to 2 millisecond
+SET @@SESSION.max_execution_time= 2;
+# Following SELECT should timeout as max_execution_time is set for top level select now.
 --error ER_QUERY_TIMEOUT
 SELECT f1();
 
 # Following SELECT should not time out as it is not a read only query.  Note,
 # for desabling timer is generated for this query.
-SELECT MAX_STATEMENT_TIME=60000 f2();
+SELECT /*+ MAX_EXECUTION_TIME(60000) */ f2();
 
 DROP FUNCTION f1;
 DROP FUNCTION f2;
@@ -226,13 +202,13 @@ DROP FUNCTION f2;
 #           Execution time limit is not applicable to Stored procedure.
 DELIMITER |;
 
-# Specifying MAX_STATEMENT_TIME for SELECTs of stored procedure is not allowed.
---error ER_CANT_USE_OPTION_HERE
+# Specifying MAX_EXECUTION_TIME for SELECTs of stored procedure is ignored.
 CREATE PROCEDURE p1()
 BEGIN
-  SELECT max_statement_time=1 SLEEP(1.5);
+  SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(1.5);
   INSERT INTO t2 SELECT DISTINCT * FROM t2;
 END|
+DROP PROCEDURE p1|
 
 CREATE PROCEDURE p1()
 BEGIN
@@ -242,7 +218,7 @@ END|
 
 DELIMITER ;|
 
-# max_statement_time is not applicable to Stored procedure.
+# max_execution_time is not applicable to Stored procedure.
 CALL p1();
 
 DROP PROCEDURE p1;
@@ -252,8 +228,8 @@ DROP TABLE t2;
 #           Execution time limit is not applicable to SELECTs of events.
 SET @global_event_scheduler_status= @@global.event_scheduler;
 SET @@global.event_scheduler= ON;
-SET @@global.max_statement_time= 1;
-CREATE TABLE t2 (f1 int);
+SET @@global.max_execution_time= 1;
+CREATE TABLE t2 (f1 int, f2 int);
 
 # Both of the following selects are interrupted because of timeout.
 SELECT SLEEP(2) into @a;
@@ -261,55 +237,48 @@ SELECT @a;
 
 delimiter |;
 
-# Specifying MAX_STATEMENT_TIME for SELECTs of events is not allowed.
---error ER_CANT_USE_OPTION_HERE
+# Specifying MAX_EXECUTION_TIME for SELECTs of events is ignored.
 CREATE EVENT event1 ON SCHEDULE AT CURRENT_TIMESTAMP
 DO BEGIN
   SELECT SLEEP(2) into @a;
-  SELECT MAX_STATEMENT_TIME=1 SLEEP(2) into @b;
-  INSERT INTO t2 VALUES(@a);
-  INSERT INTO t2 VALUES(@b);
+  SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(2) into @b;
+  INSERT INTO t2 VALUES(@a, @b);
 END|
-
-CREATE EVENT event1 ON SCHEDULE AT CURRENT_TIMESTAMP
-DO BEGIN
-  SELECT SLEEP(2) into @a;
-  INSERT INTO t2 VALUES(@a);
-END
-|
 
 delimiter ;|
 
 --echo # Wait until at least one instance of event is executed.
-let $wait_condition= SELECT MAX_STATEMENT_TIME=3600000 COUNT(*) FROM t2;
+let $wait_condition= SELECT /*+ MAX_EXECUTION_TIME(3600000) */ COUNT(*) FROM t2;
 --source include/wait_condition.inc
 
-#Since MAX_STATEMENT_TIME is not applicable for events & SELECTs of event,
-#selects of event1 are not interruped so table contains 0 value.
-SELECT MAX_STATEMENT_TIME=3600000 * FROM t2;
+#Since MAX_EXECUTION_TIME is not applicable for events & SELECTs of event,
+#selects of event1 are not interruped so table contains two 0 values.
+SELECT /*+ MAX_EXECUTION_TIME(3600000) */ * FROM t2;
 
 DELETE FROM t2;
 SET @@global.event_scheduler= @global_event_scheduler_status;
-SET @@global.max_statement_time= 0;
+SET @@global.max_execution_time= 0;
 
 # Case 7.4: Triggers
 #           Execution time limit is not applicable to SELECTs of triggers.
 delimiter |;
 
-# Specifying MAX_STATEMENT_TIME for SELECTs of events is not allowed.
---error ER_CANT_USE_OPTION_HERE
+CREATE TABLE t3 (f1 int)|
+
+# Specifying MAX_EXECUTION_TIME for SELECTs of events is ignored.
 CREATE TRIGGER t1_before_trigger BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
   SELECT SLEEP(2) into @a;
-  SELECT MAX_STATEMENT_TIME=1 SLEEP(2) into @b;
-  INSERT INTO t2 VALUES(@a);
-  INSERT INTO t2 VALUES(@b);
+  SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(2) into @b;
+  INSERT INTO t3 VALUES(@a);
+  INSERT INTO t3 VALUES(@b);
 END|
+DROP TRIGGER t1_before_trigger|
 
 CREATE TRIGGER t1_before_trigger BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
   SELECT SLEEP(2) into @a;
-  INSERT INTO t2 VALUES(@a);
+  INSERT INTO t3 VALUES(@a);
 END
 |
 
@@ -317,47 +286,47 @@ delimiter ;|
 
 # Both of the following selects are interrupted because of timeout.
 SELECT SLEEP(5) into @a;
-SELECT max_statement_time=1 SLEEP(2) into @b;
+SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(2) into @b;
 SELECT @a, @b;
 
 INSERT INTO t1 VALUES (1, 'string');
-#Since MAX_STATEMENT_TIME is not applicable for  SELECTs of triggers, selects of
+#Since MAX_EXECUTION_TIME is not applicable for  SELECTs of triggers, selects of
 #triggers are not interruped so table contains 0 value.
-SELECT MAX_STATEMENT_TIME=3600000 * FROM t2;
+SELECT /*+ MAX_EXECUTION_TIME(3600000) */ * FROM t3;
 
-DROP TABLE t1,t2;
+DROP TABLE t1,t2,t3;
 
 --echo #
---echo # 8. Test MAX_STATEMENT_TIME precedence set at different levels.
+--echo # 8. Test MAX_EXECUTION_TIME precedence set at different levels.
 --echo #
 
-# Session MAX_STATEMENT_TIME is used when statament level MAX_STATEMENT_TIME 
+# Session MAX_EXECUTION_TIME is used when statament level MAX_EXECUTION_TIME 
 # value is not set.
-SET @@SESSION.max_statement_time= 3;
+SET @@SESSION.max_execution_time= 3;
 SELECT sleep(5);
 
-# Statement level MAX_STATEMENT_TIME takes precedence over session level
-# MAX_STATEMENT_TIME.
-SELECT MAX_STATEMENT_TIME=2 sleep(5);
+# Statement level MAX_EXECUTION_TIME takes precedence over session level
+# MAX_EXECUTION_TIME.
+SELECT /*+ MAX_EXECUTION_TIME(2) */ sleep(5);
 
-SET @@SESSION.max_statement_time= 0;
+SET @@SESSION.max_execution_time= 0;
 
 --echo #
---echo # 9. MAX_STATEMENT_TIME status variables.
+--echo # 9. MAX_EXECUTION_TIME status variables.
 --echo #
 
-# Case 9.1 Check MAX_STATEMENT_TIME_SET and MAX_STATEMENT_TIME_EXCEEDED status.
+# Case 9.1 Check MAX_EXECUTION_TIME_SET and MAX_EXECUTION_TIME_EXCEEDED status.
 --disable_warnings
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET';
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET';
 
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_exceeded
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_EXCEEDED';
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_EXCEEDED';
 --enable_warnings
 
-SELECT MAX_STATEMENT_TIME=10 SLEEP(1);
+SELECT /*+ MAX_EXECUTION_TIME(10) */ SLEEP(1);
 
 --echo # Ensure that the counters for:
 --echo # - statements that are time limited; and
@@ -365,136 +334,51 @@ SELECT MAX_STATEMENT_TIME=10 SLEEP(1);
 --echo # are incremented.
 
 --disable_warnings
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET'
+SELECT 1 AS STATUS FROM performance_schema.global_status
+  WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set;
 
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_EXCEEDED'
+SELECT 1 AS STATUS FROM performance_schema.global_status
+  WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_EXCEEDED'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_exceeded;
 --enable_warnings
 
-# Case 9.2 Check MAX_STATEMENT_TIME_FAILED status on timer creation failure.
+# Case 9.2 Check MAX_EXECUTION_TIME_FAILED status on timer creation failure.
 connect(con1, localhost, root,,);
 
 --disable_warnings
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set_failed
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED';
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED';
 --enable_warnings
 
 SET DEBUG= '+d,thd_timer_create_failure';
-SELECT MAX_STATEMENT_TIME=10 SLEEP(1);
+SELECT /*+ MAX_EXECUTION_TIME(10) */ SLEEP(1);
 SET DEBUG= '-d,thd_timer_create_failure';
 
 --disable_warnings
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED'
+SELECT 1 AS STATUS FROM performance_schema.global_status
+  WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set_failed;
 
-# Case 9.3 Check MAX_STATEMENT_TIME_FAILED status on timer set failure.
+# Case 9.3 Check MAX_EXECUTION_TIME_FAILED status on timer set failure.
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set_failed
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED';
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED';
 
 SET DEBUG= '+d,thd_timer_set_failure';
-SELECT MAX_STATEMENT_TIME=10 SLEEP(1);
+SELECT /*+ MAX_EXECUTION_TIME(10) */ SLEEP(1);
 SET DEBUG= '-d,thd_timer_set_failure';
 
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED'
+SELECT 1 AS STATUS FROM performance_schema.global_status
+  WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set_failed;
 --enable_warnings
 
 connection default;
 disconnect con1;
 
---echo # 
---echo # 10. Test Query cache behavior with max_statement_time.
---echo #
-SET SESSION query_cache_type= 1;
-SET @@SESSION.max_statement_time= 0;
-
-CREATE TABLE t1 (fld1 int);
-INSERT INTO t1 VALUES (1), (2), (3);
-INSERT INTO t1 SELECT * FROM t1;
-
-FLUSH QUERY CACHE; 
-
-# Check Query Cache status
---disable_warnings
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_inserts
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME= 'Qcache_inserts';
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_hits
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME= 'Qcache_hits';
---enable_warnings
-
-SELECT * FROM t1;
-
-#Check whether query result is cached or not.
---disable_warnings
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'Qcache_inserts'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_inserts;
---enable_warnings
-
-SELECT * FROM t1;
-
-#Since both the queries are identical, results is taken from cache.
---disable_warnings
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'Qcache_hits'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_hits;
-
-#Get current query cache status.        
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_inserts
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME= 'Qcache_inserts';
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_hits
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME= 'Qcache_hits';
---enable_warnings
-
-SELECT MAX_STATEMENT_TIME=3600000 * FROM t1;
-#Though query is symatically identical to cached SELECT but textually not. So
-#result is not read from the cache.
---disable_warnings
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'Qcache_hits'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_hits;
-#It is cached in another block.
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'Qcache_inserts'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_inserts;
-
-#Get current query cache status.        
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_inserts
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME= 'Qcache_inserts';
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_hits
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME= 'Qcache_hits';
---enable_warnings
-
-SELECT MAX_STATEMENT_TIME=3600000 * FROM t1;
-#Since, SELECT is idetical to 2ns cached SELECT, result is taken from cache.
---disable_warnings
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'Qcache_hits'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_hits;
-#No changes in Qcache_insert here.
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'Qcache_inserts'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_inserts;
---enable_warnings
-
-FLUSH QUERY CACHE; 
-DROP TABLE t1;
-
-SET @@SESSION.max_statement_time= 0;
-
+SET @@SESSION.max_execution_time= 0;
 # Check that all connections opened by test cases in this file are really gone
 # so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -41,6 +48,7 @@ import com.mysql.clusterj.tie.DbImpl.BufferManager;
 
 import com.mysql.ndbjtie.ndbapi.NdbBlob;
 import com.mysql.ndbjtie.ndbapi.NdbOperationConst;
+import com.mysql.ndbjtie.ndbapi.NdbOperation;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 
 /**
@@ -69,6 +77,9 @@ public class NdbRecordOperationImpl implements Operation {
 
     /** The NdbRecord for values */
     protected NdbRecordImpl ndbRecordValues = null;
+
+    /** The ByteBuffer pool for handling blob operations */
+    protected VariableByteBufferPoolImpl byteBufferPool;
 
     /** The mask for this operation, which contains a bit set for each column referenced.
      * For insert, this contains a bit for each column to be inserted.
@@ -113,6 +124,12 @@ public class NdbRecordOperationImpl implements Operation {
     /** The db for this operation */
     protected DbImpl db;
 
+    /** If autoincrement is defined for any column */
+    protected boolean autoIncrement = false;
+
+    /** The autoincrement column id or zero if none */
+    protected int autoIncrementColumnId = 0;
+
     /** Constructor used for smart value handler for new instances,
      * and the cluster transaction is not yet known. There is only one
      * NdbRecord and one buffer, so all operations result in using
@@ -123,8 +140,16 @@ public class NdbRecordOperationImpl implements Operation {
      * @param storeTable the store table
      */
     public NdbRecordOperationImpl(ClusterConnectionImpl clusterConnection, Db db, Table storeTable) {
+        byteBufferPool = clusterConnection.getByteBufferPool();
         this.db = (DbImpl)db;
         this.storeTable = storeTable;
+        Column autoIncrementColumn = storeTable.getAutoIncrementColumn();
+        if (autoIncrementColumn != null) {
+            this.autoIncrement = true;
+            this.autoIncrementColumnId = autoIncrementColumn.getColumnId();
+        }
+        if (logger.isDetailEnabled())
+            logger.detail("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
         this.tableName = storeTable.getName();
         this.ndbRecordValues = clusterConnection.getCachedNdbRecordImpl(storeTable);
         this.ndbRecordKeys = ndbRecordValues;
@@ -144,13 +169,22 @@ public class NdbRecordOperationImpl implements Operation {
      * @param clusterTransaction the cluster transaction
      */
     public NdbRecordOperationImpl(ClusterTransactionImpl clusterTransaction, Table storeTable) {
+        this.byteBufferPool = clusterTransaction.getClusterConnection().getByteBufferPool();
         this.clusterTransaction = clusterTransaction;
         this.db = clusterTransaction.db;
         this.bufferManager = clusterTransaction.getBufferManager();
+        this.storeTable = storeTable;
+        Column autoIncrementColumn = storeTable.getAutoIncrementColumn();
+        if (autoIncrementColumn != null) {
+            this.autoIncrement = true;
+            this.autoIncrementColumnId = autoIncrementColumn.getColumnId();
+        }
+        if (logger.isDetailEnabled())
+            logger.detail("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
         this.tableName = storeTable.getName();
         this.ndbRecordValues = clusterTransaction.getCachedNdbRecordImpl(storeTable);
         this.valueBufferSize = ndbRecordValues.getBufferSize();
-        this.valueBuffer = ndbRecordValues.newBuffer();
+        this.storeColumns = ndbRecordValues.storeColumns;
         this.numberOfColumns = ndbRecordValues.getNumberOfColumns();
         this.blobs = new NdbRecordBlobImpl[this.numberOfColumns];
         resetMask();
@@ -162,6 +196,7 @@ public class NdbRecordOperationImpl implements Operation {
      * @param ndbRecordOperationImpl2 the existing NdbRecordOperationImpl with value buffer
      */
     public NdbRecordOperationImpl(NdbRecordOperationImpl ndbRecordOperationImpl2) {
+        this.byteBufferPool = ndbRecordOperationImpl2.byteBufferPool;
         this.ndbRecordValues = ndbRecordOperationImpl2.ndbRecordValues;
         this.valueBufferSize = ndbRecordOperationImpl2.valueBufferSize;
         this.ndbRecordKeys = ndbRecordValues;
@@ -173,11 +208,53 @@ public class NdbRecordOperationImpl implements Operation {
         this.storeColumns = ndbRecordOperationImpl2.ndbRecordValues.storeColumns;
         this.numberOfColumns = this.storeColumns.length;
         this.blobs = new NdbRecordBlobImpl[this.numberOfColumns];
-        this.activeBlobs = ndbRecordOperationImpl2.activeBlobs;
+        // copy the blob data from the original but leave out the NdbBlob part
+        // which is bound to the NdbOperation and is not suitable
+        for (int i = 0; i < ndbRecordOperationImpl2.blobs.length; ++i) {
+            if (ndbRecordOperationImpl2.blobs[i] != null) {
+              this.blobs[i] = new NdbRecordBlobImpl(this, ndbRecordOperationImpl2.blobs[i]);
+            }
+        }
         resetMask();
     }
 
+    /** Release any resources associated with this object.
+     * This method is called by the owner of this object.
+     */
+    public void release() {
+        if (logger.isDetailEnabled()) logger.detail("NdbRecordOperationImpl.release");
+        if (keyBuffer != null && keyBuffer != valueBuffer) {
+            ndbRecordKeys.returnBuffer(keyBuffer);
+            this.keyBuffer = null;
+        }
+        if (valueBuffer != null) {
+            ndbRecordValues.returnBuffer(valueBuffer);
+            this.valueBuffer = null;
+        }
+        this.ndbRecordValues = null;
+        this.ndbRecordKeys = null;
+        this.bufferManager = null;
+        if (this.blobs != null) {
+            for (int i = 0; i < this.blobs.length; ++i) {
+                if (this.blobs[i] != null) {
+                  this.blobs[i].release();
+                  this.blobs[i] = null;
+                }
+            }
+            this.blobs = null;
+        }
+    }
+
     public NdbOperationConst insert(ClusterTransactionImpl clusterTransactionImpl) {
+        // (only) if the autoincrement column has not been set by the user, get the autoincrement value
+        if (autoIncrement && !isModified(autoIncrementColumnId)) {
+            long value = db.getAutoincrementValue(storeTable);
+            if (logger.isDebugEnabled()) {
+                logger.debug("insert for " + storeTable.getName() + " autoincrement value: " + value);
+            }
+            ndbRecordValues.setAutoIncrementValue(valueBuffer, value);
+            columnSet(autoIncrementColumnId);
+        }
         // position the buffer at the beginning for ndbjtie
         valueBuffer.limit(valueBufferSize);
         valueBuffer.position(0);
@@ -207,12 +284,18 @@ public class NdbRecordOperationImpl implements Operation {
         valueBuffer.position(0);
         ndbOperation = clusterTransactionImpl.updateTuple(ndbRecordValues.getNdbRecord(), valueBuffer, mask, null);
         clusterTransactionImpl.addOperationToCheck(this);
-        // for each blob column set, get the blob handle and write the values
-        for (NdbRecordBlobImpl blob: activeBlobs) {
-            // activate the blob by getting the NdbBlob
-            blob.setNdbBlob();
-            // set values into the blob
-            blob.setValue();
+        // calculate the active blobs
+        activeBlobs.clear();
+        for (NdbRecordBlobImpl blob: blobs) {
+            if (blob != null && isColumnSet(blob.getColumnId())) {
+                activeBlobs.add(blob);
+                blob.setNdbBlob();
+                blob.setValue();
+            }
+        }
+        if (!activeBlobs.isEmpty()) {
+            // if any blobs, execute the transaction to enable the blob values to be updated
+            clusterTransactionImpl.executeNoCommit();
         }
         return;
     }
@@ -249,8 +332,17 @@ public class NdbRecordOperationImpl implements Operation {
         this.mask = new byte[1 + (numberOfColumns/8)];
     }
 
+    public void allocateValueBuffer(boolean initialize) {
+        this.valueBuffer = ndbRecordValues.newBuffer(initialize);
+    }
+
     public void allocateValueBuffer() {
-        this.valueBuffer = ndbRecordValues.newBuffer();
+        allocateValueBuffer(true);
+    }
+
+    public void returnValueBuffer() {
+        ndbRecordValues.returnBuffer(this.valueBuffer);
+        this.valueBuffer = null;
     }
 
     protected void activateBlobs() {
@@ -325,11 +417,17 @@ public class NdbRecordOperationImpl implements Operation {
      * @return the blob handle
      */
     public Blob getBlobHandle(Column storeColumn) {
+        if (logger.isDetailEnabled()) {
+            logger.detail("column: " + storeColumn.getName());
+        }
         int columnId = storeColumn.getColumnId();
         NdbRecordBlobImpl result = blobs[columnId];
         if (result == null) {
+            if (logger.isDetailEnabled()) {
+                logger.detail("column: " + storeColumn.getName() + " was null; activating.");
+            }
             columnSet(columnId);
-            result = new NdbRecordBlobImpl(this, storeColumn);
+            result = new NdbRecordBlobImpl(this, storeColumn, byteBufferPool);
             blobs[columnId] = result;
             activeBlobs.add(result);
         }
@@ -396,6 +494,10 @@ public class NdbRecordOperationImpl implements Operation {
     }
 
     public void setBytes(Column storeColumn, byte[] value) {
+        if (logger.isDetailEnabled()) {
+            logger.detail("NdbRecordOperationImpl.setBytes for: " + storeColumn.getName() + " value: " + 
+                    Utility.dumpBytes(value));
+        }
         if (value == null) {
             setNull(storeColumn);
         } else {
@@ -580,9 +682,24 @@ public class NdbRecordOperationImpl implements Operation {
     }
 
     public NdbBlob getNdbBlob(Column storeColumn) {
-        NdbBlob result = ndbOperation.getBlobHandle(storeColumn.getColumnId());
-        handleError(result, ndbOperation);
+        if (ndbOperation == null) {
+            throw new ClusterJFatalInternalException("NdbRecordOperationImpl.getNdbBlob with no ndbOperation.");
+        } else {
+            NdbBlob result = ndbOperation.getBlobHandle(storeColumn.getColumnId());
+            handleError(result, ndbOperation);
         return result;
+        }
+    }
+
+    /** Activate blob/text columns just read
+     * 
+     */
+    public void activateBlobColumns() {
+        for (Column storeColumn: storeColumns) {
+            if (storeColumn.isLob()) {
+                getBlobHandle(storeColumn);
+            }
+        }
     }
 
     /**
@@ -593,7 +710,13 @@ public class NdbRecordOperationImpl implements Operation {
         int byteOffset = columnId / 8;
         int bitInByte = columnId - (byteOffset * 8);
         mask[byteOffset] |= NdbRecordImpl.BIT_IN_BYTE_MASK[bitInByte];
-        
+    }
+
+    protected boolean isColumnSet(int columnId) {
+        int byteOffset = columnId / 8;
+        int bitInByte = columnId - (byteOffset * 8);
+        byte testMask = NdbRecordImpl.BIT_IN_BYTE_MASK[bitInByte];
+        return (mask[byteOffset] & testMask) == testMask;
     }
 
     public NdbRecordImpl getValueNdbRecord() {
@@ -823,7 +946,7 @@ public class NdbRecordOperationImpl implements Operation {
 
     @Override
     public String toString() {
-        return tableName;
+        return " NdbRecordOperationImpl for table " + tableName;
     }
 
     /** After executing the operation, fetch the blob values into each blob's data holder.
@@ -845,6 +968,13 @@ public class NdbRecordOperationImpl implements Operation {
         this.keyBuffer = valueBuffer;
         resetModified();
         return this;
+    }
+
+    /** Check the NdbRecord buffer guard */
+    protected void checkGuard(String where) {
+        if (ndbRecordValues != null) {
+            ndbRecordValues.checkGuard(this.valueBuffer, where);
+        }
     }
 
 }

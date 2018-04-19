@@ -8,6 +8,9 @@
 # a case sensitive file system.
 #
 
+#Server variable option 'lower_case_table_names' sets '0' as default value
+#in case sensitive filesystem. Using 'lower_case_table_names=0' in case of
+#insensitive filsystem is not allowed.
 --source include/have_lowercase0.inc
 --source include/have_case_sensitive_file_system.inc
 

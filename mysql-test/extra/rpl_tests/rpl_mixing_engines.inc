@@ -24,21 +24,24 @@
 #       database is created or dropped, respectively.
 #
 #     $verbose
-#       By default, show_binlog_events.inc is sourced after all
+#       By default, the query show binlog events is executed after all
 #       commands have been processed, showing the result of all
-#       commands.  If this flag is set, then show_binlog_events.inc is
-#       also sourced once after each command, showing only the result
+#       commands. If this flag is set, then the query show binlog events
+#       is also executed once after each command, showing only the result
 #       of that command.
---source include/have_myisam.inc
-
 --echo rpl_mixing_engines.inc [commands=$commands]
 
 --let $rme_initial_commands= $commands
 
 if ($commands == 'configure')
 {
+  let $binlog_filter=
+  /Anonymous_Gtid/Gtid/
+  /GTID_NEXT= '([0-9a-f:\-]+|ANONYMOUS)'/GTID_NEXT= Gtid_set/
+  /COMMIT \/\* xid=[0-9]+ \*\//COMMIT \/* XID *\//
+  /[ ]*\/\* xid=[0-9]+ \*\///
+  /table_id: [0-9]+/table_id: #/;
   connection master;
-  
   --disable_query_log
   if ($database_name != 'test')
   {
@@ -611,12 +614,14 @@ while ($commands != '')
   let $binlog_start= $pos_command;
   if ($verbose)
   {
-    # Use other connection because include/show_binlog_events.inc
+    # Use other connection because query show binlog events
     # executes SELECT UUID(), which switches to row-logging when
     # binlog_format=mixed, if there are open temporary tables. This is
     # due to BUG#13692513.
     --connection server_1
-    --source include/show_binlog_events.inc
+    replace_column 2 # 4 # 5 #;
+    --replace_regex $binlog_filter
+    eval show binlog events from $binlog_start;
     --connection master
     --echo -e-e-e-e-e-e-e-e-e-e-e- >> $command << -e-e-e-e-e-e-e-e-e-e-e-
   }
@@ -625,7 +630,9 @@ while ($commands != '')
     let $binlog_start= $pos_trans_command;
     --echo -b-b-b-b-b-b-b-b-b-b-b- >> $rme_initial_commands << -b-b-b-b-b-b-b-b-b-b-b-
     --connection server_1
-    --source include/show_binlog_events.inc
+    replace_column 2 # 4 # 5 #;
+    --replace_regex $binlog_filter
+    eval show binlog events from $binlog_start;
     --connection master
     --echo -e-e-e-e-e-e-e-e-e-e-e- >> $rme_initial_commands << -e-e-e-e-e-e-e-e-e-e-e-
     --echo

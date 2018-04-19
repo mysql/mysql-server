@@ -1,11 +1,4 @@
-
---source include/not_embedded.inc
-
-# Only run test if "mysql_upgrade" is found
---require r/have_mysql_upgrade.result
---disable_query_log
-select LENGTH("$MYSQL_UPGRADE")>0 as have_mysql_upgrade;
---enable_query_log
+--source include/no_valgrind_without_big.inc
 
 --echo #
 --echo # Bug#49823: mysql_upgrade fatal error due to general_log / slow_low CSV NULL
@@ -13,10 +6,8 @@ select LENGTH("$MYSQL_UPGRADE")>0 as have_mysql_upgrade;
 
 USE test;
 
-let $MYSQLD_DATADIR= `SELECT @@datadir`;
-copy_file std_data/bug49823.frm $MYSQLD_DATADIR/test/bug49823.frm;
-copy_file std_data/bug49823.CSM $MYSQLD_DATADIR/test/bug49823.CSM;
-copy_file std_data/bug49823.CSV $MYSQLD_DATADIR/test/bug49823.CSV;
+# Create the table with a bogus NULL column
+CREATE TABLE bug49823 (event_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), user_host MEDIUMTEXT NOT NULL, thread_id BIGINT(21) UNSIGNED NOT NULL, server_id INTEGER UNSIGNED NULL, command_type VARCHAR(64) NOT NULL, argument MEDIUMBLOB NOT NULL) engine=MYISAM CHARACTER SET utf8 comment="General log";
 
 SET @saved_general_log = @@GLOBAL.general_log;
 SET GLOBAL general_log = OFF;
@@ -24,6 +15,10 @@ USE mysql;
 FLUSH TABLES;
 RENAME TABLE general_log TO renamed_general_log;
 RENAME TABLE test.bug49823 TO general_log;
+
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 DROP TABLE general_log;
 RENAME TABLE renamed_general_log TO general_log;

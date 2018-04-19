@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -61,7 +68,7 @@ read_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
   if (res <= 0)
     return res;
 
-  return (int)my_recv(socket, &buf[0], buflen, 0);
+  return (int)ndb_recv(socket, &buf[0], buflen, 0);
 }
 
 extern "C"
@@ -88,7 +95,7 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
   do
   {
     int t;
-    while((t = (int)my_recv(socket, ptr, len, MSG_PEEK)) == -1
+    while((t = (int)ndb_recv(socket, ptr, len, MSG_PEEK)) == -1
           && socket_errno == EINTR);
     
     if(t < 1)
@@ -106,7 +113,7 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 	 */
 	for (len = 1 + i; len; )
 	{
-	  while ((t = (int)my_recv(socket, ptr, len, 0)) == -1
+          while ((t = (int)ndb_recv(socket, ptr, len, 0)) == -1
                  && socket_errno == EINTR);
 	  if (t < 1)
 	    return -1;
@@ -129,7 +136,7 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
     
     for (int tmp = t; tmp; )
     {
-      while ((t = (int)my_recv(socket, ptr, tmp, 0)) == -1 && socket_errno == EINTR);
+      while ((t = (int)ndb_recv(socket, ptr, tmp, 0)) == -1 && socket_errno == EINTR);
       if (t < 1)
       {
 	return -1;
@@ -166,7 +173,7 @@ write_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 
   const char * tmp = &buf[0];
   while(len > 0){
-    const int w = (int)my_send(socket, tmp, len, 0);
+    const int w = (int)ndb_send(socket, tmp, len, 0);
     if(w == -1){
       return -1;
     }
@@ -260,7 +267,7 @@ vprintln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
   return ret;
 }
 
-#ifdef NDB_WIN32
+#ifdef _WIN32
 
 class INIT_WINSOCK2
 {

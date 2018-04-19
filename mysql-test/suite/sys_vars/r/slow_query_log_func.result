@@ -44,8 +44,6 @@ DROP PROCEDURE p_test;
 Bug53191 Lock_time in slow log is negative when logging stored routines
 TRUNCATE mysql.slow_log;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (c0 INT PRIMARY KEY AUTO_INCREMENT, c1 TIMESTAMP, c2 TIMESTAMP);
 CREATE FUNCTION f_slow_now() RETURNS TIMESTAMP
 BEGIN
@@ -120,3 +118,4 @@ DROP PROCEDURE p1;
 SET sql_mode = default;
 SET @@global.log_output = @global_log_output;
 SET @global.slow_query_log = @global_slow_query_log;
+TRUNCATE TABLE mysql.slow_log;

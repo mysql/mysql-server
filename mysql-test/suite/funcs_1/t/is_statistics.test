@@ -16,11 +16,13 @@
 #                   Create this script based on older scripts and new code.
 #
 
-# This test cannot be used for the embedded server because we check here
-# privileges.
---source include/not_embedded.inc
 
---source include/have_innodb.inc
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
 let $engine_type       = InnoDB;
 let $other_engine_type = InnoDB;
 
@@ -78,8 +80,11 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 #       information_schema.statistics is in is_columns_is.test.
 
 # Show that TABLE_CATALOG is always NULL.
+--sorted_result
 SELECT table_catalog, table_schema, table_name, index_schema, index_name
-FROM information_schema.statistics WHERE table_catalog IS NOT NULL;
+FROM information_schema.statistics WHERE table_catalog IS NOT NULL AND
+     table_name != 'ndb_binlog_index'
+ORDER BY table_schema, table_name, index_schema, index_name;
 
 
 --echo ####################################################################################
@@ -137,7 +142,9 @@ ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
 let $my_show1 = SHOW GRANTS FOR 'testuser1'@'localhost';
 let $my_show2 = SHOW GRANTS FOR 'testuser2'@'localhost';
 eval $my_select;
+--sorted_result
 eval $my_show1;
+--sorted_result
 eval $my_show2;
 
 --echo # Establish connection testuser1 (user=testuser1)
@@ -145,8 +152,9 @@ eval $my_show2;
 connect (testuser1, localhost, testuser1, , test);
 # nothing visible for testuser1
 eval $my_select;
+--sorted_result
 eval $my_show1;
---error ER_DBACCESS_DENIED_ERROR
+--error ER_TABLEACCESS_DENIED_ERROR
 eval $my_show2;
 
 --echo # Establish connection testuser2 (user=testuser2)
@@ -154,8 +162,9 @@ eval $my_show2;
 connect (testuser2, localhost, testuser2, , test);
 # nothing visible for testuser2
 eval $my_select;
---error ER_DBACCESS_DENIED_ERROR
+--error ER_TABLEACCESS_DENIED_ERROR
 eval $my_show1;
+--sorted_result
 eval $my_show2;
 
 --echo # Switch to connection default
@@ -163,32 +172,38 @@ connection default;
 GRANT SELECT ON db_datadict.t1 TO 'testuser1'@'localhost' WITH GRANT OPTION;
 GRANT SELECT(f1,f5) ON db_datadict_2.t3 TO 'testuser1'@'localhost';
 eval $my_select;
+--sorted_result
 eval $my_show1;
+--sorted_result
 eval $my_show2;
 
 --echo # Switch to connection testuser1
 connection testuser1;
 eval $my_select;
+--sorted_result
 eval $my_show1;
---error ER_DBACCESS_DENIED_ERROR
+--error ER_TABLEACCESS_DENIED_ERROR
 eval $my_show2;
 
 --echo # Switch to connection testuser2
 connection testuser2;
 eval $my_select;
---error ER_DBACCESS_DENIED_ERROR
+--error ER_TABLEACCESS_DENIED_ERROR
 eval $my_show1;
+--sorted_result
 eval $my_show2;
 
 --echo # Switch to connection default
 connection default;
 REVOKE SELECT,GRANT OPTION ON db_datadict.t1 FROM 'testuser1'@'localhost';
+--sorted_result
 eval $my_show1;
 
 --echo # Switch to connection testuser1
 # nothing visible for testuser1
 connection testuser1;
 eval $my_select;
+--sorted_result
 eval $my_show1;
 
 # Cleanup

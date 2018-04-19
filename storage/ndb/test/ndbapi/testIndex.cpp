@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -662,8 +669,16 @@ runTransactions3(NDBT_Context* ctx, NDBT_Step* step){
     if(ctx->isTestStopped())
       break;
 
+    if (utilTrans.verifyIndex(pNdb, idxName, parallel) != 0){
+      g_err << "Inconsistent index" << endl;
+      return NDBT_FAILED;
+    }
     if(utilTrans.clearTable(pNdb, rows, parallel) != 0){
       g_err << "Clear table failed" << endl;
+      return NDBT_FAILED;
+    }
+    if (utilTrans.verifyIndex(pNdb, idxName, parallel) != 0){
+      g_err << "Inconsistent index" << endl;
       return NDBT_FAILED;
     }
 
@@ -1314,7 +1329,7 @@ int runSystemRestart1(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
-#define CHECK2(b, t) if(!b){ g_err << __LINE__ << ": " << t << endl; break;}
+#define CHECK2(b, t) if(!(b)){ g_err << __LINE__ << ": " << t << endl; break;}
 #define CHECKOKORTIMEOUT(e, t) { int rc= (e);        \
     if (rc != 0) {                                      \
       if (rc == 266) {                                  \
@@ -1407,7 +1422,7 @@ runMixedUpdateInterleaved(Ndb* pNdb,
                           int updatesValue,
                           bool ixFirst)
 {
-  Uint32 execRc= 0;
+  int execRc= 0;
   if ((pkFailRec != -1) || (ixFailRec != -1))
   {
     execRc= 626;
@@ -2498,7 +2513,11 @@ runTrigOverload(NDBT_Context* ctx, NDBT_Step* step)
 
   unsigned numScenarios = 3;
   unsigned errorInserts[3] = {8085, 8086, 0};
-  int results[3] = {218, 218, 0};
+  int results[3] = {
+    293, // Inconsistent trigger state in TC block
+    218, // Out of LongMessageBuffer
+    0
+  };
 
   unsigned iterations = 50;
 
@@ -3087,6 +3106,7 @@ runTestDeferredError(NDBT_Context* ctx, NDBT_Step* step)
           CHK_RET_FAILED(res.startAll() == 0);
           ndbout_c("  wait cluster started");
           CHK_RET_FAILED(res.waitClusterStarted() == 0);
+          CHK_NDB_READY(pNdb);
           ndbout_c("  cluster started");
         }
         CHK_RET_FAILED(res.insertErrorInAllNodes(0) == 0);
@@ -3237,7 +3257,7 @@ runDeferredError(NDBT_Context* ctx, NDBT_Step* step)
       {
         CHK_RET_FAILED(res.insertErrorInNode(nodeId, errorno) == 0);
         NdbSleep_MilliSleep(300);
-        CHK_RET_FAILED(res.insertErrorInNode(nodeId, errorno) == 0);
+        CHK_RET_FAILED(res.insertErrorInNode(nodeId, 0) == 0);
       }
       else
       {
@@ -3407,7 +3427,6 @@ TESTCASE("NFNR3",
   INITIALIZER(createPkIndex);
   STEP(runRestarts);
   STEP(runTransactions3);
-  STEP(runVerifyIndex);
   FINALIZER(runVerifyIndex);
   FINALIZER(createPkIndex_Drop);
   FINALIZER(createRandomIndex_Drop);
@@ -3423,7 +3442,6 @@ TESTCASE("NFNR3_O",
   INITIALIZER(createPkIndex);
   STEP(runRestarts);
   STEP(runTransactions3);
-  STEP(runVerifyIndex);
   FINALIZER(runVerifyIndex);
   FINALIZER(createPkIndex_Drop);
   FINALIZER(createRandomIndex_Drop);
@@ -3695,7 +3713,8 @@ TESTCASE("DeferredMixedLoad",
   FINALIZER(createPkIndex_Drop);
 }
 TESTCASE("DeferredMixedLoadError",
-         "Test mixed load of DML with deferred indexes")
+         "Test mixed load of DML with deferred indexes. "
+         "Need --skip-ndb-optimized-node-selection")
 {
   TC_PROPERTY("LoggedIndexes", Uint32(0));
   TC_PROPERTY("OrderedIndex", Uint32(0));

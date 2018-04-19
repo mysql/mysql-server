@@ -9,12 +9,12 @@ skip_show_database	OFF
 show session variables like 'skip_show_database';
 Variable_name	Value
 skip_show_database	OFF
-select * from information_schema.global_variables where variable_name='skip_show_database';
+select * from performance_schema.global_variables where variable_name='skip_show_database';
 VARIABLE_NAME	VARIABLE_VALUE
-SKIP_SHOW_DATABASE	OFF
-select * from information_schema.session_variables where variable_name='skip_show_database';
+skip_show_database	OFF
+select * from performance_schema.session_variables where variable_name='skip_show_database';
 VARIABLE_NAME	VARIABLE_VALUE
-SKIP_SHOW_DATABASE	OFF
+skip_show_database	OFF
 set global skip_show_database=1;
 ERROR HY000: Variable 'skip_show_database' is a read only variable
 set session skip_show_database=1;

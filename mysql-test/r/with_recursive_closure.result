@@ -1,0 +1,50 @@
+set cte_max_recursion_depth = 1000000;
+set @node_count=100000;
+set @edge_count=floor(@node_count*2.4);
+create table edges(s int, e int)
+with recursive tmp(s,e,d) as
+(
+select 1, 2, 1
+union all
+select floor(1+rand(3565659)*@node_count),
+floor(1+rand(2344291)*@node_count),
+d+1
+from tmp
+where d<@edge_count
+)
+select s,e from tmp;
+create index on edges (s);
+create index on edges (e);
+flush status;
+set @start_node=60308;
+select * from edges where s=@start_node order by e;
+s	e
+60308	387
+60308	28766
+60308	83490
+with recursive closure as
+(select @start_node as n union select e from edges, closure where s=closure.n)
+select count(*),sum(n),sum(floor(n/20)*(n%20)) from closure;
+count(*)	sum(n)	sum(floor(n/20)*(n%20))
+87889	4389446208	2085971176
+with recursive closure as (select @start_node as n union select case when s=closure.n then e else s end from edges, closure where s=closure.n or e=closure.n) select count(*),sum(n),sum(floor(n/20)*(n%20)) from closure;
+count(*)	sum(n)	sum(floor(n/20)*(n%20))
+99178	4959579855	2355269804
+with recursive closure as (select @start_node as n union select e from edges, closure where s=closure.n union select s from edges, closure where e=closure.n) select count(*),sum(n),sum(floor(n/20)*(n%20)) from closure;
+count(*)	sum(n)	sum(floor(n/20)*(n%20))
+99178	4959579855	2355269804
+show status like 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	0
+set @@tmp_table_size=1024,@@max_heap_table_size=16384;
+set session internal_tmp_mem_storage_engine='memory';
+with recursive closure as
+(select @start_node as n union select e from edges, closure where s=closure.n)
+select count(*),sum(n),sum(floor(n/20)*(n%20)) from closure;
+count(*)	sum(n)	sum(floor(n/20)*(n%20))
+87889	4389446208	2085971176
+show status like 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	2
+set session internal_tmp_mem_storage_engine=default;
+drop table edges;

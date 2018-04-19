@@ -1,31 +1,56 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-#include <my_global.h> /* For config defines */
 
-#include "ha_ndbcluster_glue.h"
-#include "ndb_conflict.h"
-#include "ndb_binlog_extra_row_info.h"
+#include "sql/ndb_conflict.h"
 
-#ifdef HAVE_NDB_BINLOG
-#include "ndb_mi.h"
+#include "my_base.h"   // HA_ERR_ROWS_EVENT_APPLY
+#include "my_dbug.h"
+#include "sql/mysqld.h" // lower_case_table_names
+#include "sql/ndb_binlog_extra_row_info.h"
+#include "sql/ndb_log.h"
+#include "sql/ndb_ndbapi_util.h"
+#include "sql/ndb_table_guard.h"
+
 extern st_ndb_slave_state g_ndb_slave_state;
 
-#define NDBTAB NdbDictionary::Table
-#define NDBCOL NdbDictionary::Column
+#include "sql/ndb_mi.h"
+
+extern ulong opt_ndb_slave_conflict_role;
+
+typedef NdbDictionary::Table NDBTAB;
+typedef NdbDictionary::Column NDBCOL;
+
+#define NDB_EXCEPTIONS_TABLE_SUFFIX "$EX"
+#define NDB_EXCEPTIONS_TABLE_SUFFIX_LOWER "$ex"
+
+#define NDB_EXCEPTIONS_TABLE_COLUMN_PREFIX "NDB$"
+#define NDB_EXCEPTIONS_TABLE_OP_TYPE "NDB$OP_TYPE"
+#define NDB_EXCEPTIONS_TABLE_CONFLICT_CAUSE "NDB$CFT_CAUSE"
+#define NDB_EXCEPTIONS_TABLE_ORIG_TRANSID "NDB$ORIG_TRANSID"
+#define NDB_EXCEPTIONS_TABLE_COLUMN_OLD_SUFFIX "$OLD"
+#define NDB_EXCEPTIONS_TABLE_COLUMN_NEW_SUFFIX "$NEW"
+
 
 /*
   Return true if a column has a specific prefix.
@@ -223,7 +248,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
     {
       if (m_extended && !has_prefix)
       {
-        my_snprintf(msg_buf, msg_buf_len,
+        snprintf(msg_buf, msg_buf_len,
                     "Exceptions table %s is extended, but mandatory column %s  doesn't have the \'%s\' prefix",
                     ex_tab_name,
                     col_name,
@@ -242,7 +267,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
       if (exceptionsTable->getColumn(i)->getType() != NDBCOL::Char &&
           exceptionsTable->getColumn(i)->getType() != NDBCOL::Unsigned)
       {
-        my_snprintf(error_details, error_details_len,
+        snprintf(error_details, error_details_len,
                     "Table %s has incorrect type %u for NDB$OP_TYPE",
                     exceptionsTable->getName(),
                     exceptionsTable->getColumn(i)->getType());
@@ -262,7 +287,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
       if (exceptionsTable->getColumn(i)->getType() != NDBCOL::Char &&
           exceptionsTable->getColumn(i)->getType() != NDBCOL::Unsigned)
       {
-        my_snprintf(error_details, error_details_len,
+        snprintf(error_details, error_details_len,
                     "Table %s has incorrect type %u for NDB$CFT_CAUSE",
                     exceptionsTable->getName(),
                     exceptionsTable->getColumn(i)->getType());
@@ -280,7 +305,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
     {
       if (exceptionsTable->getColumn(i)->getType() != NDBCOL::Bigunsigned)
       {
-        my_snprintf(error_details, error_details_len,
+        snprintf(error_details, error_details_len,
                     "Table %s has incorrect type %u for NDB$ORIG_TRANSID",
                     exceptionsTable->getName(),
                     exceptionsTable->getColumn(i)->getType());
@@ -355,7 +380,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
         if ((! col->getNullable()) &&
             col->getDefaultValue() == NULL)
         {
-          my_snprintf(error_details, error_details_len,
+          snprintf(error_details, error_details_len,
                       "Old or new column reference %s in table %s is not nullable and doesn't have a default value",
                       col->getName(), exceptionsTable->getName());
           DBUG_PRINT("info", ("%s", error_details));
@@ -374,20 +399,20 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
         if ((! col->getNullable()) &&
             col->getDefaultValue() == NULL)
         {
-          my_snprintf(error_details, error_details_len,
+          snprintf(error_details, error_details_len,
                       "Extra column %s in table %s is not nullable and doesn't have a default value",
                       col->getName(), exceptionsTable->getName());
           DBUG_PRINT("info", ("%s", error_details));
           ok= false;
           break;
         }
-        my_snprintf(error_details, error_details_len,
+        snprintf(error_details, error_details_len,
                     "Column %s in extension table %s not found in %s",
                     col->getName(), exceptionsTable->getName(),
                     mainTable->getName());
         DBUG_PRINT("info", ("%s", error_details));
-        my_snprintf(msg_buf, msg_buf_len,
-                    "NDB Slave: exceptions table %s has suspicious "
+        snprintf(msg_buf, msg_buf_len,
+                    "exceptions table %s has suspicious "
                     "definition ((column %d): %s",
                     ex_tab_name, fixed_cols + k, error_details);
         continue;
@@ -418,7 +443,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
           }
           else
           {
-            my_snprintf(error_details, error_details_len,
+            snprintf(error_details, error_details_len,
                         "Data column %s in table %s is not nullable and doesn't have a default value",
                         col->getName(), exceptionsTable->getName());
             DBUG_PRINT("info", ("%s", error_details));
@@ -431,7 +456,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
           /* Column is part of the primary key */
           if (column_version != DEFAULT)
           {
-            my_snprintf(error_details, error_details_len,
+            snprintf(error_details, error_details_len,
                         "Old or new values of primary key columns cannot be referenced since primary keys cannot be updated, column %s in table %s",
                         col->getName(), exceptionsTable->getName());
             DBUG_PRINT("info", ("%s", error_details));
@@ -446,7 +471,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
             */
             if (m_key_data_pos[match_k] != -1)
             {
-              my_snprintf(error_details, error_details_len,
+              snprintf(error_details, error_details_len,
                           "Multiple references to the same key column %s in table %s",
                           col->getName(), exceptionsTable->getName());
               DBUG_PRINT("info", ("%s", error_details));
@@ -477,7 +502,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
                Column with this name is part of primary key,
                but both columns are not declared not null
             */ 
-            my_snprintf(error_details, error_details_len,
+            snprintf(error_details, error_details_len,
                         "Pk column %s not declared not null in both tables",
                         col->getName());
             DBUG_PRINT("info", ("%s", error_details));
@@ -491,7 +516,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
         /* 
            Columns have same name, but not the same type
         */ 
-        my_snprintf(error_details, error_details_len,
+        snprintf(error_details, error_details_len,
                     "Column %s has matching name to column %s for table %s, but wrong type, %u versus %u",
                     col->getName(), mcol->getName(),
                     mainTable->getName(),
@@ -579,14 +604,14 @@ ExceptionsTableWriter::init(const NdbDictionary::Table* mainTable,
       DBUG_RETURN(0);
     }
     else
-      my_snprintf(msg_buf, msg_buf_len,
-                  "NDB Slave: exceptions table %s has wrong "
+      snprintf(msg_buf, msg_buf_len,
+                  "exceptions table %s has wrong "
                   "definition (column %d): %s",
                   ex_tab_name, fixed_cols + k, error_details);
   }
   else
-    my_snprintf(msg_buf, msg_buf_len,
-                "NDB Slave: exceptions table %s has wrong "
+    snprintf(msg_buf, msg_buf_len,
+                "exceptions table %s has wrong "
                 "definition (initial %d columns)",
                 ex_tab_name, fixed_cols);
 
@@ -854,8 +879,6 @@ ExceptionsTableWriter::writeRow(NdbTransaction* trans,
   DBUG_RETURN(0);
 }
 
-/* HAVE_NDB_BINLOG */
-#endif
 
 /**
    st_ndb_slave_state constructor
@@ -863,7 +886,11 @@ ExceptionsTableWriter::writeRow(NdbTransaction* trans,
    Initialise Ndb Slave state object
 */
 st_ndb_slave_state::st_ndb_slave_state()
-  : current_master_server_epoch(0),
+  : current_delete_delete_count(0),
+    current_reflect_op_prepare_count(0),
+    current_reflect_op_discard_count(0),
+    current_refresh_op_count(0),
+    current_master_server_epoch(0),
     current_master_server_epoch_committed(false),
     current_max_rep_epoch(0),
     conflict_flags(0),
@@ -872,6 +899,11 @@ st_ndb_slave_state::st_ndb_slave_state()
     current_trans_row_reject_count(0),
     current_trans_in_conflict_count(0),
     last_conflicted_epoch(0),
+    last_stable_epoch(0),
+    total_delete_delete_count(0),
+    total_reflect_op_prepare_count(0),
+    total_reflect_op_discard_count(0),
+    total_refresh_op_count(0),
     max_rep_epoch(0),
     sql_run_id(~Uint32(0)),
     trans_row_conflict_count(0),
@@ -891,6 +923,11 @@ st_ndb_slave_state::st_ndb_slave_state()
                   &conflict_mem_root, CONFLICT_MEMROOT_BLOCK_SIZE, 0);
 }
 
+st_ndb_slave_state::~st_ndb_slave_state()
+{
+  free_root(&conflict_mem_root, 0);
+}
+
 /**
    resetPerAttemptCounters
 
@@ -900,6 +937,10 @@ void
 st_ndb_slave_state::resetPerAttemptCounters()
 {
   memset(current_violation_count, 0, sizeof(current_violation_count));
+  current_delete_delete_count = 0;
+  current_reflect_op_prepare_count = 0;
+  current_reflect_op_discard_count = 0;
+  current_refresh_op_count = 0;
   current_trans_row_conflict_count = 0;
   current_trans_row_reject_count = 0;
   current_trans_in_conflict_count = 0;
@@ -916,11 +957,9 @@ st_ndb_slave_state::resetPerAttemptCounters()
 void
 st_ndb_slave_state::atTransactionAbort()
 {
-#ifdef HAVE_NDB_BINLOG
   /* Reset any gathered transaction dependency information */
   atEndTransConflictHandling();
   trans_conflict_apply_state = SAS_NORMAL;
-#endif
 
   /* Reset current-transaction counters + state */
   resetPerAttemptCounters();
@@ -951,6 +990,10 @@ st_ndb_slave_state::atTransactionCommit(Uint64 epoch)
     total_conflicts+= current_violation_count[i];
     total_violation_count[i]+= current_violation_count[i];
   }
+  total_delete_delete_count+= current_delete_delete_count;
+  total_reflect_op_prepare_count+= current_reflect_op_prepare_count;
+  total_reflect_op_discard_count+= current_reflect_op_discard_count;
+  total_refresh_op_count+= current_refresh_op_count;
   trans_row_conflict_count+= current_trans_row_conflict_count;
   trans_row_reject_count+= current_trans_row_reject_count;
   trans_in_conflict_count+= current_trans_in_conflict_count;
@@ -966,12 +1009,68 @@ st_ndb_slave_state::atTransactionCommit(Uint64 epoch)
     max_rep_epoch = current_max_rep_epoch;
   }
 
-  if (total_conflicts > 0)
   {
-    DBUG_PRINT("info", ("Last conflicted epoch increases from %llu to %llu",
-                        last_conflicted_epoch,
-                        epoch));
-    last_conflicted_epoch = epoch;
+    bool hadConflict = false;
+    if (total_conflicts > 0)
+    {
+      /**
+       * Conflict detected locally
+       */
+      DBUG_PRINT("info", ("Last conflicted epoch increases from %llu to %llu",
+                          last_conflicted_epoch,
+                          epoch));
+      hadConflict = true;
+    }
+    else
+    {
+      /**
+       * Update last_conflicted_epoch if we applied reflected or refresh ops
+       * (Implies Secondary role in asymmetric algorithms)
+       */
+      assert(current_reflect_op_prepare_count >= current_reflect_op_discard_count);
+      Uint32 current_reflect_op_apply_count = current_reflect_op_prepare_count - 
+        current_reflect_op_discard_count;
+      if (current_reflect_op_apply_count > 0 ||
+          current_refresh_op_count > 0)
+      {
+        DBUG_PRINT("info", ("Reflected (%u) or Refresh (%u) operations applied this "
+                            "epoch, increasing last conflicted epoch from %llu to %llu.",
+                            current_reflect_op_apply_count,
+                            current_refresh_op_count,
+                            last_conflicted_epoch,
+                            epoch));
+        hadConflict = true;
+      }
+    }
+
+    /* Update status vars */
+    if (hadConflict)
+    {
+      last_conflicted_epoch = epoch;
+    }
+    else
+    {
+      if (max_rep_epoch >= last_conflicted_epoch)
+      {
+        /**
+         * This epoch which has looped the circle was stable - 
+         * no new conflicts have been found / corrected since
+         * it was logged
+         */
+        last_stable_epoch = max_rep_epoch;
+        
+        /**
+         * Note that max_rep_epoch >= last_conflicted_epoch
+         * implies that there are no currently known-about
+         * conflicts.
+         * On the primary this is a definitive fact as it
+         * finds out about all conflicts immediately.
+         * On the secondary it does not mean that there
+         * are not committed conflicts, just that they 
+         * have not started being corrected yet.
+         */
+      }
+    }
   }
 
   resetPerAttemptCounters();
@@ -981,16 +1080,16 @@ st_ndb_slave_state::atTransactionCommit(Uint64 epoch)
 
   current_master_server_epoch_committed = true;
 
-  DBUG_EXECUTE_IF("ndb_slave_fail_marking_epoch_committed",
-                  {
-                    fprintf(stderr, 
-                            "Slave clearing epoch committed flag "
-                            "for epoch %llu/%llu (%llu)\n",
-                            current_master_server_epoch >> 32,
-                            current_master_server_epoch & 0xffffffff,
-                            current_master_server_epoch);
-                    current_master_server_epoch_committed = false;
-                  });
+  if (DBUG_EVALUATE_IF("ndb_slave_fail_marking_epoch_committed", true, false))
+  {
+    fprintf(stderr,
+            "Slave clearing epoch committed flag "
+            "for epoch %llu/%llu (%llu)\n",
+            current_master_server_epoch >> 32,
+            current_master_server_epoch & 0xffffffff,
+            current_master_server_epoch);
+    current_master_server_epoch_committed = false;
+  }
 }
 
 /**
@@ -1007,7 +1106,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                                     Uint32 master_server_id) const
 {
   DBUG_ENTER("verifyNextEpoch");
-#ifdef HAVE_NDB_BINLOG
+
   /**
     WRITE_ROW to ndb_apply_status injected by MySQLD
     immediately upstream of us.
@@ -1045,21 +1144,21 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
     */
     if (next_epoch < current_master_server_epoch)
     {
-      sql_print_warning("NDB Slave : At SQL thread start "
-                        "applying epoch %llu/%llu "
-                        "(%llu) from Master ServerId %u which is lower than previously "
-                        "applied epoch %llu/%llu (%llu).  "
-                        "Group Master Log : %s  Group Master Log Pos : %llu.  "
-                        "Check slave positioning.",
-                        next_epoch >> 32,
-                        next_epoch & 0xffffffff,
-                        next_epoch,
-                        master_server_id,
-                        current_master_server_epoch >> 32,
-                        current_master_server_epoch & 0xffffffff,
-                        current_master_server_epoch,
-                        ndb_mi_get_group_master_log_name(),
-                        ndb_mi_get_group_master_log_pos());
+      ndb_log_warning("NDB Slave: At SQL thread start "
+                      "applying epoch %llu/%llu "
+                      "(%llu) from Master ServerId %u which is lower than previously "
+                      "applied epoch %llu/%llu (%llu).  "
+                      "Group Master Log : %s  Group Master Log Pos : %llu.  "
+                      "Check slave positioning.",
+                      next_epoch >> 32,
+                      next_epoch & 0xffffffff,
+                      next_epoch,
+                      master_server_id,
+                      current_master_server_epoch >> 32,
+                      current_master_server_epoch & 0xffffffff,
+                      current_master_server_epoch,
+                      ndb_mi_get_group_master_log_name(),
+                      ndb_mi_get_group_master_log_pos());
       /* Slave not stopped */
     }
     else if (next_epoch == current_master_server_epoch)
@@ -1089,20 +1188,20 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
     if (next_epoch < current_master_server_epoch)
     {
       /* Should never happen */
-      sql_print_error("NDB Slave : SQL thread stopped as "
-                      "applying epoch %llu/%llu "
-                      "(%llu) from Master ServerId %u which is lower than previously "
-                      "applied epoch %llu/%llu (%llu).  "
-                      "Group Master Log : %s  Group Master Log Pos : %llu",
-                      next_epoch >> 32,
-                      next_epoch & 0xffffffff,
-                      next_epoch,
-                      master_server_id,
-                      current_master_server_epoch >> 32,
-                      current_master_server_epoch & 0xffffffff,
-                      current_master_server_epoch,
-                      ndb_mi_get_group_master_log_name(),
-                      ndb_mi_get_group_master_log_pos());
+      ndb_log_error("NDB Slave: SQL thread stopped as "
+                    "applying epoch %llu/%llu "
+                    "(%llu) from Master ServerId %u which is lower than previously "
+                    "applied epoch %llu/%llu (%llu).  "
+                    "Group Master Log : %s  Group Master Log Pos : %llu",
+                    next_epoch >> 32,
+                    next_epoch & 0xffffffff,
+                    next_epoch,
+                    master_server_id,
+                    current_master_server_epoch >> 32,
+                    current_master_server_epoch & 0xffffffff,
+                    current_master_server_epoch,
+                    ndb_mi_get_group_master_log_name(),
+                    ndb_mi_get_group_master_log_pos());
       /* Stop the slave */
       DBUG_RETURN(false);
     }
@@ -1115,16 +1214,16 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
       if (current_master_server_epoch_committed)
       {
         /* This epoch is committed already, why are we replaying it? */
-        sql_print_error("NDB Slave : SQL thread stopped as attempted "
-                        "to reapply already committed epoch %llu/%llu (%llu) "
-                        "from server id %u.  "
-                        "Group Master Log : %s  Group Master Log Pos : %llu.",
-                        current_master_server_epoch >> 32,
-                        current_master_server_epoch & 0xffffffff,
-                        current_master_server_epoch,
-                        master_server_id,
-                        ndb_mi_get_group_master_log_name(),
-                        ndb_mi_get_group_master_log_pos());
+        ndb_log_error("NDB Slave: SQL thread stopped as attempted "
+                      "to reapply already committed epoch %llu/%llu (%llu) "
+                      "from server id %u.  "
+                      "Group Master Log : %s  Group Master Log Pos : %llu.",
+                      current_master_server_epoch >> 32,
+                      current_master_server_epoch & 0xffffffff,
+                      current_master_server_epoch,
+                      master_server_id,
+                      ndb_mi_get_group_master_log_name(),
+                      ndb_mi_get_group_master_log_pos());
         /* Stop the slave */
         DBUG_RETURN(false);
       }
@@ -1148,20 +1247,20 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
            We've moved onto a new epoch without committing
            the last - probably a bug in transaction retry
         */
-        sql_print_error("NDB Slave : SQL thread stopped as attempting to "
-                        "apply new epoch %llu/%llu (%llu) while lower "
-                        "received epoch %llu/%llu (%llu) has not been "
-                        "committed.  Master server id : %u.  "
-                        "Group Master Log : %s  Group Master Log Pos : %llu.",
-                        next_epoch >> 32,
-                        next_epoch & 0xffffffff,
-                        next_epoch,
-                        current_master_server_epoch >> 32,
-                        current_master_server_epoch & 0xffffffff,
-                        current_master_server_epoch,
-                        master_server_id,
-                        ndb_mi_get_group_master_log_name(),
-                        ndb_mi_get_group_master_log_pos());
+        ndb_log_error("NDB Slave: SQL thread stopped as attempting to "
+                      "apply new epoch %llu/%llu (%llu) while lower "
+                      "received epoch %llu/%llu (%llu) has not been "
+                      "committed.  Master server id : %u.  "
+                      "Group Master Log : %s  Group Master Log Pos : %llu.",
+                      next_epoch >> 32,
+                      next_epoch & 0xffffffff,
+                      next_epoch,
+                      current_master_server_epoch >> 32,
+                      current_master_server_epoch & 0xffffffff,
+                      current_master_server_epoch,
+                      master_server_id,
+                      ndb_mi_get_group_master_log_name(),
+                      ndb_mi_get_group_master_log_pos());
         /* Stop the slave */
         DBUG_RETURN(false);
       }
@@ -1171,7 +1270,6 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
       }
     }
   }
-#endif
 
   /* Epoch looks ok */
   DBUG_RETURN(true);
@@ -1245,6 +1343,7 @@ st_ndb_slave_state::atResetSlave()
   retry_trans_count = 0;
   max_rep_epoch = 0;
   last_conflicted_epoch = 0;
+  last_stable_epoch = 0;
 
   /* Reset current master server epoch
    * This avoids warnings when replaying a lower
@@ -1265,7 +1364,6 @@ st_ndb_slave_state::atResetSlave()
 void
 st_ndb_slave_state::atStartSlave()
 {
-#ifdef HAVE_NDB_BINLOG
   if (trans_conflict_apply_state != SAS_NORMAL)
   {
     /*
@@ -1275,7 +1373,6 @@ st_ndb_slave_state::atStartSlave()
     atEndTransConflictHandling();
     trans_conflict_apply_state = SAS_NORMAL;
   }
-#endif
 }
 
 bool
@@ -1330,7 +1427,6 @@ st_ndb_slave_state::checkSlaveConflictRoleChange(enum_slave_conflict_role old_ro
     return false;
   }
   
-#ifdef HAVE_NDB_BINLOG
   /* Check that Slave SQL thread is not running */
   if (ndb_mi_get_slave_sql_running())
   {
@@ -1338,13 +1434,11 @@ st_ndb_slave_state::checkSlaveConflictRoleChange(enum_slave_conflict_role old_ro
       "thread is running.  Use STOP SLAVE first.";
     return false;
   }
-#endif
 
   return true;
 }
 
 
-#ifdef HAVE_NDB_BINLOG
 
 /**
    atEndTransConflictHandling
@@ -1426,7 +1520,7 @@ st_ndb_slave_state::atPrepareConflictDetection(const NdbDictionary::Table* table
                         transaction_id);
     if (res != 0)
     {
-      sql_print_error("%s", trans_dependency_tracker->get_error_text());
+      ndb_log_error("%s", trans_dependency_tracker->get_error_text());
       DBUG_RETURN(res);
     }
     /* Proceed as normal */
@@ -1523,7 +1617,7 @@ st_ndb_slave_state::atTransConflictDetected(Uint64 transaction_id)
 
     if (res != 0)
     {
-      sql_print_error("%s", trans_dependency_tracker->get_error_text());
+      ndb_log_error("%s", trans_dependency_tracker->get_error_text());
       DBUG_RETURN(res);
     }
     break;
@@ -1765,4 +1859,1083 @@ st_ndb_slave_state::atConflictPreCommit(bool& retry_slave_trans)
 
 
 
-#endif
+/**
+ * Conflict function interpreted programs
+ */
+
+
+/**
+  CFT_NDB_OLD
+
+  To perform conflict detection, an interpreted program is used to read
+  the timestamp stored locally and compare to what was on the master.
+  If timestamp is not equal, an error for this operation (9998) will be raised,
+  and new row will not be applied. The error codes for the operations will
+  be checked on return.  For this to work is is vital that the operation
+  is run with ignore error option.
+
+  As an independent feature, phase 2 also saves the
+  conflicts into the table's exceptions table.
+*/
+static int
+row_conflict_fn_old(NDB_CONFLICT_FN_SHARE* cfn_share,
+                    enum_conflicting_op_type,
+                    const NdbRecord* data_record,
+                    const uchar* old_data,
+                    const uchar*,
+                    const MY_BITMAP* bi_cols,
+                    const MY_BITMAP*,
+                    NdbInterpretedCode* code)
+{
+  DBUG_ENTER("row_conflict_fn_old");
+  uint32 resolve_column= cfn_share->m_resolve_column;
+  uint32 resolve_size= cfn_share->m_resolve_size;
+  const uchar* field_ptr = (const uchar*)
+    NdbDictionary::getValuePtr(data_record,
+                               (const char*) old_data,
+                               cfn_share->m_resolve_column);
+
+  assert((resolve_size == 4) || (resolve_size == 8));
+
+  if (unlikely(!bitmap_is_set(bi_cols, resolve_column)))
+  {
+    ndb_log_info("NDB Slave: missing data for %s timestamp column %u.",
+                 cfn_share->m_conflict_fn->name, resolve_column);
+    DBUG_RETURN(1);
+  }
+
+  const uint label_0= 0;
+  const Uint32 RegOldValue= 1, RegCurrentValue= 2;
+  int r;
+
+  DBUG_PRINT("info",
+             ("Adding interpreted filter, existing value must eq event old value"));
+  /*
+   * read old value from record
+   */
+  union {
+    uint32 old_value_32;
+    uint64 old_value_64;
+  };
+  {
+    if (resolve_size == 4)
+    {
+      memcpy(&old_value_32, field_ptr, resolve_size);
+      DBUG_PRINT("info", ("  old_value_32: %u", old_value_32));
+    }
+    else
+    {
+      memcpy(&old_value_64, field_ptr, resolve_size);
+      DBUG_PRINT("info", ("  old_value_64: %llu",
+                          (unsigned long long) old_value_64));
+    }
+  }
+
+  /*
+   * Load registers RegOldValue and RegCurrentValue
+   */
+  if (resolve_size == 4)
+    r= code->load_const_u32(RegOldValue, old_value_32);
+  else
+    r= code->load_const_u64(RegOldValue, old_value_64);
+  DBUG_ASSERT(r == 0);
+  r= code->read_attr(RegCurrentValue, resolve_column);
+  DBUG_ASSERT(r == 0);
+  /*
+   * if RegOldValue == RegCurrentValue goto label_0
+   * else raise error for this row
+   */
+  r= code->branch_eq(RegOldValue, RegCurrentValue, label_0);
+  DBUG_ASSERT(r == 0);
+  r= code->interpret_exit_nok(error_conflict_fn_violation);
+  DBUG_ASSERT(r == 0);
+  r= code->def_label(label_0);
+  DBUG_ASSERT(r == 0);
+  r= code->interpret_exit_ok();
+  DBUG_ASSERT(r == 0);
+  r= code->finalise();
+  DBUG_ASSERT(r == 0);
+  DBUG_RETURN(r);
+}
+
+static int
+row_conflict_fn_max_update_only(NDB_CONFLICT_FN_SHARE* cfn_share,
+                                enum_conflicting_op_type,
+                                const NdbRecord* data_record,
+                                const uchar*,
+                                const uchar* new_data,
+                                const MY_BITMAP*,
+                                const MY_BITMAP* ai_cols,
+                                NdbInterpretedCode* code)
+{
+  DBUG_ENTER("row_conflict_fn_max_update_only");
+  uint32 resolve_column= cfn_share->m_resolve_column;
+  uint32 resolve_size= cfn_share->m_resolve_size;
+  const uchar* field_ptr = (const uchar*)
+    NdbDictionary::getValuePtr(data_record,
+                               (const char*) new_data,
+                               cfn_share->m_resolve_column);
+
+  assert((resolve_size == 4) || (resolve_size == 8));
+
+  if (unlikely(!bitmap_is_set(ai_cols, resolve_column)))
+  {
+    ndb_log_info("NDB Slave: missing data for %s timestamp column %u.",
+                 cfn_share->m_conflict_fn->name, resolve_column);
+    DBUG_RETURN(1);
+  }
+
+  const uint label_0= 0;
+  const Uint32 RegNewValue= 1, RegCurrentValue= 2;
+  int r;
+
+  DBUG_PRINT("info",
+             ("Adding interpreted filter, existing value must be lt event new"));
+  /*
+   * read new value from record
+   */
+  union {
+    uint32 new_value_32;
+    uint64 new_value_64;
+  };
+  {
+    if (resolve_size == 4)
+    {
+      memcpy(&new_value_32, field_ptr, resolve_size);
+      DBUG_PRINT("info", ("  new_value_32: %u", new_value_32));
+    }
+    else
+    {
+      memcpy(&new_value_64, field_ptr, resolve_size);
+      DBUG_PRINT("info", ("  new_value_64: %llu",
+                          (unsigned long long) new_value_64));
+    }
+  }
+  /*
+   * Load registers RegNewValue and RegCurrentValue
+   */
+  if (resolve_size == 4)
+    r= code->load_const_u32(RegNewValue, new_value_32);
+  else
+    r= code->load_const_u64(RegNewValue, new_value_64);
+  DBUG_ASSERT(r == 0);
+  r= code->read_attr(RegCurrentValue, resolve_column);
+  DBUG_ASSERT(r == 0);
+  /*
+   * if RegNewValue > RegCurrentValue goto label_0
+   * else raise error for this row
+   */
+  r= code->branch_gt(RegNewValue, RegCurrentValue, label_0);
+  DBUG_ASSERT(r == 0);
+  r= code->interpret_exit_nok(error_conflict_fn_violation);
+  DBUG_ASSERT(r == 0);
+  r= code->def_label(label_0);
+  DBUG_ASSERT(r == 0);
+  r= code->interpret_exit_ok();
+  DBUG_ASSERT(r == 0);
+  r= code->finalise();
+  DBUG_ASSERT(r == 0);
+  DBUG_RETURN(r);
+}
+
+/**
+  CFT_NDB_MAX
+
+  To perform conflict resolution, an interpreted program is used to read
+  the timestamp stored locally and compare to what is going to be applied.
+  If timestamp is lower, an error for this operation (9999) will be raised,
+  and new row will not be applied. The error codes for the operations will
+  be checked on return.  For this to work is is vital that the operation
+  is run with ignore error option.
+
+  Note that for delete, this algorithm reverts to the OLD algorithm.
+*/
+static int
+row_conflict_fn_max(NDB_CONFLICT_FN_SHARE* cfn_share,
+                    enum_conflicting_op_type op_type,
+                    const NdbRecord* data_record,
+                    const uchar* old_data,
+                    const uchar* new_data,
+                    const MY_BITMAP* bi_cols,
+                    const MY_BITMAP* ai_cols,
+                    NdbInterpretedCode* code)
+{
+  switch(op_type)
+  {
+  case WRITE_ROW:
+    abort();
+    return 1;
+  case UPDATE_ROW:
+    return row_conflict_fn_max_update_only(cfn_share,
+                                           op_type,
+                                           data_record,
+                                           old_data,
+                                           new_data,
+                                           bi_cols,
+                                           ai_cols,
+                                           code);
+  case DELETE_ROW:
+    /* Can't use max of new image, as there's no new image
+     * for DELETE
+     * Use OLD instead
+     */
+    return row_conflict_fn_old(cfn_share,
+                               op_type,
+                               data_record,
+                               old_data,
+                               new_data,
+                               bi_cols,
+                               ai_cols,
+                               code);
+  default:
+    abort();
+    return 1;
+  }
+}
+
+
+/**
+  CFT_NDB_MAX_DEL_WIN
+
+  To perform conflict resolution, an interpreted program is used to read
+  the timestamp stored locally and compare to what is going to be applied.
+  If timestamp is lower, an error for this operation (9999) will be raised,
+  and new row will not be applied. The error codes for the operations will
+  be checked on return.  For this to work is is vital that the operation
+  is run with ignore error option.
+
+  In this variant, replicated DELETEs alway succeed - no filter is added
+  to them.
+*/
+
+static int
+row_conflict_fn_max_del_win(NDB_CONFLICT_FN_SHARE* cfn_share,
+                            enum_conflicting_op_type op_type,
+                            const NdbRecord* data_record,
+                            const uchar* old_data,
+                            const uchar* new_data,
+                            const MY_BITMAP* bi_cols,
+                            const MY_BITMAP* ai_cols,
+                            NdbInterpretedCode* code)
+{
+  switch(op_type)
+  {
+  case WRITE_ROW:
+    abort();
+    return 1;
+  case UPDATE_ROW:
+    return row_conflict_fn_max_update_only(cfn_share,
+                                           op_type,
+                                           data_record,
+                                           old_data,
+                                           new_data,
+                                           bi_cols,
+                                           ai_cols,
+                                           code);
+  case DELETE_ROW:
+    /* This variant always lets a received DELETE_ROW
+     * succeed.
+     */
+    return 0;
+  default:
+    abort();
+    return 1;
+  }
+}
+
+
+/**
+  CFT_NDB_EPOCH
+
+*/
+
+static int
+row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE*,
+                      enum_conflicting_op_type op_type,
+                      const NdbRecord*,
+                      const uchar*,
+                      const uchar*,
+                      const MY_BITMAP*,
+                      const MY_BITMAP*,
+                      NdbInterpretedCode* code)
+{
+  DBUG_ENTER("row_conflict_fn_epoch");
+  switch(op_type)
+  {
+  case WRITE_ROW:
+    abort();
+    DBUG_RETURN(1);
+  case UPDATE_ROW:
+  case DELETE_ROW:
+  case READ_ROW: /* Read tracking */
+  {
+    const uint label_0= 0;
+    const Uint32
+      RegAuthor= 1, RegZero= 2,
+      RegMaxRepEpoch= 1, RegRowEpoch= 2;
+    int r;
+
+    r= code->load_const_u32(RegZero, 0);
+    assert(r == 0);
+    r= code->read_attr(RegAuthor, NdbDictionary::Column::ROW_AUTHOR);
+    assert(r == 0);
+    /* If last author was not local, assume no conflict */
+    r= code->branch_ne(RegZero, RegAuthor, label_0);
+    assert(r == 0);
+
+    /*
+     * Load registers RegMaxRepEpoch and RegRowEpoch
+     */
+    r= code->load_const_u64(RegMaxRepEpoch, g_ndb_slave_state.max_rep_epoch);
+    assert(r == 0);
+    r= code->read_attr(RegRowEpoch, NdbDictionary::Column::ROW_GCI64);
+    assert(r == 0);
+
+    /*
+     * if RegRowEpoch <= RegMaxRepEpoch goto label_0
+     * else raise error for this row
+     */
+    r= code->branch_le(RegRowEpoch, RegMaxRepEpoch, label_0);
+    assert(r == 0);
+    r= code->interpret_exit_nok(error_conflict_fn_violation);
+    assert(r == 0);
+    r= code->def_label(label_0);
+    assert(r == 0);
+    r= code->interpret_exit_ok();
+    assert(r == 0);
+    r= code->finalise();
+    assert(r == 0);
+    DBUG_RETURN(r);
+  }
+  default:
+    abort();
+    DBUG_RETURN(1);
+  }
+}
+
+/**
+ * CFT_NDB_EPOCH2
+ */
+
+static int
+row_conflict_fn_epoch2_primary(NDB_CONFLICT_FN_SHARE* cfn_share,
+                               enum_conflicting_op_type op_type,
+                               const NdbRecord* data_record,
+                               const uchar* old_data,
+                               const uchar* new_data,
+                               const MY_BITMAP* bi_cols,
+                               const MY_BITMAP* ai_cols,
+                               NdbInterpretedCode* code)
+{
+  DBUG_ENTER("row_conflict_fn_epoch2_primary");
+  
+  /* We use the normal NDB$EPOCH detection function */
+  DBUG_RETURN(row_conflict_fn_epoch(cfn_share,
+                                    op_type,
+                                    data_record,
+                                    old_data,
+                                    new_data,
+                                    bi_cols,
+                                    ai_cols,
+                                    code));
+}
+
+static int
+row_conflict_fn_epoch2_secondary(NDB_CONFLICT_FN_SHARE*,
+                                 enum_conflicting_op_type op_type,
+                                 const NdbRecord*,
+                                 const uchar*,
+                                 const uchar*,
+                                 const MY_BITMAP*,
+                                 const MY_BITMAP*,
+                                 NdbInterpretedCode* code)
+{
+  DBUG_ENTER("row_conflict_fn_epoch2_secondary");
+
+  /* Only called for reflected update and delete operations
+   * on the secondary.
+   * These are returning operations which should only be 
+   * applied if the row in the database was last written
+   * remotely (by the Primary)
+   */
+
+  switch(op_type)
+  {
+  case WRITE_ROW:
+    abort();
+    DBUG_RETURN(1);
+  case UPDATE_ROW:
+  case DELETE_ROW:
+  {
+    const uint label_0= 0;
+    const Uint32
+      RegAuthor= 1, RegZero= 2;
+    int r;
+
+    r= code->load_const_u32(RegZero, 0);
+    assert(r == 0);
+    r= code->read_attr(RegAuthor, NdbDictionary::Column::ROW_AUTHOR);
+    assert(r == 0);
+    r= code->branch_eq(RegZero, RegAuthor, label_0);
+    assert(r == 0);
+    /* Last author was not local, no conflict, apply */
+    r= code->interpret_exit_ok();
+    assert(r == 0);
+    r= code->def_label(label_0);
+    assert(r == 0);
+    /* Last author was secondary-local, conflict, do not apply */
+    r= code->interpret_exit_nok(error_conflict_fn_violation);
+    assert(r == 0);
+
+
+    r= code->finalise();
+    assert(r == 0);
+    DBUG_RETURN(r);
+  }
+  default:
+    abort();
+    DBUG_RETURN(1);
+  }
+}
+
+static int
+row_conflict_fn_epoch2(NDB_CONFLICT_FN_SHARE* cfn_share,
+                       enum_conflicting_op_type op_type,
+                       const NdbRecord* data_record,
+                       const uchar* old_data,
+                       const uchar* new_data,
+                       const MY_BITMAP* bi_cols,
+                       const MY_BITMAP* ai_cols,
+                       NdbInterpretedCode* code)
+{
+  DBUG_ENTER("row_conflict_fn_epoch2");
+  
+  /**
+   * NdbEpoch2 behaviour depends on the Slave conflict role variable
+   *
+   */
+  switch(opt_ndb_slave_conflict_role)
+  {
+  case SCR_NONE:
+    /* This is a problem */
+    DBUG_RETURN(1);
+  case SCR_PRIMARY:
+    DBUG_RETURN(row_conflict_fn_epoch2_primary(cfn_share,
+                                               op_type,
+                                               data_record,
+                                               old_data,
+                                               new_data,
+                                               bi_cols,
+                                               ai_cols,
+                                               code));
+  case SCR_SECONDARY:
+    DBUG_RETURN(row_conflict_fn_epoch2_secondary(cfn_share,
+                                                 op_type,
+                                                 data_record,
+                                                 old_data,
+                                                 new_data,
+                                                 bi_cols,
+                                                 ai_cols,
+                                                 code));
+  case SCR_PASS:
+    /* Do nothing */
+    DBUG_RETURN(0);
+  
+  default:
+    break;
+  }
+
+  abort();
+
+  DBUG_RETURN(1);
+}
+
+/**
+ * Conflict function setup infrastructure
+ */
+  
+static const st_conflict_fn_arg_def resolve_col_args[]=
+{
+  /* Arg type              Optional */
+  { CFAT_COLUMN_NAME,      false },
+  { CFAT_END,              false }
+};
+
+static const st_conflict_fn_arg_def epoch_fn_args[]=
+{
+  /* Arg type              Optional */
+  { CFAT_EXTRA_GCI_BITS,   true  },
+  { CFAT_END,              false }
+};
+
+static const st_conflict_fn_def conflict_fns[]=
+{
+  { "NDB$MAX_DELETE_WIN", CFT_NDB_MAX_DEL_WIN,
+    &resolve_col_args[0], row_conflict_fn_max_del_win, 0 },
+  { "NDB$MAX",            CFT_NDB_MAX,
+    &resolve_col_args[0], row_conflict_fn_max,         0 },
+  { "NDB$OLD",            CFT_NDB_OLD,
+    &resolve_col_args[0], row_conflict_fn_old,         0 },
+  { "NDB$EPOCH2_TRANS",   CFT_NDB_EPOCH2_TRANS,
+    &epoch_fn_args[0],    row_conflict_fn_epoch2,
+    CF_REFLECT_SEC_OPS | CF_USE_ROLE_VAR | 
+    CF_TRANSACTIONAL | CF_DEL_DEL_CFT },
+  { "NDB$EPOCH2",         CFT_NDB_EPOCH2,
+    &epoch_fn_args[0],    row_conflict_fn_epoch2,      
+    CF_REFLECT_SEC_OPS | CF_USE_ROLE_VAR
+  },
+  { "NDB$EPOCH_TRANS",    CFT_NDB_EPOCH_TRANS,
+    &epoch_fn_args[0],    row_conflict_fn_epoch,       CF_TRANSACTIONAL},
+  { "NDB$EPOCH",          CFT_NDB_EPOCH,
+    &epoch_fn_args[0],    row_conflict_fn_epoch,       0 }
+};
+
+static unsigned n_conflict_fns=
+  sizeof(conflict_fns) / sizeof(struct st_conflict_fn_def);
+
+
+int
+parse_conflict_fn_spec(const char* conflict_fn_spec,
+                       const st_conflict_fn_def** conflict_fn,
+                       st_conflict_fn_arg* args,
+                       Uint32* max_args,
+                       char *msg, uint msg_len)
+{
+  DBUG_ENTER("parse_conflict_fn_spec");
+
+  Uint32 no_args = 0;
+  const char *ptr= conflict_fn_spec;
+  const char *error_str= "unknown conflict resolution function";
+  /* remove whitespace */
+  while (*ptr == ' ' && *ptr != '\0') ptr++;
+
+  DBUG_PRINT("info", ("parsing %s", conflict_fn_spec));
+
+  for (unsigned i= 0; i < n_conflict_fns; i++)
+  {
+    const st_conflict_fn_def &fn= conflict_fns[i];
+
+    uint len= (uint)strlen(fn.name);
+    if (strncmp(ptr, fn.name, len))
+      continue;
+
+    DBUG_PRINT("info", ("found function %s", fn.name));
+
+    /* skip function name */
+    ptr+= len;
+
+    /* remove whitespace */
+    while (*ptr == ' ' && *ptr != '\0') ptr++;
+
+    /* next '(' */
+    if (*ptr != '(')
+    {
+      error_str= "missing '('";
+      DBUG_PRINT("info", ("parse error %s", error_str));
+      break;
+    }
+    ptr++;
+
+    /* find all arguments */
+    for (;;)
+    {
+      if (no_args >= *max_args)
+      {
+        error_str= "too many arguments";
+        DBUG_PRINT("info", ("parse error %s", error_str));
+        break;
+      }
+
+      /* expected type */
+      enum enum_conflict_fn_arg_type type=
+        conflict_fns[i].arg_defs[no_args].arg_type;
+
+      /* remove whitespace */
+      while (*ptr == ' ' && *ptr != '\0') ptr++;
+
+      if (type == CFAT_END)
+      {
+        args[no_args].type= type;
+        error_str= NULL;
+        break;
+      }
+
+      /* arg */
+      /* Todo : Should support comma as an arg separator? */
+      const char *start_arg= ptr;
+      while (*ptr != ')' && *ptr != ' ' && *ptr != '\0') ptr++;
+      const char *end_arg= ptr;
+
+      bool optional_arg = conflict_fns[i].arg_defs[no_args].optional;
+      /* any arg given? */
+      if (start_arg == end_arg)
+      {
+        if (!optional_arg)
+        {
+          error_str= "missing function argument";
+          DBUG_PRINT("info", ("parse error %s", error_str));
+          break;
+        }
+        else
+        {
+          /* Arg was optional, and not present
+           * Must be at end of args, finish parsing
+           */
+          args[no_args].type= CFAT_END;
+          error_str= NULL;
+          break;
+        }
+      }
+
+      uint len= (uint)(end_arg - start_arg);
+      args[no_args].type=    type;
+ 
+      DBUG_PRINT("info", ("found argument %s %u", start_arg, len));
+
+      bool arg_processing_error = false;
+      switch (type)
+      {
+      case CFAT_COLUMN_NAME:
+      {
+        /* Copy column name out into argument's buffer */
+        char* dest= &args[no_args].resolveColNameBuff[0];
+
+        memcpy(dest, start_arg, (len < (uint) NAME_CHAR_LEN ?
+                                 len :
+                                 NAME_CHAR_LEN));
+        dest[len]= '\0';
+        break;
+      }
+      case CFAT_EXTRA_GCI_BITS:
+      {
+        /* Map string to number and check it's in range etc */
+        char* end_of_arg = (char*) end_arg;
+        Uint32 bits = strtoul(start_arg, &end_of_arg, 0);
+        DBUG_PRINT("info", ("Using %u as the number of extra bits", bits));
+
+        if (bits > 31)
+        {
+          arg_processing_error= true;
+          error_str= "Too many extra Gci bits";
+          DBUG_PRINT("info", ("%s", error_str));
+          break;
+        }
+        /* Num bits seems ok */
+        args[no_args].extraGciBits = bits;
+        break;
+      }
+      case CFAT_END:
+        abort();
+      }
+
+      if (arg_processing_error)
+        break;
+      no_args++;
+    }
+
+    if (error_str)
+      break;
+
+    /* remove whitespace */
+    while (*ptr == ' ' && *ptr != '\0') ptr++;
+
+    /* next ')' */
+    if (*ptr != ')')
+    {
+      error_str= "missing ')'";
+      break;
+    }
+    ptr++;
+
+    /* remove whitespace */
+    while (*ptr == ' ' && *ptr != '\0') ptr++;
+
+    /* garbage in the end? */
+    if (*ptr != '\0')
+    {
+      error_str= "garbage in the end";
+      break;
+    }
+
+    /* Update ptrs to conflict fn + # of args */
+    *conflict_fn = &conflict_fns[i];
+    *max_args = no_args;
+
+    DBUG_RETURN(0);
+  }
+  /* parse error */
+  snprintf(msg, msg_len, "%s, %s at '%s'",
+              conflict_fn_spec, error_str, ptr);
+  DBUG_PRINT("info", ("%s", msg));
+  DBUG_RETURN(-1);
+}
+
+static uint
+slave_check_resolve_col_type(const NDBTAB *ndbtab,
+                             uint field_index)
+{
+  DBUG_ENTER("slave_check_resolve_col_type");
+  const NDBCOL *c= ndbtab->getColumn(field_index);
+  uint sz= 0;
+  switch (c->getType())
+  {
+  case  NDBCOL::Unsigned:
+    sz= sizeof(Uint32);
+    DBUG_PRINT("info", ("resolve column Uint32 %u",
+                        field_index));
+    break;
+  case  NDBCOL::Bigunsigned:
+    sz= sizeof(Uint64);
+    DBUG_PRINT("info", ("resolve column Uint64 %u",
+                        field_index));
+    break;
+  default:
+    DBUG_PRINT("info", ("resolve column %u has wrong type",
+                        field_index));
+    break;
+  }
+  DBUG_RETURN(sz);
+}
+
+static int
+slave_set_resolve_fn(Ndb* ndb, 
+                     NDB_CONFLICT_FN_SHARE** ppcfn_share,
+                     const char* dbName,
+                     const char* tabName,
+                     const NDBTAB *ndbtab, uint field_index,
+                     uint resolve_col_sz,
+                     const st_conflict_fn_def* conflict_fn,
+                     uint8 flags)
+{
+  DBUG_ENTER("slave_set_resolve_fn");
+
+  NdbDictionary::Dictionary *dict= ndb->getDictionary();
+  NDB_CONFLICT_FN_SHARE *cfn_share= *ppcfn_share;
+  const char *ex_suffix= (char *)NDB_EXCEPTIONS_TABLE_SUFFIX;
+  if (cfn_share == NULL)
+  {
+    *ppcfn_share= cfn_share=
+        (NDB_CONFLICT_FN_SHARE*) my_malloc(PSI_INSTRUMENT_ME,
+                                           sizeof(NDB_CONFLICT_FN_SHARE),
+                                           MYF(MY_WME | ME_FATALERROR));
+    slave_reset_conflict_fn(cfn_share);
+  }
+  cfn_share->m_conflict_fn= conflict_fn;
+
+  /* Calculate resolve col stuff (if relevant) */
+  cfn_share->m_resolve_size= resolve_col_sz;
+  cfn_share->m_resolve_column= field_index;
+  cfn_share->m_flags = flags;
+
+  /* Init Exceptions Table Writer */
+  new (&cfn_share->m_ex_tab_writer) ExceptionsTableWriter();
+  /* Check for '$EX' or '$ex' suffix in table name */
+  for (int tries= 2;
+       tries-- > 0;
+       ex_suffix= 
+         (tries == 1)
+         ? (const char *)NDB_EXCEPTIONS_TABLE_SUFFIX_LOWER
+         : NullS)
+  {
+    /* get exceptions table */
+    char ex_tab_name[FN_REFLEN];
+    strxnmov(ex_tab_name, sizeof(ex_tab_name), tabName,
+             ex_suffix, NullS);
+    ndb->setDatabaseName(dbName);
+    Ndb_table_guard ndbtab_g(dict, ex_tab_name);
+    const NDBTAB *ex_tab= ndbtab_g.get_table();
+    if (ex_tab)
+    {
+      char msgBuf[ FN_REFLEN ];
+      const char* msg = NULL;
+      if (cfn_share->m_ex_tab_writer.init(ndbtab,
+                                          ex_tab,
+                                          msgBuf,
+                                          sizeof(msgBuf),
+                                          &msg) == 0)
+      {
+        /* Ok */
+        /* Hold our table reference outside the table_guard scope */
+        ndbtab_g.release();
+
+        /* Table looked suspicious, warn user */
+        if (msg)
+          ndb_log_warning("NDB Slave: %s", msg);
+
+        ndb_log_verbose(1,
+                        "NDB Slave: Table %s.%s logging exceptions to %s.%s",
+                        dbName, tabName,
+                        dbName, ex_tab_name);
+      }
+      else
+      {
+        ndb_log_warning("NDB Slave: %s", msg);
+      }
+      break;
+    } /* if (ex_tab) */
+  }
+  DBUG_RETURN(0);
+}
+
+
+bool 
+is_exceptions_table(const char *table_name)
+{
+  size_t len = strlen(table_name);
+  size_t suffixlen = strlen(NDB_EXCEPTIONS_TABLE_SUFFIX);
+  if(len > suffixlen &&
+     (strcmp(table_name + len - suffixlen,
+             lower_case_table_names ? NDB_EXCEPTIONS_TABLE_SUFFIX_LOWER :
+                                      NDB_EXCEPTIONS_TABLE_SUFFIX) == 0))
+  {
+     return true;
+  }
+  return false;
+}
+
+int
+setup_conflict_fn(Ndb* ndb,
+                  NDB_CONFLICT_FN_SHARE** ppcfn_share,
+                  const char* dbName,
+                  const char* tabName,
+                  bool tableBinlogUseUpdate,
+                  const NdbDictionary::Table* ndbtab,
+                  char *msg, uint msg_len,
+                  const st_conflict_fn_def* conflict_fn,
+                  const st_conflict_fn_arg* args,
+                  const Uint32 num_args)
+{
+  DBUG_ENTER("setup_conflict_fn");
+
+  if(is_exceptions_table(tabName))
+  {
+    snprintf(msg, msg_len, 
+                "Table %s.%s is exceptions table: not using conflict function %s",
+                dbName,
+                tabName,
+                conflict_fn->name);
+    DBUG_PRINT("info", ("%s", msg));
+    DBUG_RETURN(0);
+  } 
+ 
+  /* setup the function */
+  switch (conflict_fn->type)
+  {
+  case CFT_NDB_MAX:
+  case CFT_NDB_OLD:
+  case CFT_NDB_MAX_DEL_WIN:
+  {
+    if (num_args != 1)
+    {
+      snprintf(msg, msg_len,
+                  "Incorrect arguments to conflict function");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    /* Now try to find the column in the table */
+    int colNum = -1;
+    const char* resolveColName = args[0].resolveColNameBuff;
+    int resolveColNameLen = (int)strlen(resolveColName);
+
+    for (int j=0; j< ndbtab->getNoOfColumns(); j++)
+    {
+      const char* colName = ndbtab->getColumn(j)->getName();
+
+      if (strncmp(colName,
+                  resolveColName,
+                  resolveColNameLen) == 0 &&
+          colName[resolveColNameLen] == '\0')
+      {
+        colNum = j;
+        break;
+      }
+    }
+    if (colNum == -1)
+    {
+      snprintf(msg, msg_len,
+                  "Could not find resolve column %s.",
+                  resolveColName);
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    const uint resolve_col_sz= slave_check_resolve_col_type(ndbtab, colNum);
+    if (resolve_col_sz == 0)
+    {
+      /* wrong data type */
+      slave_reset_conflict_fn(*ppcfn_share);
+      snprintf(msg, msg_len,
+                  "Column '%s' has wrong datatype",
+                  resolveColName);
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    if (slave_set_resolve_fn(ndb, 
+                             ppcfn_share,
+                             dbName,
+                             tabName,
+                             ndbtab,
+                             colNum, resolve_col_sz,
+                             conflict_fn, CFF_NONE))
+    {
+      snprintf(msg, msg_len,
+                  "Unable to setup conflict resolution using column '%s'",
+                  resolveColName);
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    /* Success, update message */
+    snprintf(msg, msg_len,
+                "Table %s.%s using conflict_fn %s on attribute %s.",
+                dbName,
+                tabName,
+                conflict_fn->name,
+                resolveColName);
+    break;
+  }
+  case CFT_NDB_EPOCH2:
+  case CFT_NDB_EPOCH2_TRANS:
+  {
+    /* Check how updates will be logged... */
+    const bool log_update_as_write = (!tableBinlogUseUpdate);
+    if (log_update_as_write) {
+      snprintf(msg, msg_len,
+               "Table %s.%s configured to log updates as writes.  "
+               "Not suitable for %s.",
+               dbName, tabName, conflict_fn->name);
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+  }
+  /* Fall through - for the rest of the EPOCH* processing... */
+  case CFT_NDB_EPOCH:
+  case CFT_NDB_EPOCH_TRANS:
+  {
+    if (num_args > 1)
+    {
+      snprintf(msg, msg_len,
+                  "Too many arguments to conflict function");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    /* Check that table doesn't have Blobs as we don't support that */
+    if (ndb_table_has_blobs(ndbtab))
+    {
+      snprintf(msg, msg_len, "Table has Blob column(s), not suitable for %s.",
+                  conflict_fn->name);
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    /* Check that table has required extra meta-columns */
+    /* Todo : Could warn if extra gcibits is insufficient to
+     * represent SavePeriod/EpochPeriod
+     */
+    if (ndbtab->getExtraRowGciBits() == 0)
+      ndb_log_info("NDB Slave: Table %s.%s : %s, low epoch resolution",
+                   dbName, tabName, conflict_fn->name);
+
+    if (ndbtab->getExtraRowAuthorBits() == 0)
+    {
+      snprintf(msg, msg_len, "No extra row author bits in table.");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    if (slave_set_resolve_fn(ndb,
+                             ppcfn_share,
+                             dbName,
+                             tabName,
+                             ndbtab,
+                             0, // field_no
+                             0, // resolve_col_sz
+                             conflict_fn, CFF_REFRESH_ROWS))
+    {
+      snprintf(msg, msg_len,
+                  "unable to setup conflict resolution");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+    /* Success, update message */
+    snprintf(msg, msg_len,
+                "Table %s.%s using conflict_fn %s.",
+                dbName,
+                tabName,
+                conflict_fn->name);
+
+    break;
+  }
+  case CFT_NUMBER_OF_CFTS:
+  case CFT_NDB_UNDEF:
+    abort();
+  }
+  DBUG_RETURN(0);
+}
+
+
+void
+teardown_conflict_fn(Ndb* ndb, NDB_CONFLICT_FN_SHARE* cfn_share)
+{
+  if (cfn_share &&
+      cfn_share->m_ex_tab_writer.hasTable() &&
+      ndb)
+  {
+    cfn_share->m_ex_tab_writer.mem_free(ndb);
+  }
+
+  // Release the NDB_CONFLICT_FN_SHARE which was allocated
+  // in setup_conflict_fn()
+  my_free(cfn_share);
+}
+
+
+void slave_reset_conflict_fn(NDB_CONFLICT_FN_SHARE *cfn_share)
+{
+  if (cfn_share)
+  {
+    memset(cfn_share, 0, sizeof(*cfn_share));
+  }
+}
+
+
+/**
+ * Variables related to conflict handling
+ * All prefixed 'ndb_conflict'
+ */
+
+SHOW_VAR ndb_status_conflict_variables[]= {
+  {"fn_max",       (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX], SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"fn_old",       (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_OLD], SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"fn_max_del_win", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_DEL_WIN], SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"fn_epoch",     (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH], SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"fn_epoch_trans", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH_TRANS], SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"fn_epoch2",    (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH2], SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"fn_epoch2_trans", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH2_TRANS], SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"trans_row_conflict_count", (char*) &g_ndb_slave_state.trans_row_conflict_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"trans_row_reject_count",   (char*) &g_ndb_slave_state.trans_row_reject_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"trans_reject_count",       (char*) &g_ndb_slave_state.trans_in_conflict_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"trans_detect_iter_count",  (char*) &g_ndb_slave_state.trans_detect_iter_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"trans_conflict_commit_count",
+                               (char*) &g_ndb_slave_state.trans_conflict_commit_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"epoch_delete_delete_count", (char*) &g_ndb_slave_state.total_delete_delete_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"reflected_op_prepare_count", (char*) &g_ndb_slave_state.total_reflect_op_prepare_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"reflected_op_discard_count", (char*) &g_ndb_slave_state.total_reflect_op_discard_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"refresh_op_count", (char*) &g_ndb_slave_state.total_refresh_op_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"last_conflict_epoch",    (char*) &g_ndb_slave_state.last_conflicted_epoch, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"last_stable_epoch",    (char*) &g_ndb_slave_state.last_stable_epoch, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
+};
+
+int
+show_ndb_status_conflict(THD*, SHOW_VAR* var, char*)
+{
+  /* Just a function to allow moving array into this file */
+  var->type = SHOW_ARRAY;
+  var->value = (char*) &ndb_status_conflict_variables;
+  return 0;
+}
+                                

@@ -6,16 +6,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 
 Create a replication user to use in change master tests.
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
-GRANT REPLICATION SLAVE ON *.* TO replssl@localhost REQUIRE SSL;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+CREATE USER replssl@localhost REQUIRE SSL;
+GRANT REPLICATION SLAVE ON *.* TO replssl@localhost;
 include/sync_slave_sql_with_master.inc
 
 With both receiver and applier stopped, all CHANGE MASTER options should
@@ -26,6 +18,7 @@ CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warning	####	'CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' (when @@GLOBAL.GTID_MODE = ON)' is deprecated and will be removed in a future release.
 CHANGE MASTER TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
 CHANGE MASTER TO RELAY_LOG_POS= RELAY_LOG_POS;
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
@@ -39,8 +32,9 @@ include/start_slave_sql.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warning	####	'CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' (when @@GLOBAL.GTID_MODE = ON)' is deprecated and will be removed in a future release.
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
-ERROR HY000: This operation cannot be performed with a running replication threads; run STOP SLAVE FOR CHANNEL '' first
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
 CHANGE MASTER TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO RELAY_LOG_POS= RELAY_LOG_POS;
@@ -64,7 +58,7 @@ CHANGE MASTER TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
 CHANGE MASTER TO RELAY_LOG_POS= RELAY_LOG_POS;
 CHANGE MASTER TO MASTER_DELAY= 10;
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
-ERROR HY000: This operation cannot be performed with a running replication threads; run STOP SLAVE FOR CHANNEL '' first
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
 CHANGE MASTER TO MASTER_HOST= 'localhost';
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_USER= 'replssl';

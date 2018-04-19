@@ -28,7 +28,6 @@
 # under more than one binlog format.
 --source include/have_binlog_format_row.inc
 --source include/have_ndb.inc
---source include/have_innodb.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
 
 disable_query_log;
@@ -86,7 +85,7 @@ AAAAAAAAAAAAAAAAAADWBFVKEzgNAAgAEgAEBAQEEgAAUwAEGggAAAAICAgC
 
 --echo ==== Test ====
 
---echo ---- binlog_format=row ----
+--echo ---- binlog_format='row' ----
 
 --echo * Modify tables of more than one engine, one of which is self-logging
 --eval CREATE TRIGGER trig_1 AFTER INSERT ON t_self_logging FOR EACH ROW BEGIN INSERT INTO t VALUES (1); END
@@ -103,7 +102,7 @@ INSERT INTO t_stmt VALUES (1);
 SELECT * FROM t_stmt /* should be empty */;
 DROP TRIGGER trig_2;
 
---echo * Stmt-only table and binlog_format=row
+--echo * Stmt-only table and binlog_format='row'
 --error ER_BINLOG_ROW_MODE_AND_STMT_ENGINE
 INSERT INTO t_stmt VALUES (1);
 SELECT * FROM t_stmt /* should be empty */;

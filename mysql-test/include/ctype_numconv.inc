@@ -275,14 +275,6 @@ create table t1 as select md5('a') as c1;
 show create table t1;
 drop table t1;
 
-select password('a'), hex(password('a'));
---disable_warnings
-create table t1 as select password('a') as c1;
---enable_warnings
-#The above query returns 2 warnings in ps test.
-show create table t1;
-drop table t1;
-
 select sha('a'), hex(sha('a'));
 create table t1 as select sha('a') as c1;
 show create table t1;
@@ -658,8 +650,8 @@ create table t1 as select concat(ST_NumGeometries(ST_MultiPointFromText('MULTIPO
 show create table t1;
 drop table t1;
 
-select hex(concat(ST_NumPoints(ST_MultiPointFromText('LINESTRING(0 0,10 10)'))));
-create table t1 as select concat(ST_NumPoints(ST_MultiPointFromText('LINESTRING(0 0,10 10)'))) as c1;
+select hex(concat(ST_NumPoints(ST_LineFromText('LINESTRING(0 0,10 10)'))));
+create table t1 as select concat(ST_NumPoints(ST_LineFromText('LINESTRING(0 0,10 10)'))) as c1;
 show create table t1;
 drop table t1;
 
@@ -1608,8 +1600,6 @@ drop function f1;
 --echo #
 SET @ST_X=md5('a');
 SELECT charset(@ST_X), collation(@ST_X);
-SET @ST_X=password('a');
-SELECT charset(@ST_X), collation(@ST_X);
 SET @ST_X=sha('a');
 SELECT charset(@ST_X), collation(@ST_X);
 SET @ST_X=sha1('a');
@@ -1783,9 +1773,9 @@ CREATE PROCEDURE p1()
 BEGIN
   DECLARE v_LastPaymentDate DATETIME DEFAULT NULL;
   SELECT v_LastPaymentDate < NOW();
-  EXPLAIN EXTENDED SELECT v_LastPaymentDate < NOW();
+  EXPLAIN SELECT v_LastPaymentDate < NOW();
   SHOW WARNINGS;
-  EXPLAIN EXTENDED SELECT CONCAT(v_LastPaymentDate, NOW());
+  EXPLAIN SELECT CONCAT(v_LastPaymentDate, NOW());
 END//
 DELIMITER ;//
 CALL p1;

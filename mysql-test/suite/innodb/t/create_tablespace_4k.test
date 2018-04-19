@@ -2,9 +2,6 @@
 # WL#6205 - A series of tests to show the correct behavior for
 # CREATE TABLESPACE and associated SQL statements for 4k page size.
 #
---source include/have_innodb.inc
---source include/have_innodb_4k.inc
---source include/not_embedded.inc
 
 --echo #
 --echo # CREATE TABLESPACE related tests for 4k page sizes.
@@ -144,9 +141,8 @@ INSERT INTO t_dyn_in_4k VALUES (1,'a'),(2,'b'),(3,'c');
 --echo #
 --echo # Try to drop a tablespace which is not empty
 --echo #
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_4k;
-SHOW WARNINGS;
 
 --echo #
 --echo # Add more data to the existing Tables

@@ -1,235 +1,208 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************************//**
-@file include/ut0rnd.ic
-Random numbers and hashing
+/** @file include/ut0rnd.ic
+ Random numbers and hashing
 
-Created 5/30/1994 Heikki Tuuri
-*******************************************************************/
+ Created 5/30/1994 Heikki Tuuri
+ *******************************************************************/
 
-#define UT_HASH_RANDOM_MASK	1463735687
-#define UT_HASH_RANDOM_MASK2	1653893711
+#define UT_HASH_RANDOM_MASK 1463735687
+#define UT_HASH_RANDOM_MASK2 1653893711
 
-#ifndef UNIV_INNOCHECKSUM
+#define UT_RND1 151117737
+#define UT_RND2 119785373
+#define UT_RND3 85689495
+#define UT_RND4 76595339
+#define UT_SUM_RND2 98781234
+#define UT_SUM_RND3 126792457
+#define UT_SUM_RND4 63498502
+#define UT_XOR_RND1 187678878
+#define UT_XOR_RND2 143537923
 
-#define UT_RND1			151117737
-#define UT_RND2			119785373
-#define UT_RND3			 85689495
-#define UT_RND4			 76595339
-#define UT_SUM_RND2		 98781234
-#define UT_SUM_RND3		126792457
-#define UT_SUM_RND4		 63498502
-#define UT_XOR_RND1		187678878
-#define UT_XOR_RND2		143537923
+#include <my_thread_local.h>
 
 /** Seed value of ut_rnd_gen_ulint() */
-extern	ulint	 ut_rnd_ulint_counter;
+extern thread_local ulint ut_rnd_ulint_counter;
 
-/********************************************************//**
-This is used to set the random number seed. */
+/** The following function generates a series of 'random' ulint integers.
+ This function is now based on thread local variables.
+ @return the next 'random' number */
 UNIV_INLINE
-void
-ut_rnd_set_seed(
-/*============*/
-	ulint	 seed)		 /*!< in: seed */
+ulint ut_rnd_gen_next_ulint(
+    ulint rnd) /*!< in: the previous random number value */
 {
-	ut_rnd_ulint_counter = seed;
+  ulint n_bits;
+
+  n_bits = 8 * sizeof(ulint);
+
+  rnd = UT_RND2 * rnd + UT_SUM_RND3;
+  rnd = UT_XOR_RND1 ^ rnd;
+  rnd = (rnd << 20) + (rnd >> (n_bits - 20));
+  rnd = UT_RND3 * rnd + UT_SUM_RND4;
+  rnd = UT_XOR_RND2 ^ rnd;
+  rnd = (rnd << 20) + (rnd >> (n_bits - 20));
+  rnd = UT_RND1 * rnd + UT_SUM_RND2;
+
+  return (rnd);
 }
 
-/********************************************************//**
-The following function generates a series of 'random' ulint integers.
-@return the next 'random' number */
-UNIV_INLINE
-ulint
-ut_rnd_gen_next_ulint(
-/*==================*/
-	ulint	rnd)	/*!< in: the previous random number value */
-{
-	ulint	n_bits;
-
-	n_bits = 8 * sizeof(ulint);
-
-	rnd = UT_RND2 * rnd + UT_SUM_RND3;
-	rnd = UT_XOR_RND1 ^ rnd;
-	rnd = (rnd << 20) + (rnd >> (n_bits - 20));
-	rnd = UT_RND3 * rnd + UT_SUM_RND4;
-	rnd = UT_XOR_RND2 ^ rnd;
-	rnd = (rnd << 20) + (rnd >> (n_bits - 20));
-	rnd = UT_RND1 * rnd + UT_SUM_RND2;
-
-	return(rnd);
-}
-
-/********************************************************//**
-The following function generates 'random' ulint integers which
+/** The following function generates 'random' ulint integers which
 enumerate the value space of ulint integers in a pseudo random
 fashion. Note that the same integer is repeated always after
 2 to power 32 calls to the generator (if ulint is 32-bit).
-@return the 'random' number */
-UNIV_INLINE
-ulint
-ut_rnd_gen_ulint(void)
-/*==================*/
-{
-	ulint	rnd;
+@return pseudo random number */
+ulint ut_rnd_gen_ulint() {
+  ulint rnd = ut_rnd_ulint_counter;
+  if (rnd == 0) {
+    rnd = 65654363;
+  }
 
-	ut_rnd_ulint_counter = UT_RND1 * ut_rnd_ulint_counter + UT_RND2;
+  rnd = UT_RND1 * rnd + UT_RND2;
 
-	rnd = ut_rnd_gen_next_ulint(ut_rnd_ulint_counter);
+  ut_rnd_ulint_counter = rnd;
 
-	return(rnd);
+  return (ut_rnd_gen_next_ulint(rnd));
 }
 
-/********************************************************//**
-Generates a random integer from a given interval.
-@return the 'random' number */
+/** Generates a random integer from a given interval.
+ This function is now based on thread local variables.
+ @return the 'random' number */
 UNIV_INLINE
-ulint
-ut_rnd_interval(
-/*============*/
-	ulint	low,	/*!< in: low limit; can generate also this value */
-	ulint	high)	/*!< in: high limit; can generate also this value */
+ulint ut_rnd_interval(
+    ulint low,  /*!< in: low limit; can generate also this value */
+    ulint high) /*!< in: high limit; can generate also this value */
 {
-	ulint	rnd;
+  ulint rnd;
 
-	ut_ad(high >= low);
+  ut_ad(high >= low);
 
-	if (low == high) {
+  if (low == high) {
+    return (low);
+  }
 
-		return(low);
-	}
+  rnd = ut_rnd_gen_ulint();
 
-	rnd = ut_rnd_gen_ulint();
-
-	return(low + (rnd % (high - low)));
+  return (low + (rnd % (high - low)));
 }
 
-/*******************************************************//**
-The following function generates a hash value for a ulint integer
-to a hash table of size table_size, which should be a prime
-or some random number for the hash table to work reliably.
-@return hash value */
+/** The following function generates a hash value for a ulint integer
+ to a hash table of size table_size, which should be a prime
+ or some random number for the hash table to work reliably.
+ @return hash value */
 UNIV_INLINE
-ulint
-ut_hash_ulint(
-/*==========*/
-	ulint	 key,		/*!< in: value to be hashed */
-	ulint	 table_size)	/*!< in: hash table size */
+ulint ut_hash_ulint(ulint key,        /*!< in: value to be hashed */
+                    ulint table_size) /*!< in: hash table size */
 {
-	ut_ad(table_size);
-	key = key ^ UT_HASH_RANDOM_MASK2;
+  ut_ad(table_size);
+  key = key ^ UT_HASH_RANDOM_MASK2;
 
-	return(key % table_size);
+  return (key % table_size);
 }
 
-/*************************************************************//**
-Folds a 64-bit integer.
-@return folded value */
+/** Folds a 64-bit integer.
+ @return folded value */
 UNIV_INLINE
-ulint
-ut_fold_ull(
-/*========*/
-	ib_uint64_t	d)	/*!< in: 64-bit integer */
+ulint ut_fold_ull(ib_uint64_t d) /*!< in: 64-bit integer */
 {
-	return(ut_fold_ulint_pair((ulint) d & ULINT32_MASK,
-				  (ulint) (d >> 32)));
+  return (ut_fold_ulint_pair((ulint)d & ULINT32_MASK, (ulint)(d >> 32)));
 }
 
-/*************************************************************//**
-Folds a character string ending in the null character.
-@return folded value */
+/** Folds a character string ending in the null character.
+ @return folded value */
 UNIV_INLINE
-ulint
-ut_fold_string(
-/*===========*/
-	const char*	str)	/*!< in: null-terminated string */
+ulint ut_fold_string(const char *str) /*!< in: null-terminated string */
 {
-	ulint	fold = 0;
+  ulint fold = 0;
 
-	ut_ad(str);
+  ut_ad(str);
 
-	while (*str != '\0') {
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str));
-		str++;
-	}
+  while (*str != '\0') {
+    fold = ut_fold_ulint_pair(fold, (ulint)(*str));
+    str++;
+  }
 
-	return(fold);
+  return (fold);
 }
 
-#endif /* !UNIV_INNOCHECKSUM */
-
-/*************************************************************//**
-Folds a pair of ulints.
-@return folded value */
+/** Folds a pair of ulints.
+ @return folded value */
 UNIV_INLINE
-ulint
-ut_fold_ulint_pair(
-/*===============*/
-	ulint	n1,	/*!< in: ulint */
-	ulint	n2)	/*!< in: ulint */
+ulint ut_fold_ulint_pair(ulint n1, /*!< in: ulint */
+                         ulint n2) /*!< in: ulint */
 {
-	return(((((n1 ^ n2 ^ UT_HASH_RANDOM_MASK2) << 8) + n1)
-		^ UT_HASH_RANDOM_MASK) + n2);
+  return (
+      ((((n1 ^ n2 ^ UT_HASH_RANDOM_MASK2) << 8) + n1) ^ UT_HASH_RANDOM_MASK) +
+      n2);
 }
 
-/*************************************************************//**
-Folds a binary string.
-@return folded value */
+/** Folds a binary string.
+ @return folded value */
 UNIV_INLINE
-ulint
-ut_fold_binary(
-/*===========*/
-	const byte*	str,	/*!< in: string of bytes */
-	ulint		len)	/*!< in: length */
+ulint ut_fold_binary(const byte *str, /*!< in: string of bytes */
+                     ulint len)       /*!< in: length */
 {
-	ulint		fold = 0;
-	const byte*	str_end	= str + (len & 0xFFFFFFF8);
+  ulint fold = 0;
+  const byte *str_end = str + (len & 0xFFFFFFF8);
 
-	ut_ad(str || !len);
+  ut_ad(str || !len);
 
-	while (str < str_end) {
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-	}
+  while (str < str_end) {
+    fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+    fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+    fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+    fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+    fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+    fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+    fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+    fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+  }
 
-	switch (len & 0x7) {
-	case 7:
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-	case 6:
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-	case 5:
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-	case 4:
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-	case 3:
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-	case 2:
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-	case 1:
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-	}
+  switch (len & 0x7) {
+    case 7:
+      fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+      // Fall through.
+    case 6:
+      fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+      // Fall through.
+    case 5:
+      fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+      // Fall through.
+    case 4:
+      fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+      // Fall through.
+    case 3:
+      fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+      // Fall through.
+    case 2:
+      fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+      // Fall through.
+    case 1:
+      fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+  }
 
-	return(fold);
+  return (fold);
 }

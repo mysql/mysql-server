@@ -1,0 +1,8 @@
+# ==== Purpose ====
+# 'rpl_xa_survive_disconnect_lsu_off' verifies the same properties as the sourced file
+# in conditions of the slave does not log own updates
+# (lsu in the name stands for log_slave_updates).
+# Specifically this mode aims at proving correct operations on the slave
+# mysql.gtid_executed.
+
+--source ./rpl_xa_survive_disconnect.test

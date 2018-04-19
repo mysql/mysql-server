@@ -1,0 +1,142 @@
+--source include/have_ndb.inc
+--source include/have_log_bin.inc
+--source include/have_debug.inc
+
+use test;
+
+reset master;
+
+create table t1 (a int primary key, b int) engine=ndb;
+
+--echo Low level transport test
+set global debug='+d,ndb_injector_set_event_conflict_flags';
+
+--echo Two inserts to the same table, with nothing else in the epoch,
+--echo will be grouped together in one binlog event, as the 
+--echo extra row info is the same.
+insert into test.t1 values (1,1), (2,2);
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--echo A separate delete.
+delete from test.t1 where a=2;
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+select replace(txt, '\r', '') as txt from raw_binlog_rows where txt like '### Extra row data %';
+
+
+drop table raw_binlog_rows;
+--enable_query_log
+
+set global debug='';
+delete from test.t1;
+reset master;
+
+--echo Specific flag settings test : Reflect
+
+set global debug='+d,ndb_set_reflect_anyvalue';
+
+--echo Two inserts to the same table, with nothing else in the epoch,
+--echo will be grouped together in one binlog event, as the 
+--echo extra row info is the same.
+insert into test.t1 values (1,1), (2,2);
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--echo A separate delete.
+delete from test.t1 where a=2;
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+select replace(txt, '\r', '') as txt from raw_binlog_rows where txt like '### Extra row data %';
+
+
+drop table raw_binlog_rows;
+--enable_query_log
+
+set global debug='';
+delete from test.t1;
+reset master;
+
+--echo Specific flag settings test : Refresh
+set global debug='+d,ndb_set_refresh_anyvalue';
+
+--echo Two inserts to the same table, with nothing else in the epoch,
+--echo will be grouped together in one binlog event, as the 
+--echo extra row info is the same.
+insert into test.t1 values (1,1), (2,2);
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+--echo A separate delete.
+delete from test.t1 where a=2;
+
+# Wait for epoch boundary
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+select replace(txt, '\r', '') as txt from raw_binlog_rows where txt like '### Extra row data %';
+
+
+drop table raw_binlog_rows;
+--enable_query_log
+
+set global debug='';
+
+drop table t1;

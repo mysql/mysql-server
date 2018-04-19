@@ -23,7 +23,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/not_embedded.inc
 --source include/load_sysvars.inc
 
 ##################################################################### 
@@ -125,7 +124,7 @@ SELECT @@session.relay_log_purge;
 
 --disable_warnings
 SELECT IF(@@global.relay_log_purge, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='relay_log_purge';
 --enable_warnings
 

@@ -1,24 +1,21 @@
 set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 drop table if exists t1,t2;
 drop view if exists v1,v2;
 drop function if exists f1;
 drop function if exists f2;
 use INFORMATION_SCHEMA;
-show tables where Tables_in_information_schema NOT LIKE 'Innodb%' and Tables_in_information_schema NOT LIKE 'ndb%';
+show tables where Tables_in_information_schema NOT LIKE 'INNODB%' and Tables_in_information_schema NOT LIKE 'ndb%';
 Tables_in_information_schema
 CHARACTER_SETS
 COLLATIONS
 COLLATION_CHARACTER_SET_APPLICABILITY
 COLUMNS
 COLUMN_PRIVILEGES
+COLUMN_STATISTICS
 ENGINES
 EVENTS
 FILES
-GLOBAL_STATUS
-GLOBAL_VARIABLES
+KEYWORDS
 KEY_COLUMN_USAGE
 OPTIMIZER_TRACE
 PARAMETERS
@@ -27,12 +24,13 @@ PLUGINS
 PROCESSLIST
 PROFILING
 REFERENTIAL_CONSTRAINTS
+RESOURCE_GROUPS
 ROUTINES
 SCHEMATA
 SCHEMA_PRIVILEGES
-SESSION_STATUS
-SESSION_VARIABLES
 STATISTICS
+ST_GEOMETRY_COLUMNS
+ST_SPATIAL_REFERENCE_SYSTEMS
 TABLES
 TABLESPACES
 TABLE_CONSTRAINTS
@@ -52,9 +50,8 @@ create database mbase;
 use `inf%`;
 show tables;
 Tables_in_inf%
+create user 'mysqltest_1'@'localhost';
 grant all privileges on `inf%`.* to 'mysqltest_1'@'localhost';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant all privileges on `mbase`.* to 'mysqltest_1'@'localhost';
 create table t1 (f1 int);
 create function func1(curr_int int) returns int
@@ -84,12 +81,16 @@ drop user mysqltest_1@localhost;
 drop table t1;
 select table_name, table_type, table_comment from information_schema.tables
 where table_schema='inf%' and func2();
-table_name	table_type	table_comment
-v1	VIEW	VIEW
+TABLE_NAME	TABLE_TYPE	TABLE_COMMENT
+v1	VIEW	View 'inf%.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warnings:
+Warning	1356	View 'inf%.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 select table_name, table_type, table_comment from information_schema.tables
 where table_schema='inf%' and func2();
-table_name	table_type	table_comment
-v1	VIEW	VIEW
+TABLE_NAME	TABLE_TYPE	TABLE_COMMENT
+v1	VIEW	View 'inf%.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warnings:
+Warning	1356	View 'inf%.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v1;
 drop function func1;
 drop function func2;
@@ -106,16 +107,21 @@ create view v2 as select f2();
 drop table t2;
 select table_name, table_type, table_comment from information_schema.tables
 where table_schema='test';
-table_name	table_type	table_comment
+TABLE_NAME	TABLE_TYPE	TABLE_COMMENT
 t1	BASE TABLE	
 v1	VIEW	VIEW
-v2	VIEW	VIEW
+v2	VIEW	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warnings:
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop table t1;
 select table_name, table_type, table_comment from information_schema.tables
 where table_schema='test';
-table_name	table_type	table_comment
-v1	VIEW	VIEW
-v2	VIEW	VIEW
+TABLE_NAME	TABLE_TYPE	TABLE_COMMENT
+v1	VIEW	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+v2	VIEW	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warnings:
+Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop function f1;
 drop function f2;
 drop view v1, v2;
@@ -131,7 +137,7 @@ grant insert on v1 to testdb_2@localhost;
 create view v5 as select f1 from t1;
 grant select, show view on v5 to testdb_2@localhost;
 create definer=`no_such_user`@`no_such_host` view v6 as select f1 from t1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_USER_ID privilege(s) for this operation
 use testdb_1;
 create view v6 as select f1 from t1;
 grant select, show view on v6 to testdb_2@localhost;
@@ -144,17 +150,15 @@ Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
 show create view testdb_1.v6;
 View	Create View	character_set_client	collation_connection
-v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v6` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
+v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v6` AS select `t1`.`f1` AS `f1` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 show create view testdb_1.v7;
 View	Create View	character_set_client	collation_connection
-v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `t2`.`f1` AS `f1` from `t2`	latin1	latin1_swedish_ci
+v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `t2`.`f1` AS `f1` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
 Warnings:
 Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 show fields from testdb_1.v7;
 Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
-Warnings:
-Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 create table t3 (f1 char(4), f2 char(4));
 create view v3 as select f1,f2 from t3;
 grant insert(f1), insert(f2) on v3 to testdb_2@localhost;
@@ -165,21 +169,19 @@ Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
 show create view testdb_1.v5;
 View	Create View	character_set_client	collation_connection
-v5	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_1`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v5` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`	latin1	latin1_swedish_ci
+v5	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_1`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v5` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
 show fields from testdb_1.v6;
 Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
 show create view testdb_1.v6;
 View	Create View	character_set_client	collation_connection
-v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v6` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`	latin1	latin1_swedish_ci
+v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v6` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
 show fields from testdb_1.v7;
 Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
-Warnings:
-Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 show create view testdb_1.v7;
 View	Create View	character_set_client	collation_connection
-v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `t2`.`f1` AS `f1` from `t2`	latin1	latin1_swedish_ci
+v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `t2`.`f1` AS `f1` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
 Warnings:
 Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 revoke insert(f1) on v3 from testdb_2@localhost;
@@ -200,7 +202,7 @@ show create view testdb_1.v7;
 ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v7'
 show create view v4;
 View	Create View	character_set_client	collation_connection
-v4	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select `v3`.`f1` AS `f1`,`v3`.`f2` AS `f2` from `testdb_1`.`v3`	latin1	latin1_swedish_ci
+v4	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select `v3`.`f1` AS `f1`,`v3`.`f2` AS `f2` from `testdb_1`.`v3`	utf8mb4	utf8mb4_0900_ai_ci
 show fields from v4;
 Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
@@ -213,20 +215,20 @@ Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
 show create view v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`f1` AS `f1` from `testdb_1`.`v1`	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`f1` AS `f1` from `testdb_1`.`v1`	utf8mb4	utf8mb4_0900_ai_ci
 show create view testdb_1.v1;
 ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v1'
 select table_name from information_schema.columns a
 where a.table_name = 'v2';
-table_name
+TABLE_NAME
 v2
 select view_definition from information_schema.views a
 where a.table_name = 'v2';
-view_definition
+VIEW_DEFINITION
 select `v1`.`f1` AS `f1` from `testdb_1`.`v1`
 select view_definition from information_schema.views a
 where a.table_name = 'testdb_1.v1';
-view_definition
+VIEW_DEFINITION
 select * from v2;
 ERROR HY000: View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 use test;
@@ -237,26 +239,23 @@ drop user testdb_2@localhost;
 create database testdb_1;
 create table testdb_1.t1 (a int);
 create view testdb_1.v1 as select * from testdb_1.t1;
+create user mysqltest_1@localhost;
 grant show view on testdb_1.* to mysqltest_1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select on testdb_1.v1 to mysqltest_1@localhost;
 select table_schema, table_name, view_definition from information_schema.views
 where table_name='v1';
-table_schema	table_name	view_definition
-testdb_1	v1	select `testdb_1`.`t1`.`a` AS `a` from `testdb_1`.`t1`
+TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION
+testdb_1	v1	
 show create view testdb_1.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v1` AS select `testdb_1`.`t1`.`a` AS `a` from `testdb_1`.`t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v1` AS select `testdb_1`.`t1`.`a` AS `a` from `testdb_1`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
 revoke select on testdb_1.v1 from mysqltest_1@localhost;
 select table_schema, table_name, view_definition from information_schema.views
 where table_name='v1';
-table_schema	table_name	view_definition
+TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION
 testdb_1	v1	
 show create view testdb_1.v1;
 ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 'v1'
 drop user mysqltest_1@localhost;
 drop database testdb_1;
 set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.

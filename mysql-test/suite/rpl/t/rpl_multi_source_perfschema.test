@@ -15,6 +15,8 @@
 #Skip on group replication runs
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_mixed.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 --echo #
 --echo # Set up masters server_1 and server_3 with server_2 being a slave.
 --echo #
@@ -116,11 +118,29 @@ USE performance_schema;
 --let $assert_cond= [select count(*) from performance_schema.replication_applier_status] = 2;
 --source include/assert.inc
 
---let $assert_text= there shall be 2 rows for replication_connection_configuration
---let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_coordinator] = 2;
---source include/assert.inc
+# Post Bug#20001173 fix in case of Single Threaded Slave(STS) mode SQL
+# thread's status will be reported as part of
+# performance_schema.replication_applier_status_by_worker table.
+--let $w_rows= `select @@global.slave_parallel_workers`
+if ($w_rows != 0)
+{
+  --let $assert_text= there shall be 2 rows for replication_connection_configuration
+  --let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_coordinator] = 2;
+  --source include/assert.inc
+}
 
---let $pfs_w_rows= `select count(*) from performance_schema.replication_applier_status_by_worker`
+if ($w_rows == 0)
+{
+  --let $assert_text= there shall be 2 rows for replication_connection_configuration
+  --let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_worker] = 2;
+  --source include/assert.inc
+}
+
+# Post Bug#20001173 fix in case of Single Threaded Slave(STS) mode SQL
+# thread's status will be reported as part of
+# performance_schema.replication_applier_status_by_worker table.
+# SQL thread will have the corresponding worker_id as 0.
+--let $pfs_w_rows= `select count(*) from performance_schema.replication_applier_status_by_worker where worker_id != 0`
 --let $w_rows= `select 2*@@global.slave_parallel_workers`
 --let $assert_text= there shall be 2*global.slave_parallel_workers rows for 2 configured channels.
 --let $assert_cond= "$pfs_w_rows" = "$w_rows"
@@ -153,7 +173,10 @@ let $assert_cond= "$sss_value" = "$ps_value";
 --let $assert_cond= "ON" = "$service_state"
 --source include/assert.inc
 
---let $service_state= `select service_state from performance_schema.replication_applier_status_by_coordinator where channel_name="channel_3"`
+# Post Bug#20001173 fix in case of Single Threaded Slave(STS) mode SQL
+# thread's status will be reported as part of
+# performance_schema.replication_applier_status_by_worker table.
+--let $service_state= `select service_state from performance_schema.replication_applier_status_by_worker where channel_name="channel_3"`
 --let $assert_text= service state of coordinator shall be ON
 --let $assert_cond= "ON" = "$service_state"
 --source include/assert.inc
@@ -172,7 +195,7 @@ if ( `select @@GLOBAL.slave_parallel_workers > 0`)
 --echo #
 --echo #  Stop the slave on channel_1 and verify that rows are still instact
 --echo #
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --source include/stop_slave.inc
 
 --echo #
@@ -195,8 +218,11 @@ if ( `select @@GLOBAL.slave_parallel_workers > 0`)
 --let $assert_cond= "OFF" = "$service_state"
 --source include/assert.inc
 
---let $service_state= `select service_state from performance_schema.replication_applier_status_by_coordinator where channel_name="channel_1"`
---let $assert_text=  After stop slave for channel, service state is OFF by replication_applier_status_by_coordinator table.
+# Post Bug#20001173 fix in case of Single Threaded Slave(STS) mode SQL
+# thread's status will be reported as part of
+# performance_schema.replication_applier_status_by_worker table.
+--let $service_state= `select service_state from performance_schema.replication_applier_status_by_worker where channel_name="channel_1"`
+--let $assert_text=  After stop slave for channel, service state is OFF by replication_applier_status_by_worker table.
 --let $assert_cond= "OFF" = "$service_state"
 --source include/assert.inc
 
@@ -214,14 +240,30 @@ if ( `select @@GLOBAL.slave_parallel_workers > 0`)
 --echo #
 --echo #  Test case 6): Do a sanity check that joins can be performed as replication tables
 --echo #                 contain multiple rows now.
-#Check the result file for the whole join.
---replace_column 3 # 4 # 13 #
---query_vertical(select * from replication_connection_status, replication_applier_status_by_coordinator where replication_connection_status.channel_name= replication_applier_status_by_coordinator.channel_name)
+# Post Bug#20001173 fix in case of Single Threaded Slave(STS) mode SQL
+# thread's status will be reported as part of
+# performance_schema.replication_applier_status_by_worker table.
+--let $w_rows= `select @@global.slave_parallel_workers`
+if ($w_rows != 0)
+{
+  --disable_query_log
+  --replace_column 3 # 4 # 6 # 7 # 13 #
+  --query_vertical(select connection_status.CHANNEL_NAME, GROUP_NAME, SOURCE_UUID, connection_status.THREAD_ID, connection_status.SERVICE_STATE, COUNT_RECEIVED_HEARTBEATS, LAST_HEARTBEAT_TIMESTAMP, RECEIVED_TRANSACTION_SET, connection_status.LAST_ERROR_NUMBER, connection_status.LAST_ERROR_MESSAGE, connection_status.LAST_ERROR_TIMESTAMP, coordinator_status.CHANNEL_NAME, coordinator_status.THREAD_ID, coordinator_status.SERVICE_STATE, coordinator_status.LAST_ERROR_NUMBER, coordinator_status.LAST_ERROR_MESSAGE, coordinator_status.LAST_ERROR_TIMESTAMP from replication_connection_status connection_status, replication_applier_status_by_coordinator coordinator_status where connection_status.channel_name= coordinator_status.channel_name)
+  --enable_query_log
+}
+
+if ($w_rows == 0)
+{
+  --disable_query_log
+  --replace_column 3 # 4 # 6 # 7 # 13 #
+  --query_vertical(select connection_status.CHANNEL_NAME, GROUP_NAME, SOURCE_UUID, connection_status.THREAD_ID, connection_status.SERVICE_STATE, COUNT_RECEIVED_HEARTBEATS, LAST_HEARTBEAT_TIMESTAMP, RECEIVED_TRANSACTION_SET, connection_status.LAST_ERROR_NUMBER, connection_status.LAST_ERROR_MESSAGE, connection_status.LAST_ERROR_TIMESTAMP, worker_status.CHANNEL_NAME, worker_status.THREAD_ID, worker_status.SERVICE_STATE, worker_status.LAST_ERROR_NUMBER, worker_status.LAST_ERROR_MESSAGE, worker_status.LAST_ERROR_TIMESTAMP from replication_connection_status connection_status, replication_applier_status_by_worker worker_status where connection_status.channel_name= worker_status.channel_name and worker_status.worker_id=0)
+  --enable_query_log
+}
 
 --echo #
 --echo # Test case 7: Delete channel_3 and count the number of rows in each table.
 --echo #
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --source include/stop_slave.inc
 RESET SLAVE ALL FOR CHANNEL 'channel_3';
 
@@ -241,15 +283,36 @@ RESET SLAVE ALL FOR CHANNEL 'channel_3';
 --let $assert_cond= [select count(*) from performance_schema.replication_applier_status] = 1;
 --source include/assert.inc
 
---let $assert_text= there shall be 1 in replication applier_status_by_coordinator table after a channel is deleted.
---let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_coordinator] = 1;
---source include/assert.inc
-
---let $pfs_w_rows= `select count(*) from performance_schema.replication_applier_status_by_worker`
+# Post Bug#20001173 fix in case of Single Threaded Slave(STS) mode SQL
+# thread's status will be reported as part of
+# performance_schema.replication_applier_status_by_worker table.
+# SQL thread will have the corresponding worker_id as 0.
 --let $w_rows= `select @@global.slave_parallel_workers`
---let $assert_text= there shall be global.slave_parallel_workers rows after a channel is deleted.
---let $assert_cond= "$pfs_w_rows" = "$w_rows"
---source include/assert.inc
+
+if ($w_rows == 0)
+{
+  --let $assert_text= there shall be 1 applier after a channel is deleted.
+  --let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_worker where worker_id=0] = 1;
+  --source include/assert.inc
+  --let $pfs_w_rows= `select count(*) from performance_schema.replication_applier_status_by_worker where worker_id !=0`
+  --let $w_rows= `select @@global.slave_parallel_workers`
+  --let $assert_text= there shall be global.slave_parallel_workers rows after a channel is deleted.
+  --let $assert_cond= "$pfs_w_rows" = "$w_rows"
+  --source include/assert.inc
+}
+if ($w_rows != 0)
+{
+  --let $assert_text= there shall be 1 applier after a channel is deleted.
+  --let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_coordinator] = 1;
+  --source include/assert.inc
+  --let $pfs_w_rows= `select count(*) from performance_schema.replication_applier_status_by_worker`
+  --let $w_rows= `select @@global.slave_parallel_workers`
+  --let $assert_text= there shall be global.slave_parallel_workers rows after a channel is deleted.
+  --let $assert_cond= "$pfs_w_rows" = "$w_rows"
+  --source include/assert.inc
+}
+
+
 
 --echo #
 --echo #  Test case 8: Do a complete delete and see if the number of rows are zero
@@ -288,4 +351,5 @@ RESET SLAVE ALL;
 --let $rpl_skip_sync= 1
 --let $rpl_skip_delete_channels= 1
 --let $rpl_only_running_threads= 1
+--let $rpl_group_replication= 1
 --source include/rpl_end.inc

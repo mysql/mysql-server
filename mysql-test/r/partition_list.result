@@ -19,8 +19,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
 (PARTITION p1 VALUES IN (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB,
  PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB) */
 # Test with single column LIST COLUMNS too
@@ -38,7 +38,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY LIST  COLUMNS(a)
 (PARTITION p1 VALUES IN (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB,
  PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB) */
@@ -64,7 +64,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` char(2) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY LIST  COLUMNS(a,b)
 (PARTITION p0_a VALUES IN ((0,'a0'),(0,'a1'),(0,'a2'),(0,'a3'),(0,'a4'),(0,'a5'),(0,'a6'),(0,'a7'),(0,'a8'),(0,'a9'),(0,'aa'),(0,'ab'),(0,'ac'),(0,'ad'),(0,'ae'),(0,'af'),(0,'ag'),(0,'ah'),(0,'ai'),(0,'aj'),(0,'ak'),(0,'al')) ENGINE = InnoDB,
  PARTITION p1_a VALUES IN ((1,'a0'),(1,'a1'),(1,'a2'),(1,'a3'),(1,'a4'),(1,'a5'),(1,'a6'),(1,'a7'),(1,'a8'),(1,'a9'),(1,'aa'),(1,'ab'),(1,'ac'),(1,'ad'),(1,'ae'),(1,'af'),(1,'ag'),(1,'ah'),(1,'ai'),(1,'aj'),(1,'ak'),(1,'al')) ENGINE = InnoDB) */
@@ -80,7 +80,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` char(2) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY LIST  COLUMNS(a,b)
 (PARTITION p0_a VALUES IN ((0,'a0'),(0,'a1'),(0,'a2'),(0,'a3'),(0,'a4'),(0,'a5'),(0,'a6'),(0,'a7'),(0,'a8'),(0,'a9'),(0,'aa'),(0,'ab'),(0,'ac'),(0,'ad'),(0,'ae'),(0,'af'),(0,'ag'),(0,'ah'),(0,'ai'),(0,'aj'),(0,'ak'),(0,'al')) ENGINE = InnoDB,
  PARTITION p1_a VALUES IN ((1,'a0'),(1,'a1'),(1,'a2'),(1,'a3'),(1,'a4'),(1,'a5'),(1,'a6'),(1,'a7'),(1,'a8'),(1,'a9'),(1,'aa'),(1,'ab'),(1,'ac'),(1,'ad'),(1,'ae'),(1,'af'),(1,'ag'),(1,'ah'),(1,'ai'),(1,'aj'),(1,'ak'),(1,'al')) ENGINE = InnoDB,
@@ -102,7 +102,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` char(2) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY LIST  COLUMNS(a,b)
 (PARTITION p0_a VALUES IN ((0,'a0'),(0,'a1'),(0,'a2'),(0,'a3'),(0,'a4'),(0,'a5'),(0,'a6'),(0,'a7'),(0,'a8'),(0,'a9'),(0,'aa'),(0,'ab'),(0,'ac'),(0,'ad'),(0,'ae'),(0,'af'),(0,'ag'),(0,'ah'),(0,'ai'),(0,'aj'),(0,'ak'),(0,'al')) ENGINE = InnoDB,
  PARTITION p1_a VALUES IN ((1,'a0'),(1,'a1'),(1,'a2'),(1,'a3'),(1,'a4'),(1,'a5'),(1,'a6'),(1,'a7'),(1,'a8'),(1,'a9'),(1,'aa'),(1,'ab'),(1,'ac'),(1,'ad'),(1,'ae'),(1,'af'),(1,'ag'),(1,'ah'),(1,'ai'),(1,'aj'),(1,'ak'),(1,'al')) ENGINE = InnoDB,
@@ -124,7 +124,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` char(2) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY LIST  COLUMNS(a,b)
 (PARTITION p0_a VALUES IN ((0,'a0'),(0,'a1'),(0,'a2'),(0,'a3'),(0,'a4'),(0,'a5'),(0,'a6'),(0,'a7'),(0,'a8'),(0,'a9'),(0,'aa'),(0,'ab'),(0,'ac'),(0,'ad'),(0,'ae'),(0,'af'),(0,'ag'),(0,'ah'),(0,'ai'),(0,'aj'),(0,'ak'),(0,'al')) ENGINE = InnoDB,
  PARTITION p1_a VALUES IN ((1,'a0'),(1,'a1'),(1,'a2'),(1,'a3'),(1,'a4'),(1,'a5'),(1,'a6'),(1,'a7'),(1,'a8'),(1,'a9'),(1,'aa'),(1,'ab'),(1,'ac'),(1,'ad'),(1,'ae'),(1,'af'),(1,'ag'),(1,'ah'),(1,'ai'),(1,'aj'),(1,'ak'),(1,'al')) ENGINE = InnoDB,
@@ -188,35 +188,33 @@ partition pnull values in (null, 2),
 partition p3 values in (3));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
-partition_method	partition_expression	partition_description
-LIST	a	0
-LIST	a	0
-LIST	a	1
-LIST	a	1
-LIST	a	NULL,2
-LIST	a	NULL,2
-LIST	a	3
-LIST	a	3
+PARTITION_METHOD	PARTITION_EXPRESSION	PARTITION_DESCRIPTION
+LIST	`a`	0
+LIST	`a`	0
+LIST	`a`	1
+LIST	`a`	1
+LIST	`a`	NULL,2
+LIST	`a`	NULL,2
+LIST	`a`	3
+LIST	`a`	3
 insert into t1 values (0,0),(0,1),(1,0),(1,1),(null,0),(null,1);
 insert into t1 values (2,0),(2,1),(3,0),(3,1);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-explain partitions select * from t1 where a is null;
+explain select * from t1 where a is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where isnull(`test`.`t1`.`a`)
 select * from t1 where a is null;
 a	b
 NULL	0
 NULL	1
-explain partitions select * from t1 where a = 2;
+explain select * from t1 where a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 2)
 select * from t1 where a = 2;
 a	b
@@ -418,15 +416,27 @@ SELECT * from t1;
 a	b	c
 5	1	1
 drop table t1;
-CREATE TABLE t1 ( 
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLE t1 (
 a int not null,
 b int not null,
 c int not null,
 primary key(a,b))
 partition by list (a)
 (partition x1 values in (1,2,9,4) tablespace ts1);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
+(PARTITION x1 VALUES IN (1,2,9,4) TABLESPACE = `ts1` ENGINE = InnoDB) */
 drop table t1;
-CREATE TABLE t1 (s1 int) PARTITION BY LIST (s1) 
+DROP TABLESPACE ts1;
+CREATE TABLE t1 (s1 int) PARTITION BY LIST (s1)
 (PARTITION p1 VALUES IN (1),
 PARTITION p2 VALUES IN (2),
 PARTITION p3 VALUES IN (3),
@@ -451,3 +461,36 @@ create table t1 (a char(1))
 partition by list (ascii(ucase(a)))
 (partition p1 values in (2));
 ERROR HY000: This partition function is not allowed
+# partition list directory
+SET innodb_strict_mode=OFF;
+CREATE TABLE t1 (id INTEGER NOT NULL, name VARCHAR(30), adate DATE)
+PARTITION BY LIST(YEAR(adate))
+(
+PARTITION p1999 VALUES IN (1995, 1999, 2003)
+DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p1999/data'
+    INDEX DIRECTORY = 'MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p1999/idx',
+PARTITION p2000 VALUES IN (1996, 2000, 2004)
+DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p2000/data'
+    INDEX DIRECTORY = 'MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p2000/idx',
+PARTITION p2001 VALUES IN (1997, 2001, 2005)
+DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p2001/data'
+    INDEX DIRECTORY = 'MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p2001/idx'
+);
+INSERT INTO t1 VALUES(1,'abc','1994-01-01');
+ERROR HY000: Table has no partition for value 1994
+INSERT INTO t1 VALUES(2,'abc','1995-01-01');
+INSERT INTO t1 VALUES(3,'abc','1996-01-01');
+INSERT INTO t1 VALUES(4,'abc','1997-01-01');
+INSERT INTO t1 VALUES(5,'abc','1998-01-01');
+ERROR HY000: Table has no partition for value 1998
+INSERT INTO t1 VALUES(6,'abc','1999-01-01');
+INSERT INTO t1 VALUES(7,'abc','2000-01-01');
+INSERT INTO t1 VALUES(8,'abc','2001-01-01');
+INSERT INTO t1 VALUES(9,'abc','2002-01-01');
+ERROR HY000: Table has no partition for value 2002
+INSERT INTO t1 VALUES(10,'abc','2003-01-01');
+INSERT INTO t1 VALUES(11,'abc','2004-01-01');
+INSERT INTO t1 VALUES(12,'abc','2005-01-01');
+INSERT INTO t1 VALUES(13,'abc','2006-01-01');
+ERROR HY000: Table has no partition for value 2006
+DROP TABLE t1;

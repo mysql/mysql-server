@@ -1,7 +1,5 @@
 DROP TABLE IF EXISTS t1,t2,t3,t4;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 DECIMAL(10,5) UNSIGNED NOT NULL, c2 DECIMAL(10,5) SIGNED NULL, c3 DECIMAL, c4 INT, UNIQUE INDEX idx(c1,c4));
 INSERT INTO t1 VALUES('00100.05000','-00100.05000','00100119',1),('11111.00009','-9999.99999','9999999',2);
 INSERT INTO t1 VALUES('1000000','10000000','1000000000.0001',3);
@@ -208,6 +206,8 @@ c1
 99999.99999
 99999.99999
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 UPDATE t1 SET c1=NULL WHERE c1>1000;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c1>1000;
@@ -591,6 +591,8 @@ c1
 100000.00000
 100000.00000
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 UPDATE t1 SET c1=NULL WHERE c1>1000;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c1>1000;
@@ -973,6 +975,8 @@ c1
 99999.99999
 99999.99999
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 UPDATE t1 SET c1=NULL WHERE c1>1000;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c1>1000;

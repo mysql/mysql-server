@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
 
 --disable_warnings
@@ -37,6 +32,10 @@ CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY(a,b))
   ENGINE = NDB
   PARTITION BY KEY (a);
 
+# Trigger assert from bug#19856162 with an alter table
+# not actually doing any changes to partitioniong
+ALTER TABLE t1 ALGORITHM=INPLACE, REORGANIZE PARTITION;
+
 insert into t1 values 
        (1,1,3),(1,2,3),(1,3,3),(1,4,3),(1,5,3),(1,6,3),
        (1,7,3),(1,8,3),(1,9,3),(1,10,3),(1,11,3),(1,12,3);
@@ -69,7 +68,9 @@ source show_attributes.inc;
 # result should not contain (PARTITION P0 ... etc) since this is what shows up in
 # mysqldump, and we don't want that info there
 #
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 DROP TABLE t1;
 
@@ -83,7 +84,7 @@ PARTITION BY KEY(a)
 drop table t1;
 
 CREATE TABLE t1 (a int not null primary key);
-ALTER TABLE t1
+ALTER TABLE t1 ALGORITHM=COPY,
 ENGINE = NDB
 PARTITION BY KEY(a)
 (PARTITION p0 ENGINE = NDB, PARTITION p1 ENGINE = NDB);
@@ -105,29 +106,39 @@ create table t1 (a int primary key)
 engine=ndb
 partition by key(a)
 (partition p0, partition p1);
+--disable_warnings
 show create table t1;
+--enable_warnings
 
-alter table t1 engine=heap;
+alter table t1 engine=innodb;
 show create table t1;
 
 alter table t1 engine=ndb;
+--disable_warnings
 show create table t1;
+--enable_warnings
 
-alter table t1 engine=heap remove partitioning;
+alter table t1 engine=innodb remove partitioning;
 show create table t1;
 
 alter table t1 engine=ndb
 partition by key(a)
 (partition p0, partition p1 engine = ndb);
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 alter table t1
 partition by key (a)
 (partition p0 engine=ndb, partition p1 engine=ndb);
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 alter table t1 remove partitioning;
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 # after bug#31931 was fixed
 # this is OK, since the storage engine is specified
@@ -141,7 +152,9 @@ alter table t1
 engine=ndb
 partition by key(a)
 (partition p0 engine=ndb, partition p1 engine = ndb);
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 drop table t1;
 
@@ -170,7 +183,7 @@ b'0',
   dec $j;
 }
 --enable_query_log
-ALTER TABLE t1 COALESCE PARTITION 4;
+ALTER TABLE t1 ALGORITHM=COPY, COALESCE PARTITION 4;
 
 DROP TABLE t1;
 
@@ -184,12 +197,12 @@ ANALYZE TABLE t1;
 CHECK TABLE t1;
 OPTIMIZE TABLE t1;
 REPAIR TABLE t1;
-ALTER TABLE t1 OPTIMIZE PARTITION p0;
-ALTER TABLE t1 CHECK PARTITION p0;
-ALTER TABLE t1 REPAIR PARTITION p0;
-ALTER TABLE t1 ANALYZE PARTITION p0;
+ALTER TABLE t1 ALGORITHM=INPLACE, OPTIMIZE PARTITION p0;
+ALTER TABLE t1 ALGORITHM=INPLACE, CHECK PARTITION p0;
+ALTER TABLE t1 ALGORITHM=INPLACE, REPAIR PARTITION p0;
+ALTER TABLE t1 ALGORITHM=INPLACE, ANALYZE PARTITION p0;
 --error ER_ILLEGAL_HA
-ALTER TABLE t1 REBUILD PARTITION p0;
+ALTER TABLE t1 ALGORITHM=INPLACE, REBUILD PARTITION p0;
 DROP TABLE t1;
 
 #

@@ -1,6 +1,6 @@
+#
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/have_perfschema.inc
 --enable_connect_log
 
 --echo ###########################################################
@@ -65,10 +65,8 @@
 --echo #     handled correctly, both with and without source
 --echo #     tables in general tablespaces.
 --echo # 15. Verify that explicit invalid tablespace names make
---echo #     table related DDL be rejected. Verify that implicit
---echo #     invalid tablespace names (e.g., present in an .FRM
---echo #     file from a previous MySQL version) are ignored.
---echo #
+--echo #     table related DDL be rejected.
+--echo # 16. Verify correct P_S information.
 --echo ###########################################################
 --echo #
 --echo # Test setup: Create reusable connections:
@@ -715,7 +713,7 @@ CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
 
 --echo #
 --echo # Dropping ts1 should fail.
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE ts1;
 
 --echo #
@@ -767,7 +765,7 @@ LET $wait_condition=
 --connection con2
 --reap
 --connection default
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_MISSING_WITH_NAME
 DROP TABLESPACE ts1;
 SET DEBUG_SYNC= 'RESET';
 
@@ -969,9 +967,7 @@ SET DEBUG_SYNC= 'RESET';
 
 --echo ###########################################################
 --echo # TC15. Verify that explicit invalid tablespace names make
---echo #       table related DDL be rejected. Verify that implicit
---echo #       invalid tablespace names (e.g., present in an .FRM
---echo #       file from a previous MySQL version) are ignored.
+--echo #       table related DDL be rejected.
 
 --echo #
 --echo # First, create a tablespace ts1 with one table.
@@ -1002,46 +998,121 @@ CREATE TABLE t2 (pk INTEGER PRIMARY KEY) TABLESPACE ``;
 CREATE TABLE t2 (pk INTEGER PRIMARY KEY) TABLESPACE `xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`;
 
 --echo #
---echo # Copy files for a table with an invalid name.
-let $MYSQLD_DATADIR= `SELECT @@datadir`;
---copy_file std_data/wl7957_1.frm $MYSQLD_DATADIR/test/table_with_invalid_tablespace_name.frm
---copy_file std_data/wl7957_1.MYD $MYSQLD_DATADIR/test/table_with_invalid_tablespace_name.MYD
---copy_file std_data/wl7957_1.MYI $MYSQLD_DATADIR/test/table_with_invalid_tablespace_name.MYI
-
---echo #
---echo # A SHOW CREATE TABLE will omit the tablespace name in
---echo # the output.
-SHOW CREATE TABLE table_with_invalid_tablespace_name;
-FLUSH TABLES;
-
---echo #
---echo # A normal SELECT will behave as usual.
-SELECT * FROM table_with_invalid_tablespace_name;
-FLUSH TABLES;
-
---echo #
---echo # CREATE TABLE LIKE will omit the invalid tablespace name
---echo # when creating the new table.
-CREATE TABLE table_like LIKE table_with_invalid_tablespace_name;
-FLUSH TABLES;
-SHOW CREATE TABLE table_like;
-
---echo #
---echo # ALTER TABLE will ignore the invalid tablespace name.
-ALTER TABLE table_with_invalid_tablespace_name ENGINE=InnoDB;
-FLUSH TABLES;
-SHOW CREATE TABLE table_with_invalid_tablespace_name;
-
---echo #
---echo # Reset DEBUG_SYNC and drop objects.
+--echo # Drop objects.
 
 --connection default
 DROP TABLE t1;
-DROP TABLE table_with_invalid_tablespace_name;
-DROP TABLE table_like;
+DROP TABLESPACE ts1;
+
+
+--echo ###########################################################
+--echo # TC16. Verify correct P_S information.
+--echo #
+
+--echo #
+--echo # Start executing CREATE TABLESPACE, but wait after
+--echo # getting the MDL X lock on the tablespace name.
+
+--connection con1
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send CREATE TABLESPACE ts1 ADD DATAFILE 'ts1_1.ibd'
+
+--echo #
+--echo # Start executing ALTER TABLESPACE.
+
+--connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+--send ALTER TABLESPACE ts1 ADD DATAFILE 'ts1_2.ibd'
+
+--echo #
+--echo # Verify that the ALTER TABLESPACE is waiting for an MDL
+--echo # X lock on the tablespace name (not logged). Then, verify
+--echo # that we are also seeing the correct entries in the P_S MDL
+--echo # and events_waits_current tables. Further, signal con1 to
+--echo # make the CREATE TABLESPACE proceed.
+
+--connection default
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+    WHERE state LIKE 'Waiting for tablespace metadata lock' AND
+          info LIKE 'ALTER TABLESPACE%';
+--source include/wait_condition.inc
+
+LET $wait_condition=
+  SELECT COUNT(*) = 2 FROM performance_schema.metadata_locks
+    WHERE object_type LIKE 'TABLESPACE';
+--source include/wait_condition.inc
+
+SELECT object_type, object_name, lock_type, lock_duration, lock_status
+  FROM performance_schema.metadata_locks
+  WHERE object_type LIKE 'TABLESPACE'
+  ORDER BY lock_status;
+
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM performance_schema.events_waits_current
+    WHERE object_type LIKE 'TABLESPACE';
+--source include/wait_condition.inc
+
+SELECT event_name, object_name, object_type, operation
+  FROM performance_schema.events_waits_current
+  WHERE object_type LIKE 'TABLESPACE';
+
+# Disable all waits except wait/lock/metadata/sql/mdl and empty the table
+# so that the table doesn't get full and the event that we need to wait on
+# doesn't get removed from the table.
+--replace_regex /[0-9]+/X/
+CALL sys.ps_setup_disable_instrument('wait');
+CALL sys.ps_setup_enable_instrument('wait/lock/metadata/sql/mdl');
+
+TRUNCATE TABLE performance_schema.events_waits_history_long;
+
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+
+--echo #
+--echo # Now, the tablespace MDL information will eventually be
+--echo # gone from both I_S and P_S, except it will remain in the
+--echo # P_S event wait history.
+
+LET $wait_condition=
+  SELECT COUNT(*) = 0 FROM information_schema.processlist
+    WHERE state LIKE 'Waiting for tablespace metadata lock' AND
+          info LIKE 'ALTER TABLESPACE%';
+--source include/wait_condition.inc
+
+LET $wait_condition=
+  SELECT COUNT(*) = 0 FROM performance_schema.metadata_locks
+    WHERE object_type LIKE 'TABLESPACE';
+--source include/wait_condition.inc
+
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM performance_schema.events_waits_history_long
+    WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
+--source include/wait_condition.inc
+
+SELECT event_name, object_name, object_type, operation
+  FROM performance_schema.events_waits_current
+  WHERE object_type LIKE 'TABLESPACE';
+
+SELECT event_name, object_name, object_type, operation
+  FROM performance_schema.events_waits_history_long
+  WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
+
+--echo #
+--echo # Reap the connections, reset DEBUG_SYNC and drop objects.
+
+--connection con1
+--reap
+--connection con2
+# InnoDB does not support ALTER TABLESPACE
+--error ER_CHECK_NOT_IMPLEMENTED
+--reap
+--connection default
 DROP TABLESPACE ts1;
 SET DEBUG_SYNC= 'RESET';
-
+--replace_regex /[0-9]+/X/
+CALL sys.ps_setup_enable_instrument('wait');
 
 --echo ###########################################################
 --echo #
@@ -1070,3 +1141,468 @@ SET DEBUG_SYNC= 'RESET';
 
 --connection default
 --disable_connect_log
+
+--echo # Bug#21376265 - ENHANCEMENT: ACQUIRE MDL LOCKS ON ALL TABLESPACE
+--echo #                REFERRED BY A STATEMENT
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  PRIMARY KEY (a)
+)
+ENGINE=InnoDB
+PARTITION BY RANGE (a)
+PARTITIONS 1
+(PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1);
+
+--connect (con1, localhost, root)
+
+--echo #############################################
+--echo # Case1: Checking TRUNCATE TABLE
+--echo # Sending 'TRUNCATE TABLE t1;'
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+--send TRUNCATE TABLE t1;
+
+--echo # Verify that the tablespace name is locked.
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM performance_schema.metadata_locks
+    WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL cont';
+
+--connection con1
+--echo # Reaping 'TRUNCATE TABLE t1'
+--reap
+
+--echo #############################################
+--echo # Case2: Checking RENAME TABLE
+--echo # Sending 'RENAME TABLE t1 to t2;'
+
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+--send RENAME TABLE t1 to t2;
+
+--echo # Verify that the tablespace name is locked.
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM performance_schema.metadata_locks
+    WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL cont';
+
+--connection con1
+--echo # Reaping 'RENAME TABLE t1 to t2'
+--reap
+
+--echo #############################################
+--echo # Case3: Checking ALTER TABLE
+--echo # Sending 'ALTER TABLE t1 ADD COLUMN f int;'
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+--send ALTER TABLE t2 ADD COLUMN f int;
+
+--echo # Verify that the tablespace name is locked.
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM performance_schema.metadata_locks
+    WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL cont';
+
+--connection con1
+--echo # Reaping 'ALTER TABLE t2 ADD COLUMN f int;'
+--reap
+
+--echo #############################################
+--echo # Case4: Checking CREATE TABLE
+
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+--send CREATE TABLE t3 ( a INT NOT NULL, PRIMARY KEY (a)) ENGINE=InnoDB PARTITION BY RANGE (a) PARTITIONS 1 (PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1);
+
+--echo # Verify that the tablespace name is locked.
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM performance_schema.metadata_locks
+    WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL cont';
+
+--connection con1
+--echo # Reaping 'CREATE TABLE'
+--reap
+
+--echo #############################################
+--echo # Case5: Checking CREATE TABLE LIKE
+
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+--send CREATE TABLE t4 LIKE t3;
+
+--echo # Verify that the tablespace name is locked.
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM performance_schema.metadata_locks
+    WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL cont';
+
+--connection con1
+--echo # Reaping 'CREATE TABLE LIKE'
+--reap
+
+--echo #############################################
+--echo # Case6: Checking ALTER TABLE ... PARTITION
+
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
+
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+--send ALTER TABLE t2 ADD PARTITION (partition p2 values less than (4) tablespace ts2);
+
+--echo # Verify that the tablespace name is locked.
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM performance_schema.metadata_locks
+    WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts2';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL cont';
+
+--connection con1
+--echo # Reaping 'ALTER TABLE'
+--reap
+
+--echo #############################################
+--echo # Case7: Checking LOCK TABLE t2 WRITE
+
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+--send LOCK TABLE t2 WRITE
+
+--echo # Verify that the tablespace name is locked.
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM performance_schema.metadata_locks
+    WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts2';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL cont';
+
+--connection con1
+--echo # Reaping 'LOCK TABLE'
+--reap
+
+UNLOCK TABLES;
+
+
+--echo #############################################
+--echo # Case8 - A tablespace name 65 3-byte characters should
+--echo # be rejected, when specified for table partition.
+
+--error ER_TOO_LONG_IDENT
+CREATE TABLE t5 (
+  a INT NOT NULL,
+  PRIMARY KEY (a)
+)
+ENGINE=InnoDB
+PARTITION BY RANGE (a)
+PARTITIONS 1
+(PARTITION P1 VALUES LESS THAN (2) TABLESPACE
+  `€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€`);
+
+--error ER_TOO_LONG_IDENT
+ALTER TABLE t2 ADD PARTITION (
+  partition p2 values less than (4) tablespace
+  `€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€`);
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--echo # Cleanup
+--connection default
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+
+--echo #
+--echo # Tescases for wl#8972. Rename a general tablespace.
+--echo #
+--echo # Verify atomicity of rename
+--echo #
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+ALTER TABLESPACE ts1 RENAME TO ts2;
+ALTER TABLESPACE ts2 RENAME TO ts1;
+
+SET SESSION debug="+d,tspr_post_se";
+--error ER_UNKNOWN_ERROR
+ALTER TABLESPACE ts1 RENAME TO ts2;
+
+SET SESSION debug="-d,tspr_post_se";
+ALTER TABLESPACE ts1 RENAME TO ts2;
+
+SET SESSION debug="+d,tspr_post_update";
+--error ER_UNKNOWN_ERROR
+ALTER TABLESPACE ts2 RENAME TO ts3;
+
+SET SESSION debug="-d,tspr_post_update";
+ALTER TABLESPACE ts2 RENAME TO ts3;
+
+SET SESSION debug="+d,tspr_post_intcmt";
+--error ER_UNKNOWN_ERROR
+ALTER TABLESPACE ts3 RENAME TO ts4;
+
+SET SESSION debug="-d,tspr_post_intcmt";
+ALTER TABLESPACE ts3 RENAME TO ts4;
+
+DROP TABLESPACE ts4;
+
+
+--echo #
+--echo # Verify that rename is rejected under FLUSH TABLES WITH READ LOCK
+--echo #
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+
+FLUSH TABLES WITH READ LOCK;
+connect (con1, localhost, root);
+SET @@session.lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLESPACE ts1 RENAME TO ts2;
+
+connection default;
+disconnect con1;
+
+UNLOCK TABLES;
+
+--echo #
+--echo # Verify that rename is rejected under LOCK TABLES on a table in
+--echo # the tablepsace
+--echo #
+
+CREATE TABLE t1(i INT) TABLESPACE ts1;
+LOCK TABLES t1 READ;
+
+connect (con1, localhost, root);
+SET @@session.lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLESPACE ts1 RENAME TO ts2;
+
+connection default;
+disconnect con1;
+UNLOCK TABLES;
+
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+
+--echo #
+--echo # Verify proper MDL locking on tablespace
+--echo #
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+connect (con1, localhost, root);
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send ALTER TABLESPACE ts1 RENAME TO ts2
+
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+SET @@session.lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+DROP TABLESPACE ts1;
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+
+connection con1;
+--reap
+
+connection default;
+disconnect con1;
+DROP TABLESPACE ts2;
+
+--echo #
+--echo # Verify that MDL on tables in a tablespace blocks rename
+--echo #
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+CREATE TABLE t1(i INT) TABLESPACE ts1;
+
+connect (con1, localhost, root);
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send ALTER TABLE t1 RENAME TO t2
+
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+SET @@session.lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLESPACE ts1 RENAME TO t1;
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+
+connection con1;
+--reap
+
+connection default;
+disconnect con1;
+DROP TABLE t2;
+DROP TABLESPACE ts1;
+SET @@session.lock_wait_timeout= DEFAULT;
+
+--echo #############################################
+--echo #
+--echo # Bug#22486020 TARGET TABLESPACE META DATA LOCK
+--echo #              NOT ACQUIRED DURING ALTER UNDER
+--echo #              LOCK TABLE
+--echo #
+--echo # Make sure that target tablespaces are locked
+--echo # when issuing ALTER TABLE under LOCK TABLE.
+--echo #
+
+CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd';
+CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd';
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY)
+  PARTITION BY RANGE (pk) PARTITIONS 1 (PARTITION P1 VALUES LESS THAN (2));
+
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 TABLESPACE s1;
+ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES LESS THAN (4) TABLESPACE s2);
+UNLOCK TABLE;
+DROP TABLE t1;
+DROP TABLESPACE s1;
+DROP TABLESPACE s2;
+
+
+--echo #
+--echo # Bug#27472087: ALTER TABLE HANGS IN "WAITING FOR TABLESPACE METADATA
+--echo # LOCK" STATE
+--echo #
+--echo # Verify that MDLs taken for implicit table and partition tablespaces
+--echo # handled correctly in lock tables mode.
+--echo #
+
+CREATE TABLE test1(a INT NOT NULL, b CHAR(2) NOT NULL, PRIMARY KEY(a, b))
+ENGINE=INNODB;
+
+CREATE TABLE test2(a INT NOT NULL, b CHAR(2) NOT NULL, PRIMARY KEY(a, b))
+ENGINE=INNODB;
+
+LOCK TABLES test1 WRITE;
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+      OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+ALTER TABLE test1 RENAME test1_tmp;
+
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+      OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+--connect(con1,localhost,root,,)
+ALTER TABLE test2 RENAME test1;
+
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+      OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+--connection default
+UNLOCK TABLES;
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+DROP TABLE test1_tmp;
+DROP TABLE test1;
+
+--echo # Testing partitioned tables
+CREATE TABLE part1(a INT) PARTITION BY HASH (a) PARTITIONS 10;
+CREATE TABLE part2(a INT) PARTITION BY HASH (a) PARTITIONS 10;
+LOCK TABLES part1 WRITE;
+
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, REPLACE(OBJECT_NAME, '#p#', '#P#'), LOCK_TYPE,
+LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+ALTER TABLE part1 RENAME TO part1_tmp;
+
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, REPLACE(OBJECT_NAME, '#p#', '#P#'), LOCK_TYPE,
+LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+--connection con1
+ALTER TABLE part2 RENAME TO part1;
+
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, REPLACE(OBJECT_NAME, '#p#', '#P#'), LOCK_TYPE,
+LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+--connection default
+UNLOCK TABLES;
+
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+DROP TABLE part1_tmp;
+DROP TABLE part1;

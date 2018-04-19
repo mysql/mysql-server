@@ -83,4 +83,5 @@ while ($_sarl_number < $_sarl_count)
 eval DROP TEMPORARY TABLE $_sarl_table_name;
 eval SET SESSION SQL_LOG_BIN= $_sarl_sql_log_bin_old;
 
+--let $include_filename= show_all_relay_logs.inc
 --source include/end_include_file.inc

@@ -2,20 +2,30 @@
 # Verify the orthogonality of iterators (table*::rnd_next()),
 # for every table and instruments.
 
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
---source include/have_perfschema.inc
 
 --disable_warnings
 drop procedure if exists check_instrument;
 --enable_warnings
 
+# Print known global memory instruments (PSI_FLAG_ONLY_GLOBAL_STAT),
+# see maintenance of count_global_expected below.
+
+# --echo "Known PSI_FLAG_GLOBAL memory instruments"
+# select name from performance_schema.setup_instruments
+#   where (name like "memory/%")
+#   and (name not like "memory/performance_schema/%")
+#   and (name not in
+#     (select event_name from
+#       performance_schema.memory_summary_by_account_by_event_name));
+
 delimiter $;
 create procedure check_instrument(in instr_name varchar(128))
 begin
+  declare save_count_expected integer;
   declare count_expected integer;
   declare count_builtin_expected integer;
-  declare count_actual integer;
+  declare count_global_expected integer;
   declare is_wait integer;
   declare is_wait_file integer;
   declare is_wait_socket integer;
@@ -62,13 +72,20 @@ begin
     where (name like (concat(instr_name, "%")))
     and (not name like "%/abstract/%")
     and (not name like "memory/performance_schema/%")
-    into count_expected;
+    into save_count_expected;
 
   select count(name)
     from performance_schema.setup_instruments
     where (name like (concat(instr_name, "%")))
     and (name like "memory/performance_schema/%")
     into count_builtin_expected;
+
+  select count(name)
+    from performance_schema.setup_instruments
+    where (name like (concat(instr_name, "%")))
+    and (name not like "memory/performance_schema/%")
+    and (find_in_set(properties, 'global_statistics'))
+  into count_global_expected;
 
   set cmd_1= "select count(*) from (select distinct event_name from performance_schema.";
   set cmd_2= concat(" where event_name like \"",
@@ -88,9 +105,16 @@ begin
       select (pfs_table_name like "memory_summary_global_by_event_name") into is_memory_global_table;
       select (pfs_table_name like "%transaction%") into is_transaction_table;
 
+      set count_expected = save_count_expected;
+
       if is_memory_global_table
       then
-        set count_expected = count_expected + count_builtin_expected;
+        set count_expected = save_count_expected + count_builtin_expected;
+      end if;
+
+      if is_memory_table = 1 and is_memory_global_table = 0
+      then
+        set count_expected = save_count_expected - count_global_expected;
       end if;
 
       select concat("Checking table ", pfs_table_name, " ...") as status;
@@ -220,13 +244,10 @@ begin
   close pfs_cursor;
 
   -- Dont want to return a 02000 NOT FOUND, there should be a better way
-  signal sqlstate '01000' set message_text='Done', mysql_errno=12000;
+  signal sqlstate '01000' set message_text='Done', mysql_errno=42000;
 end
 $
 delimiter ;$
-
-# Check the configuration is ok
-show global variables like "performance_schema%";
 
 call check_instrument("wait/synch/mutex/");
 call check_instrument("wait/synch/rwlock/");

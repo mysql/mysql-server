@@ -2,24 +2,34 @@
 #define OPT_COSTCONSTANTCACHE_INCLUDED
 
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
+#include <stddef.h>
 
-class Cost_model_constants;
+#include "my_dbug.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "sql/opt_costconstants.h"  // Cost_model_constants
 
 /**
   This class implements a cache for "cost constant sets". This cache
@@ -27,7 +37,7 @@ class Cost_model_constants;
   sessions access to the latest versions of the cost constants, and
   for re-reading the cost constant tables in the case where these have
   been updated.
- 
+
   The cost constant cache keeps a copy of the current set of cost
   constants. Each time a new session initializes its Cost_model_server
   object (by calling Cost_model_server::init() in lex_start()), the
@@ -40,24 +50,23 @@ class Cost_model_constants;
   be deleted, reference counting is used. Each time a session asks for
   the cost constants, the reference counter is incremented. When the
   session releases the cost constant set by calling
-  ::release_cost_constants(), the reference counter will be
+  @c release_cost_constants(), the reference counter will be
   decremented. When the reference counter becomes zero, the cost
   constant set is deleted.
 */
 
-class Cost_constant_cache
-{
-public:
+class Cost_constant_cache {
+ public:
   /**
     Creates an empty cost constant cache. To initialize it with default
-    cost constants, ::init() must be called. To use cost constants from
-    the cost constant tables, ::reload() must be called.
+    cost constants, @c init() must be called. To use cost constants from
+    the cost constant tables, @c reload() must be called.
   */
   Cost_constant_cache();
 
   /**
     Destructor for the cost constant cache. Before the cost constant cache
-    is deleted, ::close() must have been called.
+    is deleted, @c close() must have been called.
   */
   ~Cost_constant_cache();
 
@@ -66,7 +75,7 @@ public:
 
     The cost constants will be initialized with the default values found in
     the source code. To start using the cost constant values found in
-    the configuration tables, the ::reload() function must be called.
+    the configuration tables, the @c reload() function must be called.
   */
 
   void init();
@@ -94,7 +103,7 @@ public:
     object, reference counting is used. This function will increase the
     ref count for the returned cost constant object. To decrease the reference
     counter when the cost constants are no longer used,
-    release_cost_constants() must be called.
+    @c release_cost_constants() must be called.
 
     @note To ensure that the reference counter is only incremented once for
     each session that uses the cost constant set, this function should only
@@ -103,8 +112,7 @@ public:
     @return pointer to the cost constants
   */
 
-  const Cost_model_constants *get_cost_constants()
-  {
+  const Cost_model_constants *get_cost_constants() {
     mysql_mutex_lock(&LOCK_cost_const);
 
     // Increase the ref count on the cost constant object
@@ -122,34 +130,32 @@ public:
     if nobody is using it, it will be deleted. This function should be
     called each time a client (a session) no longer has any use for a
     cost constant set that it has previously gotten from calling
-    ::get_cost_constants()
+    @c get_cost_constants()
 
     @param cost_constants pointer to the cost constant set
   */
 
-  void release_cost_constants(const Cost_model_constants *cost_constants)
-  {
+  void release_cost_constants(const Cost_model_constants *cost_constants) {
     DBUG_ASSERT(cost_constants != NULL);
 
     /*
       The reason for using a const cast here is to be able to keep
       the cost constant object const outside of this module.
     */
-    Cost_model_constants *cost=
-      const_cast<Cost_model_constants*>(cost_constants);
+    Cost_model_constants *cost =
+        const_cast<Cost_model_constants *>(cost_constants);
 
     mysql_mutex_lock(&LOCK_cost_const);
 
-    const unsigned int ref_count= cost->dec_ref_count();
+    const unsigned int ref_count = cost->dec_ref_count();
 
     mysql_mutex_unlock(&LOCK_cost_const);
 
     // If none is using these cost constants then delete them
-    if (ref_count == 0)
-      delete cost;
+    if (ref_count == 0) delete cost;
   }
 
-private:
+ private:
   /**
     Create default cost constants.
 
@@ -181,7 +187,6 @@ private:
   bool m_inited;
 };
 
-
 /**
   Initializes the optimizer cost module. This should be done during
   startup from mysqld.cc.
@@ -205,4 +210,4 @@ void delete_optimizer_cost_module();
 */
 void reload_optimizer_cost_constants();
 
-#endif  /* OPT_COSTCONSTANTCACHE_INCLUDED */
+#endif /* OPT_COSTCONSTANTCACHE_INCLUDED */

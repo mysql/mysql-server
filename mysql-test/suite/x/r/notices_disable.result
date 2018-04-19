@@ -1,0 +1,3314 @@
+send Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "warnings"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+check with dropping db which doesn't exists
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop database if exists mysqltest;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+check with dropping table which doesn't exists
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop table if exists test.mysqltest;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+check with dropping procedure which doesn't exists
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop procedure if exists test.test_invalid;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+check with dropping function which doesn't exists
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop function if exists test.test_signal_func;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+check with dropping view which doesn't exists
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop view if exists test.v1;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+out of range values for INT,UNSIGN INT
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table test.t1 (c1 INT, c2 INT UNSIGNED);"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert ignore into test.t1 values (\'21474836461\',\'21474836461\');"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert ignore into test.t1 values (\'-21474836461\',\'-21474836461\');"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop table test.t1;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+checking double data type
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table test.t1 (grp int, a bigint unsigned, c char(10) not null, d char(10) not null);"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (1,1,\"a\",\"a\");"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (2,2,\"b\",\"a\");"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (2,3,\"c\",\"b\");"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (3,4,\"E\",\"a\");"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (3,5,\"C\",\"b\");"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (3,6,\"D\",\"b\");"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (3,7,\"d\",\"d\");"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (3,8,\"d\",\"d\");"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (3,9,\"D\",\"c\");"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select grp,group_concat(a order by a,d+c-ascii(c)-a) from test.t1 group by grp;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "grp"
+  original_name: "grp"
+  table: "t1"
+  original_table: "t1"
+  schema: "test"
+  catalog: "def"
+  length: 11
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "group_concat(a order by a,d+c-ascii(c)-a)"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  collation: 45
+  length: 4096
+}
+
+Mysqlx.Resultset.Row {
+  field: "\002"
+  field: "1\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "\004"
+  field: "2,3\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "\006"
+  field: "4,5,6,7,8,9\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select grp,group_concat(a order by d+c-ascii(c),a) from test.t1 group by grp;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "grp"
+  original_name: "grp"
+  table: "t1"
+  original_table: "t1"
+  schema: "test"
+  catalog: "def"
+  length: 11
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "group_concat(a order by d+c-ascii(c),a)"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  collation: 45
+  length: 4096
+}
+
+Mysqlx.Resultset.Row {
+  field: "\002"
+  field: "1\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "\004"
+  field: "3,2\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "\006"
+  field: "7,8,4,6,9,5\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "set group_concat_max_len = 4;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select grp,group_concat(c order by c) from test.t1 group by grp;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "grp"
+  original_name: "grp"
+  table: "t1"
+  original_table: "t1"
+  schema: "test"
+  catalog: "def"
+  length: 11
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "group_concat(c order by c)"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  collation: 255
+  length: 16
+}
+
+Mysqlx.Resultset.Row {
+  field: "\002"
+  field: "a\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "\004"
+  field: "b,c\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "\006"
+  field: "C,D,\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop table test.t1;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+checking character data type
+Error is returned instead of warning for insert operation with xplugin
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SET sql_mode = \'NO_ENGINE_SUBSTITUTION\';"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "prepare stmt from \'create table test.t1 (a varchar(10) character set utf8)\';"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Statement prepared\"\n  }\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "execute stmt;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 (a) values (repeat(\'a\', 20));"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select length(a) from test.t1;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "length(a)"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  length: 10
+}
+
+Mysqlx.Resultset.Row {
+  field: "\024"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop table test.t1;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "execute stmt;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+checking directly from IS tables
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select * from performance_schema.session_variables where variable_name like \'max_join_size\';"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select * from performance_schema.session_variables where variable_name like \'concurrent_insert\';"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select * from performance_schema.session_variables where variable_name like \'default_storage_engine\';"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+checking errors and warnings with duplicate table
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SET SQL_WARNINGS=1;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+checking errors and warnings with duplicate table names
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table test.dup (a int);"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table test.dup (a int);"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1050
+  msg: "Table \'dup\' already exists"
+  sql_state: "42S01"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "show count(*) errors;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: UINT
+  name: "@@session.error_count"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  length: 21
+}
+
+Mysqlx.Resultset.Row {
+  field: "\001"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "show errors;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "Level"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  collation: 33
+  length: 21
+  flags: 16
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: UINT
+  name: "Code"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  length: 4
+  flags: 16
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "Message"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  collation: 33
+  length: 1536
+  flags: 16
+}
+
+Mysqlx.Resultset.Row {
+  field: "Error\000"
+  field: "\232\010"
+  field: "Table \'dup\' already exists\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop table test.dup;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+checking creating table with if not exists
+send Mysqlx.Sql.StmtExecute {
+  stmt: "flush status;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table t1 (a int not null, b int, primary key (a));"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1050
+  msg: "Table \'t1\' already exists"
+  sql_state: "42S01"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table if not exists t1 select 2;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select * from t1;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "a"
+  original_name: "a"
+  table: "t1"
+  original_table: "t1"
+  schema: "test"
+  catalog: "def"
+  collation: 33
+  length: 30
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table if not exists t1 select 3 as \'a\',4 as \'b\';"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "show status like \"Opened_tables\";"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select * from t1;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "a"
+  original_name: "a"
+  table: "t1"
+  original_table: "t1"
+  schema: "test"
+  catalog: "def"
+  collation: 33
+  length: 30
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+try droping mutliplt tables with if exists and check multiple warnings
+send Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop tables if exists t1, t2;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+try checking may warnings
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop tables if exists t1, t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28,t29,t30,a1, a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,aa1, aa2,aa3,aa4,aa5,aa6,aa7,aa8,aa9,aa10,aa11,aa12,aa13,aa14,aa15,aa16,aa17,aa18,aa19,aa20,aa21,aa22,aa23,aa24,aa25,aa26,aa27,aa28,aa29,aa30,aaaa1, aaaa2,aaaa3,aaaa4,aaaa5,aaaa6,aaaa7,aaaa8,aaaa9,aaaa10,aaaa11,aaaa12,aaaa13,aaaa14,aaaa15,aaaa16,aaaa17,aaaa18,aaaa19,aaaa20,aaaa21,aaaa22,aaaa23,aaaa24,aaaa25,aaaa26,aaaa27,aaaa28,aaaa29,aaaa30;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+try dropping same table with if exists and observe error/wrarnings
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop tables if exists t1,t1;"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1066
+  msg: "Not unique table/alias: \'t1\'"
+  sql_state: "42000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "set max_error_count=65535;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+check more than 64 warnings returned
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop tables if exists t1, t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28,t29,t30,a1, a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,aa1, aa2,aa3,aa4,aa5,aa6,aa7,aa8,aa9,aa10,aa11,aa12,aa13,aa14,aa15,aa16,aa17,aa18,aa19,aa20,aa21,aa22,aa23,aa24,aa25,aa26,aa27,aa28,aa29,aa30,aaaa1, aaaa2,aaaa3,aaaa4,aaaa5,aaaa6,aaaa7,aaaa8,aaaa9,aaaa10,aaaa11,aaaa12,aaaa13,aaaa14,aaaa15,aaaa16,aaaa17,aaaa18,aaaa19,aaaa20,aaaa21,aaaa22,aaaa23,aaaa24,aaaa25,aaaa26,aaaa27,aaaa28,aaaa29,aaaa30,bb1, bb2,bb3,bb4,bb5,bb6,bb7,bb8,bb9,bb10,bb11,bb12,bb13,bb14,bb15,bb16,bb17,bb18,bb19,bb20,bb21,bb22,bb23,bb24,bb25,bb26,bb27,bb28,bb29,bb30,b1, b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15,b16,b17,b18,b19,b20,b21,b22,b23,b24,b25,b26,b27,b28,b29,b30;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+check no warnings based on max_error_count parameter set
+send Mysqlx.Sql.StmtExecute {
+  stmt: "set max_error_count=0;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop tables if exists t1,t2;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "set max_error_count=-64;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "show variables like \'max_error_count\';"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "set max_error_count=64;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+checking creating temporary table when normal and temp table exists
+send Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table if not exists t1 (a int) select 2 as a;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Records: 1  Duplicates: 0  Warnings: 0\"\n  }\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create temporary table t1 (a int) select 2 as a;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Records: 1  Duplicates: 0  Warnings: 0\"\n  }\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select * from t1;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "a"
+  original_name: "a"
+  table: "t1"
+  original_table: "t1"
+  schema: "test"
+  catalog: "def"
+  length: 11
+}
+
+Mysqlx.Resultset.Row {
+  field: "\004"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create temporary table if not exists t1 (a int) select 2 as a;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select * from t1;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "a"
+  original_name: "a"
+  table: "t1"
+  original_table: "t1"
+  schema: "test"
+  catalog: "def"
+  length: 11
+}
+
+Mysqlx.Resultset.Row {
+  field: "\004"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop temporary table t1;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+checking data truncation warnings for default values
+send Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "CREATE TABLE t1 SELECT 0.123456789012345678901234567890123456 AS f1;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Records: 1  Duplicates: 0  Warnings: 1\"\n  }\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+checking data truncation warnings while creating table with expression
+send Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table t1 as select 5.05 / 0.014;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Records: 1  Duplicates: 0  Warnings: 1\"\n  }\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+checking warnings with insert and select operations
+below insert into t1 returns 17775 warnings,checking only limited warnings as test takes more time to render the warnings
+send Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table t2 (a char(1));"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t2 values (\'0\'),(\'1\'),(\'2\'),(\'3\'),(\'4\'),(\'5\'),(\'6\'),(\'7\');"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 8\n}\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Records: 8  Duplicates: 0  Warnings: 0\"\n  }\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t2 values (\'8\'),(\'9\'),(\'A\'),(\'B\'),(\'C\'),(\'D\'),(\'E\'),(\'F\');"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 8\n}\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Records: 8  Duplicates: 0  Warnings: 0\"\n  }\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table t1 (a varchar(2) character set cp932) engine=myisam;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+checking for more than default 64 warnings
+send Mysqlx.Sql.StmtExecute {
+  stmt: "set max_error_count=500;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t1 select unhex(concat(t24.a, t23.a, t22.a, t21.a)) from t2 t21, t2 t22, t2 t23, t2 t24;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 65536\n}\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Records: 65536  Duplicates: 0  Warnings: 17775\"\n  }\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "set max_error_count=64;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop tables t1,t2;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+checking warnigns with prepare and execute statmenets
+send Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "CREATE TABLE t1(f1 VARCHAR(6) NOT NULL, FULLTEXT KEY(f1), UNIQUE(f1));"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO t1 VALUES (\'test\');"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1 FROM t1 WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) against (\"\")) WHERE t1.f1 GROUP BY t1.f1)) xor f1;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "1"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  length: 1
+  flags: 16
+}
+
+Mysqlx.Resultset.Row {
+  field: "\002"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "PREPARE stmt FROM \'SELECT 1 FROM t1 WHERE 1 > ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a ON (MATCH(t1.f1) against (\"\")) WHERE t1.f1 GROUP BY t1.f1)) xor f1\';"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Statement prepared\"\n  }\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "EXECUTE stmt;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "1"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  length: 1
+  flags: 16
+}
+
+Mysqlx.Resultset.Row {
+  field: "\002"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "EXECUTE stmt;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "1"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  length: 1
+  flags: 16
+}
+
+Mysqlx.Resultset.Row {
+  field: "\002"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "DEALLOCATE PREPARE stmt;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "PREPARE stmt FROM \'SELECT 1 FROM t1 WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) against (\"\")) WHERE t1.f1 GROUP BY t1.f1))\';"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Statement prepared\"\n  }\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "EXECUTE stmt;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "1"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  length: 1
+  flags: 16
+}
+
+Mysqlx.Resultset.Row {
+  field: "\002"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "EXECUTE stmt;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "1"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  length: 1
+  flags: 16
+}
+
+Mysqlx.Resultset.Row {
+  field: "\002"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "DEALLOCATE PREPARE stmt;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+checking warnings with group by when sql_mode is no_engine_substitution
+send Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SET sql_mode = \'NO_ENGINE_SUBSTITUTION\';"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table t1 (c1 char(3), c2 char(3));"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table t2 (c3 char(3), c4 char(3));"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t1 values (\'aaa\', \'bb1\'), (\'aaa\', \'bb2\');"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 2\n}\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Records: 2  Duplicates: 0  Warnings: 0\"\n  }\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t2 values (\'aaa\', \'bb1\'), (\'aaa\', \'bb2\');"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 2\n}\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Records: 2  Duplicates: 0  Warnings: 0\"\n  }\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by c2;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "c2"
+  original_name: "c1"
+  table: "t1"
+  original_table: "t1"
+  schema: "test"
+  catalog: "def"
+  collation: 255
+  length: 12
+  flags: 1
+}
+
+Mysqlx.Resultset.Row {
+  field: "aaa\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "aaa\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by t1.c1;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "c2"
+  original_name: "c1"
+  table: "t1"
+  original_table: "t1"
+  schema: "test"
+  catalog: "def"
+  collation: 255
+  length: 12
+  flags: 1
+}
+
+Mysqlx.Resultset.Row {
+  field: "aaa\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1, t2;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+setting back to default of sql_mode
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SET sql_mode = \'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION\';"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+checking with group by where both error and warnings expected with default sql_mode
+send Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table t1 (c1 char(3), c2 char(3));"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table t2 (c3 char(3), c4 char(3));"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t1 values (\'aaa\', \'bb1\'), (\'aaa\', \'bb2\');"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 2\n}\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Records: 2  Duplicates: 0  Warnings: 0\"\n  }\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t2 values (\'aaa\', \'bb1\'), (\'aaa\', \'bb2\');"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 2\n}\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Records: 2  Duplicates: 0  Warnings: 0\"\n  }\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by c2;"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1055
+  msg: "Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column \'test.t1.c1\' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by"
+  sql_state: "42000"
+}
+
+expect both error and warning
+change result file once Bug#21524666 is fixed
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by t1.c1;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "c2"
+  original_name: "c1"
+  table: "t1"
+  original_table: "t1"
+  schema: "test"
+  catalog: "def"
+  collation: 255
+  length: 12
+  flags: 1
+}
+
+Mysqlx.Resultset.Row {
+  field: "aaa\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1, t2;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+checking warnings with rollback on non-transactional tables
+send Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table t1 (n int not null primary key) engine=myisam;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "begin work;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t1 values (4);"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t1 values (5);"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "rollback;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "show warnings;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "Level"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  collation: 33
+  length: 21
+  flags: 16
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: UINT
+  name: "Code"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  length: 4
+  flags: 16
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "Message"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  collation: 33
+  length: 1536
+  flags: 16
+}
+
+Mysqlx.Resultset.Row {
+  field: "Warning\000"
+  field: "\254\t"
+  field: "Some non-transactional changed tables couldn\'t be rolled back\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "show errors;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "Level"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  collation: 33
+  length: 21
+  flags: 16
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: UINT
+  name: "Code"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  length: 4
+  flags: 16
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "Message"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  collation: 33
+  length: 1536
+  flags: 16
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select @@warning_count,@@error_count;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: UINT
+  name: "@@warning_count"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  length: 21
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: UINT
+  name: "@@error_count"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  length: 21
+}
+
+Mysqlx.Resultset.Row {
+  field: "\001"
+  field: "\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select * from t1;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "n"
+  original_name: "n"
+  table: "t1"
+  original_table: "t1"
+  schema: "test"
+  catalog: "def"
+  length: 11
+  flags: 48
+}
+
+Mysqlx.Resultset.Row {
+  field: "\010"
+}
+
+Mysqlx.Resultset.Row {
+  field: "\n"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "show warnings;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "Level"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  collation: 33
+  length: 21
+  flags: 16
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: UINT
+  name: "Code"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  length: 4
+  flags: 16
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "Message"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  collation: 33
+  length: 1536
+  flags: 16
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select @@warning_count;"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: UINT
+  name: "@@warning_count"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  length: 21
+}
+
+Mysqlx.Resultset.Row {
+  field: "\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+expect 2 warnings for insert related to truncation and incorrect date value
+RUN use test
+
+0 rows affected
+RUN set sql_mode=''
+
+0 rows affected
+RUN create table t1 (
+a date not null,
+b mediumtext generated always as ((a not in (a,a))) virtual,
+c timestamp generated always as ((a not in (b,b))) stored not null
+)
+
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert t1(a) values(7777777777);"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 1\n}\n }"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Records: 1  Duplicates: 0  Warnings: 2\"\n  }\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+RUN drop table t1
+
+0 rows affected
+RUN SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION'
+
+0 rows affected
+checking warnings while creating index which is more than row size
+RUN use test
+
+0 rows affected
+RUN create table worklog5743_1(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=1
+
+0 rows affected
+RUN create table worklog5743_2(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=2
+
+0 rows affected
+RUN create table worklog5743_4(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=4
+
+0 rows affected
+RUN create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8
+
+0 rows affected
+below statement throws warning as Error and actual error is missing
+change result file once Bug#21529270 fixed
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create index idx1 on worklog5743_1(a2(4000));"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1071
+  msg: "Specified key was too long; max key length is 3072 bytes"
+  sql_state: "42000"
+}
+
+RUN drop table worklog5743_1
+
+0 rows affected
+RUN drop table worklog5743_2
+
+0 rows affected
+RUN drop table worklog5743_4
+
+0 rows affected
+RUN drop table worklog5743_8
+
+0 rows affected
+checking warnings with different innodb file format
+RUN use test
+
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "set innodb_strict_mode = off;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "set global innodb_file_per_table = 0;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create temporary table t (i int) engine = innodb row_format = compressed;"
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+RUN drop table t
+
+0 rows affected
+RUN set innodb_strict_mode = on
+
+0 rows affected
+RUN set @@global.innodb_file_per_table = 1
+
+0 rows affected
+checking warnings with different innodb row format
+RUN use test
+
+0 rows affected
+expect one Error and Warning
+modify the result file once Bug#21524666 is fixed
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table t2 (id int primary key) engine = innodb key_block_size = 9;"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1031
+  msg: "Table storage engine for \'t2\' doesn\'t have this option"
+  sql_state: "HY000"
+}
+
+expect 2 warnings and 1 Error
+modify the result file once Bug#21524666 is fixed
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table t2 (id int primary key) engine = innodb key_block_size = 9 row_format = redundant;"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1031
+  msg: "Table storage engine for \'t2\' doesn\'t have this option"
+  sql_state: "HY000"
+}
+
+expect 1 warning and 2 Error
+modify the result file once Bug#21524666 is fixed
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create table bug46000(`id` int, key `GEN_clust_INDEX`(`id`))engine=innodb;"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1280
+  msg: "Incorrect index name \'GEN_CLUST_INDEX\'"
+  sql_state: "42000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "account_expired"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5164
+  msg: "Cannot disable notice account_expired"
+  sql_state: "HY000"
+}
+
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Try Disable warnings
+send Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "warnings"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+Try Disable account_expired 
+send Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "account_expired"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5164
+  msg: "Cannot disable notice account_expired"
+  sql_state: "HY000"
+}
+
+Try Disable generated_insert_id 
+send Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "generated_insert_id"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5164
+  msg: "Cannot disable notice generated_insert_id"
+  sql_state: "HY000"
+}
+
+Try Disable rows_affected 
+send Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "rows_affected"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5164
+  msg: "Cannot disable notice rows_affected"
+  sql_state: "HY000"
+}
+
+Try Disable produced_message 
+send Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "produced_message"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5164
+  msg: "Cannot disable notice produced_message"
+  sql_state: "HY000"
+}
+
+expect Mysqlx_stmt_disable_notices=5 and remaining are 0
+RUN show status like 'Mysqlx%notice%'
+Variable_name	Value
+Mysqlx_notice_other_sent	2
+Mysqlx_notice_warning_sent	0
+Mysqlx_stmt_disable_notices	5
+Mysqlx_stmt_enable_notices	0
+Mysqlx_stmt_list_notices	0
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+create user xplugin@localhost identified by 'xplugin';
+Try Disable warnings
+send Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "warnings"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+Try Disable account_expired 
+send Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "account_expired"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5164
+  msg: "Cannot disable notice account_expired"
+  sql_state: "HY000"
+}
+
+Try Disable generated_insert_id 
+send Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "generated_insert_id"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5164
+  msg: "Cannot disable notice generated_insert_id"
+  sql_state: "HY000"
+}
+
+Try Disable rows_affected 
+send Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "rows_affected"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5164
+  msg: "Cannot disable notice rows_affected"
+  sql_state: "HY000"
+}
+
+Try Disable produced_message 
+send Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "produced_message"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5164
+  msg: "Cannot disable notice produced_message"
+  sql_state: "HY000"
+}
+
+expect Mysqlx_stmt_disable_notices=5 and remaining are 0
+RUN show status like 'Mysqlx%notice%'
+Variable_name	Value
+Mysqlx_notice_other_sent	2
+Mysqlx_notice_warning_sent	0
+Mysqlx_stmt_disable_notices	5
+Mysqlx_stmt_enable_notices	0
+Mysqlx_stmt_list_notices	0
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "warnings"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+checking warnings with procedure execution
+RUN SET @start_global_value = @@global.max_error_count
+
+0 rows affected
+RUN SELECT @start_global_value
+@start_global_value
+1024
+0 rows affected
+RUN SET @start_session_value = @@session.max_error_count
+
+0 rows affected
+RUN SELECT @start_session_value
+@start_session_value
+1024
+0 rows affected
+RUN drop database if exists demo
+
+0 rows affected
+RUN create database demo
+
+1 rows affected
+RUN use demo
+
+0 rows affected
+RUN create procedure proc_1()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_1';
+    call proc_2();
+end
+
+0 rows affected
+RUN create procedure proc_2()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_2';
+    call proc_3();
+end
+
+0 rows affected
+RUN create procedure proc_3()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_3';
+    call proc_4();
+end
+
+0 rows affected
+RUN create procedure proc_4()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_4';
+    call proc_5();
+end
+
+0 rows affected
+RUN create procedure proc_5()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_5';
+    call proc_6();
+end
+
+0 rows affected
+RUN create procedure proc_6()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_6';
+    call proc_7();
+end
+
+0 rows affected
+RUN create procedure proc_7()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_7';
+    call proc_8();
+end
+
+0 rows affected
+RUN create procedure proc_8()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_8';
+    call proc_9();
+end
+
+0 rows affected
+RUN create procedure proc_9()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_9';
+    ## Do something that fails, to see how errors are reported
+    drop table oops_it_is_not_here;
+end
+
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "call proc_1();"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1644
+  msg: "Oops in proc_1"
+  sql_state: "45000"
+}
+
+RUN SET @@session.max_error_count = 5
+
+0 rows affected
+RUN SELECT @@session.max_error_count
+@@session.max_error_count
+5
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "call proc_1();"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1644
+  msg: "Oops in proc_1"
+  sql_state: "45000"
+}
+
+RUN SET @@session.max_error_count = 7
+
+0 rows affected
+RUN SELECT @@session.max_error_count
+@@session.max_error_count
+7
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "call proc_1();"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1644
+  msg: "Oops in proc_1"
+  sql_state: "45000"
+}
+
+RUN SET @@session.max_error_count = 9
+
+0 rows affected
+RUN SELECT @@session.max_error_count
+@@session.max_error_count
+9
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "call proc_1();"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1644
+  msg: "Oops in proc_1"
+  sql_state: "45000"
+}
+
+RUN drop database demo
+
+0 rows affected
+RUN SET @@global.max_error_count = @start_global_value
+
+0 rows affected
+RUN SELECT @@global.max_error_count
+@@global.max_error_count
+1024
+0 rows affected
+RUN SET @@session.max_error_count = @start_session_value
+
+0 rows affected
+RUN SELECT @@session.max_error_count
+@@session.max_error_count
+1024
+0 rows affected
+checking warnings while creating index with more than row size
+RUN use test
+
+0 rows affected
+RUN create table worklog5743_1(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=1
+
+0 rows affected
+RUN create table worklog5743_2(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=2
+
+0 rows affected
+RUN create table worklog5743_4(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=4
+
+0 rows affected
+RUN create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8
+
+0 rows affected
+below statement throwing warning as an Error and actual error is missing
+Change result file once Bug#21529270 fixed
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create index idx1 on worklog5743_1(a2(4000));"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1071
+  msg: "Specified key was too long; max key length is 3072 bytes"
+  sql_state: "42000"
+}
+
+RUN drop table worklog5743_1
+
+0 rows affected
+RUN drop table worklog5743_2
+
+0 rows affected
+RUN drop table worklog5743_4
+
+0 rows affected
+RUN drop table worklog5743_8
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Disable multiple notices both read-only and read-write with single StmtExecute,expect error from the first error is sees
+expect error from account_expired onwards as it is read-only though warnings returns success as it is rea-write
+send Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "warnings"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "account_expired"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "generated_insert_id"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "rows_affected"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "produced_message"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Cannot disable notice account_expired (code 5164)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_notices"
+  namespace: "xplugin"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "notice"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: ""
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "enabled"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: ""
+}
+
+Mysqlx.Resultset.Row {
+  field: "warnings\000"
+  field: "\002"
+}
+
+Mysqlx.Resultset.Row {
+  field: "account_expired\000"
+  field: "\002"
+}
+
+Mysqlx.Resultset.Row {
+  field: "generated_insert_id\000"
+  field: "\002"
+}
+
+Mysqlx.Resultset.Row {
+  field: "rows_affected\000"
+  field: "\002"
+}
+
+Mysqlx.Resultset.Row {
+  field: "produced_message\000"
+  field: "\002"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+expect error as disabling account_expired returns error as expected since it is read-ony
+send Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "account_expired"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "warnings"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "generated_insert_id"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "rows_affected"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "produced_message"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5164
+  msg: "Cannot disable notice account_expired"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_notices"
+  namespace: "xplugin"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "notice"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: ""
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "enabled"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: ""
+}
+
+Mysqlx.Resultset.Row {
+  field: "warnings\000"
+  field: "\002"
+}
+
+Mysqlx.Resultset.Row {
+  field: "account_expired\000"
+  field: "\002"
+}
+
+Mysqlx.Resultset.Row {
+  field: "generated_insert_id\000"
+  field: "\002"
+}
+
+Mysqlx.Resultset.Row {
+  field: "rows_affected\000"
+  field: "\002"
+}
+
+Mysqlx.Resultset.Row {
+  field: "produced_message\000"
+  field: "\002"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+drop user xplugin@localhost;

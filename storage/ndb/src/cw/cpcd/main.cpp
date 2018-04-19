@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -18,15 +25,13 @@
 #include <ndb_global.h>
 #include <my_sys.h>
 #include <my_getopt.h>
-#ifdef HAVE_MY_DEFAULT_H
 #include <my_default.h>
-#endif
 #include <mysql_version.h>
 #include <ndb_version.h>
+#include "my_alloc.h"
 
 #include "CPCD.hpp"
 #include "APIService.hpp"
-#include <NdbMain.h>
 #include <NdbSleep.h>
 #include <portlib/NdbDir.hpp>
 #include <BaseString.hpp>
@@ -65,8 +70,8 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+static bool
+get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
   return 0;
@@ -79,7 +84,8 @@ int main(int argc, char** argv){
   const char *load_default_groups[]= { "ndb_cpcd",0 };
   NDB_INIT(argv[0]);
 
-  load_defaults("ndb_cpcd",load_default_groups,&argc,&argv);
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
+  load_defaults("ndb_cpcd",load_default_groups,&argc,&argv,&alloc);
   if (handle_options(&argc, &argv, my_long_options, get_one_option)) {
     print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
     puts("");

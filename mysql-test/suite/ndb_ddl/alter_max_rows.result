@@ -1,0 +1,103 @@
+ALTER TABLE t1
+algorithm=inplace,
+max_rows=1111111;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: setting MAX_ROWS on table without MAX_ROWS. Try ALGORITHM=COPY.
+ALTER TABLE t1
+algorithm=copy,
+max_rows=1111111;
+ALTER TABLE t3
+algorithm=inplace,
+max_rows=4444444;
+ALTER TABLE t3
+algorithm=copy,
+max_rows=5555555;
+ALTER TABLE t3
+algorithm=copy,
+max_rows=33333 /* Small enough to get default number of frags */;
+ALTER TABLE t3
+algorithm=inplace,
+max_rows=33332 /* Small enough to still be at default number of frags */;
+Note! The value of MAX_ROWS in NDB is still 33333
+-- t3 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 33333
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: SPECIFIC
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Longvarchar(1020;utf8mb4_0900_ai_ci) NULL AT=MEDIUM_VAR ST=MEMORY
+c Datetime2(0) NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+b(b) - OrderedIndex
+a(a, b, c) - OrderedIndex
+
+NDBT_ProgramExit: 0 - OK
+
+ALTER TABLE t3
+algorithm=inplace,
+reorganize partition;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: REORGANIZE of table with MAX_ROWS. Try ALGORITHM=COPY.
+ALTER TABLE t3
+algorithm=inplace,
+max_rows=0;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Setting MAX_ROWS to 0 is not supported online. Try ALGORITHM=COPY.
+ALTER TABLE t3
+algorithm=copy,
+max_rows=0;
+ALTER TABLE t3
+algorithm=inplace,
+reorganize partition;
+INSERT INTO t3 VALUES(37, "MySQL Cluster", '2015-12-15');
+SELECT b FROM t3 WHERE a > 10;
+b
+MySQL Cluster
+DELETE FROM t3 WHERE a = 37;
+ALTER TABLE t3
+algorithm=copy,
+max_rows=444444444 /* Large with many frags */;
+ALTER TABLE t3
+algorithm=inplace,
+max_rows=0 /* Not allowed since number of frags reduced */;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Online reduction in number of fragments not supported. Try ALGORITHM=COPY.
+ALTER TABLE t3
+algorithm=copy,
+max_rows=0 /* Back to zero by using copying */;
+ALTER TABLE t3
+algorithm=inplace,
+reorganize partition;
+INSERT INTO t3 VALUES(37, "MySQL Cluster", '2015-12-15');
+SELECT b FROM t3 WHERE a > 10;
+b
+MySQL Cluster
+DELETE FROM t3 WHERE a = 37;
+ALTER TABLE t2
+algorithm=copy,
+max_rows=33333;
+ALTER TABLE t2
+algorithm=inplace,
+max_rows=0;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Setting MAX_ROWS to 0 is not supported online. Try ALGORITHM=COPY.
+ALTER TABLE t2
+algorithm=copy,
+max_rows=0;
+== verify_mysql_dd.inc ==

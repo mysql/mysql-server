@@ -1,24 +1,14 @@
 select * from performance_schema.setup_actors;
-HOST	USER	ROLE	ENABLED
-%	%	%	YES
+HOST	USER	ROLE	ENABLED	HISTORY
+%	%	%	YES	YES
 truncate table performance_schema.setup_actors;
 insert into performance_schema.setup_actors
-values ('localhost', 'user1', '%', 'YES');
+values ('localhost', 'user1', '%', 'YES', 'YES');
 insert into performance_schema.setup_actors
-values ('localhost', 'user2', '%', 'NO');
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+values ('localhost', 'user2', '%', 'NO', 'NO');
+create user user1@localhost, user2@localhost;
 grant ALL on *.* to user1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant ALL on *.* to user2@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 flush privileges;
 # Switch to (con1, localhost, user1, , )
 select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
@@ -69,11 +59,11 @@ update performance_schema.setup_actors
 set ENABLED='NO';
 ERROR 42000: UPDATE command denied to user 'user2'@'localhost' for table 'setup_actors'
 insert into performance_schema.setup_actors
-values ('%', 'user1', '%', 'YES');
+values ('%', 'user1', '%', 'YES', 'YES');
 insert into performance_schema.setup_actors
-values ('localhost', '%', '%', 'NO');
+values ('localhost', '%', '%', 'NO', 'NO');
 insert into performance_schema.setup_actors
-values ('%', '%', '%', 'YES');
+values ('%', '%', '%', 'YES', 'YES');
 # Switch to (con1, localhost, user1, , )
 select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
 from performance_schema.threads
@@ -111,7 +101,7 @@ drop user user2@localhost;
 flush privileges;
 truncate table performance_schema.setup_actors;
 insert into performance_schema.setup_actors
-values ('%', '%', '%', 'YES');
+values ('%', '%', '%', 'YES', 'YES');
 select * from performance_schema.setup_actors;
-HOST	USER	ROLE	ENABLED
-%	%	%	YES
+HOST	USER	ROLE	ENABLED	HISTORY
+%	%	%	YES	YES

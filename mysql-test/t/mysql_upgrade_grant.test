@@ -1,0 +1,519 @@
+--source include/big_test.inc
+
+#mysql_upgrade test for user and priviledge tables.
+-- source include/no_valgrind_without_big.inc
+-- source include/mysql_upgrade_preparation.inc
+
+--let $test_error_log= $MYSQL_TMP_DIR/mysql_upgrade_grant.err
+--let $restart_parameters=restart:--log-error=$test_error_log
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+
+#
+# Bug #25452 mysql_upgrade access denied.
+#
+
+# Password protect a root account and run mysql_upgrade
+
+CREATE USER mysqltest1@'%' IDENTIFIED by 'sakila';
+GRANT ALL ON *.* TO mysqltest1@'%';
+--echo Run mysql_upgrade with password protected account
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force --user=mysqltest1 --password=sakila 2>&1
+
+DROP USER mysqltest1@'%';
+
+
+--echo #
+--echo # Bug #53613: mysql_upgrade incorrectly revokes
+--echo #   TRIGGER privilege on given table
+--echo #
+
+CREATE USER 'user3'@'%';
+GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
+--echo Run mysql_upgrade with all privileges on a user
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+SHOW GRANTS FOR 'user3'@'%';
+
+DROP USER 'user3'@'%';
+
+--echo #
+--echo # Bug #19011337: UPGRADE TO 5.7 DISABLES USER ACCOUNTS
+--echo #
+
+# Save a copy of the user/tables_priv tables, to restore later
+# Otherwise the final mysql_upgrade will REPLACE and update timestamps etc.
+--let $backup= 1
+--source include/backup_tables_priv_and_users.inc
+
+# Create 5.6 mysql.user table layout
+
+--source include/user_58_to_57.inc
+--source include/user_57_to_56.inc
+
+INSERT INTO mysql.user VALUES
+('localhost','B19011337_nhash','*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'','','N'),
+('localhost','B19011337_ohash','0f0ea7602c473904','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'','','N');
+
+call mtr.add_suppression("Some of the user accounts with SUPER");
+call mtr.add_suppression("1. Stop");
+call mtr.add_suppression("2. Run");
+call mtr.add_suppression("3. Restart");
+call mtr.add_suppression("For complete");
+call mtr.add_suppression("User entry .B19011337");
+
+--echo # expect a warning in the error log
+FLUSH PRIVILEGES;
+
+--echo # let's check for the presense of the warning
+# $test_error_log has to be processed by include/search_pattern.inc which
+# contains Perl code requiring that the environment variable SEARCH_FILE points
+# to this file.
+let SEARCH_FILE= $test_error_log;
+
+--let SEARCH_PATTERN= User entry 'B19011337_ohash'@'localhost' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= 1. Stop
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= 2. Run
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= 3. Restart
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= For complete instructions on how to upgrade MySQL
+--source include/search_pattern.inc
+--echo # end of check for the presense of the warning
+
+--echo # repair the user's plugin
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--echo # expect mysql_native_password
+SELECT plugin FROM mysql.user WHERE user='B19011337_nhash';
+
+--echo # expect empty plugin
+SELECT plugin FROM mysql.user WHERE user='B19011337_ohash';
+
+--echo # cleanup
+DROP USER B19011337_nhash@localhost;
+DROP USER B19011337_ohash@localhost;
+
+# Restore the saved contents of mysql.user and mysql.tables_priv
+--let $restore= 1
+--source include/backup_tables_priv_and_users.inc
+
+
+--echo #
+--echo # WL #8350 ENSURE 5.7 SUPPORTS SMOOTH LIVE UPGRADE FROM 5.6
+--echo #
+
+call mtr.add_suppression("Column count of mysql.* is wrong. "
+                         "Expected .*, found .*. "
+                         "The table is probably corrupted");
+
+let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+# Save a copy of the user/tables_priv tables, to restore later
+# Otherwise the final mysql_upgrade will REPLACE and update timestamps etc.
+--let $backup= 1
+--source include/backup_tables_priv_and_users.inc
+
+# Create 5.6 mysql.user table layout
+
+--source include/user_58_to_57.inc
+--source include/user_57_to_56.inc
+
+call mtr.add_suppression("The plugin 'mysql_old_password' used to authenticate user 'user_old_pass_wp'@'%' is not loaded. Nobody can currently login using this account.");
+
+--echo # Because su_old_pass_pn is a super user without plugin name but with pre 4.1
+--echo # hash password we generate instruction on how one can proceed with
+--echo # the upgrade using this account.
+call mtr.add_suppression("Some of the user accounts with SUPER");
+call mtr.add_suppression("1. Stop");
+call mtr.add_suppression("2. Run");
+call mtr.add_suppression("3. Restart");
+call mtr.add_suppression("For complete");
+
+# Password for each user is 'lala'
+
+INSERT INTO mysql.user VALUES
+('%','user_old_pass_wp','0f0ea7602c473904','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_old_password','','N');
+INSERT INTO mysql.user VALUES
+('%','user_old_pass_pn','0f0ea7602c473904','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'','','N'),
+('%','su_old_pass_pn','0f0ea7602c473904','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'','','N'),
+('%','user_nat_pass_pn','*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,NULL,'','N'),
+('%','user_nat_pass_wp','*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','','N');
+
+FLUSH PRIVILEGES;
+
+--echo # check the presents of the warnings in the log file
+let SEARCH_FILE= $test_error_log;
+
+--let SEARCH_PATTERN= User entry 'user_old_pass_pn'@'%' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= User entry 'su_old_pass_pn'@'%' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore.
+--source include/search_pattern.inc
+
+--echo # end of check for the presense of the warning
+
+--echo #Connect using root account - should succeed
+connect (con0,localhost,root,,);
+
+--echo #Connecting user with pre 4.1 hash and empty plugin- should fail
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect (con1,localhost,user_old_pass_pn,lala,);
+
+--echo #Connecting user with pre 4.1 hash and mysql_old_password plugin set -
+--echo #should fail - the mysql_old_password was removed in 5.7
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_PLUGIN_IS_NOT_LOADED
+connect (con2,localhost,user_old_pass_wp,lala,);
+
+--echo #Connecting user with 4.1 hash and empty plugin - should succeed
+connect (con3,localhost,user_nat_pass_pn,lala,);
+
+--echo #Connecting user with 4.1 hash and mysql_native_plugin plugin set -
+--echo #should succeed
+connect (con4,localhost,user_nat_pass_wp,lala,);
+
+connection con3;
+--echo #Trying to do select on mysql.user table - should fail as
+--echo #user_nat_pass_pn is not a super user
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
+
+--echo #Try granting all privileges on mysql db to user_nat_pass_pn using root
+--echo #account - this should fail since mysql.user table has 5.6 layout.
+connection con0;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+GRANT ALL PRIVILEGES ON mysql.* TO 'user_nat_pass_pn'@'%' WITH GRANT OPTION;
+
+connection con3;
+--echo #Select on mysql.user should not be possible since user_nat_pass_pn has
+--echo #no select privileges on mysql database
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
+
+--echo #Revoke all privileges from 'user_nat_pass_pn'@'%' - this should fail
+--echo #since mysql.user table has 5.6 layout.
+connection con0;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user_nat_pass_pn'@'%';
+
+connection con3;
+--echo #Trying to do select on mysql.user table - this should fail since
+--echo #user_nat_pass_pn has no select prvileleges on mysql db.
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
+
+connection con0;
+--echo #All alter user commands should fail since mysql.user has 5.6 layout.
+SELECT authentication_string FROM mysql.user where user='user_nat_pass_pn';
+SELECT password_expired FROM mysql.user where user='user_nat_pass_pn';
+
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+ALTER USER 'user_nat_pass_pn'@'%' PASSWORD EXPIRE;
+
+SELECT authentication_string FROM mysql.user WHERE user='user_nat_pass_pn';
+SELECT password_expired FROM mysql.user WHERE user='user_nat_pass_pn';
+
+--echo #Fix authentication string
+UPDATE mysql.user SET authentication_string='' WHERE user='user_nat_pass_pn';
+
+--echo #"Manualy" grant super user privileges to user_nat_pass_pn, note we are
+--echo #now updating mysql_user to get all privileges on *.*
+connection con0;
+
+UPDATE mysql.user SET Select_priv='Y', Insert_priv='Y', Update_priv='Y', Delete_priv='Y', Create_priv='Y', Drop_priv='Y', Reload_priv='Y', Shutdown_priv='Y', Process_priv='Y', File_priv='Y', Grant_priv='Y', References_priv='Y', Index_priv='Y', Alter_priv='Y', Show_db_priv='Y', Super_priv='Y', Create_tmp_table_priv='Y', Lock_tables_priv='Y', Execute_priv='Y', Repl_slave_priv='Y', Repl_client_priv='Y', Create_view_priv='Y', Show_view_priv='Y', Create_routine_priv='Y', Alter_routine_priv='Y', Create_user_priv='Y', Event_priv='Y', Trigger_priv='Y', Create_tablespace_priv='Y' where user="user_nat_pass_pn";
+
+FLUSH PRIVILEGES;
+
+#connection con3;
+--echo #Select on mysql.user should now be possible
+SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
+
+connection default;
+
+--echo #Run mysql_upgrade with user_nat_pass_pn - i.e. user with empty plugin
+--echo #column and 4.1 hash password. After mysql_upgrade finishes the
+--echo #mysql.user table should have 5.7 layout thus no need to restore the
+--echo #dropped columns from the begining of the test
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force --user=user_nat_pass_pn --password=lala 2>&1
+
+call mtr.add_suppression("User entry 'user_old_pass_pn'@'%' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+call mtr.add_suppression("User entry 'su_old_pass_pn'@'%' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+
+--echo # check the presents of the warnings in the log file
+let SEARCH_FILE= $test_error_log;
+
+--let SEARCH_PATTERN= User entry 'user_old_pass_pn'@'%' has an empty plugin value.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= User entry 'su_old_pass_pn'@'%' has an empty plugin value.
+--source include/search_pattern.inc
+
+--echo # end of check for the presense of the warning
+
+disconnect con0;
+disconnect con3;
+disconnect con4;
+
+--echo #Restart the server
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+
+--echo #After the update all acl commands should be working fine. Trying out
+--echo #some of them
+
+ALTER USER 'user_nat_pass_pn'@'%' PASSWORD EXPIRE;
+SELECT password_expired FROM mysql.user WHERE user='user_nat_pass_pn';
+SET PASSWORD FOR user_nat_pass_pn@'%' = 'lala';
+SELECT password_expired FROM mysql.user WHERE user='user_nat_pass_pn';
+
+ALTER USER 'user_nat_pass_wp'@'%' ACCOUNT LOCK;
+SELECT account_locked FROM mysql.user WHERE user='user_nat_pass_wp';
+ALTER USER 'user_nat_pass_wp'@'%' ACCOUNT UNLOCK;
+SELECT account_locked FROM mysql.user WHERE user='user_nat_pass_wp';
+
+--echo #Connecting with user using mysql_old_password plugin should not be
+--echo #possible
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_PLUGIN_IS_NOT_LOADED
+connect (con5,localhost,user_old_pass_wp,lala,);
+
+--echo #Creating super user and assigning all privileges to it. This updates
+--echo #mysql.user table so should now be possible.
+CREATE USER super@localhost IDENTIFIED BY 'lala';
+GRANT ALL PRIVILEGES ON *.* TO super@localhost WITH GRANT OPTION;
+SELECT user FROM mysql.user WHERE user='super';
+
+# Cleanup
+
+DROP USER 'super'@'localhost';
+DROP USER 'user_old_pass_pn'@'%';
+DROP USER 'su_old_pass_pn'@'%';
+DROP USER 'user_old_pass_wp'@'%';
+DROP USER 'user_nat_pass_pn'@'%';
+DROP USER 'user_nat_pass_wp'@'%';
+
+#Restore the saved contents of mysql.user and mysql.tables_priv
+--let $restore= 1
+--source include/backup_tables_priv_and_users.inc
+
+--echo #
+--echo # BUG#20614545: USERS WITH OLD-PASSWORD=1 CHANGED TO
+--echo # MYSQL_NATIVE_PASSWORD AFTER UPGRADE
+--echo #
+
+let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+# Save a copy of the user/tables_priv tables, to restore later
+# Otherwise the final mysql_upgrade will REPLACE and update timestamps etc.
+--let $backup= 1
+--source include/backup_tables_priv_and_users.inc
+
+# Create 5.6 mysql.user table layout
+
+--source include/user_58_to_57.inc
+--source include/user_57_to_56.inc
+
+INSERT INTO mysql.user VALUES
+('localhost','B20614545','0f0ea7602c473904','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'','','N');
+
+FLUSH PRIVILEGES;
+
+--echo # check the presents of the warnings in the log file
+let SEARCH_FILE= $test_error_log;
+
+--let SEARCH_PATTERN= User entry 'B20614545'@'localhost' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore.
+--source include/search_pattern.inc
+
+--echo # end of check for the presense of the warning
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+call mtr.add_suppression("User entry 'B20614545'@'localhost' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+
+--echo # check the presents of the warnings in the log file
+let SEARCH_FILE= $test_error_log;
+
+--let SEARCH_PATTERN= User entry 'B20614545'@'localhost' has an empty plugin value.
+--source include/search_pattern.inc
+
+--echo # end of check for the presense of the warning
+
+--echo #Restart the server
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+--remove_file $test_error_log
+
+--echo # expect empty plugin
+SELECT plugin FROM mysql.user WHERE user='B20614545';
+
+DROP USER B20614545@localhost;
+
+#Restore the saved contents of mysql.user and mysql.tables_priv
+--let $restore= 1
+--source include/backup_tables_priv_and_users.inc
+
+--echo #
+--echo # Tests for WL#7194
+--echo # Check that users with SUPER privilege (root@localhost and
+--echo # the new added user u1) gets XA_RECOVER_ADMIN privilege
+--echo # after upgrade.
+--echo #
+
+--echo # Show privilege for root@localhost before the privilege XA_RECOVER_ADMIN will be revoked
+SHOW GRANTS FOR root@localhost;
+
+CREATE USER u1;
+GRANT SUPER ON *.* TO u1;
+
+--echo # Revoke the privilege XA_RECOVER_ADMIN in order to simulate
+--echo # the case when upgrade is run against a database that was created by
+--echo # mysql server without support for XA_RECOVER_ADMIN.
+REVOKE XA_RECOVER_ADMIN ON *.* FROM root@localhost;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
+
+--echo # We show here that the users root@localhost and u1 have the privilege
+--echo # SUPER and don't have the privilege XA_RECOVER_ADMIN
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR u1;
+
+--echo # Start upgrade
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--echo # Show privileges granted to the users root@localhost and u1
+--echo # after upgrade has been finished.
+--echo # It is expected that the users root@localhost and u1 have the
+--echo # privilege XA_RECOVER_ADMIN granted since they had the privilge SUPER
+--echo # before upgrade and there wasn't any user with explicitly granted
+--echo # privilege XA_RECOVER_ADMIN.
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR u1;
+
+--echo # Now run upgrade against database where there is a user with granted
+--echo # privilege XA_RECOVER_ADMIN and check that for those users who have
+--echo # the privilege SUPER assigned the privilege XA_RECOVER_ADMIN won't be
+--echo # granted during upgrade.
+
+--echo # Revoke the privilege XA_RECOVER_ADMIN from the user u1 and
+--echo # mysql.session@localhost
+REVOKE XA_RECOVER_ADMIN ON *.* FROM u1;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
+
+--echo # Start upgrade
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--echo # It is expected that after upgrade be finished the privilege
+--echo # XA_RECOVER_ADMIN won't be granted to the user u1 since
+--echo # there was another user (root@localhost) who had the privilege
+--echo # XA_RECOVER_ADMIN at the time when upgrade was started
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR u1;
+
+--echo # Cleaning up
+DROP USER u1;
+
+--echo # End of tests for WL#7194
+
+--source include/mysql_upgrade_cleanup.inc
+
+
+--echo #
+--echo # Bug#26667007 - MYSQL UPGRADE TO 8.0.3 USER WITH RELOAD GRANTED BACKUP_ADMIN WITH GRANT OPTION
+--echo #
+
+--echo # Revoke privileges BACKUP_ADMIN and XA_RECOVER_ADMIN in order to simulate
+--echo # the case when upgrade is run against a database that was created by
+--echo # mysql server without support for BACKUP_ADMIN/XA_RECOVER_ADMIN.
+REVOKE BACKUP_ADMIN ON *.* FROM root@localhost;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM root@localhost;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
+CREATE USER u1;
+CREATE USER u2;
+
+GRANT RELOAD ON *.* TO u1;
+GRANT RELOAD ON *.* TO u2 WITH GRANT OPTION;
+
+GRANT SUPER ON *.* TO u1;
+GRANT SUPER ON *.* TO u2 WITH GRANT OPTION;
+
+SHOW GRANTS FOR u1;
+SHOW GRANTS FOR u2;
+
+--echo # Start upgrade
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--echo # Check that the user u1 has privileges BACKUP_ADMIN and XA_RECOVER_ADMIN granted
+SHOW GRANTS FOR u1;
+--echo # Check that the user u2 has privileges BACKUP_ADMIN and XA_RECOVER_ADMIN granted with grant option
+--echo # since originally RELOAD privilege and SUPER privilege were granted to user u2 with grant option
+SHOW GRANTS FOR u2;
+DROP USER u1;
+DROP USER u2;
+
+# Revoke privilege XA_RECOVER_ADMIN from the user mysql.session@localhost in order to
+# match contol checksum for mysql.global_grants
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
+
+--echo #
+--echo # Bug#26948662 - REMOVE SUPER_ACL CHECK IN RESOURCE GROUPS.
+--echo #
+
+REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM root@localhost;
+REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM `mysql.session`@localhost;
+
+
+# Create a new user user1 and grant super privilege to user1.
+CREATE USER user1;
+GRANT SUPER ON *.* TO user1;
+--echo # Users root@localhost and user1 have privilege SUPER but not RESOURCE_GROUP_ADMIN 
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR user1;
+
+--echo # Start upgrade
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--echo # After upgrade users root@localhost and user1 has privilege RESOURCE_GROUP_ADMIN.
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR user1;
+DROP USER user1;
+
+# Revoke privilege RESOURCE_GROUP_ADMIN from the user mysql.session@localhost in order to
+# match contol checksum for mysql.global_grants
+REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM `mysql.session`@localhost;
+
+--source include/mysql_upgrade_cleanup.inc
+--echo
+--echo End of tests

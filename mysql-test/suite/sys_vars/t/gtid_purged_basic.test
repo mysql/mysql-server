@@ -1,13 +1,10 @@
---source include/not_embedded.inc
-
-# The test changes GTID_EXECUTED, which currently cannot be cleared
-# when the binary log is off, due to BUG#19706455.  So the only way to
-# reset server state is to restart. (Without restart, the test fails
-# if run twice in sequence.)
---source include/force_restart.inc
+--source include/gtid_utils.inc
+# Clear gtid_purged to make variable settable.
+RESET MASTER;
 
 SET @start_global_value = @@global.gtid_purged;
 SELECT @start_global_value;
+SET @sql_log_bin_start_value = @@session.sql_log_bin;
 
 #
 # exists as global only
@@ -18,8 +15,8 @@ select @@session.gtid_purged;
 show global variables like 'gtid_purged';
 show session variables like 'gtid_purged';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='gtid_purged';
-select * from information_schema.session_variables where variable_name='gtid_purged';
+select * from performance_schema.global_variables where variable_name='gtid_purged';
+select * from performance_schema.session_variables where variable_name='gtid_purged';
 --enable_warnings
 
 --error ER_WRONG_VALUE_FOR_VAR
@@ -36,11 +33,123 @@ select @@global.gtid_purged;
 SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:1-2';
 SELECT @@global.gtid_purged;
 
-# Not allowed to write when GTID_EXECUTED!='';
---error ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY
+# Not allowed to update when the new value is not a superset of the old one
+--error ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
 SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:3';
 SELECT @@global.gtid_purged;
 
+SET @gtid_purged_new='11111111-1111-1111-1111-111111111111:1-2:4-5';
+
+# The following bug blocks execution of the test in --skip-log-mode more.
+# Bug#23534725 INCONSISTENT STATE OF GTID_PURGED IN
+# --GTID-MODE=ON && --SKIP-LOG-BIN SETUP
+if (`SELECT COUNT(*) = 2 FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'GTID_MODE' AND VARIABLE_VALUE != 'OFF'  OR VARIABLE_NAME = 'LOG_BIN' AND VARIABLE_VALUE = 'ON'`)
+{
+ # Not allowed to update when the new value intersects with Executed_gtids
+  # which are not purged.
+  # This piece of test requries GTID mode ON, thus query log is disabled.
+  --disable_query_log
+  SET @@GTID_NEXT='11111111-1111-1111-1111-111111111111:3';
+  BEGIN;
+  COMMIT;
+  SET @@GTID_NEXT=AUTOMATIC;
+
+  --disable_result_log
+  --error ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
+  SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:1-3';
+  --enable_result_log
+  --enable_query_log
+}
+
+# Overriding of the current value with one that includes it is allowed.
+# The block also asserts important requirement.
+SET @gtid_executed_old= @@GLOBAL.GTID_EXECUTED;
+SET @@global.gtid_purged= @gtid_purged_new;
+SELECT @@global.gtid_purged;
+--let $assert_cond= GTID_IS_EQUAL(GTID_UNION(@gtid_executed_old, @gtid_purged_new), @@GLOBAL.GTID_EXECUTED)
+--let $assert_text= New value of GTID_EXECUTED must be union of the old one an new purged
+--source include/assert.inc
+
+RESET MASTER;
+
+# Does not initiate a transaction when autocommit is off
+SET AUTOCOMMIT= OFF;
+SET @@session.sql_log_bin= @sql_log_bin_start_value;
+SET AUTOCOMMIT= ON;
+
+--let $purged_gno_0=4
+--eval SET @gtid_purged_init= '11111111-1111-1111-1111-111111111111:$purged_gno_0-5'
+SET @@global.gtid_purged= @gtid_purged_init;
+
+# Construct Executed set not necessarily equal to Purged for one of the
+# following asserts in the append-style SET-purged case
+if (`SELECT COUNT(*) = 1 FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'GTID_MODE' AND VARIABLE_VALUE != 'OFF'`)
+{
+ # Not allowed to update when the new value intersects with Executed_gtids
+  # which are not purged.
+  # This piece of test requries GTID mode ON, thus query log is disabled.
+  --disable_query_log
+  SET @@GTID_NEXT='11111111-1111-1111-1111-111111111111:3';
+  BEGIN;
+  COMMIT;
+  SET @@GTID_NEXT=AUTOMATIC;
+  if (`SELECT COUNT(*) = 1 FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'log_bin' AND VARIABLE_VALUE = 'OFF'`)
+  {
+    --let $purged_gno_0=3
+    # Explicitly include the empty trx' gtid to the inited-purged when binlog is OFF
+    # because any executed transaction gets to the purged set automatically.
+    --eval SET @gtid_purged_init= GTID_UNION(@gtid_purged_init, '11111111-1111-1111-1111-111111111111:$purged_gno_0')
+  }
+  --enable_query_log
+}
+
+#
+# The append SET-purged syntax
+#
+--error ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
+SET @@global.gtid_purged= '+11111111-1111-1111-1111-111111111111:5';
+
+# Memorize "old" Executed value before incrementing Purged one more time
+SET @gtid_executed_old= @@GLOBAL.GTID_EXECUTED;
+
+# Disjoint set may only be append
+SET @gtid_purged_incr="11111111-1111-1111-1111-111111111111:6-6";
+SET @@global.gtid_purged= CONCAT("+",@gtid_purged_incr);
+
+--let $assert_cond= GTID_IS_EQUAL(GTID_UNION(@gtid_purged_init, @gtid_purged_incr), @@GLOBAL.GTID_PURGED)
+--let $assert_text= New value of GTID_PURGED must be union of the old one and the increment
+--source include/assert.inc
+
+--let $assert_cond= GTID_IS_EQUAL(GTID_UNION(@gtid_executed_old, @gtid_purged_incr), @@GLOBAL.GTID_EXECUTED)
+--let $assert_text= New value of GTID_EXECUTED must be union of the old one and the purged increment
+--source include/assert.inc
+
+# The '+' append qualifier must be first not white space char in the rhs
+# string and not be following by any other but a valid GTID notating
+# symbol or white space.
+SET @@global.gtid_purged= '+         11111111-1111-1111-1111-111111111111:7';
+SET @@global.gtid_purged= '         +11111111-1111-1111-1111-111111111111:8';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.gtid_purged= '         -+11111111-1111-1111-1111-111111111111:9';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.gtid_purged= '         +-11111111-1111-1111-1111-111111111111:9';
+#The  comma past  '+'  symbol indicates an empty first range,  hence
+# --error 0.
+SET @@global.gtid_purged= '         +,11111111-1111-1111-1111-111111111111:9';
+
+--disable_query_log
+--eval set @purged_total='11111111-1111-1111-1111-111111111111:$purged_gno_0-9'
+--enable_query_log
+--let $assert_cond= GTID_IS_EQUAL(@purged_total, @@GLOBAL.GTID_PURGED)
+--let $assert_text= Computed purged set is not the same as of the global var
+--source include/assert.inc
+
+#
+# Cleared by RESET MASTER.
+#
+RESET MASTER;
+SELECT @@global.gtid_purged;
 #
 # See rpl_gtid_purged_maintained.test for a comprehensive test case.
 #
+--source include/gtid_utils_end.inc

@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/have_example_plugin.inc
 
 --echo #
@@ -6,11 +5,15 @@
 --echo #
 
 --replace_regex /\.dll/.so/
---error ER_OPTION_PREVENTS_STATEMENT
 eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 
+SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.plugins
+  WHERE plugin_name='example';
+
 --replace_regex /\.dll/.so/
---error ER_OPTION_PREVENTS_STATEMENT
-eval UNINSTALL PLUGIN example;
+--error ER_UDF_EXISTS
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+
+UNINSTALL PLUGIN example;
 
 --echo End of 5.1 tests

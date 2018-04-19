@@ -1,3 +1,4 @@
+--source include/no_ps_protocol.inc
 
 SET @xml='<a aa1="aa1" aa2="aa2">a1<b ba1="ba1">b1<c>c1</c>b2</b>a2</a>';
 SELECT extractValue(@xml,'/a');
@@ -297,8 +298,11 @@ select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=position()]');
 #
 select extractvalue('<a>Jack</a>','/a[contains(../a,"J")]');
 select extractvalue('<a>Jack</a>','/a[contains(../a,"j")]');
+
+set names latin1;
 select extractvalue('<a>Jack</a>','/a[contains(../a,"j")]' collate latin1_bin);
 select extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]');
+set names utf8mb4;
 
 #
 # Bug#18285: ExtractValue not returning character
@@ -684,6 +688,16 @@ SELECT ExtractValue('<a><a>aa</a><b>bb</b></a>','(a)/a|(a)/b');
 --echo #              ASSERTION `SRC' FAILED
 --echo #
 set names utf8;
-do weight_string(extractvalue('','/*/a') level 1 reverse);
-do char((weight_string(extractvalue((''),('tX')) level 7 desc)) using cp852);
+do weight_string(extractvalue('','/*/a'));
+do char((weight_string(extractvalue((''),('tX')))) using cp852);
 set names default;
+
+--echo #
+--echo # Bug#22552615 EXTRACTVALUE RETURNS NULL WHEN NO MATCHING
+--echo #              TEXT NODE IS FOUND FOR THE EXPRESSION
+--echo #
+
+set @x = '<MESSAGE><DATA1>HOLA</DATA1></MESSAGE>';
+set @y = 'Default Value';
+select ExtractValue( @x, '/MESSAGE/DATA2' ) into @y;
+select @y;

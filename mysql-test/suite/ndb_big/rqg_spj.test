@@ -1,16 +1,9 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # RQG SPJ
 #
 --source include/have_ndb.inc
 --source include/not_windows.inc
---source include/not_embedded.inc
 --source suite/ndb/include/have_ndb_rqg.inc
---source suite/ndb/t/ndbinfo_create.inc
 
 # Remember all SPJ conters when test started.
 --disable_query_log
@@ -59,6 +52,5 @@ select spj_counts_at_end.counter_name,
 from spj_counts_at_startup, spj_counts_at_end
 where spj_counts_at_startup.counter_name = spj_counts_at_end.counter_name;
 --enable_query_log
---source suite/ndb/t/ndbinfo_drop.inc
 
 exit;

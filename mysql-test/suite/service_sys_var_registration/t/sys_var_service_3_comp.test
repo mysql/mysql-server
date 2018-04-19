@@ -1,0 +1,90 @@
+# Verify that more than one component can register system variables, different and such with
+#  same name.
+
+--source ../include/have_component_test_sys_var_service.inc
+
+call mtr.add_suppression("duplicate variable name");
+call mtr.add_suppression("variable name.*not found");
+
+INSTALL COMPONENT "file://component_test_sys_var_service";
+INSTALL COMPONENT "file://component_test_sys_var_service_int";
+INSTALL COMPONENT "file://component_test_sys_var_service_str";
+
+--echo # file://component_test_sys_var_service:
+SELECT @@test_component.enum_sys_var;
+SET GLOBAL test_component.enum_sys_var="LOW";
+SELECT @@test_component.enum_sys_var;
+
+SELECT @@test_component.str_sys_var;
+SET GLOBAL test_component.str_sys_var="dictionary.txt";
+SELECT @@test_component.str_sys_var;
+SET GLOBAL test_component.str_sys_var=default;
+SELECT @@test_component.str_sys_var;
+
+--echo # file://component_test_sys_var_service_str:
+SELECT @@test_component_str.str_sys_var;
+SET GLOBAL test_component_str.str_sys_var="dictionary.txt";
+SELECT @@test_component_str.str_sys_var;
+SET GLOBAL test_component_str.str_sys_var=default;
+SELECT @@test_component_str.str_sys_var;
+
+--echo # file://component_test_sys_var_service:
+SELECT @@test_component.uint_sys_var;
+SET GLOBAL test_component.uint_sys_var=12345678;
+SELECT @@test_component.uint_sys_var;
+SET GLOBAL test_component.uint_sys_var=default;
+SELECT @@test_component.uint_sys_var;
+
+--echo # Testing long type variable
+SELECT @@test_component.long_sys_var;
+SET GLOBAL test_component.long_sys_var=1234567890;
+SELECT @@test_component.long_sys_var;
+SET GLOBAL test_component.long_sys_var=default;
+SELECT @@test_component.long_sys_var;
+
+--echo # Testing unsigned long type variable
+SELECT @@test_component.ulong_sys_var;
+SET GLOBAL test_component.ulong_sys_var=1234567890;
+SELECT @@test_component.ulong_sys_var;
+SET GLOBAL test_component.ulong_sys_var=default;
+SELECT @@test_component.ulong_sys_var;
+
+--echo # Testing long long type variable
+SELECT @@test_component.longlong_sys_var;
+SET GLOBAL test_component.longlong_sys_var=1234567890;
+SELECT @@test_component.longlong_sys_var;
+SET GLOBAL test_component.longlong_sys_var=default;
+SELECT @@test_component.longlong_sys_var;
+
+--echo # file://component_test_sys_var_service_int:
+SELECT @@test_component_int.uint_sys_var;
+SET GLOBAL test_component_int.uint_sys_var=12345678;
+SELECT @@test_component_int.uint_sys_var;
+SET GLOBAL test_component_int.uint_sys_var=default;
+SELECT @@test_component_int.uint_sys_var;
+
+SELECT @@test_component_int.int_sys_var;
+SET GLOBAL test_component_int.int_sys_var=12345678;
+SELECT @@test_component_int.int_sys_var;
+SET GLOBAL test_component_int.int_sys_var=default;
+SELECT @@test_component_int.int_sys_var;
+
+--echo # file://component_test_sys_var_service_str:
+SELECT @@test_component_str.str_sys_var;
+SET GLOBAL test_component_str.str_sys_var="dictionary.txt";
+SELECT @@test_component_str.str_sys_var;
+
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+UNINSTALL COMPONENT "file://component_test_sys_var_service_int";
+UNINSTALL COMPONENT "file://component_test_sys_var_service_str";
+
+# Write the test results in "test_component_sys_var_service.log" into the
+# result file of this test
+--echo ########## test_component_sys_var_service.log:
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_component_sys_var_service.log;
+cat_file $MYSQLD_DATADIR/test_component_sys_var_service_int.log;
+cat_file $MYSQLD_DATADIR/test_component_sys_var_service_str.log;
+remove_file $MYSQLD_DATADIR/test_component_sys_var_service.log;
+remove_file $MYSQLD_DATADIR/test_component_sys_var_service_int.log;
+remove_file $MYSQLD_DATADIR/test_component_sys_var_service_str.log;

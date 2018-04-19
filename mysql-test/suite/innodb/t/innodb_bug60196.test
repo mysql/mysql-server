@@ -2,12 +2,9 @@
 # Foreign Key problems after an engine is restarted.
 
 # This test case needs InnoDB, a lowercase file system,
-# lower-case-table-names=2, and cannot use the embedded server
-# because it restarts the server.
---source include/not_embedded.inc
+# lower-case-table-names=2
 --source include/have_lowercase2.inc
 --source include/have_case_insensitive_file_system.inc
---source include/have_innodb.inc
 
 #
 # Create test data.

@@ -1,14 +1,9 @@
---source include/have_innodb.inc
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 
 let $n=250;
-let $t=veryLongTableNameToCreateMLOG_FILE_NAMErecords;
+let $t=very_long_table_name;
 
 --disable_query_log
-call mtr.add_suppression("InnoDB: Resizing redo log");
-call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
-call mtr.add_suppression("InnoDB: New log files created");
 
 let $i=$n;
 while ($i)
@@ -17,7 +12,13 @@ while ($i)
 dec $i;
 }
 
-let $restart_parameters = restart: --innodb-log-files-in-group=2 --innodb-log-file-size=4M;
+# If we set above n to 500, this test case could fail easily, because
+# the inndob buffer pool is too small, some of which would be occupied
+# by the recv*. With n=250, this test case could sporadically fail too.
+# So we have to set buffer pool size to 50M which should be enough for this
+# test case. Once we fix the bug#22179133 and bug#22186325, we should use
+# the default innodb buffer pool(or the smaller one).
+let $restart_parameters = restart: --innodb-log-files-in-group=2 --innodb-log-file-size=4M --innodb-buffer-pool-size=50M;
 --source include/kill_and_restart_mysqld.inc
 
 --disable_query_log

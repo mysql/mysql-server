@@ -1,5 +1,3 @@
---source include/have_partition.inc
---source include/have_innodb.inc
 
 --echo #
 --echo # Bug #20582149 INVALID READ OF SIZE 1 IN PROTOCOL::NET_STORE_DATA
@@ -16,3 +14,21 @@ select f1, f2 from t1 order by f1;
 
 DROP TABLE IF EXISTS t1;
 
+--echo #
+--echo # Bug #20685835 INVALID READ OF BLOB MEMORY
+--echo #
+
+--echo # Test correlated subquery with LOB
+CREATE TABLE t1 (f1 INT, f2 TEXT, f3 INT,
+                 PRIMARY KEY(f1))
+                 PARTITION BY HASH(f1) PARTITIONS 1;
+
+INSERT INTO t1 VALUES(1,'1', 3);
+INSERT INTO t1 VALUES(2,'2', 2);
+INSERT INTO t1 VALUES(3,'3', 2);
+
+SELECT DISTINCT f3 FROM t1
+HAVING (SELECT 1 FROM t1 HAVING f2 LIMIT 1)
+ORDER BY f3;
+
+DROP TABLE t1;

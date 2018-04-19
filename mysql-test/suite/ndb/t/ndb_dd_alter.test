@@ -40,12 +40,6 @@
 ##############################################################
 
 -- source include/have_ndb.inc
--- source include/have_innodb.inc
-
---disable_warnings
-DROP TABLE IF EXISTS test.t1;
-DROP TABLE IF EXISTS test.t2;
---enable_warnings
 
 ############ Test Setup Section #############
 -- echo **** Test Setup Section ****
@@ -88,10 +82,16 @@ while ($1)
 }
 enable_query_log;
 
+--disable_warnings
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 SELECT * FROM test.t1 ORDER BY a1;
-ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE test.t1 ALGORITHM=INPLACE, TABLESPACE ts STORAGE DISK ENGINE=NDB;
+ALTER TABLE test.t1 ALGORITHM=COPY, TABLESPACE ts STORAGE DISK ENGINE=NDB;
+--disable_warnings
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 # Check column storage
 source show_attributes.inc;
 SELECT * FROM test.t1 ORDER BY a1;
@@ -122,28 +122,46 @@ while ($1)
 }
 enable_query_log;
 
+--disable_warnings
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 SELECT * FROM test.t1 ORDER BY a1;
-ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
+ALTER TABLE test.t1 ALGORITHM=COPY, TABLESPACE ts STORAGE DISK ENGINE=NDB;
+--disable_warnings
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 # Check column storage
 source show_attributes.inc;
 SELECT * FROM test.t1 ORDER BY a1;
 
 #### Try to ALTER from Cluster Disk Data to InnoDB
+# Create tablespace in Innodb with same name as in NDB
+# since the ALTER from NDB to Innodb will try to ALTER the table
+# into a tablespace with same name in InnoDB
+CREATE TABLESPACE ts_innodb ADD DATAFILE 'ts_innodb.ibd' ENGINE=Innodb;
 
-ALTER TABLE test.t1 ENGINE=InnoDB;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE test.t1 ALGORITHM=INPLACE, ENGINE=InnoDB TABLESPACE ts_innodb;
+ALTER TABLE test.t1 ALGORITHM=COPY, ENGINE=InnoDB TABLESPACE ts_innodb;
+--disable_warnings
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 SELECT * FROM test.t1 ORDER BY a1;
 ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
+--disable_warnings
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 # Check column storage
 source show_attributes.inc;
 
 #### Try to ALTER from Cluster Disk Data to MyISAM
 
-ALTER TABLE test.t1 ENGINE=MyISAM;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE test.t1 ALGORITHM=INPLACE, ENGINE=MyISAM;
+ALTER TABLE test.t1 ALGORITHM=COPY, ENGINE=MyISAM;
+--disable_warnings
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 DROP TABLE test.t1;
 
 #### Try to ALTER DD Tables and add columns
@@ -164,7 +182,9 @@ SELECT * FROM test.t1 ORDER BY a1;
 --replace_column 13 0 14 0 15 0 16 NULL 18 0
 SELECT * FROM information_schema.partitions WHERE table_name= 't1' AND partition_name = 'p0';
 
-ALTER TABLE test.t1 ADD a2 FLOAT, ADD a3 DOUBLE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE test.t1 ALGORITHM=INPLACE, ADD a2 FLOAT, ADD a3 DOUBLE;
+ALTER TABLE test.t1 ALGORITHM=COPY, ADD a2 FLOAT, ADD a3 DOUBLE;
 
 --replace_column 13 0 14 0 15 0 16 NULL 18 0
 SELECT * FROM information_schema.partitions WHERE table_name= 't1' AND partition_name = 'p0';
@@ -180,7 +200,7 @@ enable_query_log;
 
 SELECT * FROM test.t1 ORDER BY a1;
 
-ALTER TABLE test.t1  ADD a4 BIT, ADD a5 TINYINT, ADD a6 BIGINT, ADD a7 DATE, ADD a8 TIME;
+ALTER TABLE test.t1 ALGORITHM=COPY, ADD a4 BIT, ADD a5 TINYINT, ADD a6 BIGINT, ADD a7 DATE, ADD a8 TIME;
 
 let $1=20;
 disable_query_log;
@@ -195,7 +215,9 @@ enable_query_log;
 SELECT a1,a2,a3,hex(a4), a5,a6,a7,a8 FROM test.t1 ORDER BY a1;
 
 ALTER TABLE test.t1 ADD a9 DATETIME, ADD a10 TINYTEXT, ADD a11 MEDIUMTEXT, ADD a12 LONGTEXT, ADD a13 TEXT, ADD a14 BLOB;
+--disable_warnings
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 # Check column storage
 source show_attributes.inc;
 
@@ -240,29 +262,36 @@ call mtr.add_suppression("The table '#.*' is full");
 ALTER TABLE test.t1 TABLESPACE ts2 STORAGE DISK ENGINE NDB;
 
  ALTER TABLESPACE ts2
- DROP DATAFILE './table_space/datafile2.dat'
- ENGINE NDB;
- DROP TABLESPACE ts2 ENGINE NDB;
+ DROP DATAFILE './table_space/datafile2.dat';
+ DROP TABLESPACE ts2;
 
 #### Try to ALTER DD Tables and add Indexes
 
-ALTER TABLE test.t1 ADD INDEX a2_i (a2), ADD INDEX a3_i (a3);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE test.t1 ALGORITHM=INPLACE, ADD INDEX a2_i (a2), ADD INDEX a3_i (a3);
+ALTER TABLE test.t1 ALGORITHM=COPY, ADD INDEX a2_i (a2), ADD INDEX a3_i (a3);
 
+--disable_warnings
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 
 # Check column storage
 source show_attributes.inc;
 
-ALTER TABLE test.t1 DROP INDEX a2_i;
+ALTER TABLE test.t1 ALGORITHM=INPLACE, DROP INDEX a2_i;
 
+--disable_warnings
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 
 # Check column storage
 source show_attributes.inc;
 
 TRUNCATE TABLE test.t1;
 
+--disable_warnings
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 
 # Check column storage
 source show_attributes.inc;
@@ -270,7 +299,9 @@ source show_attributes.inc;
 #### Try to ALTER DD Tables and drop columns
 
 
-ALTER TABLE test.t1 DROP a14;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE test.t1 ALGORITHM=INPLACE, DROP a14;
+ALTER TABLE test.t1 ALGORITHM=COPY, DROP a14;
 ALTER TABLE test.t1 DROP a13;
 ALTER TABLE test.t1 DROP a12;
 ALTER TABLE test.t1 DROP a11;
@@ -279,9 +310,13 @@ ALTER TABLE test.t1 DROP a9;
 ALTER TABLE test.t1 DROP a8;
 ALTER TABLE test.t1 DROP a7;
 ALTER TABLE test.t1 DROP a6;
-ALTER TABLE test.t1 DROP PRIMARY KEY;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE test.t1 ALGORITHM=INPLACE, DROP PRIMARY KEY;
+ALTER TABLE test.t1 ALGORITHM=COPY, DROP PRIMARY KEY;
 
+--disable_warnings
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 
 # Check column storage
 source show_attributes.inc;
@@ -298,11 +333,6 @@ drop table t1;
 
 
  ALTER TABLESPACE ts
- DROP DATAFILE './table_space/datafile.dat'
- ENGINE NDB;
- DROP TABLESPACE ts ENGINE NDB;
+ DROP DATAFILE './table_space/datafile.dat';
+ DROP TABLESPACE ts;
  DROP LOGFILE GROUP lg ENGINE=NDB;
-
-####################### End section 4 #########################
-#End 5.1 test case
-

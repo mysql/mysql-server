@@ -1,14 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # mysqld --help
 #
---source include/not_embedded.inc
 --source include/windows.inc
---source include/have_perfschema.inc
 
 --source include/mysqld--help.inc
 

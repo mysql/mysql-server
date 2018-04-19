@@ -3,16 +3,13 @@ create schema mysqltest_1;
 use mysqltest_1;
 create table t1 (a int) partition by list (a) (partition p1 values in (1), partition p2 values in (2), partition p3 values in (3));
 insert into t1 values (1),(2);
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-grant usage on *.* to mysqltest_1@localhost;
-set sql_mode= @orig_sql_mode;
+create user mysqltest_1@localhost;
 revoke all privileges on *.* from mysqltest_1@localhost;
 grant select,alter on mysqltest_1.* to mysqltest_1@localhost;
 show grants for current_user;
 Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT SELECT, ALTER ON `mysqltest_1`.* TO 'mysqltest_1'@'localhost'
+GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
+GRANT SELECT, ALTER ON `mysqltest_1`.* TO `mysqltest_1`@`localhost`
 alter table t1 add b int;
 alter table t1 drop partition p2;
 ERROR 42000: DROP command denied to user 'mysqltest_1'@'localhost' for table 't1'

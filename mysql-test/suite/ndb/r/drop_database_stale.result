@@ -1,0 +1,20 @@
+create database db;
+use db;
+create table t1(x int) engine=ndb;
+use db;
+show tables;
+Tables_in_db
+t1
+drop database db;
+use db;
+ERROR 42000: Unknown database 'db'
+create database db;
+use db;
+create table t1(x int) engine=ndb;
+use db;
+show tables;
+Tables_in_db
+t1
+drop database db;
+use db;
+ERROR 42000: Unknown database 'db'

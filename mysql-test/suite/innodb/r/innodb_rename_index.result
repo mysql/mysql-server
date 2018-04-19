@@ -44,15 +44,15 @@ t	CREATE TABLE `t` (
   KEY `i3` (`d`),
   KEY `i4` (`e`),
   KEY `i1` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -117,15 +117,15 @@ t	CREATE TABLE `t` (
   KEY `i3` (`d`),
   KEY `i4` (`e`),
   KEY `aa` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -208,15 +208,15 @@ t	CREATE TABLE `t` (
   KEY `i3` (`d`),
   KEY `i4` (`e`),
   KEY `i1` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -308,15 +308,15 @@ t	CREATE TABLE `t` (
   KEY `i2` (`c`),
   KEY `i3` (`d`),
   KEY `i1` (`e`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -408,15 +408,15 @@ t	CREATE TABLE `t` (
   KEY `dd` (`d`),
   KEY `i4` (`e`),
   KEY `aa` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -475,15 +475,15 @@ t	CREATE TABLE `t` (
   KEY `i3` (`d`),
   KEY `i4` (`e`),
   KEY `i1` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -562,15 +562,15 @@ t	CREATE TABLE `t` (
   KEY `i3` (`c`),
   KEY `i4` (`e`),
   KEY `aa` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -643,15 +643,15 @@ t	CREATE TABLE `t` (
   KEY `bb` (`d`),
   KEY `i4` (`e`),
   KEY `i3` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -724,15 +724,15 @@ t	CREATE TABLE `t` (
   KEY `i2` (`c`),
   KEY `i4` (`e`),
   KEY `i3` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -790,15 +790,15 @@ t	CREATE TABLE `t` (
   KEY `i2` (`c`),
   KEY `i3` (`d`),
   KEY `i4` (`e`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -861,15 +861,15 @@ t	CREATE TABLE `t` (
   KEY `i3` (`d`),
   KEY `i4` (`e`),
   KEY `i9` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -931,15 +931,15 @@ t	CREATE TABLE `t` (
   KEY `i3` (`d`),
   KEY `i4` (`e`),
   KEY `i1` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -1011,15 +1011,15 @@ t	CREATE TABLE `t` (
   KEY `i2` (`c`),
   KEY `i3` (`d`),
   KEY `i4` (`e`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -1069,15 +1069,15 @@ t	CREATE TABLE `t` (
   PRIMARY KEY (`c2`),
   KEY `x` (`c3`),
   KEY `i2` (`c4`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -1110,15 +1110,15 @@ t	CREATE TABLE `t` (
   PRIMARY KEY (`c2`),
   KEY `x` (`c3`),
   KEY `y` (`c4`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -1159,15 +1159,15 @@ t	CREATE TABLE `t` (
   PRIMARY KEY (`c1`),
   KEY `x` (`c2`),
   KEY `i2` (`c3`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -1202,46 +1202,4 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t RENAME INDEX i TO iiiii;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-DROP TABLE t;
-CREATE TABLE t (a INT, b INT, PRIMARY KEY (a), INDEX i1 (b)) ENGINE=INNODB;
-INSERT INTO t SET a=1;
-RENAME TABLE mysql.innodb_index_stats TO mysql.innodb_index_stats_;
-ALTER TABLE t RENAME INDEX i1 TO i7;
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 1
-Warnings:
-Warning	1025	Error renaming an index of table 't' from 'i1' to 'i7' in InnoDB persistent statistics storage: Persistent statistics do not exist
-RENAME TABLE mysql.innodb_index_stats_ TO mysql.innodb_index_stats;
-SHOW CREATE TABLE t;
-Table	Create Table
-t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  PRIMARY KEY (`a`),
-  KEY `i7` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-SELECT
-t.name AS table_name,
-i.name AS index_name,
-f.name AS column_name
-FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
-WHERE
-t.name LIKE '%/t' AND
-t.table_id = i.table_id AND
-i.index_id = f.index_id
-ORDER BY 1, 2, 3;
-table_name	index_name	column_name
-test/t	i7	b
-test/t	PRIMARY	a
-SELECT index_name, stat_description
-FROM mysql.innodb_index_stats
-WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
-ORDER BY 1, 2;
-index_name	stat_description
-PRIMARY	a
-i1	b
-i1	b,a
 DROP TABLE t;

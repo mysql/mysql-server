@@ -18,7 +18,7 @@ source include/rpl_restart_server.inc;
 # MASTER_POS_WAIT: Check if time-out is correctly handled.
 #
 select master_pos_wait('master-bin.999999',0,2);
-explain extended select master_pos_wait('master-bin.999999',0,2);
+explain select master_pos_wait('master-bin.999999',0,2);
 
 #
 # MASTER_POS_WAIT (BUG#651): Check if it hangs when slave is 
@@ -39,6 +39,40 @@ query_vertical show slave status;
 
 echo "*** must be NULL ***";
 select master_pos_wait('foo', 98);
+
+#
+# Bug#24976304 WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS TIMEOUT VALUE HANDLES SOME
+# INPUTS BADLY
+#
+connection slave;
+--source include/start_slave_sql.inc
+
+--echo Test MASTER_POS_WAIT function with negative timeout value.
+--echo When SQL_MODE is strict, then it will throw WRONG_ARGUMENTS
+--echo error.
+SET @save_sql_mode=@@SESSION.SQL_MODE;
+SET @@SESSION.SQL_MODE="STRICT_ALL_TABLES";
+--error ER_WRONG_ARGUMENTS
+SELECT MASTER_POS_WAIT('master-bin.999999', 4, -1);
+
+#--echo When SQL_MODE is non-strict mode, then it will return NULL immediately
+#--echo without doing any work and generates WRONG_ARGUMENTS warning.
+SET @@SESSION.SQL_MODE="";
+SELECT MASTER_POS_WAIT('master-bin.999999', 4, -1);
+SET @@SESSION.SQL_MODE=@save_sql_mode;
+
+--echo Test WAIT_FOR_EXECUTED_GTID_SET function with fractional timeout value.
+--echo Earlier(before fix), 0.4 is read as integer value '0' and the function
+--echo hanged forever (or till all the specified gtids are executed).
+--echo Now(after fix) 0.4 will be read as doube 0.4 and will waitfor
+--echo atleast 0.4 seconds (or till all the specified  gtids are executed).
+--echo Also check that in case of timeout, function returns -1.
+--let $assert_text= MASTER_POS_WAIT returns -1 if the timeout has been exceeded.
+--let $query_result= query_get_value("SELECT MASTER_POS_WAIT('master-bin.999999', 4, 0.4) AS VALUE", VALUE, 1)
+--let $assert_cond= "$query_result" = "-1"
+--source include/assert.inc
+
+# End of Test Bug#24976304
 
 # End of 4.1 tests
 --let $rpl_only_running_threads= 1

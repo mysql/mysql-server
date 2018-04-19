@@ -7,6 +7,7 @@ call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .
 call mtr.add_suppression("Slave I/O: .* failed with error: Lost connection to MySQL server at 'reading initial communication packet'");
 call mtr.add_suppression("Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; .*");
 call mtr.add_suppression("Slave I/O thread .* register on master");
+call mtr.add_suppression("Unknown system variable 'SERVER_UUID' on master");
 include/stop_slave.inc
 SET @@global.debug= "+d,'debug_lock.before_get_UNIX_TIMESTAMP'";
 include/start_slave.inc
@@ -49,13 +50,15 @@ include/stop_slave.inc
 change master to master_port=SLAVE_PORT;
 start slave;
 *** must be having the replicate-same-server-id IO thread error ***
-include/wait_for_slave_io_error.inc [errno=1593]
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+include/wait_for_slave_io_error.inc [errno=13117]
 Last_IO_Error = 'Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET DEBUG_SYNC= 'RESET';
 include/stop_slave_sql.inc
 RESET SLAVE;
+CHANGE MASTER TO MASTER_PORT=MASTER_PORT;;
+# Adding debug point 'dbug.simulate_no_such_var_server_uuid' to @@GLOBAL.debug
+include/start_slave_io.inc
+include/assert.inc [Master_uuid must be empty string]
+include/stop_slave_io.inc
+# Removing debug point 'dbug.simulate_no_such_var_server_uuid' from @@GLOBAL.debug
 include/rpl_end.inc

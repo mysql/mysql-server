@@ -1,0 +1,99 @@
+## Admin commands error messages
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/admin_cmd_error_msgs.xpl
+--write_file $xtest_file
+-->quiet
+-->stmtadmin create_collection	{"schema":"xtest", "name":"books"}
+-->recvresult
+
+-->stmtadmin disable_notices	{"notice":42}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin disable_notices	{"notice":[]}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin disable_notices	{"notice":["warnings", "account_expired", 42]}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+
+-->stmtadmin create_collection_index	{"schema":42, "collection":"books", "name":"mix", "unique":true, "fields":{"field":"$.isbn", "type":"TEXT(80)", "required":false}}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":[42, 43], "name":"mix", "unique":true, "fields":{"field":"$.isbn", "type":"TEXT(80)", "required":false}}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name":{"mix":42}, "unique":true, "fields":{"field":"$.isbn", "type":"TEXT(80)", "required":false}}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name":"mix", "unique":"true", "fields":{"field":"$.isbn", "type":"TEXT(80)", "required":false}}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name":"mix", "unique":true, "fields":"field"}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name":"mix", "unique":true, "fields":{"field":42, "type":"TEXT(80)", "required":false}}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name":"mix", "unique":true, "fields":{"field":"$.isbn", "type":42, "required":false}}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name":"mix", "unique":true, "fields":{"field":"$.isbn", "type":"TEXT(80)", "required":42}}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name":"mix", "unique":true, "fields":[]}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name":"mix", "unique":true, "fields":[42]}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name":"mix", "unique":true, "fields":[{"field":42, "type":"TEXT(80)", "required":false}]}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name":"mix", "unique":true, "fields":[{"field":"$.isbn", "type":42, "required":false}]}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name":"mix", "unique":true, "fields":[{"field":"$.isbn", "type":"TEXT(80)", "required":42}]}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name":"mix", "unique":true, "fields":[{"field":"$.isbn", "type":"TEXT(80)", "required":false}, {"field":42, "type":"INT", "required":false}]}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name":"mix", "unique":true, "fields":[{"field":"$.isbn", "type":"TEXT(80)", "required":false}, {"field":"$.pages", "type":42, "required":false}]}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name":"mix", "unique":true, "fields":[{"field":"$.isbn", "type":"TEXT(80)", "required":false}, {"field":"$.pages", "type":"INT", "required":42}]}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+EOF
+
+
+CREATE SCHEMA xtest;
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc

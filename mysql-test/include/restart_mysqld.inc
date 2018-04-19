@@ -12,7 +12,9 @@ if (!$restart_parameters)
   let $restart_parameters = restart;
 }
 
---echo # $restart_parameters
+# We use --exec echo instead of simple "--echo" because
+# replace_result works on --exec
+--exec echo "# $restart_parameters"
 
 # Write file to make mysql-test-run.pl expect the "crash", but don't start
 # it until it's told to
@@ -30,7 +32,16 @@ if ($mysqld_name)
 --exec echo "wait" > $_expect_file_name
 
 # Send shutdown to the connected server.
-shutdown_server;
+if (!$shutdown_server_timeout)
+{
+  --shutdown_server
+}
+
+if ($shutdown_server_timeout)
+{
+  --shutdown_server $shutdown_server_timeout
+}
+
 
 --source include/wait_until_disconnected.inc
 

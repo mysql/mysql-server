@@ -40,10 +40,10 @@ BEGIN
 RETURN '';
 END|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET ucs2 COLLATE ucs2_bin
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET ucs2 COLLATE ucs2_bin
 BEGIN
 RETURN '';
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
 #
@@ -55,10 +55,10 @@ BEGIN
 RETURN '';
 END|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET ucs2 COLLATE ucs2_bin
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET ucs2 COLLATE ucs2_bin
 BEGIN
 RETURN '';
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
 CREATE FUNCTION f()
@@ -67,10 +67,10 @@ BEGIN
 RETURN '';
 END|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET latin1 COLLATE latin1_bin
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET latin1 COLLATE latin1_bin
 BEGIN
 RETURN '';
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
 #
@@ -83,10 +83,10 @@ SET f2= f1;
 SET f2= concat(collation(f1), ' ', collation(f2));
 END|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET latin1 COLLATE latin1_bin
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET latin1 COLLATE latin1_bin
 BEGIN
 RETURN '';
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 CREATE FUNCTION f1()
 RETURNS VARCHAR(64) CHARACTER SET ucs2
 BEGIN
@@ -121,14 +121,16 @@ RETURN 'str';
 END|
 ERROR 42000: This version of MySQL doesn't yet support 'COLLATE with no CHARACTER SET in SP parameters, RETURNS, DECLARE'
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP FUNCTION IF EXISTS bug48766;
 CREATE FUNCTION bug48766 ()
 RETURNS ENUM( 'w' ) CHARACTER SET ucs2
 RETURN 0;
 SHOW CREATE FUNCTION bug48766;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug48766	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `bug48766`() RETURNS enum('w') CHARSET ucs2
-RETURN 0	utf8	utf8_general_ci	latin1_swedish_ci
+bug48766	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `bug48766`() RETURNS enum('w') CHARSET ucs2
+RETURN 0	utf8	utf8_general_ci	utf8mb4_0900_ai_ci
 SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_NAME='bug48766';
 DTD_IDENTIFIER
@@ -139,8 +141,8 @@ RETURNS ENUM('а','б','в','г') CHARACTER SET ucs2
 RETURN 0;
 SHOW CREATE FUNCTION bug48766;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug48766	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `bug48766`() RETURNS enum('а','б','в','г') CHARSET ucs2
-RETURN 0	utf8	utf8_general_ci	latin1_swedish_ci
+bug48766	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `bug48766`() RETURNS enum('а','б','в','г') CHARSET ucs2
+RETURN 0	utf8	utf8_general_ci	utf8mb4_0900_ai_ci
 SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_NAME='bug48766';
 DTD_IDENTIFIER

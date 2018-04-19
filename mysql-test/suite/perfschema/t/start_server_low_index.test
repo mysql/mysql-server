@@ -1,9 +1,13 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
+--source include/not_valgrind.inc
 
 --source ../include/start_server_common.inc
+
+
+# NOTE : Index stats are manifested during table creation. To force a low index
+# condition, performance_schema_max_index_stat must be set to the number of
+# all system table indexes, plus 1.
 
 #############################
 # Setup database and tables.
@@ -32,7 +36,7 @@ select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
   where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
 
-# Stats for 2 indexes (full scan, index 0)
+# Stats for 2 indexes (full scan, uidx)
 select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
   from performance_schema.table_io_waits_summary_by_index_usage
   where OBJECT_SCHEMA='db1'
@@ -46,7 +50,7 @@ select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
   where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
 
-# Stats for only 1 indexe: index 0, now named uidx
+# Stats for only 1 index, uidx
 # Stats for full scan lost
 select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
   from performance_schema.table_io_waits_summary_by_index_usage
@@ -55,13 +59,13 @@ select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
 
 # Expect INDEX_STAT lost, we have room for 1 out of 2
 --disable_warnings
-select variable_value > 0 from information_schema.global_status
+select variable_value > 0 from performance_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
 
 # While at it, check that FLUSH STATUS Resets the lost counter
 FLUSH STATUS;
 
-select variable_value from information_schema.global_status
+select variable_value from performance_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
 --enable_warnings
 
@@ -108,7 +112,7 @@ select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
 
 # Expect INDEX_STAT lost
 --disable_warnings
-select variable_value > 0 from information_schema.global_status
+select variable_value > 0 from performance_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
 --enable_warnings
 
@@ -162,7 +166,7 @@ select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
 
 # Do not expect lost counter in INDEX_STAT 
 --disable_warnings
-select variable_value from information_schema.global_status
+select variable_value from performance_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
 --enable_warnings
 

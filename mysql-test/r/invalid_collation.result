@@ -1,0 +1,65 @@
+# Bug #22477433: TABLE WITH UNKNOWN COLLATION CRASHES MYSQL
+#
+# Create a table with a certain collation. Restart
+# the server with a new --character-sets-dir where
+# the collation is not supported. Verify that we
+# can do DROP and RENAME TABLE, and that CHECK TABLE
+# will report a warning.
+#
+# New character sets dir:
+SHOW VARIABLES LIKE 'character_sets_dir%';
+Variable_name	Value
+character_sets_dir	MYSQL_TEST_DIR/std_data/
+#
+# Show new collation available in the new character sets dir:
+SHOW COLLATION LIKE 'utf8_phone_ci';
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+utf8_phone_ci	utf8	352			8	PAD SPACE
+#
+# Create two tables using the new collation:
+CREATE TABLE t1 (i INTEGER) COLLATE utf8_phone_ci;
+CREATE TABLE t2 (i INTEGER) COLLATE utf8_phone_ci;
+#
+# Restart server with original character sets dir:
+# restart:--character-sets-dir=MYSQL_CHARSETSDIR
+SET @@global.log_error_verbosity = 1;
+#
+# Reverted to old character sets dir:
+SHOW VARIABLES LIKE 'character_sets_dir%';
+Variable_name	Value
+character_sets_dir	MYSQL_CHARSETSDIR/
+#
+# The newly added collation has been deleted:
+SHOW COLLATION LIKE 'utf8_phone_ci';
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+#
+# Check behavior of CHECK TABLE (succeed, but report error):
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	invalid collation id 352 for table t1, column i
+test.t1	check	error	Corrupt
+#
+# Check behavior of RENAME TABLE (succeed):
+RENAME TABLE t1 TO t1_new;
+RENAME TABLE t1_new TO t1;
+#
+# Check behavior of ALTER TABLE w. COPY (fail):
+ALTER TABLE t1 ADD COLUMN (j INTEGER);
+ERROR HY000: invalid collation id 352 for table t1, column i
+#
+# Check behavior of SELECT (fail):
+SELECT * FROM t1;
+ERROR HY000: invalid collation id 352 for table t1, column i
+#
+# Check behavior of INSERT (fail):
+INSERT INTO t1 VALUES (1);
+ERROR HY000: invalid collation id 352 for table t1, column i
+#
+# Check behavior of SHOW CREATE (fail):
+SHOW CREATE TABLE t1;
+ERROR HY000: invalid collation id 352 for table t1, column i
+#
+# Check behavior of DROP TABLE (succeed):
+DROP TABLE t1;
+DROP TABLE t2;
+SET @@global.log_error_verbosity= 2;

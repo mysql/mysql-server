@@ -1,0 +1,59 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+--source include/no_protocol.inc
+
+let $table = "prepared_statements_instances";
+
+--echo TABLE: $table
+--echo INDEXES: PK (OBJECT_INSTANCE_BEGIN), KEY (STATEMENT_ID), KEY (STATEMENT_NAME),
+--echo          KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME), KEY (OWNER_THREAD_ID, OWNER_EVENT_ID)
+
+--source ../include/idx_compare_setup.inc
+
+--connection default
+
+# Get target object_instance_begin, statement_id, owner_thread_id and owner_event_id
+
+#--disable_query_log
+eval SELECT object_instance_begin, statement_id, owner_thread_id, owner_event_id
+  INTO @object_instance_begin, @target_statement_id, @target_thread_id, @target_event_id
+  FROM performance_schema.prepared_statements_instances
+  WHERE STATEMENT_NAME = 'st2' LIMIT 1;
+#--enable_query_log
+
+--echo
+--echo ## Test OBJECT_INSTANCE_BEGIN
+let $key_group = 12;
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test STATEMENT_ID
+let $key_group = 14;
+let $id_column = STATEMENT_ID;
+SET @target_id = @target_statement_id;
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test STATEMENT_NAME
+let $key_group = 13;
+let $name_column = STATEMENT_NAME;
+let $target_name = st2;
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test OWNER_THREAD_ID, OWNER_EVENT_ID
+let $key_group = 1.1;
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA, OWNER_OBJECT_NAME
+let $key_group = 10.1;
+let $target_type  = PROCEDURE;
+let $target_schema = test;
+let $target_name  = SampleProc1;
+--source ../include/idx_compare_load.inc
+
+
+--source ../include/idx_compare_cleanup.inc

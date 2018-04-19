@@ -1,13 +1,8 @@
 #### suite/funcs_1/t/innodb_trig_03e.test
 
-# This test cannot be used for the embedded server because we check here
-# privileges.
---source include/not_embedded.inc
-
 # InnoDB tables should be used
 #
 # 1. Check if InnoDB is available
---source include/have_innodb.inc
 # 2. Set $engine_type
 let $engine_type= innodb;
 

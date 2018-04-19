@@ -4,7 +4,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					1	8	1	1	N	32897	0	63
 def					1.0	246	4	3	N	32897	1	63
 def					-1	8	2	2	N	32897	0	63
-def					hello	253	5	5	N	1	31	8
+def					hello	253	20	5	N	1	31	255
 def					NULL	6	0	0	Y	32896	0	63
 1	1.0	-1	hello	NULL
 1	1.0	-1	hello	NULL
@@ -23,9 +23,9 @@ def	test	t1	t1	i	i	13	4	0	Y	32864	0	63
 def	test	t1	t1	j	j	10	10	0	Y	128	0	63
 def	test	t1	t1	k	k	7	19	0	N	9345	0	63
 def	test	t1	t1	l	l	12	19	0	Y	128	0	63
-def	test	t1	t1	m	m	254	1	0	Y	256	0	8
-def	test	t1	t1	n	n	254	3	0	Y	2048	0	8
-def	test	t1	t1	o	o	254	10	0	Y	0	0	8
+def	test	t1	t1	m	m	254	4	0	Y	256	0	255
+def	test	t1	t1	n	n	254	12	0	Y	2048	0	255
+def	test	t1	t1	o	o	254	40	0	Y	0	0	255
 a	b	c	d	e	f	g	h	i	j	k	l	m	n	o
 select a b, b c from t1 as t2;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -40,16 +40,16 @@ INSERT INTO t2 VALUES (1,'yes'),(2,'no');
 select t1.id, t1.data, t2.data from t1, t2 where t1.id = t2.id;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	t1	id	id	1	3	1	Y	32768	0	63
-def	test	t1	t1	data	data	253	255	6	Y	0	0	8
-def	test	t2	t2	data	data	254	3	3	Y	0	0	8
+def	test	t1	t1	data	data	253	1020	6	Y	0	0	255
+def	test	t2	t2	data	data	254	12	3	Y	0	0	255
 id	data	data
 1	male	yes
 2	female	no
 select t1.id, t1.data, t2.data from t1, t2 where t1.id = t2.id order by t1.id;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	t1	id	id	1	3	1	Y	32768	0	63
-def	test	t1	t1	data	data	253	255	6	Y	0	0	8
-def	test	t2	t2	data	data	254	3	3	Y	0	0	8
+def	test	t1	t1	data	data	253	1020	6	Y	0	0	255
+def	test	t2	t2	data	data	254	12	3	Y	0	0	255
 id	data	data
 1	male	yes
 2	female	no
@@ -76,12 +76,12 @@ def			aaa	@arg00	@arg00	8	20	1	Y	32768	0	63
 1
 select 1 union select 1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def				1	1	8	20	1	N	32769	0	63
+def				1	1	8	1	1	N	32769	0	63
 1
 1
 select * from (select 1 union select 1) aaa;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			aaa	1	1	8	20	1	N	32769	0	63
+def			aaa	1	1	8	1	1	N	32769	0	63
 1
 1
 drop table t1;
@@ -96,7 +96,7 @@ i
 2
 affected rows: 1
 affected rows: 0
-create table t1 (id int(10));
+create table t1 (id int(10)) ENGINE=MyISAM;
 insert into t1 values (1);
 CREATE  VIEW v1 AS select t1.id as id from t1;
 CREATE  VIEW v2 AS select t1.id as renamed from t1;
@@ -148,7 +148,7 @@ INSERT INTO t1 VALUES ('1'), ('2'), ('3');
 INSERT INTO t2 VALUES ('1'), ('2'), ('3'), ('2');
 SELECT v1.c1 FROM v1 JOIN t2 ON c1=c2 ORDER BY 1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	v1	c1	c1	254	1	1	Y	0	0	8
+def	test	t1	v1	c1	c1	254	4	1	Y	0	0	255
 c1
 1
 2
@@ -156,8 +156,8 @@ c1
 3
 SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	v1	v1	c1	c1	254	1	1	Y	0	0	8
-def	test	v2	v2	c2	c2	254	1	1	Y	0	0	8
+def	test	v1	v1	c1	c1	254	4	1	Y	0	0	255
+def	test	v2	v2	c2	c2	254	4	1	Y	0	0	255
 c1	c2
 1	1
 2	2
@@ -165,16 +165,16 @@ c1	c2
 2	2
 SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2 GROUP BY v1.c1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	v1	c1	c1	254	1	1	Y	32768	0	8
-def	test	t2	v2	c2	c2	254	1	1	Y	0	0	8
+def	test	t1	v1	c1	c1	254	4	1	Y	32768	0	255
+def	test	t2	v2	c2	c2	254	4	1	Y	0	0	255
 c1	c2
 1	1
 2	2
 3	3
 SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2 GROUP BY v1.c1 ORDER BY v2.c2;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	v1	c1	c1	254	1	1	Y	32768	0	8
-def	test	t2	v2	c2	c2	254	1	1	Y	0	0	8
+def	test	t1	v1	c1	c1	254	4	1	Y	32768	0	255
+def	test	t2	v2	c2	c2	254	4	1	Y	0	0	255
 c1	c2
 1	1
 2	2
@@ -287,27 +287,25 @@ def	test	t1	t1	time_col	time_col	11	10	0	Y	128	0	63
 def	test	t1	t1	timestamp_col	timestamp_col	7	19	0	N	9345	0	63
 def	test	t1	t1	year_col	year_col	13	4	0	Y	32864	0	63
 def	test	t1	t1	datetime_col	datetime_col	12	19	0	Y	128	0	63
-def	test	t1	t1	char_col	char_col	254	5	0	Y	0	0	8
-def	test	t1	t1	varchar_col	varchar_col	253	10	0	Y	0	0	8
+def	test	t1	t1	char_col	char_col	254	20	0	Y	0	0	255
+def	test	t1	t1	varchar_col	varchar_col	253	40	0	Y	0	0	255
 def	test	t1	t1	binary_col	binary_col	254	10	0	Y	128	0	63
 def	test	t1	t1	varbinary_col	varbinary_col	253	10	0	Y	128	0	63
 def	test	t1	t1	tinyblob_col	tinyblob_col	252	255	0	Y	144	0	63
 def	test	t1	t1	blob_col	blob_col	252	65535	0	Y	144	0	63
 def	test	t1	t1	mediumblob_col	mediumblob_col	252	16777215	0	Y	144	0	63
 def	test	t1	t1	longblob_col	longblob_col	252	4294967295	0	Y	144	0	63
-def	test	t1	t1	text_col	text_col	252	65535	0	Y	16	0	8
-def	test	t1	t1	mediumtext_col	mediumtext_col	252	16777215	0	Y	16	0	8
-def	test	t1	t1	longtext_col	longtext_col	252	4294967295	0	Y	16	0	8
-def	test	t1	t1	enum_col	enum_col	254	1	0	Y	256	0	8
-def	test	t1	t1	set_col	set_col	254	5	0	Y	2048	0	8
+def	test	t1	t1	text_col	text_col	252	262140	0	Y	16	0	255
+def	test	t1	t1	mediumtext_col	mediumtext_col	252	67108860	0	Y	16	0	255
+def	test	t1	t1	longtext_col	longtext_col	252	4294967295	0	Y	16	0	255
+def	test	t1	t1	enum_col	enum_col	254	4	0	Y	256	0	255
+def	test	t1	t1	set_col	set_col	254	20	0	Y	2048	0	255
 bool_col	boolean_col	bit_col	tiny	tiny_uns	small	small_uns	medium	medium_uns	int_col	int_col_uns	big	big_uns	decimal_col	numeric_col	fixed_col	dec_col	decimal_col_uns	fcol	fcol_uns	dcol	double_precision_col	dcol_uns	date_col	time_col	timestamp_col	year_col	datetime_col	char_col	varchar_col	binary_col	varbinary_col	tinyblob_col	blob_col	mediumblob_col	longblob_col	text_col	mediumtext_col	longtext_col	enum_col	set_col
 drop table t1;
 #
 #  WL#946 TIME/DATETIME/TIMESTAMP with fractional precision
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (
 t6 TIME(6), t5 TIME(5), t4 TIME(4),
 t3 TIME(3), t2 TIME(2), t1 TIME(1),
@@ -349,3 +347,63 @@ def	test	t1	t1	ts0	ts0	7	19	0	N	129	0	63
 t6	t5	t4	t3	t2	t1	t0	dt6	dt5	dt4	dt3	dt2	dt1	dt0	ts6	ts5	ts4	ts3	ts2	ts1	ts0
 DROP TABLE t1;
 SET sql_mode = default;
+#
+# Bug#22364401: COM_QUERY RESPONSE METADATA WITH '*' IN FIELD ORG_TABLE
+#
+CREATE TABLE t1 (f1 INTEGER, f2 CHAR(1));
+INSERT INTO t1 VALUES (10, 'A');
+CREATE VIEW v1 AS SELECT f1, f2 FROM t1;
+CREATE VIEW v2 AS SELECT DISTINCT f1 FROM t1;
+SELECT * FROM (SELECT f1 FROM t1) AS dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	dt	f1	f1	3	11	2	Y	32768	0	63
+f1
+10
+SELECT * FROM (SELECT f1 FROM (SELECT f1 FROM t1) AS dt1) AS dt2;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	dt2	f1	f1	3	11	2	Y	32768	0	63
+f1
+10
+SELECT *
+FROM (SELECT t1.f1 AS a, t2.f1 AS b, t1.f1+t2.f1 AS d FROM t1 JOIN t1 AS t2) AS dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	dt	a	a	3	11	2	Y	32768	0	63
+def	test	t2	dt	b	b	3	11	2	Y	32768	0	63
+def			dt	d	d	8	12	2	Y	32896	0	63
+a	b	d
+10	10	20
+SELECT * FROM (SELECT DISTINCT f1 FROM t1) AS dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def		t1	dt	f1	f1	3	11	2	Y	32768	0	63
+f1
+10
+SELECT * FROM (SELECT DISTINCT t1.f1+t2.f1 AS d FROM t1 JOIN t1 AS t2) AS dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			dt	d	d	8	12	2	Y	32768	0	63
+d
+20
+SELECT * FROM v1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	v1	v1	f1	f1	3	11	2	Y	32768	0	63
+def	test	v1	v1	f2	f2	254	4	1	Y	0	0	255
+f1	f2
+10	A
+SELECT * FROM v2;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def		t1	v2	f1	f1	3	11	2	Y	32768	0	63
+f1
+10
+SELECT * FROM (SELECT * FROM v1) AS dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	dt	f1	f1	3	11	2	Y	32768	0	63
+def	test	t1	dt	f2	f2	254	4	1	Y	0	0	255
+f1	f2
+10	A
+SELECT * FROM (SELECT * FROM v2) AS dt;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def		v2	dt	f1	f1	3	11	2	Y	32768	0	63
+f1
+10
+DROP VIEW v1,v2;
+DROP TABLE t1;
+# End of test for Bug#22364401

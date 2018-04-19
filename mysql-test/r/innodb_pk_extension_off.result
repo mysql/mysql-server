@@ -57,7 +57,7 @@ test.t1	analyze	status	OK
 #
 EXPLAIN SELECT count(*) FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,k1	PRIMARY	4	const	#	19.95	Using where
+1	SIMPLE	t1	NULL	ref	PRIMARY,k1	PRIMARY	4	const	#	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` = 3))
 FLUSH STATUS;
@@ -75,7 +75,7 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT pk_2 FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,k1	PRIMARY	4	const	#	19.95	Using where
+1	SIMPLE	t1	NULL	ref	PRIMARY,k1	PRIMARY	4	const	#	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` = 3))
 FLUSH STATUS;
@@ -97,7 +97,7 @@ Handler_read_rnd_next	0
 #
 EXPLAIN SELECT count(*) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,k1	PRIMARY	4	NULL	#	19.95	Using where
+1	SIMPLE	t1	NULL	range	PRIMARY,k1	PRIMARY	4	NULL	#	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` between 3 and 5))
 FLUSH STATUS;
@@ -115,7 +115,7 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,k1	PRIMARY	4	NULL	#	19.95	Using where
+1	SIMPLE	t1	NULL	range	PRIMARY,k1	PRIMARY	4	NULL	#	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` between 3 and 5))
 FLUSH STATUS;
@@ -159,7 +159,7 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT MIN(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,k1	PRIMARY	4	NULL	#	19.95	Using where
+1	SIMPLE	t1	NULL	range	PRIMARY,k1	PRIMARY	4	NULL	#	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` between 3 and 5))
 FLUSH STATUS;
@@ -195,7 +195,7 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT MAX(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,k1	PRIMARY	4	NULL	#	19.95	Using where
+1	SIMPLE	t1	NULL	range	PRIMARY,k1	PRIMARY	4	NULL	#	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`pk_1`) AS `MAX(pk_1)` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` between 3 and 5))
 FLUSH STATUS;
@@ -259,7 +259,7 @@ EXPLAIN SELECT count(*) FROM t1 AS t1 JOIN t1 AS t2
 ON t2.pk_1 = t1.pk_1 WHERE t1.f1 = '2000-01-03' AND t2.f1 = '2000-01-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	PRIMARY,k1	k1	6	const	#	100.00	Using index
-1	SIMPLE	t2	NULL	ref	PRIMARY,k1	PRIMARY	4	test.t1.pk_1	#	19.95	Using where
+1	SIMPLE	t2	NULL	ref	PRIMARY,k1	PRIMARY	4	test.t1.pk_1	#	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`pk_1` = `test`.`t1`.`pk_1`) and (`test`.`t2`.`f1` = '2000-01-03') and (`test`.`t1`.`f1` = '2000-01-03'))
 FLUSH STATUS;
@@ -282,7 +282,7 @@ Handler_read_rnd_next	0
 EXPLAIN SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,k1	PRIMARY	4	const	#	19.95	Using where
+1	SIMPLE	t1	NULL	ref	PRIMARY,k1	PRIMARY	4	const	#	20.00	Using where; Backward index scan
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` = 3)) order by `test`.`t1`.`pk_2` desc limit 5
 FLUSH STATUS;
@@ -303,7 +303,7 @@ Handler_read_rnd_next	0
 EXPLAIN SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,k1	PRIMARY	4	NULL	#	19.95	Using where; Using filesort
+1	SIMPLE	t1	NULL	range	PRIMARY,k1	PRIMARY	4	NULL	#	20.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` between 3 and 5)) order by `test`.`t1`.`pk_2` desc limit 5
 FLUSH STATUS;
@@ -364,7 +364,7 @@ f4 VARCHAR(500), f5 VARCHAR(500), f6 VARCHAR(500),
 f7 VARCHAR(500),
 PRIMARY KEY (f1, f2, f3, f4),
 KEY k1 (f5, f6, f7)
-) ENGINE = InnoDB;
+) charset latin1 ENGINE = InnoDB;
 EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f3 = 'a' AND f4 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';
@@ -430,4 +430,15 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	3
 DROP TABLE t1, t2;
+#
+# Bug#20430526 ADDRESSSANITIZER: HEAP-BUFFER-OVERFLOW IN
+#              FIELD_BLOB::GET_KEY_IMAGE FLOAT8STORE
+#
+CREATE TABLE t1
+(a GEOMETRY NOT NULL SRID 0, PRIMARY KEY (a(1)), SPATIAL KEY(a)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (point(7, 7));
+SELECT st_astext(a) FROM t1 WHERE st_equals(a, point(7, 7));
+st_astext(a)
+POINT(7 7)
+DROP TABLE t1;
 set optimizer_switch=default;

@@ -33,7 +33,6 @@
 #  WL#6120- Change master without stopping Slave threads.
 #
 
---source include/have_gtid.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_mixed.inc
 
@@ -42,10 +41,8 @@
 --echo
 
 --connection master
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-GRANT REPLICATION SLAVE ON *.* TO replssl@localhost REQUIRE SSL;
-set sql_mode= @orig_sql_mode;
+CREATE USER replssl@localhost REQUIRE SSL;
+GRANT REPLICATION SLAVE ON *.* TO replssl@localhost;
 --source include/sync_slave_sql_with_master.inc
 
 --echo

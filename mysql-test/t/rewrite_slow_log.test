@@ -1,4 +1,3 @@
-
 #
 # WL#5706/Bug#58712/Bug#11746378
 # Encrypt or remove passwords from slow, query, and binary logs
@@ -8,11 +7,12 @@
 --source include/not_windows.inc
 
 # For Bug#16467055 and friends:
---source include/not_embedded.inc
 
 # make sure we start with a clean slate. log_tables.test says this is OK.
 TRUNCATE TABLE mysql.slow_log;
 
+SET @old_master_info_repository = @@GLOBAL.master_info_repository;
+SET @old_relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
 SET @old_log_output=          @@global.log_output;
 SET @old_slow_query_log=      @@global.slow_query_log;
 SET @old_slow_query_log_file= @@global.slow_query_log_file;
@@ -31,32 +31,32 @@ SET SESSION long_query_time=  0;
 # obfuscations above for the general log.
 
 # 1.1.1.1
-GRANT ALL on *.* TO test_user1 IDENTIFIED BY 'azundris1';
-
-# 1.1.1.2
 CREATE USER test_user2 IDENTIFIED BY 'azundris2';
 
-# 1.1.1.3
+# 1.1.1.2
+# need TABLE so we can test FOR CHANNEL
+SET GLOBAL master_info_repository = 'TABLE';
+SET GLOBAL relay_log_info_repository = 'TABLE';
+
 --disable_warnings
-CHANGE MASTER TO MASTER_PASSWORD='azundris3';
-CHANGE MASTER TO MASTER_CONNECT_RETRY = 1, MASTER_HEARTBEAT_PERIOD = 1.01,
+CHANGE MASTER TO MASTER_PASSWORD='azundris3',
+  MASTER_CONNECT_RETRY = 1, MASTER_HEARTBEAT_PERIOD = 1.01,
   MASTER_LOG_FILE = 'master_log_name', MASTER_LOG_POS = 0,
   MASTER_SSL = 0, MASTER_SSL_CA = 'ca_file_name',
   MASTER_SSL_CAPATH = 'ca_directory_name',
   MASTER_SSL_CERT = 'cert_file_name', MASTER_SSL_KEY = 'key_file_name',
-  MASTER_SSL_CIPHER = 'cipher_list', MASTER_SSL_VERIFY_SERVER_CERT = 0,
-  IGNORE_SERVER_IDS = (99,100);
-# cleanup
-CHANGE MASTER TO MASTER_CONNECT_RETRY = 1, MASTER_HEARTBEAT_PERIOD = 1.01,
-  MASTER_LOG_FILE = '', MASTER_LOG_POS = 0,
-  MASTER_SSL = 0, MASTER_SSL_CA = '',
-  MASTER_SSL_CAPATH = '',
-  MASTER_SSL_CERT = '', MASTER_SSL_KEY = '',
-  MASTER_SSL_CIPHER = '', MASTER_SSL_VERIFY_SERVER_CERT = 0,
-  IGNORE_SERVER_IDS = ( );
+  MASTER_SSL_CIPHER = 'cipher_list', MASTER_SSL_VERIFY_SERVER_CERT = 1,
+  MASTER_SSL_CRL = 'crl_file_name', MASTER_SSL_CRLPATH = 'crl_directory_name',
+  IGNORE_SERVER_IDS = (99,100), MASTER_TLS_VERSION = 'TLSv1.2',
+  MASTER_BIND = 'eth4n', MASTER_RETRY_COUNT = 7,
+  MASTER_DELAY = 4711, MASTER_AUTO_POSITION = 0 FOR CHANNEL 'chan_jackie';
 --enable_warnings
 
-# 1.1.1.4
+RESET SLAVE ALL;
+SET GLOBAL master_info_repository = DEFAULT;
+SET GLOBAL relay_log_info_repository = DEFAULT;
+
+# 1.1.1.3
 CREATE USER 'test_user4'@'localhost';
 SET PASSWORD FOR 'test_user4'@'localhost' = 'azundris4';
 
@@ -66,7 +66,6 @@ SET GLOBAL slow_query_log='OFF';
 
 DROP USER 'test_user4'@'localhost';
 DROP USER test_user2;
-DROP USER test_user1;
 
 let $wait_condition= SELECT sql_text FROM mysql.slow_log WHERE sql_text LIKE "%SET PASSWORD FOR `test_user4`@`localhost`%";
 --source include/wait_condition.inc
@@ -85,13 +84,13 @@ SELECT sql_text FROM test_log WHERE sql_text LIKE CONCAT('%azun','dris%');
 SELECT sql_text FROM mysql.slow_log WHERE sql_text LIKE CONCAT('%azun','dris%');
 
 --echo ------ from file ------
-SELECT sql_text FROM test_log WHERE sql_text like '%AS %';
-SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_PASSWORD %';
-SELECT sql_text FROM test_log WHERE sql_text like '%SET PASSWORD %'; 
+SELECT count(*) FROM test_log WHERE sql_text like '%AS %' AND sql_text NOT LIKE '%<secret>%';
+SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_BIND %';
+SELECT count(*) FROM test_log WHERE sql_text like '%SET PASSWORD %'; 
 --echo ------ from table ------
-SELECT sql_text FROM mysql.slow_log WHERE sql_text like '%AS %';
-SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_PASSWORD %';
-SELECT sql_text FROM test_log WHERE sql_text like '%SET PASSWORD %';
+SELECT count(*) FROM mysql.slow_log WHERE sql_text like '%AS %' AND sql_text NOT LIKE '%<secret>%';
+SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_BIND %';
+SELECT count(*) FROM test_log WHERE sql_text like '%SET PASSWORD %';
 --echo ------ done ------
 
 DROP TABLE test_log;
@@ -112,8 +111,8 @@ SET GLOBAL log_output      = 'TABLE';
 
 TRUNCATE mysql.slow_log;
 
---exec $MYSQL -e "SET SESSION long_query_time=0; GRANT ALL PRIVILEGES ON *.* TO u16467055 IDENTIFIED BY 'meow';" test
-let $wait_condition= SELECT "slow -->", sql_text FROM mysql.slow_log WHERE sql_text LIKE "%TO 'u16467055'%";
+--exec $MYSQL -e "SET SESSION long_query_time=0; CREATE USER u16467055 IDENTIFIED BY 'meow';" test
+let $wait_condition= SELECT "slow -->", sql_text FROM mysql.slow_log WHERE sql_text LIKE "%USER 'u16467055'%";
 --source include/wait_condition.inc
 
 DROP USER u16467055;
@@ -127,3 +126,7 @@ SET SESSION long_query_time=    @old_long_query_time;
 SET GLOBAL  slow_query_log_file=@old_slow_query_log_file;
 SET GLOBAL  slow_query_log=     @old_slow_query_log;
 SET GLOBAL  log_output=         @old_log_output;
+--disable_warnings
+SET GLOBAL  master_info_repository= @old_master_info_repository;
+SET GLOBAL  relay_log_info_repository= @old_relay_log_info_repository;
+--enable_warnings

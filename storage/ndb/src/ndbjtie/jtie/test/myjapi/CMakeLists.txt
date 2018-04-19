@@ -1,21 +1,25 @@
-# Copyright (c) 2010, 2012 Oracle and/or its affiliates. All rights reserved.
+ # Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# neither wildcards (nor line breaks) for clean targets supported by cmake
-SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES
-  "test_myjapi.sh.log;test_myjapi.cmd.log")
 
 # the Java API wrapper and test
 SET(JAVA_SOURCE_DIRS
@@ -40,43 +44,33 @@ CREATE_JAR(jtie-test-myjapi ${JAVA_SOURCES}
   MERGE_JARS ${JARS}
   DEPENDENCIES jtie.jar)
 
-IF(HAVE_JDK)
-
-  INCLUDE_DIRECTORIES(
+INCLUDE_DIRECTORIES(
   	${JNI_INCLUDE_DIRS}
   	${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/utils
   	${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie
   	${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/test/myapi)
 
-  # enable safety behaviour, expected by a myjapi subtest
-  SET(CMAKE_CXX_FLAGS
+# enable safety behaviour, expected by a myjapi subtest
+SET(CMAKE_CXX_FLAGS
   	"${CMAKE_CXX_FLAGS} -DJTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE")
 
-  # the Java API's JNI implementation
-  ADD_LIBRARY(libmyjapi SHARED myjapi_lib.cpp)
-  # Set any special linker flags for shared library
-  SET_TARGET_PROPERTIES(libmyjapi
-    PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
-  SET_TARGET_PROPERTIES(libmyjapi PROPERTIES OUTPUT_NAME "myjapi")
-  TARGET_LINK_LIBRARIES(libmyjapi libmyapi)
+# the Java API's JNI implementation
+ADD_LIBRARY(libmyjapi SHARED myjapi_lib.cpp)
+# Set any special linker flags for shared library
+SET_TARGET_PROPERTIES(libmyjapi
+  PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
+SET_TARGET_PROPERTIES(libmyjapi PROPERTIES OUTPUT_NAME "myjapi")
+TARGET_LINK_LIBRARIES(libmyjapi libmyapi)
 
-ENDIF(HAVE_JDK)
 
-IF(WIN32)
+set(JAR "${JAVA_NDB_VERSION}.jar")
+set(JTIE_MYJAPI_JAR "${CMAKE_CURRENT_BINARY_DIR}/jtie-test-myjapi-${JAR}")
 
-  # build the unit-test script for win
-  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_myjapi.cmd.in
-                 ${CMAKE_CURRENT_BINARY_DIR}/test_myjapi.cmd
-		 @ONLY NEWLINE_STYLE WIN32)
-
-ELSE(WIN32)
-
-  # build the unit-test script for *nix
-  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_myjapi.sh.in
-                 ${CMAKE_CURRENT_BINARY_DIR}/test_myjapi.sh
-		 @ONLY NEWLINE_STYLE UNIX)
-  ADD_CUSTOM_TARGET(chmod_x_myjapi ALL
-    chmod a+x "${CMAKE_CURRENT_BINARY_DIR}/test_myjapi.sh"
-    || echo "") # don't break the build if file was deleted
-
-ENDIF(WIN32)
+ADD_TEST(
+  NAME test_jtie_myjapi
+  COMMAND
+  ${Java_JAVA_EXECUTABLE_PATH} ${Java_JAVA_ARCH_OPT} "-ea" "-Xcheck:jni"
+  "-classpath" "${JTIE_MYJAPI_JAR}"
+  "-Djava.library.path=${CMAKE_CURRENT_BINARY_DIR}"
+  "test.MyJapiTest"
+)

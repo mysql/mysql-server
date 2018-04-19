@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -56,7 +63,29 @@ public:
     OPERATIONS_TABLEID =         14,
     MEMBERSHIP_TABLEID =         15,
     DICT_OBJ_INFO_TABLEID =      16,
-    FRAG_MEM_USE_TABLEID =       17
+    FRAG_MEM_USE_TABLEID =       17,
+    DISK_WRITE_SPEED_BASE_TABLEID = 18,
+    DISK_WRITE_SPEED_AGGREGATE_TABLEID = 19,
+    FRAG_OPERATIONS_TABLEID =    20,
+    RESTART_INFO_TABLEID =       21,
+    TC_TIME_TRACK_STATS_TABLEID = 22,
+    CONFIG_VALUES_TABLEID =      23,
+    THREADS_TABLEID =            24,
+    CPUSTAT_50MS_TABLEID =       25,
+    CPUSTAT_1SEC_TABLEID =       26,
+    CPUSTAT_20SEC_TABLEID =      27,
+    CPUSTAT_TABLEID =            28,
+    FRAG_LOCKS_TABLEID =         29,
+    ACC_OPERATIONS_TABLEID =     30,
+    TABLE_DIST_STATUS_TABLEID =  31,
+    TABLE_FRAGMENTS_TABLEID =    32,
+    TABLE_REPLICAS_TABLEID =     33,
+    TABLE_DIST_STATUS_ALL_TABLEID =34,
+    TABLE_FRAGMENTS_ALL_TABLEID =35,
+    TABLE_REPLICAS_ALL_TABLEID = 36,
+    STORED_TABLES_TABLEID =      37,
+    PROCESSES_TABLEID =          38,
+    CONFIG_NODES_TABLEID =       39
   };
 
   struct Table {

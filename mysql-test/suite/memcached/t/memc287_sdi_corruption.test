@@ -1,0 +1,113 @@
+# Bug#20205934 - ENABLE VALGRIND FOR MEMCACHED TESTS
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+# Memcached SDI APIs are enabled only for debug version
+source include/have_debug.inc;
+
+--disable_query_log
+CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
+CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
+# Create the memcached tables
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES('cache_policy', 'innodb_only',
+				  'innodb_only', 'innodb_only', 'innodb_only');
+
+INSERT INTO config_options VALUES('separator', '|');
+
+# describe table for memcache
+INSERT INTO containers VALUES ('desc_t1', 'test', 't1',
+			       'c1', 'c2', '0', '0', '0', 'PRIMARY');
+
+USE test;
+let MEMCACHED_PORT=11287;
+let MYSQLD_DATADIR=`select @@datadir`;
+let INNODB_PAGE_SIZE=`select @@innodb_page_size`;
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY,
+	c2 VARCHAR(30),
+	c3 FLOAT,
+	KEY idx1(c3),
+	KEY idx2(c2(20)))
+ENGINE = INNODB;
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+--echo # 1. Corrupt SDI Leaf Page
+let SDI_PAGE_NUM = 22;
+--source ../include/sdi_corrupt_table.inc
+
+# TRUNCATE will not re-create SDI indexes for now. So drop+create table
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT PRIMARY KEY,
+	c2 VARCHAR(30),
+	c3 FLOAT,
+	KEY idx1(c3),
+	KEY idx2(c2(20)))
+ENGINE = INNODB;
+
+--echo # 2. Corrupt SDI Non-Leaf Page
+let SDI_PAGE_NUM = 21;
+--source ../include/sdi_corrupt_table.inc
+
+# TRUNCATE will not re-create SDI indexes for now. So drop+create table
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT PRIMARY KEY,
+	c2 VARCHAR(30),
+	c3 FLOAT,
+	KEY idx1(c3),
+	KEY idx2(c2(20)))
+ENGINE = INNODB;
+
+--echo # 3. Corrupt SDI Root Page. We cannot drop and create SDI Indexes
+--echo # We expect crash when dropping SDI indexes.
+SET GLOBAL innodb_limit_optimistic_insert_debug = 2;
+
+let TABLE_NAME = t1;
+let MEMCACHED_TABLE_MAPPING = desc_t1;
+--source ../include/sdi_insert_get_row.inc
+
+let SDI_PAGE_NUM = 3;
+
+--source include/shutdown_mysqld.inc
+perl;
+my $fname= "$ENV{'MYSQLD_DATADIR'}test/t1.ibd";
+open(FILE, "+<", $fname) or die;
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * $ENV{'SDI_PAGE_NUM'}, SEEK_SET);
+print FILE chr(0) x 4;
+close FILE;
+EOF
+
+let SEARCH_FILE = $MYSQLTEST_VARDIR/tmp/crash.log;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+let $restart_parameters = restart: --log-error=$MYSQLTEST_VARDIR/tmp/crash.log --innodb_buffer_pool_load_at_startup=OFF;
+--source include/start_mysqld.inc
+
+# Write file to make mysql-test-run.pl expect the "crash", but don't
+# start it until it's told to
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--source ../include/sdi_drop_index.inc
+
+--source include/wait_until_disconnected.inc
+
+let $restart_parameters = restart: --innodb_buffer_pool_load_at_startup=OFF;
+--source include/start_mysqld.inc
+
+let SEARCH_PATTERN =  Unable to read page \\[page id: space=\d+, page number=\d+\\] into the buffer pool after \d+ attempts;
+--source include/search_pattern.inc
+
+# Do not use memcached commands (below) on table t1 because we corrupted root
+# page of SDI Index. Re-create the table before using memcached SDI
+# commands on table t1.
+
+DROP TABLE t1;
+DROP DATABASE innodb_memcache;
+# Stop plugin before innodb_memcached configuration
+UNINSTALL PLUGIN daemon_memcached;
+--remove_file $SEARCH_FILE

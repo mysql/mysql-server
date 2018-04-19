@@ -1,73 +1,128 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef MYSQL_PLUGIN_GROUP_REPLICATION_INCLUDED
 #define MYSQL_PLUGIN_GROUP_REPLICATION_INCLUDED
 
-/* API for Group Peplication plugin. (MYSQL_GROUP_REPLICATION_PLUGIN) */
+/**
+  @file include/mysql/plugin_group_replication.h
+  API for Group Replication plugin. (MYSQL_GROUP_REPLICATION_PLUGIN)
+*/
 
 #include <mysql/plugin.h>
-#define MYSQL_GROUP_REPLICATION_INTERFACE_VERSION 0x0100
+#define MYSQL_GROUP_REPLICATION_INTERFACE_VERSION 0x0102
 
-enum enum_member_state {
-  MEMBER_STATE_ONLINE= 1,
-  MEMBER_STATE_OFFLINE,
-  MEMBER_STATE_RECOVERING
+/*
+  Callbacks for get_connection_status_info function.
+
+  context field can have NULL value, plugin will always pass it
+  through all callbacks, independent of its value.
+  Its value will not be used by plugin.
+
+  All callbacks are mandatory.
+*/
+struct GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS {
+  void *const context;
+  void (*set_channel_name)(void *const context, const char &value,
+                           size_t length);
+  void (*set_group_name)(void *const context, const char &value, size_t length);
+  void (*set_source_uuid)(void *const context, const char &value,
+                          size_t length);
+  void (*set_service_state)(void *const context, bool state);
 };
 
-typedef struct st_group_replication_connection_status_info
-{
-  char* channel_name;
-  char* group_name;
-  bool service_state;
-} GROUP_REPLICATION_CONNECTION_STATUS_INFO;
+/*
+  Callbacks for get_group_members_info function.
 
-typedef struct st_group_replication_group_members_info
-{
-  char* channel_name;
-  char* member_id;
-  char* member_host;
-  unsigned int member_port;
-  enum enum_member_state member_state;
-} GROUP_REPLICATION_GROUP_MEMBERS_INFO;
+  context field can have NULL value, plugin will always pass it
+  through all callbacks, independent of its value.
+  Its value will not be used by plugin.
 
-typedef struct st_group_replication_member_stats_info
-{
-  char* channel_name;
-  char* view_id;
-  char* member_id;
-  unsigned long long int transaction_in_queue;
-  unsigned long long int transaction_certified;
-  unsigned long long int transaction_conflicts_detected;
-  unsigned long long int transactions_in_validation;
-  char* committed_transactions;
-  char* last_conflict_free_transaction;
-} GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO;
+  All callbacks are mandatory.
+*/
+struct GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS {
+  void *const context;
+  void (*set_channel_name)(void *const context, const char &value,
+                           size_t length);
+  void (*set_member_id)(void *const context, const char &value, size_t length);
+  void (*set_member_host)(void *const context, const char &value,
+                          size_t length);
+  void (*set_member_port)(void *const context, unsigned int value);
+  void (*set_member_state)(void *const context, const char &value,
+                           size_t length);
+  void (*set_member_role)(void *const context, const char &value,
+                          size_t length);
+  void (*set_member_version)(void *const context, const char &value,
+                             size_t length);
+};
 
-struct st_mysql_group_replication
-{
+/*
+  Callbacks for get_group_member_stats_info function.
+
+  context field can have NULL value, plugin will always pass it
+  through all callbacks, independent of its value.
+  Its value will not be used by plugin.
+
+  All callbacks are mandatory.
+*/
+struct GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS {
+  void *const context;
+  void (*set_channel_name)(void *const context, const char &value,
+                           size_t length);
+  void (*set_view_id)(void *const context, const char &value, size_t length);
+  void (*set_member_id)(void *const context, const char &value, size_t length);
+  void (*set_transactions_committed)(void *const context, const char &value,
+                                     size_t length);
+  void (*set_last_conflict_free_transaction)(void *const context,
+                                             const char &value, size_t length);
+  void (*set_transactions_in_queue)(void *const context,
+                                    unsigned long long int value);
+  void (*set_transactions_certified)(void *const context,
+                                     unsigned long long int value);
+  void (*set_transactions_conflicts_detected)(void *const context,
+                                              unsigned long long int value);
+  void (*set_transactions_rows_in_validation)(void *const context,
+                                              unsigned long long int value);
+  void (*set_transactions_remote_applier_queue)(void *const context,
+                                                unsigned long long int value);
+  void (*set_transactions_remote_applied)(void *const context,
+                                          unsigned long long int value);
+  void (*set_transactions_local_proposed)(void *const context,
+                                          unsigned long long int value);
+  void (*set_transactions_local_rollback)(void *const context,
+                                          unsigned long long int value);
+};
+
+struct st_mysql_group_replication {
   int interface_version;
 
   /*
     This function is used to start the group replication.
   */
-  int (*start)();
+  int (*start)(char **error_message);
   /*
     This function is used to stop the group replication.
   */
-  int (*stop)();
+  int (*stop)(char **error_message);
   /*
     This function is used to get the current group replication running status.
   */
@@ -78,37 +133,51 @@ struct st_mysql_group_replication
 
    @param info  View_change_log_event with conflict checking info.
   */
-  int (*set_retrieved_certification_info)(void* info);
+  int (*set_retrieved_certification_info)(void *info);
 
   /*
-    This function is used to fetch information for group replication kernel stats.
+    This function is used to fetch information for group replication kernel
+    stats.
 
-    @param info[out] The retrieved information
+    @param callbacks The set of callbacks and its context used to set the
+                     information on caller.
 
     @note The caller is responsible to free memory from the info structure and
           from all its fields.
   */
-  bool (*get_connection_status_info)(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info);
+  bool (*get_connection_status_info)(
+      const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS &callbacks);
 
   /*
     This function is used to fetch information for group replication members.
 
-    @param info[out] The retrieved information
+    @param index     Row index for which information needs to be fetched
+
+    @param callbacks The set of callbacks and its context used to set the
+                     information on caller.
 
     @note The caller is responsible to free memory from the info structure and
           from all its fields.
   */
-  bool (*get_group_members_info)(unsigned int index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info);
+  bool (*get_group_members_info)(
+      unsigned int index,
+      const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS &callbacks);
 
   /*
-    This function is used to fetch information for group replication members statistics.
+    This function is used to fetch information for group replication members
+    statistics.
 
-    @param info[out] The retrieved information
+    @param index     Row index for which information needs to be fetched
+
+    @param callbacks The set of callbacks and its context used to set the
+                     information on caller.
 
     @note The caller is responsible to free memory from the info structure and
           from all its fields.
   */
-  bool (*get_group_member_stats_info)(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO* info);
+  bool (*get_group_member_stats_info)(
+      unsigned int index,
+      const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS &callbacks);
 
   /*
     Get number of group replication members.
@@ -117,4 +186,3 @@ struct st_mysql_group_replication
 };
 
 #endif
-

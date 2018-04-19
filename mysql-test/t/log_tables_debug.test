@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ### t/log_tables_debug.test
 #
 # Log-related tests requiring a debug-build server.
@@ -12,7 +7,6 @@
 # changed (see explanation in log_state.test)
 let $fixed_bug38124 = 0;
 
---source include/not_embedded.inc
 --source include/have_debug.inc
 
 # Several subtests modify global variables. Save the initial values only here,

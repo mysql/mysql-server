@@ -5,9 +5,6 @@
 # Test case to show behavior of statements digest when
 # statement-digest-size is 0
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 # Initial Setup for Digest
 --source ../include/digest_setup.inc
 
@@ -23,9 +20,15 @@ SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT, COUNT_STAR, SUM_ROWS_AFFECTED, SUM_WARN
        SUM_ERRORS FROM performance_schema.events_statements_summary_by_digest;
 
 
-# Expect no digest
 SHOW GLOBAL VARIABLES LIKE "performance_schema_digests_size";
 SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_digest;
+
+select count(*)
+  from performance_schema.events_statements_histogram_by_digest;
+
+select SCHEMA_NAME, DIGEST IS NULL, BUCKET_NUMBER
+  from performance_schema.events_statements_histogram_by_digest
+  where BUCKET_NUMBER= 1;
 
 # Cleanup for Digest
 --source ../include/digest_cleanup.inc

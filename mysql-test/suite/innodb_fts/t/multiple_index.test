@@ -1,5 +1,3 @@
---source include/have_innodb.inc
-
 #------------------------------------------------------------------------------
 # Test With two FTS index on same table + alter/create/drop index + tnx
 #------------------------------------------------------------------------------
@@ -171,4 +169,3 @@ SELECT * FROM t1 WHERE t1.id > (SELECT MIN(t2.id) FROM t1 AS t2 WHERE
 MATCH(t2.b) AGAINST ('"proximity innodb"@3' IN BOOLEAN MODE));
 
 DROP TABLE t1;
-

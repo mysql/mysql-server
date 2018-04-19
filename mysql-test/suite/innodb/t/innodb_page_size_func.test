@@ -38,8 +38,6 @@ let $test_debug= 0;
 
 --echo # 0. Check and generate prerequites
 #-----------------------------------------
---source include/not_embedded.inc
---source include/have_innodb.inc
 
 # InnoDb page size values in 2011-11
 # - supported: 4k, 8k, 16k
@@ -50,7 +48,7 @@ let $default_page_size= 16384;
 let $maximal_page_size= 65536;
 let $legal_page_size_list= $minimal_page_size,8192,16384,32768,$maximal_page_size;
 let $start_page_size=
-`SELECT variable_value FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+`SELECT variable_value FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_page_size'`;
 --enable_warnings
 if(`SELECT $start_page_size NOT IN ($legal_page_size_list)`)
@@ -106,7 +104,7 @@ if ($test_debug)
 
 # We let our server restart attempts write to the file $error_log.
 let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
-# $error_log has to be processed by include/search_pattern_in_file.inc which
+# $error_log has to be processed by include/search_pattern.inc which
 # contains Perl code requiring that the environment variable SEARCH_FILE points
 # to this file.
 let SEARCH_FILE= $error_log;
@@ -120,35 +118,39 @@ let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 --innodb-page-si
 #----------------------------------------------------------------------------------
 --echo # 1.1 The value assigned is a number.
 # Detailed explanations of what happens are placed nearby the checks.
---error 1
+--error 1,42
 --exec $mysqld=$other_page_size
 if ( $default_page_size != $other_page_size )
 {
    # It gets detected that the assigned page size is not the default one
-   let SEARCH_PATTERN= InnoDB: innodb-page-size has been changed from the default value $default_page_size to $other_page_size;
-   --source include/search_pattern_in_file.inc
+   --replace_result $default_page_size DEFAULT_PAGE_SIZE $other_page_size OTHER_PAGE_SIZE
+   let SEARCH_PATTERN=  innodb-page-size has been changed from the default value $default_page_size to $other_page_size;
+   --source include/search_pattern.inc
 }
+--replace_result $start_page_size START_PAGE_SIZE $other_page_size OTHER_PAGE_SIZE
 let SEARCH_PATTERN=Data file '.*ibdata1' uses page size $start_page_size, but the innodb_page_size start-up parameter is $other_page_size;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 # The server restart aborts
-let SEARCH_PATTERN= \[ERROR\] Aborting;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Aborting;
+--source include/search_pattern.inc
 --echo # 1.2 The value assigned is a number followed by 'k'.
---error 1
+--error 1,42
 --exec $mysqld=$other_page_size_nk
 if ( $default_page_size != $other_page_size )
 {
    # It gets detected that the assigned page size is not the default one
-   let SEARCH_PATTERN= InnoDB: innodb-page-size has been changed from the default value $default_page_size to $other_page_size;
-   --source include/search_pattern_in_file.inc
+   --replace_result $default_page_size DEFAULT_PAGE_SIZE $other_page_size OTHER_PAGE_SIZE
+   let SEARCH_PATTERN=  innodb-page-size has been changed from the default value $default_page_size to $other_page_size;
+   --source include/search_pattern.inc
 }
 
+--replace_result $start_page_size START_PAGE_SIZE $other_page_size OTHER_PAGE_SIZE
 let SEARCH_PATTERN=Data file '.*ibdata1' uses page size $start_page_size, but the innodb_page_size start-up parameter is $other_page_size;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 # The server restart aborts
-let SEARCH_PATTERN= \[ERROR\] Aborting;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Aborting;
+--source include/search_pattern.inc
 
 
 --echo # 2. Try to restart the server with some innodb page size.which is either
@@ -159,16 +161,18 @@ let SEARCH_PATTERN= \[ERROR\] Aborting;
 # 1. not supported
 # 2. below the smallest supported one
 # The restart attempt has to fail.
---error 1
+--error 1,42
 --exec $mysqld=$out_range_page_size
 # The innodb page size gets raised to the lowest or biggest legal value.
-let SEARCH_PATTERN= \[Warning\] option 'innodb-page-size': unsigned value $out_range_page_size adjusted to $adjust_page_size;
---source include/search_pattern_in_file.inc
+--replace_result $out_range_page_size OUT_RANGE_PAGE_SIZE $adjust_page_size ADJUST_PAGE_SIZE
+let SEARCH_PATTERN= \[Warning\] \[[^]]*\] \[[^]]*\] option 'innodb-page-size': unsigned value $out_range_page_size adjusted to $adjust_page_size;
+--source include/search_pattern.inc
 if ( $default_page_size != $adjust_page_size )
 {
    # It gets detected that the assigned page size is not the default one
-   let SEARCH_PATTERN= InnoDB: innodb-page-size has been changed from the default value $default_page_size to $adjust_page_size;
-   --source include/search_pattern_in_file.inc
+   --replace_result $default_page_size DEFAULT_PAGE_SIZE $adjust_page_size ADJUST_PAGE_SIZE
+   let SEARCH_PATTERN=  innodb-page-size has been changed from the default value $default_page_size to $adjust_page_size;
+   --source include/search_pattern.inc
 }
 # Some checks omitted because they are already in 1.
 
@@ -185,18 +189,20 @@ if ($zero_test)
    {
      --echo # We do not omit the test.
    }
---error 1
+--error 1,42
 --exec $mysqld=garbage
 # General server properties cause that
 # - the plain wrong value "garbage" assigned to innodb page size gets
 #   mangled to 0.
 # - the 0 which is below the smallest possible page size is adjusted
 #   to the smallest possible page size
-let SEARCH_PATTERN= \[Warning\] option 'innodb-page-size': unsigned value 0 adjusted to $minimal_page_size;
---source include/search_pattern_in_file.inc
+--replace_result $minimal_page_size MINIMAL_PAGE_SIZE
+let SEARCH_PATTERN= \[Warning\] \[[^]]*\] \[[^]]*\] option 'innodb-page-size': unsigned value 0 adjusted to $minimal_page_size;
+--source include/search_pattern_multiline.inc
 # It gets detected that the innodb page size has been changed.
-let SEARCH_PATTERN= InnoDB: innodb-page-size has been changed from the default value $default_page_size to $minimal_page_size;
---source include/search_pattern_in_file.inc
+--replace_result $default_page_size DEFAULT_PAGE_SIZE $minimal_page_size MINIMAL_PAGE_SIZE
+let SEARCH_PATTERN=  innodb-page-size has been changed from the default value $default_page_size to $minimal_page_size;
+--source include/search_pattern_multiline.inc
 # Some checks omitted because they are already in 1.
 }
 
@@ -211,8 +217,9 @@ let SEARCH_PATTERN= InnoDB: innodb-page-size has been changed from the default v
 --error 1
 --exec $mysqld=$illegal_pagesize
 # InnoDB cannot handle this value.
-let SEARCH_PATTERN= \[ERROR\] InnoDB: Invalid page size=$illegal_pagesize;
---source include/search_pattern_in_file.inc
+--replace_result $illegal_pagesize ILLEGAL_PAGESIZE
+let SEARCH_PATTERN= \[ERROR\] .*MY-\\d+.* Invalid page size=$illegal_pagesize;
+--source include/search_pattern.inc
 # Some checks omitted because they are already in 1.
 
 
@@ -220,15 +227,16 @@ let SEARCH_PATTERN= \[ERROR\] InnoDB: Invalid page size=$illegal_pagesize;
 --echo #    <number>k is a legal page size.
 #---------------------------------------------------------------------------------
 # The restart attempt has to fail.
---error 1
+--error 1,42
 --exec $mysqld=$other_page_size_nkaramel
 # The plain wrong value "<number>karamel" assigned to innodb page size seems
 # to get mangled to "<number>k" which is a legal value.
 if ( $default_page_size != $adjust_page_size )
 {
    # It gets detected that the assigned page size is not the default one
-   let SEARCH_PATTERN= InnoDB: innodb-page-size has been changed from the default value $default_page_size to $other_page_size;
-   --source include/search_pattern_in_file.inc
+   --replace_result $default_page_size DEFAULT_PAGE_SIZE $other_page_size OTHER_PAGE_SIZE
+   let SEARCH_PATTERN=  innodb-page-size has been changed from the default value $default_page_size to $other_page_size;
+   --source include/search_pattern.inc
 }
 # But this change does not fit to the history of the data.
 # Some checks omitted because they are already in 1.
@@ -250,15 +258,18 @@ if ($zero_test)
 --error 1
 --exec $mysqld=$other_page_size_ncaramel
 # The server dislikes the assigned value.
+--replace_result $other_page_size_ncaramel OTHER_PAGE_SIZE_NCARAMEL
 let SEARCH_PATTERN= Unknown suffix 'c' used for variable 'innodb-page-size' \(value '$other_page_size_ncaramel'\);
---source include/search_pattern_in_file.inc
+--source include/search_pattern_multiline.inc
 # The plain wrong value "<number>caramel" assigned to innodb page size gets
 # mangled to 0.
-let SEARCH_PATTERN= \[Warning\] option 'innodb-page-size': unsigned value 0 adjusted to $minimal_page_size;
---source include/search_pattern_in_file.inc
+--replace_result $minimal_page_size MINIMAL_PAGE_SIZE
+let SEARCH_PATTERN= \[Warning\] \[[^]]*\] \[[^]]*\] option 'innodb-page-size': unsigned value 0 adjusted to $minimal_page_size;
+--source include/search_pattern_multiline.inc
 # Some other layer has also something to tell.
+--replace_result $other_page_size_ncaramel OTHER_PAGE_SIZE_NCARAMEL
 let SEARCH_PATTERN= mysqld.*: Error while setting value '$other_page_size_ncaramel' to 'innodb-page-size';
---source include/search_pattern_in_file.inc
+--source include/search_pattern_multiline.inc
 }
 
 --echo # 7. Restart the server and cleanup

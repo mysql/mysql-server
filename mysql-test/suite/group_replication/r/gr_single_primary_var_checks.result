@@ -1,0 +1,105 @@
+[connection default]
+# restart: --group_replication_enforce_update_everywhere_checks=ON --group_replication_single_primary_mode=ON --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("It is not allowed to run single primary mode with 'enforce_update_everywhere_checks' enabled.");
+SET SESSION sql_log_bin= 1;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET GLOBAL group_replication_single_primary_mode= FALSE;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+SET GLOBAL group_replication_single_primary_mode= DEFAULT;
+ERROR 42000: Variable 'group_replication_single_primary_mode' can't be set to the value of 'DEFAULT'
+SET GLOBAL group_replication_single_primary_mode= NULL;
+ERROR 42000: Variable 'group_replication_single_primary_mode' can't be set to the value of 'NULL'
+SET GLOBAL group_replication_single_primary_mode= "AAAAAA";
+ERROR 42000: Variable 'group_replication_single_primary_mode' can't be set to the value of 'AAAAAA'
+include/assert.inc ['group_replication_single_primary_mode should be set to 0']
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+include/assert.inc ['group_replication_single_primary_mode should be set to 1']
+SET GLOBAL group_replication_single_primary_mode= FALSE;
+include/assert.inc ['group_replication_single_primary_mode should be set to 0']
+SET GLOBAL group_replication_single_primary_mode= ON;
+include/assert.inc ['group_replication_single_primary_mode should be set to ON']
+SET GLOBAL group_replication_single_primary_mode= OFF;
+include/assert.inc ['group_replication_single_primary_mode should be set to OFF']
+SET GLOBAL group_replication_single_primary_mode= -1;
+include/assert.inc ['group_replication_single_primary_mode should be set to 0']
+SET GLOBAL group_replication_single_primary_mode= 100;
+include/assert.inc ['group_replication_single_primary_mode should be set to 1']
+SET GLOBAL group_replication_single_primary_mode= FALSE;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= NULL;
+ERROR 42000: Variable 'group_replication_enforce_update_everywhere_checks' can't be set to the value of 'NULL'
+SET GLOBAL group_replication_enforce_update_everywhere_checks= "AAAAAA";
+ERROR 42000: Variable 'group_replication_enforce_update_everywhere_checks' can't be set to the value of 'AAAAAA'
+include/assert.inc ['group_replication_enforce_update_everywhere_checks should be set to 0']
+SET GLOBAL group_replication_enforce_update_everywhere_checks= DEFAULT;
+ERROR 42000: Variable 'group_replication_enforce_update_everywhere_checks' can't be set to the value of 'DEFAULT'
+SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
+include/assert.inc ['group_replication_enforce_update_everywhere_checks should be set to 1']
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+include/assert.inc ['group_replication_enforce_update_everywhere_checks should be set to 0']
+SET GLOBAL group_replication_enforce_update_everywhere_checks= ON;
+include/assert.inc ['group_replication_enforce_update_everywhere_checks should be set to ON']
+SET GLOBAL group_replication_enforce_update_everywhere_checks= OFF;
+include/assert.inc ['group_replication_enforce_update_everywhere_checks should be set to OFF']
+SET GLOBAL group_replication_enforce_update_everywhere_checks= -1;
+include/assert.inc ['group_replication_enforce_update_everywhere_checks should be set to 0']
+SET GLOBAL group_replication_enforce_update_everywhere_checks= 100;
+include/assert.inc ['group_replication_enforce_update_everywhere_checks should be set to 1']
+SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+ERROR 42000: Cannot turn ON single_primary_mode while enforce_update_everywhere_checks is enabled.
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+include/assert.inc ['group_replication_enforce_update_everywhere_checks should be set to 0']
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+include/assert.inc ['group_replication_single_primary_mode should be set to 1']
+SET GLOBAL group_replication_single_primary_mode= FALSE;
+include/assert.inc ['group_replication_single_primary_mode should be set to 0']
+SET GLOBAL group_replication_single_primary_mode= -1;
+include/assert.inc ['group_replication_single_primary_mode should be set to 0']
+SET GLOBAL group_replication_single_primary_mode= 100;
+include/assert.inc ['group_replication_single_primary_mode should be set to 1']
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
+ERROR 42000: Cannot enable enforce_update_everywhere_checks while single_primary_mode is enabled.
+SET GLOBAL group_replication_single_primary_mode= FALSE;
+include/assert.inc ['group_replication_single_primary_mode should be set to 0']
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+include/assert.inc ['group_replication_enforce_update_everywhere_checks should be set to 0']
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+include/assert.inc ['group_replication_single_primary_mode should be set to 1']
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+include/assert.inc ['group_replication_enforce_update_everywhere_checks should be set to 0']
+#
+# START GROUP REPLICATION ON SERVER 1
+include/start_and_bootstrap_group_replication.inc
+# PLUGIN VARIABLES SHOULD BE READ ONLY ON SERVER 1
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+ERROR HY000: Cannot change into or from single primary mode while Group Replication is running.
+SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
+ERROR HY000: Cannot turn ON/OFF update everywhere checks mode while Group Replication is running.
+#
+# START GROUP REPLICATION ON SERVER 2
+[connection server2]
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+include/assert.inc ['group_replication_enforce_update_everywhere_checks should be set to 0']
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+include/assert.inc ['group_replication_single_primary_mode should be set to 1']
+include/start_group_replication.inc
+# PLUGIN VARIABLES SHOULD BE READ ONLY ON SERVER 2
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+ERROR HY000: Cannot change into or from single primary mode while Group Replication is running.
+SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
+ERROR HY000: Cannot turn ON/OFF update everywhere checks mode while Group Replication is running.
+include/group_replication_end.inc
+[connection server1]
+SET @@GLOBAL.group_replication_single_primary_mode= 0;
+SET @@GLOBAL.group_replication_enforce_update_everywhere_checks= 1;
+[connection server2]
+SET @@GLOBAL.group_replication_single_primary_mode= 0;
+SET @@GLOBAL.group_replication_enforce_update_everywhere_checks= 1;

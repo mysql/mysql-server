@@ -16,11 +16,11 @@
 # has completed a necessary part of its cleanup.
 # Selecting from P_S.threads provides a method to learn that.
 #
---source include/have_perfschema.inc
 --source include/master-slave.inc
 
 --connection master
 call mtr.add_suppression("Found 2 prepared XA transactions");
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 CREATE VIEW v_processlist  as SELECT * FROM performance_schema.threads where type = 'FOREGROUND';
 
 CREATE DATABASE d1;
@@ -45,7 +45,7 @@ XA PREPARE '1-stmt';
 
 connect (master_conn2, 127.0.0.1,root,,test,$MASTER_MYPORT,);
 --let $conn_id=`SELECT connection_id()`
-SET @@session.binlog_format= row;
+SET @@session.binlog_format= 'row';
 XA START '1-row';
 INSERT INTO d2.t VALUES (1);
 XA END '1-row';
@@ -87,7 +87,7 @@ XA PREPARE '3-stmt';
 
 connect (master2, 127.0.0.1,root,,test,$MASTER_MYPORT,);
 --connection master2
-SET @@session.binlog_format= row;
+SET @@session.binlog_format= 'row';
 XA START '3-row';
 INSERT INTO d2.t VALUES (4);
 XA END '3-row';
@@ -133,6 +133,16 @@ while($i > 0)
   --dec $i
 }
 
+#
+# Prove the slave applier is capable to resume the prepared XA:s
+# upon its restart.
+#
+--connection slave
+--source include/start_slave.inc
+--connection master
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
 --connection master
 --let $i = $bulk_trx_num
 while($i > 0)
@@ -154,6 +164,7 @@ while($i > 0)
 
 --connection master
 --echo *** '3-stmt','3-row' xa-transactions must be in the list ***
+--sorted_result
 XA RECOVER;
 XA COMMIT '3-stmt';
 XA ROLLBACK '3-row';
@@ -220,8 +231,8 @@ connect (master_conn3, 127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect (master_conn4, 127.0.0.1,root,,test,$MASTER_MYPORT,);
 --let $conn_id=`SELECT connection_id()`
 
---let $gtridlen=`SELECT 2*(round(rand()*100) % 32)`
---let $bquallen=`SELECT 2*(round(rand()*100) % 32)`
+--let $gtridlen=`SELECT 2*(1 + round(rand()*100) % 31)`
+--let $bquallen=`SELECT 2*(1 + round(rand()*100) % 31)`
 --let $gtrid_rand=`SELECT substring(concat(MD5(rand()), MD5(rand())), 1, $gtridlen)`
 --let $bqual_rand=`SELECT substring(concat(MD5(rand()), MD5(rand())), 1, $bquallen)`
 # formatID max is LONG_MAX

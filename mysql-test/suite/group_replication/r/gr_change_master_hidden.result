@@ -1,0 +1,41 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+# Creating a connection on the first server to be used by the recovery channel
+SET sql_log_bin=0;
+CREATE USER 'manish'@'%' IDENTIFIED BY 'unique_password';
+GRANT REPLICATION SLAVE ON *.* TO 'manish'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
+SET @old_log_output= @@log_output;
+SET GLOBAL log_output= 'TABLE';
+TRUNCATE mysql.general_log;
+include/start_and_bootstrap_group_replication.inc
+# CHANGE MASTER with valid options will work fine and the password part will be masked with <secret>
+CHANGE MASTER TO MASTER_USER='manish', MASTER_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
+# Since MASTER_PASSWORD is not stored in the performance schema table
+# (performance_schema.replication_connection_configuration) it won't be visible.
+SELECT password FROM performance_schema.replication_connection_configuration;
+ERROR 42S22: Unknown column 'password' in 'field list'
+server1
+include/assert.inc [The CHANGE MASTER is logged with the password value replaced with the keyword <secret>.]
+SET sql_log_bin=0;
+call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
+call mtr.add_suppression("There was an error when connecting to the donor server");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+SET sql_log_bin=1;
+START GROUP_REPLICATION;
+include/assert.inc [The default values of the User_name and User_password are empty without a previous change master.]
+RESET SLAVE ALL FOR CHANNEL 'group_replication_recovery';
+SET sql_log_bin=0;
+DROP USER manish;
+SET sql_log_bin=1;
+SET @@global.log_output= @old_log_output;
+include/group_replication_end.inc
+# MASTER_PASSWORD value for the CHANGE MASTER command will not be logged in the error log.
+Occurrences of 'master_password' in the input file: 0
+# The password value 'unique_password' is not logged in the error log.
+Occurrences of 'unique_password' in the input file: 0

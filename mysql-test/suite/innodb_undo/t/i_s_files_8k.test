@@ -1,0 +1,12 @@
+--source include/not_valgrind.inc
+
+--echo #
+--echo # WL7943 Implement INFORMATION_SCHEMA.FILES
+--echo #
+
+--echo # Mysqld is initialized in this test with with:
+--echo # --innodb_undo_tablespaces=16
+--echo # --innodb_rollback_segments=1
+--echo # --bootstrap --innodb_page_size=8k
+
+--source suite/innodb_undo/include/i_s_files.inc

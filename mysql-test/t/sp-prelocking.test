@@ -388,3 +388,41 @@ DROP TABLE t1, t2;
 
 --echo End of 5.0 tests
 
+--echo #
+--echo # Bug#21142859: FUNCTION UPDATING A VIEW FAILS TO FIND TABLE THAT ACTUALLY EXISTS
+--echo #
+
+CREATE TABLE t1 SELECT 1 AS fld1, 'A' AS fld2;
+CREATE TABLE t2 (fld3 INT, fld4 CHAR(1));
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+CREATE TRIGGER t1_au AFTER UPDATE ON t1
+FOR EACH ROW INSERT INTO t2 VALUES (new.fld1, new.fld2);
+
+DELIMITER !;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+ UPDATE v1 SET fld2='B' WHERE fld1=1;
+ RETURN row_count();
+END !
+DELIMITER ;!
+
+--echo # Without the patch, an error was getting reported.
+SELECT f1();
+
+DROP FUNCTION f1;
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #16672723 "CAN'T FIND TEMPORARY TABLE".
+--echo #
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+CREATE TEMPORARY TABLE tmp1(a INT);
+PREPARE stmt1 FROM "CREATE TEMPORARY TABLE tmp2 AS SELECT b FROM (SELECT f1() AS b FROM tmp1) AS t";
+--echo # The below statement failed before the fix.
+EXECUTE stmt1;
+DROP TEMPORARY TABLES tmp1, tmp2;
+DEALLOCATE PREPARE stmt1;
+DROP FUNCTION f1;

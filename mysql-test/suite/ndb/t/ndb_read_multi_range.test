@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
 
 --disable_warnings
@@ -284,10 +279,12 @@ INSERT INTO t1 VALUES
 (148812,67,'2005-10-25 15:30:01'),(245651,67,'2005-12-08 15:58:27'),
 (154503,67,'2005-10-28 11:52:38');
 
+--disable_warnings
 create table t11 engine = ndbcluster select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 asc;
 create table t12 engine = ndbcluster select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 desc;
 create table t21 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 asc;
 create table t22 engine = ndbcluster select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 desc;
+--enable_warnings
 
 select * from t11 order by 1,2,3;
 select * from t12 order by 1,2,3;
@@ -425,7 +422,7 @@ drop table t1;
 
 create table t1 (a varchar(1536) not null,
                  b varchar(1532) not null,
-                 c int, primary key (a,b)) engine=ndb;
+                 c int, primary key (a,b)) character set latin1 engine=ndb;
 insert into t1 values ('a', 'a', 1), ('b', 'b', 2), ('c', 'c', 3),
                       ('d', 'd', 4), ('e', 'e', 5), ('f', 'f', 6),
                       ('g', 'g', 7), ('h', 'h', 8), ('i', 'i', 9),
@@ -459,8 +456,10 @@ drop table t1, t2;
 # could finish.
 #####################
 
-create table t1 (pk int primary key, a int) engine=ndb;
-create table t2 (pk int primary key, a int) engine=ndb;
+create table t1 (pk int primary key, a int) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t2 (pk int primary key, a int) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t2 values
    (0,0), (1,1), (2,2), (3,3), (4,4),

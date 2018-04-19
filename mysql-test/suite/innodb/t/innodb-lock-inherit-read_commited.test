@@ -1,0 +1,156 @@
+--echo #
+--echo # Bug #21025880	DUPLICATE UK VALUES IN READ-COMMITTED(AGAIN)
+--echo #
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+let i=0;
+
+while ($i <=1 )
+{
+
+CREATE TABLE t1 (
+       a INT NOT NULL,
+       b INT NOT NULL,
+       PRIMARY KEY(b),
+       UNIQUE KEY(a))
+ENGINE=INNODB;
+
+SET @old_innodb_stats_auto_recalc = @@innodb_stats_auto_recalc;
+SET GLOBAL innodb_stats_auto_recalc = OFF;
+
+# Block purge
+SET GLOBAL innodb_purge_stop_now = ON;
+
+SET @old_transaction_isolation = @@transaction_isolation;
+SET GLOBAL transaction_isolation = 'READ-COMMITTED';
+
+SET @old_innodb_lock_wait_timeout = @@innodb_lock_wait_timeout;
+SET GLOBAL innodb_lock_wait_timeout = 1;
+
+--connect(con1,localhost,root,,)
+--connect(con2,localhost,root,,)
+
+--connection con1
+
+# Create and delete-mark an index record
+
+INSERT INTO t1 VALUES (1,1),(2,2);
+DELETE FROM t1;
+
+SET debug_sync = 'row_ins_sec_index_entry_dup_locks_created SIGNAL
+con1_locks_done WAIT_FOR con1_go';
+SET debug_sync = 'ha_commit_trans_after_acquire_commit_lock SIGNAL
+con1_insert_done WAIT_FOR con1_finish';
+--send
+
+if ($i == 0)
+{
+REPLACE INTO t1 VALUES (1,2);
+}
+
+if ( $i == 1)
+{
+INSERT INTO t1 values (1,2) ON DUPLICATE KEY UPDATE a=2;
+}
+--connection con2
+
+SET debug_sync = 'now WAIT_FOR con1_locks_done';
+
+SET debug_sync = 'lock_wait_suspend_thread_enter SIGNAL con2_blocked
+WAIT_FOR con2_go';
+SET debug_sync = 'ha_commit_trans_after_acquire_commit_lock SIGNAL
+con2_insert_done WAIT_FOR con2_finish';
+SET debug_sync = 'ib_after_row_insert SIGNAL con2_insert_done';
+
+--send
+REPLACE INTO t1 VALUES (1,3);
+
+--connection default
+SET debug_sync = 'now WAIT_FOR con2_blocked';
+
+SET GLOBAL innodb_purge_run_now=ON;
+
+# Wait for purge to delete the delete-marked record
+let $wait_condition=
+    SELECT COUNT(*) = 1 FROM performance_schema.global_status
+    WHERE VARIABLE_NAME='INNODB_PURGE_TRX_ID_AGE' AND VARIABLE_VALUE=2;
+--source include/wait_condition.inc
+
+SET debug_sync = 'now SIGNAL con2_go WAIT_FOR con2_insert_done';
+SET debug_sync = 'now SIGNAL con1_go WAIT_FOR con1_insert_done';
+
+SET debug_sync = 'now SIGNAL con1_finish';
+SET debug_sync = 'now SIGNAL con2_finish';
+
+--connection con1
+--reap
+
+--connection con2
+--error 0,ER_LOCK_WAIT_TIMEOUT
+--reap
+
+--connection default
+
+--disconnect con1
+--disconnect con2
+
+SELECT * FROM t1;
+CHECK TABLE t1;
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_stats_auto_recalc = @old_innodb_stats_auto_recalc;
+SET GLOBAL transaction_isolation = @old_transaction_isolation;
+SET GLOBAL innodb_lock_wait_timeout = @old_innodb_lock_wait_timeout;
+
+# Clean up resources used in this test case.
+--disable_warnings
+SET DEBUG_SYNC= 'RESET';
+--enable_warnings
+
+--inc $i
+}
+
+--echo #
+--echo # Bug#24344131 ASSERT !OTHER_LOCK IN LOCK_REC_ADD_TO_QUEUE AT LOCK0LOCK.CC:1641
+--echo #
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connect (con3,localhost,root,,);
+
+connection con1;
+CREATE TABLE t1(a INT, b INT, primary key(a));
+INSERT INTO t1 VALUES(101, 20);
+SET DEBUG_SYNC="transaction_commit_start SIGNAL s1 WAIT_FOR s2";
+SET DEBUG_SYNC="before_lock_trx_release_locks SIGNAL s3 WAIT_FOR s5";
+--send INSERT INTO t1 VALUES(10, 20)
+
+connection con2;
+SET DEBUG_SYNC="now WAIT_FOR s1";
+SET DEBUG_SYNC="before_lock_rec_convert_impl_to_expl_for_trx SIGNAL s2 WAIT_FOR s4";
+SET DEBUG_SYNC="before_lock_wait_suspend SIGNAL s5 WAIT_FOR s7";
+--send UPDATE t1 SET b=25 WHERE a=10
+
+connection con3;
+SET DEBUG_SYNC="now WAIT_FOR s3";
+SET DEBUG_SYNC="after_lock_clust_rec_read_check_and_lock SIGNAL s4 WAIT_FOR s6";
+--send UPDATE t1 SET b=30 WHERE a=10
+
+connection con1;
+--reap
+SET DEBUG_SYNC="now SIGNAL s6";
+
+connection con3;
+--reap
+SET DEBUG_SYNC="now SIGNAL s7";
+
+connection con2;
+--reap
+
+DROP TABLE t1;
+
+--disconnect con1
+--disconnect con2

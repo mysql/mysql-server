@@ -8,16 +8,9 @@
 #                           testsuite funcs_1
 #
 
-# This test fails for embedded mode bug#11880671 - Myisam is default engine for embedded mode
-# Remove following condition when InnoDB is default engine in embedded mode
-if (`SELECT VERSION() LIKE '%embedded%'`)
-{
-   --skip Bug#11880671 - Myisam is default engine for embedded mode
-}
 
 
 let $engine_type= InnoDB;
---source include/have_innodb.inc
 --vertical_results
 eval SELECT * FROM information_schema.engines
 WHERE ENGINE = '$engine_type';

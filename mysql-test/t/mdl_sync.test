@@ -4,7 +4,6 @@
 --source include/have_debug_sync.inc
 
 # We need InnoDB tables for some of the tests.
---source include/have_innodb.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
@@ -226,7 +225,7 @@ connection default;
 --echo #    We have to involve DEBUG_SYNC facility for this as usually
 --echo #    such kind of locks are short-lived.
 --echo #
-set debug_sync= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+set debug_sync= 'after_open_table_mdl_shared_to_fetch_stats SIGNAL locked WAIT_FOR finish';
 --echo # Sending:
 --send select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t1';
 --echo # 
@@ -288,7 +287,7 @@ rename table t2 to t1;
 --echo # 
 --echo # Switching to connection 'default'.
 connection default;
-set debug_sync= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+set debug_sync= 'after_open_table_mdl_shared_to_fetch_stats SIGNAL locked WAIT_FOR finish';
 --echo # Sending:
 --send select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t1';
 --echo # 
@@ -324,7 +323,7 @@ alter table t1 drop column c2;
 --echo # 
 --echo # Switching to connection 'default'.
 connection default;
-set debug_sync= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+set debug_sync= 'after_open_table_mdl_shared_to_fetch_stats SIGNAL locked WAIT_FOR finish';
 --send select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t1';
 --echo # 
 --echo # Switching to connection 'mdl_con1'.
@@ -1553,7 +1552,7 @@ where state = "Waiting for table metadata lock" and
 --source include/wait_condition.inc
 --echo # Check that SH lock in incompatible with X lock.
 --echo # Sending:
---send select column_name from information_schema.columns where table_schema='test' and table_name='t1';
+--send select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t1';
 --echo # 
 --echo # Switching to connection 'mdl_con2'.
 connection mdl_con2;
@@ -1562,7 +1561,7 @@ connection mdl_con2;
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
 where state = "Waiting for table metadata lock" and
-      info like "select column_name from information_schema.columns%";
+      info like "select table_name, table_type, auto_increment%";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE
 unlock tables;
@@ -4246,6 +4245,12 @@ drop table t1;
 --echo #
 create table t1(i int);
 create table t2(j int);
+--echo # Warm-up data-dictionary and table definition caches
+--disable_query_log
+--disable_result_log
+select * from t1, t2;
+--enable_result_log
+--enable_query_log
 
 --echo #
 --echo # First, let us check how we handle a simple scenario involving
@@ -4520,6 +4525,12 @@ drop tables if exists t1, t2;
 set debug_sync= 'RESET';
 create table t1(i int);
 create table t2(j int);
+--echo # Warm-up data-dictionary and table definition caches
+--disable_query_log
+--disable_result_log
+select * from t1, t2;
+--enable_result_log
+--enable_query_log
 
 --echo # Switching to connection 'con2'.
 connection con2;
@@ -4789,9 +4800,9 @@ let $wait_condition=
 --error ER_WARN_I_S_SKIPPED_TABLE
 show fields from t2;
 
---echo # Now test for I_S query which reads only .FRMs.
+--echo # Now test for I_S query which does not acquire any MDL lock.
 --echo #
---echo # Query below should only emit a warning.
+--echo # Query below should not be blocked.
 select column_name from information_schema.columns
   where table_schema='test' and table_name='t2';
 
@@ -4819,7 +4830,7 @@ connection con46044;
 drop table t2;
 
 --echo #
---echo # Let us also check that queries to I_S wait for conflicting metadata
+--echo # Let us also check queries to I_S wait for conflicting metadata
 --echo # locks to go away instead of skipping table with a warning in cases
 --echo # when deadlock is not possible. This is a nice thing from compatibility
 --echo # and ease of use points of view.
@@ -4890,19 +4901,12 @@ let $wait_condition=
         info = "create table t2 select * from t1";
 --source include/wait_condition.inc
 
---echo # Check that I_S query which reads only .FRMs gets blocked.
+--echo # Check the I_S query which does not acquire any MDL locks is not blocked.
 --echo # Sending:
---send select column_name from information_schema.columns where table_schema='test' and table_name='t2';
+select column_name from information_schema.columns where table_schema='test' and table_name='t2';
 
 --echo # Switching to connection 'con46044_2'.
 connection con46044_2;
---echo # Wait until SELECT COLUMN_NAME FROM I_S.COLUMNS  gets blocked.
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table metadata lock" and
-        info like "select column_name from information_schema.columns%";
---source include/wait_condition.inc
-
 unlock tables;
 
 --echo # Switching to connection 'con46044'.
@@ -4912,33 +4916,32 @@ connection con46044;
 
 --echo # Switching to connection 'default'.
 connection default;
---echo # Reaping SELECT COLUMN_NAME FROM I_S.COLUMNS
---reap
 drop table t2;
 
 --echo # Switching to connection 'con46044_2'.
 connection con46044_2;
-lock tables t1 write;
+create table t3 like t1;
+lock tables t3 write;
 
 --echo # Switching to connection 'con46044'.
 connection con46044;
 
 --echo # Sending:
---send create table t2 select * from t1;
+--send rename table t1 to t2, t3 to t1, t2 to t3;
 
 --echo # Switching to connection 'default'.
 connection default;
---echo # Waiting until CREATE TABLE ... SELECT ... is blocked.
+--echo # Waiting until RENAME TABLE is blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table metadata lock" and
-        info = "create table t2 select * from t1";
+        info like "rename table t1 to t2%";
 --source include/wait_condition.inc
 
 --echo # Finally, check that I_S query which does full-blown table open
 --echo # also gets blocked.
 --echo # Sending:
---send select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t2';
+--send select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t1';
 
 --echo # Switching to connection 'con46044_2'.
 connection con46044_2;
@@ -4953,14 +4956,14 @@ unlock tables;
 
 --echo # Switching to connection 'con46044'.
 connection con46044;
---echo # Reaping CREATE TABLE ... SELECT ... .
+--echo # Reaping RENAME TABLE
 --reap
 
 --echo # Switching to connection 'default'.
 connection default;
 --echo # Reaping SELECT ... FROM I_S.TABLES
 --reap
-drop table t2;
+drop table t3;
 
 --echo # Switching to connection 'default'.
 connection default;
@@ -5065,13 +5068,13 @@ connect (con2, localhost, root);
 
 --echo # Connection 1
 connection default;
---echo # Start CREATE PROCEDURE and open mysql.proc
-SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL table_opened WAIT_FOR grlwait';
+--echo # Start CREATE PROCEDURE
+SET DEBUG_SYNC= 'after_acquiring_mdl_lock_on_routine SIGNAL routine_locked WAIT_FOR grlwait';
 --send CREATE PROCEDURE p1() SELECT 1
 
 --echo # Connection 2
 connection con2;
-SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
+SET DEBUG_SYNC= 'now WAIT_FOR routine_locked';
 --echo # Check that FLUSH must wait to get the GRL
 --echo # and let CREATE PROCEDURE continue
 SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
@@ -5093,13 +5096,13 @@ SET DEBUG_SYNC= 'RESET';
 --echo # Test 2: DROP PROCEDURE
 
 connection default;
---echo # Start DROP PROCEDURE and open tables
-SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL table_opened WAIT_FOR grlwait';
+--echo # Start DROP PROCEDURE
+SET DEBUG_SYNC= 'after_acquiring_mdl_lock_on_routine SIGNAL routine_locked WAIT_FOR grlwait';
 --send DROP PROCEDURE p1
 
 --echo # Connection 2
 connection con2;
-SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
+SET DEBUG_SYNC= 'now WAIT_FOR routine_locked';
 --echo # Check that FLUSH must wait to get the GRL
 --echo # and let DROP PROCEDURE continue
 SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
@@ -5399,8 +5402,8 @@ SET debug_sync='now WAIT_FOR parked_truncate';
 
 connection con2;
 --echo # Connection: con2
-SET debug_sync='after_open_table_ignore_flush SIGNAL parked_show WAIT_FOR go_show';
-send SHOW FIELDS FROM t1;
+SET debug_sync='after_acquiring_mdl_shared_to_fetch_stats SIGNAL parked_show WAIT_FOR go_show';
+--send select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t1';
 
 connection default;
 --echo # Connection: default
@@ -5449,28 +5452,6 @@ connection default;
 --echo # Connection: default
 SET debug_sync= 'RESET';
 DROP TABLE t1;
-
-
---echo #
---echo # Bug#52856 concurrent show columns or show full columns causes a crash!!!
---echo #
-CREATE TABLE t1(a CHAR(255));
-
-connect(con1, localhost, root);
-SET DEBUG_SYNC= "get_schema_column SIGNAL waiting WAIT_FOR completed";
---send SHOW FULL COLUMNS FROM t1
-
-connection default;
-SET DEBUG_SYNC= "now WAIT_FOR waiting";
---replace_column 8 #
-SHOW FULL COLUMNS FROM t1;
-SET DEBUG_SYNC= "now SIGNAL completed";
---replace_column 8 #
-connection con1;
---reap
-connection default;
-DROP TABLE t1;
-disconnect con1;
 
 
 --echo #
@@ -5598,54 +5579,6 @@ connection con2;
 CREATE DATABASE db1;
 
 --echo # Test 3:
---echo # Two ALTER..UPGRADE of the same database are mutually exclusive, but
---echo # two ALTER..UPGRADE of different databases are not. Tests X vs X lock.
---echo #
-
-let $MYSQLD_DATADIR= `select @@datadir`;
-# Manually make a 5.0 database from the template
---mkdir $MYSQLD_DATADIR/a-b-c
---copy_file $MYSQLD_DATADIR/db1/db.opt $MYSQLD_DATADIR/a-b-c/db.opt
---mkdir $MYSQLD_DATADIR/a-b-c-d
---copy_file $MYSQLD_DATADIR/db1/db.opt $MYSQLD_DATADIR/a-b-c-d/db.opt
-
---echo # Connection default
-connection default;
-SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
---echo # Sending:
---send ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME
-
---echo # Connection con2
-connection con2;
-SET DEBUG_SYNC= 'now WAIT_FOR locked';
---echo # Sending:
-# This should block.
---send ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME
-
---echo # Connection con3
-connection con3;
-let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
-  WHERE state='Waiting for schema metadata lock'
-  AND info='ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME';
---source include/wait_condition.inc
-# This should not block.
-ALTER DATABASE `#mysql50#a-b-c-d` UPGRADE DATA DIRECTORY NAME;
-SET DEBUG_SYNC= 'now SIGNAL blocked';
-
---echo # Connection default
-connection default;
---echo # Reaping: ALTER DATABASE '#mysql50#a-b-c' UPGRADE DATA DIRECTORY NAME
---reap
-
---echo # Connection con2
-connection con2;
---echo # Reaping: ALTER DATABASE '#mysql50#a-b-c' UPGRADE DATA DIRECTORY NAME
---error ER_BAD_DB_ERROR
---reap
-DROP DATABASE `a-b-c`;
-DROP DATABASE `a-b-c-d`;
-
---echo # Test 4:
 --echo # DROP DATABASE blocks database DDL on the same database, but
 --echo # not database DDL on different databases. Tests X vs X lock.
 --echo #
@@ -5715,13 +5648,11 @@ connection default;
 --echo # Connection con2
 connection con2;
 --echo # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
-# Error 1 is from ALTER DATABASE when the database does not exist.
-# Listing the error twice to prevent result diffences based on filename.
---error 1,1
+--error ER_NO_SUCH_DB
 --reap
 
 
---echo # Test 5:
+--echo # Test 4:
 --echo # Locked database name prevents CREATE of tables in that database.
 --echo # Tests X vs IX lock.
 --echo #
@@ -5759,7 +5690,7 @@ connection con2;
 --error ER_BAD_DB_ERROR
 --reap
 
---echo # Test 6:
+--echo # Test 5:
 --echo # Locked database name prevents RENAME of tables to/from that database.
 --echo # Tests X vs IX lock.
 --echo #
@@ -5795,7 +5726,7 @@ connection default;
 --echo # Connection con2
 connection con2;
 --echo # Reaping: RENAME TABLE db1.t1 TO test.t1
---error ER_FILE_NOT_FOUND, ER_FILE_NOT_FOUND
+--error ER_BAD_DB_ERROR
 --reap
 
 --echo # Connection default
@@ -5829,14 +5760,12 @@ connection default;
 --echo # Connection con2
 connection con2;
 --echo # Reaping: RENAME TABLE test.t2 TO db1.t2
-# Error 7 is from RENAME TABLE where the target database does not exist.
-# Listing the error twice to prevent result diffences based on filename.
---error 7, 7
+--error ER_BAD_DB_ERROR
 --reap
 DROP TABLE test.t2;
 
 
---echo # Test 7:
+--echo # Test 6:
 --echo # Locked database name prevents DROP of tables in that database.
 --echo # Tests X vs IX lock.
 --echo #
@@ -6020,6 +5949,181 @@ SET DEBUG_SYNC= 'RESET';
 disconnect con1;
 disconnect con2;
 
+
+--echo #
+--echo # Bug#21021848 ASSERTION `M_STATUS == DA_ERROR' FAILED.
+--echo #
+CREATE TABLE t1(c1 INT NOT NULL) ENGINE = csv;
+CREATE TABLE t2(c1 INT NOT NULL);
+
+--echo # Emulate corruption of t1
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 VALUES(0);
+CHECK TABLE t1;
+UNLOCK TABLES;
+
+--echo # Start XA txn on default
+XA START 'test2';
+--echo # Acquire SR on t2
+SELECT * FROM t2;
+--echo # Block IS query just before calling lock_table_names() (before X on t1)
+SET DEBUG_SYNC='recover_ot_repair SIGNAL parked WAIT_FOR go';
+--send select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t1';
+
+--echo # Create a new conncection which will compete for MDL lock
+--connect (con1,localhost,root,,)
+--echo # Wait until default becomes blocked
+SET DEBUG_SYNC='now WAIT_FOR parked';
+--echo # Try to acquire X on t1 and t2, which will block while default
+--echo # holds SR on t2
+--send DROP TABLES t1, t2
+
+--echo # Create control connection
+--connect (con2,localhost,root,,)
+
+--echo # Wait until con1 is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "DROP TABLES t1, t2";
+--source include/wait_condition.inc
+--echo # Wake up XA txn/IS query on default
+SET DEBUG_SYNC='now SIGNAL go';
+--echo # Disconnect control connection
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--echo # Switch to default connection
+--connection default
+--echo # Wait for IS query which will try repair t1 which requires X.
+--echo # Previously that resulted in deadlock with con1 over t1,
+--echo # but now t1 is skipped and a warning is issued
+--reap
+
+--echo # Finish XA txn 'test2' to release SR on t2 so that con1
+--echo # becomes unblocked
+XA END 'test2';
+XA PREPARE 'test2';
+XA COMMIT 'test2';
+
+--echo # Cleanup
+SET DEBUG_SYNC= 'RESET';
+
+--echo # Clean up con1 now that the XA txn has finished
+--connection con1
+--echo # Wait for the now unblocked DROP t1, t2 to complete
+--reap
+--echo # Disconnecting con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--echo # Switching to back to default at end of test case
+--connection default
+
+--echo #
+--echo # Bug#26739438 DEADLOCK ON GET_LOCK(..., 0)
+--echo #
+--echo # Run GET_LOCK(...,0) from two connections to which would previously
+--echo # cause deadlock
+
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (0), (1);
+
+--echo # Starting con0
+connect (con0,localhost,root,,test,,);
+SELECT i FROM t1 WHERE i = 0 AND GET_LOCK(i, 0);
+
+--echo # Starting con1
+connect (con1,localhost,root,,test,,);
+SELECT i FROM t1 WHERE i = 1 AND GET_LOCK(i, 0);
+
+--echo # Send query which will do a 0-wait on i=0 while holding lock on i=1
+SET DEBUG_SYNC='mdl_acquire_lock_wait SIGNAL wait0 WAIT_FOR go0';
+--send SELECT i FROM t1 WHERE GET_LOCK(i, 0) AND i = 0
+
+--echo # Switch to con0. Send query which will do a 0-wait on i=1 while
+--echo # holding lock on i=0
+connection con0;
+SET DEBUG_SYNC='mdl_acquire_lock_wait SIGNAL wait1 WAIT_FOR go1';
+--send SELECT i FROM t1 WHERE GET_LOCK(i, 0) AND i = 1
+
+--echo # Switch to default connection and wait until both con0 and con1
+--echo # are ready to check for deadlocks 
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR wait0';
+SET DEBUG_SYNC='now WAIT_FOR wait1';
+
+--echo # Tell both connections to proceed
+SET DEBUG_SYNC='now SIGNAL go0';
+SET DEBUG_SYNC='now SIGNAL go1';
+
+--echo # Wait for con0
+connection con0;
+--reap
+
+--echo # Wait for con1 (should not deadlock)
+connection con1;
+--reap
+
+connection default;
+disconnect con0;
+disconnect con1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26770836 SLAVE HANGS - WAITING FOR TABLE METADATA LOCKS
+--echo # Check that ALTER TABLE will not release MDL locks that were
+--echo # acquired during view metadata update, until end of statement.
+--echo #
+
+SET DEBUG_SYNC= 'RESET';
+CREATE TABLE t1 (f1 INT, f2 INT);
+CREATE TABLE t2 (g1 INT, g2 INT);
+CREATE VIEW v1 AS SELECT f2 FROM t1, t2;
+
+connect (con1,localhost,root,,);
+connection con1;
+SET DEBUG_SYNC= 'after_updating_view_metadata SIGNAL
+                 after_view_update WAIT_FOR continue_alter';
+
+--echo # Run ALTER TABLE until after the view metadata is updated.
+--send ALTER TABLE t1 DROP COLUMN f2
+
+connect (con2,localhost,root,,);
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR after_view_update';
+
+--echo # Run REPAIR which tries to acquire MDL X on t2, and expect it to wait.
+--send REPAIR TABLE t2;
+
+connection default;
+--echo # The wait_condition makes sure that the lock on table t2 is
+--echo # held by ALTER TABLE after updating view metadata. Wait condition
+--echo # fails if run without the fix.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "REPAIR TABLE t2";
+--source include/wait_condition.inc
+
+SET DEBUG_SYNC= 'now SIGNAL continue_alter';
+
+connection con1;
+--reap
+
+connection con2;
+--reap
+
+--echo # cleanup
+connection default;
+
+disconnect con2;
+disconnect con1;
+
+DROP VIEW v1;
+DROP TABLE t1;
+DROP TABLE t2;
 
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.

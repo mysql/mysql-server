@@ -1,7 +1,4 @@
 
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
-
 --echo #
 --echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
 --echo #
@@ -24,6 +21,21 @@ DROP DATABASE b12688860_db;
 
 --echo # Dropping the temp file
 --remove_file $MYSQLTEST_VARDIR/tmp/b12688860_tab.sql
+
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
+GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
+
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --user=user_with_length_32_abcdefghijkl --protocol=TCP -e "create table mysql.test(a int)"
+--exec echo "" > $MYSQL_TMP_DIR/test.txt
+--exec $MYSQL_IMPORT --host=127.0.0.1 -P $MASTER_MYPORT --user=user_with_length_32_abcdefghijkl --protocol=TCP --local mysql $MYSQL_TMP_DIR/test.txt 
+
+--echo # cleanup
+DROP TABLE mysql.test;
+DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
 
 --echo
 --echo End of tests

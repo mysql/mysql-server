@@ -1,10 +1,7 @@
---source include/have_utf8mb4.inc
-
 #
 # Tests with the utf8mb4 character set
 #
 
---source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists t1,t2;
@@ -46,9 +43,13 @@ select _utf8mb4 0xD0B0D0B1D0B2 like concat(_utf8mb4'%',_utf8mb4 0xD0B1,_utf8mb4 
 # characters in case insensitive manner.
 # Case insensitive search LIKE comparison
 # was broken for multibyte characters:
+
+--character_set latin1
 select convert(_latin1'G�nter Andr�' using utf8mb4) like CONVERT(_latin1'G�NTER%' USING utf8mb4);
+--character_set koi8r
 select CONVERT(_koi8r'����' USING utf8mb4) LIKE CONVERT(_koi8r'����' USING utf8mb4);
 select CONVERT(_koi8r'����' USING utf8mb4) LIKE CONVERT(_koi8r'����' USING utf8mb4);
+--character_set utf8mb4
 
 #
 # Check the following:
@@ -128,7 +129,9 @@ set LC_TIME_NAMES='en_US';
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 set names koi8r;
 create table t1 (s1 char(1) character set utf8mb4);
+--character_set koi8r
 insert into t1 values (_koi8r'��');
+--character_set utf8mb4
 select s1,hex(s1),char_length(s1),octet_length(s1) from t1;
 drop table t1;
 
@@ -202,22 +205,6 @@ drop table t1;
 set collation_connection=utf8mb4_general_ci;
 --source include/ctype_regex.inc
 set names utf8mb4;
-
-#
-# Bug #3928 regexp [[:>:]] and UTF-8
-#
-set names utf8mb4;
-
-# This should return TRUE
-select  'вася'  rlike '[[:<:]]вася[[:>:]]';
-select  'вася ' rlike '[[:<:]]вася[[:>:]]';
-select ' вася'  rlike '[[:<:]]вася[[:>:]]';
-select ' вася ' rlike '[[:<:]]вася[[:>:]]';
-
-# This should return FALSE
-select  'васяz' rlike '[[:<:]]вася[[:>:]]';
-select 'zвася'  rlike '[[:<:]]вася[[:>:]]';
-select 'zвасяz' rlike '[[:<:]]вася[[:>:]]';
 
 #
 # Bug #4555
@@ -1215,7 +1202,6 @@ drop table t1;
 #
 
 SET CHARACTER SET utf8mb4;
-SHOW VARIABLES LIKE 'character\_set\_%';
 CREATE DATABASE crashtest DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 USE crashtest;
 CREATE TABLE crashtest (crash char(10)) DEFAULT CHARSET=utf8mb4;
@@ -1539,6 +1525,7 @@ delete from t1;
 --echo Testing [F2..F3][80..BF][80..BF][80..BF]
 insert into t1 values (0xF2808080);
 insert into t1 values (0xF2BFBFBF);
+--sorted_result
 select hex(utf8mb4) from t1;
 delete from t1;
 
@@ -1546,6 +1533,7 @@ delete from t1;
 insert into t1 values (0xF4808080);
 insert into t1 values (0xF48F8080);
 insert ignore into t1 values (0xF4908080);
+--sorted_result
 select hex(utf8mb4) from t1;
 drop table t1;
 
@@ -1759,6 +1747,7 @@ DROP TABLE t2;
 --echo # Check that mixing utf8mb4 with an invalid utf8 constant returns error
 --echo #
 # This should perhaps be changed to return ER_INVALID_CHARACTER_STRING
+--character_set latin1
 CREATE TABLE t1 (utf8mb4 VARCHAR(10) CHARACTER SET utf8mb4);
 INSERT INTO t1 VALUES (x'f48fbfbf');
 --error ER_CANT_AGGREGATE_2COLLATIONS
@@ -1766,7 +1755,7 @@ SELECT CONCAT(utf8mb4, _utf8 '�') FROM t1;
 --error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CONCAT('a', _utf8 '�') FROM t1;
 DROP TABLE t1;
-
+--character_set utf8mb4
 
 --echo #
 --echo # Bug#51675 Server crashes on inserting 4 byte char.

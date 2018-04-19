@@ -1,9 +1,6 @@
 #
 # wl#6711:User can choose tmp table engine between MyISAM and InnoDB
 #
-SET GLOBAL innodb_large_prefix=OFF;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 create table t1(a int, b varchar(20));
 create table t2(a int, b varchar(20));
 insert into t1 values(1, 'a'), (2, 'b'), (3, 'c'), (3, 'c'), (4, 'c');
@@ -27,7 +24,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.00"
+      "query_cost": "0.75"
     },
     "buffer_result": {
       "using_temporary_table": true,
@@ -38,10 +35,10 @@ EXPLAIN
         "rows_produced_per_join": 5,
         "filtered": "100.00",
         "cost_info": {
-          "read_cost": "1.00",
-          "eval_cost": "1.00",
-          "prefix_cost": "2.00",
-          "data_read_per_join": "160"
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "440"
         },
         "used_columns": [
           "a",
@@ -66,7 +63,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "45.00"
+      "query_cost": "39.50"
     },
     "ordering_operation": {
       "using_temporary_table": true,
@@ -83,10 +80,10 @@ EXPLAIN
             "rows_produced_per_join": 5,
             "filtered": "100.00",
             "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "1.00",
-              "prefix_cost": "2.00",
-              "data_read_per_join": "160"
+              "read_cost": "0.25",
+              "eval_cost": "0.50",
+              "prefix_cost": "0.75",
+              "data_read_per_join": "440"
             },
             "used_columns": [
               "a",
@@ -103,16 +100,16 @@ EXPLAIN
             "filtered": "100.00",
             "using_join_buffer": "Block Nested Loop",
             "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "7.00",
-              "prefix_cost": "10.00",
-              "data_read_per_join": "1K"
+              "read_cost": "0.25",
+              "eval_cost": "3.50",
+              "prefix_cost": "4.50",
+              "data_read_per_join": "3K"
             },
             "used_columns": [
               "a",
               "b"
             ],
-            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t1`.`b` = `test`.`t2`.`b`), true)"
+            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t2`.`b` = `test`.`t1`.`b`), true)"
           }
         }
       ]
@@ -120,7 +117,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`b` = `test`.`t2`.`b`)) where 1 order by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`b` = `test`.`t1`.`b`)) where 1 order by `test`.`t1`.`a`
 select * from t1 left join t2 on t1.b = t2.b order by t1.a;
 a	b	a	b
 1	a	NULL	NULL
@@ -145,7 +142,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "7.00"
+      "query_cost": "5.75"
     },
     "ordering_operation": {
       "using_temporary_table": true,
@@ -160,10 +157,10 @@ EXPLAIN
         "rows_produced_per_join": 5,
         "filtered": "100.00",
         "cost_info": {
-          "read_cost": "1.00",
-          "eval_cost": "1.00",
-          "prefix_cost": "2.00",
-          "data_read_per_join": "160"
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "440"
         },
         "used_columns": [
           "a",
@@ -190,7 +187,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.00"
+      "query_cost": "0.75"
     },
     "ordering_operation": {
       "using_temporary_table": true,
@@ -207,15 +204,15 @@ EXPLAIN
           "used_key_parts": [
             "b"
           ],
-          "key_length": "23",
+          "key_length": "83",
           "rows_examined_per_scan": 5,
           "rows_produced_per_join": 5,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "1.00",
-            "prefix_cost": "2.00",
-            "data_read_per_join": "160"
+            "read_cost": "0.25",
+            "eval_cost": "0.50",
+            "prefix_cost": "0.75",
+            "data_read_per_join": "440"
           },
           "used_columns": [
             "a",
@@ -240,7 +237,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "10.00"
+      "query_cost": "4.50"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -256,10 +253,10 @@ EXPLAIN
               "rows_produced_per_join": 5,
               "filtered": "100.00",
               "cost_info": {
-                "read_cost": "1.00",
-                "eval_cost": "1.00",
-                "prefix_cost": "2.00",
-                "data_read_per_join": "160"
+                "read_cost": "0.25",
+                "eval_cost": "0.50",
+                "prefix_cost": "0.75",
+                "data_read_per_join": "440"
               },
               "used_columns": [
                 "a",
@@ -276,10 +273,10 @@ EXPLAIN
               "filtered": "100.00",
               "using_join_buffer": "Block Nested Loop",
               "cost_info": {
-                "read_cost": "1.00",
-                "eval_cost": "7.00",
-                "prefix_cost": "10.00",
-                "data_read_per_join": "1K"
+                "read_cost": "0.25",
+                "eval_cost": "3.50",
+                "prefix_cost": "4.50",
+                "data_read_per_join": "3K"
               },
               "used_columns": [
                 "a",
@@ -287,8 +284,28 @@ EXPLAIN
               ]
             }
           }
-        ]
-      }
+        },
+        {
+          "table": {
+            "table_name": "t2",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 7,
+            "rows_produced_per_join": 35,
+            "filtered": "100.00",
+            "using_join_buffer": "Block Nested Loop",
+            "cost_info": {
+              "read_cost": "0.25",
+              "eval_cost": "3.50",
+              "prefix_cost": "4.50",
+              "data_read_per_join": "1K"
+            },
+            "used_columns": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      ]
     }
   }
 }
@@ -326,16 +343,70 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "45.00"
+      "query_cost": "4.50"
     },
     "grouping_operation": {
       "using_temporary_table": true,
-      "using_filesort": true,
-      "cost_info": {
-        "sort_cost": "35.00"
-      },
-      "buffer_result": {
+      "using_filesort": false,
+      "nested_loop": [
+        {
+          "table": {
+            "table_name": "t1",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 5,
+            "rows_produced_per_join": 5,
+            "filtered": "100.00",
+            "cost_info": {
+              "read_cost": "0.25",
+              "eval_cost": "0.50",
+              "prefix_cost": "0.75",
+              "data_read_per_join": "160"
+            },
+            "used_columns": [
+              "b"
+            ]
+          }
+        },
+        {
+          "table": {
+            "table_name": "t2",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 7,
+            "rows_produced_per_join": 35,
+            "filtered": "100.00",
+            "using_join_buffer": "Block Nested Loop",
+            "cost_info": {
+              "read_cost": "0.25",
+              "eval_cost": "3.50",
+              "prefix_cost": "4.50",
+              "data_read_per_join": "1K"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`b`
+select SQL_BIG_RESULT t1.b from t1, t2 group by t1.b order by 1;
+b
+a
+b
+c
+explain format=json select SQL_BIG_RESULT distinct t1.a from t1, t2 group by t1.b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "4.50"
+    },
+    "duplicates_removal": {
+      "using_filesort": false,
+      "grouping_operation": {
         "using_temporary_table": true,
+        "using_filesort": false,
         "nested_loop": [
           {
             "table": {
@@ -345,12 +416,13 @@ EXPLAIN
               "rows_produced_per_join": 5,
               "filtered": "100.00",
               "cost_info": {
-                "read_cost": "1.00",
-                "eval_cost": "1.00",
-                "prefix_cost": "2.00",
-                "data_read_per_join": "160"
+                "read_cost": "0.25",
+                "eval_cost": "0.50",
+                "prefix_cost": "0.75",
+                "data_read_per_join": "440"
               },
               "used_columns": [
+                "a",
                 "b"
               ]
             }
@@ -362,12 +434,13 @@ EXPLAIN
               "rows_examined_per_scan": 7,
               "rows_produced_per_join": 35,
               "filtered": "100.00",
+              "distinct": true,
               "using_join_buffer": "Block Nested Loop",
               "cost_info": {
-                "read_cost": "1.00",
-                "eval_cost": "7.00",
-                "prefix_cost": "10.00",
-                "data_read_per_join": "1K"
+                "read_cost": "0.25",
+                "eval_cost": "3.50",
+                "prefix_cost": "4.50",
+                "data_read_per_join": "3K"
               }
             }
           }
@@ -389,17 +462,14 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "45.00"
+      "query_cost": "4.50"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
       "using_filesort": false,
       "grouping_operation": {
         "using_temporary_table": true,
-        "using_filesort": true,
-        "cost_info": {
-          "sort_cost": "35.00"
-        },
+        "using_filesort": false,
         "buffer_result": {
           "using_temporary_table": true,
           "nested_loop": [
@@ -411,10 +481,10 @@ EXPLAIN
                 "rows_produced_per_join": 5,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "1.00",
-                  "eval_cost": "1.00",
-                  "prefix_cost": "2.00",
-                  "data_read_per_join": "160"
+                  "read_cost": "0.25",
+                  "eval_cost": "0.50",
+                  "prefix_cost": "0.75",
+                  "data_read_per_join": "440"
                 },
                 "used_columns": [
                   "a",
@@ -432,10 +502,10 @@ EXPLAIN
                 "distinct": true,
                 "using_join_buffer": "Block Nested Loop",
                 "cost_info": {
-                  "read_cost": "1.00",
-                  "eval_cost": "7.00",
-                  "prefix_cost": "10.00",
-                  "data_read_per_join": "1K"
+                  "read_cost": "0.25",
+                  "eval_cost": "3.50",
+                  "prefix_cost": "4.50",
+                  "data_read_per_join": "3K"
                 }
               }
             }
@@ -458,14 +528,11 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "15.00"
+      "query_cost": "4.50"
     },
     "grouping_operation": {
       "using_temporary_table": true,
-      "using_filesort": true,
-      "cost_info": {
-        "sort_cost": "5.00"
-      },
+      "using_filesort": false,
       "nested_loop": [
         {
           "table": {
@@ -475,10 +542,10 @@ EXPLAIN
             "rows_produced_per_join": 5,
             "filtered": "100.00",
             "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "1.00",
-              "prefix_cost": "2.00",
-              "data_read_per_join": "160"
+              "read_cost": "0.25",
+              "eval_cost": "0.50",
+              "prefix_cost": "0.75",
+              "data_read_per_join": "440"
             },
             "used_columns": [
               "a",
@@ -495,10 +562,10 @@ EXPLAIN
             "filtered": "14.29",
             "using_join_buffer": "Block Nested Loop",
             "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "1.00",
-              "prefix_cost": "10.00",
-              "data_read_per_join": "160"
+              "read_cost": "0.25",
+              "eval_cost": "0.50",
+              "prefix_cost": "4.50",
+              "data_read_per_join": "440"
             },
             "used_columns": [
               "a"
@@ -523,7 +590,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "10.00"
+      "query_cost": "4.50"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -537,10 +604,10 @@ EXPLAIN
             "rows_produced_per_join": 5,
             "filtered": "100.00",
             "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "1.00",
-              "prefix_cost": "2.00",
-              "data_read_per_join": "160"
+              "read_cost": "0.25",
+              "eval_cost": "0.50",
+              "prefix_cost": "0.75",
+              "data_read_per_join": "440"
             },
             "used_columns": [
               "a",
@@ -558,10 +625,10 @@ EXPLAIN
             "distinct": true,
             "using_join_buffer": "Block Nested Loop",
             "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "1.00",
-              "prefix_cost": "10.00",
-              "data_read_per_join": "160"
+              "read_cost": "0.25",
+              "eval_cost": "0.50",
+              "prefix_cost": "4.50",
+              "data_read_per_join": "440"
             },
             "used_columns": [
               "b"
@@ -583,17 +650,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "7.00"
+      "query_cost": "0.75"
     },
     "duplicates_removal": {
-      "using_temporary_table": true,
       "using_filesort": false,
       "grouping_operation": {
         "using_temporary_table": true,
-        "using_filesort": true,
-        "cost_info": {
-          "sort_cost": "5.00"
-        },
+        "using_filesort": false,
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
@@ -601,10 +664,10 @@ EXPLAIN
           "rows_produced_per_join": 5,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "1.00",
-            "prefix_cost": "2.00",
-            "data_read_per_join": "160"
+            "read_cost": "0.25",
+            "eval_cost": "0.50",
+            "prefix_cost": "0.75",
+            "data_read_per_join": "440"
           },
           "used_columns": [
             "a",
@@ -649,17 +712,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1848.20"
+      "query_cost": "154.85"
     },
     "duplicates_removal": {
-      "using_temporary_table": true,
       "using_filesort": false,
       "grouping_operation": {
         "using_temporary_table": true,
-        "using_filesort": true,
-        "cost_info": {
-          "sort_cost": "1536.00"
-        },
+        "using_filesort": false,
         "table": {
           "table_name": "t3",
           "access_type": "ALL",
@@ -667,10 +726,10 @@ EXPLAIN
           "rows_produced_per_join": 1536,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "5.00",
-            "eval_cost": "307.20",
-            "prefix_cost": "312.20",
-            "data_read_per_join": "48K"
+            "read_cost": "1.25",
+            "eval_cost": "153.60",
+            "prefix_cost": "154.85",
+            "data_read_per_join": "132K"
           },
           "used_columns": [
             "a",
@@ -706,7 +765,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "8.26"
+      "query_cost": "6.11"
     },
     "ordering_operation": {
       "using_temporary_table": true,
@@ -726,9 +785,9 @@ EXPLAIN
               "rows_produced_per_join": 1,
               "filtered": "100.00",
               "cost_info": {
-                "read_cost": "1.00",
-                "eval_cost": "0.20",
-                "prefix_cost": "1.20",
+                "read_cost": "0.25",
+                "eval_cost": "0.10",
+                "prefix_cost": "0.35",
                 "data_read_per_join": "32"
               },
               "used_columns": [
@@ -748,10 +807,10 @@ EXPLAIN
               "distinct": true,
               "using_join_buffer": "Block Nested Loop",
               "cost_info": {
-                "read_cost": "1.06",
-                "eval_cost": "1.00",
-                "prefix_cost": "3.26",
-                "data_read_per_join": "160"
+                "read_cost": "0.27",
+                "eval_cost": "0.50",
+                "prefix_cost": "1.12",
+                "data_read_per_join": "440"
               }
             }
           }
@@ -779,7 +838,7 @@ EXPLAIN
           "query_block": {
             "select_id": 1,
             "cost_info": {
-              "query_cost": "2.00"
+              "query_cost": "0.75"
             },
             "table": {
               "table_name": "t1",
@@ -788,10 +847,10 @@ EXPLAIN
               "rows_produced_per_join": 5,
               "filtered": "100.00",
               "cost_info": {
-                "read_cost": "1.00",
-                "eval_cost": "1.00",
-                "prefix_cost": "2.00",
-                "data_read_per_join": "160"
+                "read_cost": "0.25",
+                "eval_cost": "0.50",
+                "prefix_cost": "0.75",
+                "data_read_per_join": "440"
               },
               "used_columns": [
                 "a",
@@ -806,7 +865,7 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "2.40"
+              "query_cost": "0.95"
             },
             "table": {
               "table_name": "t2",
@@ -815,10 +874,10 @@ EXPLAIN
               "rows_produced_per_join": 7,
               "filtered": "100.00",
               "cost_info": {
-                "read_cost": "1.00",
-                "eval_cost": "1.40",
-                "prefix_cost": "2.40",
-                "data_read_per_join": "224"
+                "read_cost": "0.25",
+                "eval_cost": "0.70",
+                "prefix_cost": "0.95",
+                "data_read_per_join": "616"
               },
               "used_columns": [
                 "a",
@@ -862,7 +921,7 @@ EXPLAIN
           "query_block": {
             "select_id": 1,
             "cost_info": {
-              "query_cost": "2.00"
+              "query_cost": "0.75"
             },
             "table": {
               "table_name": "t1",
@@ -871,10 +930,10 @@ EXPLAIN
               "rows_produced_per_join": 5,
               "filtered": "100.00",
               "cost_info": {
-                "read_cost": "1.00",
-                "eval_cost": "1.00",
-                "prefix_cost": "2.00",
-                "data_read_per_join": "160"
+                "read_cost": "0.25",
+                "eval_cost": "0.50",
+                "prefix_cost": "0.75",
+                "data_read_per_join": "440"
               },
               "used_columns": [
                 "a",
@@ -889,7 +948,7 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "2.40"
+              "query_cost": "0.95"
             },
             "table": {
               "table_name": "t2",
@@ -898,10 +957,10 @@ EXPLAIN
               "rows_produced_per_join": 7,
               "filtered": "100.00",
               "cost_info": {
-                "read_cost": "1.00",
-                "eval_cost": "1.40",
-                "prefix_cost": "2.40",
-                "data_read_per_join": "224"
+                "read_cost": "0.25",
+                "eval_cost": "0.70",
+                "prefix_cost": "0.95",
+                "data_read_per_join": "616"
               },
               "used_columns": [
                 "a",
@@ -934,7 +993,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "3.00"
+      "query_cost": "1.00"
     },
     "table": {
       "table_name": "tt",
@@ -943,10 +1002,10 @@ EXPLAIN
       "rows_produced_per_join": 5,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "2.00",
-        "eval_cost": "1.00",
-        "prefix_cost": "3.00",
-        "data_read_per_join": "160"
+        "read_cost": "0.50",
+        "eval_cost": "0.50",
+        "prefix_cost": "1.00",
+        "data_read_per_join": "480"
       },
       "used_columns": [
         "a",
@@ -959,7 +1018,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "2.00"
+            "query_cost": "0.75"
           },
           "table": {
             "table_name": "t1",
@@ -968,10 +1027,10 @@ EXPLAIN
             "rows_produced_per_join": 5,
             "filtered": "100.00",
             "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "1.00",
-              "prefix_cost": "2.00",
-              "data_read_per_join": "160"
+              "read_cost": "0.25",
+              "eval_cost": "0.50",
+              "prefix_cost": "0.75",
+              "data_read_per_join": "440"
             },
             "used_columns": [
               "a",
@@ -998,7 +1057,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "12.00"
+      "query_cost": "5.00"
     },
     "nested_loop": [
       {
@@ -1009,10 +1068,10 @@ EXPLAIN
           "rows_produced_per_join": 5,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "2.00",
-            "eval_cost": "1.00",
-            "prefix_cost": "3.00",
-            "data_read_per_join": "160"
+            "read_cost": "0.50",
+            "eval_cost": "0.50",
+            "prefix_cost": "1.00",
+            "data_read_per_join": "440"
           },
           "used_columns": [
             "b"
@@ -1024,7 +1083,7 @@ EXPLAIN
             "query_block": {
               "select_id": 2,
               "cost_info": {
-                "query_cost": "2.00"
+                "query_cost": "0.75"
               },
               "table": {
                 "table_name": "t1",
@@ -1033,10 +1092,10 @@ EXPLAIN
                 "rows_produced_per_join": 5,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "1.00",
-                  "eval_cost": "1.00",
-                  "prefix_cost": "2.00",
-                  "data_read_per_join": "160"
+                  "read_cost": "0.25",
+                  "eval_cost": "0.50",
+                  "prefix_cost": "0.75",
+                  "data_read_per_join": "440"
                 },
                 "used_columns": [
                   "b"
@@ -1055,10 +1114,10 @@ EXPLAIN
           "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "2.00",
-            "eval_cost": "7.00",
-            "prefix_cost": "12.00",
-            "data_read_per_join": "1K"
+            "read_cost": "0.50",
+            "eval_cost": "3.50",
+            "prefix_cost": "5.00",
+            "data_read_per_join": "3K"
           },
           "used_columns": [
             "b"
@@ -1070,7 +1129,7 @@ EXPLAIN
             "query_block": {
               "select_id": 3,
               "cost_info": {
-                "query_cost": "2.40"
+                "query_cost": "0.95"
               },
               "table": {
                 "table_name": "t2",
@@ -1079,10 +1138,10 @@ EXPLAIN
                 "rows_produced_per_join": 7,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "1.00",
-                  "eval_cost": "1.40",
-                  "prefix_cost": "2.40",
-                  "data_read_per_join": "224"
+                  "read_cost": "0.25",
+                  "eval_cost": "0.70",
+                  "prefix_cost": "0.95",
+                  "data_read_per_join": "616"
                 },
                 "used_columns": [
                   "b"
@@ -1149,7 +1208,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "3.20"
+      "query_cost": "1.10"
     },
     "nested_loop": [
       {
@@ -1171,9 +1230,9 @@ EXPLAIN
           "rows_produced_per_join": 1,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "0.20",
-            "prefix_cost": "1.20",
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "0.35",
             "data_read_per_join": "24"
           },
           "used_columns": [
@@ -1189,7 +1248,7 @@ EXPLAIN
             "query_block": {
               "select_id": 2,
               "cost_info": {
-                "query_cost": "1.20"
+                "query_cost": "0.35"
               },
               "table": {
                 "table_name": "t3",
@@ -1198,10 +1257,10 @@ EXPLAIN
                 "rows_produced_per_join": 1,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "1.00",
-                  "eval_cost": "0.20",
-                  "prefix_cost": "1.20",
-                  "data_read_per_join": "16"
+                  "read_cost": "0.25",
+                  "eval_cost": "0.10",
+                  "prefix_cost": "0.35",
+                  "data_read_per_join": "24"
                 },
                 "used_columns": [
                   "a",
@@ -1223,10 +1282,10 @@ EXPLAIN
           "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "1.00",
-            "prefix_cost": "3.20",
-            "data_read_per_join": "160"
+            "read_cost": "0.25",
+            "eval_cost": "0.50",
+            "prefix_cost": "1.10",
+            "data_read_per_join": "440"
           },
           "used_columns": [
             "a",
@@ -1248,7 +1307,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "8.80"
+      "query_cost": "3.90"
     },
     "nested_loop": [
       {
@@ -1259,10 +1318,10 @@ EXPLAIN
           "rows_produced_per_join": 5,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "1.00",
-            "prefix_cost": "2.00",
-            "data_read_per_join": "160"
+            "read_cost": "0.25",
+            "eval_cost": "0.50",
+            "prefix_cost": "0.75",
+            "data_read_per_join": "440"
           },
           "used_columns": [
             "a",
@@ -1291,10 +1350,10 @@ EXPLAIN
                 "rows_produced_per_join": 7,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "1.00",
-                  "eval_cost": "1.40",
-                  "prefix_cost": "2.40",
-                  "data_read_per_join": "224"
+                  "read_cost": "0.25",
+                  "eval_cost": "0.70",
+                  "prefix_cost": "0.95",
+                  "data_read_per_join": "616"
                 },
                 "used_columns": [
                   "a"
@@ -1325,7 +1384,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "14.00"
+      "query_cost": "6.50"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -1338,10 +1397,10 @@ EXPLAIN
             "rows_produced_per_join": 5,
             "filtered": "100.00",
             "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "1.00",
-              "prefix_cost": "2.00",
-              "data_read_per_join": "160"
+              "read_cost": "0.25",
+              "eval_cost": "0.50",
+              "prefix_cost": "0.75",
+              "data_read_per_join": "440"
             },
             "used_columns": [
               "a",
@@ -1358,10 +1417,10 @@ EXPLAIN
             "filtered": "14.29",
             "using_join_buffer": "Block Nested Loop",
             "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "1.00",
-              "prefix_cost": "14.00",
-              "data_read_per_join": "160"
+              "read_cost": "0.25",
+              "eval_cost": "0.50",
+              "prefix_cost": "6.50",
+              "data_read_per_join": "440"
             },
             "used_columns": [
               "a"
@@ -1382,34 +1441,109 @@ a	b
 3	c
 4	c
 set optimizer_switch= @tmp_optimizer_switch;
+SET DEBUG='+d,skip_dd_table_access_check';
+ANALYZE TABLE mysql.character_sets;
+Table	Op	Msg_type	Msg_text
+mysql.character_sets	analyze	status	OK
 explain format=json select * from information_schema.character_sets order by 1 limit 3;
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "3.40"
+      "query_cost": "4.60"
     },
     "ordering_operation": {
       "using_filesort": true,
-      "cost_info": {
-        "sort_cost": "2.00"
-      },
       "table": {
         "table_name": "character_sets",
         "access_type": "ALL",
+        "rows_examined_per_scan": 41,
+        "rows_produced_per_join": 41,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.50",
+          "eval_cost": "4.10",
+          "prefix_cost": "4.60",
+          "data_read_per_join": "262K"
+        },
         "used_columns": [
           "CHARACTER_SET_NAME",
           "DEFAULT_COLLATE_NAME",
           "DESCRIPTION",
           "MAXLEN"
-        ]
+        ],
+        "materialized_from_subquery": {
+          "using_temporary_table": true,
+          "dependent": false,
+          "cacheable": true,
+          "query_block": {
+            "select_id": 2,
+            "cost_info": {
+              "query_cost": "49.45"
+            },
+            "nested_loop": [
+              {
+                "table": {
+                  "table_name": "cs",
+                  "access_type": "ALL",
+                  "possible_keys": [
+                    "default_collation_id"
+                  ],
+                  "rows_examined_per_scan": 41,
+                  "rows_produced_per_join": 41,
+                  "filtered": "100.00",
+                  "cost_info": {
+                    "read_cost": "0.25",
+                    "eval_cost": "4.10",
+                    "prefix_cost": "4.35",
+                    "data_read_per_join": "254K"
+                  },
+                  "used_columns": [
+                    "name",
+                    "default_collation_id",
+                    "comment",
+                    "mb_max_length"
+                  ]
+                }
+              },
+              {
+                "table": {
+                  "table_name": "col",
+                  "access_type": "eq_ref",
+                  "possible_keys": [
+                    "PRIMARY"
+                  ],
+                  "key": "PRIMARY",
+                  "used_key_parts": [
+                    "id"
+                  ],
+                  "key_length": "8",
+                  "ref": [
+                    "mysql.cs.default_collation_id"
+                  ],
+                  "rows_examined_per_scan": 1,
+                  "rows_produced_per_join": 41,
+                  "filtered": "100.00",
+                  "cost_info": {
+                    "read_cost": "41.00",
+                    "eval_cost": "4.10",
+                    "prefix_cost": "49.45",
+                    "data_read_per_join": "9K"
+                  },
+                  "used_columns": [
+                    "id",
+                    "name"
+                  ]
+                }
+              }
+            ]
+          }
+        }
       }
     }
   }
 }
-Warnings:
-Note	1003	/* select#1 */ select `information_schema`.`character_sets`.`CHARACTER_SET_NAME` AS `CHARACTER_SET_NAME`,`information_schema`.`character_sets`.`DEFAULT_COLLATE_NAME` AS `DEFAULT_COLLATE_NAME`,`information_schema`.`character_sets`.`DESCRIPTION` AS `DESCRIPTION`,`information_schema`.`character_sets`.`MAXLEN` AS `MAXLEN` from `information_schema`.`character_sets` order by `information_schema`.`character_sets`.`CHARACTER_SET_NAME` limit 3
 select * from information_schema.character_sets order by 1 limit 3;
 CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
 armscii8	armscii8_general_ci	ARMSCII-8 Armenian	1
@@ -1421,7 +1555,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "4.40"
+      "query_cost": "1.70"
     },
     "nested_loop": [
       {
@@ -1433,10 +1567,10 @@ EXPLAIN
           "rows_produced_per_join": 1,
           "filtered": "20.00",
           "cost_info": {
-            "read_cost": "1.80",
-            "eval_cost": "0.20",
-            "prefix_cost": "2.00",
-            "data_read_per_join": "32"
+            "read_cost": "0.65",
+            "eval_cost": "0.10",
+            "prefix_cost": "0.75",
+            "data_read_per_join": "88"
           },
           "used_columns": [
             "a",
@@ -1454,10 +1588,10 @@ EXPLAIN
           "rows_produced_per_join": 7,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "1.40",
-            "prefix_cost": "4.40",
-            "data_read_per_join": "224"
+            "read_cost": "0.25",
+            "eval_cost": "0.70",
+            "prefix_cost": "1.70",
+            "data_read_per_join": "616"
           },
           "used_columns": [
             "a"
@@ -1474,7 +1608,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.00"
+      "query_cost": "0.75"
     },
     "table": {
       "table_name": "t1",
@@ -1483,10 +1617,10 @@ EXPLAIN
       "rows_produced_per_join": 5,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "1.00",
-        "eval_cost": "1.00",
-        "prefix_cost": "2.00",
-        "data_read_per_join": "160"
+        "read_cost": "0.25",
+        "eval_cost": "0.50",
+        "prefix_cost": "0.75",
+        "data_read_per_join": "440"
       },
       "used_columns": [
         "a"
@@ -1505,7 +1639,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.00"
+      "query_cost": "0.75"
     },
     "table": {
       "table_name": "t1",
@@ -1514,10 +1648,10 @@ EXPLAIN
       "rows_produced_per_join": 5,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "1.00",
-        "eval_cost": "1.00",
-        "prefix_cost": "2.00",
-        "data_read_per_join": "160"
+        "read_cost": "0.25",
+        "eval_cost": "0.50",
+        "prefix_cost": "0.75",
+        "data_read_per_join": "440"
       },
       "used_columns": [
         "a",
@@ -1547,7 +1681,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "36.46"
+      "query_cost": "31.71"
     },
     "ordering_operation": {
       "using_temporary_table": true,
@@ -1564,9 +1698,9 @@ EXPLAIN
             "rows_produced_per_join": 4,
             "filtered": "100.00",
             "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "0.80",
-              "prefix_cost": "1.80",
+              "read_cost": "0.25",
+              "eval_cost": "0.40",
+              "prefix_cost": "0.65",
               "data_read_per_join": "64"
             },
             "used_columns": [
@@ -1584,16 +1718,16 @@ EXPLAIN
             "filtered": "100.00",
             "using_join_buffer": "Block Nested Loop",
             "cost_info": {
-              "read_cost": "1.06",
-              "eval_cost": "5.60",
-              "prefix_cost": "8.46",
-              "data_read_per_join": "896"
+              "read_cost": "0.27",
+              "eval_cost": "2.80",
+              "prefix_cost": "3.72",
+              "data_read_per_join": "2K"
             },
             "used_columns": [
               "a",
               "b"
             ],
-            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t1`.`a` = `test`.`t2`.`a`), true)"
+            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t2`.`a` = `test`.`t1`.`a`), true)"
           }
         }
       ]
@@ -1601,7 +1735,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`)) where 1 order by `test`.`t1`.`b`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1 order by `test`.`t1`.`b`
 select * from t1 left join t2 on t1.a = t2.a order by t1.b;
 a	b	a	b
 1	ababab	NULL	NULL
@@ -1614,14 +1748,11 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "5.80"
+      "query_cost": "0.65"
     },
     "grouping_operation": {
       "using_temporary_table": true,
-      "using_filesort": true,
-      "cost_info": {
-        "sort_cost": "4.00"
-      },
+      "using_filesort": false,
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -1629,9 +1760,9 @@ EXPLAIN
         "rows_produced_per_join": 4,
         "filtered": "100.00",
         "cost_info": {
-          "read_cost": "1.00",
-          "eval_cost": "0.80",
-          "prefix_cost": "1.80",
+          "read_cost": "0.25",
+          "eval_cost": "0.40",
+          "prefix_cost": "0.65",
           "data_read_per_join": "64"
         },
         "used_columns": [
@@ -1655,7 +1786,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.80"
+      "query_cost": "0.65"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -1667,9 +1798,9 @@ EXPLAIN
         "rows_produced_per_join": 4,
         "filtered": "100.00",
         "cost_info": {
-          "read_cost": "1.00",
-          "eval_cost": "0.80",
-          "prefix_cost": "1.80",
+          "read_cost": "0.25",
+          "eval_cost": "0.40",
+          "prefix_cost": "0.65",
           "data_read_per_join": "64"
         },
         "used_columns": [
@@ -1705,7 +1836,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.60"
+      "query_cost": "0.55"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -1717,9 +1848,9 @@ EXPLAIN
         "rows_produced_per_join": 3,
         "filtered": "100.00",
         "cost_info": {
-          "read_cost": "1.00",
-          "eval_cost": "0.60",
-          "prefix_cost": "1.60",
+          "read_cost": "0.25",
+          "eval_cost": "0.30",
+          "prefix_cost": "0.55",
           "data_read_per_join": "72"
         },
         "used_columns": [
@@ -1742,14 +1873,11 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "4.60"
+      "query_cost": "0.55"
     },
     "grouping_operation": {
       "using_temporary_table": true,
-      "using_filesort": true,
-      "cost_info": {
-        "sort_cost": "3.00"
-      },
+      "using_filesort": false,
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
@@ -1757,9 +1885,9 @@ EXPLAIN
         "rows_produced_per_join": 3,
         "filtered": "100.00",
         "cost_info": {
-          "read_cost": "1.00",
-          "eval_cost": "0.60",
-          "prefix_cost": "1.60",
+          "read_cost": "0.25",
+          "eval_cost": "0.30",
+          "prefix_cost": "0.55",
           "data_read_per_join": "72"
         },
         "used_columns": [
@@ -1782,7 +1910,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.60"
+      "query_cost": "0.55"
     },
     "table": {
       "table_name": "t2",
@@ -1791,9 +1919,9 @@ EXPLAIN
       "rows_produced_per_join": 3,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "1.00",
-        "eval_cost": "0.60",
-        "prefix_cost": "1.60",
+        "read_cost": "0.25",
+        "eval_cost": "0.30",
+        "prefix_cost": "0.55",
         "data_read_per_join": "72"
       },
       "used_columns": [
@@ -1822,7 +1950,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.20"
+      "query_cost": "0.35"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -1834,9 +1962,9 @@ EXPLAIN
         "rows_produced_per_join": 1,
         "filtered": "100.00",
         "cost_info": {
-          "read_cost": "1.00",
-          "eval_cost": "0.20",
-          "prefix_cost": "1.20",
+          "read_cost": "0.25",
+          "eval_cost": "0.10",
+          "prefix_cost": "0.35",
           "data_read_per_join": "80"
         },
         "used_columns": [
@@ -1907,13 +2035,15 @@ analyze table t1,t3;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t3	analyze	status	OK
+set @old_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='materialization=off';
 explain format=json select * from t3 where b in (select a from t1);
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "8.00"
+      "query_cost": "3.20"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -1926,9 +2056,9 @@ EXPLAIN
             "rows_produced_per_join": 3,
             "filtered": "100.00",
             "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "0.60",
-              "prefix_cost": "1.60",
+              "read_cost": "0.25",
+              "eval_cost": "0.30",
+              "prefix_cost": "0.55",
               "data_read_per_join": "48"
             },
             "used_columns": [
@@ -1953,13 +2083,13 @@ EXPLAIN
               "test.t1.a"
             ],
             "rows_examined_per_scan": 1,
-            "rows_produced_per_join": 1,
+            "rows_produced_per_join": 3,
             "filtered": "100.00",
             "cost_info": {
-              "read_cost": "3.00",
-              "eval_cost": "0.20",
-              "prefix_cost": "8.00",
-              "data_read_per_join": "616"
+              "read_cost": "0.75",
+              "eval_cost": "0.30",
+              "prefix_cost": "3.20",
+              "data_read_per_join": "7K"
             },
             "used_columns": [
               "a",
@@ -1980,6 +2110,7 @@ select * from t3 where b in (select a from t1);
 a	b	pk1	pk2	pk3
 1	1	1	1	1
 2	2	2	2	2
+set @@optimizer_switch=@old_optimizer_switch;
 update t1, t3 set t3.b=10, t1.a=20;
 select * from t1 order by 1,2;
 a	b
@@ -2040,7 +2171,7 @@ SET @old_big_tables=@@big_tables;
 SET big_tables=on;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE N (
 col_int_key int(11) DEFAULT NULL,
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -2048,9 +2179,7 @@ col_varchar_1024_utf8_key varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key),
 KEY col_varchar_1024_utf8_key (col_varchar_1024_utf8_key(333))
-) ;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
+) ROW_FORMAT=DYNAMIC;
 INSERT INTO N VALUES
 (1,3,repeat('a',1000)),(0,4,'tell'),(7,6,'o'),(6,7,'g'),(8,8,'can'),
 (9,15,repeat('a',1020)),(4,16,repeat('a',1020)),(6,18,'his'),(NULL,19,'going'),
@@ -2325,7 +2454,7 @@ key (col_date_key ),
 key (col_varchar_1024_utf8_key ),
 key (col_int_key ),
 key (col_varchar_10_latin1_key ),
-primary key (pk)) ENGINE=innodb;
+primary key (pk)) ENGINE=innodb ROW_FORMAT=DYNAMIC;
 SET sql_mode = default;
 CREATE OR REPLACE VIEW view_h AS SELECT * FROM H;
 INSERT /*! IGNORE */ INTO H VALUES  ('PWKPA', '2003', -2071461888, 'ZMAPA', NULL, '2007-06-01', 'j', 'qauhibniamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsf', '2003', 'v', 'can\'t', 'auhibniamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqv', 9, 'for', NULL) ,  ('IYAMG', '2002-06-24', 3, 'HVCLY', '20051101101903.027848', '2007-11-13', 'i', 'uhibniamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqrskwmxgptnmvqpufippfjswvzbtnvzocndndyymyjuhfntqersfsyqfdqdlnnaytyyybseabbrrfgjltjkhakdezpelkaqycfznlnhkddyuxbdybmbilkqrpmamnnhugtiirhldcncsuh', '2006', 'JNNLF', 'hibniamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqrskwmxgptnmvqpufippfjswvzbtnvzocndndyymyjuhfntqersfsyqfdqdlnnaytyyybseab', 'ibniamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjun', NULL, 'right', NULL) ,  ('PIKTS', '20040703134305.015635', -1793392640, 'o', '10:13:42.038677', '08:06:05.040877', 'IVHVM', 'bniamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunp', '20050426124618.033428', 'BQLRU', 'niamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqr', 'mean', 488243200, 'I\'m', NULL) ,  ('iamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhay', NULL, NULL, 'u', '10:38:19.045782', '2002', 'j', 'WCTUZ', '20080912005520.009494', 'amhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmn', 'all', 'mhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroy', -695730176, 'that', NULL) ,  ('htmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfw', '15:58:38.020659', 5, 'just', NULL, NULL, 'got', 'tmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcip', '11:09:00.032967', 'mnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiez', 'n', 'UIEZD', -793837568, 'JQCCK', NULL) ,  ('c', NULL, 2, 'OOCDS', '2004-10-14 09:59:29.025521', NULL, 'nfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfk', 'this', '2000-04-01', 'it', 'this', 'or', 1732050944, 'ZBICQ', NULL) ,  ('know', '04:37:06.005578', 8, 'b', '2005-07-06 04:13:32.018141', '00:54:10.040062', 'i', 'fxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavo', NULL, 'r', 'KARHF', 'p', 319291392, 'xfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfz', NULL) ,  ('IVUJL', '2000-11-25 23:28:42.038112', 898301952, 'fmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkml', NULL, '2002', 'NJUNY', 'VJCPX', '2008', 'o', 'PCIRX', 'w', -1041825792, 'v', NULL) ,  ('are', '2003-12-09 01:30:03.025234', -1310785536, 'b', '2005-04-05 07:49:11.008399', '20090315000439.040497', 'UKBQS', 'z', '2002-03-22 12:26:57.006275', 'look', 'come', 'for', 2490368, 'ULYXS', NULL) ,  ('i', NULL, -730923008, 'ZFKUP', '20040807230832.006451', '20051210104822.018844', 'mxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxe', 'f', '2000-12-19', 'xslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacg', 'y', 'EUETM', 3, 'HNFFZ', NULL) ,  ('ESQVC', '2005-08-10 20:19:43.000027', 5, 'NGYTB', NULL, NULL, 'd', 'd', '13:27:32.062794', 'slmxvfonsluayrofwafllupikoapp', 't', 'lmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhl', 795148288, 'XMOZQ', NULL) ,  ('really', '2001-05-22', 8, 'mxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvq', '20080504174501.046646', '2003-07-26 16:59:01.062296', 'n', 'how', '20070508055627.026593', 'RRFNA', 'in', 'xvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjp', 132251648, 'get', NULL) ,  ('v', '19:53:48.009433', NULL, 'vfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsus', '2008-08-08', '2001', 'JQUQZ', 'fonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpg', '2006-05-05', 'x', 'for', 'WJXOZ', 131596288, 'want', NULL) ,  ('mean', NULL, 564068352, 'onsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqrskwmxgptnmvqpufippfjswvzb', '2007-09-04 06:46:51.041078', '11:50:05.047592', 'LITLN', 'd', '01:29:28.040385', 'UMOLK', 'l', 'they', 1351614464, 'TJEWO', NULL) ,  ('nsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqrskwmxgptnmvqpufippfjswvzbtnvzocndndyymyjuhfntqersfsyqfdqdlnnaytyyybseabbrrfgjltjkhakdezpe', NULL, 3, 'did', '01:26:29.025020', '09:49:47.038765', 'VNUAV', 'sluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobds', '2001-04-14', 'CIOAI', 'him', 'luayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxb', 7, 'get', NULL) ,  ('him', '20051204062403.046858', 7, 'his', '2003-10-28', '20030112051727.032070', 'MNJBY', 'uayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdq', NULL, 'o', 'WUELI', 'ayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuy', 3, 'yrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlis', NULL) ,  ('MNAVL', '2008-03-06 19:35:21.003444', 6, 'rofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtr', '20000826213619.059974', '2008-01-09', 'ofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgp', 'they', '2001-01-13 13:17:36.051819', 'j', 'fwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroax', 't', -1574109184, 'MYHDH', NULL) ,  ('NLQQN', '2007', 1663107072, 'RLVYW', '20060608121825.039733', '2009-12-14', 'have', 'wafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxb', '2006-11-01', 'afllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthz', 'IZLCS', 'fllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuh', NULL, 'llupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgp', NULL) ,  ('all', '2004-10-20 06:15:14.000148', 1531052032, 'lupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojx', '2008-07-04', '20051221140927.040451', 'HQHLZ', 'upikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqrskwmxgptnmvqpufippfjswvzbtnvzocndndyymyjuhfntqersfsyqfdqdlnnaytyyybseabbrrfgjltjkhakdezpelkaqycfznlnhkddyuxbdybmbilkqrpmamnnhugtiirhldcncsuhynrejvficieitkbhfotgbxgnuyypbbpmclmxmnujdecohzvghxenmiq', '23:21:16.032958', 'x', 'who', 'DUCAC', -1769340928, 'RCCAO', NULL) ,  ('LLRCI', '2001', 1, 'JAFVM', '20081001131456.014526', '2005-08-01 02:35:59.003461', 'XDKFW', 'pikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqrskwmxgptnmvqpufippfjswvzbtnvzocndndyymyjuhfntqersfsyqfdqdlnnaytyyybseabbrrfgjltjkhakdezpelkaqycfznlnh', '20000112134749.024329', 'ikoappgllpkbyrdtndwiuyqhqwojelnqhxb', 'JWYNU', 'koappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqrskwmxgptnmvqpufippfjswvzbtnvzocndndyymyjuhfntqersfsyqfdqdlnnaytyyybseabbrrfgjltjkhakdezpelkaqycfznlnhkddyux', -337510400, 'will', NULL);
@@ -2363,7 +2492,7 @@ DROP TABLE t1,E,H;
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t(a BLOB, b INT);
 INSERT INTO t VALUES('1',3);
 INSERT INTO t VALUES('1',2);
@@ -2885,7 +3014,7 @@ col_int_key int(11),
 PRIMARY KEY (pk),
 KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
 KEY col_int_key (col_int_key)
-) ENGINE=MyISAM;
+) charset latin1 ENGINE=MyISAM;
 INSERT INTO t1 VALUES
 ('OAYEP',1,'yeah',183566336),
 ('u',2,'vvgnejnnoj',-638058496),
@@ -2916,7 +3045,7 @@ PRIMARY KEY (pk),
 KEY col_varchar_1024_utf8_key (col_varchar_1024_utf8_key(333)),
 KEY col_varchar_1024_latin1_key (col_varchar_1024_latin1_key(1000)),
 KEY col_int_key (col_int_key)
-) ENGINE=MyISAM;
+) charset latin1 ENGINE=MyISAM;
 INSERT INTO t2 VALUES
 ('MFDLE',1,'no',1358168064),
 ('v',2,'really',154664960),
@@ -3063,7 +3192,7 @@ DROP TABLE t1;
 #
 set sql_mode='';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a blob,b int) engine=innodb;
 create table t2 (b blob) engine=innodb;
 select t2.b,t1.b,t1.a
@@ -3077,20 +3206,72 @@ drop table t1,t2;
 #
 set names utf8, sql_mode='';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1(a date,b text charset utf8,c linestring not null);
 insert into t1 values ('2015-01-01','a',linestring(point(1,1),point(2,2)));
 select distinct nullif(a,b) as c from t1 z order by z.c;
 c
-201
+2015-01-01
 Warnings:
 Warning	1292	Incorrect date value: 'a' for column 'a' at row 1
 set names default, sql_mode=default;
 drop table t1;
-SET GLOBAL innodb_large_prefix=default;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+#
+# Bug#20752543 INNODB:FAILING ASSERTION:FLAGS & BUF_PAGE_PRINT_NO_CRASH
+#
+SET @old_big_tables=@@big_tables;
+SET big_tables=on;
+set @old_limit_optimistic_insert_debug= @@innodb_limit_optimistic_insert_debug;
+set global innodb_limit_optimistic_insert_debug=2;
+select 1 as a union all select 1 union all select 2 union select 1 union all
+select 2;
+a
+1
+2
+2
+set big_tables= @old_big_tables;
+set global innodb_limit_optimistic_insert_debug=
+@old_limit_optimistic_insert_debug;
+#
+# Bug#20454979 CRASH IN ACTUAL_KEY_PARTS 
+#
+create table t1(a blob);
+insert into t1 values ('a');
+select distinct least(1,count(distinct a)) from t1 group by a;
+least(1,count(distinct a))
+1
+drop table t1;
+#
+# Bug#21461026: INCONSISTEND CASING ON STORAGE ENGINE VARIABLE VALUE
+#
+SHOW GLOBAL VARIABLES LIKE '%\_storage\_engine';
+Variable_name	Value
+default_storage_engine	InnoDB
+default_tmp_storage_engine	InnoDB
+internal_tmp_disk_storage_engine	InnoDB
+internal_tmp_mem_storage_engine	TempTable
 set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
 set big_tables= @old_big_tables;
 set optimizer_switch= @old_optimizer_switch;
 #
+#
+# Bug #22343910: SELECT DISTINCT NOT RETURNING DISTINCT ROWS IN 5.7
+#
+CREATE TABLE test_distinct (c1 VARCHAR(1000),
+c2 CHAR(5) DEFAULT 'xxxxx');
+INSERT INTO test_distinct VALUES ('a',null),  ('a',null);
+SET global internal_tmp_disk_storage_engine=MYISAM;
+SELECT DISTINCT c1, c2 FROM test_distinct;
+c1	c2
+a	NULL
+SELECT c1, c2 FROM test_distinct GROUP BY c1, c2;
+c1	c2
+a	NULL
+SET global internal_tmp_disk_storage_engine=INNODB;
+SELECT DISTINCT c1, c2 FROM test_distinct;
+c1	c2
+a	NULL
+SELECT c1, c2 FROM test_distinct GROUP BY c1, c2;
+c1	c2
+a	NULL
+DROP TABLE test_distinct;

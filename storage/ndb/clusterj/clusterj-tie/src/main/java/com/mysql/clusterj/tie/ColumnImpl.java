@@ -1,14 +1,21 @@
 /*
- *  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
+ *  it under the terms of the GNU General Public License, version 2.0,
+ *  as published by the Free Software Foundation.
+ *
+ *  This program is also distributed with certain software (including
+ *  but not limited to OpenSSL) that is licensed under separate terms,
+ *  as designated in a particular file or component or in included license
+ *  documentation.  The authors of MySQL hereby grant you an additional
+ *  permission to link the program and your derivative works with the
+ *  separately licensed software that they have included with MySQL.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  GNU General Public License, version 2.0, for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
@@ -108,7 +115,7 @@ class ColumnImpl implements Column {
         this.precision = ndbColumn.getPrecision();
         this.scale = ndbColumn.getScale();
         this.size = ndbColumn.getSize();
-        logger.detail("ColumnImpl column type: " + this.columnType);
+        if (logger.isDetailEnabled()) logger.detail("ColumnImpl column type: " + this.columnType);
         switch(ndbColumn.getType()) {
             case ColumnConst.Type.Tinyint:
             case ColumnConst.Type.Tinyunsigned:
@@ -180,12 +187,14 @@ class ColumnImpl implements Column {
                 break;
             case ColumnConst.Type.Blob:
                 this.prefixLength = 0;
-                this.columnSpace = inlineSize;
+                // space is reserved for a pointer to the blob header, 8 bytes for today's architecture
+                this.columnSpace = 8; // only the blob header has space in the record
                 this.lob = true;
                 break;
             case ColumnConst.Type.Text:
                 this.prefixLength = 0;
-                this.columnSpace = inlineSize;
+                // space is reserved for a pointer to the blob header, 8 bytes for today's architecture
+                this.columnSpace = 8; // only the blob header has space in the record
                 this.charsetNumber = ndbColumn.getCharsetNumber();
                 this.lob = true;
                 mapCharsetName();
@@ -232,7 +241,7 @@ class ColumnImpl implements Column {
                 String message = 
                     local.message("ERR_Unknown_Column_Type",
                     tableName, ndbColumn.getName(), ndbType);
-                logger.info(message);
+                logger.warn(message);
                 throw new ClusterJFatalInternalException(message);
         }
         if (logger.isDetailEnabled()) logger.detail("Column " + columnName
@@ -302,7 +311,7 @@ class ColumnImpl implements Column {
                 String message = 
                     local.message("ERR_Unknown_Column_Type",
                     tableName, columnName, type);
-                logger.info(message);
+                logger.warn(message);
                 throw new ClusterJFatalInternalException(message);
         }
     }

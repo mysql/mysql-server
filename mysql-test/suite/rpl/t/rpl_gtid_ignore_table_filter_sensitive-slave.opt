@@ -1,1 +1,0 @@
---replicate-do-db=mydb --replicate-wild-ignore-table=my%.Ţ1 --replicate-ignore-table=mydb.t2 --replicate-ignore-table=mydb.t3 --lower_case_table_names=0

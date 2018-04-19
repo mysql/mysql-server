@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
 --source suite/ndb_memcache/include/have_memcache.inc
 --source suite/ndb_memcache/include/misc_tables.inc
@@ -25,6 +20,7 @@ if($r == 0) {
 # Here are some values
 our $val_50 = "ABCDEFGHIJKLMNOPQRSTabcdefghijklmnopqrst123456789_";
 our $val_40 = "Riga,Stockholm,Helsinki,Oslo,Copenhagen_";
+our $val_180 = $val_50 . $val_40 . $val_50 . $val_40;
 our $val_100k = $val_50 x 2000;
 our $val_60k  = $val_40 x 1500;
 our $val_13949 = "." x 13949;
@@ -37,77 +33,85 @@ run_test($mc);       # Test with ASCII protocol
 run_test($mcBin);    # Test with binary protocol
 
 
-
 sub run_test() {
   my $mc = shift;
-  
+  print "Testing " . $mc->protocol() . " protocol\n";
+
   # Flush all
   $mc->flush();
 
   # Do two INSERTS.  The first should succeed, the second should fail.
-  if(! ($mc->add("b:long_val_1", $val_100k))) {
-    $mc->stats("log");  # Hack to force server's error log to flush
-    Carp::confess("Failed insert: t1");
-  }
-  $mc->add("b:long_val_1", $val_100k)  &&  Carp::confess("Insert should fail: t1");
+  $mc->add("bxx:long_val_1", $val_100k)  || $mc->fail("t1 Failed Insert");
+  $mc->add("bxx:long_val_1", $val_100k)  && $mc->fail("t2 Insert should fail");
 
   # Do two DELETES.  The first should succeed, the second should fail.
-  $mc->delete("b:long_val_1")  || Carp::confess("Failed delete: t2");
-  $mc->delete("b:long_val_1")  && Carp::confess("Delete should fail: t2");
+  $mc->delete("bxx:long_val_1")  || $mc->fail("t3 Failed delete");
+  $mc->delete("bxx:long_val_1")  && $mc->fail("t4 Delete should fail");
+  print "Passed t1 .. t4\n";
 
   # Do an insert, then a read, then a delete, then a read
-  $mc->add("b:long_val_2", $val_100k)     || Carp::confess("Failed insert: t3");
-  ($mc->get("b:long_val_2") == $val_100k) || Carp::confess("GET results unexpected: t3");
-  $mc->delete("b:long_val_2")             || Carp::confess("Failed delete: t3");
-  $mc->get("b:long_val_2")                && Carp::confess("GET should fail: t3");
+  $mc->add("bxx:long_val_2", $val_100k)   || $mc->fail("t5 Failed insert");
+  my $v = $mc->get("bxx:long_val_2");
+  if($v ne $val_100k) {
+    my $msg = "t6 GET results expected [len 100,000] " .
+              substr($val_100k,0,10) . "..." . substr($val_100k,-10);
+    $mc->fail($msg)
+  }
+  $mc->delete("bxx:long_val_2")           || $mc->fail("t7 Failed delete");
+  $mc->get("bxx:long_val_2")              && $mc->fail("t8 GET should fail");
+  print  "Passed t5 .. t8\n";
 
   # INSERT, read, and delete a short value 
-  $mc->add("b:short", $val_40);
-  ($mc->get("b:short") == $val_40)    || Carp::confess("GET results unexpected");
-  $mc->delete("b:short")              || Carp::confess("delete failed");
+  $mc->add("bxx:short", $val_40);
+  ($mc->get("bxx:short") eq $val_40)  || $mc->fail("t9 GET results unexpected");
+  $mc->delete("bxx:short")            || $mc->fail("t10 delete failed");
+  print  "Passed t9 .. t10\n";
 
   # Insert using SET.  Then read.  Then attempt an ADD, which should fail.
   # Short values
-  $mc->set("b:test_short_set", "Mikrokosmos");
-  ($mc->get("b:test_short_set") == "Mikrokosmos" ) || Carp::confess("GET fail");
-  $mc->add("b:test_short_set", "!!") && Carp::confess("ADD should fail");
+  $mc->set("bxx:test_short_set", "Mikrokosmos");
+  ($mc->get("bxx:test_short_set") eq "Mikrokosmos" ) || $mc->fail("t11 GET fail");
+  $mc->add("bxx:test_short_set", "!!") && $mc->fail("t12 ADD should fail");
   # Long values
-  $mc->set("b:test_set", $val_60k)     || Carp::confess("Failed SET as insert: t4");
-  ($mc->get("b:test_set") == $val_60k) || Carp::confess("GET results unexpected: t4");
-  $mc->add("b:test_set", $val_100k)    && Carp::confess("ADD should fail");
+  $mc->set("bxx:test_set", $val_60k)     || $mc->fail("t13 Failed SET as insert");
+  ($mc->get("bxx:test_set") eq $val_60k) || $mc->fail("t14 GET results unexpected");
+  $mc->add("bxx:test_set", $val_100k)    && $mc->fail("t15 ADD should fail");
+  print  "Passed t11 .. t15\n";
 
   # UPDATE via SET from a long value to a long value
-  $mc->set("b:test_set", $val_100k)     || Carp::confess("Failed SET as update:t5");
-  ($mc->get("b:test_set") == $val_100k) || Carp::confess("GET results unexpected:t5");
+  $mc->set("bxx:test_set", $val_100k)     || $mc->fail("t16 Failed SET as update");
+  ($mc->get("bxx:test_set") eq $val_100k) || $mc->fail("t17 GET results unexpected");
 
   # UPDATE via REPLACE from a long value to a long value
-  $mc->replace("b:test_set", $val_13949) || Carp::confess("failed REPLACE");
-  ($mc->get("b:test_set") == $val_13949) || Carp::confess("results unexpected");
+  $mc->replace("bxx:test_set", $val_13949) || $mc->fail("t18 failed REPLACE");
+  ($mc->get("bxx:test_set") eq $val_13949) || $mc->fail("t19 results unexpected");
 
   # REPLACE of non-existing value should fail
-  $mc->replace("b:test_626", $val_60k) && Carp::confess("REPLACE should fail");
+  $mc->replace("bxx:test_626", $val_60k) && $mc->fail("t20 REPLACE should fail");
 
   # UPDATE via SET from a short value to a long value 
-  $mc->add("b:test7", $val_40)        || Carp::confess("Failed insert: t7");
-  ($mc->get("b:test7") == $val_40)    || Carp::confess("GET results unexpected: t7");
-  $mc->set("b:test7", $val_100k)      || Carp::confess("Failed update: t7");
-  ($mc->get("b:test7") == $val_100k)  || Carp::confess("GET results unexpected: t7");
+  $mc->add("bxx:test7", $val_40)        || $mc->fail("t21 Failed insert");
+  ($mc->get("bxx:test7") eq $val_40)    || $mc->fail("t22 GET results unexpected");
+  $mc->set("bxx:test7", $val_100k)      || $mc->fail("t23 Failed update");
+  ($mc->get("bxx:test7") eq $val_100k)  || $mc->fail("t24 GET results unexpected");
 
   # UPDATE via SET from a long value to a short value
-  $mc->set("b:test7", $val_50);
-  ($mc->get("b:test7") == $val_50) || Carp::confess("results unexpected");
+  $mc->set("bxx:test7", $val_50);
+  ($mc->get("bxx:test7") eq $val_50) || $mc->fail("t25 results unexpected");
+  print  "Passed t16 .. t25\n";
 
   # UPDATE via SET from a short value to a short value
-  $mc->set("b:test7", $val_40);
-  ($mc->get("b:test7") == $val_40) || Carp::confess("results unexpected");
+  $mc->set("bxx:test7", $val_40);
+  ($mc->get("bxx:test7") eq $val_40) || $mc->fail("t26 results unexpected");
 
   # Updates via REPLACE
-  $mc->add("b:r", "a / a / a / a /");
-  ($mc->get("b:r") == "a / a / a / a /") || Carp::confess("results unexpected");
+  $mc->add("bxx:r", "a / a / a / a /");
+  ($mc->get("bxx:r") eq "a / a / a / a /") || $mc->fail("t27 results unexpected");
 
-  $mc->replace("b:r", $val_60k)  || Carp::confess("failed REPLACE");
-  $mc->replace("b:r", $val_50)   || Carp::confess("failed REPLACE");
-  ($mc->get("b:r") == $val_50)   || Carp::confess("results unexpected");
+  $mc->replace("bxx:r", $val_60k)  || $mc->fail("t28 failed REPLACE");
+  $mc->replace("bxx:r", $val_50)   || $mc->fail("t29 failed REPLACE");
+  ($mc->get("bxx:r") eq $val_50)   || $mc->fail("t30 results unexpected");
+  print  "Passed t26 .. t30\n";
 
 
   ################## APPEND and PREPEND tests 
@@ -117,68 +121,72 @@ sub run_test() {
   $mc->prepend("test8", $val_40);
   $mc->append("test8", $val_40);
   my $r0 = $mc->get("test8");
-  ($r0 == $val_40 . $val_50 . $val_40)  || Carp::confess("results unexpected");
+  ($r0 eq $val_40 . $val_50 . $val_40)  || $mc->fail("t31 results unexpected");
 
   # APPEND/PREPEND to empty inline value should fail
-  $mc->append("empty", $val_40)  && Carp::confess("append should fail");
-  $mc->prepend("empty", $val_40)  && Carp::confess("prepend should fail");
+  $mc->append("empty", $val_40)  && $mc->fail("t32 append should fail");
+  $mc->prepend("empty", $val_40)  && $mc->fail("t33 prepend should fail");
 
   # APPEND/PREPEND to empty externalizable value should fail
-  $mc->append("b:empty", $val_40)  && Carp::confess("append should fail");
-  $mc->append("b:empty", $val_60k)  && Carp::confess("append should fail");
-  $mc->prepend("b:empty", $val_40)  && Carp::confess("prepend should fail");
-  $mc->prepend("b:empty", $val_60k)  && Carp::confess("prepend should fail");
+  $mc->append("bxx:empty", $val_40)  && $mc->fail("t34 append should fail");
+  $mc->append("bxx:empty", $val_60k)  && $mc->fail("t35 append should fail");
+  $mc->prepend("bxx:empty", $val_40)  && $mc->fail("t36 prepend should fail");
+  $mc->prepend("bxx:empty", $val_60k)  && $mc->fail("t37 prepend should fail");
     
   # Externalizable (but short) values 
-  $mc->set("b:test8", $val_50);
-  $mc->prepend("b:test8", $val_40);
-  $mc->append("b:test8", $val_40);
-  my $r1 = $mc->get("b:test8");
-  ($r1 == $val_40 . $val_50 . $val_40)  || Carp::confess("results unexpected");
+  $mc->set("bxx:test8", $val_50);
+  $mc->prepend("bxx:test8", $val_40);
+  $mc->append("bxx:test8", $val_40);
+  my $r1 = $mc->get("bxx:test8");
+  ($r1 eq $val_40 . $val_50 . $val_40)  || $mc->fail("t38 results unexpected");
 
   # Now make it long
-  $mc->append("b:test8", $val_60k) || Carp::confess("append failed");
-  my $r2 = $mc->get("b:test8");
-  ($r2 == $1 . $val_60k) || Carp::confess("results unexpected");
+  $mc->append("bxx:test8", $val_60k) || $mc->fail("t39 append failed");
+  my $r2 = $mc->get("bxx:test8");
+  ($r2 eq $r1 . $val_60k) || $mc->fail("t40 results unexpected");
 
   # Prepend to a long value 
   my $saying = "Elephants have trunks. ";
-  $mc->prepend("b:test8", $saying) || Carp::confess("prepend failed");
-  my $r3 = $mc->get("b:test8");
-  ($r3 == $saying . $r2) || Carp::confess("results unexpected");
+  $mc->prepend("bxx:test8", $saying) || $mc->fail("t41 prepend failed");
+  my $r3 = $mc->get("bxx:test8");
+  ($r3 eq $saying . $r2) || $mc->fail("t42 expected: Elephants have..."
+    . substr($r2, -10));
 
   # Now append a very large value to it 
-  $mc->append("b:test8", $val_100k) || Carp::confess("append failed");
-  my $r4 = $mc->get("b:test8");
-  ($r4 == $r3 . $val_100k) || Carp::confess("results unexpected"); 
+  $mc->append("bxx:test8", $val_60k) || $mc->fail("t43 append failed");
+  my $r4 = $mc->get("bxx:test8");
+  ($r4 eq $r3 . $val_60k) || $mc->fail("t44 results unexpected");
 
   # Take a value 1 less than a complete part, and append one character to it
   # This tests the "update-only" optimization in append
-  $mc->set("b:test8c", $val_13949) || Carp::confess("set failed");
-  $mc->append("b:test8c", "!");
-  my $r1 = $mc->get("b:test8c");
-  ($r1 == $val_13949 . "!")    ||  Carp::confess("results unexpected"); 
+  $mc->set("bxx:test8c", $val_13949) || $mc->fail("t45 set failed");
+  $mc->append("bxx:test8c", "!");
+  my $r1 = $mc->get("bxx:test8c");
+  ($r1 eq $val_13949 . "!")    ||  $mc->fail("t46 results unexpected");
 
   # Now append one more character.  This tests the "insert-only" optimization.
-  $mc->append("b:test8c", "?");
-  my $r2 = $mc->get("b:test8c");
-  ($r2 == $val_13949 . "!?")    ||  Carp::confess("results unexpected"); 
+  $mc->append("bxx:test8c", "?");
+  my $r2 = $mc->get("bxx:test8c");
+  ($r2 eq $val_13949 . "!?")    ||  $mc->fail("t47 results unexpected");
+  print  "Passed t31 .. t47\n";
 
-  # APPEND stress test.  This uses non-logging tables.
+  # APPEND stress test.
   $mc->add("bxx:t9", $val_50);
   for my $i (2 .. 300) {
     $mc->append("bxx:t9", $val_50);
     my $r = $mc->get("bxx:t9");
-    ($r == $val_50 x $i) || Carp::confess("results unexpected");
+    ($r eq $val_50 x $i) || $mc->fail("t48 results unexpected at iteration $i");
   } 
-    
-  # PREPEND stress test.  This uses non-logging tables.
-  $mc->add("bxx:t10", $val_50);
-  for my $i (2 .. 300) {
-    $mc->prepend("bxx:t10", $val_50);
+  print  "Passed APPEND stress test\n";
+
+  # PREPEND stress test.
+  $mc->add("bxx:t10", $val_180);
+  for my $i (2 .. 60) {
+    $mc->prepend("bxx:t10", $val_180);
     my $r = $mc->get("bxx:t10");
-    ($r == $val_50 x $i) || Carp::confess("results unexpected");
+    ($r eq $val_180 x $i) || $mc->fail("t49 results unexpected at iteration $i");
   } 
+  print  "Passed PREPEND stress test\n";
 
   # DISABLED.
   # Debug output shows this being sent from memcached core to ndb engine
@@ -187,8 +195,8 @@ sub run_test() {
   #
   ## VALUE TOO LARGE
   #my $val_too_big = "x" x ((1024 * 1024) + 1);
-  #$mc->set("b:testtoobig", $val_too_big);
-  #$mc->{error} =~ "VALUE_TOO_LARGE" || Carp::confess "Expected TOO_LARGE";
+  #$mc->set("bxx:testtoobig", $val_too_big);
+  #$mc->{error} =~ "VALUE_TOO_LARGE" || $mc->fail("t50 Expected TOO_LARGE");
 }
 
 
@@ -196,10 +204,7 @@ sub run_test() {
 EOF
 USE ndbmemcache;
 SELECT mkey, string_value, ext_size, SUM(length(content)) AS total_parts
-  FROM demo_table_large t1
-  JOIN external_values  t2 ON (t1.ext_id = t2.id) 
-  GROUP BY mkey, string_value, ext_size;
-SELECT mkey, string_value, ext_size, SUM(length(content)) AS total_parts
   FROM large_nolog t1
-  JOIN  external_nolog t2 ON (t1.ext_id = t2.id) 
-  GROUP BY mkey, string_value, ext_size;
+  JOIN  external_nolog t2 ON (t1.ext_id = t2.id)
+  GROUP BY mkey, string_value, ext_size
+  ORDER BY mkey;

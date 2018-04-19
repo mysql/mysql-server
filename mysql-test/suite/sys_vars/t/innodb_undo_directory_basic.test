@@ -16,13 +16,12 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 
 ####################################################################
 #   Display the default value                                      #
 ####################################################################
-SELECT @@GLOBAL.innodb_undo_directory;
---echo . Expected
+SELECT COUNT(@@GLOBAL.innodb_undo_directory);
+--echo 1 Expected
 
 
 ####################################################################
@@ -42,18 +41,18 @@ SELECT COUNT(@@GLOBAL.innodb_undo_directory);
 ################################################################################
 
 --disable_warnings
-SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT @@GLOBAL.innodb_undo_directory = VARIABLE_VALUE
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_undo_directory';
 --enable_warnings
---echo . Expected
+--echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.innodb_undo_directory);
 --echo 1 Expected
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_undo_directory';
 --enable_warnings
 --echo 1 Expected

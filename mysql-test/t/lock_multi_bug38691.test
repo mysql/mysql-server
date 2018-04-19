@@ -1,8 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
+--source include/no_valgrind_without_big.inc
 #
 # Bug#38691 segfault/abort in ``UPDATE ...JOIN'' while
 #           ``FLUSH TABLES WITH READ LOCK''
@@ -12,9 +8,6 @@
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
-
-SET @odl_sync_frm = @@global.sync_frm;
-SET @@global.sync_frm = OFF;
 
 # Test to see if select will get the lock ahead of low priority update
 
@@ -143,8 +136,6 @@ DROP TABLE t1, t2, t3;
 # Close connections
 --disconnect locker
 --disconnect writer
-
-SET @@global.sync_frm = @odl_sync_frm;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

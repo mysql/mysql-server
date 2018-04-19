@@ -3,23 +3,42 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-SET GLOBAL DEBUG ='+d,set_commit_parent_100';
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
 CREATE TABLE t1 (a int primary key) engine=innodb;
 CREATE TABLE t2 (a int primary key) engine=innodb;
 CREATE TABLE t3 (a int primary key) engine=innodb;
 CREATE TABLE t4 (a int primary key) engine=innodb;
 include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-SET GLOBAL DEBUG ='+d,crash_in_a_worker';
-SET GLOBAL DEBUG ='-d,set_commit_parent_100';
-SET GLOBAL DEBUG ='+d,set_commit_parent_150';
-INSERT INTO t1 values (1),(2),(3);
+include/stop_slave_sql.inc
+# Adding debug point 'crash_in_a_worker' to @@GLOBAL.debug
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+# Adding debug point 'set_commit_parent_150' to @@GLOBAL.debug
+INSERT INTO t1 values (0);
 BEGIN;
 INSERT INTO t2 values (1),(2),(3);
 UPDATE t2 SET a= a+1 WHERE a=3;
 COMMIT;
+BEGIN;
 INSERT INTO t3 values (1),(2),(3);
+UPDATE t3 SET a= a+1 WHERE a=3;
+COMMIT;
+BEGIN;
 INSERT INTO t4 values (1),(2),(3);
+UPDATE t4 SET a= a+1 WHERE a=3;
+COMMIT;
+BEGIN;
+INSERT INTO t1 values (1),(2),(3);
+UPDATE t1 SET a= a+1 WHERE a=3;
+COMMIT;
+# Removing debug point 'set_commit_parent_150' from @@GLOBAL.debug
+include/sync_slave_io_with_master.inc
+[connection slave1]
+BEGIN;
+INSERT INTO t1 (a) VALUES (4);
+INSERT INTO t2 (a) VALUES (4);
+INSERT INTO t3 (a) VALUES (4);
+INSERT INTO t4 (a) VALUES (4);
+[connection slave]
 START SLAVE;
 include/rpl_start_server.inc [server_number=2]
 # Reconnecting to the slave server

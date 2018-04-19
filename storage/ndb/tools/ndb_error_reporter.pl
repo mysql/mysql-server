@@ -1,15 +1,22 @@
 #!/usr/bin/perl -w
 
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
@@ -85,13 +92,33 @@ if(defined($ARGV[1]))
 use File::Basename;
 my $dirname= dirname(__FILE__);
 my $ndb_config= "$dirname/ndb_config";
-my @nodes= split ' ',`$ndb_config --config-file=$config_file --nodes --query=id --type=ndbd`;
-push @nodes, split ' ',`$ndb_config --config-file=$config_file --nodes --query=id --type=ndb_mgmd`;
+my $config_query = "$ndb_config --config-file=$config_file --nodes --query=nodeid ";
+my $ndbd_query_cmd = "$config_query --type=ndbd";
+my $mgmd_query_cmd = "$config_query --type=ndb_mgmd";
+# Check config parsing sanity with dry-run
+if (system("$ndbd_query_cmd > /dev/null") != 0 ||
+    system("$mgmd_query_cmd > /dev/null") != 0)
+{
+  print STDERR "Configuration file parsing failed.\n\n";
+  exit(1);
+}
+
+my @nodes= split ' ',`$ndbd_query_cmd`;
+my $ndbd_count = @nodes;
+push @nodes, split ' ',`$mgmd_query_cmd`;
+my $mgmd_count = @nodes - $ndbd_count;
+
+if($ndbd_count == 0 ||
+   $mgmd_count == 0)
+{
+    print STDERR "Error extracting mgmd and data node ids from config file.";
+    exit(1);
+}
 
 sub config {
     my $nodeid= shift;
     my $query= shift;
-    my $res= `$ndb_config --config-file=$config_file --id=$nodeid --query=$query`;
+    my $res= `$ndb_config --config-file=$config_file --nodeid=$nodeid --query=$query`;
     chomp $res;
     $res;
 }

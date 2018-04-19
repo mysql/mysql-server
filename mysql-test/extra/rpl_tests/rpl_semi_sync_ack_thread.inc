@@ -13,7 +13,7 @@ TRUNCATE t1;
 # Verify ack thread receives acknowledgements correctly
 --let $assert_text= rpl_semi_sync_master_yes_tx increases 4
 --disable_warnings
---let $assert_cond= VARIABLE_VALUE = $yes_tx+4 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
+--let $assert_cond= VARIABLE_VALUE = $yes_tx+4 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
 --enable_warnings
 --source include/assert.inc
 

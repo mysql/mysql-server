@@ -3,8 +3,6 @@
 # This has to be removed along with the fix for Bug#17022890
 -- source include/no_valgrind_without_big.inc
 
--- source include/have_gbk.inc
-
 #
 # Tests with the gbk character set
 #
@@ -116,7 +114,10 @@ let $default_engine = `select @@SESSION.default_storage_engine`;
 --enable_query_log
 --replace_result $default_engine default_engine
 SHOW CREATE TABLE t1;
+# Set max_error_count to contain number of warnings in result file.
+SET @@session.max_error_count = 64;
 UPDATE IGNORE t1 SET a=unhex(code) ORDER BY code;
+SET @@session.max_error_count = DEFAULT;
 SELECT COUNT(*) FROM t1 WHERE a<>'';
 #
 # Display all characters that have upper or lower case mapping.
@@ -185,14 +186,12 @@ DROP TABLE t1;
 
 set names gbk;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 --source include/weight_string_8140.inc
 --source include/weight_string_8EA1.inc
 
 set collation_connection=gbk_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 --source include/weight_string_8140.inc
 --source include/weight_string_8EA1.inc

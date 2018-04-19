@@ -4,13 +4,13 @@
 # new added SSS' field
 #
 
-source include/master-slave.inc;
 source include/have_binlog_format_mixed.inc;
-source include/not_master_info_table.inc;
 
 # test reveals different path separator on windows.
 # Leaving out windows because there is nothing more platform specific.
 source include/not_windows.inc;
+
+source include/master-slave.inc;
 
 connection slave;
 

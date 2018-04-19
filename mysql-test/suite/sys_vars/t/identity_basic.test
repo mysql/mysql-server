@@ -122,12 +122,12 @@ SELECT @@global.identity;
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@global.identity = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='identity';
 
 --disable_warnings
 SELECT @@session.identity = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='identity';
 --enable_warnings
 

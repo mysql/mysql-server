@@ -1,0 +1,163 @@
+--echo #
+--echo # WL#9451 -- Backup Log
+--echo #
+
+CREATE TABLE t1 (a INT);
+
+--enable_connect_log
+
+CREATE USER 'testuser1'@'localhost';
+GRANT all ON *.* TO 'testuser1'@'localhost';
+
+--connect (con1, localhost, testuser1,,)
+SET lock_wait_timeout= 1;
+SET autocommit= 0;
+
+--connection default
+LOCK INSTANCE FOR BACKUP;
+
+--connection con1
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE DATABASE testdb;
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE TABLESPACE testtablespace ADD DATAFILE 'ts.ibd' ENGINE=InnoDB;
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE TABLE testtable_1 (c1 int, c2 varchar(10));
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE TABLE testtable_2 (c1 int, c2 varchar(10)) ENGINE=MyISAM;
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE VIEW testview_1 AS SELECT c2 FROM testtable_1;
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE INDEX testindex_1 ON testtable_1(c1);
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE SERVER s FOREIGN DATA WRAPPER mysql OPTIONS (DATABASE 'test');
+DELIMITER //;
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE PROCEDURE testproc_1()
+BEGIN
+SELECT * FROM testtable_1;
+END//
+DELIMITER ;//
+
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE EVENT testevent_1 ON SCHEDULE EVERY 10 SECOND DO SELECT 1;
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE TRIGGER testtrigger_1 BEFORE INSERT ON testtable_1 FOR EACH ROW SET @a:=1;
+INSERT INTO t1 VALUES(1),(2),(3);
+CREATE TEMPORARY TABLE temptable_1 (tt1 int);
+INSERT INTO temptable_1 SELECT * FROM t1;
+SELECT * FROM temptable_1;
+
+--error ER_LOCK_WAIT_TIMEOUT,ER_FEATURE_UNSUPPORTED
+CREATE RESOURCE GROUP rg1 TYPE=USER;
+
+--disable_parsing
+# Enable the following two test cases after the bug#27574375 be fixed.
+--error ER_LOCK_WAIT_TIMEOUT
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 5 BUCKETS;
+
+--error ER_LOCK_WAIT_TIMEOUT
+ANALYZE TABLE t1 DROP HISTOGRAM ON a;
+
+--enable_parsing
+
+--connection default
+UNLOCK INSTANCE;
+
+--connection con1
+CREATE DATABASE testdb;
+CREATE TABLESPACE testtablespace ADD DATAFILE 'ts.ibd' ENGINE=InnoDB;
+CREATE TABLE testtable_1 (c1 int, c2 varchar(10)) TABLESPACE testtablespace;
+CREATE TABLE testtable_2 (c1 int, c2 varchar(10)) ENGINE=MyISAM;
+SHOW CREATE TABLE testtable_2;
+
+CREATE TABLE testtable_3 (c1 int, c2 varchar(10)) PARTITION BY RANGE (c1)(
+   PARTITION p0 VALUES LESS THAN (10),
+   PARTITION p2 VALUES LESS THAN (100),
+   PARTITION p3 VALUES LESS THAN (1000));
+INSERT testtable_3 VALUES (1,'a'),(11,'b'),(101,'c');
+ALTER TABLE testtable_3 ADD PARTITION (PARTITION p4 VALUES LESS THAN (5000));
+
+CREATE VIEW testview_1 AS SELECT c2 FROM testtable_1;
+CREATE INDEX testindex_1 ON testtable_1(c1);
+DELIMITER //;
+CREATE PROCEDURE testproc_1()
+BEGIN
+SELECT * FROM testtable_1;
+END//
+DELIMITER ;//
+CREATE EVENT testevent_1 ON SCHEDULE EVERY 10 SECOND DO SELECT 1;
+CREATE TRIGGER testtrigger_1 BEFORE INSERT ON testtable_1 FOR EACH ROW SET @a:=1;
+CREATE SERVER s FOREIGN DATA WRAPPER mysql OPTIONS (DATABASE 'test');
+
+--connection default
+LOCK INSTANCE FOR BACKUP;
+LOCK INSTANCE FOR BACKUP;
+
+--connection con1
+INSERT INTO testtable_1 VALUES(1,'aaa'),(2,'bbbbbb'),(3,'cccccccc');
+INSERT INTO testtable_1 VALUES(4,'ddd'),(5,'eeeee'),(3,'fffffff');
+INSERT INTO testtable_2 VALUES(4,'ddd'),(5,'eeeee'),(3,'fffffff');
+UPDATE testtable_1 SET c1=11, c2='yyy' WHERE c1=1;
+DELETE FROM testtable_1 WHERE c2 LIKE "aa";
+call testproc_1;
+INSERT testtable_3 VALUES (4999,'aa');
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER DATABASE testdb CHARACTER SET 'latin1';
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE testtable_1 ADD INDEX i2(c2);
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE testtable_2 ADD INDEX i2(c2);
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER VIEW testview_1 AS SELECT c1 FROM testtable_1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER PROCEDURE testproc_1 COMMENT 'procedure';
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER EVENT testevent_1 ON SCHEDULE EVERY 100 SECOND DO SELECT 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER SERVER s OPTIONS (USER 'sally');
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE testtable_1 ALGORITHM=INPLACE, ADD COLUMN c3 VARCHAR(255);
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE testtable_3 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10000));
+
+--connection default
+UNLOCK INSTANCE;
+UNLOCK INSTANCE;
+
+--connection con1
+ALTER DATABASE testdb CHARACTER SET 'latin1';
+ALTER TABLE testtable_1 ADD INDEX i2(c2);
+ALTER VIEW testview_1 AS SELECT c1 FROM testtable_1;
+ALTER PROCEDURE testproc_1 COMMENT 'procedure';
+ALTER EVENT testevent_1 ON SCHEDULE EVERY 100 SECOND DO SELECT 1;
+ALTER SERVER s OPTIONS (USER 'sally');
+ALTER TABLE testtable_1 ALGORITHM=INPLACE, ADD COLUMN c3 VARCHAR(255);
+ALTER TABLE testtable_3 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10000));
+INSERT testtable_3 VALUES (9999,'aa');
+
+--connection default
+
+--connection con1
+DROP DATABASE testdb;
+DROP TABLE testtable_1;
+DROP TABLE testtable_2;
+DROP TABLE testtable_3;
+DROP VIEW testview_1;
+DROP TABLESPACE testtablespace;
+DROP PROCEDURE testproc_1;
+DROP EVENT testevent_1;
+DROP SERVER s;
+
+--connection default
+--disconnect con1
+
+LOCK INSTANCE FOR BACKUP;
+
+--echo # Restart server
+--source include/restart_mysqld.inc
+
+CREATE TABLE t2 (c1 int);
+
+DROP USER 'testuser1'@'localhost';
+DROP TABLE t1, t2;

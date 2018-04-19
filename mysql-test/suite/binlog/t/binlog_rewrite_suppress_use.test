@@ -22,14 +22,14 @@ DELETE FROM t1 WHERE i=2;
 # Checking for the suppression of the USE DATABASE command on using the new option.
 # Reading binlog file without the rewrite-db option.
 --echo [The use <db_name> is not suppressed in the general use of mysqlbinlog]
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event.sql
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/row_event.sql
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/row_event.sql
 --let $grep_pattern=use `db1`
 --source include/grep_pattern.inc
 
 # Reading binlog file with the rewrite-db option.
 --echo [The use <db_name> is suppressed on using rewrite-db option of mysqlbinlog]
---exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->db2" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->db2" $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 --let $grep_pattern=use `db1`
 --source include/grep_pattern.inc

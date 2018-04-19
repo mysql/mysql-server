@@ -1,35 +1,45 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <my_dir.h>
+#include <sys/types.h>
+
+#include "my_dir.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+
+typedef unsigned int PSI_memory_key;
 
 extern PSI_memory_key csv_key_memory_Transparent_file;
 
-class Transparent_file
-{
+class Transparent_file {
   File filedes;
-  uchar *buff;  /* in-memory window to the file or mmaped area */
+  uchar *buff; /* in-memory window to the file or mmaped area */
   /* current window sizes */
   my_off_t lower_bound;
   my_off_t upper_bound;
   uint buff_size;
 
-public:
-
+ public:
   Transparent_file();
   ~Transparent_file();
 
@@ -37,6 +47,6 @@ public:
   uchar *ptr();
   my_off_t start();
   my_off_t end();
-  char get_value (my_off_t offset);
+  char get_value(my_off_t offset);
   my_off_t read_next();
 };

@@ -1,3 +1,4 @@
+call mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -7,6 +8,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
 call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream");
 call mtr.add_suppression("QUERY.* is not expected in an event stream");
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since*");
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
 [connection master]
@@ -16,6 +18,13 @@ CREATE TABLE t1 (c1 INT) ENGINE= InnoDB;
 INSERT INTO t1 VALUES (1);
 CREATE TABLE t2 (c1 INT) ENGINE= MyISAM;
 INSERT INTO t2 VALUES (1);
+XA START 'xa_trx';
+INSERT INTO t1 VALUES(2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+XA END 'xa_trx';
+XA PREPARE 'xa_trx';
+XA ROLLBACK 'xa_trx';
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Previous_gtids	#	#	
@@ -34,6 +43,13 @@ master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (1)
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000001	#	Query	#	#	XA START X'78615f747278',X'',1
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(2)
+master-bin.000001	#	Query	#	#	XA END X'78615f747278',X'',1
+master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'78615f747278',X'',1
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000001	#	Query	#	#	XA ROLLBACK X'78615f747278',X'',1
 [connection slave]
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 START SLAVE IO_THREAD;
@@ -101,13 +117,41 @@ slave-relay-bin.000002	#	Query	#	#	BEGIN
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (1)
-# Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
-[connection master]
-include/sync_slave_io_with_master.inc
 # This is the event #19 of current slave relay log file
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000002	#	Query	#	#	COMMIT
+# This is the event #20 of current slave relay log file
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000002	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+# This is the event #21 of current slave relay log file
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000002	#	Query	#	#	XA START X'78615f747278',X'',1
+# This is the event #22 of current slave relay log file
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000002	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(2)
+# This is the event #23 of current slave relay log file
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000002	#	Query	#	#	XA END X'78615f747278',X'',1
+# This is the event #24 of current slave relay log file
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000002	#	XA_prepare	#	#	XA PREPARE X'78615f747278',X'',1
+# This is the event #25 of current slave relay log file
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000002	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+# Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
+[connection master]
+include/sync_slave_io_with_master.inc
+# This is the event #26 of current slave relay log file
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000002	#	Query	#	#	XA ROLLBACK X'78615f747278',X'',1
 
 #
 # Case 1: GTID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT.
@@ -383,6 +427,56 @@ include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Query	#	#	COMMIT
 include/assert_grep.inc [Case 8.b found the expected warning line in the error log.]
+
+#
+# Case 9.a: QUERY(XA ROLLBACK) is not expected in an event stream in the middle of a DDL.
+#
+# Cleaning up and reseting the slave
+include/stop_slave.inc
+# Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
+START SLAVE IO_THREAD;
+# Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
+# Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
+include/wait_for_slave_io_to_stop.inc
+# Stopped IO thread after queuing the following event (#6):
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000003	#	User var	#	#	@`var`=10
+include/rpl_stop_server.inc [server_number=2]
+# Restoring a master.info.backup to start asking events at event #26
+include/rpl_start_server.inc [server_number=2]
+include/start_slave_io.inc
+include/sync_slave_io_with_master.inc
+# Restarted queuing the following event (#26):
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000005	#	Query	#	#	XA ROLLBACK X'78615f747278',X'',1
+include/assert_grep.inc [Case 9.a found the expected warning line in the error log.]
+
+#
+# Case 9.b: QUERY(XA ROLLBACK) is not expected in an event stream outside a transaction.
+#
+# Cleaning up and reseting the slave
+include/stop_slave.inc
+# Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
+START SLAVE IO_THREAD;
+# Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
+# Adding debug point 'stop_io_after_queuing_event' to @@GLOBAL.debug
+include/wait_for_slave_io_to_stop.inc
+# Stopped IO thread after queuing the following event (#9):
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT) ENGINE= InnoDB
+include/rpl_stop_server.inc [server_number=2]
+# Restoring a master.info.backup to start asking events at event #26
+include/rpl_start_server.inc [server_number=2]
+include/start_slave_io.inc
+include/sync_slave_io_with_master.inc
+# Restarted queuing the following event (#26):
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000005	#	Query	#	#	XA ROLLBACK X'78615f747278',X'',1
+include/assert_grep.inc [Case 9.b found the expected warning line in the error log.]
 
 #
 # Prepare the slave to correctly replicate again after the test case

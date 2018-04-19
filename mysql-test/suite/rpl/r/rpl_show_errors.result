@@ -7,7 +7,8 @@ CREATE TABLE t1 (a INT, b blob, PRIMARY KEY(b(512)));
 include/sync_slave_sql_with_master.inc
 DROP TABLE t1;
 DROP TABLE t1;
-call mtr.add_suppression("Slave SQL for channel '': .*Error .Unknown table .test.t1.. on query.* Error_code: 1051");
+call mtr.add_suppression("Slave SQL for channel '': .*Error .Unknown table .test.t1.. on query.* Error_code: MY-001051");
+call mtr.add_suppression("Unknown table .test.t1. Error_code: MY-001051");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 include/wait_for_slave_sql_error.inc [errno=1051]
 include/assert.inc [Last_SQL_Error_Timestamp is not null and matches the expected format]
@@ -29,7 +30,7 @@ include/assert.inc [Last_IO_Error_Timestamp is not null and matches the expected
 include/stop_slave.inc
 include/assert.inc [Last_IO_Error_Timestamp matches the one reported before stopping slave threads]
 change master to master_port=MASTER_PORT;
-Last_IO_Errno: 1593
+Last_IO_Errno: 13117
 include/start_slave.inc
 # assertion: show that no error is reported anymore
 include/wait_for_slave_param.inc [Last_IO_Errno]

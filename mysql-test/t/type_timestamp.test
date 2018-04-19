@@ -245,7 +245,7 @@ drop table t1;
 # Test for TIMESTAMP columns which are able to store NULLs
 #
 
-# Unlike for default TIMESTAMP fields we don't interpret first field
+# Unlike for default TIMESTAMP fields we do not interpret first field
 # in this table as TIMESTAMP with DEFAULT NOW() ON UPDATE NOW() properties.
 create table t1 (a timestamp null, b timestamp null);
 
@@ -303,21 +303,6 @@ create table t1 (a char(2), t timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UP
 insert into t1 values ('a', '2004-01-01 00:00:00'), ('a', '2004-01-01 01:00:00'),
                       ('b', '2004-02-01 00:00:00');
 select max(t) from t1 group by a;
-drop table t1;
-
-#
-# Test for bug #7418 "TIMESTAMP not always converted to DATETIME in MAXDB
-# mode". TIMESTAMP columns should be converted DATETIME columns in MAXDB
-# mode regardless of whether a display width is given.
-#
-set sql_mode='maxdb';
-create table t1 (a timestamp, b timestamp);
-
-#Replace default engine value with static engine string 
---replace_result $DEFAULT_ENGINE ENGINE
-show create table t1;
-# restore default mode
-set sql_mode='';
 drop table t1;
 
 #
@@ -413,7 +398,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
 SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
 
-CREATE TABLE t2 ( a TIMESTAMP, KEY ( a DESC ) );
+CREATE TABLE t2 ( a TIMESTAMP, KEY ( a ) );
 
 INSERT INTO t2 VALUES( '2010-02-01 09:31:01' );
 INSERT INTO t2 VALUES( '2010-02-01 09:31:02' );
@@ -501,7 +486,7 @@ DROP TABLE IF EXISTS t1, t2, t3;
 SET @org_mode=@@sql_mode;
 
 --echo #Table creation in strict mode
-SET @@sql_mode='STRICT_ALL_TABLES';
+SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
 --error ER_INVALID_DEFAULT
 CREATE TABLE t1 (c1 TIMESTAMP DEFAULT 0);
 --error ER_INVALID_DEFAULT
@@ -509,6 +494,13 @@ CREATE TABLE t1 (c1 TIMESTAMP DEFAULT '0000-00-00 00:00:00');
 --error ER_INVALID_DEFAULT
 CREATE TABLE t1 (c1 TIMESTAMP DEFAULT '2012-02-00 12:12:12');
 
+--echo #Table creation in non-strict mode but with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE';
+CREATE TABLE t1 (c1 TIMESTAMP DEFAULT 0);
+CREATE TABLE t2 (c1 TIMESTAMP DEFAULT '0000-00-00 00:00:00');
+SET @@sql_mode='NO_ZERO_IN_DATE';
+CREATE TABLE t3 (c1 TIMESTAMP DEFAULT '2012-02-00 12:12:12');
+DROP TABLE t1, t2, t3;
 
 --echo #Table creation with out any SQL modes
 SET @@sql_mode='';
@@ -518,12 +510,13 @@ CREATE TABLE t3 (c1 TIMESTAMP DEFAULT '2012-02-00 12:12:12');
 DROP TABLE t1, t2, t3;
 
 CREATE TABLE t1 (c1 INT);
---echo #Alter table in strict mode
-SET @@sql_mode='STRICT_ALL_TABLES';
+--echo #Alter table in strict mode  with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
 --error ER_INVALID_DEFAULT
 ALTER TABLE t1 ADD c2 TIMESTAMP DEFAULT 0;
 --error ER_INVALID_DEFAULT
 ALTER TABLE t1 ADD c2 TIMESTAMP DEFAULT '0000-00-00';
+SET @@sql_mode='NO_ZERO_IN_DATE,STRICT_ALL_TABLES';
 --error ER_INVALID_DEFAULT
 ALTER TABLE t1 ADD c2 TIMESTAMP DEFAULT '2012-02-00';
 

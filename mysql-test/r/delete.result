@@ -59,7 +59,7 @@ bool     char(0) default NULL,
 not_null varchar(20) binary NOT NULL default '',
 misc     integer not null,
 PRIMARY KEY  (not_null)
-) ENGINE=MyISAM;
+) ;
 INSERT INTO t1 VALUES (NULL,'a',4), (NULL,'b',5), (NULL,'c',6), (NULL,'d',7);
 select * from t1 where misc > 5 and bool is null;
 bool	not_null	misc
@@ -104,9 +104,9 @@ a	b
 2	12
 select * from t12;
 a	b
-33	10
 0	11
 2	12
+33	10
 select * from t2;
 a	b
 1	21
@@ -121,9 +121,9 @@ a	b
 2	12
 select * from t12;
 a	b
-33	10
 0	11
 2	12
+33	10
 delete ignore t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
 Warnings:
 Warning	1242	Subquery returns more than 1 row
@@ -134,8 +134,8 @@ a	b
 1	11
 select * from t12;
 a	b
-33	10
 0	11
+33	10
 insert into t11 values (2, 12);
 delete from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 ERROR 21000: Subquery returns more than 1 row
@@ -211,11 +211,20 @@ CREATE TABLE t3 (a int not null, b int not null, primary key (a,b));
 insert into t1 values (1,1),(2,1),(1,3);
 insert into t2 values (1,1),(2,2),(3,3);
 insert into t3 values (1,1),(2,1),(1,3);
-select * from t1,t2,t3 where t1.a=t2.a AND t2.b=t3.a and t1.b=t3.b;
+select * from t1,t2,t3 where t1.a=t2.a AND t2.b=t3.a and t1.b=t3.b order by t1.a,t1.b;
 a	b	a	b	a	b
 1	1	1	1	1	1
-2	1	2	2	2	1
 1	3	1	1	1	3
+2	1	2	2	2	1
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+analyze table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 explain select * from t1,t2,t3 where t1.a=t2.a AND t2.b=t3.a and t1.b=t3.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
@@ -381,9 +390,9 @@ ERROR 42S02: Unknown table 'a2' in MULTI DELETE
 DELETE a1,a2 FROM db1.t1, db2.t2 AS a2;
 ERROR 42S02: Unknown table 'a1' in MULTI DELETE
 DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
-ERROR 42S02: Table 'db3.t1' doesn't exist
+ERROR 42000: Unknown database 'db3'
 DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
-ERROR 42S02: Table 'db3.t1' doesn't exist
+ERROR 42000: Unknown database 'db3'
 DELETE FROM a1,a2 USING db1.t1, db2.t2;
 ERROR 42S02: Unknown table 'a1' in MULTI DELETE
 DELETE FROM a1,a2 USING db1.t1, db2.t2;
@@ -393,9 +402,9 @@ ERROR 42S02: Unknown table 'a2' in MULTI DELETE
 DELETE FROM a1,a2 USING db1.t1, db2.t2 AS a2;
 ERROR 42S02: Unknown table 'a1' in MULTI DELETE
 DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
-ERROR 42S02: Table 'db3.t1' doesn't exist
+ERROR 42000: Unknown database 'db3'
 DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
-ERROR 42S02: Table 'db3.t1' doesn't exist
+ERROR 42000: Unknown database 'db3'
 DELETE a1 FROM db1.t1 AS a1, db2.t2 AS a1;
 ERROR 42000: Not unique table/alias: 'a1'
 DELETE a1 FROM db1.a1, db2.t2 AS a1;
@@ -462,6 +471,8 @@ DELETE t1, t2, t3 FROM t1, t2, t3;
 ERROR 42S02: Table 'test.no_such_table' doesn't exist
 SELECT * FROM t1;
 a
+1
+2
 SELECT * FROM t2;
 a
 1
@@ -483,8 +494,11 @@ DELETE t1, t2, t3 FROM t1, t2, t3;
 ERROR 42S02: Table 'test.no_such_table' doesn't exist
 SELECT * FROM t1;
 a
+1
+2
 SELECT * FROM t2;
 a
+1
 2
 SELECT * FROM t3;
 a
@@ -509,7 +523,7 @@ DROP TABLE t1;
 #    "virtual int ha_myisam::index_first(uchar*)") at assert.c:81
 #
 CREATE TABLE t1 (a INT,    b INT,    c INT,
-INDEX(a), INDEX(b), INDEX(c));
+INDEX(a), INDEX(b), INDEX(c)) engine=myisam;
 INSERT INTO t1 VALUES (1,2,3), (4,5,6), (7,8,9);
 DELETE FROM t1 WHERE a = 10 OR b = 20 ORDER BY c LIMIT 1;
 DROP TABLE t1;
@@ -549,15 +563,15 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 DELETE IGNORE FROM t1 WHERE i = 1;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`))
 CREATE PROCEDURE p1() DELETE IGNORE FROM t1 WHERE i = 1;
 CALL p1();
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`))
 PREPARE stm FROM 'CALL p1()';
 EXECUTE stm;
 Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`))
 DEALLOCATE PREPARE stm;
 DROP TABLE t2, t1;
 DROP PROCEDURE p1;
@@ -649,8 +663,6 @@ DROP TABLE t1, t2;
 #              ON DELETE (ER_SUBQUERY..)
 #
 SET sql_mode='';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (
 col_int_key int,
 pk integer auto_increment,
@@ -738,7 +750,44 @@ CREATE TABLE t1(a TEXT, FULLTEXT (a));
 CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
 explain DELETE FROM t1 USING v1,t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 DELETE FROM t1 USING v1,t1;
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#25320909 ASSERTION `THD->LEX->CURRENT_SELECT() == UNIT->FIRST_SELECT()' WITH DELETE
+#
+CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO t1 (a,b) VALUES
+(10000,'foobar'),(1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+INSERT INTO t1 (a,b) SELECT a, b FROM t1;
+CREATE TABLE t2 (pk INT AUTO_INCREMENT PRIMARY KEY, c CHAR(8), d INT);
+INSERT INTO t2 (c,d) SELECT b, a FROM t1;
+DELETE IGNORE FROM t1 WHERE b IS NOT NULL ORDER BY a LIMIT 1;
+SELECT a,b FROM t1;
+a	b
+1	a
+10000	foobar
+10000	foobar
+2	b
+2	b
+3	c
+3	c
+4	d
+4	d
+5	e
+5	e
+DELETE IGNORE t1.*, t2.* FROM t1, t2
+WHERE c < b OR
+a != ( SELECT 1 UNION SELECT 2 );
+Warnings:
+Warning	1242	Subquery returns more than 1 row
+SELECT a,b FROM t1;
+a	b
+1	a
+SELECT c,d FROM t2;
+c	d
+foobar	10000
+foobar	10000
+DROP TABLE t1, t2;

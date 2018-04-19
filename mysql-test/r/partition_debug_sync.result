@@ -65,31 +65,6 @@ SET DEBUG_SYNC= 'RESET';
 SET DEBUG_SYNC= 'RESET';
 End of 5.1 tests
 #
-# Coverage test for non pruned ha_partition::store_lock()
-#
-# Use MyISAM tables as InnoDB no longer relies on THR_LOCK locks.
-CREATE TABLE t1 (a int) ENGINE = MyISAM;
-CREATE TABLE t2 (a int PRIMARY KEY)
-ENGINE = MyISAM PARTITION BY HASH (a) PARTITIONS 3;
-HANDLER t1 OPEN;
-# Con1
-LOCK TABLES t1 WRITE, t2 READ LOCAL;
-# Default
-SET DEBUG_SYNC="wait_for_lock SIGNAL locking";
-UPDATE t2 SET a=1;
-# Con1
-SET DEBUG_SYNC="now WAIT_FOR locking";
-ALTER TABLE t1 ADD COLUMN b int;
-# Default
-ERROR HY000: Wait on a lock was aborted due to a pending exclusive lock
-SELECT 1;
-1
-1
-# Con1
-UNLOCK TABLES;
-# Default
-DROP TABLE t1, t2;
-#
 # Test Auto increment generation and release of overbooked values.
 #
 CREATE TABLE t1 (a SERIAL) ENGINE = InnoDB
@@ -102,12 +77,18 @@ SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (5);
 # Not really a bug, since no row has been assigned the number between
 # this and the next auto_inc value.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 AUTO_INCREMENT
 14
 SET DEBUG_SYNC="now SIGNAL release";
 # Default
 # Reaping INSERT INTO t1 VALUES (3), (NULL), (4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 AUTO_INCREMENT
 12
@@ -121,12 +102,18 @@ SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (NULL);
 # Not really a bug, since no row has been assigned the number between
 # this and the next auto_inc value.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 AUTO_INCREMENT
 15
 SET DEBUG_SYNC="now SIGNAL release";
 # Default
 # Reaping INSERT INTO t1 VALUES (3), (NULL), (4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 AUTO_INCREMENT
 15
@@ -142,6 +129,9 @@ INSERT INTO t1 SELECT * FROM t2;
 # Con1
 SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 AUTO_INCREMENT
 12
@@ -161,6 +151,9 @@ SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (NULL);
 # Not really a bug, since no row has been assigned the number between
 # this and the next auto_inc value.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 AUTO_INCREMENT
 13

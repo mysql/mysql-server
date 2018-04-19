@@ -1,0 +1,318 @@
+##############################################################################
+# WL#4677 Unique Server Ids for Replication Topology (UUIDs)                 #
+#
+# Master and slave exchange their UUID each other when connecting. Master's
+# UUID is set into the result of 'SHOW SLAVE STATUS' and stored into
+# master.info file. Slave's UUID appears in the result of 'SHOW SLAVE HOSTS'.
+# Slave and master cannot have the same UUID, except
+# --replicate-same-server-id is set.
+#
+##############################################################################
+# Does not work with GTIDs because it uses replicate-same-server-id to
+# replicate from one server to itself.
+--source include/no_valgrind_without_big.inc
+# This test case is binlog_format agnostic
+--source include/have_binlog_format_mixed.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--let $rpl_server_count= 3
+--source include/master-slave.inc
+
+call mtr.add_suppression("Slave I/O thread .* register on master");
+call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
+CALL mtr.add_suppression(".*master and slave have equal MySQL server UUIDs.*");
+CALL mtr.add_suppression("Master's UUID has changed, although this should not happen unless you have changed it manually");
+CALL mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master failed with error: Lost connection to MySQL server during query");
+CALL mtr.add_suppression("Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error");
+CALL mtr.add_suppression("A slave with the same server_uuid/server_id as this slave has connected to the master");
+
+--let $old_log_error_verbosity= `SELECT @@GLOBAL.LOG_ERROR_VERBOSITY`
+SET @@GLOBAL.LOG_ERROR_VERBOSITY= 3;
+
+--let $uuid_file= auto.cnf
+
+--let $master_datadir=`SELECT @@DATADIR`
+# Sync suppressions
+--source include/sync_slave_sql_with_master.inc
+--let $slave_datadir=`SELECT @@DATADIR`
+
+connection server_3;
+--let $server_3_datadir=`SELECT @@DATADIR`
+
+connection master;
+--let $original_master_uuid=query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--copy_file $master_datadir/$uuid_file $master_datadir/original_$uuid_file
+
+--echo
+--echo # Case 1:
+--echo # Master's UUID appears in the result of 'SHOW SLAVE STATUS'.
+--echo # Slave's UUID appears in the result of 'SHOW SLAVE HOSTS'.
+--echo -----------------------------------------------------------------------------
+
+--let $assert_cond= "[master:SELECT @@SERVER_UUID AS a, a, 1]" = "[slave:SHOW SLAVE STATUS, Master_UUID, 1]"
+--let $assert_text= "Slave's SHOW SLAVE HOST should contain the correct value for master's server_uuid
+--source include/assert.inc
+
+--let $assert_cond= "[master:SHOW SLAVE HOSTS, Slave_UUID, 1]" = "[slave:SHOW VARIABLES LIKE "SERVER_UUID", Value, 1]"
+--let $assert_text= Master's SHOW SLAVE HOSTS should contain the correct value for slave's server_uuid
+--source include/assert.inc
+
+connection slave;
+
+--echo 
+--echo # Case 2: 
+--echo # After executing 'STOP SLAVE [IO_THREAD|SQL_THREAD]' successfully, Master's UUID
+--echo # is still kept into Slave status.
+--echo -----------------------------------------------------------------------------
+--source include/stop_slave_io.inc
+source include/check_slave_param.inc;
+
+--source include/stop_slave_sql.inc
+--source include/check_slave_param.inc
+
+--source include/start_slave.inc
+--source include/stop_slave.inc
+source include/check_slave_param.inc;
+
+--echo
+--echo # Case 3:
+--echo # Slave generates an error and aborts, if master's UUID is
+--echo # equal to slave's UUID unless --replicate-same-server-id
+--echo # option is set.
+--echo -----------------------------------------------------------------------------
+connection master;
+# copy slave's server_properties file to master, so master will have a same
+# UUID as slave.
+--remove_file $master_datadir/$uuid_file
+--copy_file $slave_datadir/$uuid_file $master_datadir/$uuid_file
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+connection slave;
+START SLAVE IO_THREAD;
+
+let $show_statement= SHOW SLAVE STATUS;
+--let $slave_io_errno= 13117
+--source include/wait_for_slave_io_error.inc
+
+connection master;
+--remove_file $master_datadir/$uuid_file
+--copy_file $server_3_datadir/$uuid_file $master_datadir/$uuid_file
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+--let $master_log_file= query_get_value(SHOW MASTER STATUS, 'File', 1)
+--let $master_log_pos= query_get_value(SHOW MASTER STATUS, 'Position', 1)
+
+--echo 
+--echo # server_3 is running with --replicate-same-server-id option 
+connection server_3;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
+eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
+     MASTER_PORT= $MASTER_MYPORT,
+     MASTER_USER= 'root',
+     MASTER_LOG_FILE='master-bin.000001';
+--source include/start_slave.inc
+--source include/check_slave_no_error.inc
+
+connection master;
+--let $sync_slave_connection= server_3
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+connection master;
+--remove_file $master_datadir/$uuid_file
+--move_file $master_datadir/original_$uuid_file $master_datadir/$uuid_file
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+--echo
+--echo # Case 4:
+--echo # When executing 'CHANGE MASTER ...', master's UUID and server_id will be
+--echo # cleared if master_host or/and master_port are changed.
+--echo # Master's UUID and server_id will not be cleared if both master_port
+--echo # and master_host are not changed.
+--echo -----------------------------------------------------------------------------
+connection slave;
+START SLAVE IO_THREAD;
+--let $slave_param= Master_UUID
+--let $slave_param_value= $original_master_uuid
+--source include/wait_for_slave_param.inc
+
+--source include/stop_slave.inc
+
+--echo
+--echo # Only change MASTER_PORT
+let $old_master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1);
+let $old_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
+
+CHANGE MASTER TO MASTER_PORT= 1111;
+--let $slave_param= Master_UUID
+--let $slave_param_value= 
+--source include/check_slave_param.inc
+--let $slave_param= Master_Server_Id
+--let $slave_param_value= 0
+--source include/check_slave_param.inc
+
+--replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
+eval CHANGE MASTER TO MASTER_PORT= $MASTER_MYPORT,
+       MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
+START SLAVE IO_THREAD;
+--let $slave_param= Master_UUID
+--let $slave_param_value= $original_master_uuid
+--source include/wait_for_slave_param.inc
+
+--echo
+--echo # Only change MASTER_HOST
+STOP SLAVE IO_THREAD;
+--source include/wait_for_slave_io_to_stop.inc
+let $old_master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1);
+let $old_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
+
+CHANGE MASTER TO MASTER_HOST= 'localhost';
+--let $slave_param= Master_UUID
+--let $slave_param_value=
+--source include/check_slave_param.inc
+--let $slave_param= Master_Server_Id
+--let $slave_param_value= 0
+--source include/check_slave_param.inc
+
+--replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
+eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
+       MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
+START SLAVE IO_THREAD;
+--let $slave_param= Master_UUID
+--let $slave_param_value= $original_master_uuid
+--source include/wait_for_slave_param.inc
+
+--echo
+--echo # Both MASTER_HOST and MASTER_PORT are changed
+STOP SLAVE IO_THREAD;
+
+--source include/wait_for_slave_io_to_stop.inc
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= 1111;
+--let $slave_param= Master_UUID
+--let $slave_param_value=
+--source include/check_slave_param.inc
+--let $slave_param= Master_Server_Id
+--let $slave_param_value= 0
+--source include/check_slave_param.inc
+
+--replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
+eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= $MASTER_MYPORT,
+       MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
+START SLAVE IO_THREAD;
+--let $slave_param= Master_UUID
+--let $slave_param_value= $original_master_uuid
+--source include/wait_for_slave_param.inc
+
+--echo
+--echo # Both MASTER_HOST and MASTER_PORT are NOT changed
+STOP SLAVE IO_THREAD;
+--source include/wait_for_slave_io_to_stop.inc
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= $MASTER_MYPORT;
+--source include/check_slave_param.inc
+
+--replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
+eval CHANGE MASTER TO 
+       MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
+--source include/check_slave_param.inc
+
+--echo
+--echo # Case 5:
+--echo # After executing 'RESET SLAVE' successfully, Master's UUID is still kept 
+--echo # into Slave status.
+--echo -----------------------------------------------------------------------------
+connection slave;
+RESET SLAVE;
+--source include/check_slave_param.inc
+
+--replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
+eval CHANGE MASTER TO 
+       MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
+--source include/start_slave.inc
+
+--echo
+--echo # Case 6:
+--echo # In an existing master-slave replication forum (M->S1), if another
+--echo # slave (S2) with the same UUID as S1 joins the forum and connects
+--echo # to Master(M), the master will throw an error to the first slave
+--echo # connection that will not try to reconnect.
+--echo -----------------------------------------------------------------------------
+
+# Get current server_2 thread_id at master
+--connection server_1
+--let $slave_thread_id= query_get_value(SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND='Binlog Dump', ID, 1)
+
+# Step-1: Copy server 2(S1)'s auto.cnf into server 3 (S2)'s data directory.
+--connection server_2
+--let $datadir2=`select @@datadir`
+-- connection server_3
+--let $datadir3=`select @@datadir`
+--copy_file $datadir3/auto.cnf $datadir3/auto_backup.cnf
+--remove_file $datadir3/auto.cnf
+--copy_file $datadir2/auto.cnf $datadir3/auto.cnf
+
+# Step-2: Restart the server 3 (two servers with the same UUID)
+--let $rpl_server_number= 3
+--source include/rpl_restart_server.inc
+# Notice that the other slave has stopped with an error
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
+--source include/wait_for_slave_io_error.inc
+
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+# Grep only after the message that the server_2 has connected to the master
+--let $assert_only_after=Start binlog_dump to master_thread_id\($slave_thread_id\)
+--let $assert_count= 1
+--let $assert_select=found a zombie dump thread with the same UUID
+--let $assert_text= Found the expected line in master's error log for server 2 disconnection
+--source include/assert_grep.inc
+
+# Get current server_3 thread_id at master
+--connection server_1
+--let $slave_thread_id= query_get_value(SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND='Binlog Dump', ID, 1)
+
+# Step-3: Connect server 2 and notice that the slave server 3 will error
+--connection server_2
+--source include/start_slave_io.inc
+# Notice that the other slave has stopped with an error
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
+--source include/wait_for_slave_io_error.inc
+
+# Grep only after the message that the server_3 has connected to the master
+--let $assert_only_after=Start binlog_dump to master_thread_id\($slave_thread_id\)
+--let $assert_text= Found the expected line in master's error log for server 3 disconnection
+--source include/assert_grep.inc
+
+# Step-4: Check for error messages on slaves
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+# Assert only the occurrences after the last CHANGE MASTER
+--let $assert_only_after=CHANGE MASTER .* executed
+--let $assert_select= Slave .* Got fatal error .* from master .* slave with the same server_uuid/server_id as this slave
+--let $assert_text= Found the expected line in server 2 error log
+--source include/assert_grep.inc
+
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.3.err
+--let $assert_text= Found the expected line in server 3 error log
+--source include/assert_grep.inc
+
+# Cleanup (restore the server 3's auto.cnf back to proper one and restart)
+--remove_file $datadir3/auto.cnf
+--copy_file $datadir3/auto_backup.cnf $datadir3/auto.cnf
+--remove_file $datadir3/auto_backup.cnf
+--let $rpl_server_number= 3
+--source include/rpl_restart_server.inc
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+--replace_result $old_log_error_verbosity OLD_LOG_ERROR_VERBOSITY
+eval SET @@GLOBAL.log_error_verbosity= $old_log_error_verbosity;
+
+--source include/rpl_end.inc

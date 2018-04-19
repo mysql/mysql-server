@@ -3,7 +3,6 @@
 # Access type: Static
 # Data type: numeric
 
---source include/have_innodb.inc
 
 SELECT COUNT(@@GLOBAL.innodb_purge_threads);
 --echo 1 Expected
@@ -21,14 +20,14 @@ SELECT innodb_purge_threads = @@SESSION.innodb_purge_threads;
 
 --disable_warnings
 SELECT @@GLOBAL.innodb_purge_threads = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_purge_threads';
 --enable_warnings
 --echo 1 Expected
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_purge_threads';
 --enable_warnings
 --echo 1 Expected
@@ -47,7 +46,7 @@ SELECT COUNT(@@SESSION.innodb_purge_threads);
 # Check the default value
 --disable_warnings
 SELECT VARIABLE_NAME, VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME = 'innodb_purge_threads';
 --enable_warnings
 

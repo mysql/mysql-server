@@ -1,0 +1,80 @@
+#
+# Confirm that evicting a page from the buffer pool accounts it correctly
+# in the stats for how much pages per index are cached.
+#
+
+
+let $get_n_cached_pages=
+SELECT cached.n_cached_pages AS n_cached_pages
+FROM
+information_schema.innodb_cached_indexes AS cached,
+information_schema.innodb_indexes AS indexes,
+information_schema.innodb_tables AS tables
+WHERE
+cached.index_id = indexes.index_id
+AND cached.space_id = indexes.space
+AND indexes.table_id = tables.table_id
+AND tables.name LIKE '%pct_cached_evict';
+
+CREATE TABLE pct_cached_evict (a TEXT) ENGINE=INNODB;
+
+-- disable_query_log
+-- echo # Populating pct_cached_evict with a few pages
+BEGIN;
+-- let $i = 64
+while ($i)
+{
+        INSERT INTO pct_cached_evict VALUES (REPEAT('a', 1024));
+        dec $i;
+}
+COMMIT;
+-- enable_query_log
+
+-- let $before_evict = `$get_n_cached_pages`
+
+-- source suite/innodb/include/evict_everything_from_buffer_pool.inc
+
+-- let $after_evict = `$get_n_cached_pages`
+
+if ($before_evict > $after_evict)
+{
+        # Decreased.
+        -- echo OK
+}
+if ($before_evict <= $after_evict)
+{
+        # Sometimes evict_everything_from_buffer_pool.inc does not evict
+        # the pages of pct_cached_evict from the buffer pool. In this
+        # sporadic case we just pretend everything is OK.
+
+        -- let $actual = `SELECT COUNT(*) FROM information_schema.innodb_buffer_page WHERE table_name LIKE '%pct_cached_evict%'`
+        if ($actual == $after_evict)
+        {
+                -- echo OK
+        }
+        if ($actual != $after_evict)
+        {
+                -- echo The reported number of cached pages of pct_cached_evict did not decrease, dumping some data to help analysis.
+                -- echo Pages of pct_cached_evict before evict: $before_evict
+                -- echo Pages of pct_cached_evict after evict: $after_evict
+                -- echo Actual number of pages of pct_cached_evict after evict from innodb_buffer_page: $actual
+
+                SELECT
+                tables.name AS table_name,
+                indexes.name AS index_name,
+                cached.n_cached_pages AS n_cached_pages
+                FROM
+                information_schema.innodb_cached_indexes AS cached,
+                information_schema.innodb_indexes AS indexes,
+                information_schema.innodb_tables AS tables
+                WHERE
+                cached.index_id = indexes.index_id
+                AND cached.space_id = indexes.space
+                AND indexes.table_id = tables.table_id;
+
+                SELECT * FROM information_schema.innodb_buffer_page;
+                SELECT * FROM information_schema.innodb_buffer_pool_stats;
+        }
+}
+
+DROP TABLE pct_cached_evict;

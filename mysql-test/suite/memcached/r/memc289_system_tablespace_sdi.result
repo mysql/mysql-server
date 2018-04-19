@@ -1,0 +1,25 @@
+INSERT INTO cache_policies VALUES('cache_policy', 'innodb_only',
+'innodb_only', 'innodb_only', 'innodb_only');
+INSERT INTO config_options VALUES('separator', '|');
+INSERT INTO containers VALUES ('desc_t1', 'test', 't1',
+'c1', 'c2',  '0', '0', '0', 'PRIMARY');
+USE test;
+SET GLOBAL innodb_file_per_table=OFF;
+SET DEBUG='+d, skip_sdi';
+CREATE TABLE t1        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+primary key(c1))
+ENGINE = INNODB;
+SET DEBUG='-d, skip_sdi';
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+1. Insert Small data
+2. Insert Large data. Will be stored in external pages
+3. Move off-page to in-page
+4. Move in-page to off-page
+5. Insert 1000 rows and delete
+SET DEBUG='+d, skip_sdi';
+DROP TABLE t1;
+SET DEBUG='-d, skip_sdi';
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+SET @@global.innodb_file_per_table= default;

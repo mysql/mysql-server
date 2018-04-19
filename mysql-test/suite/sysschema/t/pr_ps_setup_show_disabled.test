@@ -1,0 +1,35 @@
+
+# Add to users to the setup_actors table: one enabled, and one disabled
+INSERT INTO performance_schema.setup_actors
+VALUES ('localhost', 'foo', '%', 'YES', 'YES'),
+       ('localhost', 'bar', '%', 'NO', 'NO');
+
+# Disable a few instruments
+UPDATE performance_schema.setup_instruments
+   SET ENABLED = 'NO'
+ WHERE NAME LIKE 'stage/innodb/%'
+       OR NAME LIKE 'statement/com/%'
+       OR NAME = 'idle';
+
+# Disable the history_long consumers:
+UPDATE performance_schema.setup_consumers
+   SET ENABLED = 'NO'
+ WHERE NAME LIKE '%\_history\_long';
+
+# Disable some of the background threads:
+UPDATE performance_schema.threads SET INSTRUMENTED = 'NO' WHERE NAME LIKE 'thread/innodb/srv\_%';
+
+# Show limited info (no thread or instrument info)
+CALL sys.ps_setup_show_disabled(FALSE, FALSE);
+
+# Should show instrument data, but not thread info
+CALL sys.ps_setup_show_disabled(TRUE, FALSE);
+
+# Should show thread info, but no instrument data
+CALL sys.ps_setup_show_disabled(FALSE, TRUE);
+
+# Should show all info
+CALL sys.ps_setup_show_disabled(TRUE, TRUE);
+
+# Clean up
+-- source ../include/ps_setup_reset_to_default_cleanup.inc

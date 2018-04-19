@@ -1,0 +1,17 @@
+#
+# Basic test for innodb_background_drop_list_empty.
+#
+
+
+# The config variable is a debug variable for now
+-- source include/have_debug.inc
+
+# Check the default value
+SET @orig = @@global.innodb_background_drop_list_empty;
+SELECT @orig;
+
+SET GLOBAL innodb_background_drop_list_empty = ON;
+
+# Should always be OFF
+SELECT @@global.innodb_background_drop_list_empty;
+

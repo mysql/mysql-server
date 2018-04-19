@@ -1,15 +1,22 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
@@ -121,7 +128,7 @@ fi
 # Validate that all interesting
 #   variables where set in conf
 ###############################
-vars="install_dir build_dir bzr_src_base"
+vars="install_dir build_dir git_remote_repo git_local_repo"
 for i in $vars
 do
   t=`echo echo \\$$i`
@@ -145,9 +152,6 @@ fi
 # Setup the lock file name and path#
 # Setup the clone source location  #
 ####################################
-
-src_clone0=${bzr_src_base}/${clone0}
-src_clone1=${bzr_src_base}/${clone1}
 
 if [ -z "$clone1" ]
 then
@@ -180,10 +184,7 @@ echo "$DATE $RUN" > $LOCK
 # trap them, and remove the #
 # Lock file before exit     #
 #############################
-if [ `uname -s` != "SunOS" ]
-then
-	trap "rm -f $LOCK" ERR
-fi
+trap "rm -f $LOCK" EXIT
 
 # You can add more to this path#
 ################################
@@ -194,7 +195,7 @@ then
 else
     dst_place0=${build_dir}/clone-$tag0-$DATE.$$
     extra_args="$extra_args --clone0=$tag0"
-    extra_clone0="-r$tag0"
+    extra_clone0=""
 fi
 
 if [ -z "$tag1" ]
@@ -203,7 +204,7 @@ then
 else
     dst_place1=${build_dir}/clone1-$tag1-$DATE.$$
     extra_args="$extra_args --clone1=$tag1"
-    extra_clone1="-r$tag1"
+    extra_clone1=""
 fi
 
 if [ "$clonename" ]
@@ -228,28 +229,42 @@ then
 			echo "Copying $clone_dir/$clone0 to $dst_place0"
 			cp -r $clone_dir/$clone0 $dst_place0
 		fi
+		if [ -d "$clone_dir/$clone1" ]
+		then
+			echo "Copying $clone_dir/$clone1 to $dst_place1"
+			cp -r $clone_dir/$clone1 $dst_place1
+		fi
 	else
-		bzr export $dst_place0 $extra_clone0 $src_clone0
+# Comment out the next line if using git of version < 2.0
+# and ensure that the local repo is up to date.
+                git -C ${git_local_repo} fetch ${git_remote_repo}
+
+                git clone -b${clone0} ${git_local_repo} ${dst_place0}
+                [ ! -n "${tag0}" ] || git -C ${dst_place0} reset --hard ${tag0}
 		for patch in $patch0 ; do
 			( cd $dst_place0 && patch -p0 ) < $patch
 		done
                 {
-	          bzr version-info $extra_clone0 $src_clone0
+# Comment out the next line if using git of version < 2.0 and replace with:
+#                 cd ${dst_place0}
+#                 git log -1
+                  git -C ${dst_place0} log -1
 	          if [ $patch0 ] ; then echo patches: $patch0 ; cat $patch0 ; fi
                 } > $dst_place0/code0.txt
-	fi
 
-	if [ "$clone1" ]
-	then
-	    rm -rf $dst_place1
-	    bzr export $dst_place1 $extra_clone1 $src_clone1
-	    for patch in $patch1 ; do
-		( cd $dst_place1 && patch -p0 ) < $patch
-	    done
-            {
-	      bzr version-info $extra_clone1 $src_clone1
-	      if [ $patch1 ] ; then echo patches: $patch1 ; cat $patch1 ; fi
-            } > $dst_place1/code1.txt
+                if [ "$clone1" ]
+	       	then
+	                rm -rf $dst_place1
+                        git clone -b${clone1} ${git_local_repo} ${dst_place1}
+                        [ ! -n "${tag1}" ] || git -C ${dst_place1} reset --hard ${tag1}
+	                for patch in $patch1 ; do
+		                ( cd $dst_place1 && patch -p0 ) < $patch
+	                done
+                        {
+                          git -C ${dst_place1} log -1
+	                  if [ $patch1 ] ; then echo patches: $patch1 ; cat $patch1 ; fi
+                        } > $dst_place1/code1.txt
+                fi
 	fi
 fi
 
@@ -321,5 +336,3 @@ then
 	rm -rf $dst_place1
     fi
 fi
-
-rm -f $LOCK

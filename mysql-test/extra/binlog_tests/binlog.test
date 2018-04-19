@@ -3,8 +3,6 @@
 #
 
 -- source include/have_log_bin.inc
--- source include/not_embedded.inc
--- source include/have_innodb.inc
 -- source include/have_debug.inc
 
 RESET MASTER;
@@ -227,8 +225,8 @@ create table if not exists t3 like tt1;
 
 --disable_warnings
 USE mysql;
-INSERT IGNORE INTO user SET host='localhost', user='@#@', authentication_string=password('Just a test');
-UPDATE user SET authentication_string=password('Another password') WHERE host='localhost' AND user='@#@';
+INSERT IGNORE INTO user SET host='localhost', user='@#@', authentication_string='*1111111111111111111111111111111111111111';
+UPDATE user SET authentication_string='*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' WHERE host='localhost' AND user='@#@';
 DELETE FROM user WHERE host='localhost' AND user='@#@';
 --enable_warnings
 

@@ -1,0 +1,28 @@
+SELECT sys.list_add(NULL, 'foo');
+sys.list_add(NULL, 'foo')
+foo
+SELECT sys.list_add('', 'foo');
+sys.list_add('', 'foo')
+foo
+SELECT sys.list_add('bar', 'foo');
+sys.list_add('bar', 'foo')
+bar,foo
+SELECT sys.list_add('bar, ', 'foo');
+sys.list_add('bar, ', 'foo')
+bar,foo
+SELECT sys.list_add('foo', NULL);
+ERROR 02200: Function sys.list_add: in_add_value input variable should not be NULL
+SET @sqlmode := @@sql_mode;
+SELECT @@sql_mode;
+@@sql_mode
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+SET SESSION sql_mode = sys.list_add(@@sql_mode, 'ANSI_QUOTES');
+SELECT @@sql_mode;
+@@sql_mode
+ANSI_QUOTES,ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+SET SESSION sql_mode = @sqlmode;
+SET @sqlmode := NULL;
+SET @input := REPEAT('a', 4194304);
+SELECT sys.list_add(@input, 'foo');
+ERROR 22001: Data too long for column 'in_list' at row 1
+SET @input := NULL;

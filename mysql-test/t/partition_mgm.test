@@ -1,5 +1,3 @@
-
--- source include/have_partition.inc
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
@@ -19,7 +17,6 @@ DROP TABLE t1;
 --echo #                         HASH/KEY partitioned tables
 --echo #
 CREATE TABLE t1 (a INT PRIMARY KEY)
-ENGINE MYISAM
 PARTITION BY HASH (a)
 PARTITIONS 1;
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
@@ -48,7 +45,6 @@ DROP TABLE t1;
 # Bug 40389: REORGANIZE PARTITION crashes when only using one partition
 #
 CREATE TABLE t1 (a INT PRIMARY KEY)
-ENGINE MYISAM
 PARTITION BY HASH (a)
 PARTITIONS 1;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
@@ -71,22 +67,15 @@ alter table t1 reorganize partition p0 into
 subpartition sp01, subpartition sp02));
 drop table t1;
  
-CREATE TABLE t1 (f_date DATE, f_varchar VARCHAR(30)) ENGINE=MYISAM
+CREATE TABLE t1 (f_date DATE, f_varchar VARCHAR(30))
 PARTITION BY HASH(YEAR(f_date)) PARTITIONS 2;
 SHOW CREATE TABLE t1;
 let $MYSQLD_DATADIR= `select @@datadir`;
--- file_exists $MYSQLD_DATADIR/test/t1#P#p0.MYD
--- file_exists $MYSQLD_DATADIR/test/t1#P#p0.MYI
--- file_exists $MYSQLD_DATADIR/test/t1#P#p1.MYD
--- file_exists $MYSQLD_DATADIR/test/t1#P#p1.MYI
--- file_exists $MYSQLD_DATADIR/test/t1.frm
--- file_exists $MYSQLD_DATADIR/test/t1.par
+-- file_exists $MYSQLD_DATADIR/test/t1#P#p0.ibd
+-- file_exists $MYSQLD_DATADIR/test/t1#P#p1.ibd
 ALTER TABLE t1 COALESCE PARTITION 1;
 SHOW CREATE TABLE t1;
--- file_exists $MYSQLD_DATADIR/test/t1#P#p0.MYD
--- file_exists $MYSQLD_DATADIR/test/t1#P#p0.MYI
--- file_exists $MYSQLD_DATADIR/test/t1.frm
--- file_exists $MYSQLD_DATADIR/test/t1.par
+-- file_exists $MYSQLD_DATADIR/test/t1#P#p0.ibd
 drop table t1;
 #
 # Bug 20767: REORGANIZE partition crashes

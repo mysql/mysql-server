@@ -1,23 +1,27 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- as published by the Free Software Foundation; version 2 of
- the License.
- 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU General Public License for more details.
- 
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License, version 2.0, for more details.
+
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
-#include <my_config.h>
+#include "my_config.h"
 #include <stdio.h>
 #include <pthread.h>
 
@@ -30,6 +34,7 @@
 #include "debug.h"
 #include "workitem.h"
 #include "NdbInstance.h"
+#include "ndb_pipeline.h"
 #include "thread_identifier.h"
 #include "Scheduler.h"
 #include "ExternalValue.h"
@@ -135,7 +140,7 @@ bool prefetch_dictionary_objects() {
 
 
 /* This function has C linkage */
-void set_initial_cas_ids(unsigned int *hi, ndbmc_atomic32_t *lo) {
+void set_initial_cas_ids(unsigned int *hi, atomic_int32_t *lo) {
   /* Set the initial CAS for the default engine: */
   /* XXXXX disabled.  Because we're linking with the actual default engine,
      we don't have the opportunity to coordinate CAS IDs between the two
@@ -180,18 +185,21 @@ void reconfigure(Scheduler *s) {
   DEBUG_ENTER();
 
   next_config = new Configuration(active_config);
-  read_configuration(next_config);
-  if(s->global_reconfigure(next_config)) {
+
+  if(! read_configuration(next_config)) {
+    logger->log(LOG_WARNING, 0, "Online reconfiguration failed.");
+  }
+  else if(! s->global_reconfigure(next_config)) {
+    logger->log(LOG_WARNING, 0, 
+                "Online configuration aborted -- not supported by scheduler.");
+  }
+  else {
     /* There is no garbage collection here, but there could be if Configuration
        had a carefully-written destructor. */
     stale_config = active_config;
     active_config = next_config;
     next_config = 0;
     logger->log(LOG_WARNING, 0, "ONLINE RECONFIGURATION COMPLETE");
-  }
-  else {
-    logger->log(LOG_WARNING, 0, 
-                "Online configuration aborted -- not supported by scheduler.");
   }
 }
 
@@ -200,7 +208,7 @@ extern "C" {
   void * run_reconfig_listener_thread(void *);
 }
 
-
+// TODO: This could take a GlobalConfigManager rather than a Scheduler
 void * run_reconfig_listener_thread(void *p) {
   thread_identifier tid;
   tid.pipeline = 0;
@@ -208,8 +216,8 @@ void * run_reconfig_listener_thread(void *p) {
   set_thread_id(&tid);
   
   DEBUG_ENTER();
-  Scheduler * sched = (Scheduler *) p;
-  
+  ndb_pipeline * pipeline = (ndb_pipeline *) p;
+
   while(1) {
     int i = active_config->waitForReconfSignal(); 
     
@@ -218,7 +226,7 @@ void * run_reconfig_listener_thread(void *p) {
     }
     else if(i == 1) {
       DEBUG_PRINT("reconfiguring");
-      reconfigure(sched);
+      reconfigure(pipeline->scheduler);
     }
     else {
       DEBUG_PRINT("error (%d); exiting.", i);
@@ -230,13 +238,13 @@ void * run_reconfig_listener_thread(void *p) {
 
 
 /* This function has C linkage */
-void start_reconfig_listener(void *scheduler) {
+void start_reconfig_listener(void *pipeline) {
   DEBUG_ENTER();
   if(active_config->canReloadOnline()) {
     pthread_t thd_id;
     
     DEBUG_PRINT("Starting thread.");
-    pthread_create(& thd_id, NULL, run_reconfig_listener_thread, scheduler);
+    pthread_create(& thd_id, NULL, run_reconfig_listener_thread, pipeline);
   }
   else {
     DEBUG_PRINT("Not supported.");

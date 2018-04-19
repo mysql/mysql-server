@@ -1,0 +1,2593 @@
+########### suite/json/t/json_notable.test                           #
+# Tests json columns functionality that does not need any tables     #
+#   to be defined (no storage engine functionality)                  #
+#                                                                    #
+# This test copies some tests originally in json.test                #
+######################################################################
+
+# Some extra checks for comparisons between positive and negative zero.
+# All should be equal.
+SELECT CAST(0.0e0 AS JSON) = -0.0e0;
+SELECT CAST(CAST(0 AS DECIMAL) AS JSON) = CAST(-0.0e0 AS DECIMAL);
+SELECT CAST(0.0e0 AS JSON) = CAST(-0.0e0 AS DECIMAL);
+SELECT CAST(CAST(0 AS DECIMAL) AS JSON) = -0.0e0;
+SELECT CAST(CAST(0 AS SIGNED) AS JSON) = -0.0e0;
+SELECT CAST(CAST(0 AS SIGNED) AS JSON) = CAST(-0.0e0 AS DECIMAL);
+SELECT CAST(CAST(0 AS UNSIGNED) AS JSON) = -0.0e0;
+SELECT CAST(CAST(0 AS UNSIGNED) AS JSON) = CAST(-0.0e0 AS DECIMAL);
+
+# Test that CAST string argument isn't treated as ANY_JSON_ATOM
+# in that a MySQL string needs to be parsed to JSON here; it is not
+# auto-converted to a JSON string as in ANY_JSON_ATOM contexts.
+select cast('"abc"' as json);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+select cast('abc' as json);
+
+--echo
+--echo # String literal - valid JSON
+select JSON_VALID('123');             # uint
+select JSON_VALID('-123');            # int
+select JSON_VALID('5000000000');      # uint64
+select JSON_VALID('-5000000000');     # int64
+select JSON_VALID('1.23');            # double
+select JSON_VALID('"123"');
+select JSON_VALID('true');
+select JSON_VALID('false');
+select JSON_VALID('null');
+select JSON_VALID('{"address": "Trondheim"}');
+
+--echo
+--echo # String literal - not valid JSON
+select JSON_VALID('12 3');
+
+--echo
+--echo # String literal not in UTF-8
+set names 'ascii';
+# auto-convert to utf-8
+select JSON_VALID('123');
+
+set names 'utf8';
+
+--echo
+--echo # Json expression
+select JSON_VALID(cast('[123]' as JSON ));
+
+--echo
+--echo # Json expression NULL
+select JSON_VALID(cast(NULL as JSON ));
+
+--echo
+--echo # Bare NULL
+select JSON_VALID( NULL );
+
+--echo
+--echo # Function result - string
+select JSON_VALID( UPPER('"abc"') );
+
+set names 'latin1';
+--echo
+--echo # Function result - string
+# auto-convert to utf-8
+select JSON_VALID( UPPER('"abc"') );
+
+set names 'utf8';
+
+--echo
+--echo # Function result - date, not valid as JSON without CAST
+select JSON_VALID( CAST('2015-01-15' AS DATE) );
+
+--echo
+--echo # The date string doesn't parse as JSON text, so wrong:
+select JSON_VALID( CAST(CAST('2015-01-15' AS DATE) as CHAR CHARACTER SET 'utf8') );
+--echo # OK, though:
+select JSON_VALID( CAST(CURDATE() as JSON) );
+
+--echo
+--echo # Function result - NULL
+select JSON_VALID( UPPER(NULL) );
+select JSON_VALID( UPPER(CAST(NULL as CHAR)) );
+
+# examples from wl7909 spec
+# returns 1
+SELECT JSON_VALID( '{ "firstName" : "Fred", "lastName" : "Flintstone" }' );
+
+# returns 1
+SELECT JSON_VALID( '3' );
+
+# returns NULL as IS JSON would
+SELECT JSON_VALID( null );
+
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_CONTAINS_PATH function.
+--echo # ----------------------------------------------------------------------
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_contains_path();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_contains_path('{ "a": true }' );
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_contains_path('{ "a": true }', 'all' );
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+select json_contains_path('{ "a": tru }', 'all', '$' );
+--error ER_INVALID_JSON_PATH
+select json_contains_path('{ "a": true }', 'all', '$[' );
+--error ER_INVALID_JSON_PATH
+select json_contains_path('{ "a": true }', 'all', '$a.***[3]' );
+--error ER_JSON_BAD_ONE_OR_ALL_ARG
+select json_contains_path('{ "a": true }', 'foo', '$.a' );
+--error ER_INVALID_JSON_CHARSET
+select json_contains_path('{}', 'all', cast('$' as binary));
+
+select json_contains_path(null, 'all', '$.a' );
+select json_contains_path('{ "a": true }', null, '$.a' );
+select json_contains_path('{ "a": true }', 'all', null );
+
+# degenerate path
+select json_contains_path('{ "a": true }', 'all', '$' );
+
+# positive, one path
+select json_contains_path('{ "a": true }', 'all', '$.a' );
+select json_contains_path('{ "a": true }', 'one', '$.a' );
+
+# negative, one path
+select json_contains_path('{ "a": true }', 'all', '$.b' );
+select json_contains_path('{ "a": true }', 'one', '$.b' );
+
+# all
+select json_contains_path('{ "a": true }', 'all', '$.a', '$.b' );
+select json_contains_path('{ "a": true }', 'all', '$.b', '$.a' );
+select json_contains_path('{ "a": true }', 'ALL', '$.a', '$.b' );
+select json_contains_path('{ "a": true }', 'aLl', '$.a', '$.b' );
+
+# some
+select json_contains_path('{ "a": true }', 'one', '$.a', '$.b' );
+select json_contains_path('{ "a": true }', 'one', '$.b', '$.a' );
+select json_contains_path('{ "a": true }', 'ONE', '$.a', '$.b' );
+select json_contains_path('{ "a": true }', 'oNe', '$.a', '$.b' );
+
+# some wildcards
+select json_contains_path('{ "a": true, "b": [ 1, 2, { "c": [ 4, 5, { "d": [ 6, 7, 8, 9, 10 ]} ] } ] }', 'all', '$**[4]' );
+select json_contains_path('{ "a": true, "b": [ 1, 2, { "c": [ 4, 5, { "d": [ 6, 7, 8, 9, 10 ]} ] } ] }', 'all', '$**[4]', '$**[5]' );
+select json_contains_path('{ "a": true, "b": [ 1, 2, { "c": [ 4, 5, { "d": [ 6, 7, 8, 9, 10 ]} ] } ] }', 'all', '$**.c[2]' );
+select json_contains_path('{ "a": true, "b": [ 1, 2, { "c": [ 4, 5, { "d": [ 6, 7, 8, 9, 10 ]} ] } ] }', 'all', '$**.c[3]' );
+select json_contains_path('{"a":1, "b":2}', 'one', '$.*');
+select json_contains_path('[1,2,3]', 'one', '$.*');
+select json_contains_path('{}', 'one', '$[*]');
+
+# combine ellipsis and wildcard
+SELECT JSON_CONTAINS_PATH('[1, [[{"x": [{"a":{"b":{"c":42}}}]}]]]',
+                          'one', '$**.a.*');
+SELECT JSON_CONTAINS_PATH('[1, [[{"x": [{"a":{"b":{"c":42}}}]}]]]',
+                          'all', '$**.a.*');
+SELECT JSON_CONTAINS_PATH('[1,2,3]', 'one', '$**[*]');
+SELECT JSON_CONTAINS_PATH('[1,2,3]', 'all', '$**[*]');
+
+# 3 paths
+select json_contains_path('{ "a": true, "b": [ 1, 2 ] }', 'all', '$**[1]', '$.b[0]', '$.c' );
+select json_contains_path('{ "a": true, "b": [ 1, 2 ] }', 'all', '$.c', '$**[1]', '$.b[0]' );
+select json_contains_path('{ "a": true, "b": [ 1, 2 ] }', 'all', '$.b[0]', '$.c', '$**[1]' );
+select json_contains_path('{ "a": true, "b": [ 1, 2 ] }', 'one', '$**[1]', '$.b[0]', '$.c' );
+select json_contains_path('{ "a": true, "b": [ 1, 2 ] }', 'one', '$.c', '$**[1]', '$.b[0]' );
+select json_contains_path('{ "a": true, "b": [ 1, 2 ] }', 'one', '$.b[0]', '$.c', '$**[1]' );
+
+# examples from the wl7909 spec
+# returns 0 because there is no element at $.a.c
+SELECT JSON_CONTAINS_PATH
+(
+  '{ "a" : 123, "b" : [ 123, 456 ] }',
+  'all',
+  '$.a.c',
+  '$.b[1]'
+);
+
+# returns 1 because there is an element at $.b[1]
+SELECT JSON_CONTAINS_PATH
+(
+  '{ "a" : 123, "b" : [ 123, 456 ] }',
+  'one',
+  '$.a.c',
+  '$.b[1]'
+);
+
+# returns 0 because there is no element at the given path
+SELECT JSON_CONTAINS_PATH
+(
+  '{ "a" : 123, "b" : [ 123, 456 ] }',
+  'all',
+  '$.c'
+);
+
+# returns 1 because there is an element at $.b[1].c.d
+SELECT JSON_CONTAINS_PATH
+(
+  '{ "a" : 123, "b" : [ 123, { "c" : { "d" : true } } ] }',
+  'all',
+  '$.b[1].c.d'
+);
+
+select json_length( null );
+select json_length( '1' );
+--echo
+--echo # invalid json text
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+select json_length( 'abc' );
+select json_length( '"abc"' );
+select json_length( 'true' );
+select json_length( 'false' );
+select json_length( 'null' );
+
+select json_length( '{}' );
+select json_length( '{ "a" : 100, "b" : 200 }' );
+select json_length( '{ "a" : 100, "b" : [ 300, 400, 500 ] }' );
+select json_length( '[]' );
+select json_length( '[ null, "foo", true, 1.1 ]' );
+select json_length( '[ null, "foo", true, { "a" : "b", "c" : "d" } ]' );
+select json_length( '"foo"' );
+select json_length( '1.2' );
+
+
+# bad path expressions
+--echo
+--echo # invalid json path
+--error ER_INVALID_JSON_PATH
+select json_length( 'true', 'c$' );
+--echo
+--echo # invalid json path
+--error ER_INVALID_JSON_PATH
+select json_length( '{ "foo" : [ true, false ] }', '$.foo[bar]' );
+--echo
+--echo # wildcards not allowed in path expressions for this function
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_length( 'true', '$.*' );
+--echo
+--echo # wildcards not allowed in path expressions for this function
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_length( 'true', '$.foo**.bar' );
+
+# json_length() with non-vacuous path expressions
+
+# 1
+select json_length( '[ 1, [ 2, 3, 4 ], 5 ]', '$[0]' );
+# 3
+select json_length( '[ 1, [ 2, 3, 4 ], 5 ]', '$[1]' );
+# 1
+select json_length( '[ 1, [ 2, 3, 4 ], 5 ]', '$[2]' );
+# auto-wrapping: 1
+select json_length( '[ 1, [ 2, 3, 4 ], 5 ]', '$[2][0]' ); # auto-wrap scalar
+select json_length( '[ 1, [ 2, 3, 4 ], {"a": 1} ]', '$[2][0]' ); # ditto object
+
+# non-existent path: null
+select json_length( '[ 1, [ 2, 3, 4 ], 5 ]', '$[2][1]' );
+# 3
+select json_length( '[ 1, { "a": true, "b": false, "c": null }, 5 ]', '$[1]' );
+
+# examples from the wl7909 spec
+# returns 0
+SELECT JSON_LENGTH
+(
+  '{}'
+);
+
+# returns 1
+SELECT JSON_LENGTH
+(
+  '3'
+);
+
+# returns 2
+SELECT JSON_LENGTH
+(
+  '{ "a" : 123, "b" : [ 123, 456, 789 ] }'
+);
+
+# returns 3
+SELECT JSON_LENGTH
+(
+  '{ "a" : 123, "b" : [ 123, 456, 789 ] }',
+  '$.b'
+);
+
+# returns null because the path does not exist
+SELECT JSON_LENGTH
+(
+  '{ "a" : 123, "b" : [ 123, 456, 789 ] }',
+  '$.c'
+);
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_DEPTH function.
+--echo # ----------------------------------------------------------------------
+select json_depth(null);
+select json_depth(cast(null as json));
+#select i, json_depth(j) from t1;
+select json_depth(cast('[]' as json)),
+       json_depth(cast('{}' as json)),
+       json_depth(cast('null' as json)),
+       json_depth(json_quote('foo'));
+select json_depth(cast('[[2], 3, [[[4]]]]' as json));
+select json_depth(cast('{"a": {"a1": [3]}, "b": {"b1": {"c": {"d": [5]}}}}' as json));
+
+# examples from the wl7909 spec
+# returns 1
+SELECT JSON_DEPTH
+(
+  '{}'
+);
+
+# returns 1
+SELECT JSON_DEPTH
+(
+  '[]'
+);
+
+# returns 1
+SELECT JSON_DEPTH( '"abc"' );
+
+# returns 1
+SELECT JSON_DEPTH( CAST( '"abc"' AS JSON ) );
+
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT JSON_DEPTH( 1 );
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_DEPTH( 'abc' );
+
+# returns 1
+SELECT JSON_DEPTH( CAST( 1 AS JSON ) );
+
+# returns 2
+SELECT JSON_DEPTH
+(
+  '{ "a" : true, "b" : false, "c" : null }'
+);
+
+# returns 2
+SELECT JSON_DEPTH
+(
+  '[ "a", true, "b" , false, "c" , null ]'
+);
+
+# returns 2
+SELECT JSON_DEPTH
+(
+  '{ "a" : true, "b" : {}, "c" : null }'
+);
+
+# returns 2
+SELECT JSON_DEPTH
+(
+  '[ "a", true, "b" , {}, "c" , null ]'
+);
+
+# returns 3
+SELECT JSON_DEPTH
+(
+  '{ "a" : true, "b" : { "e" : false }, "c" : null }'
+);
+
+# returns 3
+SELECT JSON_DEPTH
+(
+  '[ "a", true, "b" , { "e" : false }, "c" , null ]'
+);
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_DEPTH
+(
+  '[ "a", true, "b" , { "e" : false }, "c" , null'
+);
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_REMOVE function.
+--echo # ----------------------------------------------------------------------
+
+# null args
+select json_remove( null, '$[1]' );
+select json_remove( null, '$[1]' ) is null;
+select json_remove( '[ 1, { "a": true, "b": false, "c": null }, 5 ]', null );
+select json_remove( '[ 1, { "a": true, "b": false, "c": null }, 5 ]', null ) is null;
+select json_remove( '[ 1, { "a": true, "b": false, "c": null }, 5 ]', '$[1]', null );
+select json_remove( '[ 1, { "a": true, "b": false, "c": null }, 5 ]', '$[1]', null ) is null;
+
+# too few args
+
+--echo
+--echo # not enough args
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_remove();
+--echo
+--echo # not enough args
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_remove( '[ 1, { "a": true, "b": false, "c": null }, 5 ]' );
+--echo
+--echo # not enough args
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_remove( '$[1]' );
+
+# malformed args
+--echo
+--echo # invalid json text
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+select json_remove( '[ 1, { "a": true, "b": false, "c": null }, 5 ', '$[1]', '$[2]' );
+--echo
+--echo # invalid json path
+--error ER_INVALID_JSON_PATH
+select json_remove( '[ 1, { "a": true, "b": false, "c": null }, 5 ]', '$[1', '$[2]' );
+--echo
+--echo # invalid json path
+--error ER_INVALID_JSON_PATH
+select json_remove( '[ 1, { "a": true, "b": false, "c": null }, 5 ]', '$[1]', '$[2' );
+--echo
+--echo # Vacuous path expression
+--error ER_JSON_VACUOUS_PATH
+select json_remove( '[ 1, 2, 3 ]', '$' );
+--echo
+--echo # Vacuous path expression
+--error ER_JSON_VACUOUS_PATH
+select json_remove( '[ 1, 2, 3 ]', '$', '$[2]' );
+--echo
+--echo # Vacuous path expression
+--error ER_JSON_VACUOUS_PATH
+select json_remove( '[ 1, 2, 3 ]', '$[1]', '$' );
+
+# wildcard/ellipsis not allowed in paths
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_remove( '[ 1, 2, 3 ]', '$[*]' );
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_remove( '[ 1, 2, 3 ]', '$**[2]' );
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_remove( '[ 1, 2, 3 ]', '$[2]', '$[*]' );
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_remove( '[ 1, 2, 3 ]', '$[2]', '$**[2]' );
+
+# simple matches
+
+select json_remove( '[ 1, 2, 3 ]', '$[0]' );
+select json_remove( '[ 1, 2, 3 ]', '$[1]' );
+select json_remove( '[ 1, 2, 3 ]', '$[2]' );
+select json_remove( '[ 1, 2, 3 ]', '$[3]' );
+select json_remove( '[ 1, { "a": true, "b": false, "c": null }, 5 ]', '$[1]' );
+
+# one match nested inside another
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_remove( '[ { "a": { "a": true } } ]', '$**.a' );
+
+# multiple paths
+select json_remove( '[ { "a": true }, { "b": false }, { "c": null }, { "a": null } ]', '$[0].a', '$[2].c' );
+
+# ellipsis with matches at different levels
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_remove( '[ { "a": true }, { "b": [ { "c": { "a": true } }  ] }, { "c": null }, { "a": null } ]', '$**.a' );
+
+# nonsense path
+select json_remove( '{"id": 123, "name": "systemQA", "array": [1, 2, 3]}', '$[0]' );
+
+# examples from wl7909 spec
+# returns the document {"a": "foo", "b": [true]}
+SELECT JSON_REMOVE
+(
+  '{"a" : "foo", "b" : [true, {"c" : 123}]}',
+  '$.b[ 1 ]'
+);
+
+# returns {"a": "foo", "b": [true, {}]} due to normalization
+SELECT JSON_REMOVE
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
+  '$.b[ 1 ].c'
+);
+
+# returns {"a": "foo", "b": [true, {}]}
+SELECT JSON_REMOVE
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
+  '$.b[ 1 ].c'
+);
+
+# returns the original document because the path doesn't identify an element
+SELECT JSON_REMOVE
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : 123, "d" : 456 } ] }',
+  '$.b[ 1 ].e'
+);
+
+SELECT JSON_REMOVE('123', '$.a');
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_MERGE_PRESERVE function.
+--echo # ----------------------------------------------------------------------
+
+--echo
+--echo # not enough args
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_MERGE_PRESERVE();
+--echo
+--echo # not enough args
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_MERGE_PRESERVE('[ 1, 2, 3 ]');
+
+# null args result in NULL value
+SELECT JSON_MERGE_PRESERVE(NULL, NULL);
+SELECT JSON_MERGE_PRESERVE(NULL, '[ 1, 2, 3 ]');
+SELECT JSON_MERGE_PRESERVE('[ 1, 2, 3 ]', NULL);
+SELECT JSON_MERGE_PRESERVE(NULL, '[ 1, 2, 3 ]', '[ 4, 5, 6 ]');
+SELECT JSON_MERGE_PRESERVE('[ 1, 2, 3 ]', NULL, '[ 4, 5, 6 ]');
+SELECT JSON_MERGE_PRESERVE('[ 1, 2, 3 ]', '[ 4, 5, 6 ]', NULL);
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_MERGE_PRESERVE('[1, 2]', '[3, 4');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_MERGE_PRESERVE('[1, 2', '[3, 4]');
+
+# good json_merge_preserve() expressions
+SELECT JSON_MERGE_PRESERVE('1', '2');
+SELECT JSON_MERGE_PRESERVE('1', '[2, 3]');
+SELECT JSON_MERGE_PRESERVE('[1, 2]', '3');
+SELECT JSON_MERGE_PRESERVE('1', '{ "a": 2 }');
+SELECT JSON_MERGE_PRESERVE('{ "a": 2 }', '1');
+SELECT JSON_MERGE_PRESERVE('[1, 2]', '[3, 4]');
+SELECT JSON_MERGE_PRESERVE('{ "a": 2 }', '{ "b": 3}');
+SELECT JSON_MERGE_PRESERVE('[1, 2]', '{ "a": 2 }');
+SELECT JSON_MERGE_PRESERVE('{ "a": 2 }', '[1, 2]');
+
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": 2 }',
+                           '{"b": 3, "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": 2 }',
+                           '{"b": [3, 4], "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": [2, 3] }', '{"b": 4, "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": 2 }',
+                           '{"b": {"e": 7, "f": 8}, "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"b": {"e": 7, "f": 8}, "d": 4 }',
+                           '{"a": 1, "b": 2 }');
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": [2, 9] }',
+                           '{"b": [10, 11], "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": [2, 9] }',
+                           '{"b": {"e": 7, "f": 8}, "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"b": {"e": 7, "f": 8}, "d": 4 }',
+                           '{"a": 1, "b": [2, 9] }');
+SELECT JSON_MERGE_PRESERVE('{"b": {"e": 7, "f": 8}, "d": 4 }',
+                           '{ "a": 1, "b": {"e": 20, "g": 21 } }');
+
+SELECT JSON_MERGE_PRESERVE('1', '2', '3');
+SELECT JSON_MERGE_PRESERVE('[1, 2 ]', '3', '[4, 5]');
+SELECT JSON_MERGE_PRESERVE
+(
+  '{ "a": true, "b": { "c": 3, "d": 4 }, "e": [ 1, 2 ] }',
+  '{ "d": false, "b": { "g": 3, "d": 5 }, "f": [ 1, 2 ] }',
+  '{ "m": true, "b": { "h": 8, "d": 4 }, "e": [ 3, 4 ] }'
+);
+
+# examples from the wl7909 spec
+# returns [{"a": "foo", "b": [true, {"c": 123}]}, 5, 6]
+SELECT JSON_MERGE_PRESERVE
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
+  '[ 5, 6]'
+);
+
+# returns {"a": "foo", "b": [true, {"c": 123}, false, 34]}
+SELECT JSON_MERGE_PRESERVE
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
+  '{ "b": [ false, 34 ] }'
+);
+
+# returns {"a": "foo", "b": [true, {"c": 123}, "bar"]}
+SELECT JSON_MERGE_PRESERVE
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
+  '{ "b": "bar" }'
+);
+
+# returns {"a": {"b": 1, "c": 1}}
+SELECT JSON_MERGE_PRESERVE
+(
+  '{ "a" : { "b" : 1 } }',
+  '{ "a" : { "c" : 1 } }'
+);
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_TYPE function.
+--echo # ----------------------------------------------------------------------
+
+# negative test
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+select json_type('abc');
+
+#select i, json_type(j) from t1;
+select json_type('{"a": 2}');
+select json_type('[1,2]');
+select json_type('"scalar string"');
+select json_type('true');
+select json_type('false');
+select json_type('null');
+select json_type('1');
+select json_type('-0');
+select json_type('-0.0');
+--error ER_INVALID_TYPE_FOR_JSON
+select json_type(-1);
+--error ER_INVALID_TYPE_FOR_JSON
+select json_type(CAST(1 AS UNSIGNED));
+select json_type('32767');
+--error ER_INVALID_TYPE_FOR_JSON
+select json_type(PI());
+select json_type('3.14');
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+select json_type(CAST(CAST('2015-01-15' AS DATE) as CHAR CHARACTER SET 'utf8'));
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of CAST(literal AS JSON)
+--echo # ----------------------------------------------------------------------
+select json_type(cast(cast('2014-11-25 18:00' as datetime) as json));
+select json_type(cast(cast('2014-11-25' as date) as json));
+select json_type(cast(cast('18:00:59' as time) as json));
+# select json_type(cast(cast('2014-11-25 18:00' as timestamp) as json)); -- cast target type not supported
+
+# select json_type(cast(cast('1999' as year) as json)); -- cast target type not supported
+select json_type(cast(127 as json));
+select json_type(cast(255 as json));
+select json_type(cast(32767 as json));
+select json_type(cast(65535 as json));
+select json_type(cast(8388607 as json));
+select json_type(cast(16777215 as json));
+select json_type(cast(2147483647 as json));
+select json_type(cast(4294967295 as json));
+select json_type(cast(9223372036854775807 as json));
+select json_type(cast(18446744073709551615 as json));
+select json_type(cast(true as json));
+select json_type(cast(b'10101' as json));
+
+select json_type(cast(cast(3.14 as decimal(5,2)) as json));
+select json_type(cast(3.14 as json));
+select json_type(cast(3.14E30 as json));
+# select json_type(cast(cast(3.14 as numeral(5,2)) as json)); -- cast target type not supported
+
+# select json_type(cast(cast(3.14 as double) as json)); -- cast target type not supported
+# select json_type(cast(cast(3.14 as float) as json)); -- cast target type not supported
+
+# select json_type(cast(cast(b'10101' as bit(10)) as json));  -- cast target type not supported
+# select json_type(cast(cast('10101abcde' as blob) as json)); -- cast target type not supported
+select json_type(cast(cast('10101abcde' as binary) as json));
+
+# select json_type(cast(cast('a' as enum('a','b','c')) as json)); -- cast target type not supported
+# select json_type(cast(cast('a,c' as set('a','b','c')) as json)); -- cast target type not supported
+
+select json_type(cast(ST_GeomFromText('POINT(1 1)') as json));
+select json_type(cast(ST_GeomFromText('LINESTRING(0 0,1 1,2 2)') as json));
+select json_type(cast(ST_GeomFromText('POLYGON((0 0,10 0,10 10,0 10,0 0),
+                                     (5 5,7 5,7 7,5 7, 5 5))') as json));
+select json_type(cast(null as json));
+select json_type(cast(null as json)) is null; # check that it is an SQL NULL
+select json_type(null) is null;               # is an SQL NULL
+
+#
+# same, but now show the printable value:
+#
+select cast(cast('2014-11-25 18:00' as datetime) as json);
+select cast(cast('2014-11-25' as date) as json);
+select cast(cast('18:00:59' as time) as json);
+# select cast(cast('2014-11-25 18:00' as timestamp) as json); -- cast target type not supported
+
+# select cast(cast('1999' as year) as json); -- cast target type not supported
+select cast(127 as json);
+select cast(255 as json);
+select cast(32767 as json);
+select cast(65535 as json);
+select cast(8388607 as json);
+select cast(16777215 as json);
+select cast(2147483647 as json);
+select cast(4294967295 as json);
+select cast(9223372036854775807 as json);
+select cast(18446744073709551615 as json);
+select cast(true as json);
+select cast(b'10101' as json);
+
+select cast(cast(3.14 as decimal(5,2)) as json);
+select cast(3.14 as json);
+select cast(3.14e0 as json);
+# select cast(cast(3.14 as numeral(5,2)) as json); -- cast target type not supported
+
+# select cast(cast(3.14 as double) as json); -- cast target type not supported
+# select cast(cast(3.14 as float) as json); -- cast target type not supported
+
+# select cast(cast(b'10101' as bit(10) as json);  -- cast target type not supported
+# select cast(cast('10101abcde' as blob) as json); -- cast target type not supported
+select cast(cast('10101abcde' as binary) as json);
+
+# select cast(cast('a' as enum('a','b','c') as json); -- cast target type not supported
+# select cast(cast('a,c' as set('a','b','c') as json); -- cast target type not supported
+
+select cast(ST_GeomFromText('POINT(1 1)') as json);
+select cast(ST_GeomFromText('LINESTRING(0 0,1 1,2 2)') as json);
+select cast(ST_GeomFromText('POLYGON((0 0,10 0,10 10,0 10,0 0),
+                                     (5 5,7 5,7 7,5 7, 5 5))') as json);
+select cast(null as json);
+select cast(null as json) is null; # check that it is an SQL NULL
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_KEYS function.
+--echo # ----------------------------------------------------------------------
+# should all give NULL:
+select json_keys(NULL);
+select json_keys(NULL, '$.b');
+select json_keys(NULL, NULL);
+select json_keys('{"a": 1, "b": {"e": "foo", "b": 3}}', '$.a');
+select json_keys('{"a": 1, "b": {"e": "foo", "b": 3}}', NULL);
+
+# non NULL results
+select json_keys('{"a": 1, "b": {"e": "foo", "b": 3}}');
+select json_keys('{"a": 1, "b": {"e": "foo", "b": 3}}', '$.b');
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_keys('{"a": 1, "b": {"e": "foo", "b": 3}}', '$.*.b');
+
+# Examples from the specification
+--echo # returns [ "a", "b" ]
+SELECT JSON_KEYS('{ "a" : "foo", "b" : [ true, { "c" : "123" } ] }');
+
+--echo # returns []
+SELECT JSON_KEYS('{ "a" : "foo", "b" : [ true, { "c" : {} } ] }',
+                '$.b[1].c');
+
+--echo # returns NULL
+SELECT JSON_KEYS('{ "a" : "foo", "b" : [ true, { "c" : {} } ] }',
+                '$.a.b[2]');
+
+--error ER_INVALID_JSON_PATH
+SELECT JSON_KEYS('{"a":1}', '1010');
+--error ER_INVALID_JSON_PATH
+SELECT JSON_KEYS('{"a":1}', '1010') IS NULL;
+
+# examples from the wl7909 spec
+# returns [ "a", "b" ]
+SELECT JSON_KEYS
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : "123" } ] }'
+);
+
+# returns []
+SELECT JSON_KEYS
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : {} } ] }',
+  '$.b[1].c'
+);
+
+# returns NULL
+SELECT JSON_KEYS
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : {} } ] }',
+  '$.a.b[2]'
+);
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_KEYS();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_KEYS('{}', '$', '$');
+
+--echo # ----------------------------------------------------------------------
+--echo # CAST(<json> AS CHAR). See also 'json_conversions.test' for other
+--echo # conversion tests.
+--echo # ----------------------------------------------------------------------
+select cast(json_keys('{"a": 1}') as char);
+select cast(cast(1 as json) as char);
+select cast(json_keys(NULL) as char);
+#select cast(j as char) from keys1;
+
+--echo # ----------------------------------------------------------------------
+--echo # Path matching with double-quotes
+--echo # ----------------------------------------------------------------------
+
+# matches
+select json_extract( '{ "one potato" : 1 }', '$."one potato"' );
+# matches
+select json_extract( '{ "a.b" : 1 }', '$."a.b"' );
+
+# doesn't match
+select json_extract( '{ "\\"a\\"": 1}', '$."a"' );
+# matches
+select json_extract( '{ "\\"a\\"": 1}', '$."\\"a\\""' );
+# matches
+select json_extract( '{ "a": 1}', '$."a"' );
+# matches
+select json_extract( '{ "a": 1}', '$.a' );
+
+# examples from functional spec section on Path Syntax
+
+# [3, 2]
+select json_extract( '{ "a": [ [ 3, 2 ], [ { "c" : "d" }, 1 ] ], "b": { "c" : 6 }, "one potato": 7, "b.c" : 8 }', '$.a[0]' );
+# 2
+select json_extract( '{ "a": [ [ 3, 2 ], [ { "c" : "d" }, 1 ] ], "b": { "c" : 6 }, "one potato": 7, "b.c" : 8 }', '$.a[0][1]' );
+# [ { "c": "d" }, 1 ]
+select json_extract( '{ "a": [ [ 3, 2 ], [ { "c" : "d" }, 1 ] ], "b": { "c" : 6 }, "one potato": 7, "b.c" : 8 }', '$.a[1]' );
+# { "c": "d" }
+select json_extract( '{ "a": [ [ 3, 2 ], [ { "c" : "d" }, 1 ] ], "b": { "c" : 6 }, "one potato": 7, "b.c" : 8 }', '$.a[1][0]' );
+# "d"
+select json_extract( '{ "a": [ [ 3, 2 ], [ { "c" : "d" }, 1 ] ], "b": { "c" : 6 }, "one potato": 7, "b.c" : 8 }', '$.a[1][0].c' );
+# 7
+select json_extract( '{ "a": [ [ 3, 2 ], [ { "c" : "d" }, 1 ] ], "b": { "c" : 6 }, "one potato": 7, "b.c" : 8 }', '$."one potato"' );
+# 6
+select json_extract( '{ "a": [ [ 3, 2 ], [ { "c" : "d" }, 1 ] ], "b": { "c" : 6 }, "one potato": 7, "b.c" : 8 }', '$.b.c' );
+# 8
+select json_extract( '{ "a": [ [ 3, 2 ], [ { "c" : "d" }, 1 ] ], "b": { "c" : 6 }, "one potato": 7, "b.c" : 8 }', '$."b.c"' );
+
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_EXTRACT function.
+--echo # ----------------------------------------------------------------------
+
+# errors
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_extract(NULL);
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_extract('$.b');
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_extract('{"a": 1, "b": {"e": "foo", "b": 3}}');
+
+# Confused argument order
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+select json_extract('$.a', '{"a": 1, "b": {"e": "foo", "b": 3}}');
+
+# NULLs
+select json_extract(NULL, '$.b');
+select json_extract(NULL, NULL);
+
+# non-NULLs
+select json_extract('{"a": 1, "b": {"e": "foo", "b": 3}}', '$.a');
+select json_extract('{"a": 1, "b": {"e": "foo", "b": 3}}', '$.*');
+select json_extract('{"a": 1, "b": {"e": "foo", "b": 3}}', '$.a', '$.b.e');
+select json_extract('{"a": 1, "b": [1,2,3]}', '$.b[2]');
+# one path is NULL
+select json_extract('{"a": 1, "b": {"e": "foo", "b": 3}}', '$.a', NULL);
+
+# Examples from the specification
+--echo # returns a JSON value containing just the string "123"
+SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : "123" } ] }',
+                   '$.b[ 1 ].c');
+
+--echo # returns a JSON value containing just the number 123
+SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
+                   '$.b[ 1 ].c');
+
+--echo # raises an error because the document is not valid
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_EXTRACT('{ "a" : [ }',
+                   '$.b[ 1 ].c');
+
+--echo # raises an error because the path is invalid
+--error ER_INVALID_JSON_PATH
+SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
+                   '$.b[ 1 ].');
+
+--echo # returns a JSON value containing the number 123 (because of
+--echo # auto-wrapping the scalar)
+SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
+                   '$.b[ 1 ].c[ 0 ]');
+--echo # returns a JSON value containing the object because of auto-wrapping
+SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : {"not array": 4} } ] }',
+                   '$.b[ 1 ].c[ 0 ]');
+
+--echo # returns null because the path, although valid, does not identify a value
+SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
+                   '$.b[ 1 ].c[ 1 ]');
+
+--echo # returns a JSON value containing the number 456 (due to normalization)
+SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
+                   '$.b[ 1 ].c');
+
+--echo # returns a JSON array [ "foo", true ]
+SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
+                   '$.a', '$.b[0]');
+
+--echo # returns a JSON array [ true ]
+SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
+                   '$.d', '$.b[0]');
+
+--echo # Some examples verifying ellipsis behavior.
+
+--echo # Should have the same result, apart from wrapping.
+select json_extract( '[1]', '$[0][0]' );
+select json_extract( '[1]', '$**[0]' );
+select json_extract( '[1]', '$[last][last]' );
+select json_extract( '[1]', '$**[last]' );
+
+--echo # Should have the same result.
+select json_extract( '{ "a": 1 }', '$**[0]' );
+select json_extract( '{ "a": 1 }', '$[0]', '$.a[0]' );
+select json_extract( '{ "a": 1 }', '$[0]', '$[0].a[0]' );
+select json_extract( '{ "a": 1 }', '$**[last]' );
+select json_extract( '{ "a": 1 }', '$[last]', '$.a[last]' );
+
+--echo # Should have the same result, apart from wrapping.
+select json_extract( '{ "a": 1 }', '$**.a' );
+select json_extract( '{ "a": 1 }', '$[0].a' );
+select json_extract( '{ "a": 1 }', '$[last].a' );
+
+--echo # Should have the same result, apart from wrapping.
+select json_extract( '{ "a": 1 }', '$**.a' );
+select json_extract( '{ "a": 1 }', '$[0].a' );
+select json_extract( '{ "a": 1 }', '$[0][0].a' );
+select json_extract( '{ "a": 1 }', '$[0][0][0].a' );
+select json_extract( '{ "a": 1 }', '$[last].a' );
+select json_extract( '{ "a": 1 }', '$[last][last].a' );
+select json_extract( '{ "a": 1 }', '$[last][last][last].a' );
+
+--echo # Should have the same result.
+SELECT JSON_EXTRACT('[1, [[{"x": [{"a":{"b":{"c":42}}}]}]]]', '$**.a.*');
+SELECT JSON_EXTRACT('[1, [[{"x": [{"a":{"b":{"c":42}}}]}]]]',
+                    '$[1][0][0].x[0].a.*');
+
+SELECT JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[0]');
+SELECT JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[1]');
+SELECT JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[2]');
+SELECT JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[3]');
+SELECT JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[*]');
+SELECT JSON_EXTRACT('[1,2,[3,4,[5,6,{"a":7}]]]', '$**[*]**[0]');
+
+# examples from the wl7909 spec
+# returns a JSON value containing just the string "123"
+SELECT JSON_EXTRACT
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : "123" } ] }',
+  '$.b[ 1 ].c'
+);
+
+# returns a JSON value containing just the number 123
+SELECT JSON_EXTRACT
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
+  '$.b[ 1 ].c'
+);
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_EXTRACT
+(
+  '{ "a" : [ }',
+  '$.b[ 1 ].c'
+);
+
+--error ER_INVALID_JSON_PATH
+SELECT JSON_EXTRACT
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
+  '$.b[ 1 ].'
+);
+
+# returns a JSON value containing the number 123 (because of auto-wrapping)
+SELECT JSON_EXTRACT
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
+  '$.b[ 1 ].c[ 0 ]'
+);
+
+# returns null because the path, although valid, does not identify a value
+SELECT JSON_EXTRACT
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
+  '$.b[ 1 ].c[ 1 ]'
+);
+
+# returns a JSON value containing the number 456 (due to normalization)
+SELECT JSON_EXTRACT
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
+  '$.b[ 1 ].c'
+);
+
+# returns a JSON array ["foo", true]
+SELECT JSON_EXTRACT
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
+  '$.a', '$.b[0]'
+);
+
+# returns a the 'true' literal
+SELECT JSON_EXTRACT
+(
+  '{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
+  '$.d', '$.b[0]'
+);
+
+# should return NULL
+select json_extract( '[ { "a": 1 }, { "a": 2 } ]', '$[*].b' ) jdoc;
+
+# should return NULL
+select json_extract( '[ { "a": 1 }, { "a": 2 } ]', '$[0].b' ) jdoc;
+
+# should return 1
+select json_extract( '[ { "a": 1 }, { "a": 2 } ]', '$[0].a' ) jdoc;
+
+# should return [1, 2]
+select json_extract( '[ { "a": 1 }, { "a": 2 } ]', '$[*].a' ) jdoc;
+
+# should return [1]
+select json_extract( '[ { "a": 1 }, { "b": 2 } ]', '$[*].a' ) jdoc;
+
+# should return [3, 4]
+select json_extract( '[ { "a": [3,4] }, { "b": 2 } ]', '$[0].a' ) jdoc;
+
+# should return [[3, 4]]
+select json_extract( '[ { "a": [3,4] }, { "b": 2 } ]', '$[*].a' ) jdoc;
+
+# should return [[3, 4]]
+select json_extract( '[ { "a": [3,4] }, { "b": 2 } ]', '$[0].a', '$[1].a' ) jdoc;
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_ARRAY_APPEND function.
+--echo # ----------------------------------------------------------------------
+
+# NULLs
+select json_array_append(NULL, '$.b', cast(1 as json));
+select json_array_append('[1,2,3]', NULL, cast(1 as json));
+select json_array_append('[1,2,3]', '$', NULL);
+
+# wrong # args
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_array_append(NULL);
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_array_append(NULL, NULL);
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_array_append(NULL, NULL, NULL, NULL);
+
+# auto-wrap
+SELECT JSON_ARRAY_APPEND(cast('1' as json), '$', 3);
+SELECT JSON_ARRAY_APPEND(cast('{"a": 3}' as json), '$', 3);
+SELECT JSON_ARRAY_APPEND('1', '$[0]', 3);
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_array_append(cast('{"a": {"b": [3]}}' as json), '$**[0]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_ARRAY_APPEND('1', '$[0 to 1]', 3);
+
+# Examples from the specification
+
+--echo # Auto-wrapping, since because the paths identify scalars.
+--echo # should return {"a": "foo", "b": ["bar", 4], "c": ["wibble", "grape"]}
+SELECT JSON_ARRAY_APPEND('{"a": "foo", "b": "bar", "c": "wibble"}',
+                  '$.b', cast(4 as json),
+                  '$.c', cast('"grape"' as json));
+
+--echo # should return {"a": "foo", "b": [1, 2, 3, 4],
+--echo #                "c": ["apple", "pear", "grape"]}
+SELECT JSON_ARRAY_APPEND('{"a" : "foo","b": [1, 2, 3], "c": ["apple", "pear"]}',
+                 '$.b', cast(4 as json),
+                 '$.c', cast('"grape"' as json));
+
+# without CAST: cf. not required for ANY_JSON_ATOM arguments in specification
+SELECT JSON_ARRAY_APPEND('{"a" : "foo","b": [1, 2, 3], "c": ["apple", "pear"]}',
+                 '$.b', 4,
+                 '$.c', 'grape');
+
+# wild cards, multiple pairs
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_array_append( '[[], [], []]', '$[*]', 3, '$[*]', 4);
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_array_append( '[[], "not array", []]', '$[*]', 3, '$[*]', 4);
+
+# examples from wl7909 spec
+# should return {"a": "foo", "b": ["bar", 4], "c": ["wibble", "grape"]} due to autowrapping
+SELECT JSON_ARRAY_APPEND
+(
+   '{ "a" : "foo", "b" : "bar", "c" : "wibble" }',
+   '$.b', 4,
+   '$.c', "grape"
+);
+
+# should return {"a": "foo", "b": [1, 2, 3, 4], "c": ["apple", "pear", "grape"]}
+SELECT JSON_ARRAY_APPEND
+(
+   '{ "a" : "foo", "b" : [ 1, 2, 3 ], "c" : [ "apple", "pear" ] }',
+   '$.b', 4,
+   '$.c', "grape"
+);
+
+--echo # ----------------------------------------------------------------------
+--echo # Bug#21373874 ASSERTION `PARENT' FAILED
+--echo # ----------------------------------------------------------------------
+
+select json_array_append('{"a":1}', '$[0]', 100);
+select json_array_append('3', '$[0]', 100);
+select json_array_append('3', '$[0][0][0][0]', 100);
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_INSERT function.
+--echo # ----------------------------------------------------------------------
+
+# NULLs
+select json_insert(NULL, '$.b', cast(1 as json));
+select json_insert('[1,2,3]', NULL, cast(1 as json));
+select json_insert('[1,2,3]', '$[3]', NULL);
+
+# wrong # args
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_insert(NULL);
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_insert(NULL, NULL);
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_insert(NULL, NULL, NULL, NULL);
+
+# positive test cases
+
+select json_insert('[1,2,3]', '$[0]', 4);
+select json_insert('[1,2,3]', '$[1]', 4);
+select json_insert('[1,2,3]', '$[2]', 4);
+select json_insert('[1,2,3]', '$[3]', 4);
+select json_insert('[1,2,3]', '$[10]', 4);
+select json_insert('[1,2,3]', '$[last]', 4);
+select json_insert('[1,2,3]', '$[last-1]', 4);
+select json_insert('[1,2,3]', '$[last-2]', 4);
+select json_insert('[1,2,3]', '$[last-3]', 4);
+select json_insert('[1,2,3]', '$[last-10]', 4);
+
+select json_insert('[]', '$[0]', 1);
+select json_insert('[]', '$[1]', 1);
+select json_insert('[]', '$[last]', 1);
+select json_insert('[]', '$[last-1]', 1);
+
+select json_insert('{"c":4}', '$.c', 4);
+select json_insert('{"c":4}', '$.a', 4);
+
+select json_insert('1', '$', 4);
+select json_insert('1', '$[0]', 4);
+select json_insert('1', '$[1]', 4);
+select json_insert('1', '$[10]', '4', '$[11]', 5);
+select json_insert('1', '$[last]', 4);
+select json_insert('1', '$[last-1]', 4);
+select json_insert('1', '$[last-10]', '4', '$[last-11]', 5);
+
+select json_insert('[1,2,3]', '$[2][0]', 4);
+select json_insert('[1,2,3]', '$[2][1]', 4);
+select json_insert('[1,2,3]', '$[2][2]', 4);
+select json_insert('[1,2,3]', '$[2][last]', 4);
+select json_insert('[1,2,3]', '$[2][last-1]', 4);
+select json_insert('[1,2,3]', '$[2][last-2]', 4);
+
+select json_insert('{"a": 3}', '$.a[0]', 4);
+select json_insert('{"a": 3}', '$.a[1]', 4, '$.a[2]', '5');
+select json_insert('{"a": 3}', '$.a[last]', 4);
+select json_insert('{"a": 3}', '$.a[last-1]', 4, '$.a[last-2]', '5');
+
+# wild card & auto-wrap (scalars)
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert(cast('{"a": [1], "b": 2}' as json), '$.*[1]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert(cast('{"a": 1, "b": 2}' as json), '$.*[1]', 6);
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert(cast('{"a": {"b": 3}}' as json),   '$.a.*[1]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert(cast('{"a": {"b": [3]}}' as json), '$.a.*[1]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert(cast('{"a": {"b": 3}}' as json),   '$**[1]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert(cast('{"a": {"b": [3]}}' as json), '$**[1]', 6);
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert(cast('[1]' as json), '$[*][1]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert(cast('[1]' as json), '$**[1]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert(cast('[1, [2], 3]' as json), '$[*][1]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert(cast('[1, [2], 3]' as json), '$**[1]', 6);
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert(cast('[[1]]' as json), '$[*][1]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert(cast('[[1]]' as json), '$**[1]', 6);
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert(cast('[1, [2], 3]' as json), '$[1 to 2]', 6);
+
+# auto-wrap object
+select json_insert(cast('{"a": 3}' as json), '$[1]', 6);
+
+
+# Examples from the specification
+
+# returns the original document because the path does exist
+SELECT JSON_INSERT('{ "a" : "foo", "b" : [ 1, 2, 3 ] }', '$.a', true);
+
+# inserts a number, returns '{ "a" : "foo", "b" : [ 1, 2, 3 ], "c" : 123 }
+SELECT JSON_INSERT('{ "a" : "foo", "b" : [ 1, 2, 3 ] }', '$.c', 123);
+
+# inserts a string, returns '{ "a" : "foo", "b" : [ 1, 2, 3 ], "c" : "123" }
+SELECT JSON_INSERT('{ "a" : "foo", "b" : [ 1, 2, 3 ] }', '$.c', '123');
+
+# returns '{ "a" : [ "foo", true ], "b" : [ 1, 2, 3 ] }'
+SELECT JSON_INSERT('{ "a" : "foo", "b" : [ 1, 2, 3 ] }', '$.a[1]', true);
+
+# should return { "a" : "foo", "b": true }
+SELECT JSON_INSERT('{ "a" : "foo"}', '$.b', true, '$.b', false);
+
+# examples from the wl7909 spec
+# returns the original document because the path does exist
+SELECT JSON_INSERT
+(
+  '{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
+  '$.a',
+  true
+);
+
+# inserts a number, returns '{"a": "foo", "b": [1, 2, 3], "c": 123}
+SELECT JSON_INSERT
+(
+  '{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
+  '$.c',
+  123
+);
+
+# inserts a string, returns '{"a": "foo", "b": [1, 2, 3], "c": "123"}
+SELECT JSON_INSERT
+(
+  '{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
+  '$.c',
+  '123'
+);
+
+# returns '{"a": ["foo", true], "b": [1, 2, 3]}'
+SELECT JSON_INSERT
+(
+  '{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
+  '$.a[1]',
+  true
+);
+
+# returns {"a": "foo", "b": true}
+SELECT JSON_INSERT
+(
+   '{ "a" : "foo"}',
+   '$.b', true,
+   '$.b', false
+);
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_ARRAY_INSERT function.
+--echo # ----------------------------------------------------------------------
+
+# NULLs
+select json_array_insert(NULL, '$.b[1]', 1);
+select json_array_insert('[1,2,3]', NULL, 1);
+select json_array_insert('[1,2,3]', '$[3]', NULL);
+
+# wrong # args
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_array_insert(NULL);
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_array_insert(NULL, NULL);
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_array_insert(NULL, NULL, NULL, NULL);
+
+# path does not indicate a cell position
+--error ER_INVALID_JSON_PATH_ARRAY_CELL
+select json_array_insert('true', '$', 1);
+--error ER_INVALID_JSON_PATH_ARRAY_CELL
+select json_array_insert('true', '$.a', 1);
+--error ER_INVALID_JSON_PATH_ARRAY_CELL
+select json_array_insert('true', '$.a[1].b', 1);
+
+# nop if there is no array at the path's parent
+select json_array_insert( 'true', '$[0]', false );
+select json_array_insert( 'true', '$[1]', false );
+select json_array_insert( '{ "a": true }', '$.a[0]', false );
+select json_array_insert( '{ "a": true }', '$.a[1]', false );
+
+# positive tests
+select json_array_insert( '[]', '$[0]', false );
+select json_array_insert( '[]', '$[1]', false );
+select json_array_insert( '[]', '$[last]', false );
+select json_array_insert( '[]', '$[last-1]', false );
+select json_array_insert( '[true]', '$[0]', false );
+select json_array_insert( '[true]', '$[1]', false );
+select json_array_insert( '[true]', '$[2]', false );
+select json_array_insert( '{ "a": [] }', '$.a[0]', false );
+select json_array_insert( '{ "a": [] }', '$.a[1]', false );
+select json_array_insert( '{ "a": [true] }', '$.a[0]', false );
+select json_array_insert( '{ "a": [true] }', '$.a[1]', false );
+select json_array_insert( '{ "a": [true] }', '$.a[2]', false );
+select json_array_insert( '{ "a": [true] }', '$.a[last]', false );
+select json_array_insert( '{ "a": [true] }', '$.a[last-1]', false );
+
+# insert into the middle of an array
+select json_array_insert( '[1, 2, 3, 4]', '$[0]', false );
+select json_array_insert( '[1, 2, 3, 4]', '$[1]', false );
+select json_array_insert( '[1, 2, 3, 4]', '$[2]', false );
+select json_array_insert( '[1, 2, 3, 4]', '$[3]', false );
+select json_array_insert( '[1, 2, 3, 4]', '$[4]', false );
+select json_array_insert( '[1, 2, 3, 4]', '$[5]', false );
+select json_array_insert( '[1, 2, 3, 4]', '$[last]', false );
+select json_array_insert( '[1, 2, 3, 4]', '$[last-1]', false );
+select json_array_insert( '[1, 2, 3, 4]', '$[last-2]', false );
+select json_array_insert( '[1, 2, 3, 4]', '$[last-3]', false );
+select json_array_insert( '[1, 2, 3, 4]', '$[last-4]', false );
+
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[0]', false );
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[1]', false );
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[2]', false );
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[3]', false );
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[4]', false );
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[5]', false );
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[last]', false );
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[last-1]', false );
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[last-4]', false );
+
+# nop
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.b[0]', false );
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.b[1]', false );
+
+# no auto-wrapping
+select json_array_insert( '"a"', '$[0]', true );
+select json_array_insert( '[ "a" ]', '$[0][0]', true );
+select json_array_insert( '"a"', '$[1]', true );
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert('[]', '$.a.*[1]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert('[]', '$**[1]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert('[]', '$[*][1]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert('[]', '$[1 to 2]', 6);
+
+# multiple paths,
+select json_array_insert( '[ 1, 2, 3 ]', '$[1]', true, '$[1]', false );
+select json_array_insert( '[ 1, 2, 3 ]', '$[1]',
+       cast( '[ "a", "b", "c", "d" ]' as json ), '$[1][2]', false );
+
+# test an error while evaluating the document expression
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_ARRAY_INSERT(JSON_EXTRACT('[1', '$'), '$[0]', 1);
+
+# error in reading new value
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+select json_array_insert( '[ 1, 2, 3 ]', '$[1]', json_extract( '[', '$' ) );
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_SET function.
+--echo # ----------------------------------------------------------------------
+
+# NULLs
+select json_set(NULL, '$.b', cast(1 as json));
+select json_set('[1,2,3]', NULL, cast(1 as json));
+select json_set('[1,2,3]', '$[3]', NULL);
+
+# wrong # args
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_set(NULL);
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_set(NULL, NULL);
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_set(NULL, NULL, NULL, NULL);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_SET('[', '$[0]', 0);
+
+# Detect errors in nested function calls.
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_SET('{}', '$.name', JSON_EXTRACT('', '$'));
+
+# positive test cases
+
+select json_set('[1,2,3]', '$[2]', 4);
+select json_set('[1,2,3]', '$[3]', 4);
+select json_set('[1,2,3]', '$[10]', 4);
+
+select json_set('[]', '$[0]', 1);
+select json_set('[]', '$[1]', 1);
+select json_set('[]', '$[last]', 1);
+select json_set('[]', '$[last-1]', 1);
+
+select json_set('{"c":4}', '$.c', 5);
+select json_set('{"c":4}', '$.a', 5);
+
+select json_set('1', '$', 4);
+select json_set('1', '$[0]', 4);
+select json_set('1', '$[1]', 4);
+select json_set('1', '$[10]', '4', '$[11]', 5);
+select json_set('1', '$[last]', 4);
+select json_set('1', '$[last-1]', 4);
+select json_set('1', '$[last-10]', '4', '$[last-11]', 5);
+
+select json_set('[1,2,3]', '$[2][0]', 4);
+select json_set('[1,2,3]', '$[2][2]', 4);
+select json_set('[1,2,3]', '$[2][last]', 4);
+select json_set('[1,2,3]', '$[2][last-2]', 4);
+
+select json_set('{"a": 3}', '$.a[0]', 4);
+select json_set('{"a": 3}', '$.a[1]', 4, '$.a[2]', '5');
+select json_set('{"a": 3}', '$.a[last]', 4);
+select json_set('{"a": 3}', '$.a[last-1]', 4, '$.a[last-2]', '5');
+
+# auto-wrap plus ellipsis with nested hits should give: {"a": [{"b": [3, 6]}, 6]}
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_set(cast('{"a": {"b": [3]}}' as json), '$**[1]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_SET('[1,2,3]', '$[*]', 4);
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_SET('[1,2,3]', '$[1 to 2]', 4);
+
+# Examples from the specification: Include when missing functions are
+# available.
+
+# returns { "a" : {}, "b" : [ 1, 2, 3 ] }
+ SELECT JSON_SET('{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
+                '$.a',
+                JSON_OBJECT());
+
+# # returns { "a" : "foo", "b" : [ 1, 2, 3 ], "c" : [ true, false ] }
+# SELECT JSON_SET('{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
+#                '$.c',
+#                JSON_ARRAY( true, false ));
+
+# # returns { "a" : "foo", "b" : [ 1, 2, 3 ], "c" : [ true, false ] }
+# SELECT JSON_SET('{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
+#                '$.c',
+#                JSON_ARRAY( CAST( 'true' AS JSON ), CAST( 'false' AS JSON ) ));
+
+# # returns [ 1, null, null, 2 ]
+# SELECT JSON_SET('1', '$[3]', 2);
+
+# should return { "a": { "b": false, "c": true } }
+SELECT JSON_SET('{ "a" : "foo"}', '$.a',
+                JSON_OBJECT( 'b', false ), '$.a.c', true);
+
+# returns { "a" : {}, "b" : [ 1, 2, 3 ] }
+select json_set('{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
+               '$.a',
+               cast('{}' as json));
+
+# returns { "a" : "foo", "b" : [ 1, 2, 3 ], "c" : [ true, false ] }
+select json_set('{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
+               '$.c',
+               cast('[true, false]' as json));
+
+# returns [ 1, null, null, 2 ]
+select json_set('1', '$[3]', 2);
+
+# should return { "a": { "b": false, "c": true } }
+select json_set('{ "a" : "foo"}', '$.a',
+               cast('{"b": false}' as json), '$.a.c', true);
+
+# examples from wl7909 spec
+# returns {"a": {}, "b": [1, 2, 3]}
+SELECT JSON_SET
+(
+  '{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
+  '$.a',
+  JSON_OBJECT()
+);
+
+# returns {"a": "foo", "b": [1, 2, 3], "c": [true, false]}
+SELECT JSON_SET
+(
+  '{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
+  '$.c',
+  JSON_ARRAY( true, false )
+);
+
+# returns {"a": "foo", "b": [1, 2, 3], "c": [true, false]}
+SELECT JSON_SET
+(
+  '{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
+  '$.c',
+  JSON_ARRAY( CAST( 'true' AS JSON ), CAST( 'false' AS JSON ) )
+);
+
+# returns [1, 2]
+SELECT JSON_SET
+(
+  '1',
+  '$[3]',
+  2
+);
+
+# returns {"a": {"b": false, "c": true}}
+SELECT JSON_SET
+(
+   '{ "a" : "foo"}',
+   '$.a', JSON_OBJECT( 'b', false ),
+   '$.a.c', true
+);
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_REPLACE function.
+--echo # ----------------------------------------------------------------------
+
+# NULLs
+select json_replace(NULL, '$.b', cast(1 as json));
+select json_replace('[1,2,3]', NULL, cast(1 as json));
+select json_replace('[1,2,3]', '$[2]', NULL);
+
+# wrong # args
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_replace(NULL);
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_replace(NULL, NULL);
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_replace(NULL, NULL, NULL, NULL);
+
+# positive test cases
+
+select json_replace('[1,2,3]', '$[2]', 4);
+select json_replace('[1,2,3]', '$[3]', 4);
+select json_replace('[1,2,3]', '$[10]', 4);
+select json_replace('[1,2,3]', '$[last]', 4);
+select json_replace('[1,2,3]', '$[last-1]', 4);
+select json_replace('[1,2,3]', '$[last-10]', 4);
+
+select json_replace('{"c":4}', '$.c', 5);
+select json_replace('{"c":4}', '$.a', 5);
+
+select json_replace('1', '$', 4);
+select json_replace('1', '$[0]', 4);
+select json_replace('1', '$[1]', 4);
+select json_replace('1', '$[10]', '4', '$[11]', 5);
+
+select json_replace('[1,2,3]', '$[2][0]', 4);
+select json_replace('[1,2,3]', '$[2][2]', 4);
+
+select json_replace('{"a": 3}', '$.a[0]', 4);
+select json_replace('{"a": 3}', '$.a[1]', 4, '$.a[2]', '5');
+
+# wildcards not allowed
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_REPLACE('[1,2,3]', '$**.a', 4);
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_REPLACE('[1,2,3]', '$[*]', 4);
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_REPLACE('[1,2,3]', '$[1 to 2]', 4);
+
+# Examples from the specification
+
+# returns the original document because the path doesn't exist
+SELECT JSON_REPLACE('{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
+                   '$.c',
+                   true);
+
+# returns '{ "a" : true, "b" : [ 1, 2, 3 ] }'
+SELECT JSON_REPLACE('{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
+                   '$.a[0]',
+                   true);
+
+# returns the original document because the path doesn't exist
+SELECT JSON_REPLACE('{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
+                   '$.b[5]',
+                   true);
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_ARRAY function.
+--echo # ----------------------------------------------------------------------
+
+# NULLs
+select json_array(NULL, '$.b', cast(1 as json));
+select json_array('[1,2,3]', NULL, cast(1 as json));
+select json_array('[1,2,3]', '$[3]', NULL);
+
+
+# positive test cases
+select json_array();
+select json_array(3.14);
+select json_array('[1,2,3]');
+select json_array(cast('[1,2,3]' as json));
+select json_array(1,2,3);
+select json_array(b'0', b'1', b'10');
+
+# returns the empty array: []
+SELECT JSON_ARRAY();
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_OBJECT function.
+--echo # ----------------------------------------------------------------------
+
+# odd number of args
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_object( 'a' );
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_object( 'a', 1, 'b' );
+
+# null arg
+--error ER_JSON_DOCUMENT_NULL_KEY
+select json_object( null, 1 );
+
+# positive tests
+select json_object();
+select json_object( 'a', null );
+select json_object( 'a', 1 );
+select json_object( 'a', 1, 'b', 'foo' );
+select json_object( 'a', 1, 'b', 'foo', 'c', cast( '{ "d": "wibble" }' as json ) );
+select json_object( 'a', true, 'b', false, 'c', cast( 'null' as json) );
+select json_valid( json_object( '"a"', 1 ) );
+
+# long key
+select json_object( REPEAT('a', 64 * 1024), 1 );
+
+# non-string keyNames are cast to CHAR
+select json_object(json_array(), json_array());
+select json_object( cast(json_array() as char), json_array());
+
+select json_object( 1, json_array());
+select json_object( cast(1 as char), json_array());
+
+# duplicate keys
+SELECT JSON_OBJECT('a', 1, 'b', 2, 'a', 3);
+
+# returns the empty object: {}
+SELECT JSON_OBJECT();
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_SEARCH function.
+--echo # ----------------------------------------------------------------------
+
+# wrong  number of args
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_search();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_search( '{ "a": true }' );
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_search( '{ "a": true }', 'one' );
+
+# null args
+select json_search( null, 'one', 'foo' );
+select json_search( '{ "a": "foo" }', null, 'foo' );
+# FIXME. what should happen here?
+#select json_search( '{ "a": "foo" }', 'one', null );
+select json_search( '{ "a": "foo" }', 'one', 'foo', null, null );
+select json_search( '{ "a": "foo" }', 'one', 'foo', null, '$.a', null );
+
+# bad values for the oneOrAll arg
+--error ER_JSON_BAD_ONE_OR_ALL_ARG
+select json_search( '{ "a": "foo" }', 'twof', 'foo' );
+--error ER_JSON_BAD_ONE_OR_ALL_ARG
+select json_search( '{ "a": "foo" }', 'two', 'foo' );
+
+# bad escape arg
+--error ER_WRONG_ARGUMENTS
+select json_search( '{ "a": "foo" }', 'one', 'foo', 'ab' );
+
+# bad path args
+--error ER_INVALID_JSON_PATH
+select json_search( '{ "a": "foo" }', 'one', 'foo', null, '$a' );
+--error ER_INVALID_JSON_PATH
+select json_search( '{ "a": "foo" }', 'all', 'foo', null, '$.a', '$b' );
+
+--error ER_BAD_FIELD_ERROR
+select json_search(a, b, c);
+
+# simple tests for search without path arguments
+select json_search( '{ "a": "foobar" }', 'one', 'foo%' );
+select json_search( '{ "a": "foobar", "b": "focus", "c": [ "arm", "foot", "shoulder" ] }', 'one', 'foo%' );
+select json_search( '{ "a": "foobar", "b": "focus", "c": [ "arm", "foot", "shoulder" ] }', 'all', 'foo%' );
+select json_search( '{ "a": "foobar", "b": "focus", "c": [ "arm", "foot", "shoulder" ] }', 'all', 'f__us' );
+
+select json_search( '{ "a": [ "foolish", "folly", "foolhardy"  ], "b" : "fool" }', 'all', 'foo%', null, '$.a' );
+select json_search( '{ "a": [ "foolish", "folly", "foolhardy"  ], "b" : "fool" }', 'all', 'foo%', null, '$.a', '$.b' );
+select json_search( '{ "a": [ "foolish", "folly", "foolhardy"  ], "b" : "fool" }', 'one', 'foo%', null, '$.a', '$.b' );
+
+select json_search( '{ "a": [ "foolish", "folly", "foolhardy"  ], "b" : "fool" }', 'ALL', 'foo%', null, '$.a' );
+select json_search( '{ "a": [ "foolish", "folly", "foolhardy"  ], "b" : "fool" }', 'aLl', 'foo%', null, '$.a', '$.b' );
+select json_search( '{ "a": [ "foolish", "folly", "foolhardy"  ], "b" : "fool" }', 'ONE', 'foo%', null, '$.a', '$.b' );
+
+# wildcards in the path expression
+select json_search
+(
+  '[ { "a": { "b": { "c": "fool" } } }, { "b": { "c": "shoulder" } }, { "c": { "c": "food"} } ]',
+  'all',
+  'foo%',
+  null,
+  '$**.c'
+);
+
+select json_search
+(
+  '[ { "a": { "b": { "c": "showtime" } } }, { "b": { "c": "shoulder" } }, { "c": { "c": "shoe"} } ]',
+  'all',
+  'sho%',
+  null,
+  '$**.c'
+);
+
+select json_search
+(
+  '[ { "a": { "b": { "c": "showtime" } } }, { "b": { "c": "shoulder" } }, { "c": { "c": "shoe"} } ]',
+  'all',
+  'sho%e',
+  null,
+  '$**.c'
+);
+
+select json_search
+(
+  '[ { "a": { "b": { "c": "showtime" } } }, { "b": { "c": "shoulder" } }, { "c": { "c": "shoe"} } ]',
+  'all',
+  'sho%',
+  null,
+  '$[*].c'
+);
+
+select json_search
+(
+  '[ { "a": { "b": { "c": "showtime" } } }, [ { "b": { "c": "shout" } }, { "c": { "c": "shoe"} } ] ]',
+  'all',
+  'sho%',
+  null,
+  '$[1]**.c'
+);
+
+# escape character
+select json_search( '[ "footbar", "foo%bar" ]', 'all', 'foo%bar' );
+select json_search( '[ "footbar", "foo%bar" ]', 'all', 'foo\%bar' );
+select json_search( '[ "footbar", "foo%bar" ]', 'all', 'foo|%bar', '|' );
+select json_search( '[ "footbar", "foo%bar" ]', 'all', 'foo|%bar', '|', '$[0]' );
+select json_search( '[ "footbar", "foo%bar" ]', 'all', 'foo|%bar', '|', '$[0]', '$[1]' );
+select json_search( '[ "footbar", "foo%bar" ]', 'all', 'foo|%bar', '|', '$[0]', '$[1]', '$[2]' );
+
+select json_search( '[ "footbar", "foo%bar" ]', 'all', 'foo\%bar', null );
+select json_search( '[ "footbar", "foo%bar" ]', 'all', 'foo\%bar', null, '$[0]' );
+select json_search( '[ "footbar", "foo%bar" ]', 'all', 'foo\%bar', null, '$[1]' );
+select json_search( '[ "footbar", "foo%bar" ]', 'all', 'foo|%bar', '|', '$[0]' );
+select json_search( '[ "footbar", "foo%bar" ]', 'all', 'foo|%bar', '|', '$[1]' );
+
+# search is case-sensitive
+select json_search( '[ "abc", "ABC" ]', 'all', 'aBc' );
+select json_search( '[ "abc", "ABC" ]', 'all', 'abc' );
+select json_search( '[ "abc", "ABC" ]', 'all', 'ABC' );
+
+# only matches strings, not numerics
+select json_search( '[ 10, "10", 1.0, "1.0" ]', 'all', '1%' );
+
+# examples from the wl7909 spec
+# returns null because numeric values don't match string values
+SELECT JSON_SEARCH
+(
+  '{ "a" : 123, "b" : [ 123, 456 ] }',
+  'one',
+  '123'
+);
+
+# returns "$.b[2]"
+SELECT JSON_SEARCH
+(
+  '{ "a" : "123", "b" : [ 123, "789", "123", "456", "123" ] }',
+  'one',
+  '123',
+  null,
+  '$.b'
+);
+
+# could return either "$.a" or "$.b.key"
+SELECT JSON_SEARCH
+(
+  '{ "a" : "123", "b" : { "key" : "123" } }',
+  'one',
+  '123'
+);
+
+# returns "$.b.key"
+SELECT JSON_SEARCH
+(
+  '{ "a" : "1243", "b" : { "key" : "1234" } }',
+  'one',
+  '123%'
+);
+
+# returns "$.b.c"
+SELECT JSON_SEARCH
+(
+  '{ "a" : "1243", "b" : { "key" : "1234", "c": "directorysub%directoryabc" } }',
+  'one',
+  'dir%torysub@%dir%',
+  '@'
+);
+
+# returns null because the path doesn't exist
+SELECT JSON_SEARCH
+(
+  '{ "a" : "1243", "b" : { "key" : "1234" } }',
+  'one',
+  '123%',
+  null,
+  '$.c'
+);
+
+# returns $."one potato"
+SELECT JSON_UNQUOTE
+(
+  JSON_SEARCH
+  (
+    '{ "onepotato": "foot", "one potato": "food" , "one \\"potato": "fool" }',
+    'all',
+    'food'
+  )
+);
+
+select json_type(case (null is null) when 1 then
+                cast('null' as json) else
+                cast('[1,2,3]' as json) end);
+
+select json_type(case (null is not null) when 1 then
+                cast('null' as json) else
+                cast('[1,2,3]' as json) end);
+
+select json_type( if(null is null,
+                    cast('null' as json),
+                    cast('[1,2,3]' as json)) );
+
+select json_type( if(null is not null,
+                    cast('null' as json),
+                    cast('[1,2,3]' as json)));
+
+select cast(json_extract(cast(concat('[', cast('["A",2]' as json), ']') as json),
+            '$[0][1]') as char) = 2;
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of aggregate function MAX, MIN.
+--echo # ----------------------------------------------------------------------
+
+select max(cast('[1,2,3]' as json));
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_QUOTE, JSON_UNQUOTE
+--echo # ----------------------------------------------------------------------
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_quote();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_quote('abc', 'def');
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_quote(NULL, 'def');
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_quote('abc', NULL);
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_unquote();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_unquote('"abc"', '"def"');
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_unquote(NULL, 'def');
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select json_unquote('"abc"', NULL);
+
+select json_quote(NULL);
+select json_unquote(NULL);
+
+select json_quote('abc');
+select json_quote(convert('abc' using ascii));
+select json_quote(convert('abc' using latin1));
+select json_quote(convert('abc' using utf8));
+select json_quote(convert('abc' using utf8mb4));
+
+select json_unquote('abc');                      # should do nothing
+
+select json_unquote('"abc"');
+select json_unquote(convert('"abc"' using ascii));
+select json_unquote(convert('"abc"' using latin1));
+select json_unquote(convert('"abc"' using utf8));
+select json_unquote(convert('"abc"' using utf8mb4));
+
+select json_quote('"');
+select json_unquote('"');                        # should do nothing
+
+--error ER_INCORRECT_TYPE
+select json_quote(123);                          # integer not allowed
+--error ER_INCORRECT_TYPE
+select json_unquote(123);                        # integer not allowed
+
+select json_unquote('""');                       # empty string
+select char_length(json_unquote('""'));          # verify empty string
+select json_unquote('"" ');                      # unchanged: no final "
+select json_unquote(cast(json_quote('abc') as json)); # round trip
+
+# No change in this JSON string: it is an object
+select cast('{"abc": "foo"}' as json);
+select json_unquote(cast('{"abc": "foo"}' as json));
+
+# This is a JSON string, so it is actually unquoted
+select json_extract(cast('{"abc": "foo"}' as json), '$.abc');
+select json_unquote(json_extract(cast('{"abc": "foo"}' as json), '$.abc'));
+
+# Bug fix: thse should be the same
+select json_unquote('["a", "b", "c"]');
+select json_unquote(cast('["a", "b", "c"]' as json));
+
+select charset(json_unquote('"abc"'));
+
+select json_quote(convert(X'e68891' using utf8));    # chinese "I" (wo3)
+select json_quote(convert(X'e68891' using utf8mb4)); # chinese "I" (wo3)
+
+select cast(json_quote(convert(X'e68891' using utf8)) as json);
+
+select json_unquote(convert(X'e68891' using utf8));  # chinese "I" (wo3)
+
+select  json_quote(json_quote(json_quote('abc')));     # deep quote
+select  json_unquote(json_unquote(json_unquote(        # long round trip of it
+          json_quote(json_quote(json_quote('abc'))))));
+
+# DATE/TIME will lose their quotes, too:
+select cast(cast('2015-01-15 23:24:25' as datetime) as json);
+select json_unquote(cast(cast('2015-01-15 23:24:25' as datetime) as json));
+
+# as well as opaque values:
+select cast(st_geomfromtext('point(1 1)') as json);
+select json_unquote(cast(st_geomfromtext('point(1 1)') as json));
+
+# examples from the wl7909 spec
+# returns the SQL string literal abc
+SELECT JSON_UNQUOTE( '"abc"' );
+
+# returns the SQL string literal "abc
+SELECT JSON_UNQUOTE( '"abc' );
+
+--error ER_INCORRECT_TYPE
+SELECT JSON_UNQUOTE( 123 );
+
+# returns the SQL string literal abc
+SELECT JSON_UNQUOTE
+( CAST( CAST( '"abc"' AS JSON ) AS CHAR ) );
+
+# returns 1
+SELECT JSON_UNQUOTE
+(
+  CAST(
+    JSON_EXTRACT( '{ "userName" : "fred" }', '$.userName' )
+    AS CHAR
+  )
+) = 'fred';
+
+# returns 0
+SELECT
+  CAST(
+    JSON_EXTRACT( '{ "userName" : "fred" }', '$.userName' )
+    AS CHAR
+  ) = 'fred';
+
+# returns "abc"
+SELECT JSON_QUOTE( 'abc' );
+
+--error ER_INCORRECT_TYPE
+SELECT JSON_QUOTE( 123 );
+
+# returns the JSON document consisting of the string scalar "123"
+SELECT CAST( JSON_QUOTE( '123' ) AS JSON );
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_CONTAINS
+--echo # ----------------------------------------------------------------------
+
+--echo # should give NULL
+select json_contains(NULL, NULL);
+select json_contains(cast('{"a": 1, "b": 2}' as json), NULL);
+select json_contains(NULL, cast('null' as json));
+select json_contains(cast('[1]' as json), cast('[1]' as json), NULL);
+
+--echo # should give 0:
+select json_contains(cast(3.14 as json), cast(3 as json));
+
+--echo # should give 0: not at top level
+select json_contains(cast('{"a": {"b": 7}}' as json), cast('{"b": 7}' as json));
+
+--echo # but path argument will fix it:
+select json_contains(cast('{"a": {"b": 7}}' as json), cast('{"b": 7}' as json), '$.a');
+
+--echo # but arrays "introspect"
+select json_contains(cast('[1,[2.0, 3.0]]' as json), cast('[2.0]' as json));
+select json_contains(cast('[1, 2, [3, [4, 5]], 6, 7]' as json), cast('5' as json));
+
+--echo # should give 0: just a key
+select json_contains(cast('{"a": 1, "b": 2}' as json), cast('"a"' as json));
+
+--echo # should give 0: one candidate element doesn't match
+select json_contains(cast('[1]' as json), cast('[1,2]' as json));
+
+--echo # should all give 1
+select json_contains(cast('null' as json), cast('null' as json));
+--echo # simple object subset
+select json_contains(cast('{"a": 1, "b": 2}' as json), cast( '{"a": 1}' as json));
+--echo # simple vector subset
+select json_contains(cast('[1, 2, 3]' as json), cast('[1, 3]' as json));
+--echo # auto-wrap, should give 1
+select json_contains(cast('[1, 2, 3]' as json), cast(3 as json));
+--echo # ok even with nested cast off elements
+select json_contains(cast('{"person": {"id": 1, "country": "norway"}}' as json),
+                    cast('{"person": {"country": "norway"}}' as json));
+--echo # vector reordering and duplicates is ok
+select json_contains(cast('[1,3,5]' as json), cast('[5,3,1,5]' as json));
+--echo # ok even with more elts in candidate than in doc
+select json_contains(cast('[{"b": 4, "a":7}]' as json), cast('[{"a":7},{"b":4}]' as json));
+select json_contains(cast('[{"b": 4, "a":7}, 5]' as json), cast('[5, {"a":7, "b":4}]' as json));
+--echo # ok even with mixed number types that compare equal
+select json_contains(cast('[{"b": 4, "a":7}, 5.0]' as json), cast('[5, {"a":7.0E0, "b":4}]' as json));
+
+# Bug discovered by Rick: used to give 1 (true).
+select json_contains( '{"customer": "cust3"}', '{"customer": "cust1"}' );
+
+SELECT JSON_CONTAINS('[null,1,[2,3],true,false]', '[null,1,[3],false]');
+SELECT JSON_CONTAINS('[null,1,[2,3],true,false]', '[null,1,[4],false]');
+SELECT JSON_CONTAINS('[true,false]', '[[true]]');
+SELECT JSON_CONTAINS('[1,2]', '[[1]]');
+SELECT JSON_CONTAINS('[1,2]', '1', '$.abc');
+SELECT JSON_CONTAINS('{}', '{}');
+SELECT JSON_CONTAINS('{}', '{"a":1}');
+SELECT JSON_CONTAINS('{"a":1}', '{"a":1,"b":2}');
+
+# examples from the wl7909 spec
+# returns 1
+SELECT JSON_CONTAINS
+(
+   CAST('[1, 4, 6]' AS JSON),
+   CAST('[1, 6]' AS JSON)
+);
+
+# returns 1; even with nested cast off elements
+SELECT JSON_CONTAINS
+(
+   CAST('{"person": {"id": 1, "country": "norway"}}' AS JSON),
+   CAST('{"person": {"country": "norway"}}' AS JSON)
+);
+
+# returns 1; reordering and duplicates are ok
+SELECT JSON_CONTAINS
+(
+   CAST('[1,3,5]' AS JSON),
+   CAST('[5,3,1,5]' AS JSON)
+);
+
+# return 0; no type conversion is performed
+SELECT JSON_CONTAINS
+(
+   CAST('[3.14]' AS JSON),
+   CAST('[3]' AS JSON)
+);
+
+# returns 1, due to auto-wrapping
+SELECT JSON_CONTAINS
+(
+   CAST('[1, 2, 3]' AS JSON),
+   CAST(3 AS JSON)
+);
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_CONTAINS();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_CONTAINS('[1]');
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_CONTAINS('[1]', '[1]', '$', '$[0]');
+
+--echo # ----------------------------------------------------------------------
+--echo # Wrong collation from JSON_QUOTE caused problems: Set it in
+--echo # Item_func_json_quote::fix_length_and_dec.   Bug found by Knut.
+--echo # Similar issue for JSON_UNQUOTE and JSON_TYPE.
+--echo # ----------------------------------------------------------------------
+select json_object("a", ifnull(json_quote('test'), cast('null' as json)));
+select cast(concat('[', json_quote('ab'), ']') as json);
+select cast(concat('[', json_unquote('"12"'), ']') as json);
+select cast(concat('["', json_type(cast(1 as json)), '"]') as json);
+
+--echo #
+--echo # Bug#20912438: ITEM_TYPE_HOLDER::DISPLAY_LENGTH(ITEM*): ASSERTION `0' FAILED
+--echo #
+(SELECT JSON_KEYS('{ "key80": "2015-04-20 11:53:55"}')) UNION ALL
+(SELECT JSON_KEYS('{ "key80": "2015-04-20 11:53:55" }') LIMIT 0);
+SELECT CAST(1 AS JSON) UNION ALL SELECT CAST(1 AS JSON);
+
+# Exercise NULL handling and error handling in Item_copy_json::copy().
+SELECT COUNT(*), CAST(NULL AS JSON);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT COUNT(*), JSON_EXTRACT('not valid json!', '$');
+
+--echo # ----------------------------------------------------------------------
+--echo # Bug  report from John E.
+--echo # Crash in Item_copy_json::~Item_copy_json
+--echo # ----------------------------------------------------------------------
+EXPLAIN SELECT COUNT(*), JSON_KEYS('{}');
+
+select json_search( '{ "a": "foo" }', 'one', 'foo', 'a' );
+select json_search( '{ "a": "foo" }', 'one', 'foo', null );
+select json_search( '{ "a": "foo" }', 'one', 'foo', convert(x'f8' using latin1) );
+
+# bad escape arg
+--error ER_WRONG_ARGUMENTS
+select json_search( '{ "a": "foo" }', 'one', 'foo', 'ab' );
+
+--echo # ----------------------------------------------------------------------
+--echo # Wrong results when Json_path_cache primed is accessed
+--echo # during the prepare-phase.
+--echo #----------------------------------------------------------------------
+
+select json_remove( '[ 1, { "a": true, "b": false, "c": null }, 5 ]', null ) is null;
+
+prepare stmt1 from 'select json_remove( ''[ 1, { "a": true, "b": false, "c": null }, 5 ]'', null ) is null';
+execute stmt1;
+
+--error ER_INVALID_JSON_PATH
+select json_remove( '[ 1, { "a": true, "b": false, "c": null }, 5 ]', '$.' ) is null;
+
+--error ER_INVALID_JSON_PATH
+prepare stmt1 from 'select json_remove( ''[ 1, { "a": true, "b": false, "c": null }, 5 ]'', ''$.'' ) is null';
+
+--echo # ----------------------------------------------------------------------
+--echo # Bug#20987329 VALUE OF PREPARED STATEMENT PLACEHOLDER FOR PARAMETER
+--echo #              IN JSON_EXTRACT IS STICKY
+--echo #----------------------------------------------------------------------
+
+# should get different results with different parameter values
+
+# json_extract()
+
+# json_contains()
+
+prepare json_stmt1 FROM 'select json_contains( ''{ "keyA": [1, 2, 3], "keyB": [4, 5, 6] }'', ''[2]'', ? )';
+set @mypath = '$.keyA';
+execute json_stmt1 USING @mypath;
+set @mypath = '$.keyB';
+execute json_stmt1 USING @mypath;
+
+# json_contains_path()
+
+prepare json_stmt2 FROM 'select json_contains_path( ''{ "keyA": [1, 2, 3] }'', ''all'', ? )';
+set @mypath = '$.keyA';
+execute json_stmt2 USING @mypath;
+set @mypath = '$.keyB';
+execute json_stmt2 USING @mypath;
+
+# json_length()
+
+prepare json_stmt3 FROM 'select json_length( ''{ "keyA": [1, 2, 3], "keyB": [1, 2, 3, 4] }'', ? )';
+set @mypath = '$.keyA';
+execute json_stmt3 USING @mypath;
+set @mypath = '$.keyB';
+execute json_stmt3 USING @mypath;
+
+# json_keys()
+
+prepare json_stmt4 FROM 'select json_keys( ''[ { "keyA": true }, { "keyB": false } ]'', ? )';
+set @mypath = '$[0]';
+execute json_stmt4 USING @mypath;
+set @mypath = '$[1]';
+execute json_stmt4 USING @mypath;
+
+# json_array_append()
+
+prepare json_stmt5 FROM 'select json_array_append( ''{ "keyA": [1, 2], "keyB": [3, 4] }'', ?, 5 )';
+set @mypath = '$.keyA';
+execute json_stmt5 USING @mypath;
+set @mypath = '$.keyB';
+execute json_stmt5 USING @mypath;
+
+# json_insert()
+
+prepare json_stmt6 FROM 'select json_insert( ''{ "keyA": [1, 2], "keyB": [3, 4] }'', ?, 5 )';
+set @mypath = '$.keyA[2]';
+execute json_stmt6 USING @mypath;
+set @mypath = '$.keyB[2]';
+execute json_stmt6 USING @mypath;
+
+# json_set()
+
+prepare json_stmt7 FROM 'select json_set( ''{ "keyA": [1, 2], "keyB": [3, 4] }'', ?, 5 )';
+set @mypath = '$.keyA[2]';
+execute json_stmt7 USING @mypath;
+set @mypath = '$.keyB[2]';
+execute json_stmt7 USING @mypath;
+
+# json_replace()
+
+prepare json_stmt8 FROM 'select json_replace( ''{ "keyA": [1, 2], "keyB": [3, 4] }'', ?, 5 )';
+set @mypath = '$.keyA[1]';
+execute json_stmt8 USING @mypath;
+set @mypath = '$.keyB[1]';
+execute json_stmt8 USING @mypath;
+
+# json_search()
+
+prepare json_stmt9 FROM 'select json_search( ''{ "keyA": [ "foot" ], "keyB": [ "food" ] }'', ''all'', ''foo%'', null, ? )';
+set @mypath = '$.keyA';
+execute json_stmt9 USING @mypath;
+set @mypath = '$.keyB';
+execute json_stmt9 USING @mypath;
+
+# json_remove()
+
+prepare json_stmt10 FROM 'select json_remove( ''{ "keyA": [ "foot" ], "keyB": [ "food" ] }'', ? )';
+set @mypath = '$.keyA';
+execute json_stmt10 USING @mypath;
+set @mypath = '$.keyB';
+execute json_stmt10 USING @mypath;
+
+# similar caching problem for the oneOrAll args
+
+prepare json_stmt11 FROM 'select json_contains_path( ''{ "keyA": true }'', ?, ''$.keyA'', ''$.keyB'' )';
+set @mypath = 'one';
+execute json_stmt11 USING @mypath;
+set @mypath = 'all';
+execute json_stmt11 USING @mypath;
+
+prepare json_stmt12 FROM 'select json_search( ''{ "keyA": [ "foot" ], "keyB": [ "food" ] }'', ?, ''foo%'' )';
+set @mypath = 'one';
+execute json_stmt12 USING @mypath;
+set @mypath = 'all';
+execute json_stmt12 USING @mypath;
+
+--echo #
+--echo # Bug#21128632 JSON_QUOTE(JSON_TYPE(...)) GIVES ERROR 3139 ER_INVALID_JSON_CHARSET
+--echo #
+
+select json_quote( json_type( json_object() ) );
+select json_quote( json_type( cast('{}' as json) ) );
+
+--echo #
+--echo # Bug#21148020 OUTPUT FROM JSON_TYPE() IS TRUNCATED
+--echo #              WHEN EXECUTED IN A VIEW OR JOIN
+--echo #
+
+SELECT JSON_TYPE(JSON_OBJECT());
+CREATE VIEW v1 AS SELECT JSON_TYPE(JSON_OBJECT());
+SELECT * FROM v1;
+
+SELECT JSON_TYPE(CAST(CAST('2015-05-25 11:23:55' AS DATETIME) AS JSON));
+CREATE VIEW v2 AS SELECT JSON_TYPE(CAST(CAST('2015-05-25 11:23:55' AS
+DATETIME) AS JSON));
+SELECT * FROM v2;
+
+drop view v1;
+drop view v2;
+
+--echo #
+--echo # Bug#21198333 SIG 6 IN ITEM_CACHE_JSON::CACHE_VALUE AT SQL/ITEM.CC:9470
+--echo #
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT MIN(JSON_EXTRACT('not json', '$'));
+
+--echo #
+--echo # Bug#21200657 DATA FROM DERIVED TABLE BASED
+--echo # ON JSN_QUOTE()/JSN_UNQUOTE() CALL IS TRUNCATED
+--echo #
+SELECT JSON_QUOTE('This is a string that should not be truncated') AS field1;
+SELECT JSON_UNQUOTE(JSON_QUOTE('This is a string that should not be truncated')) AS field1;
+
+SELECT * FROM (SELECT JSON_QUOTE('This is a string that should not be truncated') AS field1) AS DERIVED_TABLE;
+SELECT * FROM (SELECT JSON_UNQUOTE("This is a string that should not be truncated") AS field1) AS DERIVED_TABLE;
+SELECT * FROM (SELECT JSON_UNQUOTE(JSON_QUOTE('This is a string that should not be truncated')) AS field1) AS DERIVED_TABLE;
+
+--echo #
+--echo # Bug#21296173 JSON_OBJECT('KEY', BOOLEAN_LITERAL) USES VALUES 0, 1
+--echo #               FOR BOOL WHEN USED VIA VIEW
+--echo #
+
+SELECT JSON_OBJECT('key1', false, 'key2', true);
+SELECT JSON_ARRAY('key1', false, 'key2', true);
+CREATE VIEW v1 AS SELECT JSON_OBJECT('key1', false, 'key2', true);
+SELECT * FROM v1;
+CREATE VIEW v2 AS SELECT JSON_ARRAY('key1', false, 'key2', true);
+SELECT * FROM v2;
+
+drop view v1;
+drop view v2;
+
+--echo #
+--echo # Bug#21293089 JSON_CONTAINS() RETURNS WRONG RESULT WITH EMPTY JSON ARRAY
+--echo #
+SELECT JSON_CONTAINS('[]', '{"a" : 1}');
+SELECT JSON_CONTAINS('[]', '[1, 2, 3, 4, 5]');
+SELECT JSON_CONTAINS('[]', '[1, 2, 3, 4, {"a" : 1}]');
+SELECT JSON_CONTAINS('[]', '{"a" : [1, 2, 3, 4, 5]}');
+SELECT JSON_CONTAINS('[]', '[]');
+
+--echo #
+--echo # Bug#21377136 STACK OVERFLOW IN RAPIDJSON::GENERICREADER
+--echo #
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT JSON_VALID(REPEAT('[', 100000));
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT JSON_VALID(REPEAT('{"a":', 100000));
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT JSON_VALID(REPEAT('{"a":[', 100000));
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT JSON_VALID(REPEAT('[{"a":', 100000));
+
+--echo #
+--echo # Bug#21381806 JSON: ASSERTION FAILED: ARG->NULL_VALUE
+--echo #
+SELECT JSON_SET(CASE WHEN 1 THEN NULL ELSE NULL END, '{}', '{}');
+SELECT JSON_VALID(CASE WHEN 1 THEN NULL ELSE NULL END);
+SELECT JSON_ARRAY(CASE WHEN 1 THEN NULL ELSE NULL END);
+
+--echo #
+--echo # Bug#21384048 ASSERTION FAILED: N >= 0 && N <= 308
+--echo #              IN RAPIDJSON::INTERNAL::FASTPATH
+--echo #
+SELECT JSON_EXTRACT('-1E-36181012216111515851075235238', '$');
+SELECT JSON_EXTRACT('1E-36181012216111515851075235238', '$');
+SELECT JSON_EXTRACT('1E-325', '$');
+SELECT JSON_EXTRACT('1E-324', '$');
+SELECT JSON_EXTRACT('1E-323', '$');
+SELECT JSON_EXTRACT('1E+308', '$');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_EXTRACT('1E+309', '$');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_EXTRACT('1E+36181012216111515851075235238', '$');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_EXTRACT('-1E+36181012216111515851075235238', '$');
+
+--echo #
+--echo # Bug#21383284: ASSERTION IN SELECT_LEX::SETUP_CONDS
+--echo #
+--error ER_WRONG_ARGUMENTS
+SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', 'too-long-escape');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', JSON_EXTRACT('', '$'));
+
+--echo #
+--echo # Bug#21442624 INCORRECT RESULT FROM JSON_SET WITH AUTO-WRAPPING
+--echo #
+
+SELECT JSON_SET('1', '$', 100);
+SELECT JSON_SET('1', '$[0]', 100);
+SELECT JSON_SET('1', '$[0][0]', 100);
+SELECT JSON_SET('1', '$[0][0][0]', 100);
+
+SELECT JSON_SET('[]', '$', 100);
+SELECT JSON_SET('[]', '$[0]', 100);
+SELECT JSON_SET('[]', '$[0][0]', 100);
+SELECT JSON_SET('[]', '$[0][0][0]', 100);
+
+SELECT JSON_SET('[1]', '$', 100);
+SELECT JSON_SET('[1]', '$[0]', 100);
+SELECT JSON_SET('[1]', '$[0][0]', 100);
+SELECT JSON_SET('[1]', '$[0][0][0]', 100);
+
+SELECT JSON_SET('[[1]]', '$', 100);
+SELECT JSON_SET('[[1]]', '$[0]', 100);
+SELECT JSON_SET('[[1]]', '$[0][0]', 100);
+SELECT JSON_SET('[[1]]', '$[0][0][0]', 100);
+
+SELECT JSON_SET('[[[1]]]', '$', 100);
+SELECT JSON_SET('[[[1]]]', '$[0]', 100);
+SELECT JSON_SET('[[[1]]]', '$[0][0]', 100);
+SELECT JSON_SET('[[[1]]]', '$[0][0][0]', 100);
+
+SELECT JSON_REPLACE('1', '$', 100);
+SELECT JSON_REPLACE('1', '$[0]', 100);
+SELECT JSON_REPLACE('1', '$[0][0]', 100);
+SELECT JSON_REPLACE('1', '$[0][0][0]', 100);
+
+SELECT JSON_REPLACE('[]', '$', 100);
+SELECT JSON_REPLACE('[]', '$[0]', 100);
+SELECT JSON_REPLACE('[]', '$[0][0]', 100);
+SELECT JSON_REPLACE('[]', '$[0][0][0]', 100);
+
+SELECT JSON_REPLACE('[1]', '$', 100);
+SELECT JSON_REPLACE('[1]', '$[0]', 100);
+SELECT JSON_REPLACE('[1]', '$[0][0]', 100);
+SELECT JSON_REPLACE('[1]', '$[0][0][0]', 100);
+
+SELECT JSON_REPLACE('[[1]]', '$', 100);
+SELECT JSON_REPLACE('[[1]]', '$[0]', 100);
+SELECT JSON_REPLACE('[[1]]', '$[0][0]', 100);
+SELECT JSON_REPLACE('[[1]]', '$[0][0][0]', 100);
+
+SELECT JSON_REPLACE('[[[1]]]', '$', 100);
+SELECT JSON_REPLACE('[[[1]]]', '$[0]', 100);
+SELECT JSON_REPLACE('[[[1]]]', '$[0][0]', 100);
+SELECT JSON_REPLACE('[[[1]]]', '$[0][0][0]', 100);
+
+
+--echo #
+--echo # Bug#21828321: JSON FUNCS CALL DBUG_ABORT OR EXIT() ON WINDOWS!
+--echo #
+# LEAST and GREATEST treat JSON arguments as strings for now. They used to hit
+# an assertion if used in a JSON context and all arguments were JSON values, or
+# a mix of NULLs and JSON values.
+SELECT JSON_ARRAY(LEAST(NULL, NULL), GREATEST(NULL, NULL), LEAST(j1, NULL),
+                  GREATEST(NULL, j2), LEAST(j1, j2), GREATEST(j1, j2)) AS j
+FROM (SELECT CAST('1' AS JSON) AS j1, CAST('2' AS JSON) AS j2) t;
+
+--echo #
+--echo # Bug#22961128: WRONG RESULT WHEN MANIPULATING RESULT OF JSON_MERGE
+--echo #
+SELECT JSON_SET(JSON_ARRAY(JSON_MERGE_PRESERVE('{"a":1}', '{"a":2}')),
+                '$[0].a', 123);
+
+--echo #
+--echo # Bug#22887227: ASSERTION FAILED: THIS_TYPE != JSON_DOM::J_ERROR
+--echo #
+SELECT NULLIF(CASE WHEN 1 THEN NULL ELSE JSON_ARRAY() END, 1);
+SELECT JSON_TYPE(CASE WHEN 1 THEN NULL ELSE JSON_ARRAY() END);
+SELECT MIN(CASE 0 WHEN 1 THEN JSON_ARRAY() ELSE NULL END);
+
+--echo #
+--echo # Bug #24930829 BITWISE OPERATORS: CRASH IN ITEM_FUNC_BIT_COUNT::VAL_INT
+--echo # Test case does not fail anymore after Bug#24930038 fix was pushed
+--echo # since a check for null return value was added.
+--echo #
+--error ER_INVALID_TYPE_FOR_JSON
+DO BIT_COUNT(COMPRESS(1) << JSON_DEPTH(1));
+
+--echo #
+--echo # Bug#25516881: JSON_UNQUOTE RETURNS WRONG RESULT WHEN INPUT IS UTF-16
+--echo #
+# Used to return the quoted string unchanged.
+SELECT JSON_UNQUOTE(CAST('"abc"' AS CHAR CHARSET utf16));
+# Used to accept binary strings.
+--error ER_INVALID_JSON_CHARSET
+SELECT JSON_UNQUOTE(CAST('ABCD' AS BINARY));
+# JSON_UNQUOTE should return utf8mb4 encoded results, but used to return utf16.
+SELECT HEX(JSON_UNQUOTE(CAST('"abc"' AS CHAR CHARSET utf16))),
+       HEX(JSON_UNQUOTE(CAST('abc' AS CHAR CHARSET utf16)));
+
+--echo #
+--echo # Bug#25516960: JSON_SEARCH AND JSON_CONTAINS_PATH REJECT ONE-OR-ALL
+--echo #               ARGUMENT IF IT IS UTF-16
+--echo #
+SELECT JSON_SEARCH('["a", "a"]', CAST('one' AS CHAR CHARSET utf16), 'a') AS c1,
+       JSON_SEARCH('["a", "a"]', CAST('all' AS CHAR CHARSET utf16), 'a') AS c2,
+       JSON_CONTAINS_PATH('{"a":"x"}', CAST('one' AS CHAR CHARSET utf16),
+                          '$.a', '$.b') AS c3,
+       JSON_CONTAINS_PATH('{"a":"x"}', CAST('all' AS CHAR CHARSET utf16),
+                          '$.a', '$.b') AS c4;
+
+--echo #
+--echo # Bug#25530204: THE RESULT OF SUM ON JSON_EXTRACT LOST THE DECIMAL PART
+--echo #
+SELECT SUM(CAST('5.45' AS JSON));
+
+--echo #
+--echo # Bug#25518504: SOME BIG NUMBERS IN JSON DOCUMENTS BECOME ZERO
+--echo #
+# These statements returned zero instead of raising an error.
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT CAST('2e308' AS JSON);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT CAST('-2e308' AS JSON);
+# These statements correctly returned an error even before the fix.
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT CAST('2e309' AS JSON);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT CAST('-2e309' AS JSON);
+
+--echo #
+--echo # Bug#25818544: Assert failure when using result from NULLIF as JSON
+--echo #
+SELECT JSON_EXTRACT(NULLIF(JSON_OBJECT('a', 123), JSON_ARRAY()), '$.a');
+SELECT JSON_EXTRACT(NULLIF('a', 'a'), '$');
+SELECT JSON_EXTRACT(NULLIF('1', '2'), '$');
+
+--echo #
+--echo # WL#9831: Ranges in JSON path expressions
+--echo #
+
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[0 to 0]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 1]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 3]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 4]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[0 to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[0 to 3]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[0 to 4]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[99 to 100]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[100 to 100]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-1 to last-1]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-1 to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-3 to last-1]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-4 to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-4 to 5]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-1 to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-1 to 3]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-100 to last-99]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-100 to last-100]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to last-1]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2 to last-2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[1 to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[1 to 3]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[1 to 4]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[0 to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[0 to 3]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[0 to 4]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[99 to 100]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-1 to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-3 to last-1]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-4 to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-4 to 5]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-1 to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-1 to 3]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-100 to last-99]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[1 to last-1]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[2 to last-2]');
+
+SELECT JSON_EXTRACT('[]', '$[0 to 1]');
+SELECT JSON_EXTRACT('[]', '$[last-1 to last]');
+
+SELECT JSON_CONTAINS_PATH('[1,2]', 'one', '$[0 to 2]') AS o,
+       JSON_CONTAINS_PATH('[1,2]', 'all', '$[0 to 2]') AS a,
+       JSON_CONTAINS_PATH('[1,2]', 'one', '$**[0 to 2]') AS o_e,
+       JSON_CONTAINS_PATH('[1,2]', 'all', '$**[0 to 2]') AS a_e;
+
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][0 to 10]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][0 to last-2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][0 to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][1 to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][last-2 to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][last-2 to 0]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][0 to 10]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][last-10 to last]');
+
+SELECT JSON_REMOVE('[1,2,3]', '$[last]');
+SELECT JSON_REMOVE('[1,2,3]', '$[last-1]');
+SELECT JSON_REMOVE('[1,2,3]', '$[last-2]');
+SELECT JSON_REMOVE('[1,2,3]', '$[last-3]');
+
+--error ER_INVALID_JSON_PATH
+SELECT JSON_EXTRACT('true', '$[2 to 1]');
+--error ER_INVALID_JSON_PATH
+SELECT JSON_EXTRACT('true', '$[last to last-1]');
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_SET('[1,2,3]', '$[0 to 1]', 123);
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_LENGTH('[1,2,3]', '$[0 to 1]');
+
+SELECT j->'$[last]', j->'$[last-1]', j->'$[last-2]',
+       j->'$**[last]', j->'$**[last-1]', j->'$**[last-2]'
+FROM (SELECT JSON_ARRAY(1,2) j) t;
+
+--echo #
+--echo # WL#9692: Deprecate the JSON_MERGE function
+--echo #
+--echo # Expect a deprecation warning.
+SELECT JSON_MERGE('{}', '{}');
+--echo # Expect a deprecation warning when creating the view.
+CREATE VIEW v AS SELECT JSON_MERGE('{}', '{}') AS col;
+--echo # The view uses the non-deprecated variant of the function.
+SHOW CREATE VIEW v;
+SELECT * FROM v;
+DROP VIEW v;
+
+--echo #
+--echo # Bug#26238736: ASSERTION `__NULL != DYNAMIC_CAST<TARGET>(ARG)' FAILURE
+--echo #
+SELECT CAST('{"a": [1,2,3], "a": [4,5,6]}' AS JSON);
+
+--echo #
+--echo # Bug#26022576: JSON_INSERT DOES NOT HANDLE AUTO-WRAPPING
+--echo #
+SELECT JSON_INSERT('{"a":1}', '$.a[1]', 123) AS c1,
+       JSON_INSERT('{"a":1}', '$[0].a[1]', 123) AS c2,
+       JSON_INSERT('{"a":1}', '$.a[0][1]', 123) AS c3;
+
+--echo #
+--echo # Bug#26649978: JSON_INSERT: ASSERTION FAILED: PARENT
+--echo #
+--echo # c1, c2 and c3 should have the same result due to auto-wrapping,
+--echo # but the expressions in c2, c3 and c4 used to hit an assert.
+SELECT JSON_INSERT('{"a":1}', '$[1]', 2) AS c1,
+       JSON_INSERT('{"a":1}', '$[0][1]', 2) AS c2,
+       JSON_INSERT('{"a":1}', '$[0][0][1]', 2) AS c3,
+       JSON_INSERT('{"a":1}', '$[last][1]', 2) AS c4;
+
+
+--echo #
+--echo # Bug#27028889: MYSQL NORMALIZES DECIMAL NUMBERS WITH
+--echo #               ZERO FRACTIONAL PART TO INTEGERS
+--echo #
+
+SET @floating_points = '[0.0, -0.0, 1.0, -1.0, 3.14,
+                         999999999999999.0, -999999999999999.0,
+                         1000000000000000.0, -1000000000000000.0,
+                         1e200, -1e200]';
+
+SELECT CAST(CAST(@floating_points AS JSON) AS CHAR) AS x;
+SELECT JSON_PRETTY(@floating_points);
+SELECT j, JSON_TYPE(j) FROM
+JSON_TABLE(CAST(CAST(CAST(@floating_points AS JSON) AS CHAR) AS JSON),
+           '$[*]' COLUMNS (o FOR ORDINALITY, j JSON PATH '$')) AS jt
+ORDER BY o;
+
+--echo #
+--echo # Bug#27312444: ASAN: MEMCPY-PARAM-OVERLAP WITH JSON_QUOTE FUNCTION
+--echo #
+SELECT JSON_QUOTE(RIGHT(REPEAT(_utf8mb4'b', 64), 50));
+SELECT JSON_QUOTE(RIGHT(REPEAT(_utf8mb4'\n', 64), 50));
+SELECT JSON_QUOTE(RIGHT(REPEAT(_latin1'b', 64), 50));
+SELECT JSON_QUOTE(RIGHT(REPEAT(_latin1'\n', 64), 50));

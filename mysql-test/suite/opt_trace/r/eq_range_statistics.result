@@ -14,16 +14,16 @@ INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
 INSERT INTO t1 VALUES (4,1), (4,2), (4,3);
 INSERT INTO t1 VALUES (5,1), (5,2), (5,3);
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	a	1	a	A	#	NULL	NULL	YES	BTREE		
-t1	1	a	2	b	A	#	NULL	NULL	YES	BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	a	1	a	A	#	NULL	NULL	YES	BTREE			YES
+t1	1	a	2	b	A	#	NULL	NULL	YES	BTREE			YES
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	a	1	a	A	#	NULL	NULL	YES	BTREE		
-t1	1	a	2	b	A	#	NULL	NULL	YES	BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	a	1	a	A	#	NULL	NULL	YES	BTREE			YES
+t1	1	a	2	b	A	#	NULL	NULL	YES	BTREE			YES
 #####
 # Apply knowledge about the statistics (each index value for 
 # the first key part has an estimate of 2 rows) to ensure that 
@@ -102,6 +102,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -123,7 +127,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 9,
-                    "cost": 4.9
+                    "cost": 3.25
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -137,7 +141,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
-                    "cost": 2.8156,
+                    "cost": 1.1539,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -160,7 +164,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 5,
-                        "cost": 2.0178,
+                        "cost": 0.7619,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -181,7 +185,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 5,
-                    "cost_for_plan": 2.0178,
+                    "cost_for_plan": 0.7619,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -198,19 +202,22 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 5,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "a"
                       } /* range_details */,
                       "resulting_rows": 5,
-                      "cost": 3.0178,
+                      "cost": 1.2619,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 5,
-                "cost_for_plan": 3.0178,
+                "cost_for_plan": 1.2619,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -296,6 +303,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -317,7 +328,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 9,
-                    "cost": 4.9
+                    "cost": 3.25
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -331,7 +342,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
-                    "cost": 2.8156,
+                    "cost": 1.1539,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -355,7 +366,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 4,
-                        "cost": 1.8158,
+                        "cost": 0.6615,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -377,7 +388,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 4,
-                    "cost_for_plan": 1.8158,
+                    "cost_for_plan": 0.6615,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -394,19 +405,22 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 4,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "a"
                       } /* range_details */,
                       "resulting_rows": 4,
-                      "cost": 2.6158,
+                      "cost": 1.0615,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 4,
-                "cost_for_plan": 2.6158,
+                "cost_for_plan": 1.0615,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -490,6 +504,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -517,7 +535,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 9,
-                    "cost": 4.9
+                    "cost": 3.25
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -531,7 +549,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
-                    "cost": 2.8156,
+                    "cost": 1.1539,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -554,7 +572,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 3,
-                        "cost": 1.6139,
+                        "cost": 0.561,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -575,7 +593,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 3,
-                    "cost_for_plan": 1.6139,
+                    "cost_for_plan": 0.561,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -593,37 +611,30 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                     {
                       "access_type": "ref",
                       "index": "a",
-                      "rows": 3,
-                      "cost": 1.6039,
-                      "chosen": true
+                      "chosen": false,
+                      "cause": "range_uses_more_keyparts"
                     },
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "a"
                       } /* range_details */,
                       "resulting_rows": 3,
-                      "cost": 2.2139,
-                      "chosen": false
+                      "cost": 0.861,
+                      "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "condition_filtering_pct": 29.767,
-                "rows_for_plan": 0.893,
-                "cost_for_plan": 1.6039,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 3,
+                "cost_for_plan": 0.861,
                 "chosen": true
               }
             ] /* considered_execution_plans */
-          },
-          {
-            "access_type_changed": {
-              "table": "`t1`",
-              "index": "a",
-              "old_type": "ref",
-              "new_type": "range",
-              "cause": "uses_more_keyparts"
-            } /* access_type_changed */
           },
           {
             "attaching_conditions_to_tables": {
@@ -704,6 +715,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -731,7 +746,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 9,
-                    "cost": 4.9
+                    "cost": 3.25
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -745,7 +760,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
-                    "cost": 2.8156,
+                    "cost": 1.1539,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -768,7 +783,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 3,
-                        "cost": 1.6139,
+                        "cost": 0.561,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -789,7 +804,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 3,
-                    "cost_for_plan": 1.6139,
+                    "cost_for_plan": 0.561,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -807,37 +822,30 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                     {
                       "access_type": "ref",
                       "index": "a",
-                      "rows": 3,
-                      "cost": 1.6039,
-                      "chosen": true
+                      "chosen": false,
+                      "cause": "range_uses_more_keyparts"
                     },
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "a"
                       } /* range_details */,
                       "resulting_rows": 3,
-                      "cost": 2.2139,
-                      "chosen": false
+                      "cost": 0.861,
+                      "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "condition_filtering_pct": 47.322,
-                "rows_for_plan": 1.4197,
-                "cost_for_plan": 1.6039,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 3,
+                "cost_for_plan": 0.861,
                 "chosen": true
               }
             ] /* considered_execution_plans */
-          },
-          {
-            "access_type_changed": {
-              "table": "`t1`",
-              "index": "a",
-              "old_type": "ref",
-              "new_type": "range",
-              "cause": "uses_more_keyparts"
-            } /* access_type_changed */
           },
           {
             "attaching_conditions_to_tables": {
@@ -917,6 +925,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -944,7 +956,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 9,
-                    "cost": 4.9
+                    "cost": 3.25
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -958,7 +970,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
-                    "cost": 2.8156,
+                    "cost": 1.1539,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -981,7 +993,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 3,
-                        "cost": 1.6139,
+                        "cost": 0.561,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -1002,7 +1014,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 3,
-                    "cost_for_plan": 1.6139,
+                    "cost_for_plan": 0.561,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -1020,37 +1032,30 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                     {
                       "access_type": "ref",
                       "index": "a",
-                      "rows": 3,
-                      "cost": 1.6039,
-                      "chosen": true
+                      "chosen": false,
+                      "cause": "range_uses_more_keyparts"
                     },
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "a"
                       } /* range_details */,
                       "resulting_rows": 3,
-                      "cost": 2.2139,
-                      "chosen": false
+                      "cost": 0.861,
+                      "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "condition_filtering_pct": 29.767,
-                "rows_for_plan": 0.893,
-                "cost_for_plan": 1.6039,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 3,
+                "cost_for_plan": 0.861,
                 "chosen": true
               }
             ] /* considered_execution_plans */
-          },
-          {
-            "access_type_changed": {
-              "table": "`t1`",
-              "index": "a",
-              "old_type": "ref",
-              "new_type": "range",
-              "cause": "uses_more_keyparts"
-            } /* access_type_changed */
           },
           {
             "attaching_conditions_to_tables": {
@@ -1130,6 +1135,10 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -1151,7 +1160,7 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 9,
-                    "cost": 4.9
+                    "cost": 3.25
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -1165,7 +1174,7 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
-                    "cost": 2.8156,
+                    "cost": 1.1539,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -1186,7 +1195,7 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 1,
-                        "cost": 1.21,
+                        "cost": 0.36,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -1205,7 +1214,7 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
-                    "cost_for_plan": 1.21,
+                    "cost_for_plan": 0.36,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -1222,19 +1231,22 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.2977,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "a"
                       } /* range_details */,
                       "resulting_rows": 0.2977,
-                      "cost": 1.41,
+                      "cost": 0.46,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 0.2977,
-                "cost_for_plan": 1.41,
+                "cost_for_plan": 0.46,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -1318,6 +1330,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -1345,7 +1361,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 9,
-                    "cost": 4.9
+                    "cost": 3.25
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -1359,7 +1375,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
-                    "cost": 2.8156,
+                    "cost": 1.1539,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -1380,7 +1396,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 3,
-                        "cost": 1.6139,
+                        "cost": 0.561,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -1399,7 +1415,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 3,
-                    "cost_for_plan": 1.6139,
+                    "cost_for_plan": 0.561,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -1418,7 +1434,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                       "access_type": "ref",
                       "index": "a",
                       "rows": 3,
-                      "cost": 1.6039,
+                      "cost": 0.551,
                       "chosen": true
                     },
                     {
@@ -1433,7 +1449,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 3,
-                "cost_for_plan": 1.6039,
+                "cost_for_plan": 0.551,
                 "chosen": true
               }
             ] /* considered_execution_plans */

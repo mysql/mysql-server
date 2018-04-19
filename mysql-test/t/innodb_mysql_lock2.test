@@ -1,5 +1,4 @@
 # This test covers behavior for InnoDB tables.
---source include/have_innodb.inc
 # This test requires statement/mixed mode binary logging.
 # Row-based mode puts weaker serializability requirements
 # so weaker locks are acquired for it.
@@ -8,7 +7,6 @@
 # this bug was encountered.
 --source include/force_binlog_format_statement.inc
 # Original test case for bug#51263 needs partitioning.
---source include/have_partition.inc
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
@@ -31,7 +29,7 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 --echo # This test makes sense only in REPEATABLE-READ mode as
 --echo # in SERIALIZABLE mode all statements that read data take
 --echo # shared lock on them to enforce its semantics.
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 
 --echo # Prepare playground by creating tables, views,
 --echo # routines and triggers used in tests.
@@ -256,13 +254,12 @@ let $statement= show keys from t1;
 --echo #
 --echo # 2.1 CALL with a subquery.
 --echo # 
---echo # A strong lock is not necessary as this statement is not
---echo # written to the binary log as a whole (it is written
---echo # statement-by-statement) and thanks to MVCC we can always get
---echo # versions of rows prior to the update that has locked them.
---echo # But in practice InnoDB does locking reads for all statements
---echo # other than SELECT (unless it is a READ-COMITTED mode or
---echo # innodb_locks_unsafe_for_binlog is ON).
+--echo # A strong lock is not necessary as this statement is not written to
+--echo # the binary log as a whole (it is written statement-by-statement) and
+--echo # thanks to MVCC we can always get versions of rows prior to the update
+--echo # that has locked them. But in practice InnoDB does locking reads for
+--echo # all statements other than SELECT (unless the transaction isolation
+--echo # level is READ COMMITTED or READ UNCOMMITTED)
 let $statement= call p1((select i + 5 from t1 where i = 1));
 let $wait_statement= $statement;
 --source include/check_shared_row_lock.inc

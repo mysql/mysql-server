@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 # Turn on ssl between the client and server
 # and run a number of tests
@@ -12,14 +11,14 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
---echo # must return AES128-SHA
+--echo # must return DHE-RSA-AES256-SHA
 # need to use mysql since mysqltest doesn't support --ssl-cipher
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher'; SHOW STATUS LIKE 'Ssl_cipher_list'" --ssl --ssl-cipher=AES128-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher'; SHOW STATUS LIKE 'Ssl_cipher_list'" --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES256-SHA
 
 
 --echo # must fail since the default SSL cipher is not compatible
 --error 1
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher'; SHOW STATUS LIKE 'Ssl_cipher_list'" --ssl
+--exec $MYSQL --host=localhost  --ssl-cipher=AES128-RMD:DES-CBC3-RMD -e "SHOW STATUS LIKE 'Ssl_cipher'; SHOW STATUS LIKE 'Ssl_cipher_list'" --ssl-mode=REQUIRED
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

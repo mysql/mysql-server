@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 CREATE TABLE t1
 (
@@ -201,7 +200,7 @@ CREATE TABLE t1
   f7 VARCHAR(500),
   PRIMARY KEY (f1, f2, f3, f4),
   KEY k1 (f5, f6, f7)
-) ENGINE = InnoDB;
+) charset latin1 ENGINE = InnoDB;
 
 --replace_column 10 #
 EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
@@ -251,3 +250,15 @@ SELECT t2.f1 FROM t2 JOIN t1 IGNORE INDEX(primary) ON t2.f1 = t1.pk and t2.f2 = 
 SHOW STATUS LIKE 'Handler_read%';
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#20430526 ADDRESSSANITIZER: HEAP-BUFFER-OVERFLOW IN
+--echo #              FIELD_BLOB::GET_KEY_IMAGE FLOAT8STORE
+--echo #
+
+CREATE TABLE t1
+(a GEOMETRY NOT NULL SRID 0, PRIMARY KEY (a(1)), SPATIAL KEY(a)) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES (point(7, 7));
+SELECT st_astext(a) FROM t1 WHERE st_equals(a, point(7, 7));
+DROP TABLE t1;

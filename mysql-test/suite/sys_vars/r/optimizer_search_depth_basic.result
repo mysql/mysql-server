@@ -134,13 +134,13 @@ SELECT @@session.optimizer_search_depth;
 0
 '#------------------FN_DYNVARS_116_06-----------------------#'
 SELECT @@global.optimizer_search_depth = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='optimizer_search_depth';
 @@global.optimizer_search_depth = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_116_07-----------------------#'
 SELECT @@session.optimizer_search_depth = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='optimizer_search_depth';
 @@session.optimizer_search_depth = VARIABLE_VALUE
 1

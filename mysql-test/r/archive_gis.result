@@ -14,7 +14,7 @@ gis_point	CREATE TABLE `gis_point` (
   `fid` int(11) NOT NULL AUTO_INCREMENT,
   `g` point DEFAULT NULL,
   PRIMARY KEY (`fid`)
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
+) ENGINE=ARCHIVE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	NO	PRI	NULL	auto_increment
@@ -42,7 +42,7 @@ g	multipolygon	YES		NULL
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	NO	PRI	NULL	auto_increment
-g	geometrycollection	YES		NULL	
+g	geomcollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	NO	PRI	NULL	auto_increment
@@ -55,26 +55,26 @@ INSERT INTO gis_point VALUES
 INSERT INTO gis_line VALUES
 (105, ST_LineFromText('LINESTRING(0 0,0 10,10 0)')),
 (106, ST_LineStringFromText('LINESTRING(10 10,20 10,20 20,10 20,10 10)')),
-(107, ST_LineStringFromWKB(LineString(Point(10, 10), Point(40, 10))));
+(107, ST_LineStringFromWKB(St_AsWKB(LineString(Point(10, 10), Point(40, 10)))));
 INSERT INTO gis_polygon VALUES
 (108, ST_PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),
 (109, ST_PolyFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))')),
-(110, ST_PolyFromWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(0, 0)))));
+(110, ST_PolyFromWKB(St_AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(0, 0))))));
 INSERT INTO gis_multi_point VALUES
 (111, ST_MultiPointFromText('MULTIPOINT(0 0,10 10,10 20,20 20)')),
 (112, ST_MPointFromText('MULTIPOINT(1 1,11 11,11 21,21 21)')),
-(113, ST_MPointFromWKB(MultiPoint(Point(3, 6), Point(4, 10))));
+(113, ST_MPointFromWKB(St_AsWKB(MultiPoint(Point(3, 6), Point(4, 10)))));
 INSERT INTO gis_multi_line VALUES
 (114, ST_MultiLineStringFromText('MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))')),
 (115, ST_MLineFromText('MULTILINESTRING((10 48,10 21,10 0))')),
-(116, ST_MLineFromWKB(MultiLineString(LineString(Point(1, 2), Point(3, 5)), LineString(Point(2, 5), Point(5, 8), Point(21, 7)))));
+(116, ST_MLineFromWKB(St_AsWKB(MultiLineString(LineString(Point(1, 2), Point(3, 5)), LineString(Point(2, 5), Point(5, 8), Point(21, 7))))));
 INSERT INTO gis_multi_polygon VALUES
 (117, ST_MultiPolygonFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')),
 (118, ST_MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')),
-(119, ST_MPolyFromWKB(MultiPolygon(Polygon(LineString(Point(0, 3), Point(3, 3), Point(3, 0), Point(0, 3))))));
+(119, ST_MPolyFromWKB(St_AsWKB(MultiPolygon(Polygon(LineString(Point(0, 3), Point(3, 3), Point(3, 0), Point(0, 3)))))));
 INSERT INTO gis_geometrycollection VALUES
 (120, ST_GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))')),
-(121, ST_GeometryFromWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9)))));
+(121, ST_GeometryFromWKB(St_AsWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9))))));
 INSERT into gis_geometry SELECT * FROM gis_point;
 INSERT into gis_geometry SELECT * FROM gis_line;
 INSERT into gis_geometry SELECT * FROM gis_polygon;
@@ -100,9 +100,9 @@ fid	ST_AsText(g)
 110	POLYGON((0 0,30 0,30 30,0 0))
 SELECT fid, ST_AsText(g) FROM gis_multi_point ORDER by fid;
 fid	ST_AsText(g)
-111	MULTIPOINT(0 0,10 10,10 20,20 20)
-112	MULTIPOINT(1 1,11 11,11 21,21 21)
-113	MULTIPOINT(3 6,4 10)
+111	MULTIPOINT((0 0),(10 10),(10 20),(20 20))
+112	MULTIPOINT((1 1),(11 11),(11 21),(21 21))
+113	MULTIPOINT((3 6),(4 10))
 SELECT fid, ST_AsText(g) FROM gis_multi_line ORDER by fid;
 fid	ST_AsText(g)
 114	MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))
@@ -129,9 +129,9 @@ fid	ST_AsText(g)
 108	POLYGON((10 10,20 10,20 20,10 20,10 10))
 109	POLYGON((0 0,50 0,50 50,0 50,0 0),(10 10,20 10,20 20,10 20,10 10))
 110	POLYGON((0 0,30 0,30 30,0 0))
-111	MULTIPOINT(0 0,10 10,10 20,20 20)
-112	MULTIPOINT(1 1,11 11,11 21,21 21)
-113	MULTIPOINT(3 6,4 10)
+111	MULTIPOINT((0 0),(10 10),(10 20),(20 20))
+112	MULTIPOINT((1 1),(11 11),(11 21),(21 21))
+113	MULTIPOINT((3 6),(4 10))
 114	MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))
 115	MULTILINESTRING((10 48,10 21,10 0))
 116	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))
@@ -184,8 +184,8 @@ fid	ST_GeometryType(g)
 117	MULTIPOLYGON
 118	MULTIPOLYGON
 119	MULTIPOLYGON
-120	GEOMETRYCOLLECTION
-121	GEOMETRYCOLLECTION
+120	GEOMCOLLECTION
+121	GEOMCOLLECTION
 SELECT fid, ST_IsEmpty(g) FROM gis_geometry ORDER by fid;
 fid	ST_IsEmpty(g)
 101	0
@@ -211,13 +211,13 @@ fid	ST_IsEmpty(g)
 121	0
 SELECT fid, ST_AsText(ST_Envelope(g)) FROM gis_geometry ORDER by fid;
 fid	ST_AsText(ST_Envelope(g))
-101	POLYGON((10 10,10 10,10 10,10 10,10 10))
-102	POLYGON((20 10,20 10,20 10,20 10,20 10))
-103	POLYGON((20 20,20 20,20 20,20 20,20 20))
-104	POLYGON((10 20,10 20,10 20,10 20,10 20))
+101	POINT(10 10)
+102	POINT(20 10)
+103	POINT(20 20)
+104	POINT(10 20)
 105	POLYGON((0 0,10 0,10 10,0 10,0 0))
 106	POLYGON((10 10,20 10,20 20,10 20,10 10))
-107	POLYGON((10 10,40 10,40 10,10 10,10 10))
+107	LINESTRING(10 10,40 10)
 108	POLYGON((10 10,20 10,20 20,10 20,10 10))
 109	POLYGON((0 0,50 0,50 50,0 50,0 0))
 110	POLYGON((0 0,30 0,30 30,0 30,0 0))
@@ -225,18 +225,17 @@ fid	ST_AsText(ST_Envelope(g))
 112	POLYGON((1 1,21 1,21 21,1 21,1 1))
 113	POLYGON((3 6,4 6,4 10,3 10,3 6))
 114	POLYGON((10 0,16 0,16 48,10 48,10 0))
-115	POLYGON((10 0,10 0,10 48,10 48,10 0))
+115	LINESTRING(10 0,10 48)
 116	POLYGON((1 2,21 2,21 8,1 8,1 2))
 117	POLYGON((28 0,84 0,84 42,28 42,28 0))
 118	POLYGON((28 0,84 0,84 42,28 42,28 0))
 119	POLYGON((0 0,3 0,3 3,0 3,0 0))
 120	POLYGON((0 0,10 0,10 10,0 10,0 0))
 121	POLYGON((3 6,44 6,44 9,3 9,3 6))
-explain extended select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
+explain select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_geometry	NULL	ALL	NULL	NULL	NULL	NULL	21	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_dimension(`test`.`gis_geometry`.`g`) AS `ST_Dimension(g)`,st_geometrytype(`test`.`gis_geometry`.`g`) AS `ST_GeometryType(g)`,st_isempty(`test`.`gis_geometry`.`g`) AS `ST_IsEmpty(g)`,st_astext(st_envelope(`test`.`gis_geometry`.`g`)) AS `ST_AsText(ST_Envelope(g))` from `test`.`gis_geometry`
 SELECT fid, ST_X(g) FROM gis_point ORDER by fid;
 fid	ST_X(g)
@@ -250,11 +249,10 @@ fid	ST_Y(g)
 102	10
 103	20
 104	20
-explain extended select ST_X(g),ST_Y(g) FROM gis_point;
+explain select ST_X(g),ST_Y(g) FROM gis_point;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_point	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_x(`test`.`gis_point`.`g`) AS `ST_X(g)`,st_y(`test`.`gis_point`.`g`) AS `ST_Y(g)` from `test`.`gis_point`
 SELECT fid, ST_AsText(ST_StartPoint(g)) FROM gis_line ORDER by fid;
 fid	ST_AsText(ST_StartPoint(g))
@@ -286,11 +284,10 @@ fid	ST_IsClosed(g)
 105	0
 106	1
 107	0
-explain extended select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),ST_Length(g),ST_NumPoints(g),ST_AsText(ST_PointN(g, 2)),ST_IsClosed(g) FROM gis_line;
+explain select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),ST_Length(g),ST_NumPoints(g),ST_AsText(ST_PointN(g, 2)),ST_IsClosed(g) FROM gis_line;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_line	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_astext(st_startpoint(`test`.`gis_line`.`g`)) AS `ST_AsText(ST_StartPoint(g))`,st_astext(st_endpoint(`test`.`gis_line`.`g`)) AS `ST_AsText(ST_EndPoint(g))`,st_length(`test`.`gis_line`.`g`) AS `ST_Length(g)`,st_numpoints(`test`.`gis_line`.`g`) AS `ST_NumPoints(g)`,st_astext(st_pointn(`test`.`gis_line`.`g`,2)) AS `ST_AsText(ST_PointN(g, 2))`,st_isclosed(`test`.`gis_line`.`g`) AS `ST_IsClosed(g)` from `test`.`gis_line`
 SELECT fid, ST_AsText(ST_Centroid(g)) FROM gis_polygon ORDER by fid;
 fid	ST_AsText(ST_Centroid(g))
@@ -317,11 +314,10 @@ fid	ST_AsText(ST_InteriorRingN(g, 1))
 108	NULL
 109	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 110	NULL
-explain extended select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),ST_NumInteriorRings(g),ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
+explain select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),ST_NumInteriorRings(g),ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_polygon	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_astext(st_centroid(`test`.`gis_polygon`.`g`)) AS `ST_AsText(ST_Centroid(g))`,st_area(`test`.`gis_polygon`.`g`) AS `ST_Area(g)`,st_astext(st_exteriorring(`test`.`gis_polygon`.`g`)) AS `ST_AsText(ST_ExteriorRing(g))`,st_numinteriorrings(`test`.`gis_polygon`.`g`) AS `ST_NumInteriorRings(g)`,st_astext(st_interiorringn(`test`.`gis_polygon`.`g`,1)) AS `ST_AsText(ST_InteriorRingN(g, 1))` from `test`.`gis_polygon`
 SELECT fid, ST_IsClosed(g) FROM gis_multi_line ORDER by fid;
 fid	ST_IsClosed(g)
@@ -357,11 +353,10 @@ SELECT fid, ST_NumGeometries(g) from gis_geometrycollection ORDER by fid;
 fid	ST_NumGeometries(g)
 120	2
 121	2
-explain extended SELECT fid, ST_NumGeometries(g) from gis_multi_point;
+explain SELECT fid, ST_NumGeometries(g) from gis_multi_point;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_multi_point	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`gis_multi_point`.`fid` AS `fid`,st_numgeometries(`test`.`gis_multi_point`.`g`) AS `ST_NumGeometries(g)` from `test`.`gis_multi_point`
 SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point ORDER by fid;
 fid	ST_AsText(ST_GeometryN(g, 2))
@@ -386,11 +381,10 @@ SELECT fid, ST_AsText(ST_GeometryN(g, 1)) from gis_geometrycollection ORDER by f
 fid	ST_AsText(ST_GeometryN(g, 1))
 120	POINT(0 0)
 121	POINT(44 6)
-explain extended SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
+explain SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_multi_point	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`gis_multi_point`.`fid` AS `fid`,st_astext(st_geometryn(`test`.`gis_multi_point`.`g`,2)) AS `ST_AsText(ST_GeometryN(g, 2))` from `test`.`gis_multi_point`
 SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
@@ -402,7 +396,7 @@ first	second	w	c	o	e	d	t	i	r
 120	121	0	0	1	0	0	0	1	0
 121	120	0	0	1	0	0	0	1	0
 121	121	1	1	0	1	0	0	1	0
-explain extended SELECT g1.fid as first, g2.fid as second,
+explain SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
 MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g) as t,
 MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
@@ -411,7 +405,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	g1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 1	SIMPLE	g2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,mbrwithin(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,mbrcontains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,mbroverlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,mbrequals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,mbrdisjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,st_touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,mbrintersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,st_crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `first`,`second`
 DROP TABLE gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE t1 (
@@ -434,7 +427,7 @@ pg	polygon	YES		NULL
 mp	multipoint	YES		NULL	
 mln	multilinestring	YES		NULL	
 mpg	multipolygon	YES		NULL	
-gc	geometrycollection	YES		NULL	
+gc	geomcollection	YES		NULL	
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT;
 SHOW FIELDS FROM t1;
@@ -446,7 +439,7 @@ pg	polygon	YES		NULL
 mp	multipoint	YES		NULL	
 mln	multilinestring	YES		NULL	
 mpg	multipolygon	YES		NULL	
-gc	geometrycollection	YES		NULL	
+gc	geomcollection	YES		NULL	
 gm	geometry	YES		NULL	
 fid	int(11)	YES		NULL	
 DROP TABLE t1;
@@ -465,7 +458,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 (fl) values ("qwerty");
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 (fl) values (ST_pointfromtext('point(1,1)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 drop table t1;
 End of 4.1 tests
 CREATE TABLE t1 (name VARCHAR(100), square GEOMETRY);
@@ -527,29 +520,35 @@ SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS MBRwithin       FROM t1 a1 JOIN
 MBRwithin
 big,center
 SET @vert1   = ST_GeomFromText('POLYGON ((0 -2, 0 2, 0 -2))');
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @horiz1  = ST_GeomFromText('POLYGON ((-2 0, 2 0, -2 0))');
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @horiz2 = ST_GeomFromText('POLYGON ((-1 0, 3 0, -1 0))');
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @horiz3 = ST_GeomFromText('POLYGON ((2 0, 3 0, 2 0))');
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @point1 = ST_GeomFromText('POLYGON ((0 0))');
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @point2 = ST_GeomFromText('POLYGON ((-2 0))');
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @vert1) GROUP BY a1.name;
 MBRoverlaps
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @horiz1) GROUP BY a1.name;
 MBRoverlaps
 SELECT MBROverlaps(@horiz1, @vert1) FROM DUAL;
 MBROverlaps(@horiz1, @vert1)
-0
+NULL
 SELECT MBROverlaps(@horiz1, @horiz2) FROM DUAL;
 MBROverlaps(@horiz1, @horiz2)
-1
+NULL
 SELECT MBROverlaps(@horiz1, @horiz3) FROM DUAL;
 MBROverlaps(@horiz1, @horiz3)
-0
+NULL
 SELECT MBROverlaps(@horiz1, @point1) FROM DUAL;
 MBROverlaps(@horiz1, @point1)
-0
+NULL
 SELECT MBROverlaps(@horiz1, @point2) FROM DUAL;
 MBROverlaps(@horiz1, @point2)
-0
+NULL
 DROP TABLE t1;
 End of 5.0 tests

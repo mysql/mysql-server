@@ -2,10 +2,6 @@
 # changes 2008-02-20 hhunger splitted events.test into events_1 and events_2
 # changes 2008-02-22 hhunger replaced all sleep by wait_condition
 #
-# Can't test with embedded server that doesn't support grants
--- source include/not_embedded.inc
-
-call mtr.add_suppression("Column count of mysql.event is wrong. Expected .*, found .*\. The table is probably corrupted");
 
 --disable_warnings
 drop database if exists events_test;
@@ -29,12 +25,13 @@ CREATE EVENT e_x1 ON SCHEDULE EVERY 1 SECOND DO DROP DATABASE db_x;
 CREATE EVENT e_x2 ON SCHEDULE EVERY 1 SECOND DO DROP TABLE x_table;
 connection default;
 SHOW DATABASES LIKE 'db_x';
-SET GLOBAL event_scheduler=1;
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
 let $wait_condition= SELECT count(*)= 1 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME LIKE 'db_x';
 --source include/wait_condition.inc
 SHOW DATABASES LIKE 'db_x';
 SHOW TABLES FROM db_x;
-SET GLOBAL event_scheduler=off;
 connection priv_conn;
 DROP EVENT e_x1;
 DROP EVENT e_x2;
@@ -43,10 +40,12 @@ connection default;
 DROP DATABASE db_x;
 DROP USER pauline@localhost;
 USE events_test;
+
 #
 # END:    BUG #17289 Events: missing privilege check for drop database
 #
 SET GLOBAL event_scheduler=off;
+--source include/no_running_event_scheduler.inc
 drop event if exists event1;
 create event event1 on schedule every 15 minute starts now() ends date_add(now(), interval 5 hour) DO begin end;
 alter event event1 rename to event2 enable;
@@ -61,27 +60,26 @@ alter event event3 rename to event2;
 drop event event2;
 create event event2 on schedule every 2 second starts now() ends date_add(now(), interval 5 hour) comment "some" DO begin end;
 drop event event2;
-
 #
 # BUG #16537 (Events: mysql.event.starts is null)
 #
 CREATE EVENT event_starts_test ON SCHEDULE EVERY 10 SECOND COMMENT "" DO SELECT 1;
-SELECT interval_field, interval_value, body FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
-SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+SELECT interval_field, interval_value, event_definition FROM information_schema.events WHERE event_name='event_starts_test';
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
 ALTER EVENT event_starts_test ON SCHEDULE AT '2020-02-02 20:00:02';
-SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
 ALTER EVENT event_starts_test COMMENT "non-empty comment";
-SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
 ALTER EVENT event_starts_test COMMENT "";
-SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
 DROP EVENT event_starts_test;
 
 CREATE EVENT event_starts_test ON SCHEDULE EVERY 20 SECOND STARTS '2020-02-02 20:00:02' ENDS '2022-02-02 20:00:02' DO SELECT 2;
-SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
 ALTER EVENT event_starts_test COMMENT "non-empty comment";
-SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
 ALTER EVENT event_starts_test COMMENT "";
-SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
 DROP EVENT event_starts_test;
 #
 #
@@ -97,9 +95,11 @@ begin
 end|
 delimiter ;|
 set global event_scheduler = on;
-let $wait_condition= SELECT count(*)>0 from mysql.event where name='e_43' and interval_value= 5;
+--source include/running_event_scheduler.inc
+
+let $wait_condition= SELECT count(*)>0 from information_schema.events where event_name='e_43' and interval_value= 5;
 --source include/wait_condition.inc
-select db, name, body, status, interval_field, interval_value from mysql.event;
+select event_name, event_definition, status, interval_field, interval_value from information_schema.events;
 drop event e_43;
 drop table test_nested;
 
@@ -115,7 +115,6 @@ drop table non_qualif;
 --error ER_EVENT_DOES_NOT_EXIST
 alter event non_existant rename to non_existant_too;
 
-set global event_scheduler = off;
 create event existant on schedule at now() + interval 1 year do select 12;
 --error ER_EVENT_ALREADY_EXISTS
 alter event non_existant rename to existant;
@@ -126,7 +125,7 @@ drop event existant;
 
 create table t_event3 (a int, b float);
 drop event if exists event3;
-create event event3 on schedule every 50 + 10 minute starts date_add("20100101", interval 5 minute) ends date_add("20151010", interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());
+create event event3 on schedule every 50 + 10 minute starts date_add(curdate(), interval 5 minute) ends date_add(curdate(), interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());
 let $wait_condition=SELECT count(*)=0 from t_event3;
 --source include/wait_condition.inc
 select count(*) from t_event3;
@@ -193,283 +192,48 @@ create event root20 on schedule every '50:20:12:45' day_second do select 1;
 --replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root20;
 set names cp1251;
+--character_set cp1251
 create event ðóóò21 on schedule every '50:23:59:95' day_second COMMENT 'òîâà å 1251 êîìåíòàð' do select 1;
 --replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT ðóóò21;
-insert into mysql.event (
-  db,
-  name,
-  body,
-  definer,
-  interval_value,
-  interval_field,
-  originator,
-  character_set_client,
-  collation_connection,
-  db_collation,
-  body_utf8)
-values (
-  database(),
-  "root22",
-  "select 1",
-  user(),
-  100,
-  "SECOND_MICROSECOND",
-  1,
-  'utf8',
-  'utf8_general_ci',
-  'utf8_general_ci',
-  'select 1');
---error ER_NOT_SUPPORTED_YET
-show create event root22;
---error ER_NOT_SUPPORTED_YET
-SHOW EVENTS;
-drop event root22;
---error ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG
-create event root23 on schedule every -100 year do select 1;
---error ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG
-create event root23 on schedule every 222222222222222222222 year do select 1;
-drop event root6;
-drop event root7;
-drop event root8;
-drop event root8_1;
-drop event root9;
-drop event root10;
-drop event root11;
-drop event root12;
-drop event root13;
-drop event root13_1;
-drop event root14;
-drop event root15;
-drop event root16;
-drop event root17;
-drop event root17_1;
-drop event root18;
-drop event root19;
-drop event root20;
-drop event ðóóò21;
+--character_set utf8mb4
 
-set names latin1;
-#
-# SHOW CREATE EVENT test end
-#
-
-#
-# mysql.event intact checking
-# Check that the server does not crash if
-# one has destroyed or tampered with the event table. 
-# Please see see for events_restart_phase* tests to 
-# see the server behavior at start up with bad mysql.event
-# table.
-#
-#
---echo Create a test event. Only event metadata is relevant, 
---echo the actual schedule and body are not.
-#
-CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
---replace_column 8 # 9 #
-SHOW EVENTS;
-#
---echo Try to alter mysql.event: the server should fail to load
---echo event information after mysql.event was tampered with.
---echo 
---echo First, let's add a column to the end and check the error is emitted.
---echo 
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-ALTER TABLE mysql.event ADD dummy INT;
-SET sql_mode = default;
---error ER_EVENT_OPEN_TABLE_FAILED
-SHOW EVENTS;
---error ER_EVENT_OPEN_TABLE_FAILED
-SELECT event_name FROM INFORMATION_SCHEMA.events;
---error ER_EVENT_OPEN_TABLE_FAILED
-SHOW CREATE EVENT intact_check;
---error ER_EVENT_OPEN_TABLE_FAILED
-DROP EVENT no_such_event;
---error ER_EVENT_OPEN_TABLE_FAILED
-CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
---error ER_EVENT_OPEN_TABLE_FAILED
-ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
---error ER_EVENT_OPEN_TABLE_FAILED
-ALTER EVENT intact_check_1 RENAME TO intact_check_2;
---error ER_EVENT_OPEN_TABLE_FAILED
-DROP EVENT intact_check_1;
---error ER_EVENT_OPEN_TABLE_FAILED
-DROP EVENT intact_check_2;
---error ER_EVENT_OPEN_TABLE_FAILED
-DROP EVENT intact_check;
-DROP DATABASE IF EXISTS mysqltest_no_such_database;
-CREATE DATABASE mysqltest_db2;
-DROP DATABASE mysqltest_db2;
-SELECT @@event_scheduler;
-SHOW VARIABLES LIKE 'event_scheduler';
-SET GLOBAL event_scheduler=OFF;
-# Clean up
-ALTER TABLE mysql.event DROP dummy;
-DROP EVENT intact_check;
-CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
---echo 
---echo Now let's add a column to the first position: the server
---echo expects to see event schema name there
---echo 
-ALTER TABLE mysql.event ADD dummy INT FIRST;
---error ER_EVENT_OPEN_TABLE_FAILED
-SHOW EVENTS;
---error ER_EVENT_OPEN_TABLE_FAILED
-SELECT event_name FROM INFORMATION_SCHEMA.events;
---error ER_EVENT_OPEN_TABLE_FAILED
-SHOW CREATE EVENT intact_check;
---error ER_EVENT_OPEN_TABLE_FAILED
-DROP EVENT no_such_event;
---error ER_EVENT_OPEN_TABLE_FAILED
-CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
---error ER_EVENT_OPEN_TABLE_FAILED
-ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
---error ER_EVENT_OPEN_TABLE_FAILED
-ALTER EVENT intact_check_1 RENAME TO intact_check_2;
---error ER_EVENT_OPEN_TABLE_FAILED
-DROP EVENT intact_check_1;
---error ER_EVENT_OPEN_TABLE_FAILED
-DROP EVENT intact_check_2;
---error ER_EVENT_OPEN_TABLE_FAILED
-DROP EVENT intact_check;
-# Should work OK
-DROP DATABASE IF EXISTS mysqltest_no_such_database;
-CREATE DATABASE mysqltest_db2;
-DROP DATABASE mysqltest_db2;
-SELECT @@event_scheduler;
-SHOW VARIABLES LIKE 'event_scheduler';
-SET GLOBAL event_scheduler=OFF;
---echo Clean up
-ALTER TABLE mysql.event DROP dummy;
-DELETE FROM mysql.event;
-CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
---echo Back up the table, further changes are not reversible
-CREATE TABLE event_like LIKE mysql.event;
-INSERT INTO event_like SELECT * FROM mysql.event;
---echo 
---echo Drop some columns and try more checks. 
---echo
---echo 
-ALTER TABLE mysql.event DROP comment, DROP starts;
---error ER_EVENT_OPEN_TABLE_FAILED
-SHOW EVENTS;
---error ER_EVENT_OPEN_TABLE_FAILED
-SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
---error ER_EVENT_OPEN_TABLE_FAILED
-SHOW CREATE EVENT intact_check;
---error ER_EVENT_OPEN_TABLE_FAILED
-DROP EVENT no_such_event;
---error ER_EVENT_OPEN_TABLE_FAILED
-CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
---error ER_EVENT_OPEN_TABLE_FAILED
-ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
---error ER_EVENT_OPEN_TABLE_FAILED
-ALTER EVENT intact_check_1 RENAME TO intact_check_2;
---error ER_EVENT_OPEN_TABLE_FAILED
-DROP EVENT intact_check_1;
---error ER_EVENT_OPEN_TABLE_FAILED
-DROP EVENT intact_check_2;
---error ER_EVENT_OPEN_TABLE_FAILED
-DROP EVENT intact_check;
-DROP DATABASE IF EXISTS mysqltest_no_such_database;
-CREATE DATABASE mysqltest_db2;
-DROP DATABASE mysqltest_db2;
-SELECT @@event_scheduler;
-SHOW VARIABLES LIKE 'event_scheduler';
-SET GLOBAL event_scheduler=OFF;
---echo 
---echo Now drop the table, and test again
---echo
---echo 
-DROP TABLE mysql.event;
---error ER_NO_SUCH_TABLE
-SHOW EVENTS;
---error ER_NO_SUCH_TABLE
-SELECT event_name FROM INFORMATION_SCHEMA.events;
---error ER_NO_SUCH_TABLE
-SHOW CREATE EVENT intact_check;
---error ER_NO_SUCH_TABLE
-DROP EVENT no_such_event;
---error ER_NO_SUCH_TABLE
-CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
---error ER_NO_SUCH_TABLE
-ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
---error ER_NO_SUCH_TABLE
-ALTER EVENT intact_check_1 RENAME  TO intact_check_2;
---error ER_NO_SUCH_TABLE
-DROP EVENT intact_check_1;
---error ER_NO_SUCH_TABLE
-DROP EVENT intact_check_2;
---error ER_NO_SUCH_TABLE
-DROP EVENT intact_check;
-DROP DATABASE IF EXISTS mysqltest_no_such_database;
-CREATE DATABASE mysqltest_db2;
-DROP DATABASE mysqltest_db2;
---echo OK, there is an unnecessary warning about the non-existent table 
---echo but it's not easy to fix and no one complained about it.
---echo A similar warning is printed if mysql.proc is missing.
-SHOW WARNINGS;
-SELECT @@event_scheduler;
-SHOW VARIABLES LIKE 'event_scheduler';
-SET GLOBAL event_scheduler=OFF;
---echo Restore the original table.
-CREATE TABLE mysql.event like event_like;
-DROP TABLE event_like;
---replace_column 8 # 9 #
-SHOW EVENTS;
-
---echo
 --echo #
---echo # Bug#12394306: the sever may crash if mysql.event is corrupted
+--echo # WL#9262: All system tables should support 32 character length user names
 --echo #
 
---echo
-CREATE EVENT ev1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
-ALTER EVENT ev1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+--echo #This should just work with username + hostname of length 93 as DEFINER
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char EVENT event_test ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO SELECT CURRENT_USER();
 
---echo
-CREATE TABLE event_original LIKE mysql.event;
-INSERT INTO event_original SELECT * FROM mysql.event;
+--replace_column 6 # 9 # 10 #
+SHOW EVENTS LIKE 'event_test';
 
---echo
-ALTER TABLE mysql.event MODIFY modified CHAR(1);
+SELECT DEFINER FROM information_schema.EVENTS WHERE EVENT_NAME='event_test';
 
+DROP EVENT event_test;
 --echo
---error ER_EVENT_OPEN_TABLE_FAILED
-SHOW EVENTS;
-
---echo
---error ER_EVENT_OPEN_TABLE_FAILED
-SELECT event_name, created, last_altered FROM information_schema.events;
-
---echo
---error ER_EVENT_OPEN_TABLE_FAILED
-CREATE EVENT ev2 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
-
---echo
---error ER_EVENT_OPEN_TABLE_FAILED
-ALTER EVENT ev1 ON SCHEDULE EVERY 9 HOUR DO SELECT 9;
-
---echo
-DROP TABLE mysql.event;
-RENAME TABLE event_original TO mysql.event;
-
---echo
-DROP EVENT ev1;
-
---echo
-SHOW EVENTS;
-
-
---echo
---echo # 
+--echo #
 --echo # End of tests
 --echo #
-
 let $wait_condition=
   select count(*) = 0 from information_schema.processlist
   where db='events_test' and command = 'Connect' and user=current_user();
 --source include/wait_condition.inc
 
-drop database events_test;
+
+--echo #
+--echo # Bug#2469962 - INVALID UTF-8 IN COMMENT OF AN EVENT DDL CAUSES ASSERT.
+--echo #
+SET @orig_character_set_client = @@character_set_client;
+SET character_set_client = utf8;
+--character_set binary
+--error ER_INVALID_CHARACTER_STRING
+CREATE EVENT t÷est ON SCHEDULE AT NOW() ON COMPLETION NOT PRESERVE DO SELECT 1;
+--error ER_INVALID_CHARACTER_STRING
+CREATE EVENT event ON SCHEDULE EVERY 1 SECOND COMMENT 'testÿ' DO SELECT 1;
+CREATE EVENT event ON SCHEDULE EVERY 1 SECOND COMMENT 'test' DO SELECT 1;
+--error ER_INVALID_CHARACTER_STRING
+ALTER EVENT event COMMENT 'testÿ';
+
+SET character_set_client = @orig_character_set_client;
+DROP DATABASE events_test;

@@ -1,0 +1,107 @@
+# ==== Purpose ====
+#
+# This test will create two channels and will make one of them to be blocked
+# while stopping.
+#
+# Then, the test case shows that it is possible to execute SHOW SLAVE STATUS
+# for the channel being stopped, as well as to stop another channel.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#20593028 MORE CONCURRENCY IN SHOW SLAVE STATUS: MAKE LOCK_MSR_MAP
+#              AN RWLOCK
+
+--source include/not_group_replication_plugin.inc
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+--let $rpl_skip_start_slave= 1
+--let $rpl_extra_connections_per_server= 2
+--source include/master-slave.inc
+
+# Create two slave channels
+--source include/rpl_connection_slave.inc
+--disable_warnings
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT FOR CHANNEL 'ch1'
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='dummyhost', MASTER_PORT=$MASTER_MYPORT FOR CHANNEL 'ch2'
+--enable_warnings
+
+# Start both threads of only one of the channels
+--let $rpl_channel_name= 'ch1'
+--source include/start_slave.inc
+# Start only the SQL thread for the other channel
+--let $rpl_channel_name= 'ch2'
+--source include/start_slave_sql.inc
+
+# Create a table on the master
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
+--let $rpl_channel_name= 'ch1'
+--source include/sync_slave_sql_with_master.inc
+
+# To block ch1 SQL thread
+--source include/rpl_connection_slave1.inc
+BEGIN;
+INSERT INTO t1 VALUES (1);
+
+# Generate data at the master to be replicated
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (1);
+# Make sure the I/O thread received the new data
+--source include/sync_slave_io_with_master.inc
+
+--send STOP SLAVE SQL_THREAD FOR CHANNEL 'ch1'
+
+--let $rpl_connection_name= server_2_2
+--source include/rpl_connection.inc
+--let $ch1_sql_running=query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'ch1', Slave_SQL_Running, 1)
+--let $assert_cond= [ SELECT "$ch1_sql_running" = "Yes" ]
+--let $assert_text= SQL thread for ch1 is running
+--source include/assert.inc
+--let $ch1_sql_status=query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'ch1', Slave_SQL_Running_State, 1)
+# This is the expected state with a non-MTS slave.
+--let $cond1 = "System lock"
+# This is the expected state with a MTS slave.
+--let $cond2 = "Waiting for workers to exit"
+# This is the state that the thread has while applying RBR events
+--let $cond4 = "Applying batch of row changes (write)"
+--let $assert_cond= [ SELECT "$ch1_sql_status" = $cond1 OR "$ch1_sql_status" = $cond2 OR "$ch1_sql_status" = $cond4 ]
+--let $assert_text= SQL thread for ch1 running state is $cond1 or $cond2 or $cond4
+--source include/assert.inc
+
+--echo Stop ch2 SQL thread while stopping ch1 SQL thread
+STOP SLAVE SQL_THREAD FOR CHANNEL 'ch2';
+--let $rpl_channel_name= 'ch2'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $ch1_sql_running=query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'ch1', Slave_SQL_Running, 1)
+--let $assert_cond= [ SELECT "$ch1_sql_running" = "Yes" ]
+--let $assert_text= SQL thread for ch1 is still running
+--source include/assert.inc
+
+# Now we can let the ch1 SQL thread to stop
+--source include/rpl_connection_slave1.inc
+ROLLBACK;
+
+--source include/rpl_connection_slave.inc
+--reap
+--let $rpl_channel_name= 'ch1'
+--source include/wait_for_slave_sql_to_stop.inc
+
+# Cleanup
+--let $rpl_channel_name=
+STOP SLAVE IO_THREAD FOR CHANNEL 'ch1';
+RESET SLAVE ALL;
+RESET MASTER;
+DROP TABLE t1;
+--disable_warnings
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT
+--enable_warnings
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

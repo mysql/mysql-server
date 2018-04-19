@@ -19,11 +19,18 @@ mysqld is alive
 #
 # Creating an empty file 'cnf_file'
 # Using --defaults-extra-file option with 'cnf_file'.
+mysqladmin: [Warning] Using a password on the command line interface can be insecure.
 mysqld is alive
 #
 # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
 #
 mysqladmin: [Warning] Using a password on the command line interface can be insecure.
 mysqld is alive
-
+#
+# Bug#21796658: OLD-PASSWORD SUBCOMMAND IS STILL IN MYSQLADMIN --HELP IN 5.7
+#
+# execute mysqladmin --help
+# check the output of mysqladmin for old-password
+include/assert_grep.inc [check the output of mysqladmin for old-password]
+# cleanup
 End of tests

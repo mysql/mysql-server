@@ -1,0 +1,264 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1) Iterate over storage engines and
+#
+#
+#    a) Create a table with default value columns and generated
+#       columns on MASTER.
+#
+CREATE TABLE t (
+id INT PRIMARY KEY NOT NULL,
+name VARCHAR(20) NOT NULL,
+nick VARCHAR(20) NOT NULL DEFAULT "",
+state INT DEFAULT 0,
+description varchar(64) GENERATED ALWAYS AS (CONCAT("User#", id, " (", name, ") has state ", state)) STORED,
+welcome varchar(64) GENERATED ALWAYS AS (CONCAT("Welcome ", name, ", your nick is ", nick))
+) ENGINE= InnoDB;
+#
+#    b) Sync SLAVE and ensure that table was replicated.
+#
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `id` int(11) NOT NULL,
+  `name` varchar(20) NOT NULL,
+  `nick` varchar(20) NOT NULL DEFAULT '',
+  `state` int(11) DEFAULT '0',
+  `description` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'User#',`id`,_utf8mb4' (',`name`,_utf8mb4') has state ',`state`)) STORED,
+  `welcome` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'Welcome ',`name`,_utf8mb4', your nick is ',`nick`)) VIRTUAL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+#    c) Insert records on MASTER, with no values for default
+#       value columns.
+#
+INSERT INTO t (id, name) VALUES (1, "Scott Summers"), (2, "Ororo Munroe"), (3, "Remy LeBeau"), (4, "James Howlett"), (5, "Jean Grey");
+SELECT CONCAT(welcome, ". Your ", description, ".") FROM t ORDER BY id;
+CONCAT(welcome, ". Your ", description, ".")
+Welcome Scott Summers, your nick is . Your User#1 (Scott Summers) has state 0.
+Welcome Ororo Munroe, your nick is . Your User#2 (Ororo Munroe) has state 0.
+Welcome Remy LeBeau, your nick is . Your User#3 (Remy LeBeau) has state 0.
+Welcome James Howlett, your nick is . Your User#4 (James Howlett) has state 0.
+Welcome Jean Grey, your nick is . Your User#5 (Jean Grey) has state 0.
+#
+#    d) Sync SLAVE and ensure that records were replicated.
+#
+include/diff_tables.inc [master:t, slave:t]
+#
+#    e) Update default values, for inserted records, on MASTER.
+#
+UPDATE t SET nick= "cycl0ps" WHERE id = 1;
+UPDATE t SET nick= "st0rm" WHERE id = 2;
+UPDATE t SET nick= "gamb1t" WHERE id = 3;
+UPDATE t SET nick= "l0gan" WHERE id = 4;
+UPDATE t SET nick= "f3nix" WHERE id = 5;
+SELECT CONCAT(welcome, ". Your ", description, ".") FROM t ORDER BY id;
+CONCAT(welcome, ". Your ", description, ".")
+Welcome Scott Summers, your nick is cycl0ps. Your User#1 (Scott Summers) has state 0.
+Welcome Ororo Munroe, your nick is st0rm. Your User#2 (Ororo Munroe) has state 0.
+Welcome Remy LeBeau, your nick is gamb1t. Your User#3 (Remy LeBeau) has state 0.
+Welcome James Howlett, your nick is l0gan. Your User#4 (James Howlett) has state 0.
+Welcome Jean Grey, your nick is f3nix. Your User#5 (Jean Grey) has state 0.
+#
+#    f) Sync SLAVE and ensure that records were replicated.
+#
+include/diff_tables.inc [master:t, slave:t]
+#
+#    g) Insert *more* records on MASTER, with values for default
+#       value columns.
+#
+INSERT INTO t (id, name, nick, state) VALUES (6, "Anna Marie", "r0gu3", 1), (7, "Alex Summers", "hav0k", 2), (8, "Warren Worthington", "ang3l", 1), (9, "Lorna Dane", "p0lar1s", 1);
+SELECT CONCAT(welcome, ". Your ", description, ".") FROM t ORDER BY id;
+CONCAT(welcome, ". Your ", description, ".")
+Welcome Scott Summers, your nick is cycl0ps. Your User#1 (Scott Summers) has state 0.
+Welcome Ororo Munroe, your nick is st0rm. Your User#2 (Ororo Munroe) has state 0.
+Welcome Remy LeBeau, your nick is gamb1t. Your User#3 (Remy LeBeau) has state 0.
+Welcome James Howlett, your nick is l0gan. Your User#4 (James Howlett) has state 0.
+Welcome Jean Grey, your nick is f3nix. Your User#5 (Jean Grey) has state 0.
+Welcome Anna Marie, your nick is r0gu3. Your User#6 (Anna Marie) has state 1.
+Welcome Alex Summers, your nick is hav0k. Your User#7 (Alex Summers) has state 2.
+Welcome Warren Worthington, your nick is ang3l. Your User#8 (Warren Worthington) has state 1.
+Welcome Lorna Dane, your nick is p0lar1s. Your User#9 (Lorna Dane) has state 1.
+#
+#    h) Sync SLAVE and ensure if records were replicated.
+#
+include/diff_tables.inc [master:t, slave:t]
+#
+#    i) Drop table
+#
+DROP TABLE t;
+#
+#    a) Create a table with default value columns and generated
+#       columns on MASTER.
+#
+CREATE TABLE t (
+id INT PRIMARY KEY NOT NULL,
+name VARCHAR(20) NOT NULL,
+nick VARCHAR(20) NOT NULL DEFAULT "",
+state INT DEFAULT 0,
+description varchar(64) GENERATED ALWAYS AS (CONCAT("User#", id, " (", name, ") has state ", state)) STORED,
+welcome varchar(64) GENERATED ALWAYS AS (CONCAT("Welcome ", name, ", your nick is ", nick))
+) ENGINE= MyISAM;
+#
+#    b) Sync SLAVE and ensure that table was replicated.
+#
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `id` int(11) NOT NULL,
+  `name` varchar(20) NOT NULL,
+  `nick` varchar(20) NOT NULL DEFAULT '',
+  `state` int(11) DEFAULT '0',
+  `description` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'User#',`id`,_utf8mb4' (',`name`,_utf8mb4') has state ',`state`)) STORED,
+  `welcome` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'Welcome ',`name`,_utf8mb4', your nick is ',`nick`)) VIRTUAL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+#    c) Insert records on MASTER, with no values for default
+#       value columns.
+#
+INSERT INTO t (id, name) VALUES (1, "Scott Summers"), (2, "Ororo Munroe"), (3, "Remy LeBeau"), (4, "James Howlett"), (5, "Jean Grey");
+SELECT CONCAT(welcome, ". Your ", description, ".") FROM t ORDER BY id;
+CONCAT(welcome, ". Your ", description, ".")
+Welcome Scott Summers, your nick is . Your User#1 (Scott Summers) has state 0.
+Welcome Ororo Munroe, your nick is . Your User#2 (Ororo Munroe) has state 0.
+Welcome Remy LeBeau, your nick is . Your User#3 (Remy LeBeau) has state 0.
+Welcome James Howlett, your nick is . Your User#4 (James Howlett) has state 0.
+Welcome Jean Grey, your nick is . Your User#5 (Jean Grey) has state 0.
+#
+#    d) Sync SLAVE and ensure that records were replicated.
+#
+include/diff_tables.inc [master:t, slave:t]
+#
+#    e) Update default values, for inserted records, on MASTER.
+#
+UPDATE t SET nick= "cycl0ps" WHERE id = 1;
+UPDATE t SET nick= "st0rm" WHERE id = 2;
+UPDATE t SET nick= "gamb1t" WHERE id = 3;
+UPDATE t SET nick= "l0gan" WHERE id = 4;
+UPDATE t SET nick= "f3nix" WHERE id = 5;
+SELECT CONCAT(welcome, ". Your ", description, ".") FROM t ORDER BY id;
+CONCAT(welcome, ". Your ", description, ".")
+Welcome Scott Summers, your nick is cycl0ps. Your User#1 (Scott Summers) has state 0.
+Welcome Ororo Munroe, your nick is st0rm. Your User#2 (Ororo Munroe) has state 0.
+Welcome Remy LeBeau, your nick is gamb1t. Your User#3 (Remy LeBeau) has state 0.
+Welcome James Howlett, your nick is l0gan. Your User#4 (James Howlett) has state 0.
+Welcome Jean Grey, your nick is f3nix. Your User#5 (Jean Grey) has state 0.
+#
+#    f) Sync SLAVE and ensure that records were replicated.
+#
+include/diff_tables.inc [master:t, slave:t]
+#
+#    g) Insert *more* records on MASTER, with values for default
+#       value columns.
+#
+INSERT INTO t (id, name, nick, state) VALUES (6, "Anna Marie", "r0gu3", 1), (7, "Alex Summers", "hav0k", 2), (8, "Warren Worthington", "ang3l", 1), (9, "Lorna Dane", "p0lar1s", 1);
+SELECT CONCAT(welcome, ". Your ", description, ".") FROM t ORDER BY id;
+CONCAT(welcome, ". Your ", description, ".")
+Welcome Scott Summers, your nick is cycl0ps. Your User#1 (Scott Summers) has state 0.
+Welcome Ororo Munroe, your nick is st0rm. Your User#2 (Ororo Munroe) has state 0.
+Welcome Remy LeBeau, your nick is gamb1t. Your User#3 (Remy LeBeau) has state 0.
+Welcome James Howlett, your nick is l0gan. Your User#4 (James Howlett) has state 0.
+Welcome Jean Grey, your nick is f3nix. Your User#5 (Jean Grey) has state 0.
+Welcome Anna Marie, your nick is r0gu3. Your User#6 (Anna Marie) has state 1.
+Welcome Alex Summers, your nick is hav0k. Your User#7 (Alex Summers) has state 2.
+Welcome Warren Worthington, your nick is ang3l. Your User#8 (Warren Worthington) has state 1.
+Welcome Lorna Dane, your nick is p0lar1s. Your User#9 (Lorna Dane) has state 1.
+#
+#    h) Sync SLAVE and ensure if records were replicated.
+#
+include/diff_tables.inc [master:t, slave:t]
+#
+#    i) Drop table
+#
+DROP TABLE t;
+#
+#    a) Create a table with default value columns and generated
+#       columns on MASTER.
+#
+CREATE TABLE t (
+id INT PRIMARY KEY NOT NULL,
+name VARCHAR(20) NOT NULL,
+nick VARCHAR(20) NOT NULL DEFAULT "",
+state INT DEFAULT 0,
+description varchar(64) GENERATED ALWAYS AS (CONCAT("User#", id, " (", name, ") has state ", state)) STORED,
+welcome varchar(64) GENERATED ALWAYS AS (CONCAT("Welcome ", name, ", your nick is ", nick))
+) ENGINE= NDB;
+#
+#    b) Sync SLAVE and ensure that table was replicated.
+#
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `id` int(11) NOT NULL,
+  `name` varchar(20) NOT NULL,
+  `nick` varchar(20) NOT NULL DEFAULT '',
+  `state` int(11) DEFAULT '0',
+  `description` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'User#',`id`,_utf8mb4' (',`name`,_utf8mb4') has state ',`state`)) STORED,
+  `welcome` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'Welcome ',`name`,_utf8mb4', your nick is ',`nick`)) VIRTUAL,
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+#
+#    c) Insert records on MASTER, with no values for default
+#       value columns.
+#
+INSERT INTO t (id, name) VALUES (1, "Scott Summers"), (2, "Ororo Munroe"), (3, "Remy LeBeau"), (4, "James Howlett"), (5, "Jean Grey");
+SELECT CONCAT(welcome, ". Your ", description, ".") FROM t ORDER BY id;
+CONCAT(welcome, ". Your ", description, ".")
+Welcome Scott Summers, your nick is . Your User#1 (Scott Summers) has state 0.
+Welcome Ororo Munroe, your nick is . Your User#2 (Ororo Munroe) has state 0.
+Welcome Remy LeBeau, your nick is . Your User#3 (Remy LeBeau) has state 0.
+Welcome James Howlett, your nick is . Your User#4 (James Howlett) has state 0.
+Welcome Jean Grey, your nick is . Your User#5 (Jean Grey) has state 0.
+#
+#    d) Sync SLAVE and ensure that records were replicated.
+#
+include/diff_tables.inc [master:t, slave:t]
+#
+#    e) Update default values, for inserted records, on MASTER.
+#
+UPDATE t SET nick= "cycl0ps" WHERE id = 1;
+UPDATE t SET nick= "st0rm" WHERE id = 2;
+UPDATE t SET nick= "gamb1t" WHERE id = 3;
+UPDATE t SET nick= "l0gan" WHERE id = 4;
+UPDATE t SET nick= "f3nix" WHERE id = 5;
+SELECT CONCAT(welcome, ". Your ", description, ".") FROM t ORDER BY id;
+CONCAT(welcome, ". Your ", description, ".")
+Welcome Scott Summers, your nick is cycl0ps. Your User#1 (Scott Summers) has state 0.
+Welcome Ororo Munroe, your nick is st0rm. Your User#2 (Ororo Munroe) has state 0.
+Welcome Remy LeBeau, your nick is gamb1t. Your User#3 (Remy LeBeau) has state 0.
+Welcome James Howlett, your nick is l0gan. Your User#4 (James Howlett) has state 0.
+Welcome Jean Grey, your nick is f3nix. Your User#5 (Jean Grey) has state 0.
+#
+#    f) Sync SLAVE and ensure that records were replicated.
+#
+include/diff_tables.inc [master:t, slave:t]
+#
+#    g) Insert *more* records on MASTER, with values for default
+#       value columns.
+#
+INSERT INTO t (id, name, nick, state) VALUES (6, "Anna Marie", "r0gu3", 1), (7, "Alex Summers", "hav0k", 2), (8, "Warren Worthington", "ang3l", 1), (9, "Lorna Dane", "p0lar1s", 1);
+SELECT CONCAT(welcome, ". Your ", description, ".") FROM t ORDER BY id;
+CONCAT(welcome, ". Your ", description, ".")
+Welcome Scott Summers, your nick is cycl0ps. Your User#1 (Scott Summers) has state 0.
+Welcome Ororo Munroe, your nick is st0rm. Your User#2 (Ororo Munroe) has state 0.
+Welcome Remy LeBeau, your nick is gamb1t. Your User#3 (Remy LeBeau) has state 0.
+Welcome James Howlett, your nick is l0gan. Your User#4 (James Howlett) has state 0.
+Welcome Jean Grey, your nick is f3nix. Your User#5 (Jean Grey) has state 0.
+Welcome Anna Marie, your nick is r0gu3. Your User#6 (Anna Marie) has state 1.
+Welcome Alex Summers, your nick is hav0k. Your User#7 (Alex Summers) has state 2.
+Welcome Warren Worthington, your nick is ang3l. Your User#8 (Warren Worthington) has state 1.
+Welcome Lorna Dane, your nick is p0lar1s. Your User#9 (Lorna Dane) has state 1.
+#
+#    h) Sync SLAVE and ensure if records were replicated.
+#
+include/diff_tables.inc [master:t, slave:t]
+#
+#    i) Drop table
+#
+DROP TABLE t;
+include/rpl_end.inc

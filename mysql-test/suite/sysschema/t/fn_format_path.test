@@ -1,13 +1,46 @@
--- source include/not_embedded.inc
+# Windows paths are \ not /, so ignore here
+-- source include/not_windows.inc
 # Tests for sys schema
 # Verify the sys.format_path() function perfoms as expected
 #
-# Note, innodb_data_home_dir replacement is not tested,
-# as this is not set by default
-#
+
+# Save current server option values;
+let $page_size = `select @@innodb_page_size`;
+let $innodb_undo_tablespaces = `select @@innodb_undo_tablespaces`;
+let $MYSQLD_BASEDIR= `select @@basedir`;
+
+# Create custom datadir
+--mkdir $MYSQL_TMP_DIR/custom_datadir
+let $CUSTOM_DATADIR = $MYSQL_TMP_DIR/custom_datadir/data;
+
+# Stop the server because the MTR uses default value for innodb_undo_directory.
+--source include/shutdown_mysqld.inc
+
+let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
+
+# Create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test DEFAULT CHARACTER SET latin1;
+EOF
+
+# Set the bootstrap parameter with new innodb_undo_directory
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb-page-size=$page_size --innodb-undo-tablespaces=$innodb_undo_tablespaces --basedir=$MYSQLD_BASEDIR --datadir=$CUSTOM_DATADIR --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_directory=$MYSQLTEST_VARDIR/tmp/innodb_undo --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+
+# Run the bootstrap command
+--exec $NEW_CMD
+
+# Start the DB server with new datadir, innodb_data_home_dir, innodb_log_group_home_dir and innodb_undo_directory
+--replace_result $CUSTOM_DATADIR CUSTOM_DATADIR $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $innodb_undo_tablespaces innodb_undo_tablespaces
+--let $restart_parameters="restart: --datadir=$CUSTOM_DATADIR --innodb_data_home_dir=$MYSQLTEST_VARDIR/tmp/innodb --innodb_log_group_home_dir=$MYSQLTEST_VARDIR/tmp/innodb_logs --innodb_undo_directory=$MYSQLTEST_VARDIR/tmp/innodb_undo --innodb_undo_tablespaces=$innodb_undo_tablespaces"
+--source include/start_mysqld.inc
 
 # Passing NULL should return NULL
 SELECT sys.format_path(NULL);
+
+# Ensure basedir is recognized and stripped
+SET @mypath := CONCAT(@@global.basedir, 'logs/binlog.000001');
+
+SELECT sys.format_path(@mypath);
 
 # Ensure datadir is recognized and stripped
 SET @mypath := CONCAT(@@global.datadir, 'foo/bar.foo');
@@ -15,14 +48,32 @@ SET @mypath := CONCAT(@@global.datadir, 'foo/bar.foo');
 SELECT sys.format_path(@mypath);
 
 # Ensure tmpdir is recognized and stripped
-SET @mypath := CONCAT(@@global.tmpdir, 'foo/bar.foo');
+SET @mypath := CONCAT(@@global.tmpdir, '/foo/bar.foo');
+
+SELECT sys.format_path(@mypath);
+
+# Ensure innodb_data_home_dir is recognized and stripped
+SET @mypath := CONCAT(@@global.innodb_data_home_dir, '/foo/bar.ibd');
 
 SELECT sys.format_path(@mypath);
 
 # Ensure innodb_log_group_home_dir is recognized and stripped
-SET @mypath := CONCAT(@@global.innodb_log_group_home_dir, 'foo/bar.foo');
+SET @mypath := CONCAT(@@global.innodb_log_group_home_dir, '/ib_logfile0');
+
+SELECT sys.format_path(@mypath);
+
+# Ensure innodb_undo_directory is recognized and stripped
+SET @mypath := CONCAT(@@global.innodb_undo_directory, '/undo0');
 
 SELECT sys.format_path(@mypath);
 
 # Unrecognized paths should return the full path
 SELECT sys.format_path('/foo/bar/baz.foo');
+
+# Restart the server
+let $restart_parameters=;
+--source include/restart_mysqld.inc
+
+# Cleanup
+--remove_file $BOOTSTRAP_SQL
+--force-rmdir $MYSQL_TMP_DIR/custom_datadir

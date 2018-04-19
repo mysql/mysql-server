@@ -1,0 +1,247 @@
+#
+# Regression tests for bugs in subquery evaluation that need
+# a specific optimizer strategy selection
+#
+--echo # Bug#26436185 Assertion 'buf_is_inside_another(data_in_mysql_buf, ...)
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_key int DEFAULT NULL,
+  col_int int DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t1 VALUES (10,7,5,'l'), (12,7,4,'o');
+
+CREATE TABLE t2 (
+  col_date_key date DEFAULT NULL,
+  col_datetime_key datetime DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_time time DEFAULT NULL,
+  pk int NOT NULL,
+  col_date date DEFAULT NULL,
+  col_time_key time DEFAULT NULL,
+  col_datetime datetime DEFAULT NULL,
+  col_int int DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_date_key (col_date_key),
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key),
+  KEY col_time_key (col_time_key)
+);
+
+INSERT INTO t2(col_int_key,col_varchar_key,col_varchar,pk,col_int)  VALUES
+ (8,'a','w',1,5),
+ (9,'y','f',7,0),
+ (9,'z','i',11,9),
+ (9,'r','s',12,3),
+ (7,'n','i',13,6),
+ (9,'j','v',17,9),
+ (240,'u','k',20,6);
+
+CREATE TABLE t3 (
+  col_int int DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  pk int NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t3 VALUES (8,4,1);
+
+ANALYZE TABLE t1, t2, t3;
+
+let $query=
+SELECT table2.col_int_key AS field1
+FROM (SELECT sq1_t1.*
+      FROM t1 AS sq1_t1 RIGHT OUTER JOIN t2 AS sq1_t2
+           ON sq1_t2.col_varchar_key = sq1_t1.col_varchar
+     ) AS table1
+     LEFT JOIN t1 AS table2
+       RIGHT JOIN t2 AS table3
+       ON table3.pk = table2.col_int_key
+     ON table3.col_int_key = table2.col_int
+WHERE table3.col_int_key >= ALL
+   (SELECT sq2_t1.col_int AS sq2_field1
+    FROM t2 AS sq2_t1 STRAIGHT_JOIN t3 AS sq2_t2
+         ON sq2_t2.col_int = sq2_t1.pk AND
+            sq2_t1.col_varchar IN
+       (SELECT sq21_t1.col_varchar AS sq21_field1
+        FROM t2 AS sq21_t1 STRAIGHT_JOIN t1 AS sq21_t2
+             ON sq21_t2.col_int_key = sq21_t1.pk
+        WHERE sq21_t1.pk = 7
+       )
+    WHERE sq2_t2.col_int_key >= table2.col_int AND
+          sq2_t1.col_int_key <= table2.col_int_key
+   );
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#24713879 ASSERTION `MAYBE_NULL' FAILED. HANDLE_FATAL_SIGNAL IN TEM_FUNC_CONCAT::VAL_STR
+--echo #
+
+CREATE TABLE t1(k VARCHAR(10) PRIMARY KEY);
+CREATE TABLE t2(k VARCHAR(10) PRIMARY KEY);
+
+SET SQL_MODE='';
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX',
+       SUM(k)
+FROM t1;
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT SUM(k), k
+FROM t1
+HAVING (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX';
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')
+        AND SUM(t1.k)) = 'XXX'
+FROM t1;
+
+eval EXPLAIN $query;
+eval $query;
+
+SET SQL_MODE=ONLY_FULL_GROUP_BY;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX',
+       SUM(k)
+FROM t1;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval EXPLAIN $query;
+
+let $query=
+SELECT SUM(k), k
+FROM t1
+HAVING (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX';
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval EXPLAIN $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')
+        AND SUM(t1.k)) = 'XXX'
+FROM t1;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval EXPLAIN $query;
+
+SET SQL_MODE=STRICT_TRANS_TABLES;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX',
+       SUM(k)
+FROM t1;
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT SUM(k), k
+FROM t1
+HAVING (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX';
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')
+        AND SUM(t1.k)) = 'XXX'
+FROM t1;
+
+eval EXPLAIN $query;
+eval $query;
+
+SET SQL_MODE=DEFAULT;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX',
+       SUM(k)
+FROM t1;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval EXPLAIN $query;
+
+let $query=
+SELECT SUM(k), k
+FROM t1
+HAVING (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX';
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval EXPLAIN $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')
+        AND SUM(t1.k)) = 'XXX'
+FROM t1;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval EXPLAIN $query;
+
+DROP TABLE t1,t2;

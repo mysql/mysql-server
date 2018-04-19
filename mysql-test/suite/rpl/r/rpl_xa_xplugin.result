@@ -1,0 +1,102 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
+[connection master]
+[connection slave]
+Starting the slave server
+RUN CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_USER= 'root'
+
+0 rows affected
+RUN START SLAVE
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[connection master]
+include/sync_slave_sql_with_master.inc
+RUN USE test
+
+0 rows affected
+RUN CREATE TABLE T2 (C1 CHAR(20) PRIMARY KEY, C2 INT )
+
+0 rows affected
+RUN INSERT INTO T2 VALUES ('ABC',23)
+
+1 rows affected
+RUN UPDATE T2 SET C2 = C2 + 27
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN INSERT INTO T1 VALUES (4,34)
+
+1 rows affected
+RUN INSERT INTO T2 VALUES ('ABCDEF',23)
+
+1 rows affected
+RUN INSERT INTO T1 VALUES (5,1234)
+
+1 rows affected
+RUN INSERT INTO T2 VALUES ('ABCDEFGHIJ',23)
+
+1 rows affected
+RUN DELETE FROM T2 WHERE C1 = 'ABC'
+
+1 rows affected
+RUN INSERT INTO T2 VALUES ('XYZ',23)
+
+1 rows affected
+RUN UPDATE T2 SET C1 = 'ABC' WHERE C1 ='XYZ'
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Checking the value on T1
+RUN SELECT C2 FROM test.T1 WHERE C1=1
+Checking the value on T2
+RUN SELECT C2 FROM test.T2 WHERE C1="ABC"
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN USE test
+
+0 rows affected
+RUN DROP TABLE T2
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[connection master]
+RUN USE test
+
+0 rows affected
+RUN DROP TABLE T1
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+include/sync_slave_sql_with_master.inc
+Stopping slave
+RUN STOP SLAVE;
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[connection master]
+[connection slave]
+include/start_slave.inc
+include/rpl_end.inc

@@ -3,7 +3,6 @@
 #
 
 -- source include/have_debug.inc
--- source include/have_innodb.inc
 
 CREATE TABLE t (c INT) ENGINE=INNODB;
 

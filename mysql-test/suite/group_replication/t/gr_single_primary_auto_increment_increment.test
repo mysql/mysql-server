@@ -1,0 +1,113 @@
+################################################################################
+# This test verifies that auto_increment_increment and auto_increment_offset
+# are set to its default value of 1, when configure in single primary mode and
+# any change to group_replication_auto_increment_increment doesn't affect its
+# value.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Start Group Replication on server1
+# 2. Save initial value of GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT for server2
+# 3. Verify default values of group_replication_auto_increment_increment,
+#    auto_increment_increment and auto_increment_offset.
+# 4. Start group replication on server2.
+# 5. Verify the values of group_replication_auto_increment_increment,
+#    auto_increment_increment and auto_increment_offset after starting GR.
+# 6. Set group_replication_auto_increment_increment
+#    and restart group replication.
+# 7. Verify the effects of group_replication_auto_increment_increment
+#    on auto_increment_increment on starting GR.
+# 8. Verify that auto_increment_offset is still is set to default
+# 9. Clean up.
+################################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+
+--echo #
+--echo # 1. Start Group Replication on server1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+
+--echo #
+--echo # 2. Save initial value of GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT for server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $_init_auto_increment= `SELECT @@GLOBAL.GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT`
+
+
+--echo # 3. Verify default values of group_replication_auto_increment_increment,
+--echo #    auto_increment_increment and auto_increment_offset.
+
+--let $assert_text= The default value of group_replication_auto_increment_increment should be 7
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_auto_increment_increment] = 7
+--source include/assert.inc
+
+--let $assert_text= The default value of auto_increment_increment should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 1
+--source include/assert.inc
+
+--let $assert_text= The default value of auto_increment_offset should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 1
+--source include/assert.inc
+
+
+--echo # 4. Start group replication on server2.
+--source include/start_group_replication.inc
+
+
+--echo # 5. Verify the values of group_replication_auto_increment_increment,
+--echo #    auto_increment_increment and auto_increment_offset after starting GR.
+
+--let $assert_text= The value of group_replication_auto_increment_increment is still 7
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_auto_increment_increment] = 7
+--source include/assert.inc
+
+--let $assert_text= The value of auto_increment_increment is set to 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 1
+--source include/assert.inc
+
+--let $assert_text= The value of auto_increment_offset is set to 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 1
+--source include/assert.inc
+
+
+--echo # 6. Set group_replication_auto_increment_increment
+--echo #    and restart group replication.
+
+--source include/stop_group_replication.inc
+
+SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 3;
+
+--source include/start_group_replication.inc
+
+
+--echo # 7. Verify the effects of group_replication_auto_increment_increment
+--echo #    on auto_increment_increment on starting GR.
+
+--let $assert_text= The value of group_replication_auto_increment_increment is still 3
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_auto_increment_increment] = 3
+--source include/assert.inc
+
+--let $assert_text= The value of auto_increment_increment is set to 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 1
+--source include/assert.inc
+
+
+--echo # 8. Verify that auto_increment_offset is still is set to default
+--let $assert_text= The value of auto_increment_offset is set to 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 1
+--source include/assert.inc
+
+
+--echo # 9. Cleanup
+--source include/stop_group_replication.inc
+--eval SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= $_init_auto_increment
+
+
+--source include/group_replication_end.inc

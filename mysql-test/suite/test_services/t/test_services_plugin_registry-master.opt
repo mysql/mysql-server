@@ -1,0 +1,3 @@
+$TEST_SERVICES_PLUGIN_REGISTRY_OPT
+--local-infile=true
+--log-error-verbosity=3

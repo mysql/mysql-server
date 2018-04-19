@@ -1,0 +1,47 @@
+!include ../my.cnf
+
+[cluster_config.1]
+ndbd=,,,,,
+ndb_mgmd=
+mysqld=,
+ndbapi=,,,,,,,,,,,
+
+[cluster_config.ndbd.1.1]
+LocationDomainId=1
+
+[cluster_config.ndbd.2.1]
+LocationDomainId=2
+
+[cluster_config.ndbd.3.1]
+Nodegroup=65536
+LocationDomainId=1
+
+[cluster_config.ndbd.4.1]
+Nodegroup=65536
+LocationDomainId=2
+
+[cluster_config.ndbd.5.1]
+Nodegroup=65536
+LocationDomainId=1
+
+[cluster_config.ndbd.6.1]
+Nodegroup=65536
+LocationDomainId=2
+
+#API nodes for mysqld.1
+#Share the same LocationDomainId
+[cluster_config.mysqld.1.1]
+LocationDomainId=2
+[cluster_config.ndbapi.3.1]
+LocationDomainId=2
+[cluster_config.ndbapi.4.1]
+LocationDomainId=2
+
+#API nodes for mysqld.2
+#Share the same LocationDomainId
+[cluster_config.mysqld.2.1]
+LocationDomainId=1
+[cluster_config.ndbapi.1.1]
+LocationDomainId=1
+[cluster_config.ndbapi.2.1]
+LocationDomainId=1

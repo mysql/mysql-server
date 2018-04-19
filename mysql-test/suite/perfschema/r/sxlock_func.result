@@ -8,12 +8,10 @@ select name from performance_schema.setup_instruments
 where name like "wait/synch/sxlock/%"
   and name not in
 ("wait/synch/sxlock/innodb/buf_block_lock",
-"wait/synch/sxlock/innodb/buf_block_debug_latch",
-"wait/synch/sxlock/innodb/buf_chunk_map_latch")
+"wait/synch/sxlock/innodb/buf_block_debug_latch")
 order by name;
 name
 wait/synch/sxlock/innodb/btr_search_latch
-wait/synch/sxlock/innodb/checkpoint_lock
 wait/synch/sxlock/innodb/dict_operation_lock
 wait/synch/sxlock/innodb/dict_table_stats
 wait/synch/sxlock/innodb/fil_space_latch
@@ -22,8 +20,11 @@ wait/synch/sxlock/innodb/fts_cache_rw_lock
 wait/synch/sxlock/innodb/hash_table_locks
 wait/synch/sxlock/innodb/index_online_log
 wait/synch/sxlock/innodb/index_tree_rw_lock
+wait/synch/sxlock/innodb/log_sn_lock
+wait/synch/sxlock/innodb/rsegs_lock
 wait/synch/sxlock/innodb/trx_i_s_cache_lock
 wait/synch/sxlock/innodb/trx_purge_latch
+wait/synch/sxlock/innodb/undo_spaces_lock
 select name from performance_schema.rwlock_instances
 where name in
 (
@@ -36,7 +37,13 @@ where name in
 order by name;
 name
 wait/synch/sxlock/innodb/btr_search_latch
-wait/synch/sxlock/innodb/checkpoint_lock
+wait/synch/sxlock/innodb/btr_search_latch
+wait/synch/sxlock/innodb/btr_search_latch
+wait/synch/sxlock/innodb/btr_search_latch
+wait/synch/sxlock/innodb/btr_search_latch
+wait/synch/sxlock/innodb/btr_search_latch
+wait/synch/sxlock/innodb/btr_search_latch
+wait/synch/sxlock/innodb/btr_search_latch
 wait/synch/sxlock/innodb/dict_operation_lock
 wait/synch/sxlock/innodb/trx_i_s_cache_lock
 wait/synch/sxlock/innodb/trx_purge_latch

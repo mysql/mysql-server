@@ -1,13 +1,9 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # This test requires that --log-output includes 'table', and the general
 # log is on
 
-# embedded server causes different stat
--- source include/not_embedded.inc
+# When running with valgrind, we switch off --check-testcases, and get
+# different connection_id below, and a content mismatch error.
+-- source include/not_valgrind.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -34,7 +30,7 @@ flush status;
 
 show status like 'Table_lock%';
 --disable_warnings
-select * from information_schema.session_status where variable_name like 'Table_lock%';
+select * from performance_schema.session_status where variable_name like 'Table_lock%';
 --enable_warnings
 
 set sql_log_bin=0;
@@ -44,7 +40,7 @@ set global general_log = 'OFF';
 drop table if exists t1;
 --enable_warnings
 
-create table t1(n int) engine=myisam;
+create table t1(n int);
 insert into t1 values(1);
 select get_lock('mysqltest_lock', 100);
 
@@ -156,7 +152,7 @@ while ($wait_more)
 # Prerequisite.
 SHOW STATUS LIKE 'max_used_connections';
 --disable_warnings
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections';
 --enable_warnings
 
 # Save original setting.
@@ -172,7 +168,7 @@ disconnect con2;
 # Check that max_used_connections still reflects maximum value.
 SHOW STATUS LIKE 'max_used_connections';
 --disable_warnings
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections';
 --enable_warnings
 
 # Check that after flush max_used_connections equals to current number
@@ -198,7 +194,7 @@ while ($wait_more)
 # Check that we don't count disconnected thread any longer.
 SHOW STATUS LIKE 'max_used_connections';
 --disable_warnings
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections';
 --enable_warnings
 
 # Check that max_used_connections is updated when cached thread is
@@ -206,14 +202,14 @@ SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_us
 connect (con2,localhost,root,,);
 SHOW STATUS LIKE 'max_used_connections';
 --disable_warnings
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections';
 --enable_warnings
 
 # ...and when new thread is created.
 connect (con3,localhost,root,,);
 SHOW STATUS LIKE 'max_used_connections';
 --disable_warnings
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections';
 --enable_warnings
 
 # Restore original setting.
@@ -235,6 +231,7 @@ INSERT INTO t1 VALUES (1), (2);
 SELECT a FROM t1 LIMIT 1;
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
+analyze table t1;
 EXPLAIN SELECT a FROM t1;
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
@@ -255,29 +252,6 @@ SHOW SESSION STATUS LIKE 'Last_query_cost';
 
 DROP TABLE t1;
 
-
-# End of 5.0 tests
-
-#
-# Ensure that SHOW STATUS only changes global status variables
-#
-
-connect (con1,localhost,root,,);
-let $rnd_next = `show global status like 'handler_read_rnd_next'`;
-let $tmp_table = `show global status like 'Created_tmp_tables'`;
-show status like 'com_show_status';
-show status like 'hand%write%';
-show status like '%tmp%';
-show status like 'hand%write%';
-show status like '%tmp%';
-show status like 'com_show_status';
-let $rnd_next2 = `show global status like 'handler_read_rnd_next'`;
-let $tmp_table2 = `show global status like 'Created_tmp_tables'`;
---disable_query_log
-eval select substring_index('$rnd_next2',0x9,-1)-substring_index('$rnd_next',0x9,-1) as rnd_diff, substring_index('$tmp_table2',0x9,-1)-substring_index('$tmp_table',0x9,-1) as tmp_table_diff;
---enable_query_log
-disconnect con1;
-connection default;
 
 #
 # Bug#30252 Com_create_function is not incremented.
@@ -309,10 +283,8 @@ create database db37908;
 --enable_warnings
 create table db37908.t1(f1 int);
 insert into db37908.t1 values(1);
-set @orig_sql_mode = @@sql_mode;
-set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user mysqltest_1@localhost;
 grant usage,execute on test.* to mysqltest_1@localhost;
-set sql_mode= @orig_sql_mode;
 delimiter |;
 create procedure proc37908() begin select 1; end |
 create function func37908() returns int sql security invoker
@@ -468,17 +440,17 @@ connect (con3,localhost,root,,);
 --echo # Should report 4
 SHOW STATUS LIKE 'max_used_connections';
 
-let $time_1=`SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections_time'`;
+let $time_1=`SELECT VARIABLE_VALUE FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections_time'`;
 --sleep 1
 disconnect con2;
-let $time_2=`SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections_time'`;
+let $time_2=`SELECT VARIABLE_VALUE FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections_time'`;
 --sleep 1
 connect (con4,localhost,root,,);
 
 --echo # Should report 4
 SHOW STATUS LIKE 'max_used_connections';
 
-let $time_3=`SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections_time'`;
+let $time_3=`SELECT VARIABLE_VALUE FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections_time'`;
 
 --echo # This should report 0 as it must have the same value as above
 --replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
@@ -494,7 +466,7 @@ disconnect con1;
 disconnect con3;
 --sleep 1
 FLUSH STATUS;
-let $time_4=`SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections_time'`;
+let $time_4=`SELECT VARIABLE_VALUE FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections_time'`;
 
 --echo # This should not report 0 as FLUSH STATUS is called.
 --replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
@@ -510,4 +482,3 @@ SET GLOBAL log_output = @old_log_output;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
-

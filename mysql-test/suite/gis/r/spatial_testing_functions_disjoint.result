@@ -1,6 +1,6 @@
 #Creating the spatial Geometry object
 USE test;
-CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
 SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
 SET @star_center= 'POINT(15 10)';
@@ -396,6 +396,7 @@ MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems))
 #====================================================================================
 # multipoint,geometrycollection
 #====================================================================================
+# Invalid geometry in input
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_elems));
 MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_elems))
 1
@@ -405,6 +406,7 @@ MBRDISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_e
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
 MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems))
 1
+# Invalid geometry in input
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_multilinestr))
 1
@@ -735,8 +737,8 @@ MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical)
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_3));
 MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_3))
 1
-SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0))'));
-MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0))'))
+SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
 0
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
 MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical))
@@ -831,8 +833,8 @@ MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_v
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_3));
 MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_3))
 1
-SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
-MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
+SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0,0 0))'));
+MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0,0 0))'))
 0
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
 MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical))
@@ -1025,7 +1027,7 @@ ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_multilin
 0
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
 ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
-1
+NULL
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'));
 ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'))
 0
@@ -1112,16 +1114,16 @@ ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems))
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems))
 0
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_multilinestr))
-0
+1
 #====================================================================================
 # linestring,point
 #====================================================================================
@@ -1205,13 +1207,13 @@ ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems_3))
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems))
 0
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=110;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr))
 0
@@ -1304,7 +1306,7 @@ ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_col
 0
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=114;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elems_vertical_3),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_elems_vertical_3),ST_GEOMFROMTEXT(@star_collection_multilinestr))
 NULL
@@ -1388,7 +1390,7 @@ ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems))
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems))
 0
@@ -1455,8 +1457,8 @@ ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical)
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_3))
 1
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0))'));
-ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0))'))
+SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
 0
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical))
@@ -1481,13 +1483,13 @@ ST_DISJOINT(g,g2)
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems))
 0
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=115;
 ST_DISJOINT(g,g2)
 0
@@ -1499,16 +1501,16 @@ ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top))
 0
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_3))
-0
+1
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_3)) FROM gis_geometrycollection WHERE fid=115;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_3))
-0
+1
 #====================================================================================
 # geometrycollection,multipoint
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points))
 0
@@ -1520,7 +1522,7 @@ ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_bottom_points))
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center))
 0
@@ -1532,10 +1534,10 @@ ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_to_center))
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'))
-0
+1
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
@@ -1547,25 +1549,25 @@ ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_v
 0
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_3))
-0
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
-ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
+1
+SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0,0 0))'));
+ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0,0 0))'))
 0
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical))
-0
+1
 #====================================================================================
 # geometrycollection,multipolygon
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems))
 0
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=115;
 ST_DISJOINT(g,g2)
 0
@@ -1574,13 +1576,13 @@ ST_DISJOINT(g,g2)
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems))
 0
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=115;
 ST_DISJOINT(g,g2)
 0
@@ -1596,60 +1598,60 @@ ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collec
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 1
-SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
-MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100))
+SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
 1
-SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
-MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000))
+SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
 1
-SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
-MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456))
+SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
 1
-SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
-MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575))
+SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
 1
-SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
-MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
+SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
+1
+SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
 1
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-1
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-1
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-1
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #====================================================================================
 # ST_DISJOINT(g1,g2)
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 1
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
-ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100))
+SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
 1
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
-ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000))
+SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
 1
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
-ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456))
+SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
 1
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
-ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575))
+SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
 1
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
-ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
+SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
+1
+SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
 1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-1
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-1
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-1
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################
@@ -1658,8 +1660,10 @@ ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_cente
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function st_disjoint given two geometries of different srids: 0 and 4326, which should have been identical.
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
-ERROR HY000: Binary geometry function st_disjoint given two geometries of different srids: 1048576 and 4326, which should have been identical.
+SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function st_disjoint given two geometries of different srids: 4145 and 4326, which should have been identical.
+SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function st_disjoint given two geometries of different srids: 4145 and 4326, which should have been identical.
 SELECT ST_DISJOINT(NULL,ST_GEOMFROMTEXT(@star_top));
 ST_DISJOINT(NULL,ST_GEOMFROMTEXT(@star_top))
 NULL
@@ -1680,44 +1684,46 @@ ERROR 22023: Invalid GIS data provided to function st_disjoint.
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ERROR 22023: Invalid GIS data provided to function st_disjoint.
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISJOINT(,);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',)' at line 1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT ST_DISJOINT(,ST_GEOMFROMTEXT(@star_top));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ST_GEOMFROMTEXT(@star_top))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',ST_GEOMFROMTEXT(@star_top))' at line 1
 #====================================================================================
 # MBRDISJOINT(g1,g2)
 #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function mbrdisjoint given two geometries of different srids: 0 and 4326, which should have been identical.
-SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
-ERROR HY000: Binary geometry function mbrdisjoint given two geometries of different srids: 1048576 and 4326, which should have been identical.
+SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function mbrdisjoint given two geometries of different srids: 4145 and 4326, which should have been identical.
+SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function mbrdisjoint given two geometries of different srids: 4145 and 4326, which should have been identical.
 SELECT MBRDISJOINT(NULL,ST_GEOMFROMTEXT(@star_top));
 MBRDISJOINT(NULL,ST_GEOMFROMTEXT(@star_top))
 NULL
@@ -1738,37 +1744,37 @@ ERROR 22023: Invalid GIS data provided to function mbrdisjoint.
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ERROR 22023: Invalid GIS data provided to function mbrdisjoint.
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRDISJOINT(,);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',)' at line 1
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT MBRDISJOINT(,ST_GEOMFROMTEXT(@star_top));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ST_GEOMFROMTEXT(@star_top))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',ST_GEOMFROMTEXT(@star_top))' at line 1
 CREATE TABLE t1 (g GEOMETRY NOT NULL);
 INSERT INTO t1 VALUES (ST_GEOMFROMTEXT('POINT(1 1)'));
 INSERT INTO t1 VALUES (ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)'));
@@ -1851,892 +1857,227 @@ GEOMETRYCOLLECTION(POLYGON(LINESTRING(POINT(1,1), POINT(10,1), POINT(10,10),
 POINT(1,10), POINT(1,1)), LINESTRING(POINT(4,4),POINT(6,4),POINT(6,6),
 POINT(4,6),POINT(4,4))))));
 SELECT ST_DISJOINT(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
-ST_DISJOINT(a.g, b.g)
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
 SELECT MBRDISJOINT(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
-MBRDISJOINT(a.g, b.g)
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
+SELECT ST_DISJOINT(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
+SELECT MBRDISJOINT(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
 # clean up
 DROP TABLE t1;
 DROP TABLE gis_geometrycollection;
 DROP TABLE gis_geometrycollection_2;
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+SELECT ST_DISJOINT(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+ST_DISJOINT(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+)
+0
+SELECT MBRDISJOINT(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+MBRDISJOINT(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+)
+0
+# Projected SRS (should pass)
+SELECT ST_DISJOINT(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+ST_DISJOINT(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+)
+0
+SELECT MBRDISJOINT(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+MBRDISJOINT(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+)
+0
+# Geographic SRS (should pass)
+SELECT ST_DISJOINT(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+ST_DISJOINT(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+)
+0
+SELECT MBRDISJOINT(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+MBRDISJOINT(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+)
+0
+#
+# WL#10827 Ellipsoidal R-tree support functions
+#
+SET @pt = ST_GeomFromText('POINT(0 0)', 4326);
+SELECT ST_Disjoint(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+ERROR 22S03: Latitude -91.000000 is out of range in function st_disjoint. It must be within [-90.000000, 90.000000].
+SELECT ST_Disjoint(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+ERROR 22S03: Latitude 91.000000 is out of range in function st_disjoint. It must be within [-90.000000, 90.000000].
+SELECT ST_Disjoint(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+ERROR 22S02: Longitude -181.000000 is out of range in function st_disjoint. It must be within (-180.000000, 180.000000].
+SELECT ST_Disjoint(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+ERROR 22S02: Longitude 181.000000 is out of range in function st_disjoint. It must be within (-180.000000, 180.000000].
+SELECT MBRDisjoint(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+ERROR 22S03: Latitude -91.000000 is out of range in function mbrdisjoint. It must be within [-90.000000, 90.000000].
+SELECT MBRDisjoint(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+ERROR 22S03: Latitude 91.000000 is out of range in function mbrdisjoint. It must be within [-90.000000, 90.000000].
+SELECT MBRDisjoint(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+ERROR 22S02: Longitude -181.000000 is out of range in function mbrdisjoint. It must be within (-180.000000, 180.000000].
+SELECT MBRDisjoint(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+ERROR 22S02: Longitude 181.000000 is out of range in function mbrdisjoint. It must be within (-180.000000, 180.000000].
+CREATE TABLE t1 (
+id INT,
+c GEOMETRY NOT NULL SRID 0,
+g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL SRID 4326,
+SPATIAL INDEX c_idx (c),
+SPATIAL INDEX g_idx (g)
+);
+INSERT INTO t1 (id, c) VALUES
+(0, ST_GeomFromText('POINT(0 0)')),
+(1, ST_GeomFromText('POINT(1 1)')),
+(2, ST_GeomFromText('POINT(2 2)')),
+(3, ST_GeomFromText('POINT(3 3)')),
+(4, ST_GeomFromText('POINT(4 4)')),
+(5, ST_GeomFromText('POINT(5 5.00001)')),
+(6, ST_GeomFromText('POINT(6 6)')),
+(7, ST_GeomFromText('POINT(7 7)'));
+SET @py = 'POLYGON((0 0, 10 0, 10 5, 0 5, 0 0))';
+SET @cart_py = ST_GeomFromText(@py);
+SET @geo_py = ST_GeomFromText(@py, 4326, 'axis-order=long-lat');
+SET @mpt = 'MULTIPOINT((0 0), (10 5))';
+SET @cart_mpt = ST_GeomFromText(@mpt);
+SET @geo_mpt = ST_GeomFromText(@mpt, 4326, 'axis-order=long-lat');
+# Cartesian ST_Disjoint
+SELECT id, ST_AsText(c)
+FROM t1 IGNORE INDEX(c_idx)
+WHERE ST_Disjoint(c, @cart_py)
+ORDER BY id;
+id	ST_AsText(c)
+5	POINT(5 5.00001)
+6	POINT(6 6)
+7	POINT(7 7)
+SELECT id, ST_AsText(c)
+FROM t1 FORCE INDEX(c_idx)
+WHERE ST_Disjoint(c, @cart_py)
+ORDER BY id;
+id	ST_AsText(c)
+5	POINT(5 5.00001)
+6	POINT(6 6)
+7	POINT(7 7)
+# Geographic ST_Disjoint
+SELECT id, ST_AsText(g)
+FROM t1 IGNORE INDEX(g_idx)
+WHERE ST_Disjoint(g, @geo_py)
+ORDER BY id;
+id	ST_AsText(g)
+6	POINT(6 6)
+7	POINT(7 7)
+SELECT id, ST_AsText(g)
+FROM t1 FORCE INDEX(g_idx)
+WHERE ST_Disjoint(g, @geo_py)
+ORDER BY id;
+id	ST_AsText(g)
+6	POINT(6 6)
+7	POINT(7 7)
+# Cartesian MBRDisjoint
+SELECT id, ST_AsText(c)
+FROM t1 IGNORE INDEX(c_idx)
+WHERE MBRDisjoint(c, @cart_py)
+ORDER BY id;
+id	ST_AsText(c)
+5	POINT(5 5.00001)
+6	POINT(6 6)
+7	POINT(7 7)
+SELECT id, ST_AsText(c)
+FROM t1 FORCE INDEX(c_idx)
+WHERE MBRDisjoint(c, @cart_py)
+ORDER BY id;
+id	ST_AsText(c)
+5	POINT(5 5.00001)
+6	POINT(6 6)
+7	POINT(7 7)
+SELECT id, ST_AsText(c)
+FROM t1 IGNORE INDEX(c_idx)
+WHERE MBRDisjoint(c, @cart_mpt)
+ORDER BY id;
+id	ST_AsText(c)
+5	POINT(5 5.00001)
+6	POINT(6 6)
+7	POINT(7 7)
+SELECT id, ST_AsText(c)
+FROM t1 FORCE INDEX(c_idx)
+WHERE MBRDisjoint(c, @cart_mpt)
+ORDER BY id;
+id	ST_AsText(c)
+5	POINT(5 5.00001)
+6	POINT(6 6)
+7	POINT(7 7)
+# Geographic MBRDisjoint
+SELECT id, ST_AsText(g)
+FROM t1 IGNORE INDEX(g_idx)
+WHERE MBRDisjoint(g, @geo_py)
+ORDER BY id;
+id	ST_AsText(g)
+5	POINT(5.00001 5)
+6	POINT(6 6)
+7	POINT(7 7)
+SELECT id, ST_AsText(g)
+FROM t1 FORCE INDEX(g_idx)
+WHERE MBRDisjoint(g, @geo_py)
+ORDER BY id;
+id	ST_AsText(g)
+5	POINT(5.00001 5)
+6	POINT(6 6)
+7	POINT(7 7)
+SELECT id, ST_AsText(g)
+FROM t1 IGNORE INDEX(g_idx)
+WHERE MBRDisjoint(g, @geo_mpt)
+ORDER BY id;
+id	ST_AsText(g)
+5	POINT(5.00001 5)
+6	POINT(6 6)
+7	POINT(7 7)
+SELECT id, ST_AsText(g)
+FROM t1 FORCE INDEX(g_idx)
+WHERE MBRDisjoint(g, @geo_mpt)
+ORDER BY id;
+id	ST_AsText(g)
+5	POINT(5.00001 5)
+6	POINT(6 6)
+7	POINT(7 7)
+DROP TABLE t1;
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO MBRDISJOINT(
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
+);
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_DISJOINT(
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
+);
+ERROR SR001: There's no spatial reference system with SRID 10.

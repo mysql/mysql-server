@@ -1,19 +1,29 @@
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
-#
-# WL#4814, 4.1.2 STORAGE ENGINE, FSE8: Selects
-#
 
 # Make some data that we can work on:
 
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
+
+#
+# Avoid noise collected from other threads running in the server
+#
+# Disable every thread
+UPDATE performance_schema.setup_threads SET ENABLED='NO';
+UPDATE performance_schema.threads SET INSTRUMENTED='NO';
+# Except this session
+UPDATE performance_schema.threads
+  SET INSTRUMENTED='YES' WHERE PROCESSLIST_ID = connection_id();
 
 # Disable ALL table IO, to avoid generating events from the selects
 # To be revised after WL#5342 PERFORMANCE SCHEMA SETUP OBJECTS
 
 UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'NO'
   where NAME='wait/io/table/sql/handler';
+
+TRUNCATE TABLE performance_schema.events_waits_current;
+TRUNCATE TABLE performance_schema.events_waits_history;
+TRUNCATE TABLE performance_schema.events_waits_history_long;
+
+# Now generate data with a known (predictable) payload
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -92,7 +102,6 @@ ON COMPLETION PRESERVE
 DO INSERT INTO t_event
    SELECT DISTINCT EVENT_ID
    FROM performance_schema.events_waits_current
-   JOIN performance_schema.events_waits_history USING (EVENT_ID)
    ORDER BY EVENT_ID
    LIMIT 1;
 
@@ -117,7 +126,7 @@ delimiter ;|
 INSERT INTO t1 (id) VALUES (11), (12), (13);
 
 --replace_column 2 [EVENT_ID]
-SELECT id, c FROM t1 WHERE id > 10 ORDER BY c;
+SELECT id, c FROM t1 WHERE id > 10 ORDER BY id, c;
 
 DROP TRIGGER t_ps_trigger;
 
@@ -175,5 +184,7 @@ DROP EVENT t_ps_event;
 DROP TABLE t1;
 DROP TABLE t_event;
 
+UPDATE performance_schema.setup_threads SET ENABLED='YES';
+UPDATE performance_schema.threads SET INSTRUMENTED='YES';
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
 

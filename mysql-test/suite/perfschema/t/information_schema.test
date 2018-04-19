@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 # Several selects so the output is readable
 
 # Note that TABLE_NAME is in uppercase is some platforms,
@@ -44,6 +41,7 @@ select lower(TABLE_NAME), INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
+--replace_column 2 NULL
 select lower(TABLE_NAME), CREATE_TIME, UPDATE_TIME, CHECK_TIME
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';

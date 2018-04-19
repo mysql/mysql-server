@@ -3,7 +3,6 @@
 # reside in temp-tablespace
 #
 --source include/no_valgrind_without_big.inc
---source include/have_innodb.inc
 
 ################################################################################
 #
@@ -35,12 +34,12 @@ let crash = $args --innodb-force-recovery-crash;
 use test;
 create temporary table t1
 	(a int, b char(100), c char(100)) engine = innodb;
---source suite/innodb/include/innodb_undo_logs_action.inc
+--source suite/innodb/include/innodb_rollback_segments_action.inc
 drop table t1;
 #
 create table t1
 	(a int, b char(100), c char(100)) engine = innodb;
---source suite/innodb/include/innodb_undo_logs_action.inc
+--source suite/innodb/include/innodb_rollback_segments_action.inc
 drop table t1;
 
 #-----------------------------------------------------------------------------

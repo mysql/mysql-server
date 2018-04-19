@@ -23,7 +23,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "29.00"
+      "query_cost": "12.25"
     },
     "table": {
       "table_name": "t1",
@@ -32,10 +32,10 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "9.00",
-        "eval_cost": "20.00",
-        "prefix_cost": "29.00",
-        "data_read_per_join": "99K"
+        "read_cost": "2.25",
+        "eval_cost": "10.00",
+        "prefix_cost": "12.25",
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -67,7 +67,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "29.00"
+      "query_cost": "12.25"
     },
     "table": {
       "table_name": "t1",
@@ -76,10 +76,10 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "9.00",
-        "eval_cost": "20.00",
-        "prefix_cost": "29.00",
-        "data_read_per_join": "99K"
+        "read_cost": "2.25",
+        "eval_cost": "10.00",
+        "prefix_cost": "12.25",
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -100,7 +100,7 @@ SET cost_value=DEFAULT;
 # Test effect of changing the row_evalute_cost
 #
 UPDATE mysql.server_cost
-SET cost_value=0.4
+SET cost_value=0.2
 WHERE cost_name="row_evaluate_cost";
 FLUSH OPTIMIZER_COSTS;
 #
@@ -112,7 +112,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "49.00"
+      "query_cost": "22.25"
     },
     "table": {
       "table_name": "t1",
@@ -121,10 +121,10 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "9.00",
-        "eval_cost": "40.00",
-        "prefix_cost": "49.00",
-        "data_read_per_join": "99K"
+        "read_cost": "2.25",
+        "eval_cost": "20.00",
+        "prefix_cost": "22.25",
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -154,7 +154,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "6.50"
+      "query_cost": "3.00"
     },
     "duplicates_removal": {
       "using_filesort": false,
@@ -174,10 +174,10 @@ EXPLAIN
         "filtered": "100.00",
         "using_index_for_group_by": true,
         "cost_info": {
-          "read_cost": "4.30",
-          "eval_cost": "2.20",
-          "prefix_cost": "6.50",
-          "data_read_per_join": "10K"
+          "read_cost": "1.90",
+          "eval_cost": "1.10",
+          "prefix_cost": "3.00",
+          "data_read_per_join": "43K"
         },
         "used_columns": [
           "pk",
@@ -190,7 +190,7 @@ EXPLAIN
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`i1` AS `i1` from `test`.`t1`
 UPDATE mysql.server_cost
-SET cost_value=0.2
+SET cost_value=0.1
 WHERE cost_name="key_compare_cost";
 FLUSH OPTIMIZER_COSTS;
 #
@@ -202,7 +202,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "7.60"
+      "query_cost": "3.55"
     },
     "duplicates_removal": {
       "using_filesort": false,
@@ -222,10 +222,10 @@ EXPLAIN
         "filtered": "100.00",
         "using_index_for_group_by": true,
         "cost_info": {
-          "read_cost": "5.40",
-          "eval_cost": "2.20",
-          "prefix_cost": "7.60",
-          "data_read_per_join": "10K"
+          "read_cost": "2.45",
+          "eval_cost": "1.10",
+          "prefix_cost": "3.55",
+          "data_read_per_join": "43K"
         },
         "used_columns": [
           "pk",
@@ -252,7 +252,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "100.00"
+      "query_cost": "45.50"
     },
     "nested_loop": [
       {
@@ -266,10 +266,10 @@ EXPLAIN
           "rows_produced_per_join": 100,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "9.00",
-            "eval_cost": "20.00",
-            "prefix_cost": "29.00",
-            "data_read_per_join": "99K"
+            "read_cost": "2.25",
+            "eval_cost": "10.00",
+            "prefix_cost": "12.25",
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -311,10 +311,10 @@ EXPLAIN
                 "filtered": "100.00",
                 "using_index": true,
                 "cost_info": {
-                  "read_cost": "9.00",
-                  "eval_cost": "20.00",
-                  "prefix_cost": "29.00",
-                  "data_read_per_join": "99K"
+                  "read_cost": "2.25",
+                  "eval_cost": "10.00",
+                  "prefix_cost": "12.25",
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "i1"
@@ -334,7 +334,7 @@ SET cost_value=10.0
 WHERE cost_name="memory_temptable_create_cost";
 FLUSH OPTIMIZER_COSTS;
 #
-# Verify that the cost estimate for the query is incrased (by 8.0)
+# Verify that the cost estimate for the query is incrased (by 9.0)
 #
 EXPLAIN FORMAT=JSON SELECT * FROM t1
 WHERE i1 IN (SELECT i1 FROM t1);
@@ -343,7 +343,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "108.00"
+      "query_cost": "54.50"
     },
     "nested_loop": [
       {
@@ -357,10 +357,10 @@ EXPLAIN
           "rows_produced_per_join": 100,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "9.00",
-            "eval_cost": "20.00",
-            "prefix_cost": "29.00",
-            "data_read_per_join": "99K"
+            "read_cost": "2.25",
+            "eval_cost": "10.00",
+            "prefix_cost": "12.25",
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -402,10 +402,10 @@ EXPLAIN
                 "filtered": "100.00",
                 "using_index": true,
                 "cost_info": {
-                  "read_cost": "9.00",
-                  "eval_cost": "20.00",
-                  "prefix_cost": "29.00",
-                  "data_read_per_join": "99K"
+                  "read_cost": "2.25",
+                  "eval_cost": "10.00",
+                  "prefix_cost": "12.25",
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "i1"
@@ -435,7 +435,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "100.00"
+      "query_cost": "45.50"
     },
     "nested_loop": [
       {
@@ -449,10 +449,10 @@ EXPLAIN
           "rows_produced_per_join": 100,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "9.00",
-            "eval_cost": "20.00",
-            "prefix_cost": "29.00",
-            "data_read_per_join": "99K"
+            "read_cost": "2.25",
+            "eval_cost": "10.00",
+            "prefix_cost": "12.25",
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -494,10 +494,10 @@ EXPLAIN
                 "filtered": "100.00",
                 "using_index": true,
                 "cost_info": {
-                  "read_cost": "9.00",
-                  "eval_cost": "20.00",
-                  "prefix_cost": "29.00",
-                  "data_read_per_join": "99K"
+                  "read_cost": "2.25",
+                  "eval_cost": "10.00",
+                  "prefix_cost": "12.25",
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "i1"
@@ -513,14 +513,14 @@ EXPLAIN
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` semi join (`test`.`t1`) where (`<subquery2>`.`i1` = `test`.`t1`.`i1`)
 UPDATE mysql.server_cost
-SET cost_value=0.4
+SET cost_value=0.2
 WHERE cost_name="memory_temptable_row_cost";
 FLUSH OPTIMIZER_COSTS;
 #
 # Verify that the cost estimate for the query is incrased by:
 # 100 rows that needs to be inserted and read from the temporary table.
-# The cost of each insert and read is increased by 0.2, ie cost should
-# be increased by 100 * 2 * 0.2 = 40.
+# The cost of each insert and read is increased by 0.1, ie cost should
+# be increased by 100 * 2 * 0.1 = 20.
 #
 EXPLAIN FORMAT=JSON SELECT * FROM t1
 WHERE i1 IN (SELECT i1 FROM t1);
@@ -529,7 +529,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "140.00"
+      "query_cost": "65.50"
     },
     "nested_loop": [
       {
@@ -543,10 +543,10 @@ EXPLAIN
           "rows_produced_per_join": 100,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "9.00",
-            "eval_cost": "20.00",
-            "prefix_cost": "29.00",
-            "data_read_per_join": "99K"
+            "read_cost": "2.25",
+            "eval_cost": "10.00",
+            "prefix_cost": "12.25",
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -588,10 +588,10 @@ EXPLAIN
                 "filtered": "100.00",
                 "using_index": true,
                 "cost_info": {
-                  "read_cost": "9.00",
-                  "eval_cost": "20.00",
-                  "prefix_cost": "29.00",
-                  "data_read_per_join": "99K"
+                  "read_cost": "2.25",
+                  "eval_cost": "10.00",
+                  "prefix_cost": "12.25",
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "i1"
@@ -608,6 +608,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` semi join (`test`.`t1`) where (`<subquery2>`.`i1` = `test`.`t1`.`i1`)
 UPDATE mysql.server_cost
 SET cost_value=DEFAULT;
+set global internal_tmp_mem_storage_engine='memory';
+set session internal_tmp_mem_storage_engine='memory';
 set @max_heap_table_size_save= @@max_heap_table_size;
 set max_heap_table_size= 16384;
 #
@@ -623,7 +625,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "298.00"
+      "query_cost": "144.50"
     },
     "nested_loop": [
       {
@@ -634,10 +636,10 @@ EXPLAIN
           "rows_produced_per_join": 100,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "9.00",
-            "eval_cost": "20.00",
-            "prefix_cost": "29.00",
-            "data_read_per_join": "99K"
+            "read_cost": "2.25",
+            "eval_cost": "10.00",
+            "prefix_cost": "12.25",
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -655,7 +657,7 @@ EXPLAIN
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
           "key": "<auto_key>",
-          "key_length": "251",
+          "key_length": "1001",
           "ref": [
             "test.t1.c1"
           ],
@@ -670,10 +672,10 @@ EXPLAIN
                 "rows_produced_per_join": 100,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "9.00",
-                  "eval_cost": "20.00",
-                  "prefix_cost": "29.00",
-                  "data_read_per_join": "99K"
+                  "read_cost": "2.25",
+                  "eval_cost": "10.00",
+                  "prefix_cost": "12.25",
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "c1"
@@ -689,12 +691,12 @@ EXPLAIN
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` semi join (`test`.`t1`) where (`<subquery2>`.`c1` = `test`.`t1`.`c1`)
 UPDATE mysql.server_cost
-SET cost_value=80.0
+SET cost_value=40.0
 WHERE cost_name="disk_temptable_create_cost";
 FLUSH OPTIMIZER_COSTS;
 set max_heap_table_size= 16384;
 #
-# Verify that the cost estimate for the query is incrased (by 40.0)
+# Verify that the cost estimate for the query is incrased (by 20.0)
 #
 EXPLAIN FORMAT=JSON SELECT * FROM t1
 WHERE c1 IN (SELECT c1 FROM t1);
@@ -703,7 +705,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "338.00"
+      "query_cost": "164.50"
     },
     "nested_loop": [
       {
@@ -714,10 +716,10 @@ EXPLAIN
           "rows_produced_per_join": 100,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "9.00",
-            "eval_cost": "20.00",
-            "prefix_cost": "29.00",
-            "data_read_per_join": "99K"
+            "read_cost": "2.25",
+            "eval_cost": "10.00",
+            "prefix_cost": "12.25",
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -735,7 +737,7 @@ EXPLAIN
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
           "key": "<auto_key>",
-          "key_length": "251",
+          "key_length": "1001",
           "ref": [
             "test.t1.c1"
           ],
@@ -750,10 +752,10 @@ EXPLAIN
                 "rows_produced_per_join": 100,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "9.00",
-                  "eval_cost": "20.00",
-                  "prefix_cost": "29.00",
-                  "data_read_per_join": "99K"
+                  "read_cost": "2.25",
+                  "eval_cost": "10.00",
+                  "prefix_cost": "12.25",
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "c1"
@@ -783,7 +785,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "298.00"
+      "query_cost": "144.50"
     },
     "nested_loop": [
       {
@@ -794,10 +796,10 @@ EXPLAIN
           "rows_produced_per_join": 100,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "9.00",
-            "eval_cost": "20.00",
-            "prefix_cost": "29.00",
-            "data_read_per_join": "99K"
+            "read_cost": "2.25",
+            "eval_cost": "10.00",
+            "prefix_cost": "12.25",
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -815,7 +817,7 @@ EXPLAIN
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
           "key": "<auto_key>",
-          "key_length": "251",
+          "key_length": "1001",
           "ref": [
             "test.t1.c1"
           ],
@@ -830,10 +832,10 @@ EXPLAIN
                 "rows_produced_per_join": 100,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "9.00",
-                  "eval_cost": "20.00",
-                  "prefix_cost": "29.00",
-                  "data_read_per_join": "99K"
+                  "read_cost": "2.25",
+                  "eval_cost": "10.00",
+                  "prefix_cost": "12.25",
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "c1"
@@ -849,15 +851,15 @@ EXPLAIN
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` semi join (`test`.`t1`) where (`<subquery2>`.`c1` = `test`.`t1`.`c1`)
 UPDATE mysql.server_cost
-SET cost_value=2.0
+SET cost_value=1.0
 WHERE cost_name="disk_temptable_row_cost";
 FLUSH OPTIMIZER_COSTS;
 set max_heap_table_size= 16384;
 #
 # Verify that the cost estimate for the query is incrased by:
 # 100 rows that needs to be inserted and read from the temporary table.
-# The cost of each insert and read is increased by 1.0, ie cost should
-# be increased by 100 * 2 * 1.0 = 200.
+# The cost of each insert and read is increased by 0.5, ie cost should
+# be increased by 100 * 2 * 0.5 = 100.
 #
 EXPLAIN FORMAT=JSON SELECT * FROM t1
 WHERE c1 IN (SELECT c1 FROM t1);
@@ -866,7 +868,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "498.00"
+      "query_cost": "244.50"
     },
     "nested_loop": [
       {
@@ -877,10 +879,10 @@ EXPLAIN
           "rows_produced_per_join": 100,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "9.00",
-            "eval_cost": "20.00",
-            "prefix_cost": "29.00",
-            "data_read_per_join": "99K"
+            "read_cost": "2.25",
+            "eval_cost": "10.00",
+            "prefix_cost": "12.25",
+            "data_read_per_join": "392K"
           },
           "used_columns": [
             "pk",
@@ -898,7 +900,7 @@ EXPLAIN
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
           "key": "<auto_key>",
-          "key_length": "251",
+          "key_length": "1001",
           "ref": [
             "test.t1.c1"
           ],
@@ -913,10 +915,10 @@ EXPLAIN
                 "rows_produced_per_join": 100,
                 "filtered": "100.00",
                 "cost_info": {
-                  "read_cost": "9.00",
-                  "eval_cost": "20.00",
-                  "prefix_cost": "29.00",
-                  "data_read_per_join": "99K"
+                  "read_cost": "2.25",
+                  "eval_cost": "10.00",
+                  "prefix_cost": "12.25",
+                  "data_read_per_join": "392K"
                 },
                 "used_columns": [
                   "c1"
@@ -934,8 +936,10 @@ Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1
 UPDATE mysql.server_cost
 SET cost_value=DEFAULT;
 set max_heap_table_size= @max_heap_table_size_save;
+set session internal_tmp_mem_storage_engine=default;
+set global internal_tmp_mem_storage_engine=default;
 #
-# Test effect of changing the io_block_read_cost
+# Test effect of changing the memory_block_read_cost
 #
 # Result from running query with default cost constants:
 #
@@ -945,7 +949,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "29.00"
+      "query_cost": "12.25"
     },
     "table": {
       "table_name": "t1",
@@ -954,10 +958,10 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "9.00",
-        "eval_cost": "20.00",
-        "prefix_cost": "29.00",
-        "data_read_per_join": "99K"
+        "read_cost": "2.25",
+        "eval_cost": "10.00",
+        "prefix_cost": "12.25",
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -973,8 +977,8 @@ EXPLAIN
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1`
 UPDATE mysql.engine_cost
-SET cost_value=2.0
-WHERE cost_name="io_block_read_cost";
+SET cost_value=0.5
+WHERE cost_name="memory_block_read_cost";
 FLUSH OPTIMIZER_COSTS;
 #
 # Verify that the cost estimate for read cost has doubled
@@ -985,7 +989,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "38.00"
+      "query_cost": "14.50"
     },
     "table": {
       "table_name": "t1",
@@ -994,10 +998,10 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "18.00",
-        "eval_cost": "20.00",
-        "prefix_cost": "38.00",
-        "data_read_per_join": "99K"
+        "read_cost": "4.50",
+        "eval_cost": "10.00",
+        "prefix_cost": "14.50",
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",

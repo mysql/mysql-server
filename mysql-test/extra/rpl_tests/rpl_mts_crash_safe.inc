@@ -24,13 +24,13 @@
 if ($commands == configure)
 {
   --echo ==== begin rpl_mts_crash_safe.inc:configure ====
-  --let $count_database=1
+  --let $count_database= 1
   while ($count_database <= $max_workers)
   {
     --echo ---- begin configure database test_$count_database ----
     --connection master
     --let $commands= configure
-    --let $database_name=test_$count_database
+    --let $database_name= test_$count_database
     --source extra/rpl_tests/rpl_mixing_engines.inc
     --echo ---- end configure database test_$count_database ----
     inc $count_database;
@@ -66,12 +66,12 @@ if ($commands == clean)
   --source include/start_slave.inc
 
   --connection master
-  --let $count_database=1
+  --let $count_database= 1
   while ($count_database <= $max_workers)
   {
     --echo ---- begin clean database test_$count_database ----
     --let $commands= clean
-    --let $database_name=test_$count_database
+    --let $database_name= test_$count_database
     --source extra/rpl_tests/rpl_mixing_engines.inc
     --echo ---- end clean database test_$count_database ----
     inc $count_database;
@@ -115,23 +115,23 @@ if ($commands == recovery)
 
   if ($mts_run)
   {
-  --echo ** fixing gaps **
-  --let $rpl_server_number= 2
-  --let $rpl_server_parameters= --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0
+    --echo ** fixing gaps **
+    --let $rpl_server_number= 2
+    --let $rpl_server_parameters= --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0
 
-  --source include/rpl_start_server.inc
+    --source include/rpl_start_server.inc
 
-  START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-  --let $slave_param= Until_Condition
-  --let $slave_param_value= DONE
-  --source include/wait_for_slave_param.inc
-  # there's a chance it will hang at this point (thanks to pre-exec UNTIL check)
-  --source include/wait_for_slave_sql_to_stop.inc
+    START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+    --let $slave_param= Until_Condition
+    --let $slave_param_value= DONE
+    --source include/wait_for_slave_param.inc
+    # there's a chance it will hang at this point (thanks to pre-exec UNTIL check)
+    --source include/wait_for_slave_sql_to_stop.inc
   }
 
   --echo ** regular restart **
   --let $rpl_server_number= 2
-  --let $rpl_server_parameters= --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1
+  --let $rpl_server_parameters= --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1
   --source include/rpl_restart_server.inc
 
   #### Checking if the recovery worked and the coordinator has an updated state. ####

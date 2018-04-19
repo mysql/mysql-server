@@ -1,8 +1,8 @@
 set @old_heap_size= @@max_heap_table_size;
 set max_heap_table_size = 16384;
 select * from information_schema.collations order by id limit 1;
-COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
-big5_chinese_ci	big5	1	Yes	Yes	1
+COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN	PAD_ATTRIBUTE
+big5_chinese_ci	big5	1	Yes	Yes	1	PAD SPACE
 set optimizer_switch='firstmatch=off';
 set optimizer_switch='loosescan=off';
 drop table if exists t1;
@@ -114,7 +114,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	100.00	Using temporary; Using filesort
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	x	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select sum(distinct `test`.`t1`.`id`) AS `sm` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`id` = `test`.`t2`.`id`)) where 1 group by `test`.`t1`.`id` order by `sm` limit 1
+Note	1003	/* select#1 */ select sum(distinct `test`.`t1`.`id`) AS `sm` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where 1 group by `test`.`t1`.`id` order by `sm` limit 1
 SELECT SUM(DISTINCT t1.id) sm FROM t1 left join t2 on t1.id=t2.id GROUP BY t1.id order by sm limit 1;
 sm
 1

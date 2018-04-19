@@ -1,0 +1,79 @@
+--echo Testing NDB$EPOCH2 algorithm
+--echo NDB$EPOCH2 is almost the same as NDB$EPOCH, except that:
+--echo  - The Primary / Secondary roles are controlled by a server variable
+--echo  - Secondary I/U/D ops are 'reflected' back to the Secondary to handle
+--echo    the delete vs delete limitations of NDB$EPOCH
+--echo
+--echo  This testcase provides some regression coverage w.r.t. NDB$EPOCH, by
+--echo  running many of the same tests on NDB$EPOCH2, but also switching
+--echo  the cluster roles.
+--echo  The main result differences w.r.t ndb_rpl_conflict_epoch.result are :
+--echo    - Result file has 2 passes for different roles
+--echo    - Master and Local server ids swapped in second run
+--echo    - Delete-Delete-Insert (case 8) shows no divergence
+--echo 
+
+--echo Prior to including the generic NDB$EPOCH test files, we setup the
+--echo conflict role variables
+
+#let $rpl_debug=1;
+
+let $clusterA_port=$MASTER_MYPORT;
+let $clusterB_port=$SLAVE_MYPORT;
+
+#let $clusterA_port=$SLAVE_MYPORT;
+#let $clusterB_port=$MASTER_MYPORT;
+#let $SWITCH_CLUSTER_ROLES=1;
+
+#echo $clusterA_port;
+#echo $clusterB_port;
+
+--echo Setup connections for use in this file
+--connect(clusterA,127.0.0.1,root,,test,$clusterA_port,)
+--connect(clusterB,127.0.0.1,root,,test,$clusterB_port,)
+
+--echo First we have Cluster A as Primary, Cluster B as Secondary
+--connection clusterA
+#SHOW VARIABLES LIKE '%server%';
+SET GLOBAL ndb_slave_conflict_role="PRIMARY";
+
+--connection clusterB
+#SHOW VARIABLES LIKE '%server%';
+SET GLOBAL ndb_slave_conflict_role="SECONDARY";
+
+--connection clusterA
+
+let $CONFLICT_ALG=NDB\$EPOCH2;
+let $SECONDARY_CONFLICT_ALG=\"NDB\$EPOCH2()\";
+
+--source suite/ndb_rpl/t/ndb_rpl_conflict_epoch.inc
+
+--echo Next we have Cluster A as Secondary, Cluster B as Primary
+--connection clusterA
+SET GLOBAL ndb_slave_conflict_role="NONE";
+SET GLOBAL ndb_slave_conflict_role="SECONDARY";
+
+--connection clusterB
+SET GLOBAL ndb_slave_conflict_role="NONE";
+SET GLOBAL ndb_slave_conflict_role="PRIMARY";
+
+--echo We set a special control var to allow the generic scripts
+--echo to handle this topology
+let $SWITCH_CLUSTER_ROLES=1;
+
+--echo Remove some connections which can't be setup twice (ugly)
+--disconnect master
+--disconnect master1
+--disconnect slave
+--disconnect slave1
+
+--source suite/ndb_rpl/t/ndb_rpl_conflict_epoch.inc
+
+# TODO : Switch back to A Primary, B Secondary?
+
+--connection clusterA
+SET GLOBAL ndb_slave_conflict_role="NONE";
+
+--connection clusterB
+SET GLOBAL ndb_slave_conflict_role="NONE";
+

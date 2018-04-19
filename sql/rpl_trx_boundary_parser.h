@@ -1,13 +1,20 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -28,7 +35,9 @@
 #ifndef RPL_TRX_BOUNDARY_PARSER_H
 #define RPL_TRX_BOUNDARY_PARSER_H
 
-#include "my_global.h"
+#include <stddef.h>
+
+#include "my_dbug.h"
 
 class Format_description_log_event;
 
@@ -38,15 +47,14 @@ class Format_description_log_event;
   This is the base class for verifying transaction boundaries in a replication
   event stream.
 */
-class Transaction_boundary_parser
-{
-public:
+class Transaction_boundary_parser {
+ public:
   /**
      Constructor.
   */
   Transaction_boundary_parser()
-    :current_parser_state(EVENT_PARSER_NONE)
-  {
+      : current_parser_state(EVENT_PARSER_NONE),
+        last_parser_state(EVENT_PARSER_NONE) {
     DBUG_ENTER("Transaction_boundary_parser::Transaction_boundary_parser");
     DBUG_VOID_RETURN;
   }
@@ -73,8 +81,7 @@ public:
      @return  false if the boundary parser is not inside a transaction.
               true if the boundary parser is inside a transaction.
   */
-  inline bool is_inside_transaction()
-  {
+  inline bool is_inside_transaction() {
     return (current_parser_state != EVENT_PARSER_ERROR &&
             current_parser_state != EVENT_PARSER_NONE);
   }
@@ -87,8 +94,7 @@ public:
      @return  false if the boundary parser is inside a transaction.
               true if the boundary parser is not inside a transaction.
   */
-  inline bool is_not_inside_transaction()
-  {
+  inline bool is_not_inside_transaction() {
     return (current_parser_state == EVENT_PARSER_NONE);
   }
 
@@ -99,8 +105,7 @@ public:
      @return  false if the boundary parser is not in the error state.
               true if the boundary parser is in the error state.
   */
-  inline bool is_error()
-  {
+  inline bool is_error() {
     return (current_parser_state == EVENT_PARSER_ERROR);
   }
 
@@ -123,30 +128,42 @@ public:
               true if the transaction boundary parser didn't accepted the event.
   */
   bool feed_event(const char *buf, size_t length,
-                  const Format_description_log_event *description_event,
+                  const Format_description_log_event *fd_event,
                   bool throw_warnings);
 
-private:
+  /**
+     Rolls back to the last parser state.
+
+     This should be called in the case of a failed queued event.
+  */
+  void rollback() { current_parser_state = last_parser_state; }
+
+ private:
   enum enum_event_boundary_type {
-    EVENT_BOUNDARY_TYPE_ERROR= -1,
+    EVENT_BOUNDARY_TYPE_ERROR = -1,
     /* Gtid_log_event */
-    EVENT_BOUNDARY_TYPE_GTID= 0,
-    /* Query_log_event(BEGIN) */
-    EVENT_BOUNDARY_TYPE_BEGIN_TRX= 1,
-    /* Xid, Query_log_event(COMMIT), Query_log_event(ROLLBACK) */
-    EVENT_BOUNDARY_TYPE_END_TRX= 2,
+    EVENT_BOUNDARY_TYPE_GTID = 0,
+    /* Query_log_event(BEGIN), Query_log_event(XA START) */
+    EVENT_BOUNDARY_TYPE_BEGIN_TRX = 1,
+    /* Xid, Query_log_event(COMMIT), Query_log_event(ROLLBACK),
+       XA_Prepare_log_event */
+    EVENT_BOUNDARY_TYPE_END_TRX = 2,
+    /* Query_log_event(XA ROLLBACK) */
+    EVENT_BOUNDARY_TYPE_END_XA_TRX = 3,
     /* User_var, Intvar and Rand */
-    EVENT_BOUNDARY_TYPE_PRE_STATEMENT= 3,
+    EVENT_BOUNDARY_TYPE_PRE_STATEMENT = 4,
     /*
       All other Query_log_events and all other DML events
       (Rows, Load_data, etc.)
     */
-    EVENT_BOUNDARY_TYPE_STATEMENT= 4,
+    EVENT_BOUNDARY_TYPE_STATEMENT = 5,
+    /* Incident */
+    EVENT_BOUNDARY_TYPE_INCIDENT = 6,
     /*
-      All non DDL/DML events: Format_desc, Rotate, Incident,
+      All non DDL/DML events: Format_desc, Rotate,
       Previous_gtids, Stop, etc.
     */
-    EVENT_BOUNDARY_TYPE_IGNORE= 5
+    EVENT_BOUNDARY_TYPE_IGNORE = 7
   };
 
   /*
@@ -161,7 +178,7 @@ private:
       DML-1: [GTID]
       DML-2: Query(BEGIN)
       DML-3: Statements
-      DML-4: (Query(COMMIT) | Query(ROLLBACK) | Xid)
+      DML-4: (Query(COMMIT) | Query([XA] ROLLBACK) | Xid | Xa_prepare)
   */
   enum enum_event_parser_state {
     /* NONE is set after DDL-3 or DML-4 */
@@ -182,13 +199,19 @@ private:
   enum_event_parser_state current_parser_state;
 
   /**
+     Last internal state of the event parser.
+
+     This should be used if we had to roll back the last parsed event.
+  */
+  enum_event_parser_state last_parser_state;
+
+  /**
      Parses an event based on the event parser logic.
   */
-  static enum_event_boundary_type
-  get_event_boundary_type(
-    const char *buf, size_t length,
-    const Format_description_log_event *description_event,
-    bool throw_warnings);
+  static enum_event_boundary_type get_event_boundary_type(
+      const char *buf, size_t length,
+      const Format_description_log_event *description_event,
+      bool throw_warnings);
 
   /**
      Set the boundary parser state based on the event parser logic.

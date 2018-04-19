@@ -3,6 +3,7 @@ CREATE TABLE `test` (
 `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY ,
 `t` VARCHAR( 10 ) NOT NULL
 ) ENGINE = ndbcluster;
-GRANT USAGE ON *.* TO user1@localhost IDENTIFIED BY 'pass';
+CREATE USER user1@localhost IDENTIFIED BY 'pass';
+GRANT USAGE ON *.* TO user1@localhost;
 DROP TABLE `test`.`test`;
 drop user user1@localhost;

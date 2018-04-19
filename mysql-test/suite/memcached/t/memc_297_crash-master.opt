@@ -1,0 +1,5 @@
+$DAEMON_MEMCACHED_OPT
+--loose-daemon_memcached_engine_lib_path=$INNODB_ENGINE_DIR
+--binlog-format=row
+--loose-innodb_api_enable_binlog=1
+--loose-daemon_memcached_option="-p11297"

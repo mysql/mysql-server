@@ -1,13 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
---source include/not_embedded.inc
-
-#
-# Remove NO_AUTO_CREATE_USER sql mode (default from 5.7)
-#
+--source include/have_myisam.inc
 
 # Setup database, tables and user accounts
 --disable_warnings
@@ -18,10 +9,8 @@ use mysqltest_db1;
 create table t_column_priv_only (a int, b int);
 create table t_select_priv like t_column_priv_only;
 create table t_no_priv like t_column_priv_only;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user mysqltest_u1@localhost;
 grant all privileges on test.* to mysqltest_u1@localhost;
-set sql_mode= @orig_sql_mode;
 grant insert (a) on mysqltest_db1.t_column_priv_only to mysqltest_u1@localhost;
 grant select on mysqltest_db1.t_select_priv to mysqltest_u1@localhost;
 
@@ -111,14 +100,12 @@ GRANT UPDATE (s2) ON t6 to mysqltest_u1@localhost;
 GRANT UPDATE (s2) ON v6 to mysqltest_u1@localhost;
 GRANT SHOW VIEW ON v2 to mysqltest_u1@localhost;
 GRANT SHOW VIEW, SELECT ON v3 to mysqltest_u1@localhost;
+ANALYZE TABLE t6;
 
 connection con1;
 use mysqltest_db1;
 --echo ** Connect as restricted user mysqltest_u1.
 --echo ** SELECT FROM INFORMATION_SCHEMA.STATISTICS will succeed because any privileges will do (authentication is enough).
-#
-# this result is wrong. reported as bug#34104
-#
 SELECT * FROM INFORMATION_SCHEMA.STATISTICS WHERE table_name='t5';
 #
 # Bug27145 EXTRA_ACL trouble

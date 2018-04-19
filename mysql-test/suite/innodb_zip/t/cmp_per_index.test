@@ -2,22 +2,14 @@
 # Test information_schema.innodb_cmp_per_index
 #
 
--- source include/have_innodb.inc
+# numbers read in this test depend on the page size
 
 # Using innodb_log_compressed=0 leads to a larger number of page
 # compressions, because page_cur_insert_rec_zip() will reorganize the
 # page before attempting an insert followed by page compression and
 # page_zip_compress_write_log_no_data().
-
-if (`SELECT @@innodb_log_compressed_pages = 0`)
-{
-  --skip Needs innodb_log_compressed_pages
-}
-
-# numbers read in this test depend on the page size
--- source include/have_innodb_16k.inc
-# include/restart_mysqld.inc does not work in embedded mode
--- source include/not_embedded.inc
+select @@global.innodb_log_compressed_pages into @save_innodb_log_compressed_pages;
+SET @@global.innodb_log_compressed_pages=1;
 
 -- vertical_results
 
@@ -41,7 +33,7 @@ CREATE TABLE t (
 	PRIMARY KEY (a),
 	INDEX (b(512)),
 	INDEX (c(16))
-) ENGINE=INNODB KEY_BLOCK_SIZE=2;
+) charset latin1 ENGINE=INNODB KEY_BLOCK_SIZE=2;
 
 SELECT
 database_name,
@@ -67,7 +59,7 @@ COMMIT;
 
 ALTER TABLE t DROP INDEX c;
 
-GRANT USAGE ON *.* TO 'tuser01'@'localhost' IDENTIFIED BY 'cDJvI9s_Uq';
+CREATE USER 'tuser01'@'localhost' IDENTIFIED BY 'cDJvI9s_Uq';
 FLUSH PRIVILEGES;
 
 -- connect (con1,localhost,tuser01,cDJvI9s_Uq,)
@@ -92,6 +84,8 @@ ELSE compress_ops_ok END as compress_ops_ok,
 uncompress_ops
 FROM information_schema.innodb_cmp_per_index
 ORDER BY 1, 2, 3;
+
+SET GLOBAL innodb_log_compressed_pages=@save_innodb_log_compressed_pages;
 
 # restart mysqld and see that uncompress ops also gets increased when
 # selecting from the table again

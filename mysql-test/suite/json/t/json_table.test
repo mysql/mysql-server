@@ -1,0 +1,1087 @@
+# For stable statistics
+--source include/have_innodb_16k.inc
+--echo # 
+--echo # WL#8867: Add JSON_TABLE table function
+--echo # 
+let $query=select * from
+  json_table(
+    '[{"a":"3"},{"a":2},{"b":1},{"a":0}]',
+    '$[*]' columns (id for ordinality,
+             jpath varchar(100) path '$.a',
+             jexst int exists path '$.b')
+  ) as tt;
+eval $query;
+eval explain $query; 
+
+--error ER_INVALID_DEFAULT
+select * from
+  json_table(
+    '[{"x":"3"},{"a":2},{"b":1},{"a":0}]',
+    '$[*]' columns (id for ordinality,
+             jpath varchar(100) path '$.a' default '[99]' on error,
+             jexst int exists path '$.b')
+  ) as tt;
+
+let $query= select * from
+  json_table(
+    '[{"x":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]',
+    '$[*]' columns (id for ordinality,
+             jpath varchar(100) path '$.a'
+                default '33' on empty
+                default '66' on error,
+             jsn_path json path '$.a' default '{"x":33}' on empty,
+             jexst int exists path '$.b')
+  ) as tt;
+eval $query;
+eval explain $query;
+
+let $query= select * from
+  json_table(
+    '[{"a":"3"},{"a":2},{"b":1},{"a":0.33},{"a":"asd"}]',
+    '$[*]' columns (id for ordinality,
+             jpath_i int path '$.a'
+                default '33' on empty
+                default '66' on error,
+             jpath_r real(10,2) path '$.a'
+                default '33.3' on empty
+                default '77.7' on error,
+             jsn_path json path '$.a' default '{"x":33}' on empty,
+             jexst int exists path '$.b')
+  ) as tt;
+eval $query;
+eval explain $query;
+
+let $query= select * from
+  json_table(
+    '[{"x":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]',
+    '$[*]' columns (id for ordinality,
+             jpath varchar(100) path '$.a'
+                default '66' on error
+                default '33' on empty,
+             jsn_path json path '$.a' default '{"x":33}' on empty,
+             jexst int exists path '$.b')
+  ) as tt;
+eval $query;
+eval explain  $query;
+
+select * from
+  json_table(
+    '[{"a":"3"},{"a":2},{"b":1},{"a":0}]',
+    '$[*]' columns (id for ordinality,
+             jpath varchar(100) path '$.a',
+             json_path json path '$.a',
+             jexst int exists path '$.b')
+  ) as tt;
+
+let $query= select * from
+  json_table(
+    '[{"a":"3"},{"a":2},{"b":1},{"a":0}]',
+    '$[*]' columns (id for ordinality,
+             jpath varchar(100) path '$.a',
+             json_path json path '$.a',
+             jexst int exists path '$.b')
+  ) as tt
+  where id = 3;
+eval $query;
+eval explain  $query;
+
+--error ER_MISSING_JSON_TABLE_VALUE
+select * from
+  json_table(
+    '[{"a":"3"},{"a":2},{"b":1},{"a":0}]',
+    '$[*]' columns (id for ordinality,
+             jpath varchar(100) path '$.a' error on empty,
+             jexst int exists path '$.b')
+  ) as tt;
+
+--error ER_WRONG_JSON_TABLE_VALUE
+select * from
+  json_table(
+    '[{"a":"3"},{"a":2},{"a":1},{"a":[0,1]}]',
+    '$[*]' columns (id for ordinality,
+             jpath varchar(100) path '$.a' error on error,
+             jexst int exists path '$.b')
+  ) as tt;
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+select * from
+  json_table(
+    '!#@$!@#$',
+    '$[*]' columns (id for ordinality,
+             jpath varchar(100) path '$.a',
+             jexst int exists path '$.b')
+  ) as tt;
+
+--error ER_INVALID_JSON_PATH
+select * from
+  json_table(
+    '[{"a":"3"},{"a":2},{"b":1},{"a":0}]',
+    "!@#$!@#$" columns (id for ordinality,
+             jpath varchar(100) path '$.a',
+             jexst int exists path '$.b')
+  ) as tt;
+
+--error ER_INVALID_JSON_PATH
+select * from
+  json_table(
+    '[{"a":"3"},{"a":2},{"b":1},{"a":0}]',
+    '$[*]' columns (id for ordinality,
+             jpath varchar(100) path "!@#$!@#$",
+             jexst int exists path '$.b')
+  ) as tt;
+
+--error ER_DUP_FIELDNAME
+select * from
+  json_table(
+    '[{"a":"3"},{"a":2},{"b":1},{"a":0}]',
+    '$[*]' columns (id for ordinality,
+             id for ordinality)
+  ) as tt;
+
+select * from
+  json_table(
+    '[{"a":"3"},{"a":2},{"b":1},{"a":0}]',
+    '$[*]' columns (id for ordinality,
+             _id for ordinality)
+  ) as tt;
+
+let $query= select * from
+  json_table(
+    '[
+      {"a":"3", "n": { "l": 1}},
+      {"a":2, "n": { "l": 1}},
+      {"b":1, "n": { "l": 1}},
+      {"a":0, "n": { "l": 1}}
+    ]',
+    '$[*]' columns (
+      id for ordinality,
+      jpath varchar(100) path '$.a',
+      jexst int exists path '$.b',
+      nested path '$.n' columns (
+        id_n for ordinality,
+        jpath_n varchar(50) path '$.l')
+    )
+  ) as tt;
+
+eval $query;
+eval explain $query;
+eval explain format=json $query;
+
+let $query= select * from
+  json_table(
+    '[
+      {"a":2, "n": [{ "l": 1}, {"l": 11}]},
+      {"a":1, "n": [{ "l": 2}, {"l": 22}]}
+    ]',
+    '$[*]' columns (
+      id for ordinality,
+      jpath varchar(50) path '$.a',
+      nested path '$.n[*]' columns (
+        id_n for ordinality,
+        jpath_n varchar(50) path '$.l'),
+      nested path '$.n[*]' columns (
+        id_m for ordinality,
+        jpath_m varchar(50) path '$.l')
+    )
+  ) as tt;
+
+eval $query;
+eval explain $query;
+
+select * from   json_table(
+  '[
+    {"a":"3", "n": ["b","a","c"]},
+    {"a":2, "n": [1,2]},
+    {"b":1, "n": ["zzz"]},
+    {"a":0, "n": [0.1, 0.02]}
+    ]',
+  '$[*]' columns (
+    id for ordinality,
+    jpath varchar(100) path '$.a',
+    jexst int exists path '$.b',
+    nested path '$.n[*]' columns (
+      id_n for ordinality,
+      jpath_n varchar(50) path '$')
+    )
+  ) as tt;
+
+select * from   json_table(
+  '[
+    {"a":"3", "n": ["b","a","c"]},
+    {"a":2, "n": [1,2]},
+    {"b":1, "n": ["zzz"]},
+    {"a":0, "n": [0.1, 0.02]}
+    ]',
+  '$[*]' columns (
+    id for ordinality,
+    jpath varchar(100) path '$.a',
+    jexst int exists path '$.b',
+    nested path '$.n[*]' columns (
+      id_n1 for ordinality,
+      jpath_n1 varchar(50) path '$') ,
+    nested path '$.n[*]' columns (
+      id_n2 for ordinality,
+      jpath_n2 varchar(50) path '$')
+    )
+  ) as tt;
+
+let $query= select * from   json_table(
+  '[
+    {"a":"3", "n": [ {"ll":["b1","b2","b3"]}, {"ll": ["a1","a2"]},
+    {"ll":["c"]} ]},
+    {"a":2, "n": [{"ll":[1,11,111]},{"ll":[2]}]},
+    {"b":1, "n": [{"ll":["zzz"]}]},
+    {"a":0, "n": [{"ll":[0.1,0.01]}, {"ll":[0.02,0.002,0.0002]}]}
+    ]',
+  '$[*]' columns (
+    id1 for ordinality,
+    jpath varchar(100) path '$.a',
+    jexst int exists path '$.b',
+    nested path '$.n[*]' columns (
+      id2 for ordinality,
+      nested path '$.ll[*]' columns (
+        id3 for ordinality,
+        jpath_3 varchar(50) path '$')
+      ),
+    nested path '$.n[*]' columns (
+      id4 for ordinality,
+      jpath_4 json path '$')
+    )
+  ) as tt;
+
+eval $query;
+eval explain $query;
+
+--echo ord should be 1,1,1,2, which tells that first two values of 'l' are
+--echo from the same object, and next two are from different objects
+let $query= SELECT *
+FROM JSON_TABLE(
+  '[{"a": "a_val",
+   "b": [
+          {"c": "c_val",
+           "l": [1,2]}
+        ]
+    }, {"a": "a_val",
+     "b": [
+            {"c": "c_val",
+             "l": [11]},
+            {"c": "c_val",
+             "l": [22]}
+           ]
+    }]',
+    '$[*]' COLUMNS (
+     apath VARCHAR(10) PATH '$.a',
+     NESTED PATH '$.b[*]' COLUMNS (
+        bpath VARCHAR(10) PATH '$.c',
+        ord FOR ORDINALITY,
+        NESTED PATH '$.l[*]' COLUMNS (
+           lpath varchar(10) PATH '$'
+        )
+     )
+   )) as jt;
+eval $query;
+eval explain $query;
+
+CREATE TABLE jt( i JSON );
+SELECT * FROM jt, JSON_TABLE(jt.i, '$' COLUMNS (a INT PATH '$')) AS tt
+  WHERE a=1;
+EXPLAIN SELECT * FROM jt, JSON_TABLE(jt.i, '$' COLUMNS (a INT PATH '$')) AS tt
+  WHERE a=1;
+
+SELECT * FROM (
+  SELECT * FROM jt, JSON_TABLE(jt.i, '$' COLUMNS (a INT PATH '$')) AS tt
+    WHERE a=1) AS ttt;
+EXPLAIN SELECT * FROM (
+  SELECT * FROM jt, JSON_TABLE(jt.i, '$' COLUMNS (a INT PATH '$')) AS tt
+    WHERE a=1) AS ttt;
+DROP TABLE jt;
+
+SELECT * FROM JSON_TABLE(CAST(CAST("11:22:33" AS TIME) AS JSON),
+                         '$' COLUMNS (dt DATE PATH '$')) as tt;
+SELECT * FROM JSON_TABLE(CAST(CAST("11:22:33" AS TIME) AS JSON),
+                         '$' COLUMNS (dt TIME PATH '$')) as tt;
+SELECT * FROM JSON_TABLE(CAST(CAST("2001.02.03" AS DATE) AS JSON),
+                         '$' COLUMNS (dt DATE PATH '$')) as tt;
+
+CREATE VIEW v AS 
+  SELECT * FROM JSON_TABLE('[1,2,3]',
+                           '$[*]' COLUMNS (num INT PATH '$.a'
+                                           DEFAULT '123' ON EMPTY 
+                                           DEFAULT '456' ON ERROR)) AS jt;
+SELECT * FROM v;
+SHOW CREATE VIEW v;
+DROP VIEW v;
+
+--error ER_INVALID_JSON_VALUE_FOR_CAST
+SELECT * FROM JSON_TABLE('"asdf"',
+                         '$' COLUMNS (a INT PATH '$' ERROR ON ERROR)) AS jt;
+--error ER_WRONG_JSON_TABLE_VALUE
+SELECT * FROM
+  JSON_TABLE('[{"a":1},{"a":2}]',
+             '$' COLUMNS (a INT PATH '$[*].a' ERROR ON ERROR)) AS jt;
+SELECT * FROM
+  JSON_TABLE('[{"a":1},{"a":2}]',
+             '$' COLUMNS (a JSON PATH '$[*].a' ERROR ON ERROR)) AS jt;
+--error ER_JT_VALUE_OUT_OF_RANGE
+SELECT * FROM
+  JSON_TABLE('123.456', '$' COLUMNS (a DECIMAL(2,1) PATH '$' ERROR ON ERROR)) AS jt;
+SELECT * FROM
+  JSON_TABLE('123.456', '$' COLUMNS (a DECIMAL(2,1) PATH '$')) AS jt;
+
+--error ER_JT_MAX_NESTED_PATH
+SELECT * FROM
+  JSON_TABLE('{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{}}}}}}}}}}}}}}}}}}}',
+ '$' COLUMNS (i0 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i1 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i2 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i3 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i4 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i5 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i6 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i7 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i8 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i9 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i10 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i11 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i12 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i13 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i14 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i15 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i16 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i17 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i18 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i19 INT PATH '$.a',
+              NESTED PATH '$.b' COLUMNS (i20 INT PATH '$.a'
+              )))))))))))))))))))))) jt;
+
+CREATE TABLE t1(id int, jd JSON);
+INSERT INTO t1 values (1, '[1,3,5]'),(2,'[2,4,6]');
+SELECT id, jt.* FROM t1,
+  JSON_TABLE(jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
+                                 val INT PATH '$')) AS jt;
+SELECT /*+ JOIN_ORDER(jt, t1) */ id, jt.*
+  FROM t1,
+  JSON_TABLE(jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
+                                 val INT PATH '$')) AS jt;
+
+EXPLAIN SELECT /*+ JOIN_ORDER(jt, t1) */ id, jt.*
+  FROM t1,
+  JSON_TABLE(jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
+                                 val INT PATH '$')) AS jt;
+
+SELECT /*+ JOIN_ORDER(t2,jt) */ t1.id, t2.id, jt.*
+  FROM t1,
+    JSON_TABLE(t1.jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
+                                      val INT PATH '$')) AS jt,
+    t1 AS t2;
+
+EXPLAIN SELECT t1.id, t2.id, jt.*
+  FROM t1,
+    JSON_TABLE(t1.jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
+                                      val INT PATH '$')) AS jt,
+    t1 AS t2;
+
+EXPLAIN SELECT /*+ JOIN_ORDER(t2,jt) */ t1.id, t2.id, jt.*
+  FROM t1,
+    JSON_TABLE(t1.jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
+                                      val INT PATH '$')) AS jt,
+    t1 AS t2;
+
+SELECT * FROM t1 WHERE id IN
+  (SELECT * FROM JSON_TABLE('[1,2]', '$[*]' COLUMNS
+                            (id INT PATH '$')) AS jt);
+EXPLAIN SELECT * FROM t1 WHERE id IN
+  (SELECT * FROM JSON_TABLE('[1,2]', '$[*]' COLUMNS
+                            (id INT PATH '$')) AS jt);
+
+# JSON_TABLE referring outer scope
+SELECT * FROM t1 WHERE id IN
+  (SELECT * FROM JSON_TABLE(t1.jd, '$[*]' COLUMNS
+                            (id INT PATH '$')) AS jt);
+
+EXPLAIN SELECT * FROM t1 WHERE id IN
+  (SELECT * FROM JSON_TABLE(t1.jd, '$[*]' COLUMNS
+                            (id INT PATH '$')) AS jt);
+# JSON_TABLE referring another JSON_TABLE
+SELECT id, jt1.*, jt2.*
+  FROM t1, JSON_TABLE(jd, '$' COLUMNS (data1 JSON PATH '$')) AS jt1,
+    JSON_TABLE(data1, '$[*]' COLUMNS (id2 INT PATH '$')) AS jt2;
+
+EXPLAIN SELECT id, jt1.*, jt2.*
+  FROM t1, JSON_TABLE(jd, '$' COLUMNS (data1 JSON PATH '$')) AS jt1,
+    JSON_TABLE(data1, '$[*]' COLUMNS (id2 INT PATH '$')) AS jt2;
+
+DROP TABLE t1;
+
+SELECT * FROM JSON_TABLE ('"asdf"', '$' COLUMNS(
+  tm TIME PATH '$',
+  dt DATE PATH '$',
+  i INT PATH '$',
+  f FLOAT PATH '$',
+  d DECIMAL PATH '$')) AS jt;
+
+--echo #
+--echo # Bug#25413069: SIG11 IN CHECK_COLUMN_GRANT_IN_TABLE_REF
+--echo #
+--error ER_BAD_FIELD_ERROR
+SELECT a FROM JSON_TABLE(abc, '$[*]' COLUMNS ( a int path '$.a')) AS jt;
+
+--echo #
+--echo # Bug#25420680: ASSERTION `THD->IS_ERROR()' FAILED IN SQL/SQL_SELECT.CC
+--echo #
+SELECT * FROM JSON_TABLE('{"a":"2017-11-1"}',
+                         '$'  COLUMNS (jpath DATE PATH '$.a')) AS jt;
+--echo #
+--echo # Bug#25413826: ASSERTION `TABLE_LIST->ALIAS' FAILED
+--echo #
+--error ER_TF_MUST_HAVE_ALIAS
+SELECT * FROM JSON_TABLE('[{"a": 1, "b": 2}]',
+                         '$[*]' COLUMNS ( a int path '$.b'));
+
+--echo #
+--echo # Bug#25421464: ASSERTION `!STRCMP(TABLE_REF->TABLE_NAME, ...
+--echo #
+CREATE VIEW v1 AS
+  SELECT * FROM JSON_TABLE('[{"a": 1, "b": 2}]',
+                           '$[*]' COLUMNS ( a INT PATH '$.b')) AS jt;
+SELECT * FROM v1;
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+
+--echo #
+--echo # Bug#25427457: ASSERTION `!((*REG_FIELD)->FLAGS & 16)' 
+--echo #
+SELECT * FROM JSON_TABLE('{"a":"1"}',
+                         '$' COLUMNS (jpath JSON PATH '$.a',
+                                      o FOR ORDINALITY)) AS jt
+WHERE o = 1;
+
+--echo #
+--echo # Bug#25427982: ASSERTION `DERIVED' FAILED IN SQL/TABLE.H
+--echo #
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT je,o FROM JSON_TABLE('{"a":"1"}',
+                            '$' COLUMNS (o FOR ORDINALITY,
+                                         je BIGINT EXISTS PATH '$.a')) AS jt
+GROUP BY je;
+SELECT je,COUNT(o) FROM JSON_TABLE('{"a":"1"}',
+                            '$' COLUMNS (o FOR ORDINALITY,
+                                         je BIGINT EXISTS PATH '$.a')) AS jt
+GROUP BY je;
+
+--echo #
+--echo # Bug#25413194: ASSERTION `!(WANT_PRIVILEGE & ~(GRANT->WANT_PRIVILEGE
+--echo #
+CREATE TABLE t1 (j JSON);
+SELECT * FROM t1,JSON_TABLE(t1.j, '$[*]' COLUMNS ( a int path '$.b')) AS jt;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25460537:SIG 11 IN NEXT_FAST AT SQL/SQL_LIST.H
+--echo #
+PREPARE STMT FROM 
+  "SELECT * FROM   JSON_TABLE(
+    \'[{\"a\":\"3\"},{\"a\":2},{\"b\":1},{\"a\":0}]\',
+    \'$[*]\' COLUMNS (id
+      FOR ORDINALITY,
+      jpath VARCHAR(100) PATH \'$.a\',
+      jexst INT EXISTS PATH \'$.b\')
+    ) as tt";
+EXECUTE STMT;
+EXECUTE STMT;
+DEALLOCATE PREPARE stmt;
+
+--echo #
+--echo # Bug#25522353: SIG 11 IN JOIN::MAKE_JOIN_PLAN | SQL/SQL_OPTIMIZER.CC
+--echo #
+CREATE TABLE t1 (id INT, jc JSON);
+
+--error ER_TF_FORBIDDEN_JOIN_TYPE
+SELECT * FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
+  (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
+
+--error ER_UNKNOWN_TABLE
+SELECT * FROM JSON_TABLE(t1.jc, '$' COLUMNS
+  (id FOR ORDINALITY)) as jt LEFT JOIN t1 ON t1.jc=jt.id;
+
+--error ER_UNKNOWN_TABLE
+SELECT * FROM JSON_TABLE(t1.jc, '$' COLUMNS
+  (id FOR ORDINALITY)) as jt RIGHT JOIN t1 ON t1.jc=jt.id;
+
+SELECT * FROM t1 LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
+  (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
+  (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
+
+SELECT * FROM t1 t1o RIGHT JOIN t1 ON t1o.id=t1.id
+  LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
+                       (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
+
+EXPLAIN SELECT * FROM t1 t1o RIGHT JOIN t1 ON t1o.id=t1.id
+  LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
+                       (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
+
+--error ER_TF_FORBIDDEN_JOIN_TYPE
+SELECT * FROM t1 AS t1o RIGHT JOIN
+  (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
+                            (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
+  ON t1o.id=t1i.id;
+
+--error ER_TF_FORBIDDEN_JOIN_TYPE
+SELECT * FROM t1 AS t1o RIGHT JOIN
+  (t1 AS t1i RIGHT JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
+                            (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
+  ON t1o.id=t1i.id;
+
+--error ER_TF_FORBIDDEN_JOIN_TYPE
+WITH qn AS
+  (SELECT jt.* FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
+    (id FOR ORDINALITY)) as jt ON t1.jc=jt.id)
+  SELECT * from qn;
+
+--error ER_TF_FORBIDDEN_JOIN_TYPE
+WITH qn AS
+  (SELECT 1 UNION
+   SELECT jt.id FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
+    (id FOR ORDINALITY)) as jt ON t1.jc=jt.id)
+  SELECT * from qn;
+
+--error ER_TF_FORBIDDEN_JOIN_TYPE
+SELECT * FROM t1 AS t1o RIGHT JOIN
+  (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
+                            (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
+  ON t1o.id=t1i.id;
+
+--error ER_TF_FORBIDDEN_JOIN_TYPE
+SELECT * FROM t1 AS t1o RIGHT JOIN
+  (t1 AS t1i RIGHT JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
+                            (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
+  ON t1o.id=t1i.id;
+
+INSERT INTO t1 VALUES(1,"1"),(2,"4"),(3,"3");
+
+ANALYZE TABLE t1;
+
+SELECT * FROM t1 LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
+  (id INT PATH '$')) as jt ON t1.id=jt.id;
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
+  (id INT PATH '$')) as jt ON t1.id=jt.id;
+
+--error ER_TF_FORBIDDEN_JOIN_TYPE
+SELECT * FROM t1 
+  LEFT JOIN
+    JSON_TABLE(t1.jc, '$' COLUMNS (id FOR ORDINALITY)) as jt ON t1.jc=jt.id
+  RIGHT JOIN
+    JSON_TABLE(jt.id, '$' COLUMNS (id FOR ORDINALITY)) as jt1 ON jt.id=jt1.id;
+
+DROP TABLE t1;
+
+# Test that tmp table can overflow to disk
+set @save_mem_se= @@internal_tmp_mem_storage_engine;
+set @@internal_tmp_mem_storage_engine=MEMORY;
+
+set @save_heap_size= @@max_heap_table_size;
+set @@max_heap_table_size= 16384;
+
+FLUSH STATUS;
+SELECT * FROM JSON_TABLE(
+  '[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]',
+  '$[*]' COLUMNS (
+    c1 CHAR(255) PATH '$',
+    c2 CHAR(255) PATH '$',
+    c3 CHAR(255) PATH '$',
+    c4 CHAR(255) PATH '$',
+    c5 CHAR(255) PATH '$',
+    c6 CHAR(255) PATH '$',
+    c7 CHAR(255) PATH '$',
+    c8 CHAR(255) PATH '$')) AS jt;
+SHOW STATUS LIKE '%tmp%';
+set @@max_heap_table_size= @save_heap_size;
+set @@internal_tmp_mem_storage_engine= @save_mem_se;
+
+--echo #
+--echo # Bug#25504063: EXPLAIN OF JSON_TABLE QUERY USES INTERNAL TEMP TABLES
+--echo #
+FLUSH STATUS;
+SELECT * FROM
+  JSON_TABLE(
+    '[{"a":"3"}]',
+    '$[*]' COLUMNS (id FOR ORDINALITY)
+  ) AS tt;
+SHOW STATUS LIKE '%tmp%';
+
+--echo #
+--echo # Bug#25525409: ASSERTION `TABLE_LIST->TABLE' FAILED IN SQL/SQL_BASE.CC
+--echo #
+--error ER_BAD_FIELD_ERROR
+SELECT * FROM JSON_TABLE ( ( SELECT a ) , '$.*' COLUMNS (col1 FOR ORDINALITY) )
+AS alias1;
+
+--error ER_WRONG_ARGUMENTS
+SELECT * FROM JSON_TABLE ( ( SELECT 1 ) , '$.*' COLUMNS (col1 FOR ORDINALITY) )
+AS alias1;
+
+--error ER_INVALID_GROUP_FUNC_USE
+SELECT * FROM JSON_TABLE ( ( SUM(1) ) , '$.*' COLUMNS (col1 FOR ORDINALITY) )
+AS alias1;
+
+--echo #
+--echo # Bug# #25472875: ERROR SHOULD BE THROWN FOR INCORRECT VALUES
+--echo #
+--error ER_INVALID_DEFAULT
+SELECT *
+  FROM JSON_TABLE('{"a":"1993-01-01"}',
+                  '$' COLUMNS (jp DATE PATH '$.b' DEFAULT '1000' ON EMPTY))
+    AS jt;
+
+--echo #
+--echo # Bug#25532429: INVALID JSON ERROR NOT THROWN WITH EMPTY TABLES JOIN
+--echo #
+CREATE TABLE t1(j JSON);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT * FROM t1,
+  JSON_TABLE( 'dqwfjqjf'  , '$[*]' COLUMNS (col5 FOR ORDINALITY) ) AS alias7;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#25540370: SIG 11 IN SHOW_SQL_TYPE|SQL/SQL_SHOW.CC:7063
+--echo #
+let $query= 
+  SELECT * FROM
+    JSON_TABLE ('[3.14159]',
+                '$[*]' COLUMNS (col18 CHAR(70) PATH '$')
+                ) AS alias2;
+eval EXPLAIN $query;
+eval $query;
+
+--echo # Too short field causes truncation, error and triggers ON ERROR clause
+let $query= 
+  SELECT * FROM
+    JSON_TABLE ('["3.14159"]',
+                '$[*]' COLUMNS (col18 CHAR(6) PATH '$')
+                ) AS alias2;
+eval EXPLAIN $query;
+eval $query;
+
+--echo #Truncated space doesn't trigger ON ERROR
+let $query= 
+  SELECT * FROM
+    JSON_TABLE ('["3.14159 "]',
+                '$[*]' COLUMNS (col18 CHAR(7) PATH '$')
+                ) AS alias2;
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT * FROM
+    JSON_TABLE ('[3.14159]',
+                '$[*]' COLUMNS (col18 CHAR(255) PATH '$')
+                ) AS alias2;
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+  SELECT * FROM
+    JSON_TABLE ('[3.14159]',
+                '$[*]' COLUMNS (col18 VARCHAR(70) PATH '$')
+                ) AS alias2;
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+  SELECT * FROM
+    JSON_TABLE ('[3.14159]',
+                '$[*]' COLUMNS (col18 VARCHAR(255) PATH '$')
+                ) AS alias2;
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+  SELECT * FROM
+    JSON_TABLE ('[3.14159]',
+                '$[*]' COLUMNS (col18 FLOAT PATH '$')
+                ) AS alias2;
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+  SELECT * FROM
+    JSON_TABLE ('[3.14159]',
+                '$[*]' COLUMNS (col18 DOUBLE PATH '$')
+                ) AS alias2;
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+  SELECT * FROM
+    JSON_TABLE ('[3.14159]',
+                '$[*]' COLUMNS (col18 DECIMAL(3,3) PATH '$')
+                ) AS alias2;
+eval EXPLAIN $query;
+eval $query;
+
+--error ER_JT_VALUE_OUT_OF_RANGE
+SELECT * FROM
+  JSON_TABLE ('[3.14159]',
+              '$[*]' COLUMNS (col18 DECIMAL(3,3) PATH '$' ERROR ON ERROR)
+              ) AS alias2;
+
+let $query=
+  SELECT * FROM
+    JSON_TABLE ('[0.9]',
+                '$[*]' COLUMNS (col18 DECIMAL(3,3) PATH '$')
+                ) AS alias2;
+eval EXPLAIN $query;
+eval $query;
+
+SELECT * FROM
+  JSON_TABLE ('["asdf","ghjk"]',
+              '$[*]' COLUMNS (col18 DECIMAL(4,3) PATH '$' 
+                              DEFAULT "3.14159" ON ERROR)
+              ) AS alias2;
+
+CREATE TABLE t1(jd JSON);
+INSERT INTO t1 VALUES('["asdf"]'),('["ghjk"]');
+SELECT * FROM t1,
+  JSON_TABLE (jd,
+              '$[*]' COLUMNS (col18 DECIMAL(4,3) PATH '$' 
+                              DEFAULT "3.14159" ON ERROR)
+              ) AS alias2;
+DROP TABLE t1;
+--echo #
+--echo # Bug#25540027: SIG 11 IN FIND_FIELD_IN_TABLE | SQL/SQL_BASE.CC
+--echo #
+CREATE TABLE t1(c1 JSON);
+--error ER_NON_UPDATABLE_TABLE
+UPDATE t1, JSON_TABLE(t1.c1,'$[*]' COLUMNS (a INT PATH '$.a')) AS jt1
+  SET jt1.a=1;
+--error ER_PARSE_ERROR
+DELETE JSON_TABLE(t1.c1,'$[*]' COLUMNS (a INT PATH '$.a')) AS jt1
+  FROM t1;
+--error ER_PARSE_ERROR
+DELETE t1, JSON_TABLE(t1.c1,'$[*]' COLUMNS (a INT PATH '$.a')) AS jt1
+  USING t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25547244: ASSERTION `!TABLE || (!TABLE->READ_SET || BITMAP_IS_SET(
+--echo #
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES(1);
+WITH cte_query AS
+  (SELECT * FROM t1, JSON_TABLE ( JSON_OBJECT('ISSKF',i) ,
+    '$[*]' COLUMNS (jtcol1 INT EXISTS PATH '$[*]') ) AS alias2)
+SELECT jtcol1 AS field1 FROM cte_query;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25540675: ASSERTION `!COL->CHILD_JDS->PRODUCING_RECORDS' FAILED
+--echo #
+CREATE TABLE j1(j JSON);
+INSERT INTO j1 VALUES('[1,2,3]'),('[1,2,4]');
+SELECT * FROM j1, 
+  JSON_TABLE ( JSON_OBJECT('key1', j) ,
+              '$.*' COLUMNS (NESTED PATH '$.*' COLUMNS (col11 FOR ORDINALITY))) AS alias2;
+DROP TABLE j1;
+
+--echo #
+--echo # Bug#25584335: SIG 11 IN TABLE_LIST::FETCH_NUMBER_OF_ROWS
+--echo #
+CREATE TABLE t1(i INT);
+
+PREPARE stmt FROM "SELECT alias1.i AS field1 FROM (
+  t1 AS alias1,
+  (SELECT   * FROM
+    JSON_TABLE ('[1,2,3]' ,
+                '$[*]' COLUMNS (`col_varchar` FOR ORDINALITY)) AS SQ1_alias1
+  ) AS alias2 )";
+
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25604048: COLUMN NAMES WITH SAME 33-CHAR PREFIX ARE EQUAL
+--echo #
+SELECT * FROM JSON_TABLE( '{"key1": "test"}' , '$' COLUMNS(
+  column_name_is_thirty_four_or_more VARCHAR(17) PATH '$.key1',
+  column_name_is_thirty_four_or_more_yes_indeed VARCHAR(17) PATH '$.key1'
+) ) AS alias1;
+
+--error ER_WRONG_COLUMN_NAME
+SELECT * FROM JSON_TABLE( '{"key1": "test"}' , '$' COLUMNS(
+  `column_name_is_thirty_four_or_more ` VARCHAR(17) PATH '$.key1'
+) ) AS alias1;
+
+--echo #
+--echo # Bug#25604404: JSON_TABLE MORE RESTRICTIVE WITH IDENTIFIERS THAN
+--echo #               CREATE TABLE
+--echo #
+SELECT * FROM JSON_TABLE( '[1, 2]', '$' COLUMNS(
+  one INT PATH '$[0]', two INT PATH '$[1]'
+)) AS jt;
+
+--echo #
+--echo # Bug#25588450: SIG 6 IN JSON_WRAPPER::SEEK|SQL/JSON_DOM.CC
+--echo #
+CREATE TABLE t1(c VARCHAR(10)) ENGINE=MEMORY;
+INSERT INTO t1 VALUES('fiheife');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT * FROM `t1` AS alias1, JSON_TABLE ( `c` , '$[*]' COLUMNS (jtcol1 JSON
+PATH '$.*')) AS alias2 WHERE  jtcol1 <= 'kjfh';
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25587754: ASSERTION `FIXED == 0 || BASIC_CONST_ITEM()' FAILED
+--echo #
+PREPARE stmt FROM 
+  "SELECT * FROM JSON_TABLE ( '[1,2]', '$[*]' 
+    COLUMNS (jtcol1 JSON PATH '$.*')) AS alias2";
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+--echo #
+--echo # Bug#25584593: UNABLE TO USE JSON_TABLE() ON TEXT/BLOB JSON DATA
+--echo #
+SELECT * FROM JSON_TABLE (NULL, '$.k' COLUMNS (id FOR ORDINALITY)) AS aLias;
+SELECT * FROM JSON_TABLE (@myjson, '$.k' COLUMNS (id FOR ORDINALITY)) AS alias;
+SET @myjson = '{"k": 42}';
+SELECT * FROM JSON_TABLE (@myjson, '$.k' COLUMNS (id FOR ORDINALITY)) AS alias;
+
+CREATE TABLE t1(
+  txt TEXT, ty TINYTEXT, tm MEDIUMTEXT, tl LONGTEXT);
+INSERT INTO t1 values (
+  '{"k": "text"}','{"k": "tinytext"}','{"k": "mediumtext"}','{"k": "longtext"}');
+SELECT alias.* FROM t1, JSON_TABLE (t1.txt,'$.k' COLUMNS (id VARCHAR(10) PATH '$')) AS alias;
+SELECT alias.* FROM t1, JSON_TABLE (t1.ty, '$.k' COLUMNS (id VARCHAR(10) PATH '$')) AS alias;
+SELECT alias.* FROM t1, JSON_TABLE (t1.tm, '$.k' COLUMNS (id VARCHAR(10) PATH '$')) AS alias;
+SELECT alias.* FROM t1, JSON_TABLE (t1.tl, '$.k' COLUMNS (id VARCHAR(10) PATH '$')) AS alias;
+SELECT alias.* FROM t1, JSON_TABLE (t1.txt,'$.k' COLUMNS (id TEXT PATH '$')) AS alias;
+SELECT alias.* FROM t1, JSON_TABLE (t1.txt,'$.k' COLUMNS (id TINYTEXT PATH '$')) AS alias;
+SELECT alias.* FROM t1, JSON_TABLE (t1.txt,'$.k' COLUMNS (id MEDIUMTEXT PATH '$')) AS alias;
+SELECT alias.* FROM t1, JSON_TABLE (t1.txt,'$.k' COLUMNS (id LONGTEXT PATH '$')) AS alias;
+
+# BLOB can store data from JSON
+SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb BLOB PATH '$')) as alias;
+# Check that type is printed correctly
+EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb BLOB PATH '$')) as alias;
+EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb TINYBLOB PATH '$')) as alias;
+EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb MEDIUMBLOB PATH '$')) as alias;
+EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb LONGBLOB PATH '$')) as alias;
+EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb TEXT PATH '$')) as alias;
+EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb TINYTEXT PATH '$')) as alias;
+EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb MEDIUMTEXT PATH '$')) as alias;
+EXPLAIN SELECT alias.* FROM JSON_TABLE ('"asd123"', '$' COLUMNS (blb LONGTEXT PATH '$')) as alias;
+# But can't be used as a data source
+--error ER_WRONG_ARGUMENTS
+SELECT * FROM 
+  (SELECT CAST(blb AS JSON) jf FROM
+    JSON_TABLE ('"asd123"', '$' COLUMNS (blb BLOB PATH '$')) AS jti) AS dt,
+  JSON_TABLE (jf, '$' COLUMNS (blb BLOB PATH '$')) AS jto;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26500384: ASSERT FAILURE IN QUERY WITH WINDOW FUNCTION AND
+--echo #               JSON_TABLE
+--echo #
+CREATE TABLE t (x INT);
+INSERT INTO t VALUES (1), (2), (3);
+--error ER_BAD_FIELD_ERROR
+SELECT MAX(t.x) OVER () m, jt.* FROM t,
+  JSON_TABLE(JSON_ARRAY(m), '$[*]' COLUMNS (i INT PATH '$')) jt;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#26583283: ASSERTION `!THD->IS_ERROR()' FAILED IN SQL_RESOLVER.CC
+--echo #
+EXPLAIN SELECT * FROM JSON_TABLE('null', '$' COLUMNS(AA DECIMAL PATH '$')) tt;
+
+CREATE VIEW v1 AS SELECT * FROM
+  JSON_TABLE ( 'null', '$' COLUMNS (c1 DECIMAL PATH '$' ) ) AS jt;
+SELECT * FROM v1;
+EXPLAIN SELECT * FROM v1;
+DROP VIEW v1;
+
+--echo #
+--echo # Bug#25822408: ASSERTION `!COL->CHILD_JDS->PRODUCING_RECORDS' FAILED
+--echo #
+PREPARE stmt FROM "SELECT * FROM
+  JSON_TABLE('{\"a\":1}','$' COLUMNS (c1 CHAR(20) PATH '$.b' ERROR ON EMPTY)) jt";
+--error ER_MISSING_JSON_TABLE_VALUE
+EXECUTE stmt;
+--error ER_MISSING_JSON_TABLE_VALUE
+EXECUTE stmt;
+
+--echo #
+--echo # Bug#25594571: CRASH AT ITEM::CONST_ITEM|SQL/ITEM.H
+--echo #
+CREATE TABLE t1 (i INT);
+
+INSERT INTO t1 VALUES(1),(2),(3),(4),(5),(6),(7);
+
+PREPARE stmt FROM "SELECT * FROM  t1 AS alias1  LEFT  JOIN t1 AS alias2
+LEFT  JOIN JSON_TABLE('[1,2,3]', '$[*]' COLUMNS (i FOR ORDINALITY )) AS
+alias3 ON  alias2 . `i` =  alias3 . `i`  ON  alias1 . `i` =  alias2 . `i`";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26648617: ASSERTION `IS_VIEW_OR_DERIVED() && 
+--echo #               USES_MATERIALIZATION()' FAILED.
+--echo #
+CREATE TABLE t1 (
+  col_varchar_key varchar(1) DEFAULT NULL
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES(1),(4);
+
+SELECT * FROM t1 WHERE col_varchar_key NOT IN (
+  SELECT col_varchar_key FROM JSON_TABLE(
+    '[{"col_key": 1},{"col_key": 2}]', "$[*]" COLUMNS
+      (col_varchar_key VARCHAR(10) PATH "$.col_key")) AS innr1);
+
+EXPLAIN SELECT * FROM t1 WHERE col_varchar_key NOT IN (
+  SELECT col_varchar_key FROM JSON_TABLE(
+    '[{"col_key": 1},{"col_key": 2}]', "$[*]" COLUMNS
+      (col_varchar_key VARCHAR(10) PATH "$.col_key")) AS innr1);
+
+SELECT * FROM t1 WHERE col_varchar_key IN (
+  SELECT col_varchar_key FROM JSON_TABLE(
+    '[{"col_key": 1},{"col_key": 2}]', "$[*]" COLUMNS
+      (col_varchar_key VARCHAR(10) PATH "$.col_key")) AS innr1);
+
+EXPLAIN SELECT * FROM t1 WHERE col_varchar_key IN (
+  SELECT col_varchar_key FROM JSON_TABLE(
+    '[{"col_key": 1},{"col_key": 2}]', "$[*]" COLUMNS
+      (col_varchar_key VARCHAR(10) PATH "$.col_key")) AS innr1);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26711551: WL8867:CONDITIONAL JUMP IN JSON_TABLE_COLUMN::CLEANUP
+--echo #
+CREATE TABLE t(x int, y int);
+INSERT INTO t(x) VALUES (1);
+UPDATE t t1, JSON_TABLE('[2]', '$[*]' COLUMNS (x INT PATH '$')) t2
+SET t1.y = t2.x;
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#26679671: SIG 11 IN JSON_BINARY::PARSE_BINARY()
+--echo #
+CREATE TABLE t1(id INT, f1 JSON);
+INSERT INTO t1 VALUES (1, '{\"1\": 1}'), (2, '{\"1\": 2}'), (3, '{\"1\": 3}'),
+(4, '{\"1\": 4}'), (5, '{\"1\": 5}'), (6, '{\"1\": 6}');
+ANALYZE TABLE t1;
+
+ANALYZE TABLE t1;
+
+SELECT * FROM t1 as jj1,
+  (SELECT tt2.* FROM t1 as tt2,
+    JSON_TABLE (f1, "$" COLUMNS (id FOR ORDINALITY)) AS tbl) dt;
+EXPLAIN SELECT * FROM t1 as jj1,
+  (SELECT tt2.* FROM t1 as tt2,
+    JSON_TABLE (f1, "$" COLUMNS (id FOR ORDINALITY)) AS tbl) dt;
+
+SELECT * FROM t1 as jj1,
+  (SELECT tt2.* FROM t1 as tt2,
+    JSON_TABLE (f1, "$" COLUMNS (id FOR ORDINALITY)) AS tbl STRAIGHT_JOIN 
+      t1 AS tt3) dt ORDER BY 1,3 LIMIT 10;
+EXPLAIN SELECT * FROM t1 as jj1,
+  (SELECT tt2.* FROM t1 as tt2,
+    JSON_TABLE (f1, "$" COLUMNS (id FOR ORDINALITY)) AS tbl STRAIGHT_JOIN 
+      t1 AS tt3) dt ORDER BY 1,3 LIMIT 11;
+
+SELECT * FROM t1 WHERE id IN
+  (SELECT id FROM t1 as tt2,
+      JSON_TABLE (f1, "$" COLUMNS (jf FOR ORDINALITY)) AS tbl);
+EXPLAIN SELECT * FROM t1 WHERE id IN
+  (SELECT id FROM t1 as tt2,
+      JSON_TABLE (f1, "$" COLUMNS (jf FOR ORDINALITY)) AS tbl);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26760811: WL#8867: MEMORY LEAK REPORTED BY ASAN AND VALGRIND
+--echo #
+CREATE TABLE t (j JSON);
+INSERT INTO t VALUES
+('[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]'),
+('[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]');
+SELECT COUNT(*) FROM t, JSON_TABLE(j, '$[*]' COLUMNS (i INT PATH '$')) AS jt;
+PREPARE ps FROM
+'SELECT COUNT(*) FROM t, JSON_TABLE(j, ''$[*]'' COLUMNS (i INT PATH ''$'')) AS jt';
+EXECUTE ps;
+EXECUTE ps;
+DROP PREPARE ps;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #26781759: NON-UNIQUE ALIAS ERROR NOT BEING THROWN
+--echo #
+--error ER_NONUNIQ_TABLE
+SELECT * FROM JSON_TABLE(NULL, '$' COLUMNS(j1 FOR ORDINALITY)) AS jalias,
+JSON_TABLE(NULL, '$' COLUMNS(j1 FOR ORDINALITY)) AS jalias;
+
+--echo #
+--echo # Bug #26761470: WL#8867: JOIN::MAKE_JOIN_PLAN():
+--echo #                ASSERTION `SELECT_LEX->IS_RECURSIVE()' FAILED
+--echo #
+CREATE TABLE t1 (x INT);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (j JSON);
+INSERT INTO t2 (j) VALUES ('[1,2,3]');
+--sorted_result
+SELECT * FROM t1 RIGHT JOIN
+(SELECT o FROM t2, JSON_TABLE(j, '$[*]' COLUMNS (o FOR ORDINALITY)) AS jt) AS t3
+ON (t3.o = t1.x);
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#27152428 JSON_TABLE + PREPARED STATEMENT + VIEW HAS PROBLEM IN DURING RESOLUTION
+--echo #
+
+CREATE TABLE t1 (a INT, b INT);
+
+CREATE VIEW v2 AS SELECT * FROM t1 LIMIT 2;
+
+SELECT b
+ FROM (SELECT * FROM v2) vq1,
+ JSON_TABLE(CONCAT(vq1.b,'[{\"a\":\"3\"}]'),
+            '$[*]' COLUMNS (id FOR ORDINALITY,
+                            jpath VARCHAR(100) PATH '$.a',
+                            JEXST INT EXISTS PATH '$.b')
+            ) AS dt;
+
+DROP TABLE t1;
+DROP VIEW v2;
+
+
+--echo #
+--echo # Bug#27189940: CREATE VIEW FAILS ON JSON_TABLE() IN SCHEMA-LESS CONNECTIONS
+--echo # BUG#27217897: JSON_TABLE() FAILS IF NO DATABASE SELECTED
+--echo #
+
+
+# Connect without a schema name:
+connect (conn1,localhost,root,,*NO-ONE*);
+connection conn1;
+
+CREATE VIEW test.v AS SELECT * FROM JSON_TABLE('[1,2,3]', '$[*]' COLUMNS (num INT PATH '$[0]')) AS jt;
+SELECT * FROM JSON_TABLE('[1,2,3]', '$[*]' COLUMNS (num INT PATH '$[0]')) AS jt;
+
+connection default;
+disconnect conn1;
+use test;
+
+SHOW CREATE VIEW test.v;
+SELECT * FROM test.v;
+DROP VIEW test.v;

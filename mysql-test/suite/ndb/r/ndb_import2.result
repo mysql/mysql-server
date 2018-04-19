@@ -1,0 +1,38 @@
+# large ndb_import tests
+# node failure test
+create table t1 (
+a int not null,
+b int not null,
+primary key using hash (a)
+) engine ndb;
+create table t1ver like t1;
+create table t2 (
+b int not null,
+# unique key would turn into pk
+key (b)
+) engine ndb;
+create table t2ver like t2;
+# load t1ver, t2ver
+# import t1, t2
+# verify t1, t2
+select count(*) from t1;
+count(*)
+400000
+select count(*) from t1ver;
+count(*)
+400000
+select count(*) from t1 x, t1ver y
+where x.a = y.a and x.b = y.b;
+count(*)
+400000
+select count(*) from t2;
+count(*)
+400000
+select count(*) from t2ver;
+count(*)
+400000
+select count(*) from t2 x, t2ver y
+where x.b = y.b;
+count(*)
+400000
+drop table t1, t1ver, t2, t2ver;

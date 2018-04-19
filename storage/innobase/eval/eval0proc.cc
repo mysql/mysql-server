@@ -1,290 +1,260 @@
 /*****************************************************************************
 
-Copyright (c) 1998, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1998, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file eval/eval0proc.cc
-Executes SQL stored procedures and their control structures
+/** @file eval/eval0proc.cc
+ Executes SQL stored procedures and their control structures
 
-Created 1/20/1998 Heikki Tuuri
-*******************************************************/
+ Created 1/20/1998 Heikki Tuuri
+ *******************************************************/
 
 #include "eval0proc.h"
 
-#ifdef UNIV_NONINL
-#include "eval0proc.ic"
-#endif
+#include <stddef.h>
 
-/**********************************************************************//**
-Performs an execution step of an if-statement node.
-@return query thread to run next or NULL */
-que_thr_t*
-if_step(
-/*====*/
-	que_thr_t*	thr)	/*!< in: query thread */
+/** Performs an execution step of an if-statement node.
+ @return query thread to run next or NULL */
+que_thr_t *if_step(que_thr_t *thr) /*!< in: query thread */
 {
-	if_node_t*	node;
-	elsif_node_t*	elsif_node;
+  if_node_t *node;
+  elsif_node_t *elsif_node;
 
-	ut_ad(thr);
+  ut_ad(thr);
 
-	node = static_cast<if_node_t*>(thr->run_node);
-	ut_ad(que_node_get_type(node) == QUE_NODE_IF);
+  node = static_cast<if_node_t *>(thr->run_node);
+  ut_ad(que_node_get_type(node) == QUE_NODE_IF);
 
-	if (thr->prev_node == que_node_get_parent(node)) {
+  if (thr->prev_node == que_node_get_parent(node)) {
+    /* Evaluate the condition */
 
-		/* Evaluate the condition */
+    eval_exp(node->cond);
 
-		eval_exp(node->cond);
+    if (eval_node_get_ibool_val(node->cond)) {
+      /* The condition evaluated to TRUE: start execution
+      from the first statement in the statement list */
 
-		if (eval_node_get_ibool_val(node->cond)) {
+      thr->run_node = node->stat_list;
 
-			/* The condition evaluated to TRUE: start execution
-			from the first statement in the statement list */
+    } else if (node->else_part) {
+      thr->run_node = node->else_part;
 
-			thr->run_node = node->stat_list;
+    } else if (node->elsif_list) {
+      elsif_node = node->elsif_list;
 
-		} else if (node->else_part) {
-			thr->run_node = node->else_part;
+      for (;;) {
+        eval_exp(elsif_node->cond);
 
-		} else if (node->elsif_list) {
-			elsif_node = node->elsif_list;
+        if (eval_node_get_ibool_val(elsif_node->cond)) {
+          /* The condition evaluated to TRUE:
+          start execution from the first
+          statement in the statement list */
 
-			for (;;) {
-				eval_exp(elsif_node->cond);
+          thr->run_node = elsif_node->stat_list;
 
-				if (eval_node_get_ibool_val(
-					    elsif_node->cond)) {
+          break;
+        }
 
-					/* The condition evaluated to TRUE:
-					start execution from the first
-					statement in the statement list */
+        elsif_node = static_cast<elsif_node_t *>(que_node_get_next(elsif_node));
 
-					thr->run_node = elsif_node->stat_list;
+        if (elsif_node == NULL) {
+          thr->run_node = NULL;
 
-					break;
-				}
+          break;
+        }
+      }
+    } else {
+      thr->run_node = NULL;
+    }
+  } else {
+    /* Move to the next statement */
+    ut_ad(que_node_get_next(thr->prev_node) == NULL);
 
-				elsif_node = static_cast<elsif_node_t*>(
-					que_node_get_next(elsif_node));
+    thr->run_node = NULL;
+  }
 
-				if (elsif_node == NULL) {
-					thr->run_node = NULL;
+  if (thr->run_node == NULL) {
+    thr->run_node = que_node_get_parent(node);
+  }
 
-					break;
-				}
-			}
-		} else {
-			thr->run_node = NULL;
-		}
-	} else {
-		/* Move to the next statement */
-		ut_ad(que_node_get_next(thr->prev_node) == NULL);
-
-		thr->run_node = NULL;
-	}
-
-	if (thr->run_node == NULL) {
-		thr->run_node = que_node_get_parent(node);
-	}
-
-	return(thr);
+  return (thr);
 }
 
-/**********************************************************************//**
-Performs an execution step of a while-statement node.
-@return query thread to run next or NULL */
-que_thr_t*
-while_step(
-/*=======*/
-	que_thr_t*	thr)	/*!< in: query thread */
+/** Performs an execution step of a while-statement node.
+ @return query thread to run next or NULL */
+que_thr_t *while_step(que_thr_t *thr) /*!< in: query thread */
 {
-	while_node_t*	node;
+  while_node_t *node;
 
-	ut_ad(thr);
+  ut_ad(thr);
 
-	node = static_cast<while_node_t*>(thr->run_node);
-	ut_ad(que_node_get_type(node) == QUE_NODE_WHILE);
+  node = static_cast<while_node_t *>(thr->run_node);
+  ut_ad(que_node_get_type(node) == QUE_NODE_WHILE);
 
-	ut_ad((thr->prev_node == que_node_get_parent(node))
-	      || (que_node_get_next(thr->prev_node) == NULL));
+  ut_ad((thr->prev_node == que_node_get_parent(node)) ||
+        (que_node_get_next(thr->prev_node) == NULL));
 
-	/* Evaluate the condition */
+  /* Evaluate the condition */
 
-	eval_exp(node->cond);
+  eval_exp(node->cond);
 
-	if (eval_node_get_ibool_val(node->cond)) {
+  if (eval_node_get_ibool_val(node->cond)) {
+    /* The condition evaluated to TRUE: start execution
+    from the first statement in the statement list */
 
-		/* The condition evaluated to TRUE: start execution
-		from the first statement in the statement list */
+    thr->run_node = node->stat_list;
+  } else {
+    thr->run_node = que_node_get_parent(node);
+  }
 
-		thr->run_node = node->stat_list;
-	} else {
-		thr->run_node = que_node_get_parent(node);
-	}
-
-	return(thr);
+  return (thr);
 }
 
-/**********************************************************************//**
-Performs an execution step of an assignment statement node.
-@return query thread to run next or NULL */
-que_thr_t*
-assign_step(
-/*========*/
-	que_thr_t*	thr)	/*!< in: query thread */
+/** Performs an execution step of an assignment statement node.
+ @return query thread to run next or NULL */
+que_thr_t *assign_step(que_thr_t *thr) /*!< in: query thread */
 {
-	assign_node_t*	node;
+  assign_node_t *node;
 
-	ut_ad(thr);
+  ut_ad(thr);
 
-	node = static_cast<assign_node_t*>(thr->run_node);
-	ut_ad(que_node_get_type(node) == QUE_NODE_ASSIGNMENT);
+  node = static_cast<assign_node_t *>(thr->run_node);
+  ut_ad(que_node_get_type(node) == QUE_NODE_ASSIGNMENT);
 
-	/* Evaluate the value to assign */
+  /* Evaluate the value to assign */
 
-	eval_exp(node->val);
+  eval_exp(node->val);
 
-	eval_node_copy_val(node->var->alias, node->val);
+  eval_node_copy_val(node->var->alias, node->val);
 
-	thr->run_node = que_node_get_parent(node);
+  thr->run_node = que_node_get_parent(node);
 
-	return(thr);
+  return (thr);
 }
 
-/**********************************************************************//**
-Performs an execution step of a for-loop node.
-@return query thread to run next or NULL */
-que_thr_t*
-for_step(
-/*=====*/
-	que_thr_t*	thr)	/*!< in: query thread */
+/** Performs an execution step of a for-loop node.
+ @return query thread to run next or NULL */
+que_thr_t *for_step(que_thr_t *thr) /*!< in: query thread */
 {
-	for_node_t*	node;
-	que_node_t*	parent;
-	lint		loop_var_value;
+  for_node_t *node;
+  que_node_t *parent;
+  lint loop_var_value;
 
-	ut_ad(thr);
+  ut_ad(thr);
 
-	node = static_cast<for_node_t*>(thr->run_node);
+  node = static_cast<for_node_t *>(thr->run_node);
 
-	ut_ad(que_node_get_type(node) == QUE_NODE_FOR);
+  ut_ad(que_node_get_type(node) == QUE_NODE_FOR);
 
-	parent = que_node_get_parent(node);
+  parent = que_node_get_parent(node);
 
-	if (thr->prev_node != parent) {
+  if (thr->prev_node != parent) {
+    /* Move to the next statement */
+    thr->run_node = que_node_get_next(thr->prev_node);
 
-		/* Move to the next statement */
-		thr->run_node = que_node_get_next(thr->prev_node);
+    if (thr->run_node != NULL) {
+      return (thr);
+    }
 
-		if (thr->run_node != NULL) {
+    /* Increment the value of loop_var */
 
-			return(thr);
-		}
+    loop_var_value = 1 + eval_node_get_int_val(node->loop_var);
+  } else {
+    /* Initialize the loop */
 
-		/* Increment the value of loop_var */
+    eval_exp(node->loop_start_limit);
+    eval_exp(node->loop_end_limit);
 
-		loop_var_value = 1 + eval_node_get_int_val(node->loop_var);
-	} else {
-		/* Initialize the loop */
+    loop_var_value = eval_node_get_int_val(node->loop_start_limit);
 
-		eval_exp(node->loop_start_limit);
-		eval_exp(node->loop_end_limit);
+    node->loop_end_value = (int)eval_node_get_int_val(node->loop_end_limit);
+  }
 
-		loop_var_value = eval_node_get_int_val(node->loop_start_limit);
+  /* Check if we should do another loop */
 
-		node->loop_end_value
-                  = (int) eval_node_get_int_val(node->loop_end_limit);
-	}
+  if (loop_var_value > node->loop_end_value) {
+    /* Enough loops done */
 
-	/* Check if we should do another loop */
+    thr->run_node = parent;
+  } else {
+    eval_node_set_int_val(node->loop_var, loop_var_value);
 
-	if (loop_var_value > node->loop_end_value) {
+    thr->run_node = node->stat_list;
+  }
 
-		/* Enough loops done */
-
-		thr->run_node = parent;
-	} else {
-		eval_node_set_int_val(node->loop_var, loop_var_value);
-
-		thr->run_node = node->stat_list;
-	}
-
-	return(thr);
+  return (thr);
 }
 
-/**********************************************************************//**
-Performs an execution step of an exit statement node.
-@return query thread to run next or NULL */
-que_thr_t*
-exit_step(
-/*======*/
-	que_thr_t*	thr)	/*!< in: query thread */
+/** Performs an execution step of an exit statement node.
+ @return query thread to run next or NULL */
+que_thr_t *exit_step(que_thr_t *thr) /*!< in: query thread */
 {
-	exit_node_t*	node;
-	que_node_t*	loop_node;
+  exit_node_t *node;
+  que_node_t *loop_node;
 
-	ut_ad(thr);
+  ut_ad(thr);
 
-	node = static_cast<exit_node_t*>(thr->run_node);
+  node = static_cast<exit_node_t *>(thr->run_node);
 
-	ut_ad(que_node_get_type(node) == QUE_NODE_EXIT);
+  ut_ad(que_node_get_type(node) == QUE_NODE_EXIT);
 
-	/* Loops exit by setting thr->run_node as the loop node's parent, so
-	find our containing loop node and get its parent. */
+  /* Loops exit by setting thr->run_node as the loop node's parent, so
+  find our containing loop node and get its parent. */
 
-	loop_node = que_node_get_containing_loop_node(node);
+  loop_node = que_node_get_containing_loop_node(node);
 
-	/* If someone uses an EXIT statement outside of a loop, this will
-	trigger. */
-	ut_a(loop_node);
+  /* If someone uses an EXIT statement outside of a loop, this will
+  trigger. */
+  ut_a(loop_node);
 
-	thr->run_node = que_node_get_parent(loop_node);
+  thr->run_node = que_node_get_parent(loop_node);
 
-	return(thr);
+  return (thr);
 }
 
-/**********************************************************************//**
-Performs an execution step of a return-statement node.
-@return query thread to run next or NULL */
-que_thr_t*
-return_step(
-/*========*/
-	que_thr_t*	thr)	/*!< in: query thread */
+/** Performs an execution step of a return-statement node.
+ @return query thread to run next or NULL */
+que_thr_t *return_step(que_thr_t *thr) /*!< in: query thread */
 {
-	return_node_t*	node;
-	que_node_t*	parent;
+  return_node_t *node;
+  que_node_t *parent;
 
-	ut_ad(thr);
+  ut_ad(thr);
 
-	node = static_cast<return_node_t*>(thr->run_node);
+  node = static_cast<return_node_t *>(thr->run_node);
 
-	ut_ad(que_node_get_type(node) == QUE_NODE_RETURN);
+  ut_ad(que_node_get_type(node) == QUE_NODE_RETURN);
 
-	parent = node;
+  parent = node;
 
-	while (que_node_get_type(parent) != QUE_NODE_PROC) {
+  while (que_node_get_type(parent) != QUE_NODE_PROC) {
+    parent = que_node_get_parent(parent);
+  }
 
-		parent = que_node_get_parent(parent);
-	}
+  ut_a(parent);
 
-	ut_a(parent);
+  thr->run_node = que_node_get_parent(parent);
 
-	thr->run_node = que_node_get_parent(parent);
-
-	return(thr);
+  return (thr);
 }

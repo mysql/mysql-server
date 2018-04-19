@@ -1,12 +1,12 @@
 set optimizer_switch='index_condition_pushdown=on,mrr=on,mrr_cost_based=on';
 set @save_storage_engine= @@default_storage_engine;
 set default_storage_engine=InnoDB;
-create table t1(a int);
+create table t1(a int) charset utf8mb4;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2(a int);
 insert into t2 select A.a + 10*(B.a + 10*C.a) from t1 A, t1 B, t1 C;
@@ -169,7 +169,7 @@ c-1021=w	filler
 c-1022=w	filler
 c-1023=w	filler
 create table t4 (a varchar(10), b int, c char(10), filler char(200),
-key idx1 (a, b, c));
+key idx1 (a, b, c)) charset utf8mb4;
 insert into t4 (filler) select concat('NULL-', 15-a) from t2 order by a limit 15;
 insert into t4 (a,b,c,filler) 
 select 'b-1',NULL,'c-1', concat('NULL-', 15-a) from t2 order by a limit 15;
@@ -183,7 +183,7 @@ explain
 select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
                                                       or c='no-such-row2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	range	idx1	idx1	29	NULL	16	100.00	Using index condition
+1	SIMPLE	t4	NULL	range	idx1	idx1	89	NULL	16	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`filler` AS `filler` from `test`.`t4` where (isnull(`test`.`t4`.`a`) and isnull(`test`.`t4`.`b`) and (isnull(`test`.`t4`.`c`) or (`test`.`t4`.`c` = 'no-such-row1') or (`test`.`t4`.`c` = 'no-such-row2')))
 select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
@@ -207,7 +207,7 @@ NULL	NULL	NULL	NULL-1
 explain 
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	range	idx1	idx1	29	NULL	32	100.00	Using index condition
+1	SIMPLE	t4	NULL	range	idx1	idx1	89	NULL	32	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`filler` AS `filler` from `test`.`t4` where (((`test`.`t4`.`a` = 'b-1') or (`test`.`t4`.`a` = 'bb-1')) and isnull(`test`.`t4`.`b`) and ((`test`.`t4`.`c` = 'c-1') or (`test`.`t4`.`c` = 'cc-2')))
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
@@ -311,6 +311,8 @@ PRIMARY KEY (ID),
 KEY (key1),
 KEY (key2)
 ) AUTO_INCREMENT=6 DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES
 (1,NULL,1130,NULL,'Hello',NULL,100,'bodyandsubject',0),
 (2,NULL,1130,NULL,'bye',NULL,100,'bodyandsubject',0),
@@ -340,7 +342,7 @@ PRIMARY KEY (pk),
 KEY int_key (int_key)
 );
 INSERT INTO t2 VALUES (1,1),(2,6),(3,0);
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT MIN(t1.pk)
 FROM t1 WHERE EXISTS (
 SELECT t2.pk
@@ -352,7 +354,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	t2	NULL	ref	int_key	int_key	5	const	1	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `MIN(t1.pk)` from `test`.`t1` where 0
 DROP TABLE t1, t2;
 #
@@ -392,7 +393,7 @@ insert into t1 select A.a + 10 *(B.a + 10*C.a), A.a + 10 *(B.a + 10*C.a) from t0
 This mustn't show "Using MRR":
 explain select * from t1 where a < 20  order by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	19	100.00	Using index condition
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	20	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 20) order by `test`.`t1`.`a`
 drop table t0, t1;
@@ -400,7 +401,7 @@ set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
 set read_rnd_buffer_size=64;
 create table t1(a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
-create table t2(a char(8), b char(8), c char(8), filler char(100), key k1(a,b,c) );
+create table t2(a char(8), b char(8), c char(8), filler char(100), key k1(a,b,c) ) charset utf8mb4;
 insert into t2 select 
 concat('a-', 1000 + A.a, '-a'),
 concat('b-', 1000 + B.a, '-b'),
@@ -411,7 +412,7 @@ EXPLAIN select count(length(a) + length(filler))
 from t2 force index (k1)
 where a>='a-1000-a' and a <'a-1001-a';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	k1	k1	9	NULL	ROWS	100.00	Using index condition
+1	SIMPLE	t2	NULL	range	k1	k1	33	NULL	100	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select count((length(`test`.`t2`.`a`) + length(`test`.`t2`.`filler`))) AS `count(length(a) + length(filler))` from `test`.`t2` FORCE INDEX (`k1`) where ((`test`.`t2`.`a` >= 'a-1000-a') and (`test`.`t2`.`a` < 'a-1001-a'))
 select count(length(a) + length(filler))
@@ -421,7 +422,7 @@ count(length(a) + length(filler))
 100
 drop table t2;
 create table t2 (a char(100), b char(100), c char(100), d int, 
-filler char(10), key(d), primary key (a,b,c));
+filler char(10), key(d), primary key (a,b,c)) charset latin1;
 insert into t2 select A.a, B.a, B.a, A.a, 'filler' from t1 A, t1 B;
 explain select * from t2 force index (d) where d < 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -511,7 +512,7 @@ id
 This must show type=index, extra=Using where
 explain SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	ind_parent_id	PRIMARY	4	NULL	1	57.14	Using where
+1	SIMPLE	t1	NULL	index	ind_parent_id	PRIMARY	4	NULL	1	57.14	Using where; Backward index scan
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`parent_id` AS `parent_id`,`test`.`t1`.`name` AS `name` from `test`.`t1` where (`test`.`t1`.`parent_id` is not null) order by `test`.`t1`.`id` desc limit 1
 SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
@@ -554,6 +555,8 @@ c1 VARCHAR(1024) CHARACTER SET utf8,
 PRIMARY KEY (pk),
 KEY k1 (i1)
 );
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t2 VALUES (3, 9, 1, NULL);
 EXPLAIN SELECT i1
 FROM t1 LEFT JOIN t2 ON t1.pk = t2.i2
@@ -642,7 +645,7 @@ pk INTEGER NOT NULL,
 i1 INTEGER NOT NULL,
 c1 VARCHAR(10) NOT NULL,
 PRIMARY KEY (pk)
-);
+) charset latin1;
 INSERT INTO t1
 SELECT a, 1, 'MySQL' FROM ten;
 CREATE TABLE t2 (
@@ -650,14 +653,14 @@ pk INTEGER NOT NULL,
 c1 VARCHAR(10) NOT NULL,
 c2 varchar(10) NOT NULL,
 PRIMARY KEY (pk)
-);
+) charset latin1;
 INSERT INTO t2
 SELECT a, 'MySQL', 'MySQL' FROM ten;
 CREATE TABLE t3 (
 pk INTEGER NOT NULL,
 c1 VARCHAR(10) NOT NULL,
 PRIMARY KEY (pk)
-);
+) charset latin1;
 INSERT INTO t3
 SELECT a, 'MySQL' FROM ten;
 CREATE TABLE t4 (
@@ -667,12 +670,14 @@ c2 varchar(10) NOT NULL,
 c3 varchar(10) NOT NULL,
 PRIMARY KEY (pk),
 KEY k1 (c1_key)
-);
+) charset latin1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t5 (
 pk INTEGER NOT NULL,
 c1 VARCHAR(10) NOT NULL,
 PRIMARY KEY (pk)
-);
+) charset latin1;
 INSERT INTO t5
 SELECT a, 'MySQL' FROM ten;
 EXPLAIN SELECT STRAIGHT_JOIN *
@@ -716,13 +721,13 @@ SELECT @@big_tables;
 CREATE TABLE t1 (
 i1 INTEGER NOT NULL,
 c1 VARCHAR(1)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (1,'a'), (2, NULL);
 CREATE TABLE t2 (
 c1 VARCHAR(1),
 i1 INTEGER NOT NULL,
 KEY (c1)
-);
+) charset utf8mb4;
 INSERT INTO t2 VALUES ('a', 1), (NULL, 2);
 EXPLAIN SELECT *
 FROM
@@ -731,8 +736,8 @@ WHERE d1.c1 IN ( SELECT c1 FROM t2 )
 AND d1.c1 IS NULL
 ORDER BY d1.i1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	const	1	100.00	Using where; Using filesort
-3	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	4	func	1	100.00	Using index
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	7	const	1	100.00	Using where; Using filesort
+3	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	7	func	1	100.00	Using index
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `d1`.`i1` AS `i1`,`d1`.`c1` AS `c1` from (/* select#2 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1` from `test`.`t1`) `d1` where (<in_optimizer>(`d1`.`c1`,<exists>(<index_lookup>(<cache>(`d1`.`c1`) in t2 on c1))) and isnull(`d1`.`c1`)) order by `d1`.`i1`
@@ -758,8 +763,8 @@ b INT
 INSERT INTO t1 VALUES (1,1,1),(3,3,3),(5,5,5);
 COMMIT;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 REPEATABLE-READ
 START TRANSACTION;
 EXPLAIN SELECT * FROM t1 WHERE a > 2 FOR UPDATE;

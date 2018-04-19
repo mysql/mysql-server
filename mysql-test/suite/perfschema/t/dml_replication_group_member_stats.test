@@ -1,9 +1,5 @@
 # This test verifies the correct behaviour in case of invalid
 # usage of DMLs on the table replication_group_member_stats
-
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 SELECT * FROM performance_schema.replication_group_member_stats
   LIMIT 1;
 

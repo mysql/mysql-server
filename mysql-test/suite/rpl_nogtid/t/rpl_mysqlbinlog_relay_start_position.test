@@ -1,0 +1,117 @@
+# ==== Purpose ====
+#
+# When mysqlbinlog prints a relay log containing multiple FD events,
+# it should print BINLOG statement for the last one (because that is
+# the master FD event which may be needed to decode subsequent
+# events), even when a --start-position specifies a position
+# after this event.
+#
+# ==== Implementation ====
+#
+# On master, generate a CREATE TABLE and a DML transaction.
+#
+# On slave, find the offset of the DML transaction and the offset of
+# the last Format_description_log_event.  Run mysqlbinlog using this
+# offset with --start-position.  Check that the output contains
+# '#at <offset-of-last-FD-event>', followed by exactly one BINLOG
+# statement.
+#
+# ==== Related Bugs ====
+#
+# BUG#20980932: MYSQLBINLOG GENERATES 'ROLLBACK' AFTER FD EVENT CAUSING
+#               1782 ERROR
+#
+# - Relay logs contain first a slave FD event, then a master FD event.
+#   Between these there is a Previous_gtids_log_event.
+#   When mysqlbinlog uses the --start-position flag, it prints the
+#   FD events appearing in the header.
+#   Before this bugfix, mysqlbinlog stopped printing such header events
+#   when it reached a Previous_gtids_log_event. Therefore, the master FD
+#   event was not printed.
+#   This bugfix ensures that mysqlbinlog does not stop after reaching a
+#   Previous_gtids_log_event. So therefore the master FD event is always
+#   printed.
+#
+# Test is binlog_format-agnostic. STATEMENT is simpler here since we
+# are parsing mysqlbinlog output for BINLOG statements, so if we used
+# binlog_format='ROW' we might get confused by row events.
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+--echo ==== Initialize ====
+
+CREATE TABLE t1 (a INT);
+--source include/sync_slave_sql_with_master.inc
+
+# Record relay log's position, mysqlbinlog's start-position will be set this
+# value.
+--let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+--let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (1);
+--source include/sync_slave_sql_with_master.inc
+
+--echo ==== Generate mysqlbinlog output ====
+
+--let $mysqlbinlog_out= $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+--exec $MYSQL_BINLOG --start-position=$relay_log_pos $server_2_datadir/$relay_log_file > $mysqlbinlog_out
+
+--echo ==== Test that mysqlbinlog output looks correct ====
+
+# master's FD is the 4th event.
+--let $master_fd_offset= query_get_value("SHOW RELAYLOG EVENTS IN '$relay_log_file' LIMIT 3, 1", Pos, 1)
+--let $assert_text= One BINLOG statement printed after the '#at' for the last FD event
+--let $assert_file= $mysqlbinlog_out
+--let $assert_select= ^BINLOG
+--let $assert_only_after= ^# at $master_fd_offset
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--echo ==== Test that mysqlbinlog output is processed correctly ====
+
+# Execute the output using GTID_MODE=ON_PERMISSIVE. If the bug is
+# there, no Format_description_log_event is printed, and therefore
+# GTID_NEXT remains AUTOMATIC, so then a GTID is (wrongly)
+# generated. After the bugfix the Format_description_log_event sets
+# GTID_NEXT to NOT_YET_DETERMINED, which will switch to Anonymous.
+
+# If slave threads run while changing GTID_MODE, GTID_MODE causes
+# binlog rotations which cause slave to rotate relay logs, which may
+# cause slave to purge the relay log that we are going to process. So
+# we stop slave threads while changing GTID_MODE and running
+# mysqlbinlog.
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+
+--let $gtid_executed_before= `SELECT @@GLOBAL.GTID_EXECUTED`
+--let $rpl_gtid_mode= ON_PERMISSIVE
+--let $rpl_skip_sync= 1
+--source include/rpl_set_gtid_mode.inc
+
+--exec $MYSQL_BINLOG --start-position=$relay_log_pos $server_2_datadir/$relay_log_file | $MYSQL
+--let $assert_text= t1 should has two rows
+--let $assert_cond= count(*) = 2 FROM t1
+--source include/assert.inc
+
+--let $gtid_executed_after= `SELECT @@GLOBAL.GTID_EXECUTED`
+--let $assert_text= GTID_EXECUTED should not change
+--let $assert_cond= "$gtid_executed_after" = "$gtid_executed_before"
+--source include/assert.inc
+
+--echo ==== Clean up ====
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # restore gtid_mode
+--let $include_silent= 1
+--let $rpl_gtid_mode= $gtid_mode
+--source include/rpl_set_gtid_mode.inc
+--let $include_silent= 0
+
+--source include/rpl_end.inc

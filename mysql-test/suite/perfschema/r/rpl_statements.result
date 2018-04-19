@@ -101,20 +101,20 @@ drop database marker2_db;
 select thread_id, event_id, rpad(event_name, 28, ' ') event_name, rpad(current_schema, 10, ' ') current_schema, rpad(digest_text, 72, ' ') digest_text, sql_text from performance_schema.events_statements_history_long
 where sql_text like '%marker%' order by event_id;
 thread_id	event_id	event_name	current_schema	digest_text	sql_text
-[THREAD_ID]	[EVENT_ID]	statement/sql/create_db     	test      	CREATE SCHEMA marker1_db                                                	create database marker1_db
-[THREAD_ID]	[EVENT_ID]	statement/sql/create_db     	test      	CREATE SCHEMA marker2_db                                                	create database marker2_db
-[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE marker1_db . table1 ( s1 INTEGER ) ENGINE = innodb         	create table marker1_db.table1 (s1 int) engine=innodb
-[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE marker2_db . table1 ( s1 INTEGER ) ENGINE = innodb         	create table marker2_db.table1 (s1 int) engine=innodb
-[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE marker2_db . table2 ( s1 INTEGER ) ENGINE = innodb         	create table marker2_db.table2 (s1 int) engine=innodb
-[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO marker1_db . table1 VALUES (?) /* , ... */                  	insert into marker1_db.table1 values (1), (2), (3)
-[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO marker2_db . table1 VALUES (?) /* , ... */                  	insert into marker2_db.table1 values (1), (2), (3)
-[THREAD_ID]	[EVENT_ID]	statement/sql/alter_table   	test      	ALTER TABLE marker1_db . table1 ADD COLUMN ( s2 VARCHARACTER (?) )      	alter table marker1_db.table1 add column (s2 varchar(32))
-[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO marker1_db . table1 VALUES (...) /* , ... */                	insert into marker1_db.table1 values (4, 'four'), (5, 'five'), (6, 'six')
-[THREAD_ID]	[EVENT_ID]	statement/sql/update        	test      	UPDATE marker1_db . table1 SET s1 = s1 + ?                              	update marker1_db.table1 set s1 = s1 + 1
-[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO marker1_db . table1 VALUES (...) /* , ... */                	insert into marker1_db.table1 values (7, 'seven'), (8, 'eight'), (9, 'nine')
-[THREAD_ID]	[EVENT_ID]	statement/sql/delete        	test      	DELETE FROM marker1_db . table1 WHERE s1 > ?                            	delete from marker1_db.table1 where s1 > 4
-[THREAD_ID]	[EVENT_ID]	statement/sql/drop_table    	test      	DROP TABLE marker2_db . table1                                          	drop table marker2_db.table1
-[THREAD_ID]	[EVENT_ID]	statement/sql/drop_db       	test      	DROP SCHEMA marker2_db                                                  	drop database marker2_db
+[THREAD_ID]	[EVENT_ID]	statement/sql/create_db     	test      	CREATE SCHEMA `marker1_db`                                              	create database marker1_db
+[THREAD_ID]	[EVENT_ID]	statement/sql/create_db     	test      	CREATE SCHEMA `marker2_db`                                              	create database marker2_db
+[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE `marker1_db` . `table1` ( `s1` INTEGER ) ENGINE = `innodb` 	create table marker1_db.table1 (s1 int) engine=innodb
+[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE `marker2_db` . `table1` ( `s1` INTEGER ) ENGINE = `innodb` 	create table marker2_db.table1 (s1 int) engine=innodb
+[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE `marker2_db` . `table2` ( `s1` INTEGER ) ENGINE = `innodb` 	create table marker2_db.table2 (s1 int) engine=innodb
+[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO `marker1_db` . `table1` VALUES (?) /* , ... */              	insert into marker1_db.table1 values (1), (2), (3)
+[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO `marker2_db` . `table1` VALUES (?) /* , ... */              	insert into marker2_db.table1 values (1), (2), (3)
+[THREAD_ID]	[EVENT_ID]	statement/sql/alter_table   	test      	ALTER TABLE `marker1_db` . `table1` ADD COLUMN ( `s2` VARCHARACTER (?) )	alter table marker1_db.table1 add column (s2 varchar(32))
+[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO `marker1_db` . `table1` VALUES (...) /* , ... */            	insert into marker1_db.table1 values (4, 'four'), (5, 'five'), (6, 'six')
+[THREAD_ID]	[EVENT_ID]	statement/sql/update        	test      	UPDATE `marker1_db` . `table1` SET `s1` = `s1` + ?                      	update marker1_db.table1 set s1 = s1 + 1
+[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO `marker1_db` . `table1` VALUES (...) /* , ... */            	insert into marker1_db.table1 values (7, 'seven'), (8, 'eight'), (9, 'nine')
+[THREAD_ID]	[EVENT_ID]	statement/sql/delete        	test      	DELETE FROM `marker1_db` . `table1` WHERE `s1` > ?                      	delete from marker1_db.table1 where s1 > 4
+[THREAD_ID]	[EVENT_ID]	statement/sql/drop_table    	test      	DROP TABLE `marker2_db` . `table1`                                      	drop table marker2_db.table1
+[THREAD_ID]	[EVENT_ID]	statement/sql/drop_db       	test      	DROP SCHEMA `marker2_db`                                                	drop database marker2_db
 
 #
 # STEP 4 - REPLICATE STATEMENT EVENTS ON MASTER TO SLAVE
@@ -141,39 +141,39 @@ where (thread_id=@my_thread_id and digest_text like '%marker%'));
 
 select thread_id, event_id, rpad(event_name, 28, ' ') event_name, rpad(current_schema, 10, ' ') current_schema, rpad(digest_text, 72, ' ') digest_text, sql_text from master_events_statements_history_long order by event_id;
 thread_id	event_id	event_name	current_schema	digest_text	sql_text
-[THREAD_ID]	[EVENT_ID]	statement/sql/create_db     	test      	CREATE SCHEMA marker1_db                                                	create database marker1_db
-[THREAD_ID]	[EVENT_ID]	statement/sql/create_db     	test      	CREATE SCHEMA marker2_db                                                	create database marker2_db
-[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE marker1_db . table1 ( s1 INTEGER ) ENGINE = innodb         	create table marker1_db.table1 (s1 int) engine=innodb
-[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE marker2_db . table1 ( s1 INTEGER ) ENGINE = innodb         	create table marker2_db.table1 (s1 int) engine=innodb
-[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE marker2_db . table2 ( s1 INTEGER ) ENGINE = innodb         	create table marker2_db.table2 (s1 int) engine=innodb
-[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO marker1_db . table1 VALUES (?) /* , ... */                  	insert into marker1_db.table1 values (1), (2), (3)
-[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO marker2_db . table1 VALUES (?) /* , ... */                  	insert into marker2_db.table1 values (1), (2), (3)
-[THREAD_ID]	[EVENT_ID]	statement/sql/alter_table   	test      	ALTER TABLE marker1_db . table1 ADD COLUMN ( s2 VARCHARACTER (?) )      	alter table marker1_db.table1 add column (s2 varchar(32))
-[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO marker1_db . table1 VALUES (...) /* , ... */                	insert into marker1_db.table1 values (4, 'four'), (5, 'five'), (6, 'six')
-[THREAD_ID]	[EVENT_ID]	statement/sql/update        	test      	UPDATE marker1_db . table1 SET s1 = s1 + ?                              	update marker1_db.table1 set s1 = s1 + 1
-[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO marker1_db . table1 VALUES (...) /* , ... */                	insert into marker1_db.table1 values (7, 'seven'), (8, 'eight'), (9, 'nine')
-[THREAD_ID]	[EVENT_ID]	statement/sql/delete        	test      	DELETE FROM marker1_db . table1 WHERE s1 > ?                            	delete from marker1_db.table1 where s1 > 4
-[THREAD_ID]	[EVENT_ID]	statement/sql/drop_table    	test      	DROP TABLE marker2_db . table1                                          	drop table marker2_db.table1
-[THREAD_ID]	[EVENT_ID]	statement/sql/drop_db       	test      	DROP SCHEMA marker2_db                                                  	drop database marker2_db
+[THREAD_ID]	[EVENT_ID]	statement/sql/create_db     	test      	CREATE SCHEMA `marker1_db`                                              	create database marker1_db
+[THREAD_ID]	[EVENT_ID]	statement/sql/create_db     	test      	CREATE SCHEMA `marker2_db`                                              	create database marker2_db
+[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE `marker1_db` . `table1` ( `s1` INTEGER ) ENGINE = `innodb` 	create table marker1_db.table1 (s1 int) engine=innodb
+[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE `marker2_db` . `table1` ( `s1` INTEGER ) ENGINE = `innodb` 	create table marker2_db.table1 (s1 int) engine=innodb
+[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE `marker2_db` . `table2` ( `s1` INTEGER ) ENGINE = `innodb` 	create table marker2_db.table2 (s1 int) engine=innodb
+[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO `marker1_db` . `table1` VALUES (?) /* , ... */              	insert into marker1_db.table1 values (1), (2), (3)
+[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO `marker2_db` . `table1` VALUES (?) /* , ... */              	insert into marker2_db.table1 values (1), (2), (3)
+[THREAD_ID]	[EVENT_ID]	statement/sql/alter_table   	test      	ALTER TABLE `marker1_db` . `table1` ADD COLUMN ( `s2` VARCHARACTER (?) )	alter table marker1_db.table1 add column (s2 varchar(32))
+[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO `marker1_db` . `table1` VALUES (...) /* , ... */            	insert into marker1_db.table1 values (4, 'four'), (5, 'five'), (6, 'six')
+[THREAD_ID]	[EVENT_ID]	statement/sql/update        	test      	UPDATE `marker1_db` . `table1` SET `s1` = `s1` + ?                      	update marker1_db.table1 set s1 = s1 + 1
+[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO `marker1_db` . `table1` VALUES (...) /* , ... */            	insert into marker1_db.table1 values (7, 'seven'), (8, 'eight'), (9, 'nine')
+[THREAD_ID]	[EVENT_ID]	statement/sql/delete        	test      	DELETE FROM `marker1_db` . `table1` WHERE `s1` > ?                      	delete from marker1_db.table1 where s1 > 4
+[THREAD_ID]	[EVENT_ID]	statement/sql/drop_table    	test      	DROP TABLE `marker2_db` . `table1`                                      	drop table marker2_db.table1
+[THREAD_ID]	[EVENT_ID]	statement/sql/drop_db       	test      	DROP SCHEMA `marker2_db`                                                	drop database marker2_db
 
 *** List statement events on slave
 
 select thread_id, event_id, rpad(event_name, 28, ' ') event_name, rpad(current_schema, 10, ' ') current_schema, rpad(digest_text, 72, ' ') digest_text, sql_text from performance_schema.events_statements_history_long
 where thread_id = @slave_thread_id and sql_text like '%marker%' order by event_id;
 thread_id	event_id	event_name	current_schema	digest_text	sql_text
-[THREAD_ID]	[EVENT_ID]	statement/sql/create_db     	marker1_db	CREATE SCHEMA marker1_db                                                	create database marker1_db
-[THREAD_ID]	[EVENT_ID]	statement/sql/create_db     	marker2_db	CREATE SCHEMA marker2_db                                                	create database marker2_db
-[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE marker1_db . table1 ( s1 INTEGER ) ENGINE = innodb         	create table marker1_db.table1 (s1 int) engine=innodb
-[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE marker2_db . table1 ( s1 INTEGER ) ENGINE = innodb         	create table marker2_db.table1 (s1 int) engine=innodb
-[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE marker2_db . table2 ( s1 INTEGER ) ENGINE = innodb         	create table marker2_db.table2 (s1 int) engine=innodb
-[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO marker1_db . table1 VALUES (?) /* , ... */                  	insert into marker1_db.table1 values (1), (2), (3)
-[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO marker2_db . table1 VALUES (?) /* , ... */                  	insert into marker2_db.table1 values (1), (2), (3)
-[THREAD_ID]	[EVENT_ID]	statement/sql/alter_table   	test      	ALTER TABLE marker1_db . table1 ADD COLUMN ( s2 VARCHARACTER (?) )      	alter table marker1_db.table1 add column (s2 varchar(32))
-[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO marker1_db . table1 VALUES (...) /* , ... */                	insert into marker1_db.table1 values (4, 'four'), (5, 'five'), (6, 'six')
-[THREAD_ID]	[EVENT_ID]	statement/sql/update        	test      	UPDATE marker1_db . table1 SET s1 = s1 + ?                              	update marker1_db.table1 set s1 = s1 + 1
-[THREAD_ID]	[EVENT_ID]	statement/sql/delete        	test      	DELETE FROM marker1_db . table1 WHERE s1 > ?                            	delete from marker1_db.table1 where s1 > 4
+[THREAD_ID]	[EVENT_ID]	statement/sql/create_db     	marker1_db	CREATE SCHEMA `marker1_db`                                              	create database marker1_db
+[THREAD_ID]	[EVENT_ID]	statement/sql/create_db     	marker2_db	CREATE SCHEMA `marker2_db`                                              	create database marker2_db
+[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE `marker1_db` . `table1` ( `s1` INTEGER ) ENGINE = `innodb` 	create table marker1_db.table1 (s1 int) engine=innodb
+[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE `marker2_db` . `table1` ( `s1` INTEGER ) ENGINE = `innodb` 	create table marker2_db.table1 (s1 int) engine=innodb
+[THREAD_ID]	[EVENT_ID]	statement/sql/create_table  	test      	CREATE TABLE `marker2_db` . `table2` ( `s1` INTEGER ) ENGINE = `innodb` 	create table marker2_db.table2 (s1 int) engine=innodb
+[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO `marker1_db` . `table1` VALUES (?) /* , ... */              	insert into marker1_db.table1 values (1), (2), (3)
+[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO `marker2_db` . `table1` VALUES (?) /* , ... */              	insert into marker2_db.table1 values (1), (2), (3)
+[THREAD_ID]	[EVENT_ID]	statement/sql/alter_table   	test      	ALTER TABLE `marker1_db` . `table1` ADD COLUMN ( `s2` VARCHARACTER (?) )	alter table marker1_db.table1 add column (s2 varchar(32))
+[THREAD_ID]	[EVENT_ID]	statement/sql/insert        	test      	INSERT INTO `marker1_db` . `table1` VALUES (...) /* , ... */            	insert into marker1_db.table1 values (4, 'four'), (5, 'five'), (6, 'six')
+[THREAD_ID]	[EVENT_ID]	statement/sql/update        	test      	UPDATE `marker1_db` . `table1` SET `s1` = `s1` + ?                      	update marker1_db.table1 set s1 = s1 + 1
+[THREAD_ID]	[EVENT_ID]	statement/sql/delete        	test      	DELETE FROM `marker1_db` . `table1` WHERE `s1` > ?                      	delete from marker1_db.table1 where s1 > 4
 [THREAD_ID]	[EVENT_ID]	statement/sql/drop_table    	test      	DROP TABLE `marker2_db` . `table1`                                      	DROP TABLE `marker2_db`.`table1` /* generated by server */
-[THREAD_ID]	[EVENT_ID]	statement/sql/drop_db       	marker2_db	DROP SCHEMA marker2_db                                                  	drop database marker2_db
+[THREAD_ID]	[EVENT_ID]	statement/sql/drop_db       	marker2_db	DROP SCHEMA `marker2_db`                                                	drop database marker2_db
 
 *** Compare master and slave events
 
@@ -193,7 +193,6 @@ where t1.thread_id = @slave_thread_id and
 sql_text like '%marker%' and
 not exists (select * from master_events_statements_history_long t2 where t2.digest = t1.digest);
 thread_id	event_id	event_name	digest	digest_text	sql_text
-[THREAD_ID]	[EVENT_ID]	statement/sql/drop_table	[DIGEST]	DROP TABLE `marker2_db` . `table1` 	DROP TABLE `marker2_db`.`table1` /* generated by server */
 
 #
 # STEP 6 - DISABLE REPLICATED STATEMENT EVENTS ON SLAVE
@@ -201,8 +200,8 @@ thread_id	event_id	event_name	digest	digest_text	sql_text
 update performance_schema.setup_instruments set enabled='no', timed='no'
   where name like '%statement/abstract/relay_log%';
 select * from performance_schema.setup_instruments where name like '%statement/abstract/relay_log%';
-NAME	ENABLED	TIMED
-statement/abstract/relay_log	NO	NO
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+statement/abstract/relay_log	NO	NO	mutable	0	New event just read from the relay log. At this point, the real statement type is unknown, the type will be refined after parsing the event.
 
 #
 # STEP 7 - UPDATE TABLES ON MASTER, REPLICATE

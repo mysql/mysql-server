@@ -29,6 +29,8 @@ SELECT * FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
+unlink: t1.ibd
+unlink: t1.cfg
 SET SESSION debug="+d,ib_import_before_checkpoint_crash";
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
@@ -76,7 +78,7 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_internal_error";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Internal error: While updating the <space, root page number> of index GEN_CLUST_INDEX - Generic error
+ERROR HY000: Internal error: While importing table test_wl5522/t1
 SET SESSION debug="-d,ib_import_internal_error";
 restore: t1 .ibd and .cfg files
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -176,7 +178,7 @@ t1	CREATE TABLE `t1` (
   KEY `idx1` (`c2`),
   KEY `idx2` (`c3`(512)),
   KEY `idx3` (`c4`(512))
-) ENGINE=InnoDB AUTO_INCREMENT=248 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
+) ENGINE=InnoDB AUTO_INCREMENT=248 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
 SELECT c1, c2 FROM test_wl5522.t1;
 c1	c2
 2	32
@@ -432,7 +434,7 @@ t1	CREATE TABLE `t1` (
   KEY `idx1` (`c2`),
   KEY `idx2` (`c3`(512)),
   KEY `idx3` (`c4`(512))
-) ENGINE=InnoDB AUTO_INCREMENT=185 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
+) ENGINE=InnoDB AUTO_INCREMENT=248 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;

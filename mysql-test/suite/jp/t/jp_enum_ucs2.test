@@ -1,5 +1,9 @@
---source include/have_ucs2.inc
---source include/have_innodb.inc
+#Server variable option 'lower_case_table_names' sets '0' as default value
+#in case sensitive filesystem. Using 'lower_case_table_names=0' in case of
+#insensitive filsystem is not allowed.
+-- source include/have_case_sensitive_file_system.inc
+
+--character_set ujis
 
 # half-with kana is not handled correctly in 4.1
 # because of bug #5174

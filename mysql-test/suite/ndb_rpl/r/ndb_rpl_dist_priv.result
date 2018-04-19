@@ -10,45 +10,62 @@ mysql.mysql_cluster_privileges_are_distributed()
 CREATE TABLE t1 (pk INT PRIMARY KEY, a INT) engine = ndb;
 CREATE USER 'user'@'localhost' IDENTIFIED by 'mypass';
 GRANT UPDATE ON t1 TO 'user'@'localhost';
-SET PASSWORD FOR 'user'@'localhost'= PASSWORD('newpass');
+SET PASSWORD FOR 'user'@'localhost'= 'newpass';
 RENAME USER 'user'@'localhost' TO 'newuser'@'localhost';
 GRANT SELECT ON test.* TO 'newuser'@'localhost' IDENTIFIED by 'mypass2';
+Warnings:
+Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 CREATE USER 'user2'@'localhost' IDENTIFIED by 'mypass';
 GRANT SELECT ON test.t1 TO 'user2'@'localhost';
-select distinct User,Password from mysql.user order by User;
-User	Password
+select distinct User,Authentication_string from mysql.user order by User;
+User	Authentication_string
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
 root	
 user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 newuser	Update
 user2	Select
+CREATE USER 'user'@'localhost';
 grant ALL PRIVILEGES on test.* to user@localhost with GRANT OPTION;
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 newuser	Update
 user2	Select
 GRANT SELECT ON test.t1 TO 'user'@'localhost';
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 newuser	Update
 user	Select
 user2	Select
 FLUSH PRIVILEGES;
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 newuser	Update
 user	Select
 user2	Select
 REVOKE SELECT ON test.t1 FROM 'user'@'localhost';
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 newuser	Update
 user2	Select
 CREATE USER 'user3'@'localhost' IDENTIFIED by 'mypass';
-select distinct User,Password from mysql.user order by User;
-User	Password
+select distinct User,Authentication_string from mysql.user order by User;
+User	Authentication_string
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
 root	
 user	
@@ -56,10 +73,14 @@ user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 user3	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 newuser	Update
 user2	Select
-select distinct User,Password from mysql.user order by User;
-User	Password
+select distinct User,Authentication_string from mysql.user order by User;
+User	Authentication_string
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
 root	
 user	
@@ -67,6 +88,8 @@ user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 user3	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 newuser	Update
 user2	Select
 FLUSH PRIVILEGES;
@@ -74,13 +97,17 @@ REVOKE UPDATE ON t1 FROM 'newuser'@'localhost';
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user2'@'localhost';
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 GRANT SELECT (a) ON test.t1 TO 'user'@'localhost';
 select User, Table_name, Column_name from mysql.columns_priv ORDER BY User;
 User	Table_name	Column_name
 user	t1	a
 FLUSH PRIVILEGES;
-select distinct User,Password from mysql.user order by User;
-User	Password
+select distinct User,Authentication_string from mysql.user order by User;
+User	Authentication_string
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
 root	
 user	
@@ -88,12 +115,16 @@ user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 user3	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 user	
 select User, Table_name, Column_name from mysql.columns_priv ORDER BY User;
 User	Table_name	Column_name
 user	t1	a
-select distinct User,Password from mysql.user order by User;
-User	Password
+select distinct User,Authentication_string from mysql.user order by User;
+User	Authentication_string
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
 root	
 user	
@@ -101,6 +132,8 @@ user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 user3	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 user	
 select User, Table_name, Column_name from mysql.columns_priv ORDER BY User;
 User	Table_name	Column_name
@@ -109,15 +142,16 @@ DROP USER 'newuser'@'localhost';
 == Showing binlog server1 ==
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user'@'localhost' IDENTIFIED BY PASSWORD '*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4'
-master-bin.000001	#	Query	#	#	use `test`; GRANT UPDATE ON t1 TO 'user'@'localhost'
-master-bin.000001	#	Query	#	#	use `test`; SET PASSWORD FOR 'user'@'localhost'='*D8DECEC305209EEFEC43008E1D420E1AA06B19E0'
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4'
+master-bin.000001	#	Query	#	#	use `test`; GRANT UPDATE ON `test`.`t1` TO 'user'@'localhost'
+master-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*D8DECEC305209EEFEC43008E1D420E1AA06B19E0'
 master-bin.000001	#	Query	#	#	use `test`; RENAME USER 'user'@'localhost' TO 'newuser'@'localhost'
-master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON `test`.* TO 'newuser'@'localhost' IDENTIFIED BY PASSWORD '*1E9649BB3F345563008E37641B407AFF50E5835C'
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user2'@'localhost' IDENTIFIED BY PASSWORD '*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4'
-master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON test.t1 TO 'user2'@'localhost'
-master-bin.000001	#	Query	#	#	use `test`; grant ALL PRIVILEGES on test.* to user@localhost with GRANT OPTION
-master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON test.t1 TO 'user'@'localhost'
+master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON `test`.* TO 'newuser'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*1E9649BB3F345563008E37641B407AFF50E5835C'
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4'
+master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON `test`.`t1` TO 'user2'@'localhost'
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+master-bin.000001	#	Query	#	#	use `test`; GRANT ALL PRIVILEGES ON `test`.* TO 'user'@'localhost' WITH GRANT OPTION
+master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON `test`.`t1` TO 'user'@'localhost'
 master-bin.000001	#	Query	#	#	REVOKE SELECT ON test.t1 FROM 'user'@'localhost'
 master-bin.000001	#	Query	#	#	CREATE USER 'user3'@'localhost' IDENTIFIED by 'mypass'
 master-bin.000001	#	Query	#	#	REVOKE UPDATE ON t1 FROM 'newuser'@'localhost'
@@ -130,51 +164,57 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	CREATE USER 'user'@'localhost' IDENTIFIED by 'mypass'
 master-bin.000001	#	Query	#	#	GRANT UPDATE ON t1 TO 'user'@'localhost'
-master-bin.000001	#	Query	#	#	SET PASSWORD FOR 'user'@'localhost'='*D8DECEC305209EEFEC43008E1D420E1AA06B19E0'
+master-bin.000001	#	Query	#	#	ALTER USER 'user'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*D8DECEC305209EEFEC43008E1D420E1AA06B19E0'
 master-bin.000001	#	Query	#	#	RENAME USER 'user'@'localhost' TO 'newuser'@'localhost'
 master-bin.000001	#	Query	#	#	GRANT SELECT ON test.* TO 'newuser'@'localhost' IDENTIFIED by 'mypass2'
 master-bin.000001	#	Query	#	#	CREATE USER 'user2'@'localhost' IDENTIFIED by 'mypass'
 master-bin.000001	#	Query	#	#	GRANT SELECT ON test.t1 TO 'user2'@'localhost'
+master-bin.000001	#	Query	#	#	CREATE USER 'user'@'localhost'
 master-bin.000001	#	Query	#	#	grant ALL PRIVILEGES on test.* to user@localhost with GRANT OPTION
 master-bin.000001	#	Query	#	#	GRANT SELECT ON test.t1 TO 'user'@'localhost'
 master-bin.000001	#	Query	#	#	use `test`; FLUSH PRIVILEGES
 master-bin.000001	#	Query	#	#	use `test`; REVOKE SELECT ON test.t1 FROM 'user'@'localhost'
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user3'@'localhost' IDENTIFIED BY PASSWORD '*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4'
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4'
 master-bin.000001	#	Query	#	#	use `test`; FLUSH PRIVILEGES
 master-bin.000001	#	Query	#	#	use `test`; REVOKE UPDATE ON t1 FROM 'newuser'@'localhost'
 master-bin.000001	#	Query	#	#	use `test`; REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user2'@'localhost'
-master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT (a) ON test.t1 TO 'user'@'localhost'
+master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT (a) ON `test`.`t1` TO 'user'@'localhost'
 master-bin.000001	#	Query	#	#	use `test`; DROP USER 'newuser'@'localhost'
-select distinct User,Password from mysql.user order by User;
-User	Password
+select distinct User,Authentication_string from mysql.user order by User;
+User	Authentication_string
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 root	
 user	
 user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 user3	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 user	
-select distinct User,Password from mysql.user order by User;
-User	Password
+select distinct User,Authentication_string from mysql.user order by User;
+User	Authentication_string
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 root	
 user	
 user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 user3	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 user	
 BEGIN;
-UPDATE mysql.user SET Password = ''
+UPDATE mysql.user SET Authentication_string = ''
 WHERE User = 'user2';
-SET PASSWORD FOR 'user2'@'localhost' = PASSWORD('newpass');
-ERROR 42000: Can't find any matching row in the user table
+SET PASSWORD FOR 'user2'@'localhost' = 'newpass';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1297	Got temporary error 266 'Time-out in NDB, probably caused by deadlock' from NDB
-Error	1133	Can't find any matching row in the user table
-Warning	1296	Got error 4350 'Transaction already aborted' from NDB
-Error	1296	Got error 4350 'Transaction already aborted' from NDBCLUSTER
-Error	1180	Got error 4350 during COMMIT
+Error	1205	Lock wait timeout exceeded; try restarting transaction
 Warning	1297	Got temporary error 274 'Time-out in NDB, probably caused by deadlock' from NDB
 Warning	1297	Got temporary error 274 'Time-out in NDB, probably caused by deadlock' from NDB
 Error	1205	Lock wait timeout exceeded; try restarting transaction
@@ -183,20 +223,21 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	CREATE USER 'user'@'localhost' IDENTIFIED by 'mypass'
 master-bin.000001	#	Query	#	#	GRANT UPDATE ON t1 TO 'user'@'localhost'
-master-bin.000001	#	Query	#	#	SET PASSWORD FOR 'user'@'localhost'='*D8DECEC305209EEFEC43008E1D420E1AA06B19E0'
+master-bin.000001	#	Query	#	#	ALTER USER 'user'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*D8DECEC305209EEFEC43008E1D420E1AA06B19E0'
 master-bin.000001	#	Query	#	#	RENAME USER 'user'@'localhost' TO 'newuser'@'localhost'
 master-bin.000001	#	Query	#	#	GRANT SELECT ON test.* TO 'newuser'@'localhost' IDENTIFIED by 'mypass2'
 master-bin.000001	#	Query	#	#	CREATE USER 'user2'@'localhost' IDENTIFIED by 'mypass'
 master-bin.000001	#	Query	#	#	GRANT SELECT ON test.t1 TO 'user2'@'localhost'
+master-bin.000001	#	Query	#	#	CREATE USER 'user'@'localhost'
 master-bin.000001	#	Query	#	#	grant ALL PRIVILEGES on test.* to user@localhost with GRANT OPTION
 master-bin.000001	#	Query	#	#	GRANT SELECT ON test.t1 TO 'user'@'localhost'
 master-bin.000001	#	Query	#	#	use `test`; FLUSH PRIVILEGES
 master-bin.000001	#	Query	#	#	use `test`; REVOKE SELECT ON test.t1 FROM 'user'@'localhost'
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user3'@'localhost' IDENTIFIED BY PASSWORD '*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4'
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4'
 master-bin.000001	#	Query	#	#	use `test`; FLUSH PRIVILEGES
 master-bin.000001	#	Query	#	#	use `test`; REVOKE UPDATE ON t1 FROM 'newuser'@'localhost'
 master-bin.000001	#	Query	#	#	use `test`; REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user2'@'localhost'
-master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT (a) ON test.t1 TO 'user'@'localhost'
+master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT (a) ON `test`.`t1` TO 'user'@'localhost'
 master-bin.000001	#	Query	#	#	use `test`; DROP USER 'newuser'@'localhost'
 ROLLBACK;
 === making backup of new users ===

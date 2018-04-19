@@ -1,18 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
-drop database if exists mysqltest;
---enable_warnings
-
 #
-# Basic test to show that the NDB 
-# table handler is working
+# Basic test of the ndbcluster plugin 
 #
 
 #
@@ -23,6 +12,7 @@ drop database if exists mysqltest;
 SHOW GLOBAL STATUS LIKE 'ndb\_%';
 --replace_column 2 #
 --sorted_result
+# Avoid deprecations warnings from SHOW GLOBAL VARIABLES
 --disable_warnings
 SHOW GLOBAL VARIABLES WHERE Variable_name LIKE 'ndb\_%' and 
                             Variable_name NOT LIKE 'ndb_dbg\_%';
@@ -422,6 +412,7 @@ while ($i)
 }
 let $sql=$sql, c512 varchar(10000);
 let $sql=$sql, primary key using hash(c1)) engine=ndb;
+let $sql=$sql charset=latin1;
 let $sql=$sql partition by key(c1);
 #             ^^^^^^^^^^^^^^^^^^^^
 #             also tests bug#17179, more than 31
@@ -439,8 +430,39 @@ insert into t1 (c1,c512) values (1,@v10000), (2,@v10000), (3,@v10000);
 select c1, length(c512) from t1 order by 1;
 delete from t1;
 drop table t1;
+# Bug #21863798 CREATING TABLE WITH MAX NUMBER OF DYNAMIC ATTRIBUTES CAUSES NODE CRASH
+let $i=511; # The current max number of attributes
+let $separator=;
+let $sql=create table t1 (;
+while ($i)
+{
+  let $sql=$sql$separator c$i int column_format dynamic;
+  let $separator=,;
+  dec $i;
+}
+let $sql=$sql, c512 varchar(10000);
+let $sql=$sql, primary key using hash(c1)) engine=ndb;
+let $sql=$sql charset=latin1;
+let $sql=$sql partition by key(c1);
 
-create table t1 (a int primary key, b varchar(13000)) engine = ndb;
+eval $sql; # eval the sql and create the table
+
+set @v10 = '0123456789';
+set @v100 = concat(@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10);
+set @v1000 = concat(@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100);
+set @v10000 = concat(@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000);
+
+set @v13000 = concat(@v10000, @v1000,@v1000,@v1000);
+
+insert into t1 (c1,c512) values (1,@v10000), (2,@v10000), (3,@v10000);
+select c1, length(c512) from t1 order by 1;
+delete from t1;
+drop table t1;
+
+create table t1 (
+  a int primary key,
+  b varchar(13000)
+) engine = ndb charset=latin1;
 insert into t1 values (1,@v13000), (2,@v13000);
 select length(b) from t1 order by 1;
 drop table t1;
@@ -450,11 +472,12 @@ let $separator=;
 let $sql=create table t1 (;
 while ($i)
 {
-  let $sql=$sql$separator c$i char(255);
+  let $sql=$sql$separator c$i char(255) column_format fixed;
   let $separator=,;
   dec $i;
 }
 let $sql=$sql, primary key using hash(c1)) engine=ndb;
+let $sql=$sql charset=latin1;
 
 --error 1296
 eval $sql; # eval the sql and create the table
@@ -475,7 +498,8 @@ create table t1 (
 a1234567890123456789012345678901234567890 int primary key,
 a12345678901234567890123456789a1234567890 int,
 index(a12345678901234567890123456789a1234567890)
-) engine=ndb;
+) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 show tables;
 insert into t1 values (1,1),(2,1),(3,1),(4,1),(5,2),(6,1),(7,1);
 --replace_column 10 # 11 #
@@ -512,14 +536,40 @@ insert into t1 values
   (1,3,3,7),(2,4,4,7),(3,5,5,8),
   (3,3,3,7),(1,4,4,7),(2,5,5,8);
 select count(*) from t1;
+select count(*) into @cnt_big
+from information_schema.partitions
+where table_schema = 'test' and table_name = 't1';
 drop table t1;
 
 create table t1
   (a bigint, b bigint, c bigint, d bigint, 
-   primary key (a)) 
+   primary key (a,b,c,d))
   engine=ndb
   max_rows=1;
+insert into t1 values
+  (1,2,3,4),(2,3,4,5),(3,4,5,6),
+  (3,2,3,4),(1,3,4,5),(2,4,5,6),
+  (1,2,3,5),(2,3,4,8),(3,4,5,9),
+  (3,2,3,5),(1,3,4,8),(2,4,5,9),
+  (1,2,3,6),(2,3,4,6),(3,4,5,7),
+  (3,2,3,6),(1,3,4,6),(2,4,5,7),
+  (1,2,3,7),(2,3,4,7),(3,4,5,8),
+  (3,2,3,7),(1,3,4,7),(2,4,5,8),
+  (1,3,3,4),(2,4,4,5),(3,5,5,6),
+  (3,3,3,4),(1,4,4,5),(2,5,5,6),
+  (1,3,3,5),(2,4,4,8),(3,5,5,9),
+  (3,3,3,5),(1,4,4,8),(2,5,5,9),
+  (1,3,3,6),(2,4,4,6),(3,5,5,7),
+  (3,3,3,6),(1,4,4,6),(2,5,5,7),
+  (1,3,3,7),(2,4,4,7),(3,5,5,8),
+  (3,3,3,7),(1,4,4,7),(2,5,5,8);
+select count(*) into @cnt_small
+from information_schema.partitions
+where table_schema = 'test' and table_name = 't1';
 drop table t1;
+
+# Check
+select @cnt_big > @cnt_small;
 
 #
 # Test auto_increment
@@ -637,8 +687,6 @@ drop table t1;
 drop table t2;
 drop table t3;
 
-# End of 4.1 tests
-
 #
 # Test long table name
 #
@@ -740,8 +788,6 @@ replace into t1 values ('ccc', '-ccc');
 select * from t1 order by 1,2;
 drop table t1;
 
---echo End of 5.0 tests
-
 #
 # Bug #18483 Cannot create table with FK constraint
 # ndb does not support foreign key constraint, it is silently ignored
@@ -788,13 +834,15 @@ drop table t10,t20;
 CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8;
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 CREATE TABLE `t2` (
   `id` int(11) NOT NULL,
   `obj_id` int(11) DEFAULT NULL,
   UNIQUE KEY `id` (`id`),
   KEY `obj_id` (`obj_id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8;
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 --echo # here we used to segv
 --replace_column 10 # 11 #
 explain SELECT t1.id FROM t1 INNER JOIN t2 ON t1.id = t2.id WHERE t2.obj_id=1;
@@ -848,10 +896,8 @@ drop table t1;
 #
 #Bug #11753491 44940: MYSQLD CRASHES WHEN CREATING A CLUSTER TABLE WITH 64 CHARACTER TABLE NAME
 #
---error 1296
+--error ER_TOO_LONG_IDENT
 create table
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123(id int
 primary key) engine=ndb;
 show warnings;
-
---echo End of 5.1 tests

@@ -1,0 +1,52 @@
+!include include/default_mysqld.cnf
+!include include/default_ndbd.cnf
+
+# Create cluster with 4 attached MySQLDs with different
+# binlog variants
+
+[cluster_config.1]
+NoOfReplicas=                  2
+ndbd=,
+ndb_mgmd=
+mysqld=,,,
+ndbapi=,,,,,,,,,,,
+
+[mysqld]
+# Make all mysqlds use cluster
+ndbcluster
+ndb-wait-connected=20
+ndb-wait-setup=120
+ndb-cluster-connection-pool=1
+binlog-format=row
+
+log-bin-use-v1-row-events=false
+ndb-log-empty-update
+
+# Enable load data local functionality
+local-infile=true
+
+[mysqld.1.1]
+ndb-log-update-as-write=1
+ndb-log-updated-only=1
+
+[mysqld.2.1]
+ndb-log-update-as-write=1
+ndb-log-updated-only=0
+
+[mysqld.3.1]
+ndb-log-update-as-write=0
+ndb-log-updated-only=1
+
+[mysqld.4.1]
+ndb-log-update-as-write=0
+ndb-log-updated-only=0
+
+[ENV]
+NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring
+MASTER_MYPORT=                 @mysqld.1.1.port
+MASTER_MYPORT1=                @mysqld.2.1.port
+MASTER_MYPORT2=                @mysqld.3.1.port
+MASTER_MYPORT3=                @mysqld.4.1.port
+
+NDB_BACKUP_DIR=                @cluster_config.ndbd.1.1.BackupDataDir
+

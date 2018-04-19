@@ -25,6 +25,7 @@
 # We just verify that the default binlog_format is STATEMENT in 5.1.
 # In 6.0, it should be MIXED.
 ###################################################################
+--replace_column 1 #
 SELECT @@GLOBAL.binlog_format;
 
 --echo '#---------------------BS_STVARS_002_01----------------------#'
@@ -56,7 +57,7 @@ SELECT @@SESSION.binlog_format;
 
 --disable_warnings
 SELECT @@GLOBAL.binlog_format = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_format';
 --enable_warnings
 --echo 1 Expected
@@ -66,7 +67,7 @@ SELECT COUNT(@@GLOBAL.binlog_format);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_format';
 --enable_warnings
 --echo 1 Expected
@@ -79,7 +80,7 @@ WHERE VARIABLE_NAME='binlog_format';
 
 --disable_warnings
 SELECT @@SESSION.binlog_format = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='binlog_format';
 --enable_warnings
 --echo 1 Expected
@@ -89,7 +90,7 @@ SELECT COUNT(@@SESSION.binlog_format);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='binlog_format';
 --enable_warnings
 --echo 1 Expected
@@ -109,5 +110,14 @@ SELECT COUNT(@@SESSION.binlog_format);
 SELECT COUNT(@@GLOBAL.binlog_format);
 --echo 1 Expected
 
-SET @@global.binlog_format= @start_value;
+--echo #########################################################################
+--echo # Bug #26269280: SET SESSION BINLOG_FORMAT = ROW GIVES SYNTAX ERROR     #
+--echo #########################################################################
 
+SET binlog_format = ROW;
+SET SESSION binlog_format = ROW;
+SET @@session.binlog_format= ROW;
+
+--echo #########################################################################
+
+SET @@global.binlog_format= @start_value;

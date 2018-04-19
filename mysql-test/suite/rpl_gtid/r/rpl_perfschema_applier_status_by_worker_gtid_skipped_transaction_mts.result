@@ -1,0 +1,30 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t (a int);
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+[connection master]
+CREATE TABLE t1 (a int);
+[connection slave]
+CREATE TABLE t2 (a int);
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+include/start_slave_sql.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [queueing_gtid was cleared after the gtid skipped transactions]
+include/assert.inc [processing_gtid was cleared after the gtid skipped transactions]
+include/assert.inc [applying_gtid was cleared after the gtid skipped transactions]
+include/assert.inc [Assert that the last_queued_gtid is the same as the skipped transaction]
+include/assert.inc [Assert the the last_processed_gtid is clear after the slave skipped the transaction]
+include/assert.inc [Assert that the last_applied_gtid is clear after the slave skipped the transaction]
+DROP TABLE t2;
+[connection master]
+SET SQL_LOG_BIN= 0;
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+DROP TABLE t1;
+SET SQL_LOG_BIN= 1;
+include/rpl_end.inc

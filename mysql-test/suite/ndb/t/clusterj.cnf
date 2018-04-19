@@ -2,7 +2,6 @@
 
 [cluster_config]
 #######
-# clusterj.test makes excessive use of indexes, 
-# and thus needs an increased IndexMemory setting
+DataMemory=50M
+MaxNoOfOrderedIndexes = 150
 #
-IndexMemory=16M

@@ -49,7 +49,9 @@ if (!$xa_error_simul)
 --replace_result $master_uuid MASTER_UUID
 --eval SET @@SESSION.GTID_NEXT = '$gtid_phase1'
 --eval XA START   $xid
+--disable_warnings
 --eval INSERT INTO $xa_table VALUES(1)
+--enable_warnings
 --eval XA END     $xid
 --eval XA PREPARE $xid
 
@@ -64,7 +66,7 @@ if ($disconnect_prepare)
 if (`SELECT NOT $disconnect_prepare AND $xa_error_simul AND '$gtid_phase1' <> 'automatic'`)
 {
   --replace_result $master_uuid MASTER_UUID
-  --error ER_GTID_NEXT_TYPE_UNDEFINED_GROUP
+  --error ER_GTID_NEXT_TYPE_UNDEFINED_GTID
   --eval XA $conclude_as $xid
 }
 

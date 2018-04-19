@@ -1,0 +1,40 @@
+# ==== Purpose ====
+#
+# Verify that we permit replication operations with super_read_only=ON.
+#
+# ==== Implementation ====
+#
+# 1) SET AUTOCOMMIT=ON
+# 2) Verify that we permit replication operations with super_read_only=ON
+#    by executing rpl_ignore_super_read_only.test
+# 3) SET AUTOCOMMIT=OFF
+# 2) Verify that we permit replication operations with super_read_only=ON
+#    by executing rpl_ignore_super_read_only.test
+#
+# ==== References ====
+#
+# Bug#22097534: SUPER_READ_ONLY ABORTS STOP SLAVE IF
+#               RELAY_LOG_INFO_REPOSITORY=TABLE, DBG CRASH
+# Bug#22857926: ASSERTION `! IS_SET()' AT SQL_ERROR.CC:38 IN READ_ONLY MODE FOR
+#               MANY RPL CMDS.
+# Bug#26414532: MYSQLRPLSYNC ERRORS OUT BECAUSE SLAVE IS USING --SUPER-READ-ONLY
+#               OPTION
+#
+
+# Test in this file only makes sense in standard replication,
+# so it is skipped in group replication.
+--source include/not_group_replication_plugin.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+--source include/master-slave.inc
+
+--let $autocommit_opt= ON
+--source extra/rpl_tests/rpl_ignore_super_read_only.test
+
+--let $autocommit_opt= OFF
+--source extra/rpl_tests/rpl_ignore_super_read_only.test
+
+--source include/rpl_end.inc

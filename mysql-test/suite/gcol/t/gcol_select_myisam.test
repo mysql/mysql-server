@@ -41,6 +41,7 @@ eval SET optimizer_switch='derived_merge=off';
 
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines
+let $support_virtual_index= 0;
 --source suite/gcol/inc/gcol_select.inc
 
 #------------------------------------------------------------------------------#

@@ -1,15 +1,21 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -74,32 +80,4 @@ insert(const char * pair, Properties & p){
   p.put(split[0].trim().c_str(), split[1].trim().c_str()); 
 
   return 0;
-}
-
-int
-insert_file(FILE * f, class Properties& p, bool break_on_empty){
-  if(f == 0)
-    return -1;
-
-  while(!feof(f)){
-    char buf[1024];
-    fgets(buf, 1024, f);
-    BaseString tmp = buf;
-
-    if(tmp.length() > 0 && tmp.c_str()[0] == '#')
-      continue;
-
-    if(insert(tmp.c_str(), p) != 0 && break_on_empty)
-      break;
-  }
-
-  return 0;
-}
-
-int
-insert_file(const char * filename, class Properties& p){
-  FILE * f = fopen(filename, "r");
-  int res = insert_file(f, p);
-  if(f) fclose(f);
-  return res;
 }

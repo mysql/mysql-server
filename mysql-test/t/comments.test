@@ -9,7 +9,7 @@ multi line comment */;
 --error 1065
  ;
 select 1 /*!32301 +1 */;
-select 1 /*!52301 +1 */;
+select 1 /*!999999 +1 */;
 select 1--1;
 # Note that the following returns 4 while it should return 2
 # This is because the mysqld server doesn't parse -- comments

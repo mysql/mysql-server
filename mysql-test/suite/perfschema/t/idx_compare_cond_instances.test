@@ -1,0 +1,32 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "cond_instances";
+let $target_name = wait/synch/cond/sql/COND_thr_lock;
+let $name_column = NAME;
+
+--echo TABLE: $table
+--echo INDEXES: PK (OBJECT_INSTANCE_BEGIN), KEY (NAME)
+
+--source ../include/idx_compare_setup.inc
+
+--disable_query_log
+# Get an object_instance_begin
+eval SELECT object_instance_begin INTO @object_instance_begin
+  FROM performance_schema.cond_instances
+  WHERE name = '$target_name' LIMIT 1;
+--enable_query_log
+
+--echo
+--echo ## Test OBJECT_INSTANCE_BEGIN
+let $key_group = 12;
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test NAME
+let $key_group = 13;
+--source ../include/idx_compare_load.inc
+
+--source ../include/idx_compare_cleanup.inc

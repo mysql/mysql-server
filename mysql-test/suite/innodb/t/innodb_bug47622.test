@@ -4,7 +4,6 @@
 # We resolve the problem by sync the index sequence
 # up when opening the table.
 
---source include/have_innodb.inc
 
 connect (a,localhost,root,,);
 connect (b,localhost,root,,);

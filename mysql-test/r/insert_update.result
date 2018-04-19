@@ -56,17 +56,18 @@ a	b	c	VALUES(a)
 5	0	30	NULL
 8	9	60	NULL
 2	1	11	NULL
-explain extended SELECT *, VALUES(a) FROM t1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain SELECT *, VALUES(a) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,NULL AS `VALUES(a)` from `test`.`t1`
-explain extended select * from t1 where values(a);
+explain select * from t1 where values(a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where 0
 DROP TABLE t1;
 create table t1(a int primary key, b int);
@@ -265,8 +266,6 @@ LAST_INSERT_ID()
 1
 DROP TABLE t1;
 SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE `t1` (
 `id` int(11) PRIMARY KEY auto_increment,
 `f1` varchar(10) NOT NULL UNIQUE
@@ -416,3 +415,396 @@ select if( @stamp1 = @stamp2, "correct", "wrong");
 if( @stamp1 = @stamp2, "correct", "wrong")
 correct
 drop table t1;
+# Bug 21774967: MYSQL ACCEPTS NON-ASCII IN ASCII COLUMNS
+CREATE TABLE t1(
+a CHAR(20) CHARACTER SET ascii,
+b VARCHAR(20) CHARACTER SET ascii,
+c TEXT(20) CHARACTER SET ascii
+);
+CREATE TABLE t2(
+a CHAR(20) CHARACTER SET ascii COLLATE ascii_general_ci,
+b VARCHAR(20) CHARACTER SET ascii COLLATE ascii_general_ci,
+c TEXT(20) CHARACTER SET ascii COLLATE ascii_general_ci
+);
+CREATE TABLE t3(
+a CHAR(20) CHARACTER SET ascii COLLATE ascii_bin,
+b VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin,
+c TEXT(20) CHARACTER SET ascii COLLATE ascii_bin
+);
+SET SQL_MODE="STRICT_TRANS_TABLES";
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+INSERT INTO t1 values(x'8142', x'8142', x'8142');
+Warnings:
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+UPDATE t1 SET a=x'8243' where a=x'8142';
+Warnings:
+Warning	1300	Invalid ascii character string: '\x82C'
+INSERT INTO t2 values(x'8142', x'8142', x'8142');
+Warnings:
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+UPDATE t2 SET a=x'8243' where a=x'8142';
+Warnings:
+Warning	1300	Invalid ascii character string: '\x82C'
+INSERT INTO t3 values(x'8142', x'8142', x'8142');
+Warnings:
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+UPDATE t3 SET a=x'8243' where a=x'8142';
+Warnings:
+Warning	1300	Invalid ascii character string: '\x82C'
+SET SQL_MODE="";
+INSERT INTO t1 values(x'8142', x'8142', x'8142');
+Warnings:
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+UPDATE t1 SET a=x'8243' where a=x'8142';
+Warnings:
+Warning	1300	Invalid ascii character string: '\x82C'
+INSERT INTO t2 values(x'8142', x'8142', x'8142');
+Warnings:
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+UPDATE t2 SET a=x'8243' where a=x'8142';
+Warnings:
+Warning	1300	Invalid ascii character string: '\x82C'
+INSERT INTO t3 values(x'8142', x'8142', x'8142');
+Warnings:
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+UPDATE t3 SET a=x'8243' where a=x'8142';
+Warnings:
+Warning	1300	Invalid ascii character string: '\x82C'
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT * FROM t2;
+CREATE VIEW v3 AS SELECT * FROM t3;
+SET SQL_MODE="STRICT_TRANS_TABLES";
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+INSERT INTO v1 values(x'8142', x'8142', x'8142');
+Warnings:
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+UPDATE v1 SET a=x'8243' where a=x'8142';
+Warnings:
+Warning	1300	Invalid ascii character string: '\x82C'
+INSERT INTO v2 values(x'8142', x'8142', x'8142');
+Warnings:
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+UPDATE v2 SET a=x'8243' where a=x'8142';
+Warnings:
+Warning	1300	Invalid ascii character string: '\x82C'
+INSERT INTO v3 values(x'8142', x'8142', x'8142');
+Warnings:
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+UPDATE v3 SET a=x'8243' where a=x'8142';
+Warnings:
+Warning	1300	Invalid ascii character string: '\x82C'
+SET SQL_MODE="";
+INSERT INTO v1 values(x'8142', x'8142', x'8142');
+Warnings:
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+UPDATE v1 SET a=x'8243' where a=x'8142';
+Warnings:
+Warning	1300	Invalid ascii character string: '\x82C'
+INSERT INTO v2 values(x'8142', x'8142', x'8142');
+Warnings:
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+UPDATE v2 SET a=x'8243' where a=x'8142';
+Warnings:
+Warning	1300	Invalid ascii character string: '\x82C'
+INSERT INTO v3 values(x'8142', x'8142', x'8142');
+Warnings:
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+Warning	1300	Invalid ascii character string: '\x81B'
+UPDATE v3 SET a=x'8243' where a=x'8142';
+Warnings:
+Warning	1300	Invalid ascii character string: '\x82C'
+DROP VIEW v1;
+DROP VIEW v2;
+DROP VIEW v3;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+CREATE TABLE t_latin1(
+a CHAR(20) CHARACTER SET latin1,
+b VARCHAR(20) CHARACTER SET latin1,
+c TEXT(20) CHARACTER SET latin1
+);
+CREATE TABLE t_gb2312(
+a CHAR(20) CHARACTER SET gb2312,
+b VARCHAR(20) CHARACTER SET gb2312,
+c TEXT(20) CHARACTER SET gb2312
+);
+CREATE TABLE t_utf8(
+a CHAR(20) CHARACTER SET utf8,
+b VARCHAR(20) CHARACTER SET utf8,
+c TEXT(20) CHARACTER SET utf8
+);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SET SQL_MODE="STRICT_TRANS_TABLES";
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+INSERT INTO t_latin1 values(x'f242', x'f242', x'f242');
+UPDATE t_latin1 SET a=x'f343' where a=x'f242';
+INSERT INTO t_gb2312 values(x'e5ac', x'e5ac', x'e5ac');
+UPDATE t_gb2312 SET a=x'e6af' where a=x'e5ac';
+INSERT INTO t_utf8 values(x'e4b8ad', x'e4b8ad', x'e4b8ad');
+INSERT INTO t_utf8 values(x'f4b8ad', x'f4b8ad', x'f4b8ad');
+ERROR HY000: Incorrect string value: '\xF4\xB8\xAD' for column 'a' at row 1
+UPDATE t_utf8 SET a=x'e69687' where a=x'e4b8ad';
+UPDATE t_utf8 SET a=x'f69687' where a=x'e69687';
+ERROR HY000: Incorrect string value: '\xF6\x96\x87' for column 'a' at row 1
+SET SQL_MODE="";
+INSERT INTO t_latin1 values(x'f242', x'f242', x'f242');
+UPDATE t_latin1 SET a=x'f343' where a=x'f242';
+INSERT INTO t_gb2312 values(x'e5ac', x'e5ac', x'e5ac');
+UPDATE t_gb2312 SET a=x'e6af' where a=x'e5ac';
+INSERT INTO t_utf8 values(x'e4b8ad', x'e4b8ad', x'e4b8ad');
+INSERT INTO t_utf8 values(x'f4b8ad', x'f4b8ad', x'f4b8ad');
+Warnings:
+Warning	1366	Incorrect string value: '\xF4\xB8\xAD' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\xF4\xB8\xAD' for column 'b' at row 1
+Warning	1366	Incorrect string value: '\xF4\xB8\xAD' for column 'c' at row 1
+UPDATE t_utf8 SET a=x'e69687' where a=x'e4b8ad';
+UPDATE t_utf8 SET a=x'f69687' where a=x'e69687';
+Warnings:
+Warning	1366	Incorrect string value: '\xF6\x96\x87' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\xF6\x96\x87' for column 'a' at row 2
+CREATE VIEW v_latin1 AS SELECT * FROM t_latin1;
+CREATE VIEW v_gb2312 AS SELECT * FROM t_gb2312;
+CREATE VIEW v_utf8 AS SELECT * FROM t_utf8;
+SET SQL_MODE="STRICT_TRANS_TABLES";
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+INSERT INTO v_latin1 values(x'f242', x'f242', x'f242');
+UPDATE v_latin1 SET a=x'f343' where a=x'f242';
+INSERT INTO v_gb2312 values(x'e5ac', x'e5ac', x'e5ac');
+UPDATE v_gb2312 SET a=x'e6af' where a=x'e5ac';
+INSERT INTO v_utf8 values(x'e4b8ad', x'e4b8ad', x'e4b8ad');
+INSERT INTO v_utf8 values(x'f4b8ad', x'f4b8ad', x'f4b8ad');
+ERROR HY000: Incorrect string value: '\xF4\xB8\xAD' for column 'a' at row 1
+UPDATE v_utf8 SET a=x'e69687' where a=x'e4b8ad';
+UPDATE v_utf8 SET a=x'f69687' where a=x'e69687';
+ERROR HY000: Incorrect string value: '\xF6\x96\x87' for column 'a' at row 4
+SET SQL_MODE="";
+INSERT INTO v_latin1 values(x'f242', x'f242', x'f242');
+UPDATE v_latin1 SET a=x'f343' where a=x'f242';
+INSERT INTO v_gb2312 values(x'e5ac', x'e5ac', x'e5ac');
+UPDATE v_gb2312 SET a=x'e6af' where a=x'e5ac';
+INSERT INTO v_utf8 values(x'e4b8ad', x'e4b8ad', x'e4b8ad');
+INSERT INTO v_utf8 values(x'f4b8ad', x'f4b8ad', x'f4b8ad');
+Warnings:
+Warning	1366	Incorrect string value: '\xF4\xB8\xAD' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\xF4\xB8\xAD' for column 'b' at row 1
+Warning	1366	Incorrect string value: '\xF4\xB8\xAD' for column 'c' at row 1
+UPDATE v_utf8 SET a=x'e69687' where a=x'e4b8ad';
+UPDATE v_utf8 SET a=x'f69687' where a=x'e69687';
+Warnings:
+Warning	1366	Incorrect string value: '\xF6\x96\x87' for column 'a' at row 4
+Warning	1366	Incorrect string value: '\xF6\x96\x87' for column 'a' at row 5
+DROP VIEW v_latin1;
+DROP VIEW v_gb2312;
+DROP VIEW v_utf8;
+DROP TABLE t_latin1;
+DROP TABLE t_gb2312;
+DROP TABLE t_utf8;
+SET SQL_MODE=DEFAULT;
+# WL#5094: Refactor DML statements
+# Semantic changes in INSERT ... ON DUPLICATE KEY
+CREATE TABLE t0 (k INTEGER PRIMARY KEY);
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (3);
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+# Allowed: Reference column from a single table
+INSERT INTO t0
+SELECT a FROM t1
+ON DUPLICATE KEY UPDATE k= a + t1.a + 10;
+SELECT * FROM t0;
+k
+3
+12
+14
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+# Allowed: Reference column from a join over multiple tables
+INSERT INTO t0
+SELECT t1.a FROM t1 JOIN t2 ON t1.a=t2.a
+ON DUPLICATE KEY UPDATE k= t1.a + t2.a + 10;
+SELECT * FROM t0;
+k
+2
+3
+12
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+INSERT INTO t0
+SELECT a FROM t1 JOIN t2 USING (a)
+ON DUPLICATE KEY UPDATE k= t1.a + t2.a + 10;
+SELECT * FROM t0;
+k
+2
+3
+12
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+INSERT INTO t0
+SELECT a FROM t1 LEFT JOIN t2 USING (a)
+ON DUPLICATE KEY UPDATE k= a + 10;
+SELECT * FROM t0;
+k
+3
+11
+12
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+INSERT INTO t0
+SELECT DISTINCT a FROM t1
+ON DUPLICATE KEY UPDATE k= a + 10;
+SELECT * FROM t0;
+k
+3
+11
+12
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+# Allowed: Wrap a distinct query in a derived table
+INSERT INTO t0
+SELECT a FROM (SELECT DISTINCT a FROM t1) AS dt
+ON DUPLICATE KEY UPDATE k= a + 10;
+SELECT * FROM t0;
+k
+3
+11
+12
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+# Not allowed: Reference column from an explicitly grouped query
+INSERT INTO t0
+SELECT a FROM t1 GROUP BY a
+ON DUPLICATE KEY UPDATE k= a + 10;
+ERROR 42S22: Unknown column 'a' in 'field list'
+# Not allowed: Reference column from an implicitly grouped query
+INSERT INTO t0
+SELECT SUM(a) FROM t1
+ON DUPLICATE KEY UPDATE k= a + 10;
+ERROR 42S22: Unknown column 'a' in 'field list'
+# Allowed: Wrap a grouped query in a derived table
+INSERT INTO t0
+SELECT a FROM (SELECT a FROM t1 GROUP BY a) AS dt
+ON DUPLICATE KEY UPDATE k= a + 10;
+SELECT * FROM t0;
+k
+3
+11
+12
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+# Not allowed: Reference column from a UNION query
+INSERT INTO t0
+SELECT a FROM t1 UNION SELECT a FROM t2
+ON DUPLICATE KEY UPDATE k= a + 10;
+ERROR 42S22: Unknown column 'a' in 'field list'
+# Allowed:: Wrap a UNION query in a derived table
+INSERT INTO t0
+SELECT a
+FROM (SELECT a, COUNT(*) AS c FROM t1 GROUP BY a
+UNION
+SELECT a, COUNT(*) AS c FROM t2 GROUP BY a) AS dt
+ON DUPLICATE KEY UPDATE k= dt.a + dt.c + 10;
+SELECT * FROM t0;
+k
+12
+13
+14
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+DROP TABLE t0, t1, t2;
+# Bug#25526439: Assertion failed: is_fixed_or_outer_ref(this)
+CREATE TABLE t1 (
+a INTEGER NOT NULL
+);
+INSERT INTO t1 VALUES(0);
+CREATE TABLE t2 (
+d INTEGER
+);
+# Query from bug report
+INSERT INTO t1(a) VALUES (1)
+ON DUPLICATE KEY UPDATE a= (SELECT d FROM t2 GROUP BY 1);
+SELECT * FROM t1;
+a
+0
+1
+# Similar query with a simple query block
+INSERT INTO t1(a) SELECT 1
+ON DUPLICATE KEY UPDATE a= (SELECT d FROM t2 GROUP BY 1);
+SELECT * FROM t1;
+a
+0
+1
+1
+# Similar query with a UNION
+INSERT INTO t1(a) SELECT 1 UNION SELECT 2
+ON DUPLICATE KEY UPDATE a= (SELECT d FROM t2 GROUP BY 1);
+SELECT * FROM t1;
+a
+0
+1
+1
+1
+2
+DROP TABLE t1, t2;
+# Bug#25071305: Assertion failed: first_execution ||
+#               !tl->is_view_or_derived() || tl->is_merged()
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(b INTEGER);
+INSERT INTO t2 VALUES (1),(1);
+INSERT INTO t1(a) VALUES (1)
+ON DUPLICATE KEY UPDATE a= (SELECT b FROM (SELECT b FROM t2) AS w);
+DROP TABLE t1, t2;
+# Bug#24716127: Incorrect behavior by insert statement with
+#               "on duplicate key update"
+CREATE TABLE t1(a INTEGER, b INTEGER, PRIMARY KEY(a,b));
+CREATE TABLE t2(c2 INTEGER NOT NULL PRIMARY KEY);
+CREATE TABLE t3(c3 INTEGER NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t2 VALUES (1), (2);
+INSERT INTO t3 VALUES (1), (2);
+INSERT INTO t1 VALUES (1,1)
+ON DUPLICATE KEY UPDATE a= (SELECT c2
+FROM t2 JOIN t3 ON c3 = c2
+WHERE c2 = 1);
+SELECT * FROM t1;
+a	b
+1	1
+INSERT INTO t1
+SELECT 1, 1 FROM t2
+ON DUPLICATE KEY UPDATE a= t2.c2 + 100, b= t2.c2 + 100;
+SELECT * FROM t1;
+a	b
+1	1
+101	101
+DROP TABLE t1, t2, t3;

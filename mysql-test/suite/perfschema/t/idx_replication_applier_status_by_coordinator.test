@@ -1,0 +1,68 @@
+# Tests for PERFORMANCE_SCHEMA
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+#setup
+let $select_column = SERVICE_STATE;
+let $table = performance_schema.replication_applier_status_by_coordinator;
+
+--disable_warnings
+--source include/master-slave.inc
+
+--connection slave
+
+--source include/stop_slave.inc
+RESET SLAVE ALL;
+SET @old_slave_parallel_workers= @@global.slave_parallel_workers;
+SET GLOBAL slave_parallel_workers = 4;
+--disable_query_log
+--eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_DELAY=0 FOR CHANNEL 'channel_1';
+--enable_query_log
+--source include/start_slave.inc
+
+--connection master
+--let $rpl_channel_name= 'channel_1'
+--let $sync_slave_connection= slave
+--source include/sync_slave_sql_with_master.inc
+
+select CHANNEL_NAME, THREAD_ID
+  from performance_schema.replication_applier_status_by_coordinator
+  limit 1
+  into @c_name, @t_id;
+
+--enable_warnings
+
+###########################################################################
+# Test index on CHANNEL_NAME
+###########################################################################
+
+let $column_count = 1;
+let $col1 = CHANNEL_NAME;
+let $col1_act = @c_name;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on THREAD_ID
+###########################################################################
+
+let $column_count = 1;
+let $col1 = THREAD_ID;
+let $col1_act = @t_id;
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+source include/stop_slave.inc;
+RESET SLAVE ALL;
+SET GLOBAL slave_parallel_workers= @old_slave_parallel_workers;
+--disable_warnings
+--disable_query_log
+eval change master to master_host='127.0.0.1', master_port=$MASTER_MYPORT, master_user='root';
+--enable_query_log
+--enable_warnings
+--let $rpl_channel_name=
+--let $sync_slave_connection= slave
+source include/start_slave.inc;
+--connection master
+
+--source include/rpl_end.inc

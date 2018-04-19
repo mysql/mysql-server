@@ -2,6 +2,8 @@
 SELECT COUNT(@@GLOBAL.have_query_cache);
 COUNT(@@GLOBAL.have_query_cache)
 1
+Warnings:
+Warning	1287	'@@have_query_cache' is deprecated and will be removed in a future release.
 1 Expected
 '#---------------------BS_STVARS_015_02----------------------#'
 SET @@GLOBAL.have_query_cache=1;
@@ -10,10 +12,12 @@ Expected error 'Read only variable'
 SELECT COUNT(@@GLOBAL.have_query_cache);
 COUNT(@@GLOBAL.have_query_cache)
 1
+Warnings:
+Warning	1287	'@@have_query_cache' is deprecated and will be removed in a future release.
 1 Expected
 '#---------------------BS_STVARS_015_03----------------------#'
 SELECT @@GLOBAL.have_query_cache = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='have_query_cache';
 @@GLOBAL.have_query_cache = VARIABLE_VALUE
 1
@@ -21,9 +25,11 @@ WHERE VARIABLE_NAME='have_query_cache';
 SELECT COUNT(@@GLOBAL.have_query_cache);
 COUNT(@@GLOBAL.have_query_cache)
 1
+Warnings:
+Warning	1287	'@@have_query_cache' is deprecated and will be removed in a future release.
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='have_query_cache';
 COUNT(VARIABLE_VALUE)
 1
@@ -32,11 +38,16 @@ COUNT(VARIABLE_VALUE)
 SELECT @@have_query_cache = @@GLOBAL.have_query_cache;
 @@have_query_cache = @@GLOBAL.have_query_cache
 1
+Warnings:
+Warning	1287	'@@have_query_cache' is deprecated and will be removed in a future release.
+Warning	1287	'@@have_query_cache' is deprecated and will be removed in a future release.
 1 Expected
 '#---------------------BS_STVARS_015_05----------------------#'
 SELECT COUNT(@@have_query_cache);
 COUNT(@@have_query_cache)
 1
+Warnings:
+Warning	1287	'@@have_query_cache' is deprecated and will be removed in a future release.
 1 Expected
 SELECT COUNT(@@local.have_query_cache);
 ERROR HY000: Variable 'have_query_cache' is a GLOBAL variable
@@ -47,6 +58,8 @@ Expected error 'Variable is a GLOBAL variable'
 SELECT COUNT(@@GLOBAL.have_query_cache);
 COUNT(@@GLOBAL.have_query_cache)
 1
+Warnings:
+Warning	1287	'@@have_query_cache' is deprecated and will be removed in a future release.
 1 Expected
 SELECT have_query_cache = @@SESSION.have_query_cache;
 ERROR 42S22: Unknown column 'have_query_cache' in 'field list'

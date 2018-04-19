@@ -1,0 +1,37 @@
+#
+# Make sure that files created with --innodb-checksum-algorithm=crc32
+# on both big and little endian machines are readable. The two .ibd files
+# are precreated in crc32_endianness.zip which is extracted below.
+#
+
+# Since we import a pre-created tablespace with 16k page size, we would get
+# this on InnoDB configured with non-16k page size:
+# ALTER TABLE crc32_big_endian IMPORT TABLESPACE:
+# Schema mismatch (Tablespace to be imported has a different page size than
+# this server. Server page size is 4096, whereas tablespace page size is 16384)
+
+CREATE TABLE crc32_big_endian (a VARCHAR(16)) ENGINE=INNODB charset latin1
+ROW_FORMAT=COMPACT;
+CREATE TABLE crc32_little_endian (a VARCHAR(16)) ENGINE=INNODB charset latin1
+ROW_FORMAT=COMPACT;
+
+ALTER TABLE crc32_big_endian DISCARD TABLESPACE;
+ALTER TABLE crc32_little_endian DISCARD TABLESPACE;
+
+-- exec unzip -qo $MYSQL_TEST_DIR/suite/innodb/t/crc32_endianness.zip -d $MYSQLTEST_VARDIR/tmp/crc32_endianness
+
+-- let DATADIR = `SELECT @@datadir`
+
+-- copy_file $MYSQLTEST_VARDIR/tmp/crc32_endianness/crc32_big_endian.ibd $DATADIR/test/crc32_big_endian.ibd
+-- copy_file $MYSQLTEST_VARDIR/tmp/crc32_endianness/crc32_big_endian.cfg $DATADIR/test/crc32_big_endian.cfg
+-- copy_file $MYSQLTEST_VARDIR/tmp/crc32_endianness/crc32_little_endian.ibd $DATADIR/test/crc32_little_endian.ibd
+-- copy_file $MYSQLTEST_VARDIR/tmp/crc32_endianness/crc32_little_endian.cfg $DATADIR/test/crc32_little_endian.cfg
+
+ALTER TABLE crc32_big_endian IMPORT TABLESPACE;
+ALTER TABLE crc32_little_endian IMPORT TABLESPACE;
+
+SELECT * FROM crc32_big_endian;
+SELECT * FROM crc32_little_endian;
+
+DROP TABLE crc32_big_endian;
+DROP TABLE crc32_little_endian;

@@ -1,0 +1,27 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+
+[connection server2]
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+
+[connection server1]
+"Verifying GR activity on M1 by checking if master has sent all binlog to slave"
+
+[connection server2]
+"Verifying GR activity on M2 by checking if slave has read all relay log"
+
+[connection server1]
+START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+DROP TABLE test.t1;
+include/group_replication_end.inc

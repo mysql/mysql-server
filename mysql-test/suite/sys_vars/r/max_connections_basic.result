@@ -92,12 +92,12 @@ SELECT @@session.max_connections;
 ERROR HY000: Variable 'max_connections' is a GLOBAL variable
 '#----------------------FN_DYNVARS_074_06------------------------#'
 SELECT @@global.max_connections = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_connections';
 @@global.max_connections = VARIABLE_VALUE
 1
 SELECT @@max_connections = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_connections';
 @@max_connections = VARIABLE_VALUE
 1

@@ -1,0 +1,355 @@
+--source include/have_log_bin.inc
+
+--echo #### Initialize ####
+--echo
+
+SET @start_binlog_row_value_options = @@global.binlog_row_value_options;
+SET @start_binlog_row_image = @@global.binlog_row_image;
+SET @start_binlog_format = @@global.binlog_format;
+
+--echo # Default value
+SELECT @start_binlog_row_value_options;
+
+--echo
+--echo #### Exists as session and global ####
+--echo
+
+--echo # Avoid warnings
+SET SESSION binlog_row_image = MINIMAL;
+SET GLOBAL binlog_row_image = MINIMAL;
+SET SESSION binlog_format = 'ROW';
+SET GLOBAL binlog_format = 'ROW';
+
+--echo # Test
+SELECT @@global.binlog_row_value_options;
+SET @@global.binlog_row_value_options = PARTIAL_JSON;
+SELECT @@binlog_row_value_options;
+SET @@binlog_row_value_options= PARTIAL_JSON;
+SELECT @@session.binlog_row_value_options;
+SET @@session.binlog_row_value_options = PARTIAL_JSON;
+
+--echo
+--echo #### Valid and invalid values ####
+--echo
+
+--error ER_PARSE_ERROR
+SET @@global.binlog_row_value_options = PARTIAL_JSON,PARTIAL_JSON;
+--error ER_PARSE_ERROR
+SET @@session.binlog_row_value_options = PARTIAL_JSON,PARTIAL_JSON;
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON,PARTIAL_JSON';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON,PARTIAL_JSON';
+SET @@global.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 0;
+SET @@session.binlog_row_value_options = 0;
+SET @@global.binlog_row_value_options = 1;
+SET @@session.binlog_row_value_options = 1;
+SET @@global.binlog_row_value_options = DEFAULT;
+SET @@session.binlog_row_value_options = DEFAULT;
+SELECT @@global.binlog_row_value_options;
+SELECT @@session.binlog_row_value_options;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.binlog_row_value_options = 2;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.binlog_row_value_options = 2;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.binlog_row_value_options = 'invalid';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.binlog_row_value_options = 'invalid';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.binlog_row_value_options = NULL;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.binlog_row_value_options = NULL;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.binlog_row_value_options = ON;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.binlog_row_value_options = ON;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.binlog_row_value_options = OFF;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.binlog_row_value_options = OFF;
+
+--echo
+--echo #### Warnings for incompatible options ####
+--echo
+--echo ---- Setting session or default value ----
+--echo
+
+SET @@global.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+
+--echo
+--echo # warning for sql_log_bin=0
+SET SESSION sql_log_bin = 0; # warning
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON'; # warning
+SET @@binlog_row_value_options = '';
+SET @@binlog_row_value_options = 'PARTIAL_JSON'; # warning
+SET SESSION sql_log_bin = 1;
+
+--echo
+--echo # warning for statement
+SET SESSION binlog_format = statement; # warning
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON'; # warning
+SET @@binlog_row_value_options = '';
+SET @@binlog_row_value_options = 'PARTIAL_JSON'; # warning
+
+--echo
+--echo # no warning for mixed or row
+SET SESSION binlog_format = mixed;
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+SET @@binlog_row_value_options = '';
+SET @@binlog_row_value_options = 'PARTIAL_JSON';
+SET SESSION binlog_format = 'row';
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+SET @@binlog_row_value_options = '';
+SET @@binlog_row_value_options = 'PARTIAL_JSON';
+
+--echo
+--echo # warning for full
+SET SESSION binlog_row_image = FULL; # warning
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON'; # warning
+SET @@binlog_row_value_options = '';
+SET @@binlog_row_value_options = 'PARTIAL_JSON'; # warning
+
+--echo
+--echo # no warning for NOBLOB or MINIMAL
+SET SESSION binlog_row_image = NOBLOB;
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+SET @@binlog_row_value_options = '';
+SET @@binlog_row_value_options = 'PARTIAL_JSON';
+SET SESSION binlog_row_image = MINIMAL;
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+SET @@binlog_row_value_options = '';
+SET @@binlog_row_value_options = 'PARTIAL_JSON';
+
+--echo
+--echo # warning for old format
+SET GLOBAL log_bin_use_v1_row_events = 1; # no warning, checked only against global
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON'; # warning
+
+--echo
+--echo # no warning for new format
+SET GLOBAL log_bin_use_v1_row_events = 0;
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+
+--echo
+--echo ---- Setting global value ----
+--echo
+
+SET @@session.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+
+--echo
+--echo # warning for statement
+SET GLOBAL binlog_format = statement; # warning
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON'; # warning
+
+--echo
+--echo # no warning for mixed or row
+SET GLOBAL binlog_format = mixed;
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+SET GLOBAL binlog_format = 'row';
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+
+--echo
+--echo # warning for full
+SET GLOBAL binlog_row_image = FULL; # warning
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON'; # warning
+
+--echo
+--echo # no warning for NOBLOB or MINIMAL
+SET GLOBAL binlog_row_image = NOBLOB;
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+SET GLOBAL binlog_row_image = MINIMAL;
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+
+--echo
+--echo # warning for old format
+SET GLOBAL log_bin_use_v1_row_events = 1; # warning
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON'; # warning
+
+--echo
+--echo # no warning for new format
+SET GLOBAL log_bin_use_v1_row_events = 0;
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+
+--echo
+--echo ---- Setting persistent value ----
+--echo
+
+SET @@session.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+
+--echo
+--echo # warning for statement
+SET PERSIST binlog_format = statement; # warning
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON'; # warning
+
+--echo
+--echo # no warning for mixed or row
+SET PERSIST binlog_format = mixed;
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+SET PERSIST binlog_format = 'row';
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+
+--echo
+--echo # warning for full
+SET PERSIST binlog_row_image = FULL; # warning
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON'; # warning
+
+--echo
+--echo # no warning for NOBLOB or MINIMAL
+SET PERSIST binlog_row_image = NOBLOB;
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+SET PERSIST binlog_row_image = MINIMAL;
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+
+--echo
+--echo # warning for old format
+SET PERSIST log_bin_use_v1_row_events = 1; # warning
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON'; # warning
+
+--echo
+--echo # no warning for new format
+SET PERSIST log_bin_use_v1_row_events = 0;
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+
+--echo
+--echo #### Can't set in transaction, sp, sf, or trigger, or without root ####
+--echo
+--echo ---- transaction ----
+--echo
+
+BEGIN;
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET GLOBAL binlog_row_value_options = '';
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET GLOBAL binlog_row_value_options = 'PARTIAL_JSON';
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET SESSION binlog_row_value_options = '';
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET SESSION binlog_row_value_options = 'PARTIAL_JSON';
+COMMIT;
+
+--echo
+--echo ---- SP ----
+--echo
+
+create procedure sp1 () set @@global.binlog_row_value_options = 'PARTIAL_JSON';
+create procedure sp2 () set @@session.binlog_row_value_options = 'PARTIAL_JSON';
+create procedure sp3 () set @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+create procedure sp4 () set @@binlog_row_value_options = 'PARTIAL_JSON';
+--error ER_VARIABLE_NOT_SETTABLE_IN_SP
+call sp1();
+--error ER_VARIABLE_NOT_SETTABLE_IN_SP
+call sp2();
+--error ER_VARIABLE_NOT_SETTABLE_IN_SP
+call sp3();
+--error ER_VARIABLE_NOT_SETTABLE_IN_SP
+call sp4();
+
+--echo
+--echo ---- SF ----
+--echo
+
+--eval create function sf1 () returns int begin set @@global.binlog_row_value_options = 'PARTIAL_JSON'; return 1; end
+--eval create function sf2 () returns int begin set @@session.binlog_row_value_options = 'PARTIAL_JSON'; return 1; end
+--eval create function sf3 () returns int begin set @@persist.binlog_row_value_options = 'PARTIAL_JSON'; return 1; end
+--eval create function sf4 () returns int begin set @@binlog_row_value_options = 'PARTIAL_JSON'; return 1; end
+--error ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
+select sf1();
+--error ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
+select sf2();
+--error ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
+select sf3();
+--error ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
+select sf4();
+
+--echo
+--echo ---- Trigger ----
+--echo
+
+create table t1 (a int);
+create table t2 (a int);
+create table t3 (a int);
+create table t4 (a int);
+create trigger trig1 after insert on t1 for each row set @@global.binlog_row_value_options = 'PARTIAL_JSON';
+create trigger trig2 before insert on t2 for each row set @@session.binlog_row_value_options = 'PARTIAL_JSON';
+create trigger trig3 after insert on t3 for each row set @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+create trigger trig4 before insert on t4 for each row set @@binlog_row_value_options = 'PARTIAL_JSON';
+--error ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
+insert into t1 values (1);
+--error ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
+insert into t2 values (1);
+--error ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
+insert into t3 values (1);
+--error ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
+insert into t4 values (1);
+
+--echo
+--echo ---- Non-super ----
+--echo
+
+CREATE USER user@localhost;
+connect(con,localhost,user,,test,$MASTER_MYPORT,);
+--connection con
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.binlog_row_value_options = '';
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@session.binlog_row_value_options = '';
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@persist.binlog_row_value_options = '';
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@binlog_row_value_options = '';
+--connection default
+
+--echo
+--echo #### Clean up ####
+--echo
+
+DROP USER user@localhost;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP FUNCTION sf1;
+DROP FUNCTION sf2;
+DROP FUNCTION sf3;
+DROP FUNCTION sf4;
+DROP PROCEDURE sp1;
+DROP PROCEDURE sp2;
+DROP PROCEDURE sp3;
+DROP PROCEDURE sp4;
+
+SET @@global.binlog_row_value_options = @start_binlog_row_value_options;
+SET @@global.binlog_row_image = @start_binlog_row_image;
+SET @@global.binlog_format = @start_binlog_format;
+
+RESET PERSIST;

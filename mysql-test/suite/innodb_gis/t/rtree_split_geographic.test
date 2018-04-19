@@ -1,0 +1,98 @@
+# innodb_gis.rtree_split with a geographic SRS
+
+--source include/big_test.inc
+--source include/not_valgrind.inc
+--source include/not_sparc_debug.inc
+--source include/have_debug.inc
+
+# Create table with R-tree index.
+create table t1 (c1 int, c2 geometry srid 4326 not null, spatial index (c2))engine=innodb;
+
+# Insert enough values to let R-tree split.
+insert into t1 values(1, ST_SRID(Point(1,1), 4326));
+insert into t1 values(2, ST_SRID(Point(2,2), 4326));
+insert into t1 values(3, ST_SRID(Point(3,3), 4326));
+insert into t1 values(4, ST_SRID(Point(4,4), 4326));
+insert into t1 values(5, ST_SRID(Point(5,5), 4326));
+insert into t1 values(6, ST_SRID(Point(6,6), 4326));
+insert into t1 values(7, ST_SRID(Point(7,7), 4326));
+insert into t1 values(8, ST_SRID(Point(8,8), 4326));
+insert into t1 values(9, ST_SRID(Point(9,9), 4326));
+
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+
+#Check second round spliting.
+SET SESSION debug="+d, rtr_page_need_second_split";
+insert into t1 select * from t1;
+SET SESSION debug="-d, rtr_page_need_second_split";
+
+delete from t1;
+
+insert into t1 values(1, ST_SRID(Point(1,1), 4326));
+insert into t1 values(2, ST_SRID(Point(2,2), 4326));
+insert into t1 values(3, ST_SRID(Point(3,3), 4326));
+insert into t1 values(4, ST_SRID(Point(4,4), 4326));
+insert into t1 values(5, ST_SRID(Point(5,5), 4326));
+insert into t1 values(6, ST_SRID(Point(6,6), 4326));
+insert into t1 values(7, ST_SRID(Point(7,7), 4326));
+insert into t1 values(8, ST_SRID(Point(8,8), 4326));
+insert into t1 values(9, ST_SRID(Point(9,9), 4326));
+
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+start transaction;
+insert into t1 select * from t1;
+rollback;
+check table t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+check table t1;
+
+select count(*) from t1;
+
+set @g1 = ST_GeomFromText('Polygon((-90 -180,-90 180,90 180,90 -180,-90 -180))', 4326);
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+
+set @g1 = ST_GeomFromText('Polygon((10 10,10 180,90 180,90 10,10 10))', 4326);
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+
+drop index c2 on t1;
+
+# Test create index with algorithm=inplace
+create spatial index idx2 on t1(c2);
+
+show create table t1;
+
+set @g1 = ST_GeomFromText('Polygon((-90 -180,-90 180,90 180,90 -180,-90 -180))', 4326);
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+
+# test read only case
+--source include/restart_innodb_read_only.inc
+
+set @g1 = ST_GeomFromText('Polygon((-90 -180,-90 180,90 180,90 -180,-90 -180))', 4326);
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+
+set @g1 = ST_GeomFromText('Polygon((2 2,2 180,90 180,90 2,2 2))', 4326);
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+# Clean up.
+drop table t1;

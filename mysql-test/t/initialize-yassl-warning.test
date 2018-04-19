@@ -1,0 +1,81 @@
+#
+# Bug #21498544: mysqld --initialize should not complain about lack of ssl certs
+#
+
+--source include/big_test.inc
+--source include/have_ssl.inc
+--source include/have_yassl.inc
+
+
+let BASEDIR= `select @@basedir`;
+let DDIR=$MYSQL_TMP_DIR/installdb_test;
+let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
+let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --log-syslog=0 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+
+--echo # shut server down
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo # Server is down
+
+--echo #
+--echo # Try --initialize --ssl and don't exect a warning
+--echo #
+
+--echo # create the empty datadir
+mkdir $DDIR;
+
+--echo # start a server with --initialize --ssl
+--exec $MYSQLD $extra_args --initialize --ssl --datadir=$DDIR >$MYSQLD_LOG 2>&1
+
+--echo # look for "ssl failed". Must get 0.
+perl;
+  use strict;
+  my $log= $ENV{'MYSQLD_LOG'} or die;
+  open(FILE, "$log") or die;
+  my $c= grep(/\[Warning\] \[[^]]*\] Failed to set up SSL.*/gi,<FILE>);
+  print "ssl failed message found $c times\n";
+  close(FILE);
+EOF
+
+
+--echo # delete datadir
+--force-rmdir $DDIR
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+
+--echo #
+--echo # Try --initialize --ssl --ssl-ca and expect a warning
+--echo #
+
+--echo # create the empty datadir
+mkdir $DDIR;
+
+--echo # start a server with --initialize --ssl -ssl-ca
+--exec $MYSQLD $extra_args --initialize --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --datadir=$DDIR >$MYSQLD_LOG 2>&1
+
+--echo # look for "ssl failed". Must get 1.
+perl;
+  use strict;
+  my $log= $ENV{'MYSQLD_LOG'} or die;
+  open(FILE, "$log") or die;
+  my $c= grep(/\[Warning\] \[[^]]*\] Failed to set up SSL.*/gi,<FILE>);
+  print "ssl failed message found $c times\n";
+  close(FILE);
+EOF
+
+
+--echo # delete datadir
+--force-rmdir $DDIR
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+
+--echo #
+--echo # Cleanup
+--echo #
+--echo # Restarting the server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc

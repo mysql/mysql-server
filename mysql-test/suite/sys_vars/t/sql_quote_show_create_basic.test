@@ -94,15 +94,15 @@ SET @@session.sql_quote_show_create = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_quote_show_create = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_quote_show_create = TRÜE;
+SET @@session.sql_quote_show_create = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_quote_show_create = ÕN;
---Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_quote_show_create = Ã•N;
+--error ER_PARSE_ERROR
 SET @@session.sql_quote_show_create = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_quote_show_create = ÓFF;
+SET @@session.sql_quote_show_create = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_quote_show_create = '¹';
+SET @@session.sql_quote_show_create = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_quote_show_create = NO;
 
@@ -124,7 +124,7 @@ SELECT @@global.sql_quote_show_create;
 
 --disable_warnings
 SELECT count(VARIABLE_VALUE) 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='sql_quote_show_create';
 --enable_warnings
 
@@ -135,13 +135,13 @@ WHERE VARIABLE_NAME='sql_quote_show_create';
 
 --disable_warnings
 SELECT IF(@@session.sql_quote_show_create, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_quote_show_create';
 --enable_warnings
 SELECT @@session.sql_quote_show_create;
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_quote_show_create';
 --enable_warnings
 

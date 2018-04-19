@@ -22,7 +22,7 @@ eval create table t2 (a blob not null, primary key(a(767))) engine=$engine
 partition by key (a) partitions 30;
 
 --error ER_BLOB_FIELD_IN_PART_FUNC_ERROR
-eval create table t2 (a tinyblob not null, primary key(a(767))) engine=$engine 
+eval create table t2 (a tinyblob not null, primary key(a(255))) engine=$engine 
 partition by key (a) partitions 30;
 
 --error ER_BLOB_FIELD_IN_PART_FUNC_ERROR

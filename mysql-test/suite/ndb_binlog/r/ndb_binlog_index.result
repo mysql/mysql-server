@@ -18,7 +18,7 @@ ndb_binlog_index	CREATE TABLE `ndb_binlog_index` (
   `next_position` bigint(20) unsigned NOT NULL,
   `next_file` varchar(255) NOT NULL,
   PRIMARY KEY (`epoch`,`orig_server_id`,`orig_epoch`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 mysql.ndb_binlog_index has next_file column? 1
 create table t1 (a int, b varchar(400)) engine=ndb;
 Test pure epochs
@@ -131,7 +131,7 @@ ndb_binlog_index	CREATE TABLE `ndb_binlog_index` (
   `orig_epoch` bigint(20) unsigned NOT NULL,
   `gci` int(10) unsigned NOT NULL,
   PRIMARY KEY (`epoch`,`orig_server_id`,`orig_epoch`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 mysql.ndb_binlog_index has next_file column? 0
 create table t1 (a int, b varchar(400)) engine=ndb;
 Test pure epochs
@@ -222,6 +222,7 @@ Quick test of ndb-log-empty-epochs = 1
 select * from mysql.ndb_binlog_index order by epoch;
 Position	File	epoch	inserts	updates	deletes	schemaops	orig_server_id	orig_epoch	gci	next_position	next_file
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 show variables like 'ndb_log_empty_epochs';
 Variable_name	Value
 ndb_log_empty_epochs	OFF
@@ -249,5 +250,6 @@ bi1.File != bi2.File;
 epoch	Position	File	next_position	next_file	epoch	Position	File	next_position	next_file
 Show that we have no epochs in the Binlog
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 Disable
 set global ndb_log_empty_epochs=0;

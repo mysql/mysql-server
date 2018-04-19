@@ -10,7 +10,6 @@
 # shouldn't be affected to replicated data.
 #############################################################
 --source include/not_group_replication_plugin.inc
---source include/have_innodb.inc
 --source include/have_myisam.inc
 --source include/master-slave.inc
 --echo
@@ -44,8 +43,7 @@ INSERT INTO t1 (b) VALUES ('slave');
 INSERT INTO t1 (b) VALUES ('slave');
 INSERT INTO t2 (b) VALUES ('slave');
 INSERT INTO t2 (b) VALUES ('slave');
-SELECT * FROM t1 ORDER BY a;
-SELECT * FROM t2 ORDER BY a;
+SELECT * FROM t1 ORDER BY a;SELECT * FROM t2 ORDER BY a;
 
 --connection master
 --disable_warnings
@@ -72,6 +70,7 @@ SET auto_increment_offset=1;
 #
 --echo * character_set_database, collation_server *
 
+--echo [On Master]
 --connection master
 SET @restore_master_character_set_database=@@global.character_set_database;
 SET @restore_master_collation_server=@@global.collation_server;
@@ -80,6 +79,7 @@ SET @@session.character_set_database=latin1;
 SET @@global.collation_server=latin1_german1_ci;
 SET @@session.collation_server=latin1_german1_ci;
 
+--echo [On Slave]
 --connection slave
 SET @restore_slave_character_set_database=@@global.character_set_database;
 SET @restore_slave_collation_server=@@global.collation_server;
@@ -88,24 +88,37 @@ SET @@session.character_set_database=utf8;
 SET @@global.collation_server=utf8_bin;
 SET @@session.collation_server=utf8_bin;
 
+--echo [On Master]
 --connection master
-CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
-SHOW CREATE TABLE t1;
+CREATE SCHEMA s1;
+SHOW CREATE SCHEMA s1;
+CREATE TABLE s1.t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
+SHOW CREATE TABLE s1.t1;
 
 --source include/sync_slave_sql_with_master.inc
-CREATE TABLE t2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
-SHOW CREATE TABLE t1;
-SHOW CREATE TABLE t2;
+
+--echo [On Slave]
+CREATE SCHEMA s2;
+SHOW CREATE SCHEMA s2;
+CREATE TABLE s1.t2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
+CREATE TABLE s2.t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
+SHOW CREATE TABLE s1.t1;
+SHOW CREATE TABLE s1.t2;
+SHOW CREATE TABLE s2.t1;
+DROP TABLE s2.t1;
+DROP SCHEMA s2;
 
 SET @@global.collation_server=latin1_swedish_ci;
 SET @@session.collation_server=latin1_swedish_ci;
 
+--echo [On Master]
 --connection master
 SET @@global.collation_server=latin1_swedish_ci;
 SET @@session.collation_server=latin1_swedish_ci;
 
 --disable_warnings
-DROP TABLE IF EXISTS t1,t2;
+DROP TABLE IF EXISTS s1.t1,s1.t2;
+DROP SCHEMA s1;
 --enable_warnings
 --echo
 
@@ -145,12 +158,13 @@ SET @@session.default_week_format=0;
 --echo * local_infile *
 
 --connection slave
+SET @old_local_infile= @@global.local_infile;
 SET @@global.local_infile=0;
 
 --connection master
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(20), c CHAR(254)) ENGINE=MyISAM;
---copy_file ./std_data/words.dat $MYSQLTEST_VARDIR/tmp/words.dat
---copy_file ./std_data/words2.dat $MYSQLTEST_VARDIR/tmp/words2.dat
+--copy_files_wildcard ./std_data/ $MYSQLTEST_VARDIR/tmp/ words.dat
+--copy_files_wildcard ./std_data/ $MYSQLTEST_VARDIR/tmp/ words2.dat
 --replace_regex /\'.+\'/'FILE'/
 --eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/tmp/words.dat' INTO TABLE t1 (b)
 SELECT COUNT(*) FROM t1;
@@ -171,32 +185,47 @@ DROP TABLE t1;
 #
 --echo * max_heap_table_size *
 
+--let $heap_size= 16384
+--let $record_size= 512
+--replace_numeric_round 0
+--let $row_count = `SELECT $heap_size / $record_size`
+--inc $row_count
+
 --connection slave
 SET @restore_slave_max_heap_table_size=@@global.max_heap_table_size;
-SET @@global.max_heap_table_size=16384;
-SET @@session.max_heap_table_size=16384;
+--replace_result $heap_size HEAP_SIZE
+--eval SET @@global.max_heap_table_size=$heap_size
+--replace_result $heap_size HEAP_SIZE
+--eval SET @@session.max_heap_table_size=$heap_size
 
 --connection master
-CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(10), c CHAR(254)) ENGINE=MEMORY;
-let $counter=2000;
+--replace_result $record_size RECORD_SIZE
+--eval CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(10), c VARCHAR($record_size)) ENGINE=MEMORY
+--let $counter=$row_count
 --disable_query_log
 while ($counter) {
- INSERT INTO t1 (b,c) VALUES ('master', REPEAT('A', 254));
+ --eval INSERT INTO t1 (b,c) VALUES ('master', REPEAT('A', $record_size));
  dec $counter;
 }
 --enable_query_log
-SELECT COUNT(*)=2000 FROM t1;
+--replace_result $row_count ROW_COUNT
+--eval SELECT COUNT(*)=$row_count FROM t1
 
 --source include/sync_slave_sql_with_master.inc
-let $counter=2000;
+--replace_result $row_count ROW_COUNT
+--eval SELECT COUNT(*)=$row_count FROM t1 WHERE b='master' GROUP BY b ORDER BY b
+# Truncate the table so that the slaves max_heap_table_size value takes effect on
+# the replicted table
+TRUNCATE TABLE t1;
+--let $counter=$row_count
 --disable_query_log
 while ($counter) {
  --error 0,1114
- INSERT INTO t1 (b,c) VALUES ('slave', REPEAT('A', 254));
+ --eval INSERT INTO t1 (b,c) VALUES ('slave', REPEAT('A', $record_size))
  dec $counter;
 }
 CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(10), c CHAR(254)) ENGINE=MEMORY;
-let $counter=2000;
+--let $counter=$row_count
 --disable_query_log
 while ($counter) {
  --error 0,1114
@@ -206,9 +235,10 @@ while ($counter) {
 --enable_query_log
 # We don't know how many memory used and can't check exact values so need to check following 
 # conditions
-SELECT COUNT(*)=2000 FROM t1 WHERE b='master' GROUP BY b ORDER BY b;
-SELECT COUNT(*)<2000 AND COUNT(*)>0 FROM t1 WHERE b='slave' GROUP BY b ORDER BY b;
-SELECT COUNT(*)<2000 AND COUNT(*)>0 FROM t2 WHERE b='slave' GROUP BY b ORDER BY b;
+--replace_result $row_count ROW_COUNT
+--eval SELECT COUNT(*)<$row_count AND COUNT(*)>0 FROM t1 WHERE b='slave' GROUP BY b ORDER BY b
+--replace_result $row_count ROW_COUNT
+--eval SELECT COUNT(*)<$row_count AND COUNT(*)>0 FROM t2 WHERE b='slave' GROUP BY b ORDER BY b
 
 --connection master
 --disable_warnings
@@ -299,6 +329,7 @@ SET @@global.character_set_database=@restore_slave_character_set_database;
 SET @@global.collation_server=@restore_slave_collation_server;
 SET @@global.max_heap_table_size=@restore_slave_max_heap_table_size;
 SET @@global.default_storage_engine=@restore_slave_storage_engine;
+SET @@global.local_infile= @old_local_infile;
 
 # Put at the end since the test otherwise emptied the table.
 

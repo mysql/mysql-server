@@ -1,0 +1,63 @@
+# ==== Purpose ====
+#
+# Prove a group of events is logged correctly including
+# a terminal Query-log-event(COMMIT), despite a failing atomic DDL
+# in front of the group generating query.
+#
+#
+# ==== References ====
+# BUG25755137 MASTER IS GENERATING INCOMPLETE TRX ON BINARY LOG (MISSING COMMIT)
+#
+--source include/have_debug_sync.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_statement.inc
+
+# In order to construct the deadlock error two tables and a view
+# based on them are required.
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE VIEW v_12 AS SELECT t1.a AS a, t2.a AS b FROM t1,t2;
+
+# The Commit-free group generator.
+CREATE TEMPORARY TABLE tmp (a INT) ENGINE=innodb;
+
+--connection default
+SET DEBUG_SYNC= 'action_after_write_bin_log WAIT_FOR continue';
+--send ALTER TABLE t2 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1
+
+# Deadlock's 2nd participant
+--connect (con1, localhost, root,,)
+DROP TABLE t1,t2;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--connection default
+--error ER_LOCK_DEADLOCK
+--reap
+
+#
+# the group generator
+#
+--source include/save_binlog_position.inc
+DELETE FROM tmp;
+
+#
+# Proof:
+# the whole group of BEGIN; DELETE...; COMMIT must be present
+#
+--let $gtid_event= Gtid
+--let $gtid_mode_on= `SELECT @@GLOBAL.GTID_MODE = 'ON'`
+if (!$gtid_mode_on)
+{
+  --let $gtid_event= Anonymous_Gtid
+}
+
+--let $dont_print_pattern= 1
+--let $event_sequence= $gtid_event # !Begin # !Q(DELETE.*) # !Commit
+--source include/assert_binlog_events.inc
+--let $dont_print_pattern= 0
+
+
+# Cleanup:
+
+DROP VIEW v_12;
+

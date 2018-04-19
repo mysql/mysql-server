@@ -52,6 +52,8 @@ IS_GRANTABLE	varchar(3)	NO
 SELECT GRANTEE, TABLE_CATALOG, TABLE_SCHEMA, PRIVILEGE_TYPE
 FROM information_schema.schema_privileges WHERE table_catalog IS NOT NULL;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE
+'mysql.sys'@'localhost'	def	sys	TRIGGER
+'mysql.session'@'localhost'	def	performance_schema	SELECT
 ''@'%'	def	test	SELECT
 ''@'%'	def	test	INSERT
 ''@'%'	def	test	UPDATE
@@ -68,22 +70,6 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE
 ''@'%'	def	test	CREATE ROUTINE
 ''@'%'	def	test	EVENT
 ''@'%'	def	test	TRIGGER
-''@'%'	def	test\_%	SELECT
-''@'%'	def	test\_%	INSERT
-''@'%'	def	test\_%	UPDATE
-''@'%'	def	test\_%	DELETE
-''@'%'	def	test\_%	CREATE
-''@'%'	def	test\_%	DROP
-''@'%'	def	test\_%	REFERENCES
-''@'%'	def	test\_%	INDEX
-''@'%'	def	test\_%	ALTER
-''@'%'	def	test\_%	CREATE TEMPORARY TABLES
-''@'%'	def	test\_%	LOCK TABLES
-''@'%'	def	test\_%	CREATE VIEW
-''@'%'	def	test\_%	SHOW VIEW
-''@'%'	def	test\_%	CREATE ROUTINE
-''@'%'	def	test\_%	EVENT
-''@'%'	def	test\_%	TRIGGER
 ###############################################################################
 # Testcase 3.2.15.2-3.2.15.4 INFORMATION_SCHEMA.SCHEMA_PRIVILEGES accessibility
 ###############################################################################
@@ -122,12 +108,12 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 'testuser1'@'localhost'	def	db_datadict_4	SELECT	YES
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
-GRANT USAGE ON *.* TO 'testuser1'@'localhost'
-GRANT INSERT ON `db_datadict_1`.* TO 'testuser1'@'localhost'
-GRANT SELECT ON `db_datadict_4`.* TO 'testuser1'@'localhost' WITH GRANT OPTION
-GRANT INSERT ON `db_datadict_2`.`t1` TO 'testuser1'@'localhost'
+GRANT USAGE ON *.* TO `testuser1`@`localhost`
+GRANT INSERT ON `db_datadict_1`.* TO `testuser1`@`localhost`
+GRANT SELECT ON `db_datadict_4`.* TO `testuser1`@`localhost` WITH GRANT OPTION
+GRANT INSERT ON `db_datadict_2`.`t1` TO `testuser1`@`localhost`
 SHOW GRANTS FOR 'testuser2'@'localhost';
-ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'mysql'
+ERROR 42000: SELECT command denied to user 'testuser1'@'localhost' for table 'user'
 # Establish connection testuser2 (user=testuser2)
 # Root granted SELECT db_datadict_1 to me     -> visible
 # Root granted INSERT db_datadict_1 to testuser1 -> invisible
@@ -142,13 +128,13 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 'testuser2'@'localhost'	def	db_datadict_3	SELECT	NO
 'testuser2'@'localhost'	def	db_datadict_4	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
-ERROR 42000: Access denied for user 'testuser2'@'localhost' to database 'mysql'
+ERROR 42000: SELECT command denied to user 'testuser2'@'localhost' for table 'user'
 SHOW GRANTS FOR 'testuser2'@'localhost';
 Grants for testuser2@localhost
-GRANT USAGE ON *.* TO 'testuser2'@'localhost'
-GRANT SELECT ON `db_datadict_3`.* TO 'testuser2'@'localhost'
-GRANT SELECT ON `db_datadict_1`.* TO 'testuser2'@'localhost'
-GRANT SELECT ON `db_datadict_4`.* TO 'testuser2'@'localhost'
+GRANT USAGE ON *.* TO `testuser2`@`localhost`
+GRANT SELECT ON `db_datadict_1`.* TO `testuser2`@`localhost`
+GRANT SELECT ON `db_datadict_3`.* TO `testuser2`@`localhost`
+GRANT SELECT ON `db_datadict_4`.* TO `testuser2`@`localhost`
 # Switch to connection default and close connections testuser1 and testuser2
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema LIKE 'db_datadict%'
@@ -161,16 +147,16 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 'testuser2'@'localhost'	def	db_datadict_4	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
-GRANT USAGE ON *.* TO 'testuser1'@'localhost'
-GRANT INSERT ON `db_datadict_1`.* TO 'testuser1'@'localhost'
-GRANT SELECT ON `db_datadict_4`.* TO 'testuser1'@'localhost' WITH GRANT OPTION
-GRANT INSERT ON `db_datadict_2`.`t1` TO 'testuser1'@'localhost'
+GRANT USAGE ON *.* TO `testuser1`@`localhost`
+GRANT INSERT ON `db_datadict_1`.* TO `testuser1`@`localhost`
+GRANT SELECT ON `db_datadict_4`.* TO `testuser1`@`localhost` WITH GRANT OPTION
+GRANT INSERT ON `db_datadict_2`.`t1` TO `testuser1`@`localhost`
 SHOW GRANTS FOR 'testuser2'@'localhost';
 Grants for testuser2@localhost
-GRANT USAGE ON *.* TO 'testuser2'@'localhost'
-GRANT SELECT ON `db_datadict_3`.* TO 'testuser2'@'localhost'
-GRANT SELECT ON `db_datadict_1`.* TO 'testuser2'@'localhost'
-GRANT SELECT ON `db_datadict_4`.* TO 'testuser2'@'localhost'
+GRANT USAGE ON *.* TO `testuser2`@`localhost`
+GRANT SELECT ON `db_datadict_1`.* TO `testuser2`@`localhost`
+GRANT SELECT ON `db_datadict_3`.* TO `testuser2`@`localhost`
+GRANT SELECT ON `db_datadict_4`.* TO `testuser2`@`localhost`
 DROP USER 'testuser1'@'localhost';
 DROP USER 'testuser2'@'localhost';
 DROP DATABASE db_datadict_1;

@@ -1,0 +1,9 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # Basic test for innodb_dict_stats_disabled_debug
+--echo #
+
+let $var_name = innodb_dict_stats_disabled_debug;
+
+--source suite/sys_vars/inc/global_boolean_var_basic.inc

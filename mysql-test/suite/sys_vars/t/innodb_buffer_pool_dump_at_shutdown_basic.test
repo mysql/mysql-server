@@ -2,9 +2,8 @@
 # Basic test for innodb_buffer_pool_dump_at_shutdown
 #
 
--- source include/have_innodb.inc
-# include/restart_mysqld.inc does not work in embedded mode
--- source include/not_embedded.inc
+#Plugin 'MEMORY' has ref_count=1 after shutdown
+call mtr.add_suppression("Plugin \'MEMORY\'");
 
 # Check the default value
 SET @orig = @@global.innodb_buffer_pool_dump_at_shutdown;

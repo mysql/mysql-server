@@ -1,69 +1,74 @@
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 Rewriter plugin
 ===============
 
-This is a plugin which accesses the query after parsing and potentially
-rewrites it.
+This plugin accesses queries after parsing, potentially rewriting them.
 
 
 Terms and definitions
 =====================
 
-- Rewrite rule: the specification of which queries should be rewritten and if
-  so, how it should be rewritten. An example of a rewrite rule would be:
+- Rewrite rule: The specification of which queries should be rewritten and if
+  so, how. An example rewrite rule:
 
-    Rewrite all queries like "SELECT * FROM t WHERE c = ?"
-    to "SELECT b FROM t  WHERE c < ?"
+    Rewrite all queries of the form "SELECT * FROM t WHERE c = ?"
+    to "SELECT b FROM t WHERE c < ?"
 
-  A rewrite rule consists of a pattern and a replacement
+  A rewrite rule consists of a pattern and a replacement.
 
-- Pattern: the part of the rewrite rule that enables us to determine if a
-  given query needs to be rewritten or not. The pattern syntax is identical to
+- Pattern: The part of the rewrite rule that enables us to determine whether a
+  given query needs to be rewritten. The pattern syntax is identical to
   prepared statement syntax.
 
 - Replacement: A new query, also in prepared statement syntax.
 
-- Original query: Query which may get rewritten. This is the query as received
+- Original query: Query which may get rewritten. This is a query as received
   by the server.
 
-- Rewritten query: Final query once a rule has been applied to an
-  original query.
+- Rewritten query: Final query after a rule has been applied to an original
+  query.
 
-- Literals: SQL literals (character strings, numbers, dates, etc.) Some
+- Literals: SQL literals (character strings, numbers, dates, etc.). Some
   literals may be extracted from the original query and inserted into the
   replacement to form the rewritten query.
 
 - Parameter markers: These are used for two purposes:
 
-  - Wildcards for literals. A parameter marker in the pattern matches any
+  - Wild cards for literals. A parameter marker in the pattern matches any
     literal.
 
   - References to matched literals. If a parameter marker is also present in
-    the replacement, the matched literal will be injected at that
-    position. This process will continue with the rest of the matched literals
-    until there are no more markers in the pattern. The order is
-    left-to-right.
+    the replacement, the matched literal is injected at that position. This
+    process continues left to right with the rest of the matched literals
+    until there are no more markers in the pattern.
 
-  Syntactically, parameter markers are represented by '?' like in prepared
+  Syntactically, parameter markers are represented by '?' as in prepared
   statements.
 
-- Plugin user: DBA or anybody else who will be in charge of launching the
+- Plugin user: DBA or anybody else who is in charge of launching the
   plugin, or changing the rules in the table. This doesn't include users
-  simply using the database and getting their queries rewritten.
+  who simply use the database and have their queries rewritten.
 
 
 Usage and things to know
@@ -72,81 +77,83 @@ Usage and things to know
 Installation
 ------------
 
-It is recommended to install the plugin using the supplied SQL script, which
-will create a table to hold the rewrite rules, and triggers to keep the plugin
-up to date. It will also revoke all privileges on the rules table for anyone
-except the root user.
+It is recommended to install the plugin using the supplied SQL script
+install_rewriter.sql, which creates a database and table to hold the rewrite
+rules, and a stored procedure for loading the rules into the plugin.
 
-You can then add your rules in the table query_rewrite.rewrite_rules.
-The table and schema have the following definitions:
+You can then add your rules in the table query_rewrite.rewrite_rules.  The
+table and schema have roughly the following definitions (subject to change):
 
   CREATE DATABASE IF NOT EXISTS query_rewrite;
 
   CREATE TABLE IF NOT EXISTS query_rewrite.rewrite_rules (
-    pattern VARCHAR(10000) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-    replacement VARCHAR(10000) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-    enabled CHAR(1) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT 'Y',
-    message VARCHAR(50) CHARACTER SET utf8 COLLATE utf8_bin
-  ) DEFAULT CHARSET = utf8 ENGINE = INNODB;
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    pattern VARCHAR(10000),
+    pattern_database VARCHAR(20),
+    replacement VARCHAR(10000),
+    enabled CHAR(1) NOT NULL DEFAULT 'Y',
+    message VARCHAR(1000),
+  )
 
-  CREATE TRIGGER query_rewrite.new_rule
-  AFTER INSERT ON query_rewrite.rewrite_rules
-  FOR EACH ROW
-    SET @@global.Rewriter_table_changed = 1;
+  CREATE PROCEDURE query_rewrite.flush_rewrite_rules()
+  BEGIN
+    DECLARE message_text VARCHAR(100);
+    COMMIT;
+    SELECT load_rewrite_rules() INTO message_text;
+    IF NOT message_text IS NULL THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = message_text;
+    END IF;
+  END //
 
-  CREATE TRIGGER query_rewrite.changed_rule
-  AFTER UPDATE ON query_rewrite.rewrite_rules
-  FOR EACH ROW
-    SET @@global.Rewriter_table_changed = 1;
+This procedure commits the current transaction before loading the rules:
+The transaction must be committed, otherwise there can be no guarantee that the
+plugin is able to see the new rules.
 
-  CREATE TRIGGER query_rewrite.deleted_rule
-  AFTER DELETE ON query_rewrite.rewrite_rules
-  FOR EACH ROW
-    SET @@global.Rewriter_table_changed = 1;
+The procedure uses the UDF load_rewrite_rules() from the plugin's shared
+library to load the rules into plugin memory, and handles errors. It is not
+recommended to call the UDF yourself.
 
+You may also install the plugin using the script
+install_rewriter_with_optional_column.sql. This creates the table with two
+additional columns that Rewriter uses to write the actual digest and the
+normalized form of the pattern. This is useful if you need to figure out why
+some query fails to get rewritten.
 
 You can insert a new rewrite rule by doing:
 
     INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
-    VALUES ( 'SELECT * FROM t1 WHERE c1=?', 'SELECT * FROM t1 WHERE c2=?' );
+    VALUES ( 'SELECT * FROM db.t1 WHERE c1 = ?',
+             'SELECT * FROM db.t1 WHERE c2 = ?' );
 
-You can also install the plugin yourself:
-
-INSTALL PLUGIN rewriter SONAME 'rewriter.so';
-
-but then you also have to create the rules table yourself. And unless you also
-add triggers, you will have to set the variable Rewriter_table_changed to ON
-each time you touch the table.
+It is not recommended to install the plugin yourself (that is, manually using
+INSTALL PLUGIN) rather than using one of the installation scripts.
 
 
-Refreshing the plugin
----------------------
+Loading Rules into the Plugin
+-----------------------------
 
-The plugin keeps a copy of the rules table in memory in order to enable
-quicker matching of rule patterns. When updating the rules table, the updates
-are not immediately picked up by the plugin. Instead, there are triggers that
-update the variable Rewriter_table_changed when this happens. Any change to
-the table will cause the internal table to be re-read. The next query sent to
-the server, and the plugin invoked, will cause the in-memory table to be
-updated from the database table.
+The plugin keeps a copy of the rules table in memory to enable quicker
+matching of rule patterns. When updating the rules table, the updates are not
+immediately picked up by the plugin. This includes changing its content with a
+ROLLBACK statement. The current state of the rules table, as seen by the
+current session, is loaded into the plugin by running CALL
+query_rewrite.flush_rewrite_rules().
 
 
-Principle
----------
+How Rewrites Happen
+-------------------
 
-All original queries will be checked for matches and possibly get rewritten to
-the replacement query.
-
-- The matching is done in three stages with increased granularity for
-  performance reasons:
+All original queries are checked for matches and possibly get rewritten to the
+replacement query. The matching is done in three stages with increased
+granularity for performance reasons:
 
   1) Digest match. This is a quick-reject test with a relatively high false
      positive ratio, but without false negatives. As with all digest
      calculations there is a (extremely small) risk of hash collisions. There
      is also a limit on the portion of the query which gets a digest
      calculated. Hence extremely long queries that differ only far into the
-     query will always collide. The digest is calculated by performance_schema
-     and is not actually not part of the rewrite framework.
+     query always collide. The digest is calculated by the parser and is not
+     part of the rewrite framework.
 
   2) Tree structure matching. This makes sure that the original query and
      pattern have the same structure. The check is carried out by comparing
@@ -155,10 +162,12 @@ the replacement query.
      normalized query representation. Practically, queries such as
 
        SELECT 1 FROM table WHERE name = 'Andrew'
-       and
+
+     and
+
        SELECT 2 FROM table WHERE name = 'Lars'
 
-     will pass this test, since both are normalized to
+     pass this test, since both are normalized to
 
        SELECT ? FROM table WHERE name = ?.
 
@@ -166,62 +175,62 @@ the replacement query.
      trees of the query and the pattern are equal. All that can differ at this
      point are the literal values.
 
-- If either the pattern or the replacement are incorrect (generates syntax
-  errors) SQL queries the rule will simply be disabled (the enabled column
-  will be set to 'N') and won't affect the execution of other rules. If this
-  happens, the plugin will also write a message in the row's 'message' column.
+If either the pattern or the replacement is an incorrect SQL query (generates
+syntax errors), the plugin writes a message in the row's 'message' column. In
+this case, the rule is not loaded into the plugin. If the rule is later
+corrected and reloaded, the plugin will write NULL in the 'message' column.
 
-- If a query is rewritten there will be an SQL note to indicate it.
+If a query is rewritten, an SQL Note is generated to indicate that.
 
-- It is possible to have a pattern that has more parameters than the
-  replacement - in which case the extra ones are just ignored. The opposite -
-  more parameters in the replacement - is not allowed and will cause the rule
-  not to be loaded into memory. The plugin will let you know this by updating
-  a 'message' column in the rules table.
+It is possible to have a pattern that has more parameters than the replacement
+- in which case the extra ones are just ignored. The opposite - more
+parameters in the replacement - is not allowed and causes the rule not to be
+loaded into memory. The plugin lets you know this by updating the 'message'
+column in the rules table.
 
-- Databse names are resolved during parsing, and therefore it is recommended
-  to always qualify table names in patterns with the database name. It is not
-  a requirement but will generally make life a lot easier. Consider the
-  following rule:
+Queries using unqualified table references need some extra attention. Table
+names are resolved in the parser, that is, before any post-parse rewrite
+plugin is involved. What they get resolved to is of course the
+session-dependent setting of "current database", the one you set with the USE
+command. The problem is that Rewriter uses a session of its own to parse and
+load the rules, and it can't know what the value of "current database" was in
+the session that inserted the rule. To this end, use the 'pattern_database'
+column. This has the same effect as Rewriter issuing a USE command before
+parsing the pattern.
 
-    INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
-    VALUES ( 'SELECT * FROM t1', 'SELECT "rewritten"' );
+All this of course means that a rule with some unqualified table references
+and a non-NULL value of 'pattern_database' will only apply if that value is
+indeed the current database. But this is likely what you want anyway.
 
-  The name t1 is resolved - and qualified - during parsing, and hence the
-  digest will in fact be calculated on SELECT * FROM "database".t1, whatever
-  current database was when creating the rule. The plugin uses the user's
-  session. This may or may not be what was intended, but qualifying the table
-  name is always clearer. It follows that it is not possible to define a
-  catch-all rule to rewrite queries against all tables with the same name
-  regardless of database.
+In short:
 
-- When an error occurs on loading a rule the system variable
-  Rewriter_data_error will be true and an error message will be written in the
-  rule's 'message' column.
+  - If a pattern uses only qualified table references, the value of
+    'pattern_database' won't matter.
+
+  - If at least one table reference is unqualified, use 'pattern_database' to
+    tell Rewriter for which value of "current database" the rule should apply.
+
+When an error occurs on loading a rule the system variable
+Rewriter_reload_error is set to ON and an error message is written in the
+rule's 'message' column.
 
 
 Uninstallation
 --------------
 
-If you want to clean up your tracks completely, i.e. delete the rules table
+If you want to clean up your tracks completely, i.e., delete the rules table
 and database, it is recommended to use the supplied uninstall script. If you
-just to uninstall the plugin (a later installation will pick up the rules
-table where you left off, reading it into memory), you may issue:
+want only to uninstall the plugin, leaving the rules so that a subsequent
+installation could picks up where you left, you may issue these statements:
 
-    UNINSTALL PLUGIN rewriter;
+  DROP FUNCTION load_rewrite_rules;
+  UNINSTALL PLUGIN rewriter;
 
 
-Status variables
-----------------
+Status and System Variables
+---------------------------
 
-The plugin defines a few status variables:
-
-  - Rewriter_number_rewritten_queries: the number of queries which have been
-    rewritten since last installing the plugin.
-
-  - Rewriter_reload_error: ON if an error condition occured when loading the
-    rewrite rules table. That rule will have an error message in its 'message'
-    column.
+The plugin defines four status variables:
 
   - Rewriter_number_loaded_rules: The number of rewrite rules in the in-memory
     rewrite hash table.
@@ -229,7 +238,18 @@ The plugin defines a few status variables:
   - Rewriter_number_reloads: The number of times the rules table has been
     loaded into memory.
 
-There is one system variable:
+  - Rewriter_number_rewritten_queries: the number of queries which have been
+    rewritten since last installing the plugin.
 
-  - Rewriter_table_changed: If ON, the plugin will load the rules table into
-    memory.
+  - Rewriter_reload_error: ON if an error condition occurred when loading the
+    rewrite rules table. That rule has an error message in its 'message'
+    column.
+
+There are two system variables:
+
+  - rewriter_verbose: Level of verbosity. At level 2, the plugin leaves an
+    SQL Note even for queries that were not rewritten, attempting to explain why.
+
+  - rewriter_enabled: If set to OFF, the plugin is still called by the
+    server, but immediately returns, doing nothing. This is mainly used for
+    internal testing purposes.

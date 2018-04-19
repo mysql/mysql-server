@@ -1,0 +1,2 @@
+$UDF_EXAMPLE_LIB_OPT
+--binlog-ignore-db=master_db

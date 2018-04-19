@@ -1,0 +1,407 @@
+call mtr.add_suppression("Plugin mysqlx reported: .Error parsing message of type 17:");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket .. failed, the socket file path is empty");
+# restart
+Bug #21472634
+RUN show processlist;
+Id	User	Host	db	Command		State	Info
+4	event_scheduler	localhost	null	Daemon	Waiting on empty queue	null
+$PROC_1_ID	root	localhost	test	Sleep		null
+$PROC_2_ID	x_root	localhost	null	Query	null	PLUGIN: show processlist
+0 rows affected
+RUN SELECT id,user,command,state FROM information_schema.processlist ORDER BY id
+id	user	command	state
+4	event_scheduler	Daemon	Waiting on empty queue
+$PROC_1_ID	root	Sleep	
+$PROC_2_ID	x_root	Query	executing
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Issue MYP-150
+RUN use test
+
+0 rows affected
+RUN create table complexq (age int, name varchar(100))
+
+0 rows affected
+RUN insert into complexq values (50, 'blabla')
+
+1 rows affected
+send Mysqlx.Crud.Find {
+  collection {
+    name: "complexq"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "age"
+      }
+    }
+    alias: "age_group"
+  }
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "count"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "name"
+          }
+        }
+      }
+    }
+    alias: "cnt"
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "age_group"
+    }
+  }
+}
+
+age_group	cnt
+50	1
+command ok
+RUN drop table complexq
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Check whether default db on connect works
+RUN select schema()
+schema()
+test
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+create user expired@localhost;
+alter user expired@localhost password expire;
+Check whether password expired sandbox applies to admin cmds
+NOTICE: Account password expired
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "set password=\'a\'"
+}
+
+
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+client_id	user	host	sql_session
+N	expired	localhost	N
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+drop user expired@localhost;
+
+Bug #21362400 MYSQLXTEST HANG WHEN EXECUTING INSTALL AND UNINSTALL PLUGIN
+-------------------------------------------------------------------------
+RUN INSTALL PLUGIN mysqlx SONAME 'mysqlx.so'
+While executing INSTALL PLUGIN mysqlx SONAME 'mysqlx.so':
+Got expected error: Command not supported by pluggable protocols (code 3130)
+RUN UNINSTALL PLUGIN mysqlx
+While executing UNINSTALL PLUGIN mysqlx:
+Got expected error: Command not supported by pluggable protocols (code 3130)
+RUN INSTALL PLUGIN mysqlx SONAME 'mysqlx.so'
+While executing INSTALL PLUGIN mysqlx SONAME 'mysqlx.so':
+Got expected error: Command not supported by pluggable protocols (code 3130)
+RUN UNINSTALL PLUGIN mysqlx
+While executing UNINSTALL PLUGIN mysqlx:
+Got expected error: Command not supported by pluggable protocols (code 3130)
+RUN INSTALL PLUGIN mysqlx SONAME 'mysqlx.so'
+While executing INSTALL PLUGIN mysqlx SONAME 'mysqlx.so':
+Got expected error: Command not supported by pluggable protocols (code 3130)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+Bug Crash when sending an invalid message of type Find, for example
+-------------------------------------------------------------------
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+connecting...
+active session is now 'foo'
+Sending 5 bytes raw data...
+Got expected error:
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Parse error unserializing protobuf message"
+  sql_state: "HY000"
+}
+
+aborting session foo
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

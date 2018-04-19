@@ -1,0 +1,40 @@
+
+# Check the default value
+SELECT  @@global.innodb_default_row_format;
+
+SET GLOBAL innodb_default_row_format = 'redundant';
+SELECT @@global.innodb_default_row_format;
+
+SET GLOBAL innodb_default_row_format = 'dynamic';
+SELECT @@global.innodb_default_row_format;
+
+SET GLOBAL innodb_default_row_format = 'compact';
+SELECT @@global.innodb_default_row_format;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_default_row_format = 'compressed';
+SELECT @@global.innodb_default_row_format;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_default_row_format = 'foobar';
+SELECT @@global.innodb_default_row_format;
+
+SET GLOBAL innodb_default_row_format = 0;
+SELECT @@global.innodb_default_row_format;
+
+SET GLOBAL innodb_default_row_format = 1;
+SELECT @@global.innodb_default_row_format;
+
+SET GLOBAL innodb_default_row_format = 2;
+SELECT @@global.innodb_default_row_format;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_default_row_format = 3;
+SELECT @@global.innodb_default_row_format;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_default_row_format = 123;
+SELECT @@global.innodb_default_row_format;
+
+
+SET GLOBAL innodb_default_row_format = default;

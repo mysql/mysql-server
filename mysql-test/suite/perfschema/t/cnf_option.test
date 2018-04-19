@@ -1,9 +1,6 @@
 # Tests for PERFORMANCE_SCHEMA
 # Check server start options, read from a .cnf file
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 show global variables like 'performance_schema_max_thread_classes';
 show global variables like 'performance_schema_max_thread_instances';
 

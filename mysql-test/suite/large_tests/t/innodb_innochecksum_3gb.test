@@ -10,9 +10,6 @@
 # --testcase-timeout=6000 innodb_innochecksum_3gb.test
 #****************************************************************
 
---source include/have_innodb.inc
---source include/not_embedded.inc
---source include/have_innodb_16k.inc
 
 let MYSQLD_BASEDIR= `SELECT @@basedir`;
 let MYSQLD_DATADIR= `SELECT @@datadir`;

@@ -1,0 +1,236 @@
+#
+# Validate that Group Replication channels are listed on all
+# replication P_S tables with parallel applier.
+#
+# Steps:
+# 1. Before start Group Replication channels are not present
+#    on common replication P_S tables.
+# 2. After start Group Replication channels are present
+#    on common replication P_S tables.
+# 3. Group Replication running channels sample output
+#    on common replication P_S tables.
+# 4. Clean up data.
+# 5. Stop Group Replication, channels must continue to be
+#    present on common replication P_S tables.
+# 6. Group Replication stopped channels sample output
+#    on common replication P_S tables.
+# 7. Group Replication channel must not be present on common
+#    replication P_S tables after a RESET ALL command.
+# 8. Test end.
+#
+
+--source include/only_mts_slave_parallel_workers.inc
+--source include/have_group_replication_plugin.inc
+--let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9429445
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Before start Group Replication channels are not present
+--echo #    on common replication P_S tables.
+--let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_connection_configuration table'
+--let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_connection_configuration WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_connection_status table'
+--let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_applier_configuration table'
+--let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_applier_status table'
+--let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table'
+--let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_applier_status_by_worker table'
+--let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. After start Group Replication channels are present
+--echo #    on common replication P_S tables.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $assert_text= 'There is a Group Replication applier channel on performance_schema.replication_connection_configuration table'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is a Group Replication applier channel on performance_schema.replication_connection_status table'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is a Group Replication applier channel on performance_schema.replication_applier_configuration table'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is a Group Replication applier channel on performance_schema.replication_applier_status table'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is a Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There are four Group Replication applier channel workers on performance_schema.replication_applier_status_by_worker table'
+--let $assert_cond= COUNT(*) = 4 FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Group Replication running channels sample output
+--echo #    on common replication P_S tables.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Execute some transactions on server2 to make server1
+# performance_schema.replication_connection_status.RECEIVED_TRANSACTION_SET
+# not empty.
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--echo
+--query_vertical SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name = "group_replication_applier"
+
+--echo
+--replace_column 13 [ORIGINAL_COMMIT_TIMESTAMP] 14 [IMMEDIATE_COMMIT_TIMESTAMP] 15 [START_QUEUE_TIMESTAMP] 16 [END_QUEUE_TIMESTAMP]
+--query_vertical SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier"
+
+--echo
+--query_vertical SELECT * FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier"
+
+--echo
+--query_vertical SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
+
+--echo
+--replace_column 2 [THREAD_ID] 8 [ORIGINAL_COMMIT_TIMESTAMP] 9 [IMMEDIATE_COMMIT_TIMESTAMP] 10 [START_BUFFER_TIMESTAMP] 11 [END_BUFFER_TIMESTAMP]
+--query_vertical SELECT * FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
+
+--echo
+--replace_column 3 [THREAD_ID] 8 [GTID] 9 [ORIGINAL_COMMIT_TIMESTAMP] 10 [IMMEDIATE_COMMIT_TIMESTAMP] 11 [START_APPLY_TIMESTAMP] 12 [END_APPLY_TIMESTAMP]
+--query_vertical SELECT * FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier"
+
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up data.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Stop Group Replication, channels must continue to be
+--echo #    present on common replication P_S tables.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $assert_text= 'There is still a Group Replication applier channel on performance_schema.replication_connection_configuration table'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is still a Group Replication applier channel on performance_schema.replication_connection_status table'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is still a Group Replication applier channel on performance_schema.replication_applier_configuration table'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is still a Group Replication applier channel on performance_schema.replication_applier_status table'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is still a Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There are still four Group Replication applier channel workers on performance_schema.replication_applier_status_by_worker table'
+--let $assert_cond= COUNT(*) = 4 FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Group Replication stopped channels sample output
+--echo #    on common replication P_S tables.
+--echo
+--query_vertical SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name = "group_replication_applier"
+
+--echo
+--replace_column 13 [ORIGINAL_COMMIT_TIMESTAMP] 14 [IMMEDIATE_COMMIT_TIMESTAMP] 15 [START_QUEUE_TIMESTAMP] 16 [END_QUEUE_TIMESTAMP]
+--query_vertical SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier"
+
+--echo
+--query_vertical SELECT * FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier"
+
+--echo
+--query_vertical SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
+
+--echo
+--replace_column 8 [ORIGINAL_COMMIT_TIMESTAMP] 9 [IMMEDIATE_COMMIT_TIMESTAMP] 10 [START_BUFFER_TIMESTAMP] 11 [END_BUFFER_TIMESTAMP]
+--query_vertical SELECT * FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
+
+--echo
+--replace_column 8 [GTID] 9 [ORIGINAL_COMMIT_TIMESTAMP] 10 [IMMEDIATE_COMMIT_TIMESTAMP] 11 [START_APPLY_TIMESTAMP] 12 [END_APPLY_TIMESTAMP]
+--query_vertical SELECT * FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier"
+
+
+--echo
+--echo ############################################################
+--echo # 7. Group Replication channel must not be present on common
+--echo #    replication P_S tables after a RESET ALL command.
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+
+--let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_connection_configuration table'
+--let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_connection_configuration WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_connection_status table'
+--let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_applier_configuration table'
+--let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_applier_status table'
+--let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table'
+--let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+--let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_applier_status_by_worker table'
+--let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 8. Test end.
+--source include/group_replication_end.inc

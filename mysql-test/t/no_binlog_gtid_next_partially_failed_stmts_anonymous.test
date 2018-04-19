@@ -1,0 +1,74 @@
+# ==== Purpose ====
+#
+# When binlog is disabled, verify that we can set GTID_NEXT
+# to 'ANONYMOUS' after the partially failed statement
+# consumed its 'ANONYMOUS' gtid.
+#
+# ==== Implementation ====
+#
+# 1) SET SESSION GTID_NEXT='UUID:GNO'.
+# 2) When binlog is disabled, verify that we can set GTID_NEXT
+#    to 'ANONYMOUS' after the partially failed statement
+#    consumed its 'ANONYMOUS' gtid.
+# 3) Execute above three steps for all different types of statements
+#
+# ==== References ====
+#
+# Bug#21686749  PARTIALLY FAILED DROP OR ACL STMT FAILS TO CONSUME GTID ON BINLOGLESS SLAVE
+# See mysql-test/suite/binlog/t/binlog_gtid_next_partially_failed_stmts.test
+# See mysql-test/suite/binlog/t/binlog_gtid_next_partially_failed_grant.test
+# See mysql-test/t/no_binlog_gtid_next_partially_failed_stmts.test
+# See mysql-test/t/no_binlog_gtid_next_partially_failed_stmts_error.test
+#
+
+# Should be tested against "binlog disabled" server
+--source include/not_log_bin.inc
+# Requires debug server to simulate failure to drop table in SE
+--source include/have_debug.inc
+
+# Make sure the test is repeatable
+RESET MASTER;
+SET GTID_NEXT = 'ANONYMOUS';
+CREATE TABLE t1 (a int) ENGINE=MyISAM;
+SET GTID_NEXT = 'ANONYMOUS';
+CREATE TABLE t2 (a int) ENGINE=InnoDB;
+
+# Check-1: DROP TABLE
+SET GTID_NEXT = 'ANONYMOUS';
+--echo #
+--echo # Make DROP TABLE statement to fail partially, by injecting error
+--echo # after dropping MyISAM table.
+--echo #
+SET @@debug="+d,rm_table_no_locks_abort_before_atomic_tables";
+--error ER_UNKNOWN_ERROR
+DROP TABLE t1, t2;
+SET @@debug="-d,rm_table_no_locks_abort_before_atomic_tables";
+--echo #
+--echo # The table t1 was dropped, which means DROP TABLE
+--echo # can be failed partially.
+--echo #
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE t1;
+--echo #
+--echo # When binlog is disabled, verify that we can set
+--echo # GTID_NEXT to 'ANONYMOUS' after the partially failed
+--echo # DROP TABLE statement consumed its 'ANONYMOUS' gtid.
+--echo #
+SET GTID_NEXT = 'ANONYMOUS';
+
+CREATE USER u1@h;
+
+# Check-2: DROP USER
+SET GTID_NEXT = 'ANONYMOUS';
+--error ER_CANNOT_USER
+DROP USER u1@h, u2@h;
+--echo #
+--echo # When binlog is disabled, verify that we can set
+--echo # GTID_NEXT to 'ANONYMOUS' after the failed DROP USER
+--echo # statement  did not consumed its 'ANONYMOUS' gtid.
+--echo #
+SET GTID_NEXT = 'ANONYMOUS';
+
+DROP USER u1@h;
+SET GTID_NEXT = 'ANONYMOUS';
+DROP TABLE t2;

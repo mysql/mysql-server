@@ -1,0 +1,265 @@
+CREATE TABLE D_21104470 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_nokey json NOT NULL,
+col_int_key int(11) NOT NULL,
+col_date_key date NOT NULL,
+col_date_nokey json NOT NULL,
+col_time_key time NOT NULL,
+col_time_nokey json NOT NULL,
+col_datetime_key datetime NOT NULL,
+col_datetime_nokey json NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+col_varchar_nokey json NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_date_key (col_date_key),
+KEY col_time_key (col_time_key),
+KEY col_datetime_key (col_datetime_key),
+KEY col_varchar_key (col_varchar_key),
+KEY col_int_key_2 (col_int_key,col_date_key,col_time_key,col_datetime_key,col_varchar_key)
+) AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+INSERT INTO D_21104470
+VALUES
+(1,'{"int1": "6"}',3,
+'2007-06-18','{"date": "2007-06-18"}',
+'00:00:00','{"time": null}',
+'2002-08-20 22:48:00','{"datetime": "2002-08-20 22:48:00.035785"}',
+'d','{"varc": "d"}'),
+(2,'{"int1": "2"}',8,
+'2002-10-13','{"date": "2002-10-13"}',
+'00:00:00','{"time": "00:00:00"}',
+'1900-01-01 00:00:00','{"datetime": "1900-01-01 00:00:00"}',
+'s','{"varc": "s"}'),
+(3,'{"int1": "4"}',1,
+'1900-01-01','{"date": "1900-01-01"}',
+'15:57:25','{"time": "15:57:25.019666"}',
+'2005-08-15 00:00:00','{"datetime": "2005-08-15 00:00:00"}',
+'r','{"varc": "r"}'),
+(4,'{"int1": "8"}',8,
+'1900-02-03','{"date": null}',
+'07:05:51','{"time": "07:05:51.006712"}',
+'1900-01-01 00:00:00','{"datetime": "1900-01-01 00:00:00"}',
+'m','{"varc": "m"}'),
+(5,'{"int1": "4"}',8,
+'2006-03-09','{"date": "2006-03-09"}',
+'19:22:21','{"time": "19:22:21.057406"}',
+'2008-05-16 08:09:06','{"datetime": "2008-05-16 08:09:06.002924"}',
+'b','{"varc": "b"}'),
+(6,'{"int1": "4"}',5,
+'2001-06-05','{"date": "2001-06-05"}',
+'03:53:16','{"time": "03:53:16.001370"}',
+'2001-01-20 12:47:23','{"datetime": "2001-01-20 12:47:23.022022"}',
+'x','{"varc": "x"}'),
+(7,'{"int1": "7"}',7,
+'2006-05-28','{"date": "2006-05-28"}',
+'09:16:38','{"time": "09:16:38.034570"}',
+'2008-07-02 00:00:00','{"datetime": "2008-07-02 00:00:00"}',
+'g','{"varc": "g"}'),
+(8,'{"int1": "4"}',5,
+'2001-04-19','{"date": "2001-04-19"}',
+'15:37:26','{"time": "15:37:26.028315"}',
+'1900-01-01 00:00:00','{"datetime": "1900-01-01 00:00:00"}',
+'p','{"varc": "p"}'),
+(9,'{"int1": "1"}',1,
+'1900-01-01','{"date": "1900-01-01"}',
+'00:00:00','{"time": "00:00:00"}',
+'2002-12-08 11:34:58','{"datetime": "2002-12-08 11:34:58.001571"}',
+'q','{"varc": "q"}'),
+(10,'{"int1": "9"}',6,
+'2004-08-20','{"date": "2004-08-20"}',
+'05:03:03','{"time": "05:03:03.047452"}',
+'1900-01-01 00:00:00','{"datetime": "1900-01-01 00:00:00"}',
+'w','{"varc": "w"}');
+CREATE TABLE DD_21104470 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_nokey json NOT NULL,
+col_int_key int(11) NOT NULL,
+col_date_key date NOT NULL,
+col_date_nokey json NOT NULL,
+col_time_key time NOT NULL,
+col_time_nokey json NOT NULL,
+col_datetime_key datetime NOT NULL,
+col_datetime_nokey json NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+col_varchar_nokey json NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_date_key (col_date_key),
+KEY col_time_key (col_time_key),
+KEY col_datetime_key (col_datetime_key),
+KEY col_varchar_key (col_varchar_key),
+KEY col_int_key_2 (col_int_key,col_date_key,col_time_key,col_datetime_key,col_varchar_key)
+) AUTO_INCREMENT=20 DEFAULT CHARSET=latin1;
+INSERT INTO DD_21104470
+VALUES
+(10,'{"int1": "6"}',3,
+'2002-12-16','{"date": "2002-12-16"}',
+'17:54:20','{"time": "17:54:20.050299"}',
+'2007-04-06 06:20:37','{"datetime": "2007-04-06 06:20:37.035492"}',
+'i','{"varc": "i"}'),
+(11,'{"int1": "1"}',1,
+'2005-08-08','{"date": "2005-08-08"}',
+'08:53:47','{"time": "08:53:47.064602"}',
+'2008-03-07 00:00:00','{"datetime": "2008-03-07 00:00:00"}',
+'x','{"varc": "x"}'),
+(12,'{"int1": "5"}',2,
+'2004-11-16','{"date": "2004-11-16"}',
+'01:40:28','{"time": "01:40:28.015719"}',
+'2002-01-25 10:15:08','{"datetime": "2002-01-25 10:15:08.014682"}',
+'l','{"varc": "l"}'),
+(13,'{"int1": "6"}',7,
+'1900-02-04','{"date": null}',
+'16:37:21','{"time": "16:37:21.055310"}',
+'2001-02-26 23:35:13','{"datetime": "2001-02-26 23:35:13.014897"}',
+'q','{"varc": "q"}'),
+(14,'{"int1": "2"}',6,
+'2006-05-14','{"date": "2006-05-14"}',
+'01:00:33','{"time": "01:00:33.038177"}',
+'2001-06-23 13:47:43','{"datetime": "2001-06-23 13:47:43.001775"}',
+'n','{"varc": "n"}'),
+(15,'{"int1": "4"}',1,
+'2005-01-19','{"date": "2005-01-19"}',
+'03:06:43','{"time": "03:06:43.059217"}',
+'2007-01-17 05:06:55','{"datetime": "2007-01-17 05:06:55.064405"}',
+'r','{"varc": "r"}'),
+(16,'{"int1": "231"}',156,
+'1900-01-01','{"date": "1900-01-01"}',
+'00:00:00','{"time": null}',
+'2001-10-23 00:00:00','{"datetime": "2001-10-23 00:00:00"}',
+'c','{"varc": "c"}'),
+(17,'{"int1": "4"}',8,
+'2004-06-25','{"date": "2004-06-25"}',
+'16:13:44','{"time": "16:13:44.008978"}',
+'2003-11-24 04:13:27','{"datetime": "2003-11-24 04:13:27.046820"}',
+'h','{"varc": "h"}'),
+(18,'{"int1": "3"}',7,
+'2009-12-22','{"date": "2009-12-22"}',
+'14:09:13','{"time": "14:09:13.028533"}',
+'2007-09-19 14:33:09','{"datetime": "2007-09-19 14:33:09.017132"}',
+'k','{"varc": "k"}'),
+(19,'{"int1": "3"}',2,
+'2004-06-25','{"date": "2004-06-25"}',
+'10:09:51','{"time": "10:09:51.017335"}',
+'1900-01-01 00:00:00','{"datetime": "1900-01-01 00:00:00"}',
+'t','{"varc": "t"}');
+CREATE TABLE insert_select_21104470
+SELECT
+table3 . col_datetime_nokey AS field1
+FROM
+D_21104470 AS table1
+LEFT  JOIN  DD_21104470 AS table2
+LEFT  JOIN DD_21104470 AS table3
+ON table2 . col_int_key <  table3 . col_int_key
+ON  table1 . pk =  table2 . col_int_key
+WHERE   table1 . col_int_key >= 3
+AND table1 . col_int_key < ( 3 + 7 )
+OR table1 . col_int_key >= 3
+AND table1 . col_int_key < ( 3 + 25 )
+AND table1 . col_int_key != table2 . pk
+AND table1 . col_int_key IS  NULL
+AND  table1 . pk IS  NULL
+OR table1 . col_int_key > 3
+GROUP BY field1
+ORDER BY field1;
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+DROP TABLE D_21104470;
+DROP TABLE DD_21104470;
+DROP TABLE insert_select_21104470;
+#
+# Bug#21383497 DBUG_ABORT() IN VAL_JSON
+#
+CREATE TABLE t(a INT PRIMARY KEY);
+INSERT INTO t VALUES (1), (2), (3), (4), (5);
+SELECT 1 FROM t GROUP BY ST_ASGEOJSON(POINT(1, 1)) WITH ROLLUP;
+1
+1
+1
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+SELECT JSON_EXTRACT('{"a":1}', '$.a') AS je, COUNT(DISTINCT a)
+FROM t GROUP BY je WITH ROLLUP;
+je	COUNT(DISTINCT a)
+1	5
+NULL	5
+SELECT JSON_EXTRACT(NULL, '$.a') AS je, COUNT(DISTINCT a)
+FROM t GROUP BY je WITH ROLLUP;
+je	COUNT(DISTINCT a)
+NULL	5
+NULL	5
+SELECT JSON_EXTRACT('{"a":1}', '$.a') AS je, a, COUNT(DISTINCT a)
+FROM t GROUP BY je, a WITH ROLLUP;
+je	a	COUNT(DISTINCT a)
+1	1	1
+1	2	1
+1	3	1
+1	4	1
+1	5	1
+1	NULL	5
+NULL	NULL	5
+SELECT JSON_EXTRACT('{"a":1}', '$.a') AS je, a, COUNT(DISTINCT a)
+FROM t GROUP BY a, je WITH ROLLUP;
+je	a	COUNT(DISTINCT a)
+1	1	1
+NULL	1	1
+1	2	1
+NULL	2	1
+1	3	1
+NULL	3	1
+1	4	1
+NULL	4	1
+1	5	1
+NULL	5	1
+NULL	NULL	5
+DROP TABLE t;
+#
+# Bug#21096340 VIEW WITH QUERY HAVING SUM ON JSON COLUMN RETURNS INVALID DATA
+#
+CREATE TABLE D (
+col_varchar_10_latin1 varchar(10) CHARACTER SET latin1,
+col_varchar_255_latin1_key varchar(255) CHARACTER SET latin1,
+col_int_key int,
+pk integer auto_increment,
+col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8,
+col_int int,
+col_varchar_10_utf8 varchar(10) CHARACTER SET utf8,
+col_varchar_255_latin1 varchar(255) CHARACTER SET latin1,
+col_varchar_255_utf8 varchar(255) CHARACTER SET utf8,
+col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1,
+col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8,
+/*Indices*/
+key (col_varchar_255_latin1_key),
+key (col_int_key),
+primary key (pk),
+key (col_varchar_255_utf8_key),
+key (col_varchar_10_latin1_key),
+key (col_varchar_10_utf8_key)
+);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO D VALUES 
+('have', 'say', NULL, NULL, 'who', NULL, 'JBIYP', 'he''s', 'VWJOC', 'your', 'VDMAE') ,  
+('YQAHN', 'GIKYQ', 3, NULL, 'no', 1933049856,'got', 'icz', 'RMHUR', 'MPCRS', 'so') ,
+('had', 'PASVH', 2144141312, NULL, 'look', 808058880, 'czstj', 'z', 'MRRVF', 'UHWEV', 'that') ,  
+('BSXXI', 'DLIRG', NULL, NULL, 'zstjzfsu', 1562116096, 'is', 'WKDGV', 'stj', 'tjzf', 'with') ,  
+('JFSGY', 'c', 98828288, NULL, 'n', 269418496, 'LDJWY', 'jzfsu', 'QPXVX', 'zfsunwdg', 'we');
+ALTER TABLE D MODIFY COLUMN col_int JSON;
+SELECT SUM(col_int), col_int FROM D AS table1 WHERE table1.pk = table1.pk;
+SUM(col_int)	col_int
+4572643328	NULL
+CREATE OR REPLACE VIEW view1 AS SELECT SUM(col_int), col_int FROM D AS table1
+WHERE table1.pk = table1.pk;
+SELECT * FROM view1;
+SUM(col_int)	col_int
+4572643328	NULL
+SELECT  SUM(col_int), col_int FROM D AS table1 WHERE table1.pk = table1.pk;
+SUM(col_int)	col_int
+4572643328	NULL
+SELECT * FROM view1;
+SUM(col_int)	col_int
+4572643328	NULL
+DROP VIEW view1;
+DROP TABLE D;

@@ -6,8 +6,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET @@time_zone='+00:00';
 SET @@timestamp=25810.123456;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1
 (
 ts0 TIMESTAMP(0),

@@ -131,13 +131,13 @@ SELECT @@session.interactive_timeout;
 31536000
 '#------------------FN_DYNVARS_052_06-----------------------#'
 SELECT @@global.interactive_timeout = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='interactive_timeout';
 @@global.interactive_timeout = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_052_07-----------------------#'
 SELECT @@session.interactive_timeout = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='interactive_timeout';
 @@session.interactive_timeout = VARIABLE_VALUE
 1

@@ -1,0 +1,112 @@
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+--echo #
+--echo # Bug #26625652: SIG=11 ROW_SEL_SEC_REC_IS_FOR_CLUST_REC ROW_SEARCH_MVCC
+--echo #
+
+#
+# Prepare
+#
+
+--echo # Connection default:
+connection default;
+    SET @page_size = @@innodb_page_size;
+    # the value must be >= than commit_freq in lob::insert
+    SET @page_count = 4;
+    SET @initial_isolation = @@SESSION.transaction_isolation;
+
+    SET DEBUG_SYNC='reset';
+
+--echo # Connection con1:
+connect(con1,localhost,root,,test);
+    SET SESSION transaction_isolation = 'READ-UNCOMMITTED';
+    SELECT @@SESSION.transaction_isolation;
+
+--echo # Connection default:
+connection default;
+    SET SESSION transaction_isolation = 'READ-UNCOMMITTED';
+    SELECT @@SESSION.transaction_isolation;
+
+    CREATE TABLE t (
+        a INT,
+        c VARCHAR(100),
+        j JSON,
+        vj varchar(100) as (json_unquote(j->'$.hash')) virtual,
+        INDEX idx_a(a),
+        INDEX idx_c(c),
+        INDEX idx_vj(vj)
+        ) ROW_FORMAT=COMPACT;
+
+    INSERT INTO t VALUES
+        (1, 'aaaa123xx', CONCAT('{ "hash": "the_hash_a", "data": "', REPEAT('a', @page_size * @page_count), '" }'), DEFAULT),
+        (2, 'aaaa1234x', CONCAT('{ "hash": "the_hash_b", "data": "', REPEAT('b', @page_size * @page_count), '" }'), DEFAULT),
+        (3, 'aaaa12345', CONCAT('{ "hash": "the_hash_c", "data": "', REPEAT('c', @page_size * @page_count), '" }'), DEFAULT);
+
+#
+# Test 1:
+# - Modify row, but wait before writing JSON BLOB page.
+# - Select with filter on virtual column which cannot be calculated
+#   (missing BLOB data, only prefix available).
+#
+--echo # Connection con1:
+connection con1;
+    SET DEBUG_SYNC='blob_write_middle_after_check SIGNAL s1 WAIT_FOR s2 EXECUTE 2';
+    BEGIN;
+	--echo # Sending:
+    send UPDATE t SET j=json_set(j,'$.hash','"the_hash_x"') WHERE a=2;
+
+--echo # Connection default:
+connection default;
+    SET DEBUG_SYNC='now WAIT_FOR s1';
+    SET DEBUG_SYNC='now SIGNAL s2 WAIT_FOR s1';
+    --error ER_INVALID_JSON_BINARY_DATA
+    SELECT * FROM t WHERE vj LIKE 'the_hash_%';
+    SET DEBUG_SYNC='now SIGNAL s2';
+
+--echo # Connection con1:
+connection con1;
+    reap;
+    ROLLBACK;
+
+#
+# Test 2:
+# - Modify row, but wait before writing JSON BLOB page.
+# - Select with filter on valid column, but read column
+#   that cannot be calculated (missing BLOB data, only prefix available).
+#
+
+--echo # Connection con1:
+connection con1;
+    SET DEBUG_SYNC='blob_write_middle_after_check SIGNAL s1 WAIT_FOR s2 EXECUTE 2';
+    BEGIN;
+    --echo # Sending:
+    send UPDATE t SET j=json_set(j,'$.hash','"the_hash_x"') WHERE a=2;
+
+--echo # Connection default:
+connection default;
+    SET DEBUG_SYNC='now WAIT_FOR s1';
+    SET DEBUG_SYNC='now SIGNAL s2 WAIT_FOR s1';
+    --error ER_INVALID_JSON_BINARY_DATA
+    SELECT vj FROM t WHERE c LIKE 'aaaa1234%';
+    SET DEBUG_SYNC='now SIGNAL s2';
+
+--echo # Connection con1:
+connection con1;
+    reap;
+    ROLLBACK;
+
+#
+# Cleanup
+#
+--echo # Connection default:
+connection default;
+    disconnect con1;
+
+    DROP TABLE t;
+
+    SET DEBUG_SYNC='reset';
+
+    SET SESSION transaction_isolation = @initial_isolation;
+
+--source include/wait_until_count_sessions.inc

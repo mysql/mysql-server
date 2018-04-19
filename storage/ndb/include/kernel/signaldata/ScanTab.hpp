@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -110,6 +117,8 @@ private:
   static Uint32 getViaSPJFlag(const Uint32 & requestInfo);
   static Uint32 getPassAllConfsFlag(const Uint32 & requestInfo);
   static Uint32 get4WordConf(const Uint32&);
+  static Uint8 getReadCommittedBaseFlag(const UintR & requestInfo);
+  static Uint32 getMultiFragFlag(const Uint32 & requestInfo);
 
   /**
    * Set:ers for requestInfo
@@ -129,6 +138,8 @@ private:
   static void setViaSPJFlag(Uint32 & requestInfo, Uint32 val);
   static void setPassAllConfsFlag(Uint32 & requestInfo, Uint32 val);
   static void set4WordConf(Uint32 & requestInfo, Uint32 val);
+  static void setReadCommittedBaseFlag(Uint32 & requestInfo, Uint32 val);
+  static void setMultiFragFlag(Uint32 & requestInfo, Uint32 val);
 };
 
 /**
@@ -159,10 +170,11 @@ private:
  j = Via SPJ flag          - 1  Bit 27
  a = Pass all confs flag   - 1  Bit 28
  f = 4 word conf           - 1  Bit 29
+ R = Read Committed base   - 1  Bit 30
 
            1111111111222222222233
  01234567890123456789012345678901
- pppppppplnhcktzxbbbbbbbbbbdjaf
+ pppppppplnhcktzxbbbbbbbbbbdjafR
 */
 
 #define PARALLEL_SHIFT     (0)
@@ -201,6 +213,14 @@ private:
 #define SCAN_SPJ_SHIFT (27)
 #define SCAN_PASS_CONF_SHIFT (28)
 #define SCAN_4WORD_CONF_SHIFT (29)
+#define SCAN_READ_COMMITTED_BASE_SHIFT (30)
+#define SCAN_MULTI_FRAG_SHIFT (31)
+
+inline
+Uint8
+ScanTabReq::getReadCommittedBaseFlag(const UintR & requestInfo){
+  return (Uint8)((requestInfo >> SCAN_READ_COMMITTED_BASE_SHIFT) & 1);
+}
 
 inline
 Uint8
@@ -254,6 +274,14 @@ inline
 void 
 ScanTabReq::clearRequestInfo(UintR & requestInfo){
   requestInfo = 0;
+}
+
+inline
+void 
+ScanTabReq::setReadCommittedBaseFlag(UintR & requestInfo, Uint32 type){
+  ASSERT_MAX(type, 1, "ScanTabReq::setReadCommittedBase");
+  requestInfo= (requestInfo & ~(1 << SCAN_READ_COMMITTED_BASE_SHIFT)) |
+               ((type & 1) << SCAN_READ_COMMITTED_BASE_SHIFT);
 }
 
 inline
@@ -399,6 +427,24 @@ void
 ScanTabReq::set4WordConf(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "TcKeyReq::setPassAllConfs");
   requestInfo |= (flag << SCAN_4WORD_CONF_SHIFT);
+}
+
+/**
+ * MULTI_FRAG flag can currently only be used together
+ * with ViaSPJ flag.
+ */
+inline
+UintR
+ScanTabReq::getMultiFragFlag(const UintR & requestInfo){
+  return (requestInfo >> SCAN_MULTI_FRAG_SHIFT) & 1;
+}
+
+inline
+void
+ScanTabReq::setMultiFragFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setMultiFragFlag");
+  requestInfo= (requestInfo & ~(1 << SCAN_MULTI_FRAG_SHIFT)) |
+               (flag << SCAN_MULTI_FRAG_SHIFT);
 }
 
 /**
@@ -548,7 +594,7 @@ class ScanNextReq {
   /**
    * Sender(s)
    */
-  friend class NdbOperation; 
+  friend class NdbScanOperation;
   friend class NdbQueryImpl;
 
   /**

@@ -1,7 +1,5 @@
 DROP TABLE IF EXISTS t1;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 DATE NULL, c2 DATE NULL);
 SET TIMESTAMP=1171346973;
 INSERT INTO t1 VALUES(NOW(),NOW());

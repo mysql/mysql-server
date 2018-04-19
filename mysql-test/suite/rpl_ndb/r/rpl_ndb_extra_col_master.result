@@ -3,7 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-set binlog_format=row;
+set binlog_format='row';
 
 ***********************************************************
 ***********************************************************
@@ -188,11 +188,11 @@ INSERT into t3 set f1=1, f2=1, f3=1, f4='first', f10='f10: some var char';
 INSERT into t4 set f1=1, f2=1, f3=1, f4='first', f7='f7: medium size blob', f10='f10:
 binary data';
 INSERT into t31 set f1=1, f2=1, f3=1, f4='first';
-INSERT into t31 set f1=1, f2=1, f3=2, f4='second',
+INSERT IGNORE into t31 set f1=1, f2=1, f3=2, f4='second',
 f9=2.2,  f10='seven samurai', f28=222.222, f35='222';
 Warnings:
 Warning	1366	Incorrect integer value: 'seven samurai' for column 'f10' at row 1
-INSERT into t31 values (1, 1, 3, 'third',
+INSERT IGNORE into t31 values (1, 1, 3, 'third',
 /* f5  BIGINT,  */            333333333333333333333333,
 /* f6  BLOB,  */              '3333333333333333333333',
 /* f7  DATE,  */              '2007-07-18',
@@ -228,7 +228,7 @@ INSERT into t31 values (1, 1, 3, 'third',
 Warnings:
 Warning	1264	Out of range value for column 'f5' at row 1
 Warning	1264	Out of range value for column 'f24' at row 1
-INSERT into t31 values (1, 1, 4, 'fourth',
+INSERT IGNORE into t31 values (1, 1, 4, 'fourth',
 /* f5  BIGINT,  */            333333333333333333333333,
 /* f6  BLOB,  */              '3333333333333333333333',
 /* f7  DATE,  */              '2007-07-18',
@@ -404,7 +404,7 @@ f1	f2	f3	f4
 update t31 set f5=555555555555555 where f3=6;
 update t31 set f2=2 where f3=2;
 update t31 set f1=NULL where f3=1;
-update t31 set f3=NULL, f27=NULL, f35='f35 new value' where f3=3;
+update ignore t31 set f3=NULL, f27=NULL, f35='f35 new value' where f3=3;
 Warnings:
 Warning	1048	Column 'f3' cannot be null
 
@@ -624,7 +624,7 @@ include/rpl_reset.inc
 *** Master Data Insert ***
 ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7;
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c2' to DYNAMIC to enable online ADD COLUMN
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t15 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT,3.00),
@@ -843,11 +843,15 @@ DROP TABLE t5;
 
 include/rpl_reset.inc
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SQL_LOG_BIN=0;
 CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(255) CHARACTER SET UTF8 NOT NULL) ENGINE='NDB';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SQL_LOG_BIN=1;
 CREATE TABLE t1 (c1 INT) ENGINE='NDB';
-INSERT INTO t1 VALUES ();
+INSERT IGNORE INTO t1 VALUES ();
 SET @text= REPEAT(_utf8'ç', 255);
 INSERT INTO t1 VALUES (1, @text);
 SELECT * FROM t1 ORDER BY c1;
@@ -859,7 +863,7 @@ c1
 0
 1
 DROP TABLE t1;
-set binlog_format=mixed;
+set binlog_format='mixed';
 
 ***********************************************************
 ***********************************************************
@@ -1044,11 +1048,11 @@ INSERT into t3 set f1=1, f2=1, f3=1, f4='first', f10='f10: some var char';
 INSERT into t4 set f1=1, f2=1, f3=1, f4='first', f7='f7: medium size blob', f10='f10:
 binary data';
 INSERT into t31 set f1=1, f2=1, f3=1, f4='first';
-INSERT into t31 set f1=1, f2=1, f3=2, f4='second',
+INSERT IGNORE into t31 set f1=1, f2=1, f3=2, f4='second',
 f9=2.2,  f10='seven samurai', f28=222.222, f35='222';
 Warnings:
 Warning	1366	Incorrect integer value: 'seven samurai' for column 'f10' at row 1
-INSERT into t31 values (1, 1, 3, 'third',
+INSERT IGNORE into t31 values (1, 1, 3, 'third',
 /* f5  BIGINT,  */            333333333333333333333333,
 /* f6  BLOB,  */              '3333333333333333333333',
 /* f7  DATE,  */              '2007-07-18',
@@ -1084,7 +1088,7 @@ INSERT into t31 values (1, 1, 3, 'third',
 Warnings:
 Warning	1264	Out of range value for column 'f5' at row 1
 Warning	1264	Out of range value for column 'f24' at row 1
-INSERT into t31 values (1, 1, 4, 'fourth',
+INSERT IGNORE into t31 values (1, 1, 4, 'fourth',
 /* f5  BIGINT,  */            333333333333333333333333,
 /* f6  BLOB,  */              '3333333333333333333333',
 /* f7  DATE,  */              '2007-07-18',
@@ -1260,7 +1264,7 @@ f1	f2	f3	f4
 update t31 set f5=555555555555555 where f3=6;
 update t31 set f2=2 where f3=2;
 update t31 set f1=NULL where f3=1;
-update t31 set f3=NULL, f27=NULL, f35='f35 new value' where f3=3;
+update ignore t31 set f3=NULL, f27=NULL, f35='f35 new value' where f3=3;
 Warnings:
 Warning	1048	Column 'f3' cannot be null
 
@@ -1480,7 +1484,7 @@ include/rpl_reset.inc
 *** Master Data Insert ***
 ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7;
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c2' to DYNAMIC to enable online ADD COLUMN
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t15 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT,3.00),
@@ -1699,11 +1703,15 @@ DROP TABLE t5;
 
 include/rpl_reset.inc
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SQL_LOG_BIN=0;
 CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(255) CHARACTER SET UTF8 NOT NULL) ENGINE='NDB';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SQL_LOG_BIN=1;
 CREATE TABLE t1 (c1 INT) ENGINE='NDB';
-INSERT INTO t1 VALUES ();
+INSERT IGNORE INTO t1 VALUES ();
 SET @text= REPEAT(_utf8'ç', 255);
 INSERT INTO t1 VALUES (1, @text);
 SELECT * FROM t1 ORDER BY c1;

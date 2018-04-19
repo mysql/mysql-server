@@ -16,6 +16,10 @@ SELECT @@session.join_buffer_size;
 @@session.join_buffer_size
 262144
 '#--------------------FN_DYNVARS_053_03-------------------------#'
+SET @@global.join_buffer_size = 128;
+SELECT @@global.join_buffer_size;
+@@global.join_buffer_size
+128
 SET @@global.join_buffer_size = 8200;
 Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '8200'
@@ -33,6 +37,10 @@ SELECT @@global.join_buffer_size;
 @@global.join_buffer_size
 4294967168
 '#--------------------FN_DYNVARS_053_04-------------------------#'
+SET @@session.join_buffer_size = 128;
+SELECT @@session.join_buffer_size;
+@@session.join_buffer_size
+128
 SET @@session.join_buffer_size = 8200;
 Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '8200'
@@ -68,19 +76,25 @@ Warning	1292	Truncated incorrect join_buffer_size value: '127'
 SELECT @@global.join_buffer_size;
 @@global.join_buffer_size
 128
-SET @@global.join_buffer_size = 42949672951;
-Warnings:
-Warning	1292	Truncated incorrect join_buffer_size value: '42949672951'
-SELECT @@global.join_buffer_size;
-@@global.join_buffer_size
-4294967168
 SET @@global.join_buffer_size = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'join_buffer_size'
 SELECT @@global.join_buffer_size;
 @@global.join_buffer_size
-4294967168
+128
 SET @@global.join_buffer_size = test;
 ERROR 42000: Incorrect argument type to variable 'join_buffer_size'
+SELECT @@global.join_buffer_size;
+@@global.join_buffer_size
+128
+SET @@global.join_buffer_size = 4294967296;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '4294967296'
+SELECT @@global.join_buffer_size;
+@@global.join_buffer_size
+4294967168
+SET @@global.join_buffer_size = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '42949672950'
 SELECT @@global.join_buffer_size;
 @@global.join_buffer_size
 4294967168
@@ -102,31 +116,43 @@ Warning	1292	Truncated incorrect join_buffer_size value: '127'
 SELECT @@session.join_buffer_size;
 @@session.join_buffer_size
 128
-SET @@session.join_buffer_size = 42949672951;
-Warnings:
-Warning	1292	Truncated incorrect join_buffer_size value: '42949672951'
-SELECT @@session.join_buffer_size;
-@@session.join_buffer_size
-4294967168
 SET @@session.join_buffer_size = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'join_buffer_size'
 SELECT @@session.join_buffer_size;
 @@session.join_buffer_size
-4294967168
+128
 SET @@session.join_buffer_size = test;
 ERROR 42000: Incorrect argument type to variable 'join_buffer_size'
 SELECT @@session.join_buffer_size;
 @@session.join_buffer_size
+128
+SET @@session.join_buffer_size = 4294967296;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '4294967296'
+SELECT @@session.join_buffer_size;
+@@session.join_buffer_size
+4294967168
+SET @@session.join_buffer_size = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '42949672950'
+SELECT @@session.join_buffer_size;
+@@session.join_buffer_size
 4294967168
 '#------------------FN_DYNVARS_053_06-----------------------#'
+SET @@global.join_buffer_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '4294967295'
 SELECT @@global.join_buffer_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='join_buffer_size';
 @@global.join_buffer_size = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_053_07-----------------------#'
+SET @@session.join_buffer_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '4294967295'
 SELECT @@session.join_buffer_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='join_buffer_size';
 @@session.join_buffer_size = VARIABLE_VALUE
 1

@@ -1,0 +1,60 @@
+--source include/have_debug.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #
+--echo # Bug# 20005279 ASSERT !OTHER_LOCK, LOCK_MOVE_REORGANIZE_PAGE()
+--echo #
+
+create table t1 (f1 int auto_increment primary key,
+   f2 char(255)) engine=innodb;
+
+let $inc = 50;
+
+start transaction;
+--disable_query_log
+
+while ($inc)
+{
+  insert into t1(f2) values (repeat('~', 50));
+  dec $inc;
+}
+
+--enable_query_log
+commit;
+
+start transaction;
+select f1, f2 from t1 where f1 = 20 for update;
+
+--echo # Connection con1:
+connect (con1,localhost,root,,);
+--send
+select f1 from t1 where f1 = 20 for update;
+
+--echo # Connection default:
+connection default;
+
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where INFO = 'select f1 from t1 where f1 = 20 for update';
+
+--source include/wait_condition.inc
+
+SET DEBUG='+d,do_page_reorganize,do_lock_reverse_page_reorganize';
+insert into t1(f2) values (repeat('+', 100));
+SET DEBUG='-d,do_page_reorganize,do_lock_reverse_page_reorganize';
+commit;
+
+--echo # Connection con1:
+connection con1;
+--reap
+disconnect con1;
+
+--echo # Connection default:
+connection default;
+
+drop table t1;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

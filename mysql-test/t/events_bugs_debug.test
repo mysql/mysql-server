@@ -1,0 +1,11 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug#21914871 : ASSERTION `! IS_SET()' FOR DIAGNOSTICS_AREA::SET_OK_STATUS
+--echo #                  CREATE EVENT
+--echo #
+
+SET SESSION DEBUG='+d,thd_killed_injection';
+--error ER_QUERY_INTERRUPTED
+CREATE EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1;
+SET SESSION DEBUG='-d,thd_killed_injection';

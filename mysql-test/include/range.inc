@@ -180,6 +180,7 @@ drop table t1;
 create table t1 (x int, y int, index(x), index(y));
 insert into t1 (x) values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 update t1 set y=x;
+analyze table t1;
 # between with only one end fixed
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x between 7 and t1.y+0;
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x >= 7 and t2.x <= t1.y+0;
@@ -519,7 +520,7 @@ drop table t1, t2;
 # Bug #20732: Partial index and long sjis search with '>' fails sometimes
 #
 
-create table t1(a char(2), key(a(1)));
+create table t1(a char(2), key(a(1))) charset utf8mb4;
 insert into t1 values ('x'), ('xx');
 explain select a from t1 where a > 'x';
 select a from t1 where a > 'x';
@@ -723,7 +724,7 @@ CREATE TABLE t1 (
   status varchar(20),
   PRIMARY KEY  (id),
   KEY (status)
-);
+) CHARSET utf8mb4;
 
 INSERT INTO t1 VALUES
 (1,'B'), (2,'B'), (3,'B'), (4,'B'), (5,'B'), (6,'B'),
@@ -833,7 +834,7 @@ insert into t1 values ('a  ', '');
 insert into t1 select concat('a', 1000 + A.a + 10 * (B.a + 10 * C.a)), ''
   from t3 A, t3 B, t3 C;
 
-create table t2 (a varchar(10), filler char(200), key(a));
+create table t2 (a varchar(10), filler char(200), key(a)) charset utf8mb4;
 insert into t2 select * from t1;
 
 --replace_column 10 #
@@ -842,9 +843,9 @@ explain select * from t1 where a between 'a' and 'a ';
 explain select * from t1 where a = 'a' or a='a ';
 
 --replace_column 10 #
-explain select * from t2 where a between 'a' and 'a '; 
+explain select * from t2 where a between 'a' and 'A';
 --replace_column 10 #
-explain select * from t2 where a = 'a' or a='a ';
+explain select * from t2 where a = 'a' or a='A';
 
 update t1 set a='b' where a<>'a';
 --replace_column 10 #
@@ -891,6 +892,8 @@ INSERT INTO t1(id) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
 
 INSERT INTO t1(b,c) VALUES (3,4), (3,4);
 
+ANALYZE TABLE t1;
+
 SELECT * FROM t1 WHERE b<=3 AND 3<=c;
 SELECT * FROM t1 WHERE 3 BETWEEN b AND c;
 
@@ -915,7 +918,7 @@ CREATE TABLE t1 (
   started datetime NOT NULL default '0000-00-00 00:00:00', 
   price decimal(16,3) NOT NULL default '0.000',                 
   PRIMARY KEY (item,started)                     
-) ENGINE=MyISAM;   
+) ENGINE=MyISAM, CHARSET utf8mb4;
 
 INSERT INTO t1 VALUES
 ('A1','2005-11-01 08:00:00',1000),
@@ -983,16 +986,16 @@ INSERT INTO t1 VALUES (127),(254),(0),(1),(255);
 
 # test upper bound
 # count 5
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256;
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256.0;
+SELECT COUNT(*) FROM t1 WHERE f1 < 256;
+SELECT COUNT(*) FROM t1 WHERE f1 < 256.0;
 # count 4
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 255;
+SELECT COUNT(*) FROM t1 WHERE f1 < 255;
 
 # show we don't fiddle with lower bound on UNSIGNED
 # count 0
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < -1;
+SELECT COUNT(*) FROM t1 WHERE f1 < -1;
 # count 5
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -1;
+SELECT COUNT(*) FROM t1 WHERE f1 > -1;
 
 DROP TABLE t1;
 
@@ -1004,17 +1007,17 @@ INSERT INTO t1 VALUES (127),(126),(0),(-128),(-127);
 
 # test upper bound
 # count 5
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 128;
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 128.0;
+SELECT COUNT(*) FROM t1 WHERE f1 < 128;
+SELECT COUNT(*) FROM t1 WHERE f1 < 128.0;
 # count 4
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 127;
+SELECT COUNT(*) FROM t1 WHERE f1 < 127;
 
 # test lower bound
 # count 5
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129;
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129.0;
+SELECT COUNT(*) FROM t1 WHERE f1 > -129;
+SELECT COUNT(*) FROM t1 WHERE f1 > -129.0;
 # count 4
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -128;
+SELECT COUNT(*) FROM t1 WHERE f1 > -128;
 
 DROP TABLE t1;
 
@@ -1041,7 +1044,8 @@ alter table t2 add index (a,b);
 
 # 500 rows, 1 row
 
-select 'In following EXPLAIN the access method should be ref or range, #rows~=500 (and not 2)' Z;
+--echo Access method can be range/ALL with #rows >= 500.
+--echo Or it can be ref with #rows = 2, only when there is memory limit.
 explain select * from t2 where a=1000 and b<11;
 
 drop table t1, t2;
@@ -1444,13 +1448,16 @@ drop table t1;
 --echo # RESULT AFTER MYSQL 5.1.
 --echo #
 
+# This test tests interactions between CHAR columns and PAD collations,
+# so it doesn't make sense to test it with our default NO PAD collation.
+
 CREATE TABLE t1(
  F1 CHAR(5) NOT NULL,
  F2 CHAR(5) NOT NULL,
  F3 CHAR(5) NOT NULL,
  PRIMARY KEY(F1),
  INDEX IDX_F2(F2)
-);
+) COLLATE latin1_swedish_ci;
 
 INSERT INTO t1 VALUES
 ('A','A','A'),('AA','AA','AA'),('AAA','AAA','AAA'),
@@ -1710,7 +1717,10 @@ CREATE TABLE t1 (
  PRIMARY KEY (c,a), KEY (a),KEY (a)
 ) ENGINE=INNODB PARTITION BY KEY () PARTITIONS 2;
 INSERT INTO t1 VALUES (1,5,1),(2,4,1),(3,3,1),(4,2,1),(5,1,1);
+# Disabled by WL#5094
+--disable_warnings
 UPDATE t1 SET b = 0, c=1 WHERE a <=>0;
+--enable_warnings
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -1767,7 +1777,7 @@ CREATE TABLE t1 (a DATETIME);
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00');
 INSERT INTO t1 VALUES ('2001-01-01 11:22:33');
 
-CREATE TABLE t2 (b VARCHAR(64), KEY (b));
+CREATE TABLE t2 (b VARCHAR(64), KEY (b)) CHARSET utf8mb4;
 INSERT INTO t2 VALUES ('2001-01-01');
 INSERT INTO t2 VALUES ('2001.01.01');
 INSERT INTO t2 VALUES ('2001#01#01');
@@ -2155,3 +2165,513 @@ ORDER BY alias1.col_varchar_key;
 DROP TABLE t1;
 SET tmp_table_size=@old_tmp_table_size;
 SET sql_mode = default;
+
+--echo #
+--echo # Bug#19585938 Crash in get_full_func_mm_tree with null
+--echo #              item_field->table_ref
+--echo #
+
+CREATE TABLE t1(id INTEGER, col1 INTEGER, col2 INTEGER, PRIMARY KEY(id));
+
+INSERT INTO t1 VALUES (1,2,3), (3,2,1);
+
+SELECT (SELECT 1
+        FROM t1
+        WHERE SUM(1) < id
+       ) AS c
+FROM t1
+GROUP BY col1;
+
+SELECT (SELECT 1
+        FROM t1
+        WHERE id > SUM(1)
+       ) AS c
+FROM t1
+GROUP BY col1;
+
+SELECT (SELECT 1
+        FROM t1
+        WHERE SUM(1) BETWEEN id AND id+1
+       ) AS c
+FROM t1
+GROUP BY col1;
+
+SELECT (SELECT 1
+        FROM t1
+        WHERE id BETWEEN SUM(1) AND SUM(5)
+       ) AS c
+FROM t1
+GROUP BY col1;
+
+SELECT (SELECT 1
+        FROM t1
+        WHERE SUM(1) BETWEEN COUNT(*) AND id
+       ) AS c
+FROM t1
+GROUP BY col1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#21415791 VALGRIND ERROR (CONDITIONAL JUMP) AT KEY_AND
+--echo #              (RANGE_OPT_PARAM*, SEL_ARG*, SEL_AR
+--echo #
+CREATE TABLE t1 (
+  col_varchar_10 VARCHAR(10),
+  pk INTEGER NOT NULL,
+  col_int_key INTEGER,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_10 (col_varchar_10)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (
+pk, col_varchar_10, col_int_key) VALUES
+(1, 'ttttt', 0), (2, 'zzzzz', 0), (3, 'ggggg', 0),
+(4, 'hhhhh', 0), (5, 'kkkkk', 0), (6, 'lllll', 0);
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  col_varchar_10 VARCHAR(10),
+  PRIMARY KEY (pk),
+  KEY col_varchar_10 (col_varchar_10)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 (
+pk,  col_varchar_10) VALUES
+(1, '00000'), (2, '00000'), (3, '44444'), (4, '00000'),
+(5, NULL), (6, NULL), (7, NULL);
+
+SELECT COUNT(t1.col_int_key)
+FROM t2 RIGHT OUTER JOIN t1 ON t2.col_varchar_10 <= t1.col_varchar_10
+WHERE t2.pk <> 4 OR t2.pk != t1.col_int_key AND t2.pk <> 1000;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #20229614: OR CONDITIONS ON MULTI-COLUMN INDEX MAY NOT USE ALL
+--echo #                INDEX COLUMNS TO FILTER ROWS
+--echo #
+
+CREATE TABLE t1 (
+  c1 INT,
+  c2 INT,
+  c3 INT,
+  PRIMARY KEY(c1, c2, c3)
+) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES (1, 1, 1), (1, 1, 2), (1, 1, 3),
+                      (1, 1, 4), (1, 1, 5);
+INSERT INTO t1 SELECT c1, 2, c3 FROM t1;
+INSERT INTO t1 SELECT c1, 3, c3 FROM t1 WHERE c2 = 1;
+
+ANALYZE TABLE t1;
+
+SELECT COUNT(*) FROM t1;
+
+EXPLAIN SELECT c1, c2, c3
+        FROM t1
+        WHERE (c1 = 1 AND c2 = 1 AND c3 = 1) OR
+              (c1 = 1 AND c2 = 2 AND c3 = 2) OR
+              (c1 = 1 AND c2 = 2 AND c3 = 3);
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#21139683: ASSERTION FAILED: TYPE_ARG == MAYBE_KEY ||
+--echo #               TYPE_ARG == IMPOSSIBLE
+--echo #
+
+CREATE TABLE t1 (
+  a BLOB,
+  PRIMARY KEY(a(1)),
+  KEY(a(1))
+) ENGINE=INNODB;
+
+SELECT 1 FROM t1 WHERE a <> 'a' OR a <> "";
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#19333852: RESULT DIFF IN QUERY HAVING DISTINCT
+--echo #               WITH GROUP BY
+--echo #
+
+CREATE TABLE t1 (
+  v1 VARCHAR(20) CHARACTER SET utf8 NOT NULL,
+  pk INTEGER NOT NULL,
+  PRIMARY KEY (pk),
+  KEY v1_key (v1(10))
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('ABCDE',19), ('JLVGO',14);
+
+Let query1= SELECT * FROM t1 WHERE t1.v1 < CHAR(128);
+Let query2= SELECT * FROM t1 WHERE t1.v1 = CHAR(128);
+Let query3= SELECT * FROM t1 WHERE t1.v1 BETWEEN 'f' AND CHAR(128);
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+eval EXPLAIN $query3;
+
+eval $query1;
+eval $query2;
+eval $query3;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #21761867: ASSERTION `TYPE_ARG == MAYBE_KEY ||
+--echo #                TYPE_ARG == IMPOSSIBLE' FAILED.
+--echo #
+
+CREATE TABLE t1 (
+  c10 INT NOT NULL,
+  c12 INT NOT NULL,
+  c18 INT,
+  PRIMARY KEY (c10,c12),
+  UNIQUE KEY key_c12(c12),
+  KEY key_c18(c18));
+
+INSERT INTO t1 VALUES(11,5,0), (12,6,1), (13,7,2), (14,8,3), (15,9,4);
+
+CREATE TABLE t2 (
+  c10 INT NOT NULL,
+  c12 INT NOT NULL,
+  PRIMARY KEY(c10,c12));
+
+CREATE TABLE t3 (c10 INT NOT NULL);
+
+SELECT t2.c10
+FROM t1
+     RIGHT JOIN t3
+     LEFT JOIN t2
+     ON t3.c10 = t2.c10
+     ON t1.c12 > t2.c12
+WHERE
+     t1.c10 <= 25
+     AND
+     t1.c18 IS NOT NULL
+     OR
+     t1.c10 > 5
+     AND
+     t1.c18 IN (15,16,18);
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #21318711: WRONG RESULTS FOR TRUNCATED COLUMN AND AGGREGATION
+--echo #
+
+CREATE TABLE t1 (
+  col1 VARCHAR(5),
+  col2 INT NOT NULL,
+  PRIMARY KEY (col1, col2)
+) ENGINE=InnoDB, CHARSET utf8mb4;
+
+INSERT INTO t1 VALUES ('abcde', 10);
+
+let $query1= SELECT MAX(col2) FROM t1 WHERE col1 = 'abcdeaa';
+let $query2= SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+
+eval $query1;
+eval $query2;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug# 22283790: RANGE OPTIMIZER UTILIZES TOO MUCH MEMORY WITH
+--echo #                MANY OR CONDITIONS
+--echo #
+
+CREATE TABLE t1 (
+ f1 INTEGER,
+ KEY (f1)
+);
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15);
+
+SET @orig_range_optimizer_max_mem_size= @@range_optimizer_max_mem_size;
+SET range_optimizer_max_mem_size= 5000;
+
+EXPLAIN SELECT * FROM t1 WHERE f1=1 OR f1=2 OR f1=3 OR f1=4 OR f1=5
+OR f1=6 OR f1=7 OR f1=8 OR f1=9 OR f1=10 OR f1=11;
+
+SET range_optimizer_max_mem_size= @orig_range_optimizer_max_mem_size;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #23623110: REFACTOR USE_COUNT IN THE RANGE OPTIMIZER
+--echo #
+--echo # Tests deleting nodes in tree_delete() not from the end of the
+--echo # linked list.
+--echo #
+
+CREATE TABLE t1 (
+ pk INTEGER,
+ PRIMARY KEY (pk)
+);
+
+SELECT * FROM t1 WHERE pk IN (3, 8) OR pk NOT IN (2);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #23623110: REFACTOR USE_COUNT IN THE RANGE OPTIMIZER
+--echo #
+--echo # Tests deleting nodes in tree_delete() not from the end of the
+--echo # linked list.
+--echo #
+--echo # Indirectly tests ORing with a tree that has a nonzero refcount,
+--echo # where nodes are also being skipped over. (There was a bug in
+--echo # refcounting such trees earlier.)
+--echo #
+
+CREATE TABLE t1 (
+ col_int_key int,
+ pk int NOT NULL,
+ col_int int,
+ KEY test_idx (pk,col_int_key,col_int)
+);
+
+SELECT * FROM t1 WHERE
+    (col_int_key >= 6 AND pk > 6) OR
+    (pk > 2 AND col_int_key = 7 AND col_int > 6);
+
+DROP TABLE t1;
+
+--echo #
+
+--echo #
+--echo # Bug #23259872: OPTIMIZER CHOOSES TO USE NON PRIMARY
+--echo #                INDEX, EVEN THOUGH COST IS HIGHER
+--echo #
+
+CREATE TABLE `giant_table` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `one_id` int(11) NOT NULL,
+  `other_id` bigint(20) NOT NULL DEFAULT '0',
+  `some_other_id` int(11) DEFAULT 0 NOT NULL,
+  `something` double NOT NULL DEFAULT '0',
+  `comment` text COLLATE utf8_unicode_ci,
+  `flags` int(11) NOT NULL DEFAULT '0',
+  `time_created` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `time_created` (`time_created`),
+  KEY `some_other_id` (`some_other_id`),
+  KEY `one_other_idx` (`one_id`,`other_id`),
+  KEY `other_id` (`other_id`,`time_created`)
+) ENGINE=InnoDB AUTO_INCREMENT=101651329
+DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci ;
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (66136540), (68983250), (89627210), (77869520),
+                      (82543190), (67538270), (77282760), (77908170),
+                      (70923370), (68066360);
+DELIMITER $;
+CREATE PROCEDURE p()
+BEGIN
+SET @x = 1;
+REPEAT
+
+INSERT INTO giant_table(id,one_id)
+  SELECT c1 + @x, 0
+  FROM t1
+  WHERE c1 IN (66136540, 68985250, 89627210, 77869520 , 82543190, 67538270,
+               77282760, 77908170, 70923370, 68066360);
+SET @x =  @x + 1;
+
+UNTIL @x > 30 END REPEAT;
+END $
+DELIMITER ;$
+
+CALL p();
+SELECT count(*) FROM giant_table;
+
+INSERT INTO giant_table (id,one_id) VALUES (66136539, 0), (68983258,1),
+                                           (89628210,1), (77869520,2);
+INSERT INTO giant_table (id,one_id, some_other_id) VALUES(84673401, 0, 1),
+                                                         (61069031, 1, 1);
+
+EXPLAIN SELECT id, something, comment, time_created, one_id, other_id,
+               some_other_id, flags
+FROM giant_table
+WHERE id IN (66136539, 68983258, 89628210, 77869520, 82543198, 67538272,
+             84673401, 61069031, 68214385, 77282865, 76991297, 64569216,
+             89481638, 74534074, 70396537, 80076375, 63308530, 77908270,
+             70923271, 68066180)
+  AND (giant_table.flags & 0x01) = 0 AND giant_table.some_other_id = 0;
+
+DROP PROCEDURE p;
+DROP TABLE giant_table, t1;
+
+--echo #
+--echo # Bug#22671573: SIG11 IN SEL_ARG::RB_INSERT |SQL/OPT_RANGE.CC
+--echo #
+--echo # Tests creating an empty tree (impossible condition) and then ANDing with it.
+--echo #
+
+CREATE TABLE t1 (
+ a INT,
+ b INT,
+ KEY test_idx (b, a)
+);
+
+SELECT * FROM t1 WHERE b BETWEEN 8 AND 8 AND a > 8 AND a <= 8;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Indirectly tests inserting a node into an empty (impossible) tree.
+--echo #
+
+CREATE TABLE t1 (
+ pk INT,
+ PRIMARY KEY ( pk )
+);
+
+SELECT * FROM t1 WHERE pk = 6 OR pk > 6;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Indirectly tests ORing with an empty (impossible) tree.
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key INT,
+  KEY (col_int_key)
+);
+
+SELECT * FROM t1 WHERE col_int_key IS NULL OR col_int_key < 9 OR col_int_key = 9;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Indirectly tests deleting the last node from a tree
+--echo # (which makes it IMPOSSIBLE) and then inserting more than one node.
+--echo #
+
+CREATE TABLE t1 (
+  a VARCHAR(64),
+  KEY a (a)
+);
+
+SELECT * FROM t1 WHERE a IS NULL OR a NOT IN ( 'foo', 'bar' );
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25229315: ASSERTION TABLE->M_RECORD_BUFFER.RECORD_SIZE() ==
+--echo #               RECORD_PREFIX_SIZE(TAB)' FAIL
+--echo #
+
+CREATE TABLE t1 (pk INT PRIMARY KEY, vc VARCHAR(1)) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1, NULL), (2, 'w');
+
+# The primary key needs to come after the other columns accessed by
+# the query in order to reproduce the bug.
+CREATE TABLE t2 (
+  i INT,
+  vc VARCHAR(1),
+  pk INT PRIMARY KEY,
+  KEY (i),
+  KEY (vc)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (1, 'p', 1), (9, 'w', 2), (NULL, 'r', 3);
+
+ANALYZE TABLE t1, t2;
+
+# The query should use dynamic ranges on t2 ("Range checked for each record").
+--let $query= SELECT MIN(t1.pk) FROM t1, t2 WHERE t2.vc = t1.vc OR t2.i = t1.pk
+--eval EXPLAIN $query
+--eval $query
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #26727773: OPTIMIZER CHOSES COMPOSITE INDEX FOR REF OVER RANGE
+--echo #
+
+CREATE TABLE transactions (
+ app_trans_id INT DEFAULT NULL,
+ id INT NOT NULL,
+ tbl INT NOT NULL DEFAULT 1,
+ created TIMESTAMP NOT NULL DEFAULT '2017-01-01 01:01:01',
+ trans_type INT NOT NULL,
+ description BLOB,
+ source_lvl1 INT DEFAULT NULL,
+ source_lvl2 INT DEFAULT NULL,
+ KEY tbl_id_idx (tbl,id),
+ KEY created_idx (created),
+ KEY trans_type_created_idx (trans_type,created),
+ KEY app_trans_id_idx (app_trans_id)
+) ENGINE=INNODB ;
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1), (1000), (2000), (3000), (4000), (5000), (6000),
+       (7000), (8000), (9000);
+
+DELIMITER $;
+CREATE PROCEDURE p()
+BEGIN
+
+SET @x = 1;
+REPEAT
+
+INSERT IGNORE INTO transactions(id,trans_type, description)
+  SELECT c1 + @x, @x , 'abcd'
+  FROM t1;
+
+SET @x =  @x + 1;
+
+UNTIL @x > 300 END REPEAT;
+END $
+DELIMITER ;$
+
+CALL p();
+SELECT count(*) FROM transactions;
+
+#The qualifying row.
+INSERT IGNORE INTO transactions(id,trans_type, description, created)
+  SELECT 3, 3 , 'abcd', '2018-01-01 01:01:01'
+  FROM dual;
+
+let query1=
+SELECT '2017-10-23 01:01:01', HOUR(created), source_lvl1, source_lvl2,
+       COUNT(DISTINCT(app_trans_id))
+FROM transactions
+WHERE created > '2017-10-23 01:01:01' AND tbl = 1 AND trans_type in (3)
+GROUP BY '2017-10-23 01:01:01', HOUR(created), source_lvl1, source_lvl2;
+
+
+#UPDATE stats to produce a ref-access plan on 'trans_type_created_idx'
+--disable_query_log
+ALTER TABLE transactions STATS_PERSISTENT=1, STATS_AUTO_RECALC=0;
+
+UPDATE mysql.innodb_index_stats
+SET stat_value=3001
+WHERE index_name ='trans_type_created_idx' AND TABLE_name='transactions';
+
+UPDATE mysql.innodb_table_stats SET n_rows=3001 WHERE TABLE_name='transactions';
+
+FLUSH TABLE transactions;
+--enable_query_log
+
+--replace_column 10 # 11 #
+eval EXPLAIN $query1;
+
+SET optimizer_trace="enabled=on";
+eval $query1;
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "range_uses_more_keyparts";
+SET optimizer_trace="enabled=off";
+
+DROP PROCEDURE p;
+DROP TABLE t1, transactions;

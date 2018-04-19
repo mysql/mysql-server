@@ -1,0 +1,10 @@
+
+# Disable the history_long consumers:
+UPDATE performance_schema.setup_consumers
+   SET ENABLED = 'NO'
+ WHERE NAME LIKE '%\_history\_long';
+
+CALL sys.ps_setup_show_enabled_consumers();
+
+# Clean up
+-- source ../include/ps_setup_reset_to_default_cleanup.inc

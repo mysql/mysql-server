@@ -1,12 +1,12 @@
--- source include/not_embedded.inc
 # Tests for sys schema
 # Verify the sys.ps_is_instrument_default_enabled() function perfoms as expected
 
 # Should all be enabled
-SELECT sys.ps_is_instrument_default_enabled('wait/io/file/sql/binlog');
+SELECT sys.ps_is_instrument_default_enabled('memory/performance_schema/internal_buffers');
 SELECT sys.ps_is_instrument_default_enabled('statement/sql/select');
 SELECT sys.ps_is_instrument_default_enabled('statement/sp/error');
 SELECT sys.ps_is_instrument_default_enabled('statement/com/Prepare');
+SELECT sys.ps_is_instrument_default_enabled('wait/io/file/sql/binlog');
 SELECT sys.ps_is_instrument_default_enabled('wait/io/table/sql/handler');
 SELECT sys.ps_is_instrument_default_enabled('wait/lock/table/sql/handler');
 SELECT sys.ps_is_instrument_default_enabled('idle');
@@ -19,5 +19,4 @@ SELECT sys.ps_is_instrument_default_enabled('wait/synch/cond/sql/MYSQL_BIN_LOG::
 SELECT sys.ps_is_instrument_default_enabled('stage/sql/end');
 SELECT sys.ps_is_instrument_default_enabled('transaction');
 SELECT sys.ps_is_instrument_default_enabled('wait/io/socket/sql/server_tcpip_socket');
-SELECT sys.ps_is_instrument_default_enabled('memory/performance_schema/internal_buffers');
 SELECT sys.ps_is_instrument_default_enabled('wait/lock/metadata/sql/mdl');

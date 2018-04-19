@@ -1,11 +1,8 @@
 # Tests for PERFORMANCE_SCHEMA table io
 
---source include/have_partition.inc
---source include/not_embedded.inc
---source include/have_perfschema.inc
 --source ../include/table_io_setup_helper.inc
 
-let $engine_type= MyISAM;
+let $engine_type= InnoDB;
 let $table_item= test.no_index_tab;
 --disable_warnings
 eval drop table if exists $table_item;
@@ -27,4 +24,3 @@ eval drop table $table_item;
 
 # Cleanup
 --source ../include/table_io_cleanup_helper.inc
-

@@ -22,7 +22,7 @@ eval $test_table_master;
 eval $test_insert;
 
 connection slave;
---let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED) # 1677
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED) # 13146
 --source include/wait_for_slave_sql_error.inc
 
 # The following should be 0

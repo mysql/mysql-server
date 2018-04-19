@@ -22,7 +22,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 --source include/load_sysvars.inc
 
 ######################################################################## 
@@ -77,13 +76,13 @@ SELECT @@global.innodb_autoinc_lock_mode;
 
 --disable_warnings
 SELECT @@global.innodb_autoinc_lock_mode = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_autoinc_lock_mode';
 --enable_warnings
 SELECT @@global.innodb_autoinc_lock_mode;
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_autoinc_lock_mode';
 --enable_warnings
 

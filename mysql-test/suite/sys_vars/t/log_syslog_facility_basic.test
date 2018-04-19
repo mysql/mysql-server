@@ -20,48 +20,9 @@
 #                                                                             #
 ###############################################################################
 
---source include/not_windows.inc
+--echo # THIS NOW REQUIRES THE SYSLOG COMPONENT BEING LOADED.
+--echo #
+--echo # THE TESTS THAT USED TO LIVE HERE ARE NOW PART OF
+--echo #   mysql-test\t\log_components_notwin.test
 
-SET @start_value= @@global.log_syslog_facility;
-
-SET @@global.log_syslog_facility= DEFAULT;
-SELECT @@global.log_syslog_facility;
-
-SET @@global.log_syslog_facility="user";
-SELECT @@global.log_syslog_facility;
-
-SET @@global.log_syslog_facility= "daemon";
-SELECT @@global.log_syslog_facility;
-
-SET @@global.log_syslog_facility= "local0";
-SELECT @@global.log_syslog_facility;
-
-SET @@global.log_syslog_facility= "log_local5";
-SELECT @@global.log_syslog_facility;
-
-SET @@global.log_syslog_facility= "LOG_LOCAL7";
-SELECT @@global.log_syslog_facility;
-
-# wrong
---error ER_WRONG_VALUE_FOR_VAR
-SET @@global.log_syslog_facility= "9";
-
---error ER_WRONG_VALUE_FOR_VAR
-SET @@global.log_syslog_facility= "local8";
-
---error ER_WRONG_VALUE_FOR_VAR
-SET @@global.log_syslog_facility= "";
-
---error ER_WRONG_TYPE_FOR_VAR
-SET @@global.log_syslog_facility= 9;
-
---error ER_WRONG_TYPE_FOR_VAR
-SET GLOBAL log_syslog_facility= 0.01;
-
---error ER_GLOBAL_VARIABLE
-SET SESSION log_syslog_facility= "local1";
-
---error ER_GLOBAL_VARIABLE
-SET LOCAL log_syslog_facility= "local1";
-
-SET @@global.log_syslog_facility= @start_value;
+# This "test" should be removed once we have per-component system variables.

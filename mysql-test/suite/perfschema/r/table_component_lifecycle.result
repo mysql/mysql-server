@@ -1,0 +1,134 @@
+#################
+# INITIAL STATE #
+#################
+select * from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+describe performance_schema.pfs_example_continent;
+ERROR 42S02: Table 'performance_schema.pfs_example_continent' doesn't exist
+show create table performance_schema.pfs_example_continent;
+ERROR 42S02: Table 'performance_schema.pfs_example_continent' doesn't exist
+select * from performance_schema.pfs_example_continent;
+ERROR 42S02: Table 'performance_schema.pfs_example_continent' doesn't exist
+###########
+# INSTALL #
+###########
+INSTALL COMPONENT "file://component_pfs_example_component_population";
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	VERSION	TABLE_COMMENT
+performance_schema	pfs_example_continent	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_country	PERFORMANCE_SCHEMA	10	
+describe performance_schema.pfs_example_continent;
+Field	Type	Null	Key	Default	Extra
+NAME	char(20)	NO	PRI	NULL	
+show create table performance_schema.pfs_example_continent;
+Table	Create Table
+pfs_example_continent	CREATE TABLE `pfs_example_continent` (
+  `NAME` char(20) NOT NULL,
+  PRIMARY KEY (`NAME`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from performance_schema.pfs_example_continent;
+NAME
+bar1
+bar2
+##############
+# UN INSTALL #
+##############
+UNINSTALL COMPONENT "file://component_pfs_example_component_population";
+select * from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+describe performance_schema.pfs_example_continent;
+ERROR 42S02: Table 'performance_schema.pfs_example_continent' doesn't exist
+show create table performance_schema.pfs_example_continent;
+ERROR 42S02: Table 'performance_schema.pfs_example_continent' doesn't exist
+select * from performance_schema.pfs_example_continent;
+ERROR 42S02: Table 'performance_schema.pfs_example_continent' doesn't exist
+################################
+# SERVER RESTART, UN INSTALLED #
+################################
+# restart
+select * from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+describe performance_schema.pfs_example_continent;
+ERROR 42S02: Table 'performance_schema.pfs_example_continent' doesn't exist
+show create table performance_schema.pfs_example_continent;
+ERROR 42S02: Table 'performance_schema.pfs_example_continent' doesn't exist
+select * from performance_schema.pfs_example_continent;
+ERROR 42S02: Table 'performance_schema.pfs_example_continent' doesn't exist
+###########
+# INSTALL #
+###########
+INSTALL COMPONENT "file://component_pfs_example_component_population";
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	VERSION	TABLE_COMMENT
+performance_schema	pfs_example_continent	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_country	PERFORMANCE_SCHEMA	10	
+describe performance_schema.pfs_example_continent;
+Field	Type	Null	Key	Default	Extra
+NAME	char(20)	NO	PRI	NULL	
+show create table performance_schema.pfs_example_continent;
+Table	Create Table
+pfs_example_continent	CREATE TABLE `pfs_example_continent` (
+  `NAME` char(20) NOT NULL,
+  PRIMARY KEY (`NAME`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from performance_schema.pfs_example_continent;
+NAME
+bar1
+bar2
+#############################
+# SERVER RESTART, INSTALLED #
+#############################
+# restart
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	VERSION	TABLE_COMMENT
+performance_schema	pfs_example_continent	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_country	PERFORMANCE_SCHEMA	10	
+describe performance_schema.pfs_example_continent;
+Field	Type	Null	Key	Default	Extra
+NAME	char(20)	NO	PRI	NULL	
+show create table performance_schema.pfs_example_continent;
+Table	Create Table
+pfs_example_continent	CREATE TABLE `pfs_example_continent` (
+  `NAME` char(20) NOT NULL,
+  PRIMARY KEY (`NAME`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from performance_schema.pfs_example_continent;
+NAME
+bar1
+bar2
+##############
+# UN INSTALL #
+##############
+UNINSTALL COMPONENT "file://component_pfs_example_component_population";
+select * from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+describe performance_schema.pfs_example_continent;
+ERROR 42S02: Table 'performance_schema.pfs_example_continent' doesn't exist
+show create table performance_schema.pfs_example_continent;
+ERROR 42S02: Table 'performance_schema.pfs_example_continent' doesn't exist
+select * from performance_schema.pfs_example_continent;
+ERROR 42S02: Table 'performance_schema.pfs_example_continent' doesn't exist
+###########
+# CLEANUP #
+###########
+pfs_example_component_population init:
+Passed add_tables()
+End of init
+
+pfs_example_component_population_deinit:
+Passed delete_tables()
+End of deinit
+

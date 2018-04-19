@@ -1,6 +1,20 @@
 
 --source include/no_valgrind_without_big.inc
 
+# Skipping the test when binlog_format=STATEMENT due to unsafe statements:
+# UPDATE IGNORE, INSERT... SELECT... ON DUPLICATE KEY UPDATE, REPLACE... SELECT.
+--source include/not_binlog_format_statement.inc
+
+# The test fails with log_bin ON and binlog_format=ROW due to Bug#22164698.
+# Temporarily, overriding binlog_format to MIXED when log_bin is ON.
+if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
+{
+  --disable_query_log
+  SET @saved_binlog_format= @@SESSION.binlog_format;
+  SET SESSION binlog_format= MIXED;
+  --enable_query_log
+}
+
 #
 # Test of refering to old values
 #
@@ -180,6 +194,33 @@ select count(*) from t2;
 drop table t1,t2,t3;
 
 #
+# Test some cases of wrong number of fields
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(1, 1);
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+INSERT INTO t1 VALUES(1);
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+INSERT INTO t1 VALUES(1, 1, 1);
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+INSERT INTO t1 VALUES(1, 1), (2);
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+INSERT INTO t1 VALUES(1, 1), (2);
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+INSERT INTO t1 VALUES(1, 1), (3, 3, 3);
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+INSERT INTO t1(a, b) VALUES(1);
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+INSERT INTO t1(a, b) VALUES(1, 1, 1);
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+INSERT INTO t1(a, b) VALUES(1, 1), (2);
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+INSERT INTO t1(a, b) VALUES(1, 1), (2);
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+INSERT INTO t1(a, b) VALUES(1, 1), (3, 3, 3);
+DROP TABLE t1;
+
+#
 # Test different cases of duplicate fields
 #
 
@@ -188,19 +229,21 @@ insert into t1 (a,b) values (a,b);
 insert into t1 SET a=1, b=a+1;
 insert into t1 (a,b) select 1,2;
 INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
---error 1110
+--error ER_FIELD_SPECIFIED_TWICE
 prepare stmt1 from ' replace into t1 (a,a) select 100, ''hundred'' ';
---error 1110
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+insert into t1 (a,b) values (1,1,1);
+--error ER_FIELD_SPECIFIED_TWICE
 insert into t1 (a,b,b) values (1,1,1);
---error 1136
+--error ER_FIELD_SPECIFIED_TWICE
 insert into t1 (a,a) values (1,1,1);
---error 1110
+--error ER_FIELD_SPECIFIED_TWICE
 insert into t1 (a,a) values (1,1);
---error 1110
+--error ER_FIELD_SPECIFIED_TWICE
 insert into t1 SET a=1,b=2,a=1;
---error 1110
+--error ER_FIELD_SPECIFIED_TWICE
 insert into t1 (b,b) select 1,2;
---error 1110
+--error ER_FIELD_SPECIFIED_TWICE
 INSERT INTO t1 (b,b) SELECT 0,0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
 drop table t1;
 
@@ -376,7 +419,6 @@ drop table if exists t1;
 
 create table t1 (data varchar(4) not null);
 
-set sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
 --echo #
 --echo # Demonstrate that the number of warnings matches
 --echo # the information in mysql_info().
@@ -387,7 +429,6 @@ update ignore t1 set data='envelope' where 1/0 or 1;
 insert ignore t1 (data) values (default), (1/0), ('dead beef');
 --disable_info
 
-set sql_mode=default;
 drop table t1;
 
 --echo #
@@ -452,11 +493,15 @@ SET sql_mode='';
 CREATE TABLE default_date(a DATE NOT NULL DEFAULT '0000-00-00');
 
 INSERT INTO default_date VALUES();
+INSERT INTO default_date VALUES(DEFAULT);
 
-SET sql_mode='traditional';
+SET sql_mode=default;
 
 --error ER_TRUNCATED_WRONG_VALUE
 INSERT INTO default_date VALUES();
+
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO default_date VALUES(DEFAULT);
 
 --error ER_TRUNCATED_WRONG_VALUE
 INSERT INTO default_date VALUES('0000-00-00');
@@ -465,7 +510,6 @@ SELECT * FROM default_date;
 
 DROP TABLE default_date;
 
-SET sql_mode=default;
 
 --echo
 --echo # Bug#11744960 : INSERT IGNORE SHOULD RETURN WARNINGS
@@ -528,3 +572,351 @@ eval $query;
 
 DROP VIEW v1, v2, v3;
 DROP TABLE t1, t2, t3, t4;
+
+--echo # Bug#20310257 Explain for insert into a view show wrong table for ins.
+
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(b INTEGER);
+CREATE VIEW v AS SELECT * FROM t1 JOIN t2 ON TRUE;
+
+let $query=
+INSERT INTO v(a) VALUES(1);
+
+eval explain $query;
+eval $query;
+
+let $query=
+INSERT INTO v(b) VALUES(1);
+
+eval explain $query;
+eval $query;
+
+let $query=
+INSERT INTO v(a) SELECT 2;
+
+eval explain $query;
+eval $query;
+
+let $query=
+INSERT INTO v(b) SELECT 2;
+
+eval explain $query;
+eval $query;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP VIEW v;
+DROP TABLE t1, t2;
+
+# Check that ON DUPLICATE KEY UPDATE works too:
+
+CREATE TABLE t1(a1 INTEGER PRIMARY KEY, b1 INTEGER);
+CREATE TABLE t2(a2 INTEGER PRIMARY KEY, b2 INTEGER);
+CREATE VIEW v AS SELECT * FROM t1 JOIN t2 ON TRUE;
+
+INSERT INTO v(a1,b1) VALUES (11, 0) ON DUPLICATE KEY UPDATE b1=b1+1;
+INSERT INTO v(a1,b1) VALUES (11, 0) ON DUPLICATE KEY UPDATE b1=b1+1;
+
+INSERT INTO v(a2,b2) VALUES (21, 0) ON DUPLICATE KEY UPDATE b2=b2+1;
+INSERT INTO v(a2,b2) VALUES (21, 0) ON DUPLICATE KEY UPDATE b2=b2+1;
+
+SELECT * FROM v;
+
+DELETE FROM t1;
+DELETE FROM t2;
+
+INSERT INTO v(a1,b1) SELECT 11, 0 ON DUPLICATE KEY UPDATE b1=b1+1;
+INSERT INTO v(a1,b1) SELECT 11, 0 ON DUPLICATE KEY UPDATE b1=b1+1;
+
+INSERT INTO v(a2,b2) SELECT 21, 0 ON DUPLICATE KEY UPDATE b2=b2+1;
+INSERT INTO v(a2,b2) SELECT 21, 0 ON DUPLICATE KEY UPDATE b2=b2+1;
+
+SELECT * FROM v;
+
+DROP VIEW v;
+DROP TABLE t1, t2;
+
+--echo # Bug#20753569: handle_fatal_signal (sig=11) in
+--echo #               st_select_lex::merge_derived
+
+CREATE TABLE t1(a INTEGER);
+CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
+
+INSERT INTO v1 SELECT 3;
+REPLACE INTO v1 SELECT 3;
+
+INSERT INTO v1 VALUES(3);
+REPLACE INTO v1 VALUES(3);
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#21696206: ASSERTION `TRANSL->ITEM->FIXED' FAILED IN
+--echo #               SELECT_LEX::DELETE_UNUSED_MERGED_COLUMN
+--echo #
+CREATE TABLE t1 ( pk INT, PRIMARY KEY (pk));
+CREATE TABLE t2 LIKE t1;
+
+INSERT INTO t1 VALUES (2);
+INSERT INTO t2 VALUES (2);
+
+CREATE VIEW v1 AS SELECT * FROM t2 AS a
+                  WHERE a.pk IN ( SELECT pk FROM t1 AS b WHERE b.pk = a.pk );
+
+CREATE VIEW v2 AS SELECT * FROM t1 AS a
+                  WHERE a.pk IN ( SELECT pk FROM v1 AS b WHERE b.pk = a.pk );
+
+PREPARE st1 FROM 'INSERT INTO v2 (pk) VALUES ( 1 )';
+EXECUTE st1;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;
+DROP VIEW v1, v2;
+
+--echo #
+--echo # Bug#21696641: ASSERTION !(WANT_PRIVILEGE & ~(GRANT->WANT_PRIVILEGE |
+--echo #               GRANT->PRIVILEGE))'
+--echo #
+CREATE TABLE t1 (pk INT, PRIMARY KEY (pk));
+INSERT INTO t1 VALUES (1);
+
+CREATE ALGORITHM = TEMPTABLE VIEW v2 AS
+   SELECT * FROM t1 AS a NATURAL JOIN t1 b WHERE pk BETWEEN 1 AND 2;
+
+CREATE ALGORITHM = UNDEFINED VIEW v1 AS
+   SELECT * FROM t1 AS a
+   WHERE a.pk IN ( SELECT pk FROM v2 AS b WHERE b.pk = a.pk );
+
+PREPARE st1 FROM "INSERT INTO v1 (pk) VALUES (2)";
+EXECUTE st1;
+
+SELECT * FROM t1;
+
+DROP VIEW v1, v2;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#22635253: ASSERTION `THD->IS_ERROR() BOOL
+--echo #               SQL_CMD_INSERT::MYSQL_INSERT(THD*, TABLE_LIST*)
+--echo #
+
+CREATE TABLE t1(a INT PRIMARY KEY, b INT) ENGINE=MyISAM;
+CREATE TABLE t2(a INT) ENGINE=MyISAM;
+CREATE TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 VALUES (1);
+# This statement used to give an assert on debug builds
+INSERT INTO t1(b) VALUES (1);
+DROP TABLE t2, t1;
+
+--echo #
+--echo # BUG#22037930: INSERT IGNORE FAILS TO IGNORE
+--echo #               FOREIGN KEY CONSTRAINT
+
+--echo # Setup.
+CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE=INNODB;
+CREATE TABLE t2 (fld2 INT, FOREIGN KEY (fld2) REFERENCES t1 (fld1))
+ENGINE=INNODB;
+INSERT INTO t1 VALUES(0);
+INSERT INTO t2 VALUES(0);
+
+--echo # Without fix, an error is reported.
+--enable_warnings
+INSERT IGNORE INTO t2 VALUES(1);
+UPDATE IGNORE t2 SET fld2=20 WHERE fld2=0;
+UPDATE IGNORE t1 SET fld1=20 WHERE fld1=0;
+
+--echo # Test for multi update.
+UPDATE IGNORE t1, t2 SET t2.fld2= t2.fld2 + 3;
+UPDATE IGNORE t1, t2 SET t1.fld1= t1.fld1 + 3;
+--disable_warnings
+
+--echo # Reports an error since IGNORE is not used.
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO t2 VALUES(1);
+
+--error ER_NO_REFERENCED_ROW_2
+UPDATE t2 SET fld2=20 WHERE fld2=0;
+
+--error ER_ROW_IS_REFERENCED_2
+UPDATE t1 SET fld1=20 WHERE fld1=0;
+
+--error ER_NO_REFERENCED_ROW_2
+UPDATE t1, t2 SET t2.fld2= t2.fld2 + 3;
+
+--error ER_ROW_IS_REFERENCED_2
+UPDATE t1, t2 SET t1.fld1= t1.fld1 + 3;
+
+DROP TABLE t2, t1;
+
+
+--echo #
+--echo # BUG#22037930: INSERT IGNORE FAILS TO IGNORE FOREIGN
+--echo #               KEY CONSTRAINT
+
+CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE= INNODB;
+
+CREATE TABLE t2 (fld1 VARCHAR(10), fld2 INT NOT NULL,
+CONSTRAINT fk FOREIGN KEY (fld2) REFERENCES t1(fld1)) ENGINE= INNODB;
+
+--echo # Without patch, reports incorrect error.
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO t2 VALUES('abc', 2) ON DUPLICATE KEY UPDATE fld1= 'def';
+--error ER_NO_REFERENCED_ROW_2
+REPLACE INTO t2 VALUES('abc', 2);
+
+--enable_warnings
+INSERT IGNORE INTO t2 VALUES('abc', 2) ON DUPLICATE KEY UPDATE fld1= 'def';
+--disable_warnings
+
+DROP TABLE t2, t1;
+
+#
+# Bug #20989: View '(null).(null)' references invalid table(s)... on
+#             SQL SECURITY INVOKER
+#
+# this is really the fact that REPLACE ... SELECT required additional
+# INSERT privs (on tables that are part of a view) over the related
+# REPLACE, SELECT
+#
+
+CREATE DATABASE meow;
+
+connect (root,localhost,root,,meow);
+connection root;
+
+CREATE TABLE table_target   ( mexs_id CHAR(8), messzeit TIMESTAMP, PRIMARY KEY (mexs_id));
+CREATE TABLE table_target2  ( mexs_id CHAR(8), messzeit TIMESTAMP, PRIMARY KEY (mexs_id));
+CREATE TABLE table_target3  ( mexs_id CHAR(8), messzeit TIMESTAMP, PRIMARY KEY (mexs_id));
+CREATE VIEW view_target2 AS SELECT mexs_id,messzeit FROM table_target2;
+CREATE SQL SECURITY INVOKER VIEW view_target3 AS SELECT mexs_id,messzeit FROM table_target3;
+
+
+CREATE TABLE table_countries ( country CHAR(2), iso_short_en VARCHAR(64), PRIMARY KEY (country));
+INSERT INTO table_countries VALUES ('YY','Entenhausen');
+
+CREATE TABLE table_stations ( mexs_id VARCHAR(8), icao VARCHAR(4), country CHAR(2), PRIMARY KEY (mexs_id), UNIQUE KEY icao (icao), KEY country (country), CONSTRAINT stations_ibfk_8 FOREIGN KEY (country) REFERENCES table_countries (country) ON UPDATE CASCADE);
+INSERT INTO table_stations VALUES ('87654321','XXXX','YY');
+
+CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW view_stations AS select table_stations.mexs_id AS mexs_id, table_stations.icao AS icao, table_stations.country AS landescode from (table_stations join table_countries on((table_stations.country = table_countries.country)));
+
+CREATE TABLE table_source ( id varchar(4), datetime TIMESTAMP, PRIMARY KEY (id));
+INSERT INTO  table_source VALUES ('XXXX','2006-07-12 07:50:00');
+
+CREATE USER user20989@localhost;
+GRANT  SELECT                ON table_source    TO   user20989@localhost;
+GRANT  SELECT                ON table_countries TO   user20989@localhost;
+GRANT  SELECT                ON table_stations  TO   user20989@localhost;
+GRANT  SELECT                ON view_stations   TO   user20989@localhost;
+GRANT  SELECT                ON table_target    TO   user20989@localhost;
+GRANT  SELECT                ON table_target2   TO   user20989@localhost;
+GRANT  INSERT,DELETE,SELECT  ON view_target3    TO   user20989@localhost;
+
+connect (user20989,localhost,user20989,,meow);
+connection user20989;
+
+--error 1142
+REPLACE INTO    table_target
+SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
+FROM            table_source
+INNER JOIN      view_stations AS stations
+ON              table_source.id = stations.icao
+LEFT JOIN       table_target AS old
+USING           (mexs_id);
+
+--error 1142
+REPLACE INTO    view_target2
+SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
+FROM            table_source
+INNER JOIN      view_stations AS stations
+ON              table_source.id = stations.icao
+LEFT JOIN       view_target2 AS old
+USING           (mexs_id);
+
+--error 1356
+REPLACE INTO    view_target3
+SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
+FROM            table_source
+INNER JOIN      view_stations AS stations
+ON              table_source.id = stations.icao
+LEFT JOIN       view_target3 AS old
+USING           (mexs_id);
+
+connection root;
+disconnect user20989;
+
+GRANT  INSERT,DELETE         ON table_target    TO   user20989@localhost;
+GRANT  INSERT,DELETE,SELECT  ON view_target2    TO   user20989@localhost;
+GRANT  INSERT,DELETE,SELECT  ON table_target3   TO   user20989@localhost;
+
+connect (user20989,localhost,user20989,,meow);
+connection user20989;
+
+REPLACE INTO    table_target
+SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
+FROM            table_source
+INNER JOIN      view_stations AS stations
+ON              table_source.id = stations.icao
+LEFT JOIN       table_target AS old
+USING           (mexs_id);
+
+--error 1142
+REPLACE INTO    table_target2 VALUES ('00X45Y78','2006-07-12 07:50:00');
+REPLACE INTO    view_target2  VALUES ('12X45Y78','2006-07-12 07:50:00');
+
+SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
+FROM            table_source
+INNER JOIN      view_stations AS stations
+ON              table_source.id = stations.icao
+LEFT JOIN       view_target2 AS old
+USING           (mexs_id);
+
+REPLACE INTO    view_target2
+SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
+FROM            table_source
+INNER JOIN      view_stations AS stations
+ON              table_source.id = stations.icao
+LEFT JOIN       view_target2 AS old
+USING           (mexs_id);
+
+REPLACE INTO    view_target3
+SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
+FROM            table_source
+INNER JOIN      view_stations AS stations
+ON              table_source.id = stations.icao
+LEFT JOIN       view_target3 AS old
+USING           (mexs_id);
+
+connection root;
+disconnect user20989;
+
+SELECT * FROM table_target;
+SELECT * FROM view_target2;
+SELECT * FROM view_target3;
+
+DROP VIEW  view_stations;
+DROP TABLE table_source;
+DROP TABLE table_stations;
+DROP TABLE table_countries;
+DROP TABLE table_target;
+DROP TABLE table_target2;
+DROP TABLE table_target3;
+DROP VIEW  view_target2;
+DROP VIEW  view_target3;
+DROP USER  user20989@localhost;
+
+disconnect root;
+
+connection default;
+
+DROP DATABASE meow;
+
+if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
+{
+  --disable_query_log
+  SET SESSION binlog_format= @saved_binlog_format;
+  --enable_query_log
+}

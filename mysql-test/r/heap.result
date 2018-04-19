@@ -2,9 +2,12 @@ drop table if exists t1,t2,t3;
 create table t1 (a int not null,b int not null, primary key (a)) engine=heap comment="testing heaps" avg_row_length=100 min_rows=1 max_rows=100;
 insert into t1 values(1,1),(2,2),(3,3),(4,4);
 delete from t1 where a=1 or a=0;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	a	NULL	3	NULL	NULL		HASH		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	a	NULL	3	NULL	NULL		HASH			YES
 select * from t1;
 a	b
 2	2
@@ -159,7 +162,7 @@ f1	f2
 12	ted
 12	ted
 drop table t1;
-create table t1 (btn char(10) not null, key(btn)) engine=heap;
+create table t1 (btn char(10) not null, key(btn)) charset utf8mb4 engine=heap;
 insert into t1 values ("hello"),("hello"),("hello"),("hello"),("hello"),("a"),("b"),("c"),("d"),("e"),("f"),("g"),("h"),("i");
 explain select * from t1 where btn like "q%";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -177,7 +180,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`btn` AS `btn`,`test`.`t1`.`new_col` AS `new_col` from `test`.`t1` where (`test`.`t1`.`btn` = 'a')
 explain select * from t1 where btn="a" and new_col="a";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	btn	btn	11	const,const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	btn	btn	44	const,const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`btn` AS `btn`,`test`.`t1`.`new_col` AS `new_col` from `test`.`t1` where ((`test`.`t1`.`new_col` = 'a') and (`test`.`t1`.`btn` = 'a'))
 drop table t1;
@@ -266,7 +269,7 @@ a
 2
 drop table t1;
 set default_storage_engine=HEAP;
-create table t1 (v varchar(10), c char(10), t varchar(50));
+create table t1 (v varchar(10), c char(10), t varchar(50)) charset utf8mb4;
 insert into t1 values('+ ', '+ ', '+ ');
 set @a=repeat(' ',20);
 insert into t1 values (concat('+',@a),concat('+',@a),concat('+',@a));
@@ -282,7 +285,7 @@ t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` varchar(50) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t2 like t1;
 show create table t2;
 Table	Create Table
@@ -290,15 +293,15 @@ t2	CREATE TABLE `t2` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` varchar(50) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
-create table t3 select * from t1;
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+create table t3 charset utf8mb4 select * from t1;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` varchar(50) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 modify c varchar(10);
 show create table t1;
 Table	Create Table
@@ -306,7 +309,7 @@ t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` varchar(50) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 modify v char(10);
 show create table t1;
 Table	Create Table
@@ -314,10 +317,8 @@ t1	CREATE TABLE `t1` (
   `v` char(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` varchar(50) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 alter table t1 modify t varchar(10);
 Warnings:
 Warning	1265	Data truncated for column 't' at row 2
@@ -328,13 +329,13 @@ t1	CREATE TABLE `t1` (
   `v` char(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` varchar(10) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select concat('*',v,'*',c,'*',t,'*') from t1;
 concat('*',v,'*',c,'*',t,'*')
 *+*+*+ *
 *+*+*+         *
 drop table t1,t2,t3;
-create table t1 (v varchar(10), c char(10), t varchar(50), key(v), key(c), key(t(10)));
+create table t1 (v varchar(10), c char(10), t varchar(50), key(v), key(c), key(t(10))) charset latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -434,7 +435,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	v	v	13	const	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`t` AS `t` from `test`.`t1` where (`test`.`t1`.`v` = 'a')
-select v,count(*) from t1 group by v limit 10;
+select v,count(*) from t1 group by v asc limit 9;
 v	count(*)
 a	1
 a	10
@@ -445,8 +446,7 @@ e	10
 f	10
 g	10
 h	10
-i	10
-select v,count(t) from t1 group by v limit 10;
+select v,count(t) from t1 group by v asc limit 10;
 v	count(t)
 a	1
 a	10
@@ -458,7 +458,7 @@ f	10
 g	10
 h	10
 i	10
-select v,count(c) from t1 group by v limit 10;
+select v,count(c) from t1 group by v asc limit 10;
 v	count(c)
 a	1
 a	10
@@ -470,7 +470,7 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result trim(v),count(t) from t1 group by v limit 10;
+select sql_big_result trim(v),count(t) from t1 group by v asc limit 10;
 trim(v)	count(t)
 a	1
 a	10
@@ -482,7 +482,7 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result trim(v),count(c) from t1 group by v limit 10;
+select sql_big_result trim(v),count(c) from t1 group by v asc limit 10;
 trim(v)	count(c)
 a	1
 a	10
@@ -494,7 +494,7 @@ f	10
 g	10
 h	10
 i	10
-select c,count(*) from t1 group by c limit 10;
+select c,count(*) from t1 group by c asc limit 10;
 c	count(*)
 a	1
 a	10
@@ -506,7 +506,7 @@ f	10
 g	10
 h	10
 i	10
-select c,count(t) from t1 group by c limit 10;
+select c,count(t) from t1 group by c asc limit 10;
 c	count(t)
 a	1
 a	10
@@ -518,7 +518,7 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result c,count(t) from t1 group by c limit 10;
+select sql_big_result c,count(t) from t1 group by c asc limit 10;
 c	count(t)
 a	1
 a	10
@@ -530,7 +530,7 @@ f	10
 g	10
 h	10
 i	10
-select t,count(*) from t1 group by t limit 10;
+select t,count(*) from t1 group by t asc limit 10;
 t	count(*)
 a	1
 a	10
@@ -542,7 +542,7 @@ f	10
 g	10
 h	10
 i	10
-select t,count(t) from t1 group by t limit 10;
+select t,count(t) from t1 group by t asc limit 10;
 t	count(t)
 a	1
 a	10
@@ -554,7 +554,7 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result trim(t),count(t) from t1 group by t limit 10;
+select sql_big_result trim(t),count(t) from t1 group by t asc limit 10;
 trim(t)	count(t)
 a	1
 a	10
@@ -567,7 +567,7 @@ g	10
 h	10
 i	10
 drop table t1;
-create table t1 (a char(10), unique (a));
+create table t1 (a char(10), unique (a)) charset latin1;
 insert into t1 values ('a');
 insert into t1 values ('a ');
 ERROR 23000: Duplicate entry 'a' for key 'a'
@@ -583,7 +583,7 @@ ERROR 23000: Duplicate entry 'a ' for key 'a'
 update t1 set a='a      ' where a like 'a ';
 update t1 set a='a  ' where a like 'a      ';
 drop table t1;
-create table t1 (v varchar(10), c char(10), t varchar(50), key using btree (v), key using btree (c), key using btree (t(10)));
+create table t1 (v varchar(10), c char(10), t varchar(50), key using btree (v), key using btree (c), key using btree (t(10))) charset latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -672,7 +672,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`t` AS `t` from `test`.`t1` where (`test`.`t1`.`v` = 'a')
 drop table t1;
-create table t1 (a char(10), unique using btree (a)) engine=heap;
+create table t1 (a char(10), unique using btree (a)) charset latin1 engine=heap;
 insert into t1 values ('a');
 insert into t1 values ('a ');
 ERROR 23000: Duplicate entry 'a' for key 'a'
@@ -688,7 +688,7 @@ ERROR 23000: Duplicate entry 'a ' for key 'a'
 update t1 set a='a      ' where a like 'a ';
 update t1 set a='a  ' where a like 'a      ';
 drop table t1;
-create table t1 (v varchar(10), c char(10), t varchar(50), key(v(5)), key(c(5)), key(t(5)));
+create table t1 (v varchar(10), c char(10), t varchar(50), key(v(5)), key(c(5)), key(t(5))) charset utf8mb4;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -698,9 +698,9 @@ t1	CREATE TABLE `t1` (
   KEY `v` (`v`(5)),
   KEY `c` (`c`(5)),
   KEY `t` (`t`(5))
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
-create table t1 (v varchar(65530), key(v(10)));
+create table t1 (v varchar(65530), key(v(10))) charset latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -762,12 +762,16 @@ select * from t1 where a = 0;
 a
 0
 drop table t1;
-create table t1 (c char(10)) engine=memory;
-create table t2 (c varchar(10)) engine=memory;
+create table t1 (c char(10)) charset utf8mb4 engine=memory;
+create table t2 (c varchar(10)) charset utf8mb4 engine=memory;
+analyze table t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t2	analyze	note	The storage engine for the table doesn't support analyze
 show table status like 't_';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	10	Fixed	0	11	0	#	0	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	10	Fixed	0	12	0	#	0	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	0	41	0	#	0	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	MEMORY	10	Fixed	0	42	0	#	0	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
 drop table t1, t2;
 CREATE TABLE t1(a VARCHAR(1), b VARCHAR(2), c VARCHAR(256),
 KEY(a), KEY(b), KEY(c)) ENGINE=MEMORY;

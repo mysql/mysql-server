@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from master pos .*");
-call mtr.add_suppression(".*  InnoDB: Warning: allocated tablespace .*, old maximum was .*");
+call mtr.add_suppression(".*   Warning: allocated tablespace .*, old maximum was .*");
 ########################################################################
 #                               SET UP
 ########################################################################
@@ -219,6 +219,214 @@ INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id);
 INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id + 1);
 END|
 ---- end configure database test_2 ----
+---- begin configure database test_3 ----
+rpl_mixing_engines.inc [commands=configure]
+CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
+CREATE TABLE nt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
+CREATE TABLE nt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
+CREATE TABLE nt_4 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
+CREATE TABLE nt_5 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
+CREATE TABLE nt_6 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
+CREATE TABLE tt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = "Innodb";
+CREATE TABLE tt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = "Innodb";
+CREATE TABLE tt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = "Innodb";
+CREATE TABLE tt_4 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = "Innodb";
+CREATE TABLE tt_5 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = "Innodb";
+CREATE TABLE tt_6 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = "Innodb";
+INSERT INTO nt_1(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO nt_2(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO nt_3(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO nt_4(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO nt_5(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO nt_6(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO tt_1(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO tt_2(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO tt_3(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO tt_4(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO tt_5(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO tt_6(trans_id, stmt_id) VALUES(1,1);
+CREATE PROCEDURE pc_i_tt_5_suc (IN p_trans_id INTEGER, IN p_stmt_id INTEGER)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_5 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
+END|
+CREATE PROCEDURE pc_i_nt_5_suc (IN p_trans_id INTEGER, IN p_stmt_id INTEGER)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_5 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
+END|
+CREATE FUNCTION fc_i_tt_5_suc (p_trans_id INTEGER, p_stmt_id INTEGER) RETURNS VARCHAR(64)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_5 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
+RETURN "fc_i_tt_5_suc";
+END|
+CREATE FUNCTION fc_i_nt_5_suc (p_trans_id INTEGER, p_stmt_id INTEGER) RETURNS VARCHAR(64)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_5 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
+RETURN "fc_i_nt_5_suc";
+END|
+CREATE FUNCTION fc_i_nt_3_tt_3_suc (p_trans_id INTEGER, p_stmt_id INTEGER) RETURNS VARCHAR(64)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+RETURN "fc_i_nt_3_tt_3_suc";
+END|
+CREATE TRIGGER tr_i_tt_3_to_nt_3 AFTER INSERT ON tt_3 FOR EACH ROW
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_3 WHERE trans_id= NEW.trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, NEW.stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_3(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id);
+INSERT INTO nt_3(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id + 1);
+END|
+CREATE TRIGGER tr_i_nt_4_to_tt_4 AFTER INSERT ON nt_4 FOR EACH ROW
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_4 WHERE trans_id= NEW.trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, NEW.stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_4(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id);
+INSERT INTO tt_4(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id + 1);
+END|
+CREATE TRIGGER tr_i_tt_5_to_tt_6 AFTER INSERT ON tt_5 FOR EACH ROW
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_6 WHERE trans_id= NEW.trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, NEW.stmt_id, 1), 1) INTO in_stmt_id;
+INSERT INTO tt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id);
+INSERT INTO tt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id + 1);
+END|
+CREATE TRIGGER tr_i_nt_5_to_nt_6 AFTER INSERT ON nt_5 FOR EACH ROW
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_6 WHERE trans_id= NEW.trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, NEW.stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id);
+INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id + 1);
+END|
+---- end configure database test_3 ----
+---- begin configure database test_4 ----
+rpl_mixing_engines.inc [commands=configure]
+CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
+CREATE TABLE nt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
+CREATE TABLE nt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
+CREATE TABLE nt_4 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
+CREATE TABLE nt_5 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
+CREATE TABLE nt_6 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
+CREATE TABLE tt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = "Innodb";
+CREATE TABLE tt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = "Innodb";
+CREATE TABLE tt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = "Innodb";
+CREATE TABLE tt_4 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = "Innodb";
+CREATE TABLE tt_5 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = "Innodb";
+CREATE TABLE tt_6 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = "Innodb";
+INSERT INTO nt_1(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO nt_2(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO nt_3(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO nt_4(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO nt_5(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO nt_6(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO tt_1(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO tt_2(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO tt_3(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO tt_4(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO tt_5(trans_id, stmt_id) VALUES(1,1);
+INSERT INTO tt_6(trans_id, stmt_id) VALUES(1,1);
+CREATE PROCEDURE pc_i_tt_5_suc (IN p_trans_id INTEGER, IN p_stmt_id INTEGER)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_5 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
+END|
+CREATE PROCEDURE pc_i_nt_5_suc (IN p_trans_id INTEGER, IN p_stmt_id INTEGER)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_5 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
+END|
+CREATE FUNCTION fc_i_tt_5_suc (p_trans_id INTEGER, p_stmt_id INTEGER) RETURNS VARCHAR(64)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_5 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
+RETURN "fc_i_tt_5_suc";
+END|
+CREATE FUNCTION fc_i_nt_5_suc (p_trans_id INTEGER, p_stmt_id INTEGER) RETURNS VARCHAR(64)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_5 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
+RETURN "fc_i_nt_5_suc";
+END|
+CREATE FUNCTION fc_i_nt_3_tt_3_suc (p_trans_id INTEGER, p_stmt_id INTEGER) RETURNS VARCHAR(64)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+RETURN "fc_i_nt_3_tt_3_suc";
+END|
+CREATE TRIGGER tr_i_tt_3_to_nt_3 AFTER INSERT ON tt_3 FOR EACH ROW
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_3 WHERE trans_id= NEW.trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, NEW.stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_3(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id);
+INSERT INTO nt_3(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id + 1);
+END|
+CREATE TRIGGER tr_i_nt_4_to_tt_4 AFTER INSERT ON nt_4 FOR EACH ROW
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_4 WHERE trans_id= NEW.trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, NEW.stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_4(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id);
+INSERT INTO tt_4(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id + 1);
+END|
+CREATE TRIGGER tr_i_tt_5_to_tt_6 AFTER INSERT ON tt_5 FOR EACH ROW
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_6 WHERE trans_id= NEW.trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, NEW.stmt_id, 1), 1) INTO in_stmt_id;
+INSERT INTO tt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id);
+INSERT INTO tt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id + 1);
+END|
+CREATE TRIGGER tr_i_nt_5_to_nt_6 AFTER INSERT ON nt_5 FOR EACH ROW
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_6 WHERE trans_id= NEW.trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, NEW.stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id);
+INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id + 1);
+END|
+---- end configure database test_4 ----
 include/stop_slave.inc
 SHOW CREATE TABLE mysql.slave_master_info;
 Table	Create Table
@@ -226,7 +434,7 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Number_of_lines` int(10) unsigned NOT NULL COMMENT 'Number of lines in the file.',
   `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log currently being read from the master.',
   `Master_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The master log position of the last read event.',
-  `Host` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The host name of the master.',
+  `Host` char(64) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'The host name of the master.',
   `User_name` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.',
   `User_password` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.',
   `Port` int(10) unsigned NOT NULL COMMENT 'The network port used to connect to the master.',
@@ -246,8 +454,12 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Ssl_crl` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
   `Ssl_crlpath` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
   `Enabled_auto_position` tinyint(1) NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',
-  PRIMARY KEY (`Host`,`Port`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information'
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  `Tls_version` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version',
+  `Public_key_path` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.',
+  `Get_public_key` tinyint(1) NOT NULL COMMENT 'Preference to get public key from master.',
+  PRIMARY KEY (`Channel_name`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information'
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
@@ -259,8 +471,9 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
   `Number_of_workers` int(10) unsigned NOT NULL,
   `Id` int(10) unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
-  PRIMARY KEY (`Id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  PRIMARY KEY (`Channel_name`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
 Table	Create Table
 slave_worker_info	CREATE TABLE `slave_worker_info` (
@@ -276,8 +489,9 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
   `Checkpoint_seqno` int(10) unsigned NOT NULL,
   `Checkpoint_group_size` int(10) unsigned NOT NULL,
   `Checkpoint_group_bitmap` blob NOT NULL,
-  PRIMARY KEY (`Id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Worker Information'
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  PRIMARY KEY (`Channel_name`,`Id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Worker Information'
 ALTER TABLE mysql.slave_master_info ENGINE= Innodb;
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
 ALTER TABLE mysql.slave_worker_info ENGINE= Innodb;
@@ -287,7 +501,7 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Number_of_lines` int(10) unsigned NOT NULL COMMENT 'Number of lines in the file.',
   `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log currently being read from the master.',
   `Master_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The master log position of the last read event.',
-  `Host` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The host name of the master.',
+  `Host` char(64) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'The host name of the master.',
   `User_name` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.',
   `User_password` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.',
   `Port` int(10) unsigned NOT NULL COMMENT 'The network port used to connect to the master.',
@@ -307,8 +521,12 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Ssl_crl` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
   `Ssl_crlpath` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
   `Enabled_auto_position` tinyint(1) NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',
-  PRIMARY KEY (`Host`,`Port`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information'
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  `Tls_version` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version',
+  `Public_key_path` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.',
+  `Get_public_key` tinyint(1) NOT NULL COMMENT 'Preference to get public key from master.',
+  PRIMARY KEY (`Channel_name`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information'
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
@@ -320,8 +538,9 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
   `Number_of_workers` int(10) unsigned NOT NULL,
   `Id` int(10) unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
-  PRIMARY KEY (`Id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  PRIMARY KEY (`Channel_name`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
 Table	Create Table
 slave_worker_info	CREATE TABLE `slave_worker_info` (
@@ -337,15 +556,16 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
   `Checkpoint_seqno` int(10) unsigned NOT NULL,
   `Checkpoint_group_size` int(10) unsigned NOT NULL,
   `Checkpoint_group_bitmap` blob NOT NULL,
-  PRIMARY KEY (`Id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Worker Information'
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  PRIMARY KEY (`Channel_name`,`Id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Worker Information'
 ==== end rpl_mts_crash_safe.inc:configure ====
 ########################################################################
-#                                TEST 
+#                                TEST
 ########################################################################
-SET @@global.slave_parallel_workers= 1;
-SET @@global.slave_checkpoint_period= 0;
-Generating Number of Workers 1 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_1
+SET @@global.slave_parallel_workers= 4;
+SET @@global.slave_checkpoint_period= 2;
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_1
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -353,8 +573,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 2)
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 4)
@@ -362,25 +582,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-----Executing----
-==== begin rpl_mts_crash_safe.inc:recovery ====
-include/start_slave_io.inc
-** fixing gaps **
-include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-include/wait_for_slave_param.inc [Until_Condition]
-include/wait_for_slave_sql_to_stop.inc
-** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-include/start_slave_io.inc
-include/start_slave_sql.inc
-include/stop_slave.inc
-SET @@global.slave_parallel_workers= 1;
-SET @@global.slave_checkpoint_period= 0;
-==== end rpl_mts_crash_safe.inc:recovery ====
-SET @@global.slave_parallel_workers= 1;
-SET @@global.slave_checkpoint_period= 0;
-Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_2
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -388,16 +590,16 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (8, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (8, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (8, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (8, 4)
+master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (8, 2)
+master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (8, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_3
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -405,34 +607,16 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (9, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (9, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (9, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (9, 4)
+master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (9, 2)
+master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (9, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-----Executing----
-==== begin rpl_mts_crash_safe.inc:recovery ====
-include/start_slave_io.inc
-** fixing gaps **
-include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-include/wait_for_slave_param.inc [Until_Condition]
-include/wait_for_slave_sql_to_stop.inc
-** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-include/start_slave_io.inc
-include/start_slave_sql.inc
-include/stop_slave.inc
-SET @@global.slave_parallel_workers= 1;
-SET @@global.slave_checkpoint_period= 0;
-==== end rpl_mts_crash_safe.inc:recovery ====
-SET @@global.slave_parallel_workers= 1;
-SET @@global.slave_checkpoint_period= 1;
-Generating Number of Workers 1 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_1
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_4
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -440,34 +624,16 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (10, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (10, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (10, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (10, 4)
+master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (10, 2)
+master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (10, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-----Executing----
-==== begin rpl_mts_crash_safe.inc:recovery ====
-include/start_slave_io.inc
-** fixing gaps **
-include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-include/wait_for_slave_param.inc [Until_Condition]
-include/wait_for_slave_sql_to_stop.inc
-** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-include/start_slave_io.inc
-include/start_slave_sql.inc
-include/stop_slave.inc
-SET @@global.slave_parallel_workers= 1;
-SET @@global.slave_checkpoint_period= 1;
-==== end rpl_mts_crash_safe.inc:recovery ====
-SET @@global.slave_parallel_workers= 1;
-SET @@global.slave_checkpoint_period= 1;
-Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_1
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -475,8 +641,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 2)
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 4)
@@ -484,7 +650,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_2
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -492,34 +658,16 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 4)
+master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 2)
+master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-----Executing----
-==== begin rpl_mts_crash_safe.inc:recovery ====
-include/start_slave_io.inc
-** fixing gaps **
-include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-include/wait_for_slave_param.inc [Until_Condition]
-include/wait_for_slave_sql_to_stop.inc
-** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-include/start_slave_io.inc
-include/start_slave_sql.inc
-include/stop_slave.inc
-SET @@global.slave_parallel_workers= 1;
-SET @@global.slave_checkpoint_period= 1;
-==== end rpl_mts_crash_safe.inc:recovery ====
-SET @@global.slave_parallel_workers= 2;
-SET @@global.slave_checkpoint_period= 0;
-Generating Number of Workers 2 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_1
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_3
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -527,16 +675,16 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 4)
+master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 2)
+master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_2
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_4
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -544,34 +692,16 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 2)
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 4)
+master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 2)
+master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-----Executing----
-==== begin rpl_mts_crash_safe.inc:recovery ====
-include/start_slave_io.inc
-** fixing gaps **
-include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-include/wait_for_slave_param.inc [Until_Condition]
-include/wait_for_slave_sql_to_stop.inc
-** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-include/start_slave_io.inc
-include/start_slave_sql.inc
-include/stop_slave.inc
-SET @@global.slave_parallel_workers= 2;
-SET @@global.slave_checkpoint_period= 0;
-==== end rpl_mts_crash_safe.inc:recovery ====
-SET @@global.slave_parallel_workers= 2;
-SET @@global.slave_checkpoint_period= 0;
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_1
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -579,8 +709,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 2)
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 4)
@@ -588,7 +718,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_2
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_2
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -596,8 +726,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (16, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (16, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (16, 2)
 master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (16, 4)
@@ -605,7 +735,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_3
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -613,16 +743,16 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 4)
+master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 2)
+master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_2
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_4
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -630,34 +760,16 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (18, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (18, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (18, 2)
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (18, 4)
+master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (18, 2)
+master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (18, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-----Executing----
-==== begin rpl_mts_crash_safe.inc:recovery ====
-include/start_slave_io.inc
-** fixing gaps **
-include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-include/wait_for_slave_param.inc [Until_Condition]
-include/wait_for_slave_sql_to_stop.inc
-** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-include/start_slave_io.inc
-include/start_slave_sql.inc
-include/stop_slave.inc
-SET @@global.slave_parallel_workers= 2;
-SET @@global.slave_checkpoint_period= 0;
-==== end rpl_mts_crash_safe.inc:recovery ====
-SET @@global.slave_parallel_workers= 2;
-SET @@global.slave_checkpoint_period= 1;
-Generating Number of Workers 2 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_1
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_1
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -665,8 +777,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (19, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (19, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (19, 2)
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (19, 4)
@@ -674,7 +786,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 1 --- Debugging Groups 1 --- Database test_2
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_2
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -682,8 +794,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (20, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (20, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (20, 2)
 master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (20, 4)
@@ -691,25 +803,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-----Executing----
-==== begin rpl_mts_crash_safe.inc:recovery ====
-include/start_slave_io.inc
-** fixing gaps **
-include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-include/wait_for_slave_param.inc [Until_Condition]
-include/wait_for_slave_sql_to_stop.inc
-** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-include/start_slave_io.inc
-include/start_slave_sql.inc
-include/stop_slave.inc
-SET @@global.slave_parallel_workers= 2;
-SET @@global.slave_checkpoint_period= 1;
-==== end rpl_mts_crash_safe.inc:recovery ====
-SET @@global.slave_parallel_workers= 2;
-SET @@global.slave_checkpoint_period= 1;
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_3
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -717,16 +811,16 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 4)
+master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 2)
+master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_2
+Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_4
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
 BEGIN;
@@ -734,45 +828,11 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 2)
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_1
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (23, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (23, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (23, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (23, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 1 --- Database test_2
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (24, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (24, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (24, 2)
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (24, 4)
+master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 2)
+master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -786,425 +846,11 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
-SET @@global.slave_parallel_workers= 2;
-SET @@global.slave_checkpoint_period= 1;
-==== end rpl_mts_crash_safe.inc:recovery ====
-SET @@global.slave_parallel_workers= 1;
-SET @@global.slave_checkpoint_period= 0;
-Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (25, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (25, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (25, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (25, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (26, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (26, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (26, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (26, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-----Executing----
-==== begin rpl_mts_crash_safe.inc:recovery ====
-include/start_slave_io.inc
-** fixing gaps **
-include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-include/wait_for_slave_param.inc [Until_Condition]
-include/wait_for_slave_sql_to_stop.inc
-** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-include/start_slave_io.inc
-include/start_slave_sql.inc
-include/stop_slave.inc
-SET @@global.slave_parallel_workers= 1;
-SET @@global.slave_checkpoint_period= 0;
-==== end rpl_mts_crash_safe.inc:recovery ====
-SET @@global.slave_parallel_workers= 1;
-SET @@global.slave_checkpoint_period= 1;
-Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (28, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (28, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (28, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (28, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-----Executing----
-==== begin rpl_mts_crash_safe.inc:recovery ====
-include/start_slave_io.inc
-** fixing gaps **
-include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-include/wait_for_slave_param.inc [Until_Condition]
-include/wait_for_slave_sql_to_stop.inc
-** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-include/start_slave_io.inc
-include/start_slave_sql.inc
-include/stop_slave.inc
-SET @@global.slave_parallel_workers= 1;
-SET @@global.slave_checkpoint_period= 1;
-==== end rpl_mts_crash_safe.inc:recovery ====
-SET @@global.slave_parallel_workers= 1;
-SET @@global.slave_checkpoint_period= 2;
-Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (29, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (29, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (29, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (29, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 1 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (30, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (30, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (30, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (30, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-----Executing----
-==== begin rpl_mts_crash_safe.inc:recovery ====
-include/start_slave_io.inc
-** fixing gaps **
-include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-include/wait_for_slave_param.inc [Until_Condition]
-include/wait_for_slave_sql_to_stop.inc
-** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-include/start_slave_io.inc
-include/start_slave_sql.inc
-include/stop_slave.inc
-SET @@global.slave_parallel_workers= 1;
-SET @@global.slave_checkpoint_period= 2;
-==== end rpl_mts_crash_safe.inc:recovery ====
-SET @@global.slave_parallel_workers= 2;
-SET @@global.slave_checkpoint_period= 0;
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (31, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (31, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (31, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (31, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (32, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (32, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (32, 2)
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (32, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (34, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (34, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (34, 2)
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (34, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-----Executing----
-==== begin rpl_mts_crash_safe.inc:recovery ====
-include/start_slave_io.inc
-** fixing gaps **
-include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-include/wait_for_slave_param.inc [Until_Condition]
-include/wait_for_slave_sql_to_stop.inc
-** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-include/start_slave_io.inc
-include/start_slave_sql.inc
-include/stop_slave.inc
-SET @@global.slave_parallel_workers= 2;
-SET @@global.slave_checkpoint_period= 0;
-==== end rpl_mts_crash_safe.inc:recovery ====
-SET @@global.slave_parallel_workers= 2;
-SET @@global.slave_checkpoint_period= 1;
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (35, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (35, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (35, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (35, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (36, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (36, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (36, 2)
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (36, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (37, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (37, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (37, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (37, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (38, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (38, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (38, 2)
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (38, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-----Executing----
-==== begin rpl_mts_crash_safe.inc:recovery ====
-include/start_slave_io.inc
-** fixing gaps **
-include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-include/wait_for_slave_param.inc [Until_Condition]
-include/wait_for_slave_sql_to_stop.inc
-** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-include/start_slave_io.inc
-include/start_slave_sql.inc
-include/stop_slave.inc
-SET @@global.slave_parallel_workers= 2;
-SET @@global.slave_checkpoint_period= 1;
-==== end rpl_mts_crash_safe.inc:recovery ====
-SET @@global.slave_parallel_workers= 2;
-SET @@global.slave_checkpoint_period= 2;
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (39, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (39, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (39, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (39, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (40, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (40, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (40, 2)
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (40, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_1
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (41, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (41, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (41, 2)
-master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (41, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-Generating Number of Workers 2 --- Number of Groups per worker 2 --- Debugging Groups 2 --- Database test_2
-==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-rpl_mixing_engines.inc [commands=B T T C]
-BEGIN;
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (42, 2);
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (42, 4);
-COMMIT;
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (42, 2)
-master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (42, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-----Executing----
-==== begin rpl_mts_crash_safe.inc:recovery ====
-include/start_slave_io.inc
-** fixing gaps **
-include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-include/wait_for_slave_param.inc [Until_Condition]
-include/wait_for_slave_sql_to_stop.inc
-** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-include/start_slave_io.inc
-include/start_slave_sql.inc
-include/stop_slave.inc
-SET @@global.slave_parallel_workers= 2;
+SET @@global.slave_parallel_workers= 4;
 SET @@global.slave_checkpoint_period= 2;
 ==== end rpl_mts_crash_safe.inc:recovery ====
 ########################################################################
@@ -1258,5 +904,45 @@ DROP FUNCTION fc_i_tt_5_suc;
 DROP FUNCTION fc_i_nt_5_suc;
 DROP FUNCTION fc_i_nt_3_tt_3_suc;
 ---- end clean database test_2 ----
+---- begin clean database test_3 ----
+rpl_mixing_engines.inc [commands=clean]
+DROP TABLE tt_1;
+DROP TABLE tt_2;
+DROP TABLE tt_3;
+DROP TABLE tt_4;
+DROP TABLE tt_5;
+DROP TABLE tt_6;
+DROP TABLE nt_1;
+DROP TABLE nt_2;
+DROP TABLE nt_3;
+DROP TABLE nt_4;
+DROP TABLE nt_5;
+DROP TABLE nt_6;
+DROP PROCEDURE pc_i_tt_5_suc;
+DROP PROCEDURE pc_i_nt_5_suc;
+DROP FUNCTION fc_i_tt_5_suc;
+DROP FUNCTION fc_i_nt_5_suc;
+DROP FUNCTION fc_i_nt_3_tt_3_suc;
+---- end clean database test_3 ----
+---- begin clean database test_4 ----
+rpl_mixing_engines.inc [commands=clean]
+DROP TABLE tt_1;
+DROP TABLE tt_2;
+DROP TABLE tt_3;
+DROP TABLE tt_4;
+DROP TABLE tt_5;
+DROP TABLE tt_6;
+DROP TABLE nt_1;
+DROP TABLE nt_2;
+DROP TABLE nt_3;
+DROP TABLE nt_4;
+DROP TABLE nt_5;
+DROP TABLE nt_6;
+DROP PROCEDURE pc_i_tt_5_suc;
+DROP PROCEDURE pc_i_nt_5_suc;
+DROP FUNCTION fc_i_tt_5_suc;
+DROP FUNCTION fc_i_nt_5_suc;
+DROP FUNCTION fc_i_nt_3_tt_3_suc;
+---- end clean database test_4 ----
 ==== end rpl_mts_crash_safe.inc:clean ====
 include/rpl_end.inc

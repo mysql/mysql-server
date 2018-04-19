@@ -2,10 +2,8 @@
 # Test innobase_drop_fts_index_table()
 #
 
--- source include/have_innodb.inc
 # Must have debug code to use SET SESSION debug
 -- source include/have_debug.inc
--- source include/not_embedded.inc
 
 CREATE TABLE t (a INT, b TEXT);
 

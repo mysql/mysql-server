@@ -1,0 +1,47 @@
+include/rpl_init.inc [topology=1->2, 3->2, 4->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_1]
+CREATE TEMPORARY TABLE t1 (a INT);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection server_3]
+CREATE TEMPORARY TABLE t3 (a INT);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+Stopping slave on all channels
+include/stop_slave.inc
+Warnings:
+Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+include/start_slave.inc
+Stopping slave on channel_4 only
+include/stop_slave.inc [FOR CHANNEL 'channel_4']
+include/assert.inc [Slave_open_temp_tables is correctly set to 2 after creating temp tables]
+Stopping slave on channel_1 only
+include/stop_slave.inc [FOR CHANNEL 'channel_1']
+Warnings:
+Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+include/assert.inc [Slave_open_temp_tables is correctly set to 2 after stopping replication thread]
+RESET SLAVE FOR CHANNEL 'channel_1';
+include/assert.inc [Slave_open_temp_tables is correctly set to 1 after resetting channel]
+Stopping slave on channel_3 only
+include/stop_slave.inc [FOR CHANNEL 'channel_3']
+Warnings:
+Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+Warnings:
+Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+include/start_slave.inc [FOR CHANNEL 'channel_3']
+[connection server_3]
+DROP TEMPORARY TABLE t3;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/assert.inc [Slave_open_temp_tables is correctly set to 0 after dropping last temp table]
+Stopping slave on channel_3 only
+include/stop_slave.inc [FOR CHANNEL 'channel_3']
+CHANGE MASTER TO MASTER_PORT = 4711 FOR CHANNEL 'channel_3';
+RESET SLAVE ALL;
+include/rpl_end.inc

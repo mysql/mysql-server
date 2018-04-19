@@ -44,8 +44,8 @@ formatID	gtrid_length	bqual_length	data
 xa prepare 'testa','testb';
 xa recover;
 formatID	gtrid_length	bqual_length	data
-11	5	5	testb 0@P`
 1	5	5	testatestb
+11	5	5	testb 0@P`
 xa commit 'testb',0x2030405060,11;
 ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
 xa rollback 'testb',0x2030405060,11;
@@ -253,8 +253,8 @@ xa end 0xABCDEF1234567890, 0x01, 0x02 ;
 xa prepare 0xABCDEF1234567890, 0x01, 0x02 ;
 xa recover convert xid;
 formatID	gtrid_length	bqual_length	data
-2	8	1	0xABCDEF123456789001
 11	5	5	0x74657374622030405060
+2	8	1	0xABCDEF123456789001
 xa rollback 0xABCDEF1234567890, 0x01, 0x02 ;
 # Check that XID which has only printable characters are displayed
 # correctly without using of CONVERT XID clause
@@ -263,8 +263,8 @@ xa end 0x4142434445, 0x46, 0x02 ;
 xa prepare 0x4142434445, 0x46, 0x02 ;
 xa recover;
 formatID	gtrid_length	bqual_length	data
-2	5	1	ABCDEF
 11	5	5	testb 0@P`
+2	5	1	ABCDEF
 xa rollback 0x4142434445, 0x46, 0x02 ;
 #
 # WL#7155: Test 1: check that if a thread of control terminates then 
@@ -358,6 +358,58 @@ XA ROLLBACK 'xid1';
 # format ID overflows the type of unsigned long
 XA START '1', 0x01, 18446744073709551615;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '18446744073709551615' at line 1
+#
+# Bug#25364178 - XA PREPARE INCONSISTENT WITH XTRABACKUP
+#
+# Check XA state when lock_wait_timeout happens
+# More tests added to flush_read_lock.test
+set session lock_wait_timeout=1;
+create table asd (a int);
+xa start 'test1';
+insert into asd values(1);
+xa end 'test1';
+flush table with read lock;
+# PREPARE error will do auto rollback.
+xa prepare 'test1';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+show errors;
+Level	Code	Message
+Error	1205	Lock wait timeout exceeded; try restarting transaction
+Error	1402	XA_RBROLLBACK: Transaction branch was rolled back
+unlock tables;
+xa start 'test1';
+insert into asd values(1);
+xa end 'test1';
+xa prepare 'test1';
+flush tables with read lock;
+# LOCK error during ROLLBACK will not alter transaction state.
+xa rollback 'test1';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+show errors;
+Level	Code	Message
+Error	1205	Lock wait timeout exceeded; try restarting transaction
+Error	1401	XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+xa recover;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test1
+11	5	5	testb 0@P`
+# LOCK error during COMMIT will not alter transaction state.
+xa commit 'test1';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+show errors;
+Level	Code	Message
+Error	1205	Lock wait timeout exceeded; try restarting transaction
+Error	3197	The resource manager is not able to commit the transaction branch at this time. Please retry later.
+xa recover;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test1
+11	5	5	testb 0@P`
+unlock tables;
+xa rollback 'test1';
+xa recover;
+formatID	gtrid_length	bqual_length	data
+11	5	5	testb 0@P`
+drop table asd;
 There should be practically no error, but in theory
 XAER_NOTA: Unknown XID can be returned if con1 disconnection
 took for too long.
@@ -366,3 +418,96 @@ todo: such case will be ever registered.
 xa rollback 'testb',0x2030405060,11;
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
+#
+# WL#7194 -- Define and implement authorization model to manage XA-transactions
+#
+CREATE USER u1;
+GRANT XA_RECOVER_ADMIN ON *.* TO u1;
+CREATE USER u2;
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+# Connect as user u1
+# Since the privilege XA_RECOVER_ADMIN was granted to the user u1
+# it is allowed to execute the statement XA RECOVER to get a list of
+# xids for prepared XA transactions.
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	xid1
+# Connect as user u2
+# The privilege XA_RECOVER_ADMIN wasn't granted to the user u2.
+# It leads to issuing the error ER_XAER_RMERR on attempt to run
+# the statement XA RECOVER.
+XA RECOVER;
+ERROR XAE03: XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+SHOW WARNINGS;
+Level	Code	Message
+Error	1401	XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+Error	1227	Access denied; you need (at least one of) the XA_RECOVER_ADMIN privilege(s) for this operation
+# The default connection was established on behalf the user root@localhost
+# who has the XA_RECOVER_ADMIN privilege assigned by default.
+# So for the user root@localhost the statement XA RECOVER
+# can be executed successfully.
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	xid1
+XA COMMIT 'xid1';
+# Connect as the user u2 who wasn't granted privilege XA_RECOVER_ADMIN.
+# Initiates a new XA transaction on behalf the user u2 and shows that
+# call XA RECOVER made by the user u2 is failed with error ER_XAER_RMERR.
+XA START 'xid2';
+XA END 'xid2';
+XA PREPARE 'xid2';
+XA RECOVER;
+ERROR XAE03: XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+SHOW WARNINGS;
+Level	Code	Message
+Error	1401	XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+Error	1227	Access denied; you need (at least one of) the XA_RECOVER_ADMIN privilege(s) for this operation
+# Although the user u2 can't get a list of prepared XA transaction this user
+# can finalize a prepared XA transaction knowing its XID value.
+XA COMMIT 'xid2';
+DROP USER u1, u2;
+# Check that a user who has the privilege SUPER and hasn't the privilege
+# XA_RECOVER_ADMIN isn't allowed to run the statement XA RECOVER
+CREATE USER u1;
+GRANT SUPER ON *.* TO u1;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT SUPER ON *.* TO `u1`@`%`
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+XA RECOVER;
+ERROR XAE03: XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+XA COMMIT 'xid1';
+DROP USER u1;
+# End of tests fro WL#7194
+#
+# Bug #26848877 -- XA COMMIT/ROLLBACK REJECTED BY NON-AUTOCOMMIT SESSION
+#                  WITH NO ACTIVE TRANSACTION
+#
+# Check that XA COMMIT finalizes XA transaction branch in case
+# XA transaction was prepared successfully and after session reconnect
+# a user turned off autocommit before running XA COMMIT
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+SET autocommit = 0;
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	xid1
+XA COMMIT 'xid1';
+# Check that XA ROLLBACK finalizes XA transaction branch in case
+# XA transaction was prepared successfully and after reconnect
+# a user turned off autocommit before running XA ROLLBACK
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+SET autocommit = 0;
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	xid1
+XA ROLLBACK 'xid1';

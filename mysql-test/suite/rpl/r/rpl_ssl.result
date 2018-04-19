@@ -3,16 +3,10 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
-grant replication slave on *.* to replssl@localhost require ssl;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+include/assert.inc [Master_SSL_Allowed should be NO by default]
+include/assert.inc [Without MASTER_SSL, the slave should be connected to the master without SSL/TLS]
+create user replssl@localhost require ssl;
+grant replication slave on *.* to replssl@localhost;
 create table t1 (t int auto_increment, KEY(t));
 include/sync_slave_sql_with_master.inc
 stop slave;
@@ -32,15 +26,11 @@ include/sync_slave_sql_with_master.inc
 select * from t1;
 t
 1
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Master_SSL_Allowed = 'Yes'
 Master_SSL_CA_Path = ''
 Master_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
 Master_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
 Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 include/check_slave_is_running.inc
 STOP SLAVE;
 select * from t1;
@@ -49,15 +39,11 @@ t
 insert into t1 values (NULL);
 include/sync_slave_sql_with_master.inc
 include/wait_for_slave_to_start.inc
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Master_SSL_Allowed = 'Yes'
 Master_SSL_CA_Path = ''
 Master_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
 Master_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
 Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 include/check_slave_is_running.inc
 drop user replssl@localhost;
 drop table t1;

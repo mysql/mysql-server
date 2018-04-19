@@ -1,0 +1,626 @@
+
+--echo #
+--echo # Testing WL#7524 - Import from SDI files
+--echo #
+
+--echo # Setup test environment
+let $MYSQLD_DATADIR=`SELECT @@datadir`;
+--perl
+chdir $ENV{'MYSQL_TMP_DIR'};
+mkdir "export";
+EOF
+let $EXPORT_DIR= $MYSQL_TMP_DIR/export;
+
+
+--echo #
+--echo # IM-NEG-1: Schema missing/wrong schema name in SDI
+--echo #
+CREATE SCHEMA s1;
+CREATE TABLE s1.t1(i VARCHAR(32)) ENGINE MYISAM;
+INSERT INTO s1.t1 VALUES ('abc'), ('DEF'), ('Ghi'), ('ghI');
+SELECT I FROM s1.t1 ORDER BY i;
+
+FLUSH TABLES WITH READ LOCK;
+--echo # Copy s1.t1 files to tmp dir
+--copy_files_wildcard $MYSQLD_DATADIR/s1/ $EXPORT_DIR t1*
+UNLOCK TABLES;
+DROP TABLE s1.t1;
+DROP SCHEMA s1;
+
+CREATE SCHEMA s2;
+--echo # Copy t1 files into s2
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/s2/ t1*
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR/s2
+
+--error ER_IMP_SCHEMA_DOES_NOT_EXIST
+IMPORT TABLE FROM 's2/t1*.sdi';
+--remove_files_wildcard $MYSQLD_DATADIR/s2/ *
+DROP SCHEMA s2;
+--echo # Clean \$EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR *
+
+--echo #
+--echo # IM-NEG-1.1: Verfy that import using relative path to .sdi file
+--echo # fails when not having a default schema.
+--echo #
+--echo # Connect without schema
+connect (con_noschema,localhost,root,,*NO-ONE*);
+--error ER_NO_DB_ERROR
+IMPORT TABLE FROM 't1_*.sdi';
+--echo # Don't need the current schema in this case, but check_access()
+--echo # requires it
+--error ER_NO_DB_ERROR
+IMPORT TABLE FROM 's1/t1_*.sdi';
+
+disconnect con_noschema;
+connection default;
+
+--echo #
+--echo # IM-NEG-2: Table already exists in schema
+--echo #
+CREATE TABLE t1(i VARCHAR(32)) ENGINE MYISAM;
+INSERT INTO t1 VALUES ('abc'), ('DEF'), ('Ghi'), ('ghI');
+SELECT i FROM t1 ORDER BY i;
+
+--error ER_IMP_TABLE_ALREADY_EXISTS
+IMPORT TABLE FROM 't1*.sdi';
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # IM-NEG-3: Detection/diagnosis of non-matching pattern.
+--echo #
+--error ER_IMP_NO_FILES_MATCHED
+IMPORT TABLE FROM 'pattern_which_matches_nothing';
+
+--echo #
+--echo # IM-NEG-4: Detection/diagnosis of access to path not permitted by
+--echo # --secure-file-priv setting
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error ER_OPTION_PREVENTS_STATEMENT,ER_OPTION_PREVENTS_STATEMENT
+eval IMPORT TABLE FROM '$MYSQL_TEST_DIR/t/import.test';
+
+--echo #
+--echo # IM-NEG-5: Detection/diagnosis of corrupted SDI
+--echo #
+CREATE TABLE t1 (i int) ENGINE MYISAM;
+
+--error ER_WRONG_FILE_NAME
+IMPORT TABLE FROM 't1.MYD';
+
+--copy_file $MYSQLD_DATADIR/test/t1.MYD $MYSQLD_DATADIR/test/t1.sdi
+--error ER_INVALID_JSON_DATA
+IMPORT TABLE FROM 't1.sdi';
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/test/t1.sdi
+
+--echo #
+--echo # IM-NEG-5.1: Verfy that import of an .sdi file which is valid json, but
+--echo # corrupt at the application level is handled correctly.
+--echo #
+
+CREATE TABLE t1(i INT) ENGINE MYISAM;
+--echo # Save SDI file in export dir
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $EXPORT_DIR t1_*.sdi
+DROP TABLE t1;
+--echo # Create new version of t1
+CREATE TABLE t1(i VARCHAR(32)) ENGINE MYISAM;
+INSERT INTO t1 VALUES ('AAA'), ('BBB'), ('CCC');
+FLUSH TABLES WITH READ LOCK;
+--echo # Export .MYD and .MYI of the new t1
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $EXPORT_DIR t1.MY*
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo # First attempt to import without having copied back the data files,
+--echo # which will fail
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t1_*.sdi
+--error ER_FILE_NOT_FOUND
+IMPORT TABLE FROM 't1_*.sdi';
+
+--echo # Restore .MYD and .MYI of the new t1
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t1*
+--echo # Import t1 using the old SDI file. Will succeed with warning since
+--echo # we cannot open the imported table
+IMPORT TABLE FROM 't1_*.sdi';
+
+--echo # Try to repair table as suggested in warning (will not work in
+--echo # this case)
+REPAIR TABLE t1;
+DROP TABLE t1;
+
+--echo # Clean datadir and \$EXPORT_DIR
+--remove_files_wildcard $MYSQLD_DATADIR/test/ t1*
+--remove_files_wildcard $EXPORT_DIR *
+
+--echo #
+--echo # IM-NEG-6: Verify that concurrent use (from other threads)
+--echo # of names of objects involved in import are detected,
+--echo # and rejected as appropriate.
+--echo #
+CREATE TABLE t1(i INT) ENGINE MYISAM;
+LOCK TABLES t1 WRITE;
+
+--echo # Start new connection which will attempt to import locked table
+connect (importcon,localhost,root,,);
+SET @@session.lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+IMPORT TABLE FROM 't1_*.sdi';
+
+--echo # Switch back to default and disconnect import connection
+connection default;
+disconnect importcon;
+
+UNLOCK TABLES;
+DROP TABLE t1;
+
+
+--echo #
+--echo # IM-NEG-7: Verify that SDI version mismatch is
+--echo # diagnosed appropriately.
+--echo #
+CREATE TABLE t1(i INT) ENGINE=MYISAM;
+
+--echo # Copy SDI file to export dir
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $EXPORT_DIR t1_*.sdi
+
+--echo # Use perl to patch sdi_version in SDI file
+--perl
+opendir(TMP, "$ENV{'MYSQL_TMP_DIR'}/export");
+chdir "$ENV{'MYSQL_TMP_DIR'}/export";
+while ($_= readdir(TMP))
+{
+  next unless (/(.+)_\d+\.sdi/);
+  my $base= $1;
+  rename $_, "${base}.sdi";
+}
+closedir(TMP);
+open(T1, "t1.sdi");
+open(T1_, ">t1_.sdi");
+while (<T1>)
+{
+  s/("sdi_version": ?)\d+,/${1}42,/g;
+  print T1_ $_;
+}
+close(T1);
+close(T1_);
+EOF
+
+--echo # Copy SDI file back into data dir
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t1_.sdi
+
+--error ER_IMP_INCOMPATIBLE_SDI_VERSION
+IMPORT TABLE FROM 't1_.sdi';
+DROP TABLE t1;
+--remove_files_wildcard $EXPORT_DIR *
+--remove_files_wildcard $MYSQLD_DATADIR/test/ t1_.sdi
+
+
+--echo #
+--echo # IM-NEG-8 Verify that CREATE and FILE privileges are required
+--echo # for IMPORT
+--echo #
+--echo # Create schema which does not match test* pattern which has special
+--echo # privileges
+CREATE SCHEMA s1;
+CREATE TABLE s1.t1(i INT) ENGINE MYISAM;
+--echo # Create user without any privileges.
+CREATE USER noimportforyou@localhost;
+REVOKE ALL ON *.* FROM noimportforyou@localhost;
+
+--echo # Connect as user noimportforyou@localhost;
+connect (con_noimport,localhost,noimportforyou,,);
+
+--echo # Should fail due to missing privileges
+--error ER_ACCESS_DENIED_ERROR
+IMPORT TABLE FROM 's1/t1_*.sdi';
+
+--echo # Disconnect and switch back to default connection
+disconnect con_noimport;
+connection default;
+GRANT FILE ON *.* TO noimportforyou@localhost;
+
+--echo # Connect as user noimportforyou@localhost - now with FILE privilege
+connect (con_noimport,localhost,noimportforyou,,);
+--echo # Should fail due to missing CREATE privilege
+--error ER_TABLEACCESS_DENIED_ERROR
+IMPORT TABLE FROM 's1/t1_*.sdi';
+
+--echo # Disconnect and switch back to default connection
+disconnect con_noimport;
+connection default;
+--echo # Grant general CREATE privilege
+GRANT CREATE ON *.* TO noimportforyou@localhost;
+--echo # Connect as user noimportforyou@localhost - now with FILE & CREATE
+--echo # privilege
+connect (con_noimport,localhost,noimportforyou,,s1);
+
+--echo # Should have sufficient privileges, but fail because t1 already exist
+--error ER_IMP_TABLE_ALREADY_EXISTS
+IMPORT TABLE FROM 't1_*.sdi';
+--list_files $MYSQLD_DATADIR/test t*
+
+--echo # Disconnect and switch back to default connection
+disconnect con_noimport;
+connection default;
+--echo # Revoke general CREATE privilege
+REVOKE CREATE ON *.* FROM noimportforyou@localhost;
+--echo # Grant CREATE privilege on s1 schema
+GRANT CREATE ON s1.* TO noimportforyou@localhost;
+
+--echo # Connect as user noimportforyou@localhost - now with FILE & CREATE
+--echo # privilege on s1.*
+connect (con_noimport,localhost,noimportforyou,,s1);
+--echo # Should have sufficient privileges, but fail because t1 already exist
+--error ER_IMP_TABLE_ALREADY_EXISTS
+IMPORT TABLE FROM 't1_*.sdi';
+
+--echo # Disconnect and switch back to default connection
+disconnect con_noimport;
+connection default;
+--echo # Revoke CREATE privilege on s1 schema
+REVOKE CREATE ON s1.* FROM noimportforyou@localhost;
+--echo # Grant CREATE privilege on s1.t1
+GRANT CREATE ON s1.t1 TO noimportforyou@localhost;
+
+--echo # Connect as user noimportforyou@localhost - now with FILE & CREATE
+--echo # privilege on test.t1
+connect (con_noimport,localhost,noimportforyou,,s1);
+
+--echo # Should have sufficient privileges, but fail because t1 already exist
+--error ER_IMP_TABLE_ALREADY_EXISTS
+IMPORT TABLE FROM 't1_*.sdi';
+
+--echo # Disconnect and switch back to default connection
+disconnect con_noimport;
+connection default;
+--echo # Revoke FILE privilege
+REVOKE FILE ON *.* FROM noimportforyou@localhost;
+
+--echo # Connect as user noimportforyou@localhost - now with only CREATE
+--echo # privilege on test.t1
+connect (con_noimport,localhost,noimportforyou,,s1);
+
+--echo # Should fail due to missing FILE privilege
+--error ER_ACCESS_DENIED_ERROR
+IMPORT TABLE FROM 't1_*.sdi';
+
+--echo # Disconnect and switch back to default connection
+disconnect con_noimport;
+connection default;
+
+DROP USER noimportforyou@localhost;
+DROP TABLE s1.t1;
+DROP SCHEMA s1;
+
+
+--echo #
+--echo # IM-POS-2: Export, drop and import back table
+--echo #
+CREATE TABLE t1 (i INT) ENGINE=MYISAM;
+INSERT INTO t1 VALUES (1), (3), (5);
+SELECT * FROM t1;
+CREATE TABLE t2 (i INT) ENGINE=MYISAM;
+INSERT INTO t2 VALUES (2), (4), (6);
+SELECT * FROM t2;
+CREATE VIEW v2 AS SELECT * FROM t2;
+SELECT * FROM v2;
+
+FLUSH TABLES WITH READ LOCK;
+--echo # Copy t1 files to export dir
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $EXPORT_DIR t*
+UNLOCK TABLES;
+DROP TABLE t1;
+DROP TABLE t2;
+--echo # Check that the view is now invalid.
+CHECK TABLE v2;
+--echo # Copy files back into datadir
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t*
+IMPORT TABLE FROM 't1_*.sdi', 't2_*.sdi';
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SELECT * FROM t1;
+SELECT * FROM t2;
+--echo # Check that the view is now valid.
+CHECK TABLE v2;
+SELECT * FROM v2;
+DROP VIEW v2;
+DROP TABLE t1;
+DROP TABLE t2;
+--echo # Clean SDI files in \$EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR t*
+
+--echo #
+--echo # IM-POS-3: Verfiy that the .sdi file can be manually edited
+--echo # (e.g. the schema name is changed, the name of a column).
+--echo #
+CREATE TABLE t1 (i INT) ENGINE MYISAM;
+INSERT INTO t1 VALUES (1), (3), (5);
+SELECT * FROM t1 ORDER BY i;
+FLUSH TABLES WITH READ LOCK;
+--echo # Copy t1 files to export dir
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $EXPORT_DIR t*
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo # Use perl to rename and patch SDI file
+--perl
+opendir(TMP, "$ENV{'MYSQL_TMP_DIR'}/export");
+chdir "$ENV{'MYSQL_TMP_DIR'}/export";
+while ($_= readdir(TMP))
+{
+  next unless (/(.+)_\d+\.sdi/);
+  my $base= $1;
+  rename $_, "${base}.sdi";
+}
+closedir(TMP);
+open(T1, "t1.sdi");
+open(T1_, ">t1_.sdi");
+while (<T1>)
+{
+ s/("name": ?)"i"/$1"k"/g;
+ print T1_ $_;
+}
+close(T1);
+close(T1_);
+EOF
+
+--list_files $EXPORT_DIR
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t1*
+IMPORT TABLE FROM 't1_.sdi';
+SELECT * FROM t1 ORDER BY k;
+DROP TABLE t1;
+--echo # Clean \$EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR *
+--echo # Clean \$DATA_DIR/test
+--remove_files_wildcard $MYSQLD_DATADIR/test t1*
+
+--echo #
+--echo # IM-POS-4: Verify that at table can be imported into a schema
+--echo # with a different collation id
+--echo #
+
+CREATE SCHEMA s1;
+CREATE TABLE s1.t1(i VARCHAR(32)) ENGINE MYISAM;
+INSERT INTO s1.t1 VALUES ('abc'), ('DEF'), ('Ghi'), ('ghI');
+SELECT I FROM s1.t1 ORDER BY i;
+
+FLUSH TABLES WITH READ LOCK;
+--echo # Copy s1.t1 to export dir
+--copy_files_wildcard $MYSQLD_DATADIR/s1/ $EXPORT_DIR t1*
+UNLOCK TABLES;
+
+DROP TABLE s1.t1;
+ALTER SCHEMA s1 DEFAULT COLLATE latin1_bin;
+
+--echo Copy MYD and MYI back into datadir
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/s1/ t1*
+
+IMPORT TABLE FROM 's1/t1*.sdi';
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR/s1
+--echo # Verfy that collation for t1 has not changed
+SELECT i FROM s1.t1 ORDER BY i;
+SHOW CREATE TABLE s1.t1;
+
+--echo # Create new table which will get the s1's new default collation
+CREATE TABLE s1.t2(i VARCHAR(32));
+INSERT INTO s1.t2 VALUES ('abc'), ('DEF'), ('Ghi'), ('ghI');
+--echo # Verify that the collation for t2 is different
+SELECT I FROM s1.t2 ORDER BY i;
+SHOW CREATE TABLE s1.t2;
+
+DROP TABLE s1.t1;
+DROP SCHEMA s1;
+
+--echo # Clean \$EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR *
+
+--echo #
+--echo # IM-POS-5: Verify that concurrent DROP SCHEMA|DATABASE, after the
+--echo # data and index files to import have been placed in the schema dir,
+--echo # fails because it is unable to delete the schema directory. Verify
+--echo # that manual intervention can fix the problem.
+--echo #
+CREATE SCHEMA s1;
+CREATE TABLE s1.t1(i VARCHAR(32)) ENGINE MYISAM;
+INSERT INTO s1.t1 VALUES ('abc'), ('DEF'), ('Ghi'), ('ghI');
+SELECT i FROM s1.t1 ORDER BY i;
+
+FLUSH TABLES WITH READ LOCK;
+--echo # Copy t1 to tmp dir
+--copy_files_wildcard $MYSQLD_DATADIR/s1/ $EXPORT_DIR t1*
+UNLOCK TABLES;
+DROP TABLE s1.t1;
+
+--echo # Copy t1 files back into s1
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/s1/ t1*
+
+--echo # Drop s1 which is empty in DD, but which has files in directory
+#--error ER_DB_DROP_RMDIR,ER_DB_DROP_RMDIR
+--disable_query_log
+CALL mtr.add_suppression("Problem while dropping database. Can't remove database directory .* Please remove it manually.");
+--enable_query_log
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--replace_regex /errno: [0-9]+ - .*\)/errno: ## - ...)/
+DROP SCHEMA s1;
+--echo # Show offending files
+--list_files $MYSQLD_DATADIR/s1
+--echo # Manual intervention which removes files...
+--force-rmdir $MYSQLD_DATADIR/s1
+#DROP SCHEMA s1;
+CREATE SCHEMA s1;
+--echo Copy t1 files back into s1
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/s1/ t1*
+IMPORT TABLE FROM 's1/t1*.sdi';
+SELECT i FROM s1.t1 ORDER BY i;
+
+DROP TABLE s1.t1;
+DROP SCHEMA s1;
+--echo # Clean \$EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR *
+
+
+--echo #
+--echo # IM-POS-6: Import into server with l_c_t_n=true
+--echo #
+CREATE TABLE T_CASE(i INT) ENGINE MYISAM;
+INSERT INTO T_CASE VALUES (1), (3), (5);
+SELECT * FROM T_CASE ORDER BY i;
+FLUSH TABLES WITH READ LOCK;
+--echo # Copy T_CASE files to export dir
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $EXPORT_DIR *
+UNLOCK TABLES;
+DROP TABLE T_CASE;
+
+--echo # Use perl to rename and patch SDI file
+--perl
+opendir(TMP, "$ENV{'MYSQL_TMP_DIR'}/export");
+chdir "$ENV{'MYSQL_TMP_DIR'}/export";
+while ($_= readdir(TMP))
+{
+  if (/(.+)_\d+\.sdi/)
+  {
+    my $b= lc($1);
+    rename $_, "${b}.sdi";
+    next;
+  }
+  if (/(.+)\.MYD/)
+  {
+    my $b= lc($1);
+    rename $_, "${b}.MYD";
+    next;
+  }
+  if (/(.+)\.MYI/)
+  {
+    my $b= lc($1);
+    rename $_, "${b}.MYI";
+  }
+
+}
+closedir(TMP);
+open(T1, "t_case.sdi");
+open(T1_, ">t_case_.sdi");
+while (<T1>)
+{
+  s/T_CASE/t_case/g;
+  print T1_ $_;
+}
+close(T1);
+close(T1_);
+rename "t_case_.sdi", "t_case.sdi";
+EOF
+
+--list_files $EXPORT_DIR
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t_case*
+IMPORT TABLE FROM 't_case.sdi';
+SELECT i FROM t_case ORDER BY i;
+DROP TABLE t_case;
+
+
+--echo #
+--echo # Start new server with --lower_case_table_names and import t_case there
+--echo #
+
+let BASEDIR=    `select @@basedir`;
+let DDIR=       $MYSQL_TMP_DIR/lctn_test;
+let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+let extra_args= --no-defaults --innodb_dedicated_server=OFF --log-error=$MYSQLD_LOG --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --lower_case_table_names=1 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let BOOTSTRAP_SQL= $MYSQL_TMP_DIR/tiny_bootstrap.sql;
+
+--echo # 0. Shut server down.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # 1. Create bootstrap file.
+write_file $BOOTSTRAP_SQL;
+  CREATE SCHEMA test;
+EOF
+
+--echo # 2. First start the server with --initialize
+--exec $MYSQLD $extra_args --secure-file-priv="" --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
+
+--echo # 3. Restart the server against DDIR - should succeed.
+--exec echo "restart:" --datadir=$DDIR --lower_case_table_names=1 --secure-file-priv="" --no-console --log-error=$MYSQLD_LOG > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # 4. Import file created on server without lctn
+--echo # Copying exported t_case files into \$DDIR/test
+--copy_files_wildcard $EXPORT_DIR $DDIR/test/ t_case*
+--echo # Listing \$DDIR/test:
+--list_files $DDIR/test
+
+IMPORT TABLE FROM 't_case.sdi';
+SELECT i FROM t_case ORDER BY i;
+DROP TABLE t_case;
+
+--echo # 5. Shut server down.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # 6. Cleanup: Restarting the server against default datadir.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Delete \$DDIR
+--force-rmdir $DDIR
+
+--echo # Delete sql files
+--remove_files_wildcard $MYSQL_TMP_DIR *.sql
+
+--echo # Delete log files
+--remove_files_wildcard $MYSQL_TMP_DIR *.log
+
+--echo # Delete expect files
+--remove_files_wildcard $MYSQL_TMP_DIR *.expect
+
+--remove_files_wildcard $EXPORT_DIR t_case*
+
+--echo #
+--echo # Bug#25792649: SDI DESERIALIZE MISSING COLUMNIMPL::M_NUMERIC_SCALE_NULL
+--echo # Export, drop and import back table with columns that have attributes
+--echo # which are null by default
+--echo #
+CREATE TABLE t1 (i INT DEFAULT 42, dt DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+                 de DECIMAL(10,2), j INT GENERATED ALWAYS AS (42+i)) ENGINE=MYISAM;
+SHOW CREATE TABLE t1;
+INSERT INTO t1(dt,de) VALUES ('2017-03-28 18:48:01', 1.1),
+                             ('2017-03-28 18:48:02', 1.2),
+                             ('2017-03-28 18:48:03', 1.5);
+SELECT * FROM t1;
+
+FLUSH TABLES WITH READ LOCK;
+--echo # Copy t1 files to export dir
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $EXPORT_DIR t*
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo # Copy files back into datadir
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t*
+IMPORT TABLE FROM 't1_*.sdi';
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+--echo # Clean SDI files in \$EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR t*
+
+
+--echo # Remove 'export' folder created at the beginning of test file.
+--force-rmdir $EXPORT_DIR
+
+--echo #
+--echo # Bug#25914953 ASSERTION FAILED: M_THD->GET_TRANSACTION()->
+--echo # IS_EMPTY(TRANSACTION_CTX::STMT)
+--echo #
+--echo # Need to commit any existing txn before using Disable_autocommit_guard
+
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--error ER_IMP_NO_FILES_MATCHED
+IMPORT TABLE FROM '';
+

@@ -1,12 +1,11 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test some warnings
-#
+# sql_mode set to NULL to test warnings for LOAD DATA INFILE below
 --disable_warnings
+--disable_result_log
+set @@session.sql_mode='';
+--enable_result_log
+
 drop table if exists t1, t2;
 --enable_warnings
 SET SQL_WARNINGS=1;
@@ -27,10 +26,10 @@ show count(*) errors;
 show errors;
 insert into t1 values (1);
 insert ignore into t1 values ("hej");
-insert ignore into t1 values ("hej"),("då");
+insert ignore into t1 values ("hej"),("dÃ¥");
 set SQL_WARNINGS=1;
 insert ignore into t1 values ("hej");
-insert ignore into t1 values ("hej"),("då");
+insert ignore into t1 values ("hej"),("dÃ¥");
 drop table t1;
 set SQL_WARNINGS=0;
 
@@ -53,7 +52,6 @@ drop table t1;
 #
 # Test warnings for LOAD DATA INFILE
 #
-
 create table t1(a tinyint, b int not null, c date, d char(5));
 load data infile '../../std_data/warnings_loaddata.dat' into table t1 fields terminated by ',';
 # PS doesn't work good with @@warning_count

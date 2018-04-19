@@ -12,14 +12,14 @@ name VARCHAR(255)
 ndb_show_tables completed.....
 
 select name from ndb_show_tables_results
-where type like '%0%' and name like '%HASHMAP%-7%';
+where type like '%HashMap%' and name like '%HASHMAP%-7%';
 name
 alter table t1 partition by key() partitions 7;
 
 ndb_show_tables completed.....
 
 select name from ndb_show_tables_results
-where type like '%0%' and name like '%HASHMAP%-7%';
+where type like '%HashMap%' and name like '%HASHMAP%-7%';
 name
 'DEFAULT-HASHMAP-116-7'
 drop table t1, ndb_show_tables_results;

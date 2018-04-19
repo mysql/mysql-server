@@ -1,0 +1,372 @@
+## Tests detecting presence of SQL statements executed through
+#  plugin service in PERFORMANCE_SCHEMA.
+
+## Preamble
+--source ../include/have_performance_schema_statements.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+# Tests
+--write_file $MYSQL_TMP_DIR/performance_schema_stmt.tmp
+-->import sql_history.macro
+-->quiet
+
+-->sql
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT 1;
+SELECT SCHEMA_NAME, DIGEST_TEXT, COUNT_STAR from performance_schema.events_statements_summary_by_digest ORDER BY DIGEST;
+-->endsql
+
+-->stmtsql CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+-->recvresult
+
+-->callmacro Clear_sql_history
+-->echo ######### create_collection #########
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xtest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "test"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### Crud.Insert #########
+Mysqlx.Crud.Insert {
+  collection {
+    name: "test"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"_id\": \"one\"}"
+        }
+      }
+    }
+  }
+}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### Crud.Insert (upsert) #########
+Mysqlx.Crud.Insert {
+  data_model: DOCUMENT
+  collection { name: 'test' schema: 'xtest'}
+  row{
+    field{
+      type: LITERAL literal {
+        type: V_OCTETS v_octets {
+          value:'{"_id": "two"}'
+          content_type:2
+        }
+      }
+    }
+  }
+  upsert: true
+}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### Crud.Update #########
+Mysqlx.Crud.Update {
+  collection {
+    name: "test"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_STRING
+          v_string {value:"one"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "key"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "val"
+        }
+      }
+    }
+  }
+}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### Crud.CreateView #########
+Mysqlx.Crud.CreateView {
+  collection { name: "test_view" schema: "xtest" }
+  stmt: {
+    collection { name: "test" schema: "xtest" }
+    projection {
+      alias: "id"
+      source { type: IDENT identifier { name: "_id" } }
+    }
+    data_model: DOCUMENT
+  }
+}
+-->recvtype Mysqlx.Ok
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### Crud.ModifyView #########
+Mysqlx.Crud.ModifyView {
+  collection { name: "test_view" schema: "xtest" }
+  stmt: {
+    collection { name: "test" schema: "xtest"}
+    projection {
+      alias: "id"
+      source { type: IDENT identifier { name: "_id" } }
+    }
+    data_model: DOCUMENT
+  }
+}
+-->recvtype Mysqlx.Ok
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### Crud.DropView #########
+Mysqlx.Crud.DropView {
+  collection { name: "test_view" schema: "xtest" }
+}
+-->recvtype Mysqlx.Ok
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### Crud.Find #########
+Mysqlx.Crud.Find {
+  collection {
+    name: "test"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### Crud.Find with shared lock #########
+Mysqlx.Crud.Find {
+  collection {
+    name: "test"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  locking: SHARED_LOCK
+}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### Crud.Find with exclusive lock #########
+Mysqlx.Crud.Find {
+  collection {
+    name: "test"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  locking: EXCLUSIVE_LOCK
+}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### Crud.Delete #########
+Mysqlx.Crud.Delete {
+  collection { name: "test" schema: "xtest"}
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL literal { type: V_STRING v_string { value: "one" } }
+      }
+    }
+  }
+}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### create_collection #########
+-->stmtadmin create_collection	{"schema":"xtest", "name":"test2"}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### ensure_collection #########
+-->stmtadmin ensure_collection	{"schema":"xtest", "name":"test2"}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### create_collection_index #########
+-->stmtadmin create_collection_index	{"schema": "xtest", "collection":"test2", "name":"foo", "unique":true, "constraint":{"member":"$.foo", "type":"TEXT(1)", "required":false}}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### drop_collection_index #########
+-->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"test2", "name": "foo"}
+-->recvresult
+-->callmacro Show_sql_history
+
+# silent call for establishing static variables
+-->stmtadmin list_objects	{"schema":"xtest"}
+-->recvresult be-quiet
+
+-->callmacro Clear_sql_history
+-->echo ######### create_collection_index (spatial) #########
+-->stmtadmin create_collection_index	{"schema": "xtest", "collection":"test2", "name":"bar", "type":"spatial", "unique":false, "constraint":{"member":"$.foo", "type":"GEOJSON", "required":true}}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### drop_collection_index (spatial) #########
+-->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"test2", "name": "bar"}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### create_collection_index (fulltext) #########
+-->stmtadmin create_collection_index	{"schema": "xtest", "collection":"test2", "name":"foobar", "type":"fulltext", "unique":false, "with_parser":"ngram", "constraint":{"member":"$.foo", "type":"FULLTEXT", "required":true}}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### drop_collection_index (fulltext) #########
+-->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"test2", "name": "foobar"}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### list_objects #########
+-->stmtadmin list_objects	{"schema":"xtest"}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### drop_collection #########
+-->stmtadmin drop_collection	{"schema":"xtest", "name":"test2"}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### list_clients #########
+-->sql
+create user unpriv@localhost;
+set password for unpriv@localhost = 'x';
+-->endsql
+-->stmtadmin list_clients
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### kill_client #########
+# Perfrom single authentication using mysql41.
+# One query is going to be execute on mysql.user
+# and must be visible in PFS.
+-->newsession_mysql41 unpriv	unpriv	x
+-->varlet %CLIENT_ID% %ACTIVE_CLIENT_ID%
+-->newsession_mysql41 x_root	x_root
+-->stmtadmin kill_client	{"id": %CLIENT_ID%}
+-->recvresult
+-->stmtsql drop user unpriv@localhost;
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### list_notices #########
+-->stmtadmin list_notices
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### disable_notices #########
+-->stmtadmin disable_notices	{"notice":"warnings"}
+-->recvresult
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1/0"
+}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### enable_notices #########
+-->stmtadmin enable_notices	{"notice":["warnings"]}
+-->recvresult
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1/0"
+}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### ping #########
+-->stmtadmin ping
+-->recvresult
+-->callmacro Show_sql_history
+
+EOF
+
+--let $MACROS= --import=$MYSQLXTEST_MACRO_DIR
+--replace_regex /BINARY // /KILL [0-9]+/KILL/ /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/
+--exec $MYSQLXTEST -ux_root --password='' $MACROS --file=$MYSQL_TMP_DIR/performance_schema_stmt.tmp 2>&1
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $MYSQL_TMP_DIR/performance_schema_stmt.tmp
+--source include/xplugin_drop_user.inc

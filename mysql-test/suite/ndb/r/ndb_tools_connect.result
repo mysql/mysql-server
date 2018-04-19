@@ -1,0 +1,86 @@
+Bug #11764714 - Adding --connect-retry-delay and --connect-retries  options to tools
+Testing ndbinfo_select_all
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect to management server.
+Testing ndb_mgm
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Retrying every 1 seconds. Attempts left: 2 1, failed.
+Testing ndb_blob_tool
+disconnected
+
+NDBT_ProgramExit: 1 - Failed
+
+Testing ndb_config
+Testing ndb_delete_all
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect to management server.
+
+NDBT_ProgramExit: 1 - Failed
+
+Testing ndb_desc
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect to management server.
+
+NDBT_ProgramExit: 1 - Failed
+
+Testing ndb_drop_index
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+
+NDBT_ProgramExit: 1 - Failed
+
+Testing ndb_drop_table
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect to management server.
+
+NDBT_ProgramExit: 1 - Failed
+
+Testing ndb_index_stat
+
+NDBT_ProgramExit: 1 - Failed
+
+Testing ndb_restore
+CREATE TABLE t1 (col1 int)engine=ndb;
+drop table t1;
+drop table t1;
+Testing ndb_select_all
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect to management server.
+
+NDBT_ProgramExit: 1 - Failed
+
+Testing ndb_select_count
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect to management server.
+
+NDBT_ProgramExit: 1 - Failed
+
+Testing ndb_show_tables
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Unable to connect to management server.
+ - Error: '1011: Could not connect to socket: Unable to connect with connect string: nodeid=0,no_such_host:1186'
+
+NDBT_ProgramExit: 1 - Failed
+
+Testing ndb_waiter
+Connecting to mgmsrv at no_such_host
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Retrying every 1 seconds. Attempts left: 2 1, failed.
+latest_error=1011, line=no_such_host
+NDBT_ProgramExit: 1 - Failed
+

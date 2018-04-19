@@ -5,21 +5,13 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 Setup circular replication
 RESET MASTER;
-select @slave_server_id:=(variable_value+0)
-from information_schema.global_variables
-where variable_name like 'server_id';
-@slave_server_id:=(variable_value+0)
-3
+SLAVE_SERVER_ID: 3
 CHANGE MASTER TO master_host="127.0.0.1",master_port=SLAVE_PORT,master_user="root";
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 START SLAVE;
-select @master_server_id:=(variable_value+0)
-from information_schema.global_variables
-where variable_name like 'server_id';
-@master_server_id:=(variable_value+0)
-1
+MASTER_SERVER_ID: 1
 Setup ndb_replication and exceptions tables
 Populate ndb_replication table as necessary
 replace into mysql.ndb_replication values
@@ -78,12 +70,12 @@ c$new                 varchar(2000) not null,
 NDB$OP_TYPE           ENUM('WRITE_ROW','UPDATE_ROW', 'DELETE_ROW') NOT NULL,
 NDB$CFT_CAUSE         ENUM('ROW_DOES_NOT_EXIST','ROW_ALREADY_EXISTS','DATA_IN_CONFLICT','TRANS_IN_CONFLICT') NOT NULL,
 primary key(NDB$SERVER_ID, NDB$MASTER_SERVER_ID, NDB$MASTER_EPOCH, NDB$COUNT))
-ENGINE=NDB;
+ENGINE=NDB CHARACTER SET latin1;
 create table test.t1 (
 a int not null,
 b int not null,
 c varchar(2000),
-primary key (a,b)) engine=ndb;
+primary key (a,b)) engine=ndb CHARACTER SET latin1;
 MySQLD error output for server 1.1 matching pattern %Exceptions table %
 relevant
 [warning] ndb slave: exceptions table t1$ex has wrong definition (column 5): old or new column reference c$new in table t1$ex is not nullable and doesn't have a default value
@@ -119,7 +111,7 @@ ndb$cft_cause         enum('row_does_not_exist','row_already_exists','data_in_co
 ndb$orig_transid      bigint unsigned not null,
 e                     int,
 primary key(ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count))
-engine=ndb;
+engine=ndb CHARACTER SET latin1;
 create table test.t2 (
 x int default 21,
 a int not null,
@@ -127,7 +119,7 @@ b int not null,
 c int,
 d varchar(2000),
 e int,
-primary key(a,b)) engine=ndb;
+primary key(a,b)) engine=ndb CHARACTER SET latin1;
 Add some data
 stop slave;
 Slave contents
@@ -317,6 +309,8 @@ a	b	c	d	d$old	d$new	e	ndb$count > 0	ndb$op_type	ndb$cft_cause	ndb$orig_transid >
 9	10	11	Slave updated data 9	Initial data 9	Slave updated data 9	17	1	update_row	trans_in_conflict	1
 10	11	12	Slave updated data 10	Initial data 10	Slave updated data 10	17	1	update_row	trans_in_conflict	1
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 replace into mysql.ndb_replication values
 ("test", "ｱｱｱ", 3, 7, NULL),
 ("test", "ｱｱｱ", 1, 7, "NDB$EPOCH_TRANS()");
@@ -332,15 +326,23 @@ ndb$cft_cause         enum('row_does_not_exist','row_already_exists','data_in_co
 ndb$orig_transid      bigint unsigned not null,
 primary key(ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count))
 engine=ndb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table test.`ｱｱｱ` (
 `ｶｶｶ` int primary key,
 `ｷｷｷ` varchar(2000) charset utf8) engine=ndb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET NAMES latin1;
 MySQLD error output for server 1.1 matching pattern %suspicious % column op_type %
 relevant
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table test.`ｱｱｱ`,test.`ｱｱｱ$ex`;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 replace into mysql.ndb_replication values
 ("test", "ｱｱｱ", 3, 7, NULL),
 ("test", "ｱｱｱ", 1, 7, "NDB$EPOCH_TRANS()");
@@ -357,19 +359,26 @@ ndb$cft_cause         enum('row_does_not_exist','row_already_exists','data_in_co
 ndb$orig_transid      bigint unsigned not null,
 primary key(ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count))
 engine=ndb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table test.`ｱｱｱ` (
 `ｶｶｶ` int primary key,
 `ｷｷｷ` varchar(2000) charset utf8) engine=ndb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET NAMES latin1;
 MySQLD error output for server 1.1 matching pattern %suspicious % column op_type %
 relevant
 flush logs;
-drop table mysql.ndb_replication;
 drop table test.t1$EX, test.t1, test.t2$ex, test.t2;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table test.`ｱｱｱ`, test.`ｱｱｱ$ex`;
 SET NAMES latin1;
 flush logs;
+drop table mysql.ndb_replication;
 stop slave;
 reset slave;
 include/rpl_end.inc

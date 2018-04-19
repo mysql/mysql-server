@@ -1,111 +1,106 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/trx0trx.ic
-The transaction
+/** @file include/trx0trx.ic
+ The transaction
 
-Created 3/26/1996 Heikki Tuuri
-*******************************************************/
+ Created 3/26/1996 Heikki Tuuri
+ *******************************************************/
 
 #include "read0read.h"
 
-/**********************************************************************//**
-Determines if a transaction is in the given state.
-The caller must hold trx_sys->mutex, or it must be the thread
-that is serving a running transaction.
-A running RW transaction must be in trx_sys->rw_trx_list.
-@return TRUE if trx->state == state */
+/** Determines if a transaction is in the given state.
+ The caller must hold trx_sys->mutex, or it must be the thread
+ that is serving a running transaction.
+ A running RW transaction must be in trx_sys->rw_trx_list.
+ @return true if trx->state == state */
 UNIV_INLINE
-bool
-trx_state_eq(
-/*=========*/
-	const trx_t*	trx,	/*!< in: transaction */
-	trx_state_t	state)	/*!< in: state */
+bool trx_state_eq(const trx_t *trx,  /*!< in: transaction */
+                  trx_state_t state) /*!< in: state */
 {
 #ifdef UNIV_DEBUG
-	switch (trx->state) {
-	case TRX_STATE_PREPARED:
+  switch (trx->state) {
+    case TRX_STATE_PREPARED:
 
-		ut_ad(!trx_is_autocommit_non_locking(trx));
-		return(trx->state == state);
+      ut_ad(!trx_is_autocommit_non_locking(trx));
+      return (trx->state == state);
 
-	case TRX_STATE_ACTIVE:
+    case TRX_STATE_ACTIVE:
 
-		assert_trx_nonlocking_or_in_list(trx);
-		return(state == trx->state);
+      assert_trx_nonlocking_or_in_list(trx);
+      return (state == trx->state);
 
-	case TRX_STATE_COMMITTED_IN_MEMORY:
+    case TRX_STATE_COMMITTED_IN_MEMORY:
 
-		check_trx_state(trx);
-		return(state == trx->state);
+      check_trx_state(trx);
+      return (state == trx->state);
 
-	case TRX_STATE_NOT_STARTED:
-	case TRX_STATE_FORCED_ROLLBACK:
+    case TRX_STATE_NOT_STARTED:
+    case TRX_STATE_FORCED_ROLLBACK:
 
-		/* These states are not allowed for running transactions. */
-		ut_a(state == TRX_STATE_NOT_STARTED
-		     || state == TRX_STATE_FORCED_ROLLBACK);
+      /* These states are not allowed for running transactions. */
+      ut_a(state == TRX_STATE_NOT_STARTED ||
+           state == TRX_STATE_FORCED_ROLLBACK);
 
-		ut_ad(!trx->in_rw_trx_list);
+      ut_ad(!trx->in_rw_trx_list);
 
-		return(true);
-	}
-	ut_error;
+      return (true);
+  }
+  ut_error;
 #endif /* UNIV_DEBUG */
-	return(trx->state == state);
+  return (trx->state == state);
 }
 
-/****************************************************************//**
-Retrieves the error_info field from a trx.
-@return the error info */
+/** Retrieves the error_info field from a trx.
+ @return the error info */
 UNIV_INLINE
-const dict_index_t*
-trx_get_error_info(
-/*===============*/
-	const trx_t*	trx)	/*!< in: trx object */
+const dict_index_t *trx_get_error_info(const trx_t *trx) /*!< in: trx object */
 {
-	return(trx->error_info);
+  return (trx->error_info);
 }
 
-/*******************************************************************//**
-Retrieves transaction's que state in a human readable string. The string
-should not be free()'d or modified.
-@return string in the data segment */
+/** Retrieves transaction's que state in a human readable string. The string
+ should not be free()'d or modified.
+ @return string in the data segment */
 UNIV_INLINE
-const char*
-trx_get_que_state_str(
-/*==================*/
-	const trx_t*	trx)	/*!< in: transaction */
+const char *trx_get_que_state_str(const trx_t *trx) /*!< in: transaction */
 {
-	/* be sure to adjust TRX_QUE_STATE_STR_MAX_LEN if you change this */
-	switch (trx->lock.que_state) {
-	case TRX_QUE_RUNNING:
-		return("RUNNING");
-	case TRX_QUE_LOCK_WAIT:
-		return("LOCK WAIT");
-	case TRX_QUE_ROLLING_BACK:
-		return("ROLLING BACK");
-	case TRX_QUE_COMMITTING:
-		return("COMMITTING");
-	default:
-		return("UNKNOWN");
-	}
+  /* be sure to adjust TRX_QUE_STATE_STR_MAX_LEN if you change this */
+  switch (trx->lock.que_state) {
+    case TRX_QUE_RUNNING:
+      return ("RUNNING");
+    case TRX_QUE_LOCK_WAIT:
+      return ("LOCK WAIT");
+    case TRX_QUE_ROLLING_BACK:
+      return ("ROLLING BACK");
+    case TRX_QUE_COMMITTING:
+      return ("COMMITTING");
+    default:
+      return ("UNKNOWN");
+  }
 }
 
 /** Retreieves the transaction ID.
@@ -117,186 +112,110 @@ function should be used for printing purposes only.
 @param[in]	trx	transaction whose id to retrieve
 @return transaction id */
 UNIV_INLINE
-trx_id_t
-trx_get_id_for_print(
-	const trx_t*	trx)
-{
-	/* Readonly and transactions whose intentions are unknown (whether
-	they will eventually do a WRITE) don't have trx_t::id assigned (it is
-	0 for those transactions). Transaction IDs in
-	innodb_trx.trx_id,
-	innodb_locks.lock_id,
-	innodb_locks.lock_trx_id,
-	innodb_lock_waits.requesting_trx_id,
-	innodb_lock_waits.blocking_trx_id should match because those tables
-	could be used in an SQL JOIN on those columns. Also trx_t::id is
-	printed by SHOW ENGINE INNODB STATUS, and in logs, so we must have the
-	same value printed everywhere consistently. */
+trx_id_t trx_get_id_for_print(const trx_t *trx) {
+  /* Readonly and transactions whose intentions are unknown (whether
+  they will eventually do a WRITE) don't have trx_t::id assigned (it is
+  0 for those transactions). Transaction IDs in
+  information_schema.innodb_trx.trx_id,
+  performance_schema.data_locks.engine_lock_id,
+  performance_schema.data_locks.engine_transaction_id,
+  performance_schema.data_lock_waits.requesting_engine_lock_id,
+  performance_schema.data_lock_waits.requesting_engine_transaction_id,
+  performance_schema.data_lock_waits.blocking_engine_lock_id,
+  performance_schema.data_lock_waits.blocking_engine_transaction_id
+  should match because those tables
+  could be used in an SQL JOIN on those columns. Also trx_t::id is
+  printed by SHOW ENGINE INNODB STATUS, and in logs, so we must have the
+  same value printed everywhere consistently. */
 
-	/* DATA_TRX_ID_LEN is the storage size in bytes. */
-	static const trx_id_t	max_trx_id
-		= (1ULL << (DATA_TRX_ID_LEN * CHAR_BIT)) - 1;
+  /* DATA_TRX_ID_LEN is the storage size in bytes. */
+  static const trx_id_t max_trx_id = (1ULL << (DATA_TRX_ID_LEN * CHAR_BIT)) - 1;
 
-	ut_ad(trx->id <= max_trx_id);
+  ut_ad(trx->id <= max_trx_id);
 
-	return(trx->id != 0
-	       ? trx->id
-	       : reinterpret_cast<trx_id_t>(trx) | (max_trx_id + 1));
+  return (trx->id != 0 ? trx->id
+                       : reinterpret_cast<trx_id_t>(trx) | (max_trx_id + 1));
 }
 
-/**********************************************************************//**
-Determine if a transaction is a dictionary operation.
-@return dictionary operation mode */
+/** Determine if a transaction is a dictionary operation.
+ @return dictionary operation mode */
 UNIV_INLINE
-enum trx_dict_op_t
-trx_get_dict_operation(
-/*===================*/
-	const trx_t*	trx)	/*!< in: transaction */
+enum trx_dict_op_t trx_get_dict_operation(
+    const trx_t *trx) /*!< in: transaction */
 {
-	trx_dict_op_t op = static_cast<trx_dict_op_t>(trx->dict_operation);
+  trx_dict_op_t op = static_cast<trx_dict_op_t>(trx->dict_operation);
 
 #ifdef UNIV_DEBUG
-	switch (op) {
-	case TRX_DICT_OP_NONE:
-	case TRX_DICT_OP_TABLE:
-	case TRX_DICT_OP_INDEX:
-		return(op);
-	}
-	ut_error;
+  switch (op) {
+    case TRX_DICT_OP_NONE:
+    case TRX_DICT_OP_TABLE:
+    case TRX_DICT_OP_INDEX:
+      return (op);
+  }
+  ut_error;
 #endif /* UNIV_DEBUG */
-	return(op);
+  return (op);
 }
-/**********************************************************************//**
-Flag a transaction a dictionary operation. */
+/** Flag a transaction a dictionary operation. */
 UNIV_INLINE
-void
-trx_set_dict_operation(
-/*===================*/
-	trx_t*			trx,	/*!< in/out: transaction */
-	enum trx_dict_op_t	op)	/*!< in: operation, not
-					TRX_DICT_OP_NONE */
+void trx_set_dict_operation(trx_t *trx,            /*!< in/out: transaction */
+                            enum trx_dict_op_t op) /*!< in: operation, not
+                                                   TRX_DICT_OP_NONE */
 {
 #ifdef UNIV_DEBUG
-	enum trx_dict_op_t	old_op = trx_get_dict_operation(trx);
+  enum trx_dict_op_t old_op = trx_get_dict_operation(trx);
 
-	switch (op) {
-	case TRX_DICT_OP_NONE:
-		ut_error;
-		break;
-	case TRX_DICT_OP_TABLE:
-		switch (old_op) {
-		case TRX_DICT_OP_NONE:
-		case TRX_DICT_OP_INDEX:
-		case TRX_DICT_OP_TABLE:
-			goto ok;
-		}
-		ut_error;
-		break;
-	case TRX_DICT_OP_INDEX:
-		ut_ad(old_op == TRX_DICT_OP_NONE);
-		break;
-	}
+  switch (op) {
+    case TRX_DICT_OP_NONE:
+      ut_error;
+      break;
+    case TRX_DICT_OP_TABLE:
+      switch (old_op) {
+        case TRX_DICT_OP_NONE:
+        case TRX_DICT_OP_INDEX:
+        case TRX_DICT_OP_TABLE:
+          goto ok;
+      }
+      ut_error;
+      break;
+    case TRX_DICT_OP_INDEX:
+      ut_ad(old_op == TRX_DICT_OP_NONE);
+      break;
+  }
 ok:
 #endif /* UNIV_DEBUG */
 
-	trx->ddl = true;
-	trx->dict_operation = op;
+  trx->dict_operation = op;
 }
 
-/**
-Releases the search latch if trx has reserved it.
-@param[in,out] trx		Transaction that may own the AHI latch */
+/** Check if redo rseg is modified for insert/update. */
 UNIV_INLINE
-void
-trx_search_latch_release_if_reserved(trx_t* trx)
+bool trx_is_redo_rseg_updated(const trx_t *trx) /*!< in: transaction */
 {
-	if (trx->has_search_latch
-	    && trx->killed_by != os_thread_get_curr_id()) {
-
-		rw_lock_s_unlock(&btr_search_latch);
-
-		trx->has_search_latch = false;
-	}
+  return (trx->rsegs.m_redo.insert_undo != 0 ||
+          trx->rsegs.m_redo.update_undo != 0);
 }
 
-/**
-Reserve the AHI latch if not already reserved by this transaction.
-@param[in,out] trx		Transaction that may own the AHI latch */
+/** Check if noredo rseg is modified for insert/update. */
 UNIV_INLINE
-void
-trx_reserve_search_latch_if_not_reserved(trx_t* trx)
+bool trx_is_temp_rseg_updated(const trx_t *trx) /*!< in: transaction */
 {
-	if (!trx->has_search_latch) {
-
-		rw_lock_s_lock(&btr_search_latch);
-
-		trx->has_search_latch = true;
-	}
+  return (trx->rsegs.m_noredo.insert_undo != 0 ||
+          trx->rsegs.m_noredo.update_undo != 0);
 }
 
-/**
-Releases the search latch if the transaction has been hogging it for too long.
-@param[in,out] trx		Transaction that may own the AHI latch */
+/** Check if redo/noredo rseg is modified for insert/update. */
 UNIV_INLINE
-void
-trx_search_latch_timeout(trx_t* trx)
+bool trx_is_rseg_updated(const trx_t *trx) /*!< in: transaction */
 {
-	if (trx->search_latch_timeout > 0 && trx->has_search_latch) {
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-		trx->search_latch_timeout--;
-#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
-		rw_lock_s_unlock(&btr_search_latch);
-
-		trx->has_search_latch = false;
-	}
+  return (trx_is_redo_rseg_updated(trx) || trx_is_temp_rseg_updated(trx));
 }
 
-/********************************************************************//**
-Check if redo rseg is modified for insert/update. */
+/** Check if redo/nonredo rseg is valid. */
 UNIV_INLINE
-bool
-trx_is_redo_rseg_updated(
-/*=====================*/
-	const trx_t*	   trx) /*!< in: transaction */
+bool trx_is_rseg_assigned(const trx_t *trx) /*!< in: transaction */
 {
-	return(trx->rsegs.m_redo.insert_undo != 0
-	       || trx->rsegs.m_redo.update_undo != 0);
-}
-
-/********************************************************************//**
-Check if noredo rseg is modified for insert/update. */
-UNIV_INLINE
-bool
-trx_is_noredo_rseg_updated(
-/*=======================*/
-	const trx_t*	   trx) /*!< in: transaction */
-{
-	return(trx->rsegs.m_noredo.insert_undo != 0
-	       || trx->rsegs.m_noredo.update_undo != 0);
-}
-
-/********************************************************************//**
-Check if redo/noredo rseg is modified for insert/update. */
-UNIV_INLINE
-bool
-trx_is_rseg_updated(
-/*================*/
-	const trx_t*	   trx) /*!< in: transaction */
-{
-	return(trx_is_redo_rseg_updated(trx)
-	       || trx_is_noredo_rseg_updated(trx));
-}
-
-/********************************************************************//**
-Check if redo/nonredo rseg is valid. */
-UNIV_INLINE
-bool
-trx_is_rseg_assigned(
-/*=================*/
-	const trx_t*	   trx) /*!< in: transaction */
-{
-	return(trx->rsegs.m_redo.rseg != NULL
-	       || trx->rsegs.m_noredo.rseg != NULL);
+  return (trx->rsegs.m_redo.rseg != NULL || trx->rsegs.m_noredo.rseg != NULL);
 }
 
 /**
@@ -307,78 +226,62 @@ committed and the reference count is not incremented.
 @param do_ref_count Increment the reference iff this is true
 @return transaction instance if it is not committed */
 UNIV_INLINE
-trx_t*
-trx_reference(
-	trx_t*		trx,
-	bool		do_ref_count)
-{
-	trx_mutex_enter(trx);
+trx_t *trx_reference(trx_t *trx, bool do_ref_count) {
+  trx_mutex_enter(trx);
 
-	if (trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
-		trx_mutex_exit(trx);
-		trx = NULL;
-	} else if (do_ref_count) {
-		ut_ad(trx->n_ref >= 0);
-		++trx->n_ref;
-		trx_mutex_exit(trx);
-	} else {
-		trx_mutex_exit(trx);
-	}
+  if (trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
+    trx_mutex_exit(trx);
+    trx = NULL;
+  } else if (do_ref_count) {
+    ut_ad(trx->n_ref >= 0);
+    ++trx->n_ref;
+    trx_mutex_exit(trx);
+  } else {
+    trx_mutex_exit(trx);
+  }
 
-	return(trx);
+  return (trx);
 }
 
 /**
 Release the transaction. Decrease the reference count.
 @param trx Transaction that is being released */
 UNIV_INLINE
-void
-trx_release_reference(
-	trx_t*		trx)
-{
-	trx_mutex_enter(trx);
+void trx_release_reference(trx_t *trx) {
+  trx_mutex_enter(trx);
 
-	ut_ad(trx->n_ref > 0);
-	--trx->n_ref;
+  ut_ad(trx->n_ref > 0);
+  --trx->n_ref;
 
-	trx_mutex_exit(trx);
-}
-
-
-/**
-@param trx		Get the active view for this transaction, if one exists
-@return the transaction's read view or NULL if one not assigned. */
-UNIV_INLINE
-ReadView*
-trx_get_read_view(
-	trx_t*		trx)
-{
-	return(!MVCC::is_view_active(trx->read_view) ? NULL : trx->read_view);
+  trx_mutex_exit(trx);
 }
 
 /**
 @param trx		Get the active view for this transaction, if one exists
 @return the transaction's read view or NULL if one not assigned. */
 UNIV_INLINE
-const ReadView*
-trx_get_read_view(
-	const trx_t*	trx)
-{
-	return(!MVCC::is_view_active(trx->read_view) ? NULL : trx->read_view);
+ReadView *trx_get_read_view(trx_t *trx) {
+  return (!MVCC::is_view_active(trx->read_view) ? NULL : trx->read_view);
+}
+
+/**
+@param trx		Get the active view for this transaction, if one exists
+@return the transaction's read view or NULL if one not assigned. */
+UNIV_INLINE
+const ReadView *trx_get_read_view(const trx_t *trx) {
+  return (!MVCC::is_view_active(trx->read_view) ? NULL : trx->read_view);
 }
 
 /**
 @param[in] trx		Transaction to check
 @return true if the transaction is a high priority transaction.*/
 UNIV_INLINE
-bool
-trx_is_high_priority(const trx_t* trx)
-{
-	if (trx->mysql_thd == NULL) {
-		return(false);
-	}
+bool trx_is_high_priority(const trx_t *trx) {
+  if (trx->mysql_thd == NULL) {
+    return (false);
+  }
 
-	return(thd_trx_priority(trx->mysql_thd) > 0);
+  return (thd_trx_priority(trx->mysql_thd) > 0);
 }
 
 /**
@@ -386,60 +289,42 @@ trx_is_high_priority(const trx_t* trx)
 @param[in] holder	Transaction holding the lock
 @return the transaction that will be rolled back, null don't care */
 UNIV_INLINE
-const trx_t*
-trx_arbitrate(const trx_t* requestor, const trx_t* holder)
-{
-	ut_ad(!trx_is_autocommit_non_locking(holder));
-	ut_ad(!trx_is_autocommit_non_locking(requestor));
+const trx_t *trx_arbitrate(const trx_t *requestor, const trx_t *holder) {
+  ut_ad(!trx_is_autocommit_non_locking(holder));
+  ut_ad(!trx_is_autocommit_non_locking(requestor));
 
-	/* Note: Background stats collection transactions also acquire
-	locks on user tables. They don't have an associated MySQL session
-	instance. */
+  /* Note: Background stats collection transactions also acquire
+  locks on user tables. They don't have an associated MySQL session
+  instance. */
 
-	if (requestor->mysql_thd == NULL) {
+  if (requestor->mysql_thd == NULL) {
+    ut_ad(!trx_is_high_priority(requestor));
 
-		ut_ad(!trx_is_high_priority(requestor));
+    if (trx_is_high_priority(holder)) {
+      return (requestor);
+    } else {
+      return (NULL);
+    }
 
-		if (trx_is_high_priority(holder)) {
-			return(requestor);
-		} else {
-			return(NULL);
-		}
+  } else if (holder->mysql_thd == NULL) {
+    ut_ad(!trx_is_high_priority(holder));
 
-	} else if (holder->mysql_thd == NULL) {
+    if (trx_is_high_priority(requestor)) {
+      return (holder);
+    }
 
-		ut_ad(!trx_is_high_priority(holder));
+    return (NULL);
+  }
 
-		if (trx_is_high_priority(requestor)) {
-			return(holder);
-		}
+  const THD *victim =
+      thd_trx_arbitrate(requestor->mysql_thd, holder->mysql_thd);
 
-		return(NULL);
-	}
+  ut_ad(victim == NULL || victim == requestor->mysql_thd ||
+        victim == holder->mysql_thd);
 
-	const THD*	victim = thd_trx_arbitrate(
-		requestor->mysql_thd, holder->mysql_thd);
+  if (victim != NULL) {
+    return (victim == requestor->mysql_thd ? requestor : holder);
+  }
 
-	ut_ad(victim == NULL
-	      || victim == requestor->mysql_thd
-	      || victim == holder->mysql_thd);
-
-	if (victim != NULL) {
-		return(victim == requestor->mysql_thd ? requestor : holder);
-	}
-
-	return(NULL);
-}
-
-/**
-Check if transaction is started.
-@param[in] trx		Transaction whose state we need to check
-@reutrn true if transaction is in state started */
-UNIV_INLINE
-bool
-trx_is_started(
-	const trx_t*	trx)
-{
-	return(trx->state != TRX_STATE_NOT_STARTED
-	       && trx->state != TRX_STATE_FORCED_ROLLBACK);
+  return (NULL);
 }

@@ -75,12 +75,12 @@ unlocked_user@localhost
 # Should appear without ACCOUNT UNLOCK
 SHOW CREATE USER unlocked_user@localhost;
 CREATE USER for unlocked_user@localhost
-CREATE USER 'unlocked_user'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*9FE154E826408CB1C5D3988A60CE5830160BE49A' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'unlocked_user'@'localhost' IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ALTER USER unlocked_user@localhost ACCOUNT LOCK;
 # Should appear with ACCOUNT LOCK
 SHOW CREATE USER unlocked_user@localhost;
 CREATE USER for unlocked_user@localhost
-CREATE USER 'unlocked_user'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*9FE154E826408CB1C5D3988A60CE5830160BE49A' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT LOCK
+CREATE USER 'unlocked_user'@'localhost' IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # roll back changes
 DROP USER unlocked_user@localhost;
 DROP USER unlocked_user2@localhost;
@@ -184,27 +184,27 @@ DROP USER u1@localhost;
 CREATE USER u1@localhost REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 100 ACCOUNT LOCK;
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 100 PASSWORD EXPIRE DEFAULT ACCOUNT LOCK
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 100 PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # ALTER USER correct SQL syntax 1
 ALTER USER u1@localhost PASSWORD EXPIRE ACCOUNT UNLOCK;
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 100 PASSWORD EXPIRE ACCOUNT UNLOCK
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 100 PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # ALTER USER correct SQL syntax 2
 ALTER USER u1@localhost ACCOUNT LOCK PASSWORD EXPIRE;
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 100 PASSWORD EXPIRE ACCOUNT LOCK
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 100 PASSWORD EXPIRE ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # ALTER USER correct SQL syntax 3
 ALTER USER u1@localhost REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 99 ACCOUNT UNLOCK PASSWORD EXPIRE NEVER;
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 99 PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 99 PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # ALTER USER correct SQL syntax 4
 ALTER USER u1@localhost REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 98 PASSWORD EXPIRE INTERVAL 5 DAY ACCOUNT LOCK;
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 98 PASSWORD EXPIRE INTERVAL 5 DAY ACCOUNT LOCK
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 98 PASSWORD EXPIRE ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # ALTER USER invalid SQL syntax
 ALTER USER u1@localhost ACCOUNT UNLOCK WITH MAX_QUERIES_PER_HOUR 97 PASSWORD EXPIRE;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MAX_QUERIES_PER_HOUR 97 PASSWORD EXPIRE' at line 1
@@ -213,71 +213,78 @@ DROP USER u1@localhost;
 CREATE USER u1@localhost IDENTIFIED BY 'PASS' ACCOUNT LOCK ACCOUNT UNLOCK;
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*B415DD9C4FB5EF59FE80C4FEBC1F9C715E6E97C4' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 DROP USER u1@localhost;
 # Duplicated ACCOUNT statement 2
 CREATE USER u1@localhost ACCOUNT UNLOCK ACCOUNT LOCK;
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT LOCK
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 DROP USER u1@localhost;
 # Duplicated ACCOUNT statement 3
 CREATE USER u1@localhost ACCOUNT LOCK PASSWORD EXPIRE ACCOUNT LOCK;
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT LOCK
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication>' REQUIRE NONE PASSWORD EXPIRE ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # Duplicated ACCOUNT statement 4
 ALTER USER u1@localhost IDENTIFIED BY 'PASS' ACCOUNT LOCK ACCOUNT UNLOCK;
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*B415DD9C4FB5EF59FE80C4FEBC1F9C715E6E97C4' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # Duplicated ACCOUNT statement 5
 ALTER USER u1@localhost ACCOUNT UNLOCK ACCOUNT LOCK;
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*B415DD9C4FB5EF59FE80C4FEBC1F9C715E6E97C4' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT LOCK
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # Duplicated ACCOUNT statement 6
 ALTER USER u1@localhost ACCOUNT LOCK PASSWORD EXPIRE ACCOUNT LOCK;
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*B415DD9C4FB5EF59FE80C4FEBC1F9C715E6E97C4' REQUIRE NONE PASSWORD EXPIRE ACCOUNT LOCK
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # Duplicated ACCOUNT statement 7
 ALTER USER u1@localhost PASSWORD EXPIRE ACCOUNT LOCK PASSWORD EXPIRE NEVER;
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*B415DD9C4FB5EF59FE80C4FEBC1F9C715E6E97C4' REQUIRE NONE PASSWORD EXPIRE NEVER ACCOUNT LOCK
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # Duplicated ACCOUNT statement 8
 ALTER USER u1@localhost PASSWORD EXPIRE NEVER ACCOUNT LOCK PASSWORD EXPIRE INTERVAL 5 DAY ACCOUNT LOCK;
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*B415DD9C4FB5EF59FE80C4FEBC1F9C715E6E97C4' REQUIRE NONE PASSWORD EXPIRE INTERVAL 5 DAY ACCOUNT LOCK
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # MySQL user table layout from the before ACCOUNT LOCK option
-CREATE TABLE temp_user LIKE mysql.user;
-INSERT INTO temp_user SELECT * FROM mysql.user;
+call mtr.add_suppression("Column count of mysql.* is wrong. "
+                         "Expected .*, found .*. "
+                         "The table is probably corrupted");
+CREATE TABLE mysql.temp_user LIKE mysql.user;
+INSERT INTO mysql.temp_user SELECT * FROM mysql.user;
 ALTER TABLE mysql.user DROP COLUMN account_locked;
+ALTER TABLE mysql.user DROP COLUMN create_role_priv;
+ALTER TABLE mysql.user DROP COLUMN drop_role_priv;
 CREATE USER backuser@localhost IDENTIFIED BY 'pass' ACCOUNT LOCK;
-ERROR 42S22: Unknown column 'account_locked' in 'mysql.user'
+ERROR HY000: Column count of mysql.user is wrong. Expected 49, found 46. The table is probably corrupted
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
 COUNT(*)
 0
 CREATE USER backuser@localhost IDENTIFIED BY 'pass' ACCOUNT UNLOCK;
-ERROR 42S22: Unknown column 'account_locked' in 'mysql.user'
+ERROR HY000: Column count of mysql.user is wrong. Expected 49, found 46. The table is probably corrupted
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
 COUNT(*)
 0
 CREATE USER backuser@localhost IDENTIFIED BY 'pass';
+ERROR HY000: Column count of mysql.user is wrong. Expected 49, found 46. The table is probably corrupted
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
 COUNT(*)
-1
+0
 SELECT user, account_locked FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
 ERROR 42S22: Unknown column 'account_locked' in 'field list'
 ALTER USER backuser@localhost ACCOUNT LOCK;
-ERROR 42S22: Unknown column 'account_locked' in 'mysql.user'
+ERROR HY000: Column count of mysql.user is wrong. Expected 49, found 46. The table is probably corrupted
 ALTER USER backuser@localhost ACCOUNT UNLOCK;
-ERROR 42S22: Unknown column 'account_locked' in 'mysql.user'
+ERROR HY000: Column count of mysql.user is wrong. Expected 49, found 46. The table is probably corrupted
 DROP USER backuser@localhost;
+ERROR HY000: Column count of mysql.user is wrong. Expected 49, found 46. The table is probably corrupted
 DROP TABLE mysql.user;
-ALTER TABLE temp_user RENAME mysql.user;
+ALTER TABLE mysql.temp_user RENAME mysql.user;
 FLUSH PRIVILEGES;
 # Check whether 'account' can be used as the identifier.
 CREATE DATABASE account;
@@ -303,3 +310,54 @@ DROP TABLE mysql.t1;
 DROP USER u1@localhost;
 DROP USER u2@localhost;
 DROP USER u3@localhost;
+#
+# Bug #20814051 CREATE USER BINLOG EVENTS INCLUDE NEW ACCOUNT KEYWORD
+#
+CREATE USER u1 IDENTIFIED BY 'pass';
+SHOW CREATE USER u1;
+CREATE USER for u1@%
+CREATE USER 'u1'@'%' IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+ALTER USER u1 ACCOUNT LOCK;
+SHOW CREATE USER u1;
+CREATE USER for u1@%
+CREATE USER 'u1'@'%' IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+DROP USER u1;
+# Restart server.
+TRUNCATE TABLE mysql.general_log;
+--------------- general log ---------------------------------------
+SET @old_log_output=          @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+SET @old_general_log_file=    @@global.general_log_file;
+SET GLOBAL general_log_file = '.../log/rewrite_general.log';
+SET GLOBAL log_output =       'FILE,TABLE';
+SET GLOBAL general_log=       'ON';
+CREATE USER u1 IDENTIFIED BY 'pass';
+CREATE USER u2 IDENTIFIED BY 'pass' ACCOUNT LOCK;
+CREATE USER u3 IDENTIFIED BY 'pass' ACCOUNT UNLOCK;
+ALTER USER u1 IDENTIFIED BY 'pass';
+ALTER USER u1 IDENTIFIED BY 'pass' ACCOUNT LOCK;
+ALTER USER u1 IDENTIFIED BY 'pass' ACCOUNT UNLOCK;
+#
+# BUG #20996273 ALTER USER REWRITE CAUSES DIFFERENCES ON SLAVE
+#
+ALTER USER u2 IDENTIFIED BY 'pass';
+Show what is logged:
+------ rewrite ------
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
+command_type NOT LIKE 'Prepare';
+argument
+CREATE USER 'u1'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u2'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u3'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %'AND
+command_type NOT LIKE 'Prepare';
+argument
+ALTER USER 'u1'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+ALTER USER 'u1'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+ALTER USER 'u1'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+ALTER USER 'u2'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+------ done ------
+DROP USER u1, u2, u3;
+SET GLOBAL general_log_file=  @old_general_log_file;
+SET GLOBAL general_log=       @old_general_log;
+SET GLOBAL log_output=        @old_log_output;

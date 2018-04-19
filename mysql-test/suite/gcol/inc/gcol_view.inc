@@ -24,6 +24,7 @@ analyze table t1;
 
 # simple view
 create view v1 (d,e) as select abs(b), abs(c) from t1;
+--sorted_result
 select d,e from v1;
 select is_updatable from information_schema.views where table_name='v1';
 
@@ -32,12 +33,14 @@ select is_updatable from information_schema.views where table_name='v1';
 explain select d,e from v1;
 create algorithm=temptable view v2 (d,e) as select abs(b), abs(c) from t1;
 show create view v2;
+--sorted_result
 select d,e from v2;
 --replace_column 10 X
 explain select d,e from v2;
 
 # VIEW on VIEW test
 create view v3 (d,e) as select d*2, e*2 from v1;
+--sorted_result
 select * from v3;
 --replace_column 10 X
 explain select * from v3;
@@ -53,15 +56,19 @@ create table t1 (a int not null,
                  c int generated always as (-a) stored);
 insert into t1 (a) values (1), (2), (3), (1), (2), (3);
 create view v1 as select distinct b from t1;
+--sorted_result
 select * from v1;
 --replace_column 10 X
 explain select * from v1;
+--sorted_result
 select * from t1;
 drop view v1;
 create view v1 as select distinct c from t1;
+--sorted_result
 select * from v1;
 --replace_column 10 X
 explain select * from v1;
+--sorted_result
 select * from t1;
 drop view v1;
 drop table t1;
@@ -79,6 +86,7 @@ select * from v1;
 explain select * from v1;
 drop view v1;
 create view v1 as select c+1 from t1 order by 1 desc limit 2;
+--sorted_result
 select * from v1;
 --replace_column 10 X
 explain select * from v1;
@@ -97,12 +105,12 @@ insert into t1 (a,b) values (10,2), (20,3), (30,4), (40,5), (50,10);
 create view v1 (a,e,f,g) as select a, b+1,c+1,d+1 from t1;
 # updatable field of updateable view
 update v1 set a=a+e;
-select * from v1;
-select * from t1;
+select * from v1 order by a;
+select * from t1 order by a;
 delete from v1;
 select * from v1;
 select * from t1;
---error 1471
+--error ER_NONUPDATEABLE_COLUMN,
 insert into v1 (a,e) values (60,15);
 drop table t1;
 drop view v1;
@@ -116,9 +124,11 @@ create table t1 (a int,
                  primary key(a));
 insert into t1 (a) values (1), (2), (3);
 create view v1 (x,y,z) as select a,b,c from t1 where b < -1;
+--sorted_result
 select t1.a, v1.x, v1.y, v1.z from t1 left join v1 on (t1.b= v1.y);
 drop view v1;
 create view v1 (x,y,z) as select a,b,c from t1 where c < -1;
+--sorted_result
 select t1.a, v1.x, v1.y, v1.z from t1 left join v1 on (t1.c= v1.z);
 drop view v1;
 drop table t1;
@@ -135,6 +145,7 @@ create table t2 (a2 int,
 insert into t1 (a1) values (1), (2);
 insert into t2 (a2) values (2), (3);
 create view v1 as select * from t1,t2 union all select * from t1,t2;
+--sorted_result
 select * from v1;
 drop view v1;
 drop table t1, t2;
@@ -171,19 +182,21 @@ create table t1 (a int,
 		 c int generated always as (-a) stored);
 insert into t1 (a) values (1),(1),(2),(2),(3),(3);
 create view v1 as select b from t1;
+--sorted_result
 select distinct b from v1;
-select distinct b from v1 limit 2;
-select distinct b from t1 limit 2;
-prepare stmt1 from "select distinct b from v1 limit 2";
+select distinct b from v1 order by b limit 2;
+select distinct b from t1 order by b limit 2;
+prepare stmt1 from "select distinct b from v1 order by b limit 2";
 execute stmt1;
 execute stmt1;
 deallocate prepare stmt1;
 drop view v1;
 create view v1 as select c from t1;
+--sorted_result
 select distinct c from v1;
-select distinct c from v1 limit 2;
-select distinct c from t1 limit 2;
-prepare stmt1 from "select distinct c from v1 limit 2";
+select distinct c from v1 order by c limit 2;
+select distinct c from t1 order by c limit 2;
+prepare stmt1 from "select distinct c from v1 order by c limit 2";
 execute stmt1;
 execute stmt1;
 deallocate prepare stmt1;
@@ -203,6 +216,7 @@ insert into v1 (a) values (1);
 insert into v1 (a) values (3);
 # simple insert with ignore
 insert ignore into v1 (a) values (2),(3),(0);
+--sorted_result
 select * from t1;
 drop view v1;
 drop table t1;

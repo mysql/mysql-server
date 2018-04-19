@@ -1,8 +1,6 @@
 DROP TABLE IF EXISTS t1, t2;
 SET SQL_WARNINGS=1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (
 id int(11) NOT NULL auto_increment,
 datatype_id int(11) DEFAULT '0' NOT NULL,
@@ -14,6 +12,7 @@ backcolor int(11),
 PRIMARY KEY (id),
 UNIQUE datatype_id (datatype_id, min_value, max_value)
 );
+set names latin1;
 INSERT INTO t1 VALUES ( '1', '4', '0.0000000000', '0.0000000000', 'Ei saja', '0', '16776960');
 INSERT INTO t1 VALUES ( '2', '4', '1.0000000000', '1.0000000000', 'Sajab', '16777215', '255');
 INSERT INTO t1 VALUES ( '3', '1', '2.0000000000', '49.0000000000', '', '0', '16777215');
@@ -154,6 +153,7 @@ select * from t1 where min_value<=-1 and max_value>=-1 and datatype_id=16;
 id	datatype_id	min_value	max_value	valuename	forecolor	backcolor
 143	16	-4.9000000000	-0.1000000000		NULL	15774720
 drop table t1;
+set names utf8mb4;
 create table t1 (a decimal(10,2));
 insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
 insert into t1 values ("-.1"),("+.1"),(".1");
@@ -224,7 +224,6 @@ drop  table t1;
 create table t1 (a decimal(10,2) unsigned);
 insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 2
 Warning	1264	Out of range value for column 'a' at row 6
 insert into t1 values ("-.1"),("+.1"),(".1");
 Warnings:
@@ -283,7 +282,6 @@ drop  table t1;
 create table t1 (a decimal(10,2) zerofill);
 insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 2
 Warning	1264	Out of range value for column 'a' at row 6
 insert into t1 values ("-.1"),("+.1"),(".1");
 Warnings:
@@ -714,14 +712,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `d` decimal(5,0) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (d decimal);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `d` decimal(10,0) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (d decimal(66,0));
 ERROR 42000: Too-big precision 66 specified for 'd'. Maximum is 65.
@@ -894,7 +892,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` decimal(10,0) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select round(a,b) as c from t1 order by c;
 c
 1000
@@ -965,8 +963,8 @@ create table t1(`c` decimal(9,2));
 insert into t1 values (300),(201.11);
 select max(case 1 when 1 then c else null end) from t1 group by c;
 max(case 1 when 1 then c else null end)
-201.11
 300.00
+201.11
 drop table t1;
 End of 5.0 tests
 CREATE TABLE t1 (a INTEGER);

@@ -1,6 +1,6 @@
 SELECT @@GLOBAL.binlog_format;
 @@GLOBAL.binlog_format
-ROW
+#
 '#---------------------BS_STVARS_002_01----------------------#'
 SET @start_value= @@global.binlog_format;
 SELECT COUNT(@@GLOBAL.binlog_format);
@@ -22,7 +22,7 @@ SELECT @@SESSION.binlog_format;
 STATEMENT
 '#---------------------BS_STVARS_002_03----------------------#'
 SELECT @@GLOBAL.binlog_format = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_format';
 @@GLOBAL.binlog_format = VARIABLE_VALUE
 1
@@ -32,14 +32,14 @@ COUNT(@@GLOBAL.binlog_format)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_format';
 COUNT(VARIABLE_VALUE)
 1
 1 Expected
 '#---------------------BS_STVARS_002_04----------------------#'
 SELECT @@SESSION.binlog_format = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='binlog_format';
 @@SESSION.binlog_format = VARIABLE_VALUE
 1
@@ -49,7 +49,7 @@ COUNT(@@SESSION.binlog_format)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='binlog_format';
 COUNT(VARIABLE_VALUE)
 1
@@ -71,4 +71,11 @@ SELECT COUNT(@@GLOBAL.binlog_format);
 COUNT(@@GLOBAL.binlog_format)
 1
 1 Expected
+#########################################################################
+# Bug #26269280: SET SESSION BINLOG_FORMAT = ROW GIVES SYNTAX ERROR     #
+#########################################################################
+SET binlog_format = ROW;
+SET SESSION binlog_format = ROW;
+SET @@session.binlog_format= ROW;
+#########################################################################
 SET @@global.binlog_format= @start_value;

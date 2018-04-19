@@ -1,17 +1,12 @@
-# Not supported in embedded
---source include/not_embedded.inc
-
--- source include/have_innodb.inc
--- source include/have_innodb_zip.inc
+-- source include/have_innodb_max_16k.inc
 
 # compressed table in tests are with sizes KEY_BLOCK_SIZE 1,2,4,8,16
 # Table creatation fails if KEY_BLOCK_SIZE > innodb-page-size,so
 # allow test to run only when innodb-page-size=16
---source include/have_innodb_16k.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] InnoDB: cannot calculate statistics for table `test`\.`t1` because the \.ibd file is missing");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to import tablespace `test`\.`t1` because it already exists.  Please DISCARD the tablespace before IMPORT.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* cannot calculate statistics for table `test`\.`t1` because the \.ibd file is missing");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Unable to import tablespace `test`\.`t1` because it already exists.  Please DISCARD the tablespace before IMPORT.");
 --enable_query_log
 
 --disable_warnings
@@ -75,10 +70,8 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 --copy_file $MYSQLD_TMPDIR/t1.cfg $MYSQLD_DATADIR/test/t1.cfg
 --copy_file $MYSQLD_TMPDIR/t1.ibd $MYSQLD_DATADIR/test/t1.ibd
 ALTER TABLE t1 IMPORT TABLESPACE;
-SET GLOBAL innodb_file_format=Antelope;
 SET innodb_strict_mode=off;
 ALTER TABLE t1 ENGINE InnoDB;
-SET GLOBAL innodb_file_format=default;
 SET innodb_strict_mode=default;
 SELECT COUNT(*) FROM t1;
 SELECT * FROM t1 ORDER BY b,a DESC LIMIT 3;
@@ -127,7 +120,7 @@ INSERT INTO t1(c2) SELECT c2 FROM t1;
 FLUSH TABLES t1 FOR EXPORT;
 SELECT COUNT(*) FROM t1;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test", "t1");
 EOF
 
@@ -146,7 +139,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
@@ -177,7 +170,7 @@ INSERT INTO t1(c2) SELECT c2 FROM t1;
 FLUSH TABLES t1 FOR EXPORT;
 SELECT COUNT(*) FROM t1;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test", "t1");
 EOF
 --list_files $MYSQLD_DATADIR/test
@@ -200,7 +193,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
@@ -231,7 +224,7 @@ INSERT INTO t1(c2) SELECT c2 FROM t1;
 FLUSH TABLES t1 FOR EXPORT;
 SELECT COUNT(*) FROM t1 WHERE c2 = 1;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test", "t1");
 EOF
 --list_files $MYSQLD_DATADIR/test
@@ -253,7 +246,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
@@ -284,7 +277,7 @@ INSERT INTO t1(c2) SELECT c2 FROM t1;
 FLUSH TABLES t1 FOR EXPORT;
 SELECT COUNT(*) FROM t1 WHERE c2 = 1;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test", "t1");
 EOF
 UNLOCK TABLES;
@@ -305,7 +298,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
@@ -318,7 +311,7 @@ ALTER TABLE t1 DROP INDEX x;
 ALTER TABLE t1 ADD INDEX idx(c2);
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test", "t1");
 EOF
 
@@ -328,7 +321,7 @@ CHECK TABLE t1;
 SELECT * FROM t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_cleanup("test", "t1");
 EOF
 
@@ -384,7 +377,7 @@ SELECT * FROM t1;
 FLUSH TABLES t1 FOR EXPORT;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test", "t1");
 EOF
 
@@ -403,7 +396,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
@@ -413,7 +406,7 @@ EOF
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_unlink_tablespace("test", "t1");
 EOF
 
@@ -431,7 +424,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
@@ -441,7 +434,7 @@ EOF
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_unlink_tablespace("test", "t1");
 EOF
 
@@ -458,7 +451,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
@@ -468,7 +461,7 @@ EOF
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_unlink_tablespace("test", "t1");
 EOF
 
@@ -485,7 +478,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
@@ -498,7 +491,7 @@ EOF
 ALTER TABLE t1 IMPORT TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_unlink_tablespace("test", "t1");
 EOF
 
@@ -516,7 +509,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
@@ -525,7 +518,7 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_cleanup("test", "t1");
 EOF
 

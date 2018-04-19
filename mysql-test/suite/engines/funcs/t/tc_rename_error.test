@@ -1,5 +1,5 @@
 --disable_warnings
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --enable_warnings
 
 --disable_warnings
@@ -14,7 +14,7 @@ SHOW TABLES;
 RENAME TABLE t2 TO t1;
 --error 1050
 RENAME TABLE t3 TO t1;
---error 1017
+--error ER_BAD_DB_ERROR
 RENAME TABLE t3 TO doesnotexist.t1;
 SHOW TABLES; 
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""

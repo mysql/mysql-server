@@ -2,10 +2,9 @@
 --echo # Bug#34300 Tinyblob & tinytext fields currupted after export/import and alter in 5.1
 --echo #
 
--- source include/have_innodb.inc
 
 -- disable_query_log
-call mtr.add_suppression("InnoDB: Warning: a long semaphore wait:");
+call mtr.add_suppression("Warning: a long semaphore wait:");
 call mtr.add_suppression("The age of the last checkpoint is");
 
 # set packet size and reconnect 

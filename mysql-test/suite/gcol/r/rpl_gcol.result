@@ -9,8 +9,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a+1) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (1,default);
 insert into t1 values (2,default);
 select * from t1;
@@ -22,6 +22,53 @@ a	b
 1	2
 2	3
 drop table t1;
+#
+# Bug#22241015: REPLICATION SERVERS CRASHES WHILE CHANGING A
+#               VALUE OF INDEXED JSON FIELD
+#
+CREATE TABLE gtable (doc JSON);
+INSERT INTO gtable (doc) VALUES
+('{"id": 1, "name": "Omar Bras"}'),
+('{"id": 2, "name": "Omar Mex"}');
+ALTER TABLE gtable ADD COLUMN gtext TEXT GENERATED ALWAYS AS
+(JSON_UNQUOTE(JSON_EXTRACT(doc, '$.name'))) VIRTUAL,
+ADD UNIQUE INDEX name_index (gtext(50));
+UPDATE gtable SET doc=JSON_SET(doc,'$.name',"Omar Argentina") WHERE JSON_EXTRACT(doc, "$.id") = 2;
+INSERT INTO gtable(doc) VALUES (NULL);
+SELECT * FROM gtable;
+doc	gtext
+{"id": 1, "name": "Omar Bras"}	Omar Bras
+{"id": 2, "name": "Omar Argentina"}	Omar Argentina
+NULL	NULL
+UPDATE gtable SET doc= '{ "id": 4, "name": "Omar Ara" }' where doc IS NULL;
+SELECT * FROM gtable ORDER BY gtext;
+doc	gtext
+{"id": 4, "name": "Omar Ara"}	Omar Ara
+{"id": 2, "name": "Omar Argentina"}	Omar Argentina
+{"id": 1, "name": "Omar Bras"}	Omar Bras
+UPDATE gtable SET doc= NULL WHERE JSON_EXTRACT(doc, "$.id") = 4;
+SELECT * FROM gtable ORDER BY gtext;
+doc	gtext
+NULL	NULL
+{"id": 2, "name": "Omar Argentina"}	Omar Argentina
+{"id": 1, "name": "Omar Bras"}	Omar Bras
+include/sync_slave_sql_with_master.inc
+SHOW CREATE TABLE gtable;
+Table	Create Table
+gtable	CREATE TABLE `gtable` (
+  `doc` json DEFAULT NULL,
+  `gtext` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.name'))) VIRTUAL,
+  UNIQUE KEY `name_index` (`gtext`(50))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Connection:slave - Row with value 3 is expected on slave.
+SELECT * FROM gtable ORDER BY gtext;
+doc	gtext
+NULL	NULL
+{"id": 2, "name": "Omar Argentina"}	Omar Argentina
+{"id": 1, "name": "Omar Bras"}	Omar Bras
+include/diff_tables.inc [master:gtable, slave:gtable]
+DROP TABLE gtable;
+include/sync_slave_sql_with_master.inc
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

@@ -1,0 +1,298 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+**** On Slave ****
+STOP SLAVE;
+include/wait_for_slave_to_stop.inc
+**** On Master ****
+SET SESSION BINLOG_FORMAT='ROW';
+CREATE TABLE t1 (a INT, b INT) ENGINE=MyISAM;
+CREATE TABLE t2 (c INT, d INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1),(2,4),(3,9);
+INSERT INTO t2 VALUES (1,1),(2,8),(3,27);
+UPDATE t1,t2 SET b = d, d = b * 2 WHERE a = c;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b INT) ENGINE=MyISAM
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (c INT, d INT) ENGINE=MyISAM
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Update_rows	#	#	table_id: #
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+SELECT * FROM t1;
+a	b
+1	1
+2	8
+3	27
+SELECT * FROM t2;
+c	d
+1	2
+2	16
+3	54
+**** On Slave ****
+START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
+include/wait_for_slave_sql_to_stop.inc
+include/check_slave_param.inc [Exec_Master_Log_Pos]
+include/check_slave_no_error.inc
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+include/wait_for_slave_to_start.inc
+SELECT * FROM t1;
+a	b
+1	1
+2	4
+3	9
+SELECT * FROM t2;
+c	d
+1	1
+2	8
+3	27
+STOP SLAVE;
+include/wait_for_slave_to_stop.inc
+RESET SLAVE;
+RESET MASTER;
+SET SESSION BINLOG_FORMAT=STATEMENT;
+SET @foo = 12;
+INSERT INTO t1 VALUES(@foo, 2*@foo);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	User var	#	#	@`foo`=12
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(@foo, 2*@foo)
+master-bin.000001	#	Query	#	#	COMMIT
+START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
+include/wait_for_slave_sql_to_stop.inc
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+include/wait_for_slave_to_start.inc
+**** On Master ****
+DROP TABLE t1, t2;
+include/sync_slave_sql_with_master.inc
+SET SESSION BINLOG_FORMAT='ROW';
+SET AUTOCOMMIT=0;
+CREATE TABLE t1 (a INT, b VARCHAR(20)) ENGINE=myisam;
+CREATE TABLE t2 (a INT, b VARCHAR(20)) ENGINE=myisam;
+CREATE TABLE t3 (a INT, b VARCHAR(20)) ENGINE=myisam;
+INSERT INTO t1 VALUES (1,'master/slave');
+INSERT INTO t2 VALUES (1,'master/slave');
+INSERT INTO t3 VALUES (1,'master/slave');
+CREATE TRIGGER tr1 AFTER UPDATE on t1 FOR EACH ROW
+BEGIN
+INSERT INTO t2 VALUES (NEW.a,NEW.b);
+DELETE FROM t2 WHERE a < NEW.a;
+END|
+CREATE TRIGGER tr2 AFTER INSERT on t2 FOR EACH ROW
+BEGIN
+UPDATE t3 SET a =2, b = 'master only';
+END|
+**** On Slave ****
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+**** On Master ****
+UPDATE t1 SET a = 2, b = 'master only' WHERE a = 1;
+DROP TRIGGER tr1;
+DROP TRIGGER tr2;
+INSERT INTO t1 VALUES (3,'master/slave');
+INSERT INTO t2 VALUES (3,'master/slave');
+INSERT INTO t3 VALUES (3,'master/slave');
+COMMIT;
+SELECT * FROM t1 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+SELECT * FROM t2 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+SELECT * FROM t3 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+*** On Slave ***
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+include/start_slave.inc
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	master/slave
+3	master/slave
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	master/slave
+3	master/slave
+SELECT * FROM t3 ORDER BY a;
+a	b
+1	master/slave
+3	master/slave
+DROP TABLE t1, t2, t3;
+include/sync_slave_sql_with_master.inc
+**** Case 2: Row binlog format and transactional tables ****
+*** On Master ***
+CREATE TABLE t4 (a INT, b VARCHAR(20)) ENGINE=innodb;
+CREATE TABLE t5 (a INT, b VARCHAR(20)) ENGINE=innodb;
+CREATE TABLE t6 (a INT, b VARCHAR(20)) ENGINE=innodb;
+**** On Slave ****
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+*** On Master ***
+BEGIN;
+INSERT INTO t4 VALUES (2, 'master only');
+INSERT INTO t5 VALUES (2, 'master only');
+INSERT INTO t6 VALUES (2, 'master only');
+COMMIT;
+BEGIN;
+INSERT INTO t4 VALUES (3, 'master/slave');
+INSERT INTO t5 VALUES (3, 'master/slave');
+INSERT INTO t6 VALUES (3, 'master/slave');
+COMMIT;
+SELECT * FROM t4 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+SELECT * FROM t5 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+SELECT * FROM t6 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+*** On Slave ***
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+include/start_slave.inc
+SELECT * FROM t4 ORDER BY a;
+a	b
+3	master/slave
+SELECT * FROM t5 ORDER BY a;
+a	b
+3	master/slave
+SELECT * FROM t6 ORDER BY a;
+a	b
+3	master/slave
+**** On Slave ****
+include/stop_slave.inc
+*** On Master ***
+BEGIN;
+INSERT INTO t4 VALUES (6, 'master only');
+INSERT INTO t5 VALUES (6, 'master only');
+INSERT INTO t6 VALUES (6, 'master only');
+COMMIT;
+BEGIN;
+INSERT INTO t4 VALUES (7, 'master only');
+INSERT INTO t5 VALUES (7, 'master only');
+INSERT INTO t6 VALUES (7, 'master only');
+COMMIT;
+SELECT * FROM t4 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+6	master only
+7	master only
+SELECT * FROM t5 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+6	master only
+7	master only
+SELECT * FROM t6 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+6	master only
+7	master only
+*** On Slave ***
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=11;
+include/start_slave.inc
+SELECT * FROM t4 ORDER BY a;
+a	b
+3	master/slave
+SELECT * FROM t5 ORDER BY a;
+a	b
+3	master/slave
+SELECT * FROM t6 ORDER BY a;
+a	b
+3	master/slave
+include/stop_slave.inc
+SET AUTOCOMMIT=0;
+INSERT INTO t4 VALUES (4, 'master only');
+INSERT INTO t5 VALUES (4, 'master only');
+INSERT INTO t6 VALUES (4, 'master only');
+COMMIT;
+INSERT INTO t4 VALUES (5, 'master/slave');
+INSERT INTO t5 VALUES (5, 'master/slave');
+INSERT INTO t6 VALUES (5, 'master/slave');
+COMMIT;
+SELECT * FROM t4 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+4	master only
+5	master/slave
+6	master only
+7	master only
+SELECT * FROM t5 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+4	master only
+5	master/slave
+6	master only
+7	master only
+SELECT * FROM t6 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+4	master only
+5	master/slave
+6	master only
+7	master only
+*** On Slave ***
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+include/start_slave.inc
+SELECT * FROM t4 ORDER BY a;
+a	b
+3	master/slave
+5	master/slave
+SELECT * FROM t5 ORDER BY a;
+a	b
+3	master/slave
+5	master/slave
+SELECT * FROM t6 ORDER BY a;
+a	b
+3	master/slave
+5	master/slave
+DROP TABLE t4, t5, t6;
+include/sync_slave_sql_with_master.inc
+**** Case 3: Statement logging format and LOAD DATA with non-transactional table ****
+*** On Master ***
+CREATE TABLE t10 (a INT, b VARCHAR(20)) ENGINE=myisam;
+*** On Slave ***
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+*** On Master ***
+SET SESSION BINLOG_FORMAT=STATEMENT;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/rpl_bug28618.dat' INTO TABLE t10 FIELDS TERMINATED BY '|';
+SELECT * FROM t10 ORDER BY a;
+a	b
+1	master only
+2	master only
+3	master only
+*** On Slave ***
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+include/start_slave.inc
+SELECT * FROM t10 ORDER BY a;
+a	b
+DROP TABLE t10;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

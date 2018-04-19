@@ -12,8 +12,6 @@ insert into t2 values("first");
 create table t3(a varchar(100));
 insert into t3 values("first");
 SET sql_mode = 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create procedure p1() sql security definer
 begin
 declare b int;
@@ -32,7 +30,7 @@ select a into b from t1 limit 1;
 insert into t1 values(current_user());
 return 36;
 end|
-create trigger trg2 before insert on t2 for each row 
+create trigger trg2 before insert on t2 for each row
 begin
 insert into t3 select * from t3;
 end|
@@ -47,7 +45,8 @@ user1@localhost
 set optimizer_trace="enabled=on";
 show grants;
 Grants for user1@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'user1'@'localhost' WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `user1`@`localhost` WITH GRANT OPTION
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `user1`@`localhost` WITH GRANT OPTION
 
 # ==========================================================
 # Part A.
@@ -61,10 +60,11 @@ call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 call p1()	20	0
+call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
 select 22 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
+select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
 # this SET always purges all remembered traces
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
@@ -77,7 +77,7 @@ select f1()	214	0
 select f1()	413	0
 set b@0 NULL	20	0
 select 48 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
+select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
 freturn 3 36	20	0
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
@@ -89,14 +89,14 @@ root@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select * from v1	898	0
-select * from v1	2156	0
+select * from v1	2161	0
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 insert into t2 values(current_user());
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 insert into t2 values(current_user())	20	0
 insert into t2 values(current_user())	20	0
-insert into t3 select * from t3	2532	0
+insert into t3 select * from t3	2893	0
 
 # Show that really all global privileges are needed: let root
 # revoke just one from user1. Because user1 does not have all global
@@ -114,7 +114,8 @@ user1@localhost
 set optimizer_trace="enabled=on";
 show grants;
 Grants for user1@localhost
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE ON *.* TO 'user1'@'localhost' WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `user1`@`localhost` WITH GRANT OPTION
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `user1`@`localhost` WITH GRANT OPTION
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 call p1();
 # In CALL we execute stored procedure and notice a security
@@ -126,6 +127,7 @@ call p1();
 # Ps-protocol-specific note: mysqltest uses normal protocol for CALL
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
+call p1()	20	0
 	0	1
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select f1();
@@ -265,10 +267,11 @@ call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 call p1()	20	0
+call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
 select 22 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
+select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select f1();
@@ -280,7 +283,7 @@ select f1()	214	0
 select f1()	413	0
 set b@0 NULL	20	0
 select 48 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
+select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
 freturn 3 36	20	0
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
@@ -292,12 +295,12 @@ user1@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select * from v1	898	0
-select * from v1	2156	0
+select * from v1	2161	0
 set optimizer_trace_offset=2,optimizer_trace_limit=1;
 call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
+set b@0 NULL	20	0
 set optimizer_trace="enabled=off";
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 call p2();
@@ -364,11 +367,11 @@ user1@localhost
 set optimizer_trace="enabled=on";
 show grants;
 Grants for user1@localhost
-GRANT EXECUTE ON FUNCTION `somedb`.`f1` TO 'user1'@'localhost'
-GRANT EXECUTE ON PROCEDURE `somedb`.`p1` TO 'user1'@'localhost'
-GRANT SELECT (a) ON `somedb`.`v1` TO 'user1'@'localhost'
-GRANT SELECT (a), INSERT (a) ON `somedb`.`t1` TO 'user1'@'localhost'
-GRANT USAGE ON *.* TO 'user1'@'localhost'
+GRANT EXECUTE ON FUNCTION `somedb`.`f1` TO `user1`@`localhost`
+GRANT EXECUTE ON PROCEDURE `somedb`.`p1` TO `user1`@`localhost`
+GRANT SELECT (`a`) ON `somedb`.`v1` TO `user1`@`localhost`
+GRANT SELECT (`a`), INSERT (`a`) ON `somedb`.`t1` TO `user1`@`localhost`
+GRANT USAGE ON *.* TO `user1`@`localhost`
 
 # Those privileges are not enough to see traces:
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
@@ -379,6 +382,7 @@ call p1();
 # implementation, CALL is hidden.
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
+call p1()	20	0
 	0	1
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select f1();
@@ -424,8 +428,6 @@ user()
 root@localhost
 # - for use of t1 in routines and view:
 grant select on t1 to user1@localhost;
-# - for use of routines:
-grant select on mysql.proc to user1@localhost;
 # - for use of view:
 grant select, show view on v1 to user1@localhost;
 delete from t1 where a<>"first";
@@ -438,26 +440,12 @@ call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 call p1()	20	0
-set b@0 NULL	20	0
-jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
-select 22 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
-insert into t1 values(current_user())	20	0
+	0	1
 # Trace exposed body of routine, and content of t1, which we
 # could see anyway:
 show create procedure p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
-    SQL SECURITY INVOKER
-begin
-declare b int;
-if (select count(*) from t1)
-then
-select 22 into b from dual;
-end if;
-select a into b from t1 limit 1;
-insert into t1 values(current_user());
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+p1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 select * from t1 limit 1;
 a
 first
@@ -468,25 +456,12 @@ f1()
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select f1()	214	0
-select f1()	413	0
-set b@0 NULL	20	0
-select 48 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
-insert into t1 values(current_user())	20	0
-freturn 3 36	20	0
+	0	1
 # Trace exposed body of routine, and content of t1, which we
 # could see anyway:
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
-    SQL SECURITY INVOKER
-begin
-declare b int;
-select 48 into b from dual;
-select a into b from t1 limit 1;
-insert into t1 values(current_user());
-return 36;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select * from v1;
 a
@@ -496,12 +471,12 @@ user1@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select * from v1	898	0
-select * from v1	2156	0
+select * from v1	2161	0
 # Trace exposed body of view, and content of t1, which we
 # could see anyway:
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 
 # Now remove each privilege to verify that it was needed:
 # C.1) remove table-level SELECT privilege on t1
@@ -525,40 +500,6 @@ call p1()	{
   "steps": [
   ]
 }	0
-set b@0 NULL	{
-  "steps": [
-  ]
-}	0
-		1
-select 22 into b from dual	{
-  "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select 22 AS `22`"
-          }
-        ]
-      }
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
-        ]
-      }
-    },
-    {
-      "join_execution": {
-        "select#": 1,
-        "steps": [
-        ]
-      }
-    }
-  ]
-}	0
-		1
 		1
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select f1();
@@ -568,25 +509,12 @@ f1()
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select f1()	214	0
-select f1()	413	0
-set b@0 NULL	20	0
-select 48 into b from dual	407	0
 	0	1
-	0	1
-freturn 3 36	20	0
 # Trace exposed body of routine, which we could see anyway:
 set optimizer_trace="enabled=off";
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
-    SQL SECURITY INVOKER
-begin
-declare b int;
-select 48 into b from dual;
-select a into b from t1 limit 1;
-insert into t1 values(current_user());
-return 36;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 set optimizer_trace="enabled=on";
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select * from v1;
@@ -601,72 +529,13 @@ QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 	0	1
 	0	1
 
-# C.2) remove table-level SELECT privilege on mysql.proc
+# C.2) remove table-level SELECT privilege on view
 
 select user();
 user()
 root@localhost
 # Put back privilege removed in C.1
 grant select on t1 to user1@localhost;
-# And remove a next one:
-revoke select on mysql.proc from user1@localhost;
-delete from t1 where a<>"first";
-
-select user();
-user()
-user1@localhost
-# We have no right to see routines' bodies:
-set optimizer_trace="enabled=off";
-show create procedure p1;
-Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
-show create function f1;
-Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
-# Verify that optimizer trace does not influence the privilege
-# checking in SHOW CREATE:
-set optimizer_trace="enabled=on";
-show create procedure p1;
-Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
-show create function f1;
-Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
-set optimizer_trace_offset=0,optimizer_trace_limit=100;
-call p1();
-# Cannot see anything as it would expose body of routine
-select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
-QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-	0	1
-set optimizer_trace_offset=0,optimizer_trace_limit=100;
-select f1();
-f1()
-36
-select QUERY, TRACE, INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
-QUERY	TRACE	INSUFFICIENT_PRIVILEGES
-select f1()	{
-  "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select `f1`() AS `f1()`"
-          }
-        ]
-      }
-    }
-  ]
-}	0
-		1
-
-# C.3) remove table-level SELECT privilege on view
-
-select user();
-user()
-root@localhost
-# Put back privilege removed in C.2
-grant select on mysql.proc to user1@localhost;
 # And remove a next one:
 revoke select on v1 from user1@localhost;
 grant select (a) on v1 to user1@localhost;
@@ -686,7 +555,7 @@ QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 	0	1
 	0	1
 
-# C.4) remove SHOW VIEW privilege on view
+# C.3) remove SHOW VIEW privilege on view
 
 select user();
 user()
@@ -752,8 +621,6 @@ user()
 user1@localhost
 set optimizer_trace="enabled=on";
 SET sql_mode = 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create procedure p1() sql security definer
 begin
 declare b int;
@@ -772,7 +639,7 @@ select a into b from t1 limit 1;
 insert into t1 values(current_user());
 return 36;
 end|
-create trigger trg2 before insert on t2 for each row 
+create trigger trg2 before insert on t2 for each row
 begin
 insert into t3 select * from t3;
 end|
@@ -793,6 +660,7 @@ call p1();
 # Can see body of routine (as definer), but not statements using t1
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
+call p1()	20	0
 call p1()	20	0
 set b@0 NULL	20	0
 	0	1
@@ -822,7 +690,7 @@ select 48 into b from dual;
 select a into b from t1 limit 1;
 insert into t1 values(current_user());
 return 36;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select * from v1;
 a
@@ -875,10 +743,11 @@ call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 call p1()	20	0
+call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
 select 22 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
+select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
 # Trace exposed body of routine, and content of t1, which we
 # could see anyway:
@@ -893,7 +762,7 @@ select 22 into b from dual;
 end if;
 select a into b from t1 limit 1;
 insert into t1 values(current_user());
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 select * from t1 limit 1;
 a
 first
@@ -907,7 +776,7 @@ select f1()	214	0
 select f1()	413	0
 set b@0 NULL	20	0
 select 48 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
+select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
 freturn 3 36	20	0
 # Trace exposed body of routine, and content of t1, which we
@@ -921,7 +790,7 @@ select 48 into b from dual;
 select a into b from t1 limit 1;
 insert into t1 values(current_user());
 return 36;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select * from v1;
 a
@@ -931,27 +800,26 @@ user1@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select * from v1	898	0
-select * from v1	2156	0
+select * from v1	2161	0
 # Trace exposed body of view, and content of t1, which we
 # could see anyway:
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`user1`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`user1`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 insert into t2 values(current_user());
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 insert into t2 values(current_user())	20	0
 insert into t2 values(current_user())	20	0
-insert into t3 select * from t3	2532	0
+insert into t3 select * from t3	2893	0
 # Trace exposed body of trigger, and content of t2/t3, which we
 # could see anyway:
 show create trigger trg2;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg2	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` trigger trg2 before insert on t2 for each row 
-begin
+trg2	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` TRIGGER `trg2` BEFORE INSERT ON `t2` FOR EACH ROW begin
 insert into t3 select * from t3;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci	#
 select * from t2, t3 limit 1;
 a	a
 first	first
@@ -962,8 +830,8 @@ a
 first
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select a from (select a from t1 where a like "f%") as tt where a like "fi%"	1061	0
-select a from (select a from t1 where a like "f%") as tt where a like "fi%"	3195	0
+select a from (select a from t1 where a like "f%") as tt where a like "fi%"	1060	0
+select a from (select a from t1 where a like "f%") as tt where a like "fi%"	3285	0
 
 # For routines, as they only use t1 and we added only one
 # privilege on t1, we have nothing to remove.
@@ -1123,8 +991,6 @@ user1 cannot see view's body:
 show create view v1;
 ERROR 42000: SHOW VIEW command denied to user 'user1'@'localhost' for table 'v1'
 SET sql_mode = 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 user1 creates a procedure
 create procedure proc() sql security definer
 begin

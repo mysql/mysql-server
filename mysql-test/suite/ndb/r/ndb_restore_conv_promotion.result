@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1, t1_myisam,  t2, t2_myisam;
 create table t1(t1 tinyint, t2 tinyint, ut1 tinyint unsigned, 
 s1 smallint, s2 smallint, us1 smallint unsigned, 
 m1 mediumint, m2 mediumint, um1 mediumint unsigned, 
@@ -31,9 +30,9 @@ modify column s2 mediumint, modify column us1 mediumint unsigned,
 modify column m1 int, modify column m2 int, modify column um1 int unsigned, 
 modify column i1 bigint, modify column i2 bigint, 
 modify column ui1 bigint unsigned;
-create table t1_myisam as select * from t1;
+create table t3 as select * from t1;
 delete from t1;
-select count(*) from t1 natural join t1_myisam;
+select count(*) from t1 natural join t3;
 count(*)
 1
 ********************************************
@@ -43,16 +42,16 @@ count(*)
 * mediumint(unsigned)->bigint(unsigned),
 * int(unsigned)->bigint(unsigned)
 *********************************************
-drop table t1_myisam;
+drop table t3;
 alter table t1 modify column t1 mediumint, modify column t2 mediumint, 
 modify column ut1 mediumint unsigned, modify column s1 int, 
 modify column s2 int, modify column us1 int unsigned, 
 modify column m1 bigint, modify column m2 bigint, 
 modify column um1 bigint unsigned, modify column i1 bigint, 
 modify column i2 bigint, modify column ui1 bigint unsigned;
-create table t1_myisam as select * from t1;
+create table t3 as select * from t1;
 delete from t1;
-select count(*) from t1 natural join t1_myisam;
+select count(*) from t1 natural join t3;
 count(*)
 1
 *******************************************
@@ -62,16 +61,16 @@ count(*)
 * mediumint(unsigned)->bigint(unsigned),
 * int(unsigned)->bigint(unsigned)
 *******************************************
-drop table t1_myisam;
+drop table t3;
 alter table t1 modify column t1 int, modify column t2 int, 
 modify column ut1 int unsigned, modify column s1 bigint, 
 modify column s2 bigint, modify column us1 bigint unsigned, 
 modify column m1 bigint, modify column m2 bigint, 
 modify column um1 bigint unsigned, modify column i1 bigint, 
 modify column i2 bigint, modify column ui1 bigint unsigned;
-create table t1_myisam as select * from t1;
+create table t3 as select * from t1;
 delete from t1;
-select count(*) from t1 natural join t1_myisam;
+select count(*) from t1 natural join t3;
 count(*)
 1
 ********************************************
@@ -81,24 +80,24 @@ count(*)
 * mediumint(unsigned)->bigint(unsigned),
 * int(unsigned)->bigint(unsigned)
 ********************************************
-drop table t1_myisam;
+drop table t3;
 alter table t1 modify column t1 bigint, modify column t2 bigint, 
 modify column ut1 bigint unsigned, modify column s1 bigint, 
 modify column s2 bigint, modify column us1 bigint unsigned, 
 modify column m1 bigint, modify column m2 bigint, 
 modify column um1 bigint unsigned, modify column i1 bigint, 
 modify column i2 bigint, modify column ui1 bigint unsigned;
-create table t1_myisam as select * from t1;
+create table t3 as select * from t1;
 delete from t1;
-select count(*) from t1 natural join t1_myisam;
+select count(*) from t1 natural join t3;
 count(*)
 1
 drop table t1;
-drop table t1_myisam;
+drop table t3;
 create table t2(ch1 char(20), ch2 char(200), vch1 varchar(20), 
 vch2 varchar(200), vch3 varchar(2000), b1 binary(20), b2 binary(200), 
 vb1 varbinary(20), vb2 varbinary(200), vb3 varbinary(2000)
-)engine = ndb;
+) character set latin1 engine = ndb;
 insert into t2 values(repeat('a', 20), repeat('b', 200), repeat('c', 20),
 repeat('d', 200), repeat('e', 1000), repeat('f', 20), repeat('g', 200),
 repeat('h', 20), repeat('i', 200), repeat('j', 1500));
@@ -124,26 +123,26 @@ modify column vch1 varchar(200), modify column vch2 varchar(500),
 modify column vch3 varchar(2500), modify column b1 binary(255), 
 modify column b2 varbinary(255), modify column vb1 varbinary(100), 
 modify column vb2 varbinary(300), modify column vb3 varbinary(2100);
-create table t2_myisam as select * from t2;
-show create table t2_myisam;
+create table t4 as select * from t2;
+show create table t4;
 Table	Create Table
-t2_myisam	CREATE TABLE `t2_myisam` (
-  `ch1` char(255) DEFAULT NULL,
-  `ch2` varchar(200) DEFAULT NULL,
-  `vch1` varchar(200) DEFAULT NULL,
-  `vch2` varchar(500) DEFAULT NULL,
-  `vch3` varchar(2500) DEFAULT NULL,
+t4	CREATE TABLE `t4` (
+  `ch1` char(255) CHARACTER SET latin1 DEFAULT NULL,
+  `ch2` varchar(200) CHARACTER SET latin1 DEFAULT NULL,
+  `vch1` varchar(200) CHARACTER SET latin1 DEFAULT NULL,
+  `vch2` varchar(500) CHARACTER SET latin1 DEFAULT NULL,
+  `vch3` varchar(2500) CHARACTER SET latin1 DEFAULT NULL,
   `b1` binary(255) DEFAULT NULL,
   `b2` varbinary(255) DEFAULT NULL,
   `vb1` varbinary(100) DEFAULT NULL,
   `vb2` varbinary(300) DEFAULT NULL,
   `vb3` varbinary(2100) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-select * from t2_myisam;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from t4;
 ch1	ch2	vch1	vch2	vch3	b1	b2	vb1	vb2	vb3
 aaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	cccccccccccccccccccc	dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee	ffffffffffffffffffff                                                                                                                                                                                                                                           	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg	hhhhhhhhhhhhhhhhhhhh	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 select length(ch1), length(ch2),length(vch1),length(vch2),length(vch3),
-length(b1),length(b2),length(vb1),length(vb2),length(vb3) from t2_myisam;
+length(b1),length(b2),length(vb1),length(vb2),length(vb3) from t4;
 length(ch1)	length(ch2)	length(vch1)	length(vch2)	length(vch3)	length(b1)	length(b2)	length(vb1)	length(vb2)	length(vb3)
 20	200	20	200	1000	255	200	20	200	1500
 *************************************************
@@ -157,7 +156,7 @@ select length(ch1), length(ch2),length(vch1),length(vch2),length(vch3),
 length(b1),length(b2),length(vb1),length(vb2),length(vb3) from t2;
 length(ch1)	length(ch2)	length(vch1)	length(vch2)	length(vch3)	length(b1)	length(b2)	length(vb1)	length(vb2)	length(vb3)
 20	200	20	200	1000	255	200	20	200	1500
-select count(*) from t2 natural join t2_myisam;
+select count(*) from t2 natural join t4;
 count(*)
 1
 *************************************************
@@ -171,11 +170,11 @@ select length(ch1), length(ch2),length(vch1),length(vch2),length(vch3),
 length(b1),length(b2),length(vb1),length(vb2),length(vb3) from t2;
 length(ch1)	length(ch2)	length(vch1)	length(vch2)	length(vch3)	length(b1)	length(b2)	length(vb1)	length(vb2)	length(vb3)
 20	200	20	200	1000	255	200	20	200	1500
-select count(*) from t2 natural join t2_myisam;
+select count(*) from t2 natural join t4;
 count(*)
 1
 drop table t2;
-drop table t2_myisam;
+drop table t4;
 create table t1(a int primary key,
 b char(1),
 c char(1),

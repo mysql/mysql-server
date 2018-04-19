@@ -1,0 +1,892 @@
+CREATE TABLE t1(f1 INT);
+SELECT /*+ SET_VAR(foo = 10) */ 1;
+1
+1
+Warnings:
+Warning	3128	Unresolved name 'foo' for SET_VAR hint
+SELECT /*+ SET_VAR(foo = 1K) */ 1;
+1
+1
+Warnings:
+Warning	3128	Unresolved name 'foo' for SET_VAR hint
+SELECT /*+ SET_VAR(foo = 21M) */ 1;
+1
+1
+Warnings:
+Warning	3128	Unresolved name 'foo' for SET_VAR hint
+SELECT /*+ SET_VAR(foo = 321G) */ 1;
+1
+1
+Warnings:
+Warning	3128	Unresolved name 'foo' for SET_VAR hint
+SELECT /*+ SET_VAR(foo = 9000100500G) */ 1;
+1
+1
+Warnings:
+Warning	1064	A size parameter was incorrectly specified, either number or on the form 10M near '9000100500G) */ 1' at line 1
+SELECT /*+ SET_VAR(foo = 'test') */ 1;
+1
+1
+Warnings:
+Warning	3128	Unresolved name 'foo' for SET_VAR hint
+SELECT /*+ SET_VAR(foo = "test""test") */ 1;
+1
+1
+Warnings:
+Warning	3128	Unresolved name 'foo' for SET_VAR hint
+SELECT /*+ SET_VAR(foo = 900010050018247362846826482468) */ 1;
+1
+1
+Warnings:
+Warning	1064	A size parameter was incorrectly specified, either number or on the form 10M near '900010050018247362846826482468) */ 1' at line 1
+SELECT /*+ QB_NAME(1KLMN) */ 1;
+1
+1
+SELECT /*+ SET_VAR(foo = 900010050018247362846826482468000) */ 1;
+1
+1
+Warnings:
+Warning	1064	A size parameter was incorrectly specified, either number or on the form 10M near '900010050018247362846826482468000) */ 1' at line 1
+explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_access=on') SET_VAR(optimizer_switch = 'batched_key_access=off')*/ * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Warning	3126	Hint SET_VAR(optimizer_switch='batched_key_access=off')  is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_switch='batched_key_access=on') */ `test`.`t1`.`f1` AS `f1` from `test`.`t1`
+explain SELECT /*+ SET_VAR(max_join_size=1) SET_VAR(max_join_size=1) */ * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Warning	3126	Hint SET_VAR(max_join_size=1)  is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SET_VAR(max_join_size=1) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1`
+explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_access=on')
+SET_VAR(big_tables=on)
+SET_VAR(big_tables=off) */ * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Warning	3126	Hint SET_VAR(big_tables='off')  is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_switch='batched_key_access=on') SET_VAR(big_tables='on') */ `test`.`t1`.`f1` AS `f1` from `test`.`t1`
+explain SELECT /*+ SET_VAR(optimizer_switc = 'batched_key_access=off') */ * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Warning	3128	Unresolved name 'optimizer_switc' for SET_VAR hint
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
+explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_access=yes') */ * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Warning	1231	Variable 'optimizer_switch' can't be set to the value of 'batched_key_access=yes'
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
+explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_acces=off') */ * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Warning	1231	Variable 'optimizer_switch' can't be set to the value of 'batched_key_acces=off'
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
+explain SELECT /*+ SET_VAR(max_allowed_packet = 1M) */ * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Warning	3637	Variable 'max_allowed_packet' cannot be set using SET_VAR hint.
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
+explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_acces=off') SET_VAR(range_alloc_block_size=amba)*/ * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Warning	1231	Variable 'optimizer_switch' can't be set to the value of 'batched_key_acces=off'
+Warning	1232	Incorrect argument type to variable 'range_alloc_block_size'
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
+SELECT /*+ SET_VAR(range_alloc_block_size=7000) */ 1;
+1
+1
+Warnings:
+Warning	1292	Truncated incorrect range_alloc_block_size value: '7000'
+DROP TABLE t1;
+PREPARE stmt FROM "SELECT /*+ SET_VAR(big_tables=on) */ VARIABLE_VALUE FROM performance_schema.session_variables where VARIABLE_NAME = 'big_tables'";
+SELECT VARIABLE_VALUE FROM performance_schema.session_variables where VARIABLE_NAME = 'big_tables';
+VARIABLE_VALUE
+OFF
+EXECUTE stmt;
+VARIABLE_VALUE
+ON
+SELECT VARIABLE_VALUE FROM performance_schema.session_variables where VARIABLE_NAME = 'big_tables';
+VARIABLE_VALUE
+OFF
+EXECUTE stmt;
+VARIABLE_VALUE
+ON
+SELECT VARIABLE_VALUE FROM performance_schema.session_variables where VARIABLE_NAME = 'big_tables';
+VARIABLE_VALUE
+OFF
+DEALLOCATE PREPARE stmt;
+CREATE PROCEDURE test_hint (hint_str VARCHAR(255), var_str VARCHAR(64))
+BEGIN
+SET @orig_q= CONCAT("SELECT
+                     VARIABLE_VALUE
+                     FROM performance_schema.session_variables where VARIABLE_NAME = '",  var_str, "'");
+SET @hint_q= CONCAT("SELECT /*+ ", hint_str,
+"*/ VARIABLE_VALUE" ,
+" FROM performance_schema.session_variables where VARIABLE_NAME = '",  var_str, "'");
+PREPARE orig_stmt FROM @orig_q;
+PREPARE hint_stmt FROM @hint_q;
+EXECUTE orig_stmt;
+EXECUTE hint_stmt;
+EXECUTE orig_stmt;
+DEALLOCATE PREPARE orig_stmt;
+DEALLOCATE PREPARE hint_stmt;
+END\\
+CREATE TABLE t1 (col INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+INSERT /*+ SET_VAR(auto_increment_increment=10) */ INTO t1 VALUES (NULL), (NULL), (NULL), (NULL);
+SELECT * FROM t1;
+col
+1
+11
+21
+31
+DROP TABLE t1;
+CALL test_hint("SET_VAR(auto_increment_increment=10)", "auto_increment_increment");
+VARIABLE_VALUE
+1
+VARIABLE_VALUE
+10
+VARIABLE_VALUE
+1
+CREATE TABLE t1 (col INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+INSERT /*+ SET_VAR(auto_increment_increment=10) SET_VAR(auto_increment_offset=5) */ INTO t1 VALUES (NULL), (NULL), (NULL), (NULL);
+SELECT * FROM t1;
+col
+5
+15
+25
+35
+DROP TABLE t1;
+CALL test_hint("SET_VAR(auto_increment_offset=5)", "auto_increment_offset");
+VARIABLE_VALUE
+1
+VARIABLE_VALUE
+5
+VARIABLE_VALUE
+1
+CREATE TABLE t1 (a CHAR PRIMARY KEY);
+INSERT INTO t1 VALUES (1),(2);
+FLUSH STATUS;
+SELECT COUNT(DISTINCT t1.a) FROM t1,t1 t2 WHERE t1.a = 1;
+COUNT(DISTINCT t1.a)
+1
+SHOW STATUS LIKE '%tmp_disk_tables%';
+Variable_name	Value
+Created_tmp_disk_tables	0
+FLUSH STATUS;
+SELECT /*+ SET_VAR(big_tables=on) */ COUNT(DISTINCT t1.a) FROM t1,t1 t2 WHERE t1.a = 1;
+COUNT(DISTINCT t1.a)
+1
+SHOW STATUS LIKE '%tmp_disk_tables%';
+Variable_name	Value
+Created_tmp_disk_tables	1
+DROP TABLE  t1;
+CALL test_hint("SET_VAR(big_tables=on)", "big_tables");
+VARIABLE_VALUE
+OFF
+VARIABLE_VALUE
+ON
+VARIABLE_VALUE
+OFF
+CALL test_hint("SET_VAR(bulk_insert_buffer_size=0)", "bulk_insert_buffer_size");
+VARIABLE_VALUE
+8388608
+VARIABLE_VALUE
+0
+VARIABLE_VALUE
+8388608
+CREATE TEMPORARY TABLE t1 SELECT 1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `1` int(1) NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TEMPORARY TABLE t2 SELECT /*+ SET_VAR(default_tmp_storage_engine=MyISAM)*/ 1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `1` int(1) NOT NULL DEFAULT '0'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, t2;
+CALL test_hint("SET_VAR(default_tmp_storage_engine=MyISAM)", "default_tmp_storage_engine");
+VARIABLE_VALUE
+InnoDB
+VARIABLE_VALUE
+MyISAM
+VARIABLE_VALUE
+InnoDB
+SELECT /*+ SET_VAR(div_precision_increment=12) */ 1/2;
+1/2
+0.500000000000
+CALL test_hint("SET_VAR(div_precision_increment=12)", "div_precision_increment");
+VARIABLE_VALUE
+4
+VARIABLE_VALUE
+12
+VARIABLE_VALUE
+4
+CALL test_hint("SET_VAR(end_markers_in_json=ON)", "end_markers_in_json");
+VARIABLE_VALUE
+OFF
+VARIABLE_VALUE
+ON
+VARIABLE_VALUE
+OFF
+CALL test_hint("SET_VAR(eq_range_index_dive_limit=0)", "eq_range_index_dive_limit");
+VARIABLE_VALUE
+200
+VARIABLE_VALUE
+0
+VARIABLE_VALUE
+200
+CREATE TABLE t1
+(
+id INT PRIMARY KEY
+) ENGINE=InnoDB;
+CREATE TABLE t2
+(
+v INT,
+CONSTRAINT c1 FOREIGN KEY (v) REFERENCES t1(id)
+) ENGINE=InnoDB;
+INSERT /*+ SET_VAR(foreign_key_checks=0) */INTO t2 VALUES(2);
+DROP TABLE t2, t1;
+CALL test_hint("SET_VAR(foreign_key_checks=0)", "foreign_key_checks");
+VARIABLE_VALUE
+ON
+VARIABLE_VALUE
+OFF
+VARIABLE_VALUE
+ON
+CREATE TABLE t1( a VARCHAR( 10 ), b INT );
+INSERT INTO t1 VALUES ( repeat( 'a', 10 ), 1),
+( repeat( 'b', 10 ), 2);
+SELECT /*+ SET_VAR(group_concat_max_len=20) */ GROUP_CONCAT(a) FROM t1;
+GROUP_CONCAT(a)
+aaaaaaaaaa,bbbbbbbbb
+Warnings:
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
+DROP TABLE t1;
+CALL test_hint("SET_VAR(group_concat_max_len=20)", "group_concat_max_len");
+VARIABLE_VALUE
+1024
+VARIABLE_VALUE
+20
+VARIABLE_VALUE
+1024
+CREATE TABLE t1 (col INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+INSERT /*+ SET_VAR(insert_id=10) */ INTO t1 VALUES (NULL), (NULL), (NULL), (NULL);
+SELECT * FROM t1;
+col
+10
+11
+12
+13
+DROP TABLE t1;
+CALL test_hint("SET_VAR(insert_id=10)", "insert_id");
+VARIABLE_VALUE
+0
+VARIABLE_VALUE
+10
+VARIABLE_VALUE
+0
+CALL test_hint("SET_VAR(join_buffer_size=128)", "join_buffer_size");
+VARIABLE_VALUE
+262144
+VARIABLE_VALUE
+128
+VARIABLE_VALUE
+262144
+CREATE TABLE t1(i INT) ENGINE MYISAM;
+LOCK TABLES t1 WRITE;
+INSERT /*+ SET_VAR(lock_wait_timeout=1) */INTO t1 VALUES (1);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+DROP TABLE t1;
+CALL test_hint("SET_VAR(lock_wait_timeout=1)", "lock_wait_timeout");
+VARIABLE_VALUE
+31536000
+VARIABLE_VALUE
+1
+VARIABLE_VALUE
+31536000
+CREATE TABLE t1(f1 INT);
+EXPLAIN SELECT /*+ SET_VAR(max_error_count=0) SET_VAR(optimizer_switch = 'batched_key_acces=off') SET_VAR(range_alloc_block_size=amba)*/ * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+DROP TABLE t1;
+CALL test_hint("SET_VAR(max_error_count=0)", "max_error_count");
+VARIABLE_VALUE
+1024
+VARIABLE_VALUE
+0
+VARIABLE_VALUE
+1024
+CREATE TABLE t1 (a INT, b VARCHAR(300));
+INSERT INTO t1 VALUES (1, 'string');
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+SELECT /*+ SET_VAR(max_execution_time=1) */ * FROM t1 a, t1 b;
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
+DROP TABLE t1;
+CALL test_hint("SET_VAR(max_execution_time=1)", "max_execution_time");
+VARIABLE_VALUE
+0
+VARIABLE_VALUE
+1
+VARIABLE_VALUE
+0
+CREATE TABLE t1(f1 CHAR(255) CHARSET utf8);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 VALUES('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('0');
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+FLUSH STATUS;
+SELECT /*+ SET_VAR(max_heap_table_size=16384) SET_VAR(internal_tmp_mem_storage_engine=MEMORY)*/ count(*)
+FROM t1 JOIN (
+SELECT t1.f1 FROM t1 JOIN t1 AS t2 JOIN t1 AS t3) tt ON t1.f1 = tt.f1;
+count(*)
+1000
+SHOW STATUS LIKE 'Handler_write';
+Variable_name	Value
+Handler_write	1021
+FLUSH STATUS;
+SELECT count(*)
+FROM t1 JOIN (
+SELECT t1.f1 FROM t1 JOIN t1 AS t2 JOIN t1 AS t3) tt ON t1.f1 = tt.f1;
+count(*)
+1000
+SHOW STATUS LIKE 'Handler_write';
+Variable_name	Value
+Handler_write	1000
+SET @@optimizer_switch= @optimizer_switch_saved;
+DROP TABLE t1;
+CALL test_hint("SET_VAR(max_heap_table_size=16384)", "max_heap_table_size");
+VARIABLE_VALUE
+16777216
+VARIABLE_VALUE
+16384
+VARIABLE_VALUE
+16777216
+CALL test_hint("SET_VAR(internal_tmp_mem_storage_engine=MEMORY)", "internal_tmp_mem_storage_engine");
+VARIABLE_VALUE
+TempTable
+VARIABLE_VALUE
+MEMORY
+VARIABLE_VALUE
+TempTable
+CALL test_hint("SET_VAR(max_length_for_sort_data=4)", "max_length_for_sort_data");
+VARIABLE_VALUE
+4096
+VARIABLE_VALUE
+4
+VARIABLE_VALUE
+4096
+SELECT /*+ SET_VAR(max_points_in_geometry=1048576) */
+st_astext(st_buffer(point(-5,0),8772, st_buffer_strategy( 'point_circle',1024*1024*1024))) as result;
+ERROR HY000: Parameter points_per_circle exceeds the maximum number of points in a geometry (1048576) in function st_buffer_strategy.
+CALL test_hint("SET_VAR(max_points_in_geometry=1048576)", "max_points_in_geometry");
+VARIABLE_VALUE
+65536
+VARIABLE_VALUE
+1048576
+VARIABLE_VALUE
+65536
+CALL test_hint("SET_VAR(max_seeks_for_key=1)", "max_seeks_for_key");
+VARIABLE_VALUE
+DEFAULT
+VARIABLE_VALUE
+1
+VARIABLE_VALUE
+DEFAULT
+CREATE TABLE t1 (f1 VARCHAR(10));
+INSERT INTO t1 VALUES ('aaaaac'), ('aaaaab'), ('aaaaaa');
+SELECT /*+ SET_VAR(max_sort_length=4) */ f1 FROM t1 ORDER BY f1;
+f1
+aaaaac
+aaaaab
+aaaaaa
+DROP TABLE t1;
+CALL test_hint("SET_VAR(max_sort_length=4)", "max_sort_length");
+VARIABLE_VALUE
+1024
+VARIABLE_VALUE
+4
+VARIABLE_VALUE
+1024
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a));
+CREATE TABLE t2 (a INT, INDEX a (a));
+CREATE TABLE t3 (a INT, b INT, INDEX a (a,b));
+INSERT INTO t1 VALUES (1,10), (2,20), (3,30),  (4,40);
+INSERT INTO t2 VALUES (2), (3), (4), (5);
+INSERT INTO t3 VALUES (10,3), (20,4), (30,5);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
+t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	t2	NULL	ref	a	a	5	test.t1.b	1	100.00	Using index
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.b	1	100.00	NULL
+2	MATERIALIZED	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using index
+2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`<subquery2>`.`b` = `test`.`t1`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
+EXPLAIN SELECT /*+ SET_VAR(optimizer_search_depth=1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
+t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using where; Using index; Start temporary
+1	SIMPLE	t2	NULL	ref	a	a	5	test.t3.b	1	100.00	Using index
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_search_depth=1) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t3`.`b`) and (`test`.`t1`.`b` = `test`.`t3`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
+EXPLAIN SELECT /*+ SET_VAR(optimizer_prune_level=0) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
+t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	SIMPLE	t2	NULL	ref	a	a	5	<subquery2>.b	1	100.00	Using index
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+2	MATERIALIZED	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using index
+2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_prune_level=0) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t2`.`a` = `<subquery2>`.`b`) and (`test`.`t1`.`b` = `<subquery2>`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
+CALL test_hint("SET_VAR(optimizer_search_depth=1)", "optimizer_search_depth");
+VARIABLE_VALUE
+62
+VARIABLE_VALUE
+1
+VARIABLE_VALUE
+62
+CALL test_hint("SET_VAR(optimizer_prune_level=0)", "optimizer_prune_level");
+VARIABLE_VALUE
+1
+VARIABLE_VALUE
+0
+VARIABLE_VALUE
+1
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1
+(
+f1 int NOT NULL DEFAULT '0',
+f2 int NOT NULL DEFAULT '0',
+f3 int NOT NULL DEFAULT '0',
+INDEX idx1(f2, f3), INDEX idx2(f3)
+);
+INSERT INTO t1(f1) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+INSERT INTO t1(f2, f3) VALUES (3,4), (3,4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+set optimizer_switch='mrr=on,mrr_cost_based=off';
+# Check statistics without hint
+FLUSH STATUS;
+SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+f1	f2	f3
+0	3	4
+0	3	4
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	6
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	2
+Handler_read_rnd_next	0
+# Check statistics with hint
+FLUSH STATUS;
+SELECT /*+ SET_VAR(optimizer_switch='mrr=off') */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+f1	f2	f3
+0	3	4
+0	3	4
+SHOW STATUS LIKE 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+set optimizer_switch=default;
+DROP TABLE t1;
+CALL test_hint("SET_VAR(optimizer_switch='mrr=off')", "optimizer_switch");
+VARIABLE_VALUE
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
+VARIABLE_VALUE
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=off,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
+VARIABLE_VALUE
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
+CALL test_hint("SET_VAR(range_alloc_block_size=8192)", "range_alloc_block_size");
+VARIABLE_VALUE
+4096
+VARIABLE_VALUE
+8192
+VARIABLE_VALUE
+4096
+CREATE TABLE t1 (f1 INT, KEY(f1));
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7);
+SELECT /*+ SET_VAR(range_optimizer_max_mem_size=1) */ f1 FROM t1 WHERE f1 = 1 OR f1 = 2 OR f1 = 6;
+f1
+1
+2
+6
+Warnings:
+Warning	3170	Memory capacity of 1 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+DROP TABLE t1;
+CALL test_hint("SET_VAR(range_optimizer_max_mem_size=1)", "range_optimizer_max_mem_size");
+VARIABLE_VALUE
+8388608
+VARIABLE_VALUE
+1
+VARIABLE_VALUE
+8388608
+CALL test_hint("SET_VAR(read_buffer_size=8200)", "read_buffer_size");
+VARIABLE_VALUE
+131072
+VARIABLE_VALUE
+8192
+VARIABLE_VALUE
+131072
+CALL test_hint("SET_VAR(read_rnd_buffer_size=1)", "read_rnd_buffer_size");
+VARIABLE_VALUE
+262144
+VARIABLE_VALUE
+1
+VARIABLE_VALUE
+262144
+CREATE TABLE t1 (f1 CHAR(255));
+INSERT INTO t1 VALUES ('aaa'), ('bbb'), ('ccc'), ('ddd'), ('eee');
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+FLUSH STATUS;
+SELECT /*+ SET_VAR(sort_buffer_size=32768) */f1 FROM t1 ORDER BY f1;
+SHOW STATUS LIKE 'Sort_merge_passes';
+Variable_name	Value
+Sort_merge_passes	1
+FLUSH STATUS;
+SELECT f1 FROM t1 ORDER BY f1;
+SHOW STATUS LIKE 'Sort_merge_passes';
+Variable_name	Value
+Sort_merge_passes	0
+DROP TABLE t1;
+CALL test_hint("SET_VAR(sort_buffer_size=32768)", "sort_buffer_size");
+VARIABLE_VALUE
+262144
+VARIABLE_VALUE
+32768
+VARIABLE_VALUE
+262144
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY);
+SET insert_id = 1;
+INSERT INTO t1 VALUES (NULL);
+SET insert_id = 0;
+SELECT /*+ SET_VAR(sql_auto_is_null=1) */ a FROM t1 WHERE a IS NULL;
+a
+1
+DROP TABLE t1;
+CALL test_hint("SET_VAR(sql_auto_is_null=1)", "sql_auto_is_null");
+VARIABLE_VALUE
+OFF
+VARIABLE_VALUE
+ON
+VARIABLE_VALUE
+OFF
+CREATE TABLE t1 (a INT, b VARCHAR(300));
+INSERT INTO t1 VALUES (1, 'string');
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+SELECT /*+ SET_VAR(sql_big_selects=0) SET_VAR(max_join_size=1) */ * FROM t1 a, t1 b;
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
+DROP TABLE t1;
+CALL test_hint("SET_VAR(sql_big_selects=0)", "sql_big_selects");
+VARIABLE_VALUE
+ON
+VARIABLE_VALUE
+OFF
+VARIABLE_VALUE
+ON
+CALL test_hint("SET_VAR(max_join_size=1)", "max_join_size");
+VARIABLE_VALUE
+18446744073709551615
+VARIABLE_VALUE
+1
+VARIABLE_VALUE
+18446744073709551615
+CREATE TABLE t1 (
+a int,
+b varchar(1),
+KEY (b,a)
+) charset utf8mb4;
+INSERT INTO t1 VALUES (1,NULL),(0,'a'),(1,NULL),(0,'a');
+INSERT INTO t1 VALUES (1,'a'),(0,'a'),(1,'a'),(0,'a');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT /*+ SET_VAR(sql_buffer_result=1) */  MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	b	b	12	NULL	2	100.00	Using where; Using index for group-by; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(sql_buffer_result=1) */ sql_buffer_result min(`test`.`t1`.`a`) AS `MIN(a)`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 'a') group by `test`.`t1`.`b`
+DROP TABLE t1;
+CALL test_hint("SET_VAR(sql_buffer_result=1)", "sql_buffer_result");
+VARIABLE_VALUE
+OFF
+VARIABLE_VALUE
+ON
+VARIABLE_VALUE
+OFF
+CREATE TABLE t1 (f1 DATE);
+INSERT /*+ SET_VAR(sql_mode='ALLOW_INVALID_DATES') */ INTO t1 VALUES ('00-00-00');
+DROP TABLE t1;
+CALL test_hint("SET_VAR(sql_mode='ALLOW_INVALID_DATES')", "sql_mode");
+VARIABLE_VALUE
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+VARIABLE_VALUE
+ALLOW_INVALID_DATES
+VARIABLE_VALUE
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+CREATE TABLE t1 ( a INT, KEY( a ) );
+INSERT INTO t1 VALUES (0), (1);
+CREATE VIEW v1 AS SELECT t11.a, t12.a AS b FROM t1 t11, t1 t12;
+UPDATE /*+ SET_VAR(sql_safe_updates=1) */ IGNORE v1 SET a = 1;
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+DROP TABLE t1;
+DROP VIEW v1;
+CALL test_hint("SET_VAR(sql_safe_updates=1)", "sql_safe_updates");
+VARIABLE_VALUE
+OFF
+VARIABLE_VALUE
+ON
+VARIABLE_VALUE
+OFF
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (1), (2);
+SELECT /*+ SET_VAR(sql_select_limit=1) */* FROM t1;
+f1
+1
+DROP TABLE t1;
+CALL test_hint("SET_VAR(sql_select_limit=1)", "sql_select_limit");
+VARIABLE_VALUE
+18446744073709551615
+VARIABLE_VALUE
+1
+VARIABLE_VALUE
+18446744073709551615
+SELECT /*+ SET_VAR(timestamp=1322115328) */ CAST(UNIX_TIMESTAMP() AS TIME);
+CAST(UNIX_TIMESTAMP() AS TIME)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '1322115328'
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+INSERT INTO t1 SELECT a+8 FROM t1;
+INSERT INTO t1 SELECT a+16 FROM t1;
+INSERT INTO t1 SELECT a+32 FROM t1;
+INSERT INTO t1 SELECT a+64 FROM t1;
+INSERT INTO t1 VALUE(NULL);
+FLUSH STATUS;
+SELECT /*+ SET_VAR(tmp_table_size=1024) */ COUNT(DISTINCT a) FROM t1;
+COUNT(DISTINCT a)
+128
+SHOW STATUS LIKE 'Created_tmp_files';
+Variable_name	Value
+Created_tmp_files	1
+DROP TABLE t1;
+CALL test_hint("SET_VAR(tmp_table_size=1024)", "tmp_table_size");
+VARIABLE_VALUE
+16777216
+VARIABLE_VALUE
+1024
+VARIABLE_VALUE
+16777216
+CALL test_hint("SET_VAR(updatable_views_with_limit=NO)", "updatable_views_with_limit");
+VARIABLE_VALUE
+YES
+VARIABLE_VALUE
+NO
+VARIABLE_VALUE
+YES
+CALL test_hint("SET_VAR(unique_checks=OFF)", "unique_checks");
+VARIABLE_VALUE
+ON
+VARIABLE_VALUE
+OFF
+VARIABLE_VALUE
+ON
+CREATE TABLE t1 (d DOUBLE, id INT, sex CHAR(1), n INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(n));
+INSERT INTO t1(d, id, sex) VALUES (1.0, 1, 'M'),
+(2.0, 2, 'F'),
+(3.0, 3, 'F'),
+(4.0, 4, 'F'),
+(5.0, 5, 'M'),
+(NULL, NULL, 'M'),
+(10.0, 10, NULL),
+(10.0, 10, NULL),
+(11.0, 11, NULL);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=JSON SELECT
+id, AVG(id) over w `avg`, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt
+FROM t1 WINDOW w as (ORDER BY id RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "avg",
+            "sum",
+            "count"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "id",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,avg(`test`.`t1`.`id`) OVER `w` AS `avg`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING) 
+EXPLAIN FORMAT=JSON SELECT /*+ SET_VAR(windowing_use_high_precision=OFF)*/
+d, AVG(d) over w `avg`, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt
+FROM t1 WINDOW w as (ORDER BY d RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.15"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`d`"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "avg",
+            "sum",
+            "count"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 9,
+        "rows_produced_per_join": 9,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.90",
+          "prefix_cost": "1.15",
+          "data_read_per_join": "216"
+        },
+        "used_columns": [
+          "d",
+          "n"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(windowing_use_high_precision='OFF') */ `test`.`t1`.`d` AS `d`,avg(`test`.`t1`.`d`) OVER `w` AS `avg`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING) 
+DROP TABLE t1;
+CALL test_hint("SET_VAR(windowing_use_high_precision=OFF)", "windowing_use_high_precision");
+VARIABLE_VALUE
+ON
+VARIABLE_VALUE
+OFF
+VARIABLE_VALUE
+ON
+WITH RECURSIVE qn AS (
+SELECT 1 AS a UNION ALL
+SELECT 1+a FROM qn WHERE a<=10)
+SELECT /*+ SET_VAR(cte_max_recursion_depth=5) */ COUNT(*) FROM qn;
+ERROR HY000: Recursive query aborted after 6 iterations. Try increasing @@cte_max_recursion_depth to a larger value.
+CALL test_hint("SET_VAR(cte_max_recursion_depth=5)", "cte_max_recursion_depth");
+VARIABLE_VALUE
+1000
+VARIABLE_VALUE
+5
+VARIABLE_VALUE
+1000
+DROP PROCEDURE test_hint;
+#
+# Bug#26482684 WL681: RESULT DIFF SEEN FOR SQL_SELECT_LIMIT HINT.
+#
+SELECT /*+ SET_VAR(sql_select_limit = 18446744073709551616) */ 1;
+1
+1
+Warnings:
+Warning	1064	A size parameter was incorrectly specified, either number or on the form 10M near '18446744073709551616) */ 1' at line 1
+SELECT /*+ SET_VAR(sql_select_limit = 18446744073709551615) */ 1;
+1
+1

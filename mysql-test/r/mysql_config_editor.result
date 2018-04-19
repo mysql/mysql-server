@@ -100,7 +100,7 @@ user = test_user4
 ##############################################
 # Tests for mysql_config_editor's help command
 ##############################################
-Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
@@ -266,4 +266,57 @@ mysqld is alive
 # tools should be able to continue
 # normally.
 mysqld is alive
+
+######################
+# WL#2284 Testing client tools with 32 user name
+######################
+#
+# Inserting login paths default & test-login-path_user_26
+File does not exist.
+Creating login file.
+Login file created.
+Opening the file.
+Generating a new key.
+Key successfully written to the file.
+Executing set command.
+Key successfully written to the file.
+Successfully written encrypted data to the login file.
+File exists.
+File has the required permission.
+Opening the file.
+Reading the login key.
+Login key read successfully.
+Executing set command.
+Successfully decrypted the login file.
+Key successfully written to the file.
+Successfully written encrypted data to the login file.
+# done..
+
+# Creating users for login
+CREATE USER user_name_len_25_01234567@localhost;
+CREATE USER user_name_len_26_012345678@localhost;
+# Connecting using 'user_name_len_25_01234567'
+#
+mysqld is alive
+mysqld is alive
+
+# Connecting using 'user_name_len_26_012345678'
+#
+mysqld is alive
+mysqld is alive
+
+# Dropping users 'user_name_len_25_01234567@localhost' & 'CREATE USER user_name_len_26_012345678@localhost'
+DROP USER user_name_len_25_01234567@localhost,user_name_len_26_012345678@localhost;
+
+###############################
+# Resetting the test login file
+###############################
+# done..
 #### End of test ####
+#
+# Bug #24557925: MYSQL_CONFIG_EDITOR CAN MAKE SERVER UNBOOTABLE
+#
+# Restarting the server. Should work
+# restart
+# Cleanup
+# End of 5.6 tests

@@ -152,10 +152,71 @@ DROP USER test_3@localhost;
 INSERT INTO t2 VALUES ("DROP USER test_3@localhost with table locked");
 
 UNLOCK TABLE;
+
+# Bug #20439913 CREATE TABLE DB.TABLE LIKE TMPTABLE IS
+# BINLOGGED INCORRECTLY - BREAKS A SLAVE
+CREATE DATABASE db;
+CREATE TABLE db.t1 LIKE t2;
+CREATE TABLE t3 LIKE t2;
+DROP TABLE t3;
+DROP DATABASE db;
+# end of Bug #20439913 test
+
 DROP USER test_3@localhost;
 DROP FUNCTION f2;
 DROP PROCEDURE p2;
 DROP EVENT e2;
 DROP TABLE t1, t2;
 
+--sync_slave_with_master
+#
+# BUG#20574550
+# CREATE TABLE LIKE <TEMP_TABLE> does not preserve original table storage
+# engine when using row based replication
+#
+--connection master
+
+# Define temp_t1 and temp_t2 storage engines
+--let $engine_temp_t1= InnoDB
+--let $engine_temp_t2= MyISAM
+
+# Create the two temporary tables
+--eval CREATE TEMPORARY TABLE temp_t1 (c1 INT) ENGINE=$engine_temp_t1
+--eval CREATE TEMPORARY TABLE temp_t2 (c1 INT) ENGINE=$engine_temp_t2
+
+# Create t1 and t2 based on temporary tables
+CREATE TABLE t1 LIKE temp_t1;
+CREATE TABLE t2 LIKE temp_t2;
+--sync_slave_with_master
+
+# On master
+--connection master
+# Assert that t1 and t2 have the same storage engines as temp_t1 and temp_t2
+--let $engine_t1= query_get_value(SHOW TABLE STATUS WHERE Name='t1', Engine, 1)
+--let $assert_cond= "$engine_t1" = "$engine_temp_t1"
+--let $assert_text= "t1 on master and temp_t1 have the same storage engine"
+--source include/assert.inc
+
+--let $engine_t2= query_get_value(SHOW TABLE STATUS WHERE Name='t2', Engine, 1)
+--let $assert_cond= "$engine_t2" = "$engine_temp_t2"
+--let $assert_text= "t2 on master and temp_t2 have the same storage engine"
+--source include/assert.inc
+
+# On slave
+--connection slave
+# Assert that t1 and t2 have the same storage engines as temp_t1 and temp_t2
+--let $engine_t1= query_get_value(SHOW TABLE STATUS WHERE Name='t1', Engine, 1)
+--let $assert_cond= "$engine_t1" = "$engine_temp_t1"
+--let $assert_text= "t1 on slave and temp_t1 have the same storage engine"
+--source include/assert.inc
+
+--let $engine_t2= query_get_value(SHOW TABLE STATUS WHERE Name='t2', Engine, 1)
+--let $assert_cond= "$engine_t2" = "$engine_temp_t2"
+--let $assert_text= "t2 on slave and temp_t2 have the same storage engine"
+--source include/assert.inc
+
+# Cleanup
+--connection master
+DROP TEMPORARY TABLE temp_t1, temp_t2;
+DROP TABLE t1, t2;
 --source include/rpl_end.inc

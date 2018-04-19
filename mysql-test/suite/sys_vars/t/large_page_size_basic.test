@@ -10,9 +10,9 @@ show global variables like 'large_page_size';
 show session variables like 'large_page_size';
 --disable_warnings
 --replace_column 2 #
-select * from information_schema.global_variables where variable_name='large_page_size';
+select * from performance_schema.global_variables where variable_name='large_page_size';
 --replace_column 2 #
-select * from information_schema.session_variables where variable_name='large_page_size';
+select * from performance_schema.session_variables where variable_name='large_page_size';
 --enable_warnings
 
 #

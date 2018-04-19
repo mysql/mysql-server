@@ -1,0 +1,370 @@
+#
+# WL#7755  mysqlpump: Extend mysqldump functionalities
+#
+#
+# Test all newly added mysqlpump options
+#
+CREATE DATABASE db1_extended;
+USE db1_extended;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+CREATE DATABASE db2_extended;
+USE db2_extended;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+# test exclude-databases
+DROP DATABASE db2_extended;
+DROP DATABASE db1_extended;
+SHOW DATABASES;
+Database
+db2_extended
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+DROP DATABASE db2_extended;
+# test exclude-events
+CREATE DATABASE db1_extended;
+USE db1_extended;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SET @a=5;
+CREATE EVENT ev2 ON SCHEDULE EVERY 5 HOUR DO SELECT 1;
+DROP DATABASE db1_extended;
+CREATE DATABASE db1_extended;
+USE db1_extended;
+SELECT EVENT_NAME FROM INFORMATION_SCHEMA.EVENTS
+WHERE EVENT_SCHEMA='db1_extended' ORDER BY EVENT_NAME;
+EVENT_NAME
+ev1
+# test exclude-routines
+DROP DATABASE db1_extended;
+CREATE DATABASE db1_extended;
+USE db1_extended;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+CREATE PROCEDURE p1 () SELECT * FROM t1;
+CREATE PROCEDURE p2 () SELECT * FROM t2;
+CREATE PROCEDURE p3 () SELECT * FROM t1,t2;
+DROP DATABASE db1_extended;
+CREATE DATABASE db1_extended;
+USE db1_extended;
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA='db1_extended' AND ROUTINE_TYPE= 'PROCEDURE'
+       ORDER BY ROUTINE_NAME;
+ROUTINE_NAME
+p3
+# test exclude-tables
+DROP DATABASE db1_extended;
+CREATE DATABASE db1_extended;
+USE db1_extended;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+CREATE TABLE t3 (a VARCHAR(10));
+DROP DATABASE db1_extended;
+CREATE DATABASE db1_extended;
+USE db1_extended;
+SHOW TABLES FROM db1_extended;
+Tables_in_db1_extended
+t3
+# test exclude-triggers
+DROP DATABASE db1_extended;
+CREATE DATABASE db1_extended;
+USE db1_extended;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+CREATE TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW SET NEW.a = 1;
+CREATE TRIGGER trig2 BEFORE UPDATE ON t1 FOR EACH ROW SET NEW.a = 999;
+DROP DATABASE db1_extended;
+CREATE DATABASE db1_extended;
+USE db1_extended;
+SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE TRIGGER_SCHEMA='db1_extended' ORDER BY TRIGGER_NAME;
+TRIGGER_NAME
+trig1
+# test include-events
+DROP DATABASE db1_extended;
+CREATE DATABASE db1_extended;
+USE db1_extended;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SET @a=5;
+CREATE EVENT ev2 ON SCHEDULE EVERY 5 HOUR DO SELECT 1;
+DROP DATABASE db1_extended;
+CREATE DATABASE db1_extended;
+USE db1_extended;
+SELECT EVENT_NAME FROM INFORMATION_SCHEMA.EVENTS
+WHERE EVENT_SCHEMA='db1_extended' ORDER BY EVENT_NAME;
+EVENT_NAME
+ev2
+# test include-routines
+DROP DATABASE db1_extended;
+CREATE DATABASE db1_extended;
+USE db1_extended;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+CREATE PROCEDURE p1 () SELECT * FROM t1;
+CREATE PROCEDURE p2 () SELECT * FROM t2;
+CREATE PROCEDURE p3 () SELECT * FROM t1,t2;
+DROP DATABASE db1_extended;
+CREATE DATABASE db1_extended;
+USE db1_extended;
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA='db1_extended' AND ROUTINE_TYPE= 'PROCEDURE'
+       ORDER BY ROUTINE_NAME;
+ROUTINE_NAME
+p1
+p2
+# test include-tables
+DROP DATABASE db1_extended;
+CREATE DATABASE db1_extended;
+USE db1_extended;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+CREATE TABLE t3 (a VARCHAR(10));
+DROP DATABASE db1_extended;
+CREATE DATABASE db1_extended;
+USE db1_extended;
+SHOW TABLES FROM db1_extended;
+Tables_in_db1_extended
+t1
+t2
+# test include-triggers
+DROP DATABASE db1_extended;
+CREATE DATABASE db1_extended;
+USE db1_extended;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+CREATE TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW SET NEW.a = 1;
+CREATE TRIGGER trig2 BEFORE UPDATE ON t1 FOR EACH ROW SET NEW.a = 999;
+DROP DATABASE db1_extended;
+CREATE DATABASE db1_extended;
+USE db1_extended;
+SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE TRIGGER_SCHEMA='db1_extended' ORDER BY TRIGGER_NAME;
+TRIGGER_NAME
+trig2
+DROP DATABASE db1_extended;
+# test parallel-schemas
+CREATE DATABASE db1_extended;
+CREATE DATABASE db2_extended;
+CREATE DATABASE db3_extended;
+CREATE DATABASE db4_extended;
+USE db1_extended;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+USE db2_extended;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+USE db3_extended;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+USE db4_extended;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+DROP DATABASE db1_extended;
+DROP DATABASE db2_extended;
+DROP DATABASE db3_extended;
+DROP DATABASE db4_extended;
+SHOW DATABASES;
+Database
+db2_extended
+db4_extended
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+DROP DATABASE db2_extended;
+DROP DATABASE db4_extended;
+# test skip-dump-rows
+CREATE DATABASE db1_extended;
+USE db1_extended;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+INSERT INTO t1 VALUES (1),(2),(21),(12),(41),(22),(51),(24);
+INSERT INTO t2 VALUES (1,'abc'),(2,'abc'),(21,'abc'),(12,'abc');
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+8
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+4
+DROP DATABASE db1_extended;
+USE db1_extended;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+0
+DROP DATABASE db1_extended;
+# test --users
+CREATE USER u1@localhost IDENTIFIED BY 'abc';
+CREATE USER u2;
+DROP USER u1@localhost,u2;
+SELECT user FROM mysql.user WHERE user like 'u%';
+user
+u2
+u1
+DROP USER u1@localhost,u2;
+# test --include-users
+CREATE USER u1@localhost IDENTIFIED BY 'abc';
+GRANT SELECT ON mysql.user to u1@localhost;
+CREATE USER u1@120.0.0.1;
+GRANT INSERT,UPDATE,DELETE ON mysql.* to u1@120.0.0.1;
+CREATE USER u2;
+CREATE USER u3@120.0.0.1;
+GRANT SELECT ON mysql.user to u3@120.0.0.1;
+DROP USER u1@localhost,u3@120.0.0.1,u1@120.0.0.1,u2;
+SELECT user FROM mysql.user WHERE user like 'u%';
+user
+u2
+u1
+DROP USER u1@120.0.0.1,u2;
+# test --exclude-users
+CREATE USER u1@localhost IDENTIFIED BY 'abc';
+GRANT SELECT ON mysql.user to u1@localhost;
+CREATE USER u1@120.0.0.1;
+GRANT INSERT,UPDATE,DELETE ON mysql.* to u1@120.0.0.1;
+CREATE USER u2;
+CREATE USER u3@120.0.0.1;
+GRANT SELECT ON mysql.user to u3@120.0.0.1;
+DROP USER u1@localhost,u3@120.0.0.1,u1@120.0.0.1,u2;
+SELECT user FROM mysql.user WHERE user like 'u%';
+user
+u3
+u1
+DROP USER u1@localhost,u3@120.0.0.1;
+# test add-drop-user
+CREATE USER u1@localhost IDENTIFIED BY 'abc';
+DROP USER u1@localhost;
+# test skip-definer for views
+CREATE DATABASE db1_extended;
+USE db1_extended;
+CREATE USER u1@localhost;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b VARCHAR(10), primary key(a));
+INSERT INTO t1 VALUES (289), (298), (234), (456), (789);
+INSERT INTO t2 VALUES (1, "on"), (2, "off"), (10, "pol"), (12, "meg");
+CREATE DEFINER = u1@localhost VIEW v1 AS SELECT * FROM t2;
+CREATE DEFINER = u1@localhost VIEW v2 AS SELECT t1.a as X, t2.* FROM t1,t2 ORDER BY X;
+CREATE DEFINER = u1@localhost VIEW definer_name_view AS SELECT * FROM t1 union SELECT a FROM t2;
+DROP DATABASE db1_extended;
+SHOW CREATE VIEW db1_extended.v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`u1`@`localhost` SQL SECURITY DEFINER VIEW `db1_extended`.`v1` AS select `db1_extended`.`t2`.`a` AS `a`,`db1_extended`.`t2`.`b` AS `b` from `db1_extended`.`t2`	utf8mb4	utf8mb4_0900_ai_ci
+SHOW CREATE VIEW db1_extended.v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`u1`@`localhost` SQL SECURITY DEFINER VIEW `db1_extended`.`v2` AS select `db1_extended`.`t1`.`a` AS `X`,`db1_extended`.`t2`.`a` AS `a`,`db1_extended`.`t2`.`b` AS `b` from (`db1_extended`.`t1` join `db1_extended`.`t2`) order by `db1_extended`.`t1`.`a`	utf8mb4	utf8mb4_0900_ai_ci
+SHOW CREATE VIEW db1_extended.definer_name_view;
+View	Create View	character_set_client	collation_connection
+definer_name_view	CREATE ALGORITHM=UNDEFINED DEFINER=`u1`@`localhost` SQL SECURITY DEFINER VIEW `db1_extended`.`definer_name_view` AS select `db1_extended`.`t1`.`a` AS `a` from `db1_extended`.`t1` union select `db1_extended`.`t2`.`a` AS `a` from `db1_extended`.`t2`	utf8mb4	utf8mb4_0900_ai_ci
+DROP DATABASE db1_extended;
+SHOW CREATE VIEW db1_extended.v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db1_extended`.`v1` AS select `db1_extended`.`t2`.`a` AS `a`,`db1_extended`.`t2`.`b` AS `b` from `db1_extended`.`t2`	utf8mb4	utf8mb4_0900_ai_ci
+SHOW CREATE VIEW db1_extended.v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db1_extended`.`v2` AS select `db1_extended`.`t1`.`a` AS `X`,`db1_extended`.`t2`.`a` AS `a`,`db1_extended`.`t2`.`b` AS `b` from (`db1_extended`.`t1` join `db1_extended`.`t2`) order by `db1_extended`.`t1`.`a`	utf8mb4	utf8mb4_0900_ai_ci
+SHOW CREATE VIEW db1_extended.definer_name_view;
+View	Create View	character_set_client	collation_connection
+definer_name_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db1_extended`.`definer_name_view` AS select `db1_extended`.`t1`.`a` AS `a` from `db1_extended`.`t1` union select `db1_extended`.`t2`.`a` AS `a` from `db1_extended`.`t2`	utf8mb4	utf8mb4_0900_ai_ci
+DROP DATABASE db1_extended;
+DROP USER u1@localhost;
+# test skip-definer for stored routines (FUNCTIONS/PROCEDURES)
+CREATE DATABASE db1_extended;
+USE db1_extended;
+CREATE USER u1@localhost;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (289), (298), (234), (456), (789);
+CREATE DEFINER = u1@localhost PROCEDURE p1()
+BEGIN
+SET @A= 20;
+SELECT 1;
+SELECT 2, 3 UNION SELECT 4, 5;
+SELECT 6, 7, 8; 
+END ;|
+CREATE DEFINER = u1@localhost FUNCTION f1 () RETURNS int
+BEGIN
+SET NAMES 'big5';
+RETURN (SELECT COUNT(*) FROM t1);
+END ;|
+CREATE DEFINER = u1@localhost FUNCTION f2() RETURNS int
+BEGIN
+DECLARE n int;
+DECLARE m int;
+SET n:= (SELECT min(a) FROM t1);
+SET m:= (SELECT max(a) FROM t1);
+RETURN n < m;
+END ;|
+CREATE DEFINER = u1@localhost PROCEDURE p2(x int)
+INSERT INTO t1 VALUES (x) ;|
+DROP DATABASE db1_extended;
+SHOW CREATE FUNCTION db1_extended.f1;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f1	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`u1`@`localhost` FUNCTION `f1`() RETURNS int(11)
+BEGIN
+SET NAMES 'big5';
+RETURN (SELECT COUNT(*) FROM t1);
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION db1_extended.f2;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f2	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`u1`@`localhost` FUNCTION `f2`() RETURNS int(11)
+BEGIN
+DECLARE n int;
+DECLARE m int;
+SET n:= (SELECT min(a) FROM t1);
+SET m:= (SELECT max(a) FROM t1);
+RETURN n < m;
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE PROCEDURE db1_extended.p1;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`u1`@`localhost` PROCEDURE `p1`()
+BEGIN
+SET @A= 20;
+SELECT 1;
+SELECT 2, 3 UNION SELECT 4, 5;
+SELECT 6, 7, 8; 
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE PROCEDURE db1_extended.p2;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p2	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`u1`@`localhost` PROCEDURE `p2`(x int)
+INSERT INTO t1 VALUES (x)	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+DROP DATABASE db1_extended;
+SHOW CREATE FUNCTION db1_extended.f1;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f1	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+BEGIN
+SET NAMES 'big5';
+RETURN (SELECT COUNT(*) FROM t1);
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION db1_extended.f2;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f2	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`root`@`localhost` FUNCTION `f2`() RETURNS int(11)
+BEGIN
+DECLARE n int;
+DECLARE m int;
+SET n:= (SELECT min(a) FROM t1);
+SET m:= (SELECT max(a) FROM t1);
+RETURN n < m;
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE PROCEDURE db1_extended.p1;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+BEGIN
+SET @A= 20;
+SELECT 1;
+SELECT 2, 3 UNION SELECT 4, 5;
+SELECT 6, 7, 8; 
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE PROCEDURE db1_extended.p2;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p2	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`root`@`localhost` PROCEDURE `p2`(x int)
+INSERT INTO t1 VALUES (x)	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+DROP DATABASE db1_extended;
+DROP USER u1@localhost;
+# test for compress-output

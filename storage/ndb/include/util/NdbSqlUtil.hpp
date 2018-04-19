@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -21,8 +28,7 @@
 #include <ndb_global.h>
 #include <kernel/ndb_limits.h>
 
-struct charset_info_st;
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 
 /**
  * Helper class with comparison functions on NDB (column) data types.
@@ -134,13 +140,6 @@ public:
    * Temporary workaround for bug#7284.
    */
   static int strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstLen, const unsigned char*src, unsigned srcLen);
-
-  /**
-   * Wrapper for 'strnxfrm' who change prototype in 5.6
-   */
-  static size_t ndb_strnxfrm(struct charset_info_st * cs,
-                             uchar *dst, size_t dstlen,
-                             const uchar *src, size_t srclen);
 
   /**
    * Convert attribute data to/from network byte order

@@ -1,0 +1,52 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = COUNT(*);
+let $table = performance_schema.socket_instances;
+
+select OBJECT_INSTANCE_BEGIN, THREAD_ID, SOCKET_ID, IP, PORT
+  from performance_schema.socket_instances
+  limit 1
+  into @oib, @tid, @sid, @ip, @port;
+
+###########################################################################
+# Test index on OBJECT_INSTANCE_BEGIN
+###########################################################################
+
+let $column_count = 1;
+let $col1 = OBJECT_INSTANCE_BEGIN;
+let $col1_act = @oib;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on THREAD_ID
+###########################################################################
+
+let $column_count = 1;
+let $col1 = THREAD_ID;
+let $col1_act = @tid;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on SOCKET_ID
+###########################################################################
+
+let $column_count = 1;
+let $col1 = SOCKET_ID;
+let $col1_act = @sid;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on IP, PORT
+###########################################################################
+
+let $column_count = 2;
+let $col1 = IP;
+let $col2 = PORT;
+let $col1_act = @ip;
+let $col2_act = @port;
+
+--source ../include/idx_explain_test.inc

@@ -1,0 +1,40 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Start server 1.
+[connection server1]
+SET GLOBAL GTID_PURGED= "297aeabb-1ef1-11e6-97b4-00212844d44e:1-9223372036854775800";
+include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775800]
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775801]
+
+############################################################
+# 2. Start server 2.
+[connection server2]
+SET GLOBAL GTID_PURGED= "297aeabb-1ef1-11e6-97b4-00212844d44e:1-9223372036854775800";
+include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775800]
+include/start_group_replication.inc
+include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775802]
+
+############################################################
+# 3. Create a table on server 1.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775803]
+include/rpl_sync.inc
+
+############################################################
+# 4. Execute a transaction on server 2.
+#    Server 2 GTID block will adapt to available GNOs.
+[connection server2]
+INSERT INTO t1 VALUES (1);
+include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775804]
+
+############################################################
+# 5. Clean up.
+DROP TABLE t1;
+include/group_replication_end.inc

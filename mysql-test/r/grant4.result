@@ -4,16 +4,8 @@ use mysqltest_db1;
 create table t_column_priv_only (a int, b int);
 create table t_select_priv like t_column_priv_only;
 create table t_no_priv like t_column_priv_only;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+create user mysqltest_u1@localhost;
 grant all privileges on test.* to mysqltest_u1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 grant insert (a) on mysqltest_db1.t_column_priv_only to mysqltest_u1@localhost;
 grant select on mysqltest_db1.t_select_priv to mysqltest_u1@localhost;
 ** Connect as restricted user mysqltest_u1.
@@ -73,7 +65,7 @@ Table	Create Table
 t_select_priv	CREATE TABLE `t_select_priv` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ** SHOW CREATE TABLE will fail if there is no grants at all: 
 show create table mysqltest_db1.t_no_priv;
@@ -92,19 +84,21 @@ GRANT UPDATE (s2) ON t6 to mysqltest_u1@localhost;
 GRANT UPDATE (s2) ON v6 to mysqltest_u1@localhost;
 GRANT SHOW VIEW ON v2 to mysqltest_u1@localhost;
 GRANT SHOW VIEW, SELECT ON v3 to mysqltest_u1@localhost;
+ANALYZE TABLE t6;
+Table	Op	Msg_type	Msg_text
+mysqltest_db1.t6	analyze	status	OK
 use mysqltest_db1;
 ** Connect as restricted user mysqltest_u1.
 ** SELECT FROM INFORMATION_SCHEMA.STATISTICS will succeed because any privileges will do (authentication is enough).
 SELECT * FROM INFORMATION_SCHEMA.STATISTICS WHERE table_name='t5';
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
-def	mysqltest_db1	t5	1	mysqltest_db1	i	1	s1	A	NULL	NULL	NULL	YES	BTREE		
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
 ** SHOW INDEX FROM t5 will fail because we don't have any privileges on any column combination.
 SHOW INDEX FROM t5;
 ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for table 't5'
 ** SHOW INDEX FROM t6 will succeed because there exist a privilege on a column combination on t6.
 SHOW INDEX FROM t6;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t6	1	i	1	s1	A	NULL	NULL	NULL	YES	BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t6	1	i	1	s1	A	0	NULL	NULL	YES	BTREE			YES
 ** CHECK TABLE requires any privilege on any column combination and should succeed for t6:
 CHECK TABLE t6;
 Table	Op	Msg_type	Msg_text
@@ -127,7 +121,7 @@ SHOW CREATE VIEW v2;
 ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for table 'v2'
 SHOW CREATE VIEW v3;
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t_select_priv`.`a` AS `a`,`t_select_priv`.`b` AS `b` from `t_select_priv`	latin1	latin1_swedish_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t_select_priv`.`a` AS `a`,`t_select_priv`.`b` AS `b` from `t_select_priv`	utf8mb4	utf8mb4_0900_ai_ci
 drop database mysqltest_db1;
 drop user mysqltest_u1@localhost;
 #

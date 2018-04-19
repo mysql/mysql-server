@@ -10,7 +10,7 @@ connection slave;
 
 # Add suppression for expected warnings in slaves error log
 call mtr.add_suppression("Failed during slave I/O thread initialization");
-call mtr.add_suppression("Slave SQL.*Failed during slave thread initialization.* 1593");
+call mtr.add_suppression("Slave SQL.*Failed during slave thread initialization.* MY-013117");
 
 --source include/stop_slave.inc
 reset slave;
@@ -33,17 +33,21 @@ start slave;
 # but there won't be any crashes nor asserts hit.
 #
 
-# 1593 = ER_SLAVE_FATAL_ERROR 
---let $slave_sql_errno= 1593
+# Wait for the SQL thread error
+--let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR)
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 
+# Wait for the I/O thread error
+--let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
 #
 # Cleanup
 #
 SET GLOBAL debug="";
 
-# Clear Last_SQL_Error
+# Clear Last_SQL_Error and Last_IO_Error
 RESET SLAVE;
 
 --let $rpl_only_running_threads= 1

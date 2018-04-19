@@ -1,25 +1,29 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- as published by the Free Software Foundation; version 2 of
- the License.
- 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU General Public License for more details.
- 
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License, version 2.0, for more details.
+
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 /* System headers */
-#include <my_config.h>
+#include "my_config.h"
 #include <pthread.h>
 #include <time.h>
 #include <stdio.h>
@@ -32,6 +36,7 @@
 #include "memcached/server_api.h"
 
 #include "ndb_error_logger.h"
+#include "debug.h"
 
 
 /* ***********************************************************************
@@ -186,16 +191,25 @@ void manage_error(int err_code, const char * err_mesg,
       if(entry->count < (10 * i) && (entry->count % i == 0))
         { flood = true; break; }
   
-  if(verbose_logging || first_ever || interval_passed || flood) 
+  /* All errors go to the debug log */
+  DEBUG_PRINT("%s %d: %s", type_mesg, err_code, err_mesg);
+
+  if(verbose_logging || first_ever || interval_passed || flood)
   {
     if(flood) 
       snprintf(note, 256, "[occurrence %d of this error]", entry->count);
     else
       note[0] = '\0';
 
-    logger->log(LOG_WARNING, 0, "%s %d: %s %s\n", 
+    logger->log(LOG_WARNING, 0, "%s %d: %s %s\n",
                 type_mesg, err_code, err_mesg, note);
   }
+}
+
+
+int record_ndb_error(const NdbError &error) {
+  (void) error_table_lookup(error.code, core_api->get_current_time());
+  return error.status;
 }
 
 

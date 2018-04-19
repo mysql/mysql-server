@@ -1,5 +1,3 @@
-# We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
 # Save the count of columns in mysql
 # shut server down
 # Server is down
@@ -13,15 +11,18 @@ password found
 # connect as root
 # must fail due to password expiration
 SELECT 1;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 # reset the password
 SET PASSWORD='';
 # Check the count of columns in mysql
 # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string)
-FROM mysql.user;
+FROM mysql.user ORDER BY user;
 user	host	plugin	LENGTH(authentication_string)
-root	localhost	mysql_native_password	0
+mysql.infoschema	localhost	mysql_native_password	41
+mysql.session	localhost	mysql_native_password	41
+mysql.sys	localhost	mysql_native_password	41
+root	localhost	caching_sha2_password	0
 # shut server down
 # Server is down
 # close the test connection

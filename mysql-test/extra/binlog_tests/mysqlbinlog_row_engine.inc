@@ -1649,7 +1649,7 @@ FLUSH LOGS;
 --echo # Call mysqlbinlog to display the log file contents.
 --echo #
 let $MYSQLD_DATADIR= `select @@datadir`;
---let $mysqlbinlog_parameters= --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters= --base64-output=decode-rows -v -v $MYSQLD_DATADIR/binlog.000001
 --source include/mysqlbinlog.inc
 
 --echo #
@@ -1728,7 +1728,7 @@ FLUSH LOGS;
 --echo # Call mysqlbinlog to display the log file contents.
 --echo #
 let $MYSQLD_DATADIR= `select @@datadir`;
---let $mysqlbinlog_parameters=  --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters=  --base64-output=decode-rows -v -v $MYSQLD_DATADIR/binlog.000001
 --source include/mysqlbinlog.inc
 
 --echo #
@@ -1854,7 +1854,7 @@ FLUSH LOGS;
 --echo # Call mysqlbinlog to display the log file contents.
 --echo #
 let $MYSQLD_DATADIR= `select @@datadir`;
---let $mysqlbinlog_parameters= --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters= --base64-output=decode-rows -v -v $MYSQLD_DATADIR/binlog.000001
 --source include/mysqlbinlog.inc
 
 --echo #
@@ -1911,7 +1911,7 @@ FLUSH LOGS;
 --echo # Call mysqlbinlog to display the log file contents.
 --echo #
 let $MYSQLD_DATADIR= `select @@datadir`;
---let $mysqlbinlog_parameters= --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters= --base64-output=decode-rows -v -v $MYSQLD_DATADIR/binlog.000001
 --source include/mysqlbinlog.inc
 
 --echo #

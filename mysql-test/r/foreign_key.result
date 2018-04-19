@@ -1,4 +1,3 @@
-drop table if exists t1;
 create table t1 (
 a int not null references t2,
 b int not null references t2 (c),
@@ -9,7 +8,17 @@ foreign key (a,b) references t3 (c,d) on delete no action
 on update no action,
 foreign key (a,b) references t3 (c,d) on update cascade,
 foreign key (a,b) references t3 (c,d) on delete set default,
-foreign key (a,b) references t3 (c,d) on update set null);
+foreign key (a,b) references t3 (c,d) on update set null) engine=myisam;
+ERROR 42000: Incorrect foreign key definition for 'foreign key without name': Key reference and table reference don't match
+create table t1 (
+a int not null,
+b int not null references t2 (c),
+primary key (a,b),
+foreign key (a,b) references t3 (c,d) on delete no action
+on update no action,
+foreign key (a,b) references t3 (c,d) on update cascade,
+foreign key (a,b) references t3 (c,d) on delete set default,
+foreign key (a,b) references t3 (c,d) on update set null) engine=myisam;
 create index a on t1 (a);
 create unique index b on t1 (a,b);
 drop table t1;
@@ -55,3 +64,2938 @@ add foreign key (a) references t3 (a)
 on update set default on update set default);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'update set default)' at line 3
 drop table t_34455;
+#
+# WL#6929: Move FOREIGN KEY constraints to the global data dictionary
+#
+# Extra coverage of @@foreign_key_checks
+#
+SET @@foreign_key_checks= 0;
+CREATE TABLE t1(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES non(a));
+ALTER TABLE t1 ADD FOREIGN KEY (b) REFERENCES non(a);
+DROP TABLE t1;
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES t1(a));
+DROP TABLE t1;
+DROP TABLE t2;
+SET @@foreign_key_checks= 1;
+CREATE TABLE t1(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES non(a));
+ERROR HY000: Cannot add foreign key constraint
+CREATE TABLE t1(a INT PRIMARY KEY, b INT REFERENCES non(a));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ADD FOREIGN KEY (b) REFERENCES non(a);
+ERROR HY000: Cannot add foreign key constraint
+DROP TABLE t1;
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES t1(a));
+DROP TABLE t1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+DROP TABLE t2, t1;
+SET @@foreign_key_checks= DEFAULT;
+# Test coverage of identifier length related to foreign keys.
+#
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT PRIMARY KEY, b INT);
+ALTER TABLE t2 ADD CONSTRAINT
+name567890123456789012345678901234567890123456789012345678901234
+FOREIGN KEY
+name567890123456789012345678901234567890123456789012345678901234
+(b) REFERENCES t1(a);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `name567890123456789012345678901234567890123456789012345678901234` (`b`),
+  CONSTRAINT `name567890123456789012345678901234567890123456789012345678901234` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE REFERENCED_TABLE_NAME = 't1';
+CONSTRAINT_NAME
+name567890123456789012345678901234567890123456789012345678901234
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+DROP TABLE t2;
+CREATE TABLE t2(a INT PRIMARY KEY, b INT);
+ALTER TABLE t2 ADD FOREIGN KEY
+name5678901234567890123456789012345678901234567890123456789012345
+(b) REFERENCES t1(a);
+ERROR 42000: Identifier name 'name5678901234567890123456789012345678901234567890123456789012345' is too long
+ALTER TABLE t2 ADD CONSTRAINT
+name5678901234567890123456789012345678901234567890123456789012345
+FOREIGN KEY (b) REFERENCES t1(a);
+ERROR 42000: Identifier name 'name5678901234567890123456789012345678901234567890123456789012345' is too long
+DROP TABLE t2;
+CREATE TABLE t2(a INT PRIMARY KEY, b INT UNIQUE);
+ALTER TABLE t2 ADD FOREIGN KEY
+name5678901234567890123456789012345678901234567890123456789012345
+(b) REFERENCES t1(a);
+ERROR 42000: Identifier name 'name5678901234567890123456789012345678901234567890123456789012345' is too long
+ALTER TABLE t2 ADD CONSTRAINT
+name5678901234567890123456789012345678901234567890123456789012345
+FOREIGN KEY (b) REFERENCES t1(a);
+ERROR 42000: Identifier name 'name5678901234567890123456789012345678901234567890123456789012345' is too long
+DROP TABLE t2;
+DROP TABLE t1;
+CREATE TABLE t1(a INT PRIMARY KEY, b INT,
+FOREIGN KEY(b) REFERENCES name5678901234567890123456789012345678901234567890123456789012345.t2(a));
+ERROR 42000: Identifier name 'name5678901234567890123456789012345678901234567890123456789012345' is too long
+CREATE TABLE t1(a INT PRIMARY KEY, b INT,
+FOREIGN KEY(b) REFERENCES name5678901234567890123456789012345678901234567890123456789012345(a));
+ERROR 42000: Incorrect table name 'name5678901234567890123456789012345678901234567890123456789012345'
+CREATE TABLE t1(a INT PRIMARY KEY, b INT,
+FOREIGN KEY(b) REFERENCES t2(name5678901234567890123456789012345678901234567890123456789012345));
+ERROR 42000: Incorrect column name 'name5678901234567890123456789012345678901234567890123456789012345'
+SET @@foreign_key_checks= 0;
+CREATE TABLE t1(a INT PRIMARY KEY, b INT,
+FOREIGN KEY(b) REFERENCES name5678901234567890123456789012345678901234567890123456789012345.t2(a));
+ERROR 42000: Identifier name 'name5678901234567890123456789012345678901234567890123456789012345' is too long
+CREATE TABLE t1(a INT PRIMARY KEY, b INT,
+FOREIGN KEY(b) REFERENCES name5678901234567890123456789012345678901234567890123456789012345(a));
+ERROR 42000: Incorrect table name 'name5678901234567890123456789012345678901234567890123456789012345'
+CREATE TABLE t1(a INT PRIMARY KEY, b INT,
+FOREIGN KEY(b) REFERENCES t2(name5678901234567890123456789012345678901234567890123456789012345));
+ERROR 42000: Incorrect column name 'name5678901234567890123456789012345678901234567890123456789012345'
+SET @@foreign_key_checks= DEFAULT;
+#
+# Bug#24666169: I_S.TABLE_CONSTRAINTS.CONSTRAINT_NAME IS NOT UPDATED
+#               AFTER RENAME TABLE
+#
+SET @@foreign_key_checks= 1;
+#
+# Tests for FK name behavior.
+CREATE TABLE t1(c1 INT PRIMARY KEY);
+CREATE TABLE t2(c1 INT, FOREIGN KEY (c1) REFERENCES t1(c1));
+ALTER TABLE t2 RENAME TO t3;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `c1` int(11) DEFAULT NULL,
+  KEY `c1` (`c1`),
+  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t3 VALUES(1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`))
+ALTER TABLE t3 RENAME TO t4, ALGORITHM= INPLACE;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c1` int(11) DEFAULT NULL,
+  KEY `c1` (`c1`),
+  CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t4 VALUES(1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`))
+ALTER TABLE t4 RENAME TO t5;
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `c1` int(11) DEFAULT NULL,
+  KEY `c1` (`c1`),
+  CONSTRAINT `t5_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t5 VALUES(1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t5`, CONSTRAINT `t5_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`))
+RENAME TABLE t5 to t6;
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `c1` int(11) DEFAULT NULL,
+  KEY `c1` (`c1`),
+  CONSTRAINT `t6_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t6 VALUES(1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t6`, CONSTRAINT `t6_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`))
+DROP TABLE t6, t1;
+#
+# Tests of FK name generation
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT, b INT, FOREIGN KEY(a) REFERENCES t1(a));
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+CONSTRAINT_NAME
+t2_ibfk_1
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_1
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# Add FK
+ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a);
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+CONSTRAINT_NAME
+t2_ibfk_1
+t2_ibfk_2
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_1
+t2_ibfk_2
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# Remove first FK and add a new FK.
+ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_1;
+ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a);
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+CONSTRAINT_NAME
+t2_ibfk_2
+t2_ibfk_3
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_2
+t2_ibfk_3
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# Rename table in different ways.
+ALTER TABLE t2 RENAME TO t3;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't3' ORDER BY constraint_name;
+CONSTRAINT_NAME
+t3_ibfk_2
+t3_ibfk_3
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't3' ORDER BY constraint_name;
+constraint_name
+t3_ibfk_2
+t3_ibfk_3
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t3 RENAME TO t4, ALGORITHM= INPLACE;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't4' ORDER BY constraint_name;
+CONSTRAINT_NAME
+t4_ibfk_2
+t4_ibfk_3
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't4' ORDER BY constraint_name;
+constraint_name
+t4_ibfk_2
+t4_ibfk_3
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t4 RENAME TO t5;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't5' ORDER BY constraint_name;
+CONSTRAINT_NAME
+t5_ibfk_2
+t5_ibfk_3
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't5' ORDER BY constraint_name;
+constraint_name
+t5_ibfk_2
+t5_ibfk_3
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+RENAME TABLE t5 TO t6;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't6' ORDER BY constraint_name;
+CONSTRAINT_NAME
+t6_ibfk_2
+t6_ibfk_3
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't6' ORDER BY constraint_name;
+constraint_name
+t6_ibfk_2
+t6_ibfk_3
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# Simulate dump+restore and test rename
+DROP TABLE t6;
+CREATE TABLE `t6` (
+`a` int(11) DEFAULT NULL,
+`b` int(11) DEFAULT NULL,
+KEY `b` (`b`),
+KEY `a` (`a`),
+CONSTRAINT `t6_ibfk_2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
+CONSTRAINT `t6_ibfk_3` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't6' ORDER BY constraint_name;
+CONSTRAINT_NAME
+t6_ibfk_2
+t6_ibfk_3
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't6' ORDER BY constraint_name;
+constraint_name
+t6_ibfk_2
+t6_ibfk_3
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+RENAME TABLE t6 TO t2;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+CONSTRAINT_NAME
+t2_ibfk_2
+t2_ibfk_3
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_2
+t2_ibfk_3
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# Remove all FKs and add one back
+ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_2, DROP FOREIGN KEY t2_ibfk_3;
+ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a);
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+CONSTRAINT_NAME
+t2_ibfk_1
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_1
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# Add a foreign key with close to generated name
+ALTER TABLE t2 ADD CONSTRAINT t3_ibfk_2 FOREIGN KEY(b) REFERENCES t1(a);
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+CONSTRAINT_NAME
+t2_ibfk_1
+t3_ibfk_2
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_1
+t3_ibfk_2
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# Then rename so that the given name now matches a generated name
+RENAME TABLE t2 TO t3;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't3' ORDER BY constraint_name;
+CONSTRAINT_NAME
+t3_ibfk_1
+t3_ibfk_2
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't3' ORDER BY constraint_name;
+constraint_name
+t3_ibfk_1
+t3_ibfk_2
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# Finally rename it again. The given name is now seen as generated and renamed.
+RENAME TABLE t3 TO t4;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't4' ORDER BY constraint_name;
+CONSTRAINT_NAME
+t4_ibfk_1
+t4_ibfk_2
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't4' ORDER BY constraint_name;
+constraint_name
+t4_ibfk_1
+t4_ibfk_2
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+DROP TABLE t4;
+# Make a foreign key with given name matching a generated name
+CREATE TABLE t2(a INT, b INT);
+ALTER TABLE t2 ADD CONSTRAINT t2_ibfk_1 FOREIGN KEY(a) REFERENCES t1(a);
+ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a);
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+CONSTRAINT_NAME
+t2_ibfk_1
+t2_ibfk_2
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_1
+t2_ibfk_2
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+DROP TABLE t2;
+# Test FK name case sensitivity
+CREATE TABLE t2(a INT, b INT);
+ALTER TABLE t2 ADD CONSTRAINT FK FOREIGN KEY(a) REFERENCES t1(a);
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+CONSTRAINT_NAME
+FK
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+FK
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t2 ADD CONSTRAINT fk FOREIGN KEY(b) REFERENCES t1(a);
+ERROR 42000: Duplicate key name 'fk'
+ALTER TABLE t2 DROP FOREIGN KEY FK;
+# Name matching generated name, but different case.
+ALTER TABLE t2 ADD CONSTRAINT T2_IBFK_1 FOREIGN KEY(a) REFERENCES t1(a);
+ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a);
+ERROR HY000: Duplicate foreign key constraint name 't2_ibfk_1'
+ALTER TABLE t2 DROP FOREIGN KEY T2_IBFK_1;
+DROP TABLE t2;
+# Check long FK generated names due to long table names.
+CREATE TABLE t2 (a INT, FOREIGN KEY (a) REFERENCES t1(a));
+RENAME TABLE t2 TO t123456789012345678901234567890123456789012345678901234567;
+ERROR 42000: Identifier name 't123456789012345678901234567890123456789012345678901234567_ibfk_1' is too long
+RENAME TABLE t2 TO t12345678901234567890123456789012345678901234567890123456;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't12345678901234567890123456789012345678901234567890123456'
+  ORDER BY constraint_name;
+CONSTRAINT_NAME
+t12345678901234567890123456789012345678901234567890123456_ibfk_1
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't12345678901234567890123456789012345678901234567890123456'
+  ORDER BY constraint_name;
+constraint_name
+t12345678901234567890123456789012345678901234567890123456_ibfk_1
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+DROP TABLE t12345678901234567890123456789012345678901234567890123456;
+CREATE TABLE t123456789012345678901234567890123456789012345678901234567(
+a INT, FOREIGN KEY (a) REFERENCES t1(a));
+ERROR 42000: Identifier name 't123456789012345678901234567890123456789012345678901234567_ibfk_1' is too long
+CREATE TABLE t123456789012345678901234567890123456789012345678901234567890123(
+a INT, CONSTRAINT fk FOREIGN KEY (a) REFERENCES t1(a));
+DROP TABLE t123456789012345678901234567890123456789012345678901234567890123;
+DROP TABLE t1;
+# FK Referencing virtual column
+CREATE TABLE t1(a INT PRIMARY KEY,
+b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE);
+CREATE TABLE t2(a INT, FOREIGN KEY (a) REFERENCES t1(b));
+ERROR HY000: Cannot add foreign key constraint
+CREATE TABLE t2(a INT);
+ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(b);
+ERROR HY000: Cannot add foreign key constraint
+DROP TABLE t1, t2;
+# FK on generated stored column
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE);
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (b) REFERENCES t1(a));
+ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a);
+ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_1;
+DROP TABLE t3;
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (b) REFERENCES t1(a) ON UPDATE CASCADE);
+ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a generated column.
+ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a) ON UPDATE CASCADE;
+ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a generated column.
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (b) REFERENCES t1(a) ON DELETE SET NULL);
+ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a generated column.
+ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a) ON DELETE SET NULL;
+ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a generated column.
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (b) REFERENCES t1(a) ON UPDATE SET NULL);
+ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a generated column.
+ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a) ON UPDATE SET NULL;
+ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a generated column.
+# FK on Base column of generated stored column.
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (a) REFERENCES t1(a));
+ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a);
+ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_1;
+DROP TABLE t3;
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (a) REFERENCES t1(a) ON UPDATE CASCADE);
+ERROR HY000: Cannot add foreign key constraint
+ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a) ON UPDATE CASCADE;
+ERROR HY000: Cannot add foreign key constraint
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (a) REFERENCES t1(a) ON DELETE SET NULL);
+ERROR HY000: Cannot add foreign key constraint
+ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a) ON DELETE SET NULL;
+ERROR HY000: Cannot add foreign key constraint
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (a) REFERENCES t1(a) ON UPDATE SET NULL);
+ERROR HY000: Cannot add foreign key constraint
+ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a) ON UPDATE SET NULL;
+ERROR HY000: Cannot add foreign key constraint
+DROP TABLE t2, t1;
+# FK on virtual column not supported.
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE,
+FOREIGN KEY(b) REFERENCES t1(a));
+ERROR HY000: Cannot add foreign key constraint
+CREATE TABLE t2(a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE);
+ALTER TABLE t2 ADD FOREIGN KEY (b) REFERENCES t1(a);
+ERROR HY000: Cannot add foreign key constraint
+DROP TABLE t2;
+CREATE TABLE t2(a INT, b INT, FOREIGN KEY(b) REFERENCES t1(a));
+ALTER TABLE t2 MODIFY COLUMN b INT GENERATED ALWAYS AS (a+1) VIRTUAL;
+ERROR HY000: 'Changing the STORED status' is not supported for generated columns.
+DROP TABLE t2, t1;
+# Trying to drop columns used in multi-column FKs.
+CREATE TABLE t1(a INT PRIMARY KEY, b INT, INDEX(a, b));
+CREATE TABLE t2(a INT, b INT, FOREIGN KEY(a, b) REFERENCES t1(a, b));
+ALTER TABLE t2 DROP COLUMN a;
+ERROR HY000: Cannot drop column 'a': needed in a foreign key constraint 't2_ibfk_1'
+ALTER TABLE t2 DROP COLUMN b;
+ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk_1'
+DROP TABLE t2;
+# Use explicitly named index to check where index name is != column name.
+CREATE TABLE t2(a INT, b INT, INDEX idx(a, b),
+FOREIGN KEY(a, b) REFERENCES t1(a, b));
+ALTER TABLE t2 DROP COLUMN a;
+ERROR HY000: Cannot drop column 'a': needed in a foreign key constraint 't2_ibfk_1'
+ALTER TABLE t2 DROP COLUMN b;
+ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk_1'
+DROP TABLE t2, t1;
+# Index with prefix cannot be used for supporting FK.
+CREATE TABLE t1 (PK VARCHAR(100) PRIMARY KEY);
+CREATE TABLE t2 (FK VARCHAR(100), FOREIGN KEY(FK) REFERENCES t1 (PK), KEY(FK));
+ALTER TABLE t2 DROP INDEX FK, ADD INDEX FK2(FK(10));
+ERROR HY000: Cannot drop index 'FK': needed in a foreign key constraint
+DROP TABLE t2, t1;
+# Bug#25817660: Combination of virtual index, foreign key and trigger
+#               result in assert failure
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=0;
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+UPDATE t1 SET fld1= 2;
+SELECT * FROM t1;
+fld1
+2
+SELECT * FROM t2;
+fld1	fld2
+2	2
+# The same test but with server restart before UPDATE.
+# Triggers different code path in InnoDB which was not
+# covered by original fix for the bug.
+# restart
+UPDATE t1 SET fld1= 3;
+SELECT * FROM t1;
+fld1
+3
+SELECT * FROM t2;
+fld1	fld2
+3	3
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Bug#20021917: WORK AROUND FOR CHARSET CONVERSION WITH FKS CAN
+# RESULT IN WRONG DATA
+#
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100) UNIQUE);
+CREATE TABLE t2 (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), fname VARCHAR(100), FOREIGN KEY (fname) REFERENCES t1 (name) ON UPDATE CASCADE ON DELETE CASCADE);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) DEFAULT NULL,
+  `fname` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fname` (`fname`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fname`) REFERENCES `t1` (`name`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t2 CONVERT TO CHARACTER SET latin1;
+ERROR HY000: Cannot change column 'fname': used in a foreign key constraint 't2_ibfk_1'
+SET foreign_key_checks= OFF;
+ALTER TABLE t2 CONVERT TO CHARACTER SET latin1;
+SET foreign_key_checks= ON;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) DEFAULT NULL,
+  `fname` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fname` (`fname`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fname`) REFERENCES `t1` (`name`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t1(name) VALUES ('test1');
+INSERT INTO t2(name, fname) VALUES ('test1', 'test1');
+UPDATE t1 SET name=CONCAT('St', UNHEX('C3A5') ,'le') WHERE name = 'test1';
+# Should not get any rows here
+SELECT t1.name, t2.fname FROM t1, t2 WHERE t1.name <> t2.fname;
+name	fname
+Ståle	StÃ¥le
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# WL#6049: Meta-data locking for FOREIGN KEY tables
+#
+# Test case to check MDL on tables related by FK constraints.
+#
+CREATE TABLE grandparent (gpf1 INT PRIMARY KEY, gpf2 INT);
+INSERT INTO grandparent VALUES (1,10), (2,20);
+CREATE TABLE parent (
+pf1 INT PRIMARY KEY, pf2 INT, sleep_dummy INT,
+CONSTRAINT pc1 FOREIGN KEY (pf2) REFERENCES grandparent (gpf1)
+ON DELETE NO ACTION ON UPDATE NO ACTION);
+INSERT INTO parent VALUES (1,1,0), (2,2,0);
+CREATE TABLE child (
+cf1 INT PRIMARY KEY, cf2 INT,
+CONSTRAINT cc1 FOREIGN KEY (cf2) REFERENCES parent (pf1)
+ON DELETE NO ACTION ON UPDATE NO ACTION);
+INSERT INTO child VALUES (1,1), (2,2);
+connect  con_A,localhost,root,,test;
+SET @@session.lock_wait_timeout= 1;
+UPDATE parent SET pf2= 2, sleep_dummy= SLEEP(2);
+connection default;
+set @conA_id = <conA>;
+# Waiting for connection A to start udpate
+SET @@session.lock_wait_timeout= 1;
+# Updates not invoving the FK related column should succeed
+UPDATE grandparent SET gpf2= 4;
+UPDATE grandparent SET gpf2= 100 * gpf1;
+# DDL on child will have conflicting locks.
+ALTER TABLE child ADD COLUMN (i INT);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@session.lock_wait_timeout= DEFAULT;
+connection con_A;
+disconnect con_A;
+connection default;
+DROP TABLE child;
+DROP TABLE parent;
+DROP TABLE grandparent;
+#
+# Systemic test coverage for metadata locks related to foreign
+# keys acquired by various DDL statements.
+#
+# Also provides coverage for data-dictionary cache invalidation
+# and cases when we fail to acquire necessary locks.
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connect  con1, localhost, root,,;
+connect  con2, localhost, root,,;
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connection default;
+#
+# 1) CREATE TABLE
+#
+# 1.1) CREATE TABLE must acquire X lock on parent table
+#      (if table doesn't exist).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));;
+connection con1;
+# Wait until CREATE TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap CREATE TABLE
+# 1.2) CREATE TABLE for existing table should not acquire X lock
+#      parent table
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+CREATE TABLE IF NOT EXISTS child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+Warnings:
+Note	1050	Table 'child' already exists
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child;
+# 1.3) CREATE TABLE which acquires lock on parent table and fails
+#      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE parent;
+# 1.4) CREATE TABLE which adds parent to orphan child must acquire X
+#      on child table.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+CREATE TABLE parent (pk INT PRIMARY KEY);;
+connection con1;
+# Wait until CREATE TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap CREATE TABLE
+# 1.5) CREATE TABLE for existing table must not acquire X lock
+#      on child table
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+CREATE TABLE IF NOT EXISTS parent (pk INT PRIMARY KEY);
+Warnings:
+Note	1050	Table 'parent' already exists
+connection con1;
+COMMIT;
+connection default;
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE parent;
+SET FOREIGN_KEY_CHECKS=1;
+# 1.6) CREATE TABLE which acquires lock on child table and fails
+#      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+CREATE TABLE parent (pk INT PRIMARY KEY);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child;
+# 1.7) CREATE TABLE which adds FK should invalidate entries
+#      in TC/TDC and DD caches for the parent table.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+SELECT * FROM parent;
+pk
+connection con1;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquired SNRW lock on child table.
+SELECT * FROM child;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk
+connection default;
+DROP TABLES child, parent;
+#
+# 2) CREATE TABLE ... LIKE
+#
+# 2.1) CREATE TABLE ... LIKE doesn't copy foreign keys
+#      so it should not any locks on FK parent tables.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+connection con1;
+LOCK TABLES parent WRITE;
+connection default;
+CREATE TABLE child2 LIKE child;
+connection con1;
+UNLOCK TABLES;
+connection default;
+# 2.2) CREATE TABLE LIKE which adds parent to orphan child must
+#      acquire X on child table.
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLES child2, parent;
+SET FOREIGN_KEY_CHECKS=1;
+CREATE TABLE parent_source (pk INT PRIMARY KEY);
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+CREATE TABLE parent LIKE parent_source;;
+connection con1;
+# Wait until CREATE TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap CREATE TABLE
+# 2.3) CREATE TABLE LIKE for existing table must not acquire X lock
+#      on child table
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+CREATE TABLE IF NOT EXISTS parent LIKE parent_source;
+Warnings:
+Note	1050	Table 'parent' already exists
+connection con1;
+COMMIT;
+connection default;
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE parent;
+SET FOREIGN_KEY_CHECKS=1;
+# 2.4) CREATE TABLE LIKE which acquires lock on child table and fails
+#      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+CREATE TABLE IF NOT EXISTS parent LIKE parent_source;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child, parent_source;
+#
+# 3) CREATE TABLE ... SELECT
+#
+# 3.1) CREATE TABLE ... SELECT must start by acquiring SU lock on parent
+#      table (if table doesn't exist).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE source (fk INT);
+INSERT INTO source VALUES (NULL);
+connection con1;
+BEGIN;
+SELECT * FROM source FOR UPDATE;
+fk
+NULL
+connection default;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT fk FROM source;;
+connection con1;
+# Wait until CREATE TABLE is blocked by con1 because of row locks.
+# Demonstrate that CREATE TABLE holds SU lock on parent
+# which allows DML but not DDL.
+INSERT INTO parent VALUES (1);
+connection con2;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent ADD COLUMN a INT;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+# Resume CREATE TABLE.
+COMMIT;
+connection default;
+# Reap CREATE TABLE
+DROP TABLES child, source;
+# 3.2) CREATE TABLE ... SELECT should upgrade SU lock on parent to X
+#      before commit (i.e eventually X lock should be acquired).
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+1
+connection default;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;;
+connection con1;
+# Wait until CREATE TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap CREATE TABLE
+# 3.3) CREATE TABLE ... SELECT for existing table should not acquire
+#      any locks on parent table.
+connection con1;
+CREATE TABLE parent2 (pk INT PRIMARY KEY);
+LOCK TABLE parent2 WRITE;
+connection default;
+CREATE TABLE IF NOT EXISTS child (fk INT, FOREIGN KEY (fk) REFERENCES parent2(pk)) SELECT NULL AS fk;
+Warnings:
+Note	1050	Table 'child' already exists
+connection con1;
+UNLOCK TABLES;
+connection default;
+DROP TABLE child;
+DROP TABLE parent2;
+# 3.4) CREATE TABLE ... SELECT which tries to acquire SU lock on parent
+#      table and fails due to lock timeout.
+connection con1;
+LOCK TABLE parent WRITE;
+connection default;
+SET @@lock_wait_timeout= 1;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+UNLOCK TABLES;
+# 3.5) CREATE TABLE ... SELECT which tries to upgrade to X lock on
+#      parent table and fails due to lock timeout.
+BEGIN;
+SELECT * FROM parent;
+pk
+1
+connection default;
+SET @@lock_wait_timeout= 1;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE parent;
+# 3.6) CREATE TABLE ... SELECT which adds parent to orphan child must
+#      acquire X on child table.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+CREATE TABLE parent (pk INT PRIMARY KEY) SELECT 1 AS pk;;
+connection con1;
+# Wait until CREATE TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap CREATE TABLE
+# 3.7) CREATE TABLE ... SELECT for existing table must not
+#      acquire X lock on child table
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+CREATE TABLE IF NOT EXISTS parent (pk INT PRIMARY KEY) SELECT 1 AS pk;
+Warnings:
+Note	1050	Table 'parent' already exists
+connection con1;
+COMMIT;
+connection default;
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE parent;
+SET FOREIGN_KEY_CHECKS=1;
+# 3.8) CREATE TABLE ... SELECT which acquires lock on child table
+#      and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+CREATE TABLE parent (pk INT PRIMARY KEY) SELECT 1 AS pk;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child;
+# 3.9) CREATE TABLE ... SELECT which adds FK should invalidate entries
+#      in TC/TDC and DD caches for the parent table.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+SELECT * FROM parent;
+pk
+connection con1;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE) SELECT NULL AS fk;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquired SNRW lock on child table.
+SELECT * FROM child;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk
+NULL
+connection default;
+DROP TABLES child, parent;
+#
+# 4) DROP TABLES
+#
+# 4.1) DROP TABLES must acquire X lock on parent table for FKs
+#      when child is dropped.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+DROP TABLES child;;
+connection con1;
+# Wait until DROP TABLES is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap DROP TABLES
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+# 4.2) DROP TABLES which acquires lock on parent table and fails
+#      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+DROP TABLES child;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 4.3) DROP TABLES which tries to remove parent table must acquire X
+#      lock on child table.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+DROP TABLES parent;;
+connection con1;
+# Wait until DROP TABLES is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap DROP TABLES
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+# 4.4) DROP TABLES which acquires lock on child table and fails
+#      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+DROP TABLES parent;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 4.5) DROP TABLES which deletes child should invalidate entries
+#      in TC/TDC and DD caches for the parent table.
+DROP TABLES child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+SELECT * FROM parent;
+pk
+connection con1;
+DROP TABLES child;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and avoid acquiring SNRW lock on child table.
+SELECT * FROM child;
+ERROR 42S02: Table 'test.child' doesn't exist
+connection default;
+UNLOCK TABLES;
+DROP TABLES parent;
+#
+# 5) RENAME TABLES
+#
+# 5.1) RENAME TABLES must acquire X lock on parent table for FKs
+#      when child is renamed.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+RENAME TABLES child TO child1;;
+connection con1;
+# Wait until RENAME TABLES is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap RENAME TABLES
+RENAME TABLES child1 TO child;
+# 5.2) RENAME TABLES which acquires lock on parent table and fails
+#      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+RENAME TABLES child TO child1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 5.3) RENAME TABLES which tries to rename parent table must acquire X
+#      lock on child table.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+RENAME TABLES parent TO parent1;;
+connection con1;
+# Wait until RENAME TABLES is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap RENAME TABLES
+RENAME TABLES parent1 TO parent;
+# 5.4) RENAME TABLES which acquires lock on child table and fails
+#      due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+RENAME TABLES parent TO parent1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 5.5) RENAME TABLES which adds parent table for orphan child
+#      must acquire X lock on this child table.
+connection default;
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+RENAME TABLES parent TO parent1;;
+connection con1;
+# Wait until RENAME TABLES is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap RENAME TABLES
+RENAME TABLES parent1 TO parent;
+# 5.6) RENAME TABLES which acquires lock on orphan child table
+#      and fails due to timeout.
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+RENAME TABLES parent TO parent1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+# 5.7) RENAME TABLES on the child table should invalidate entries
+#      in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk
+connection con1;
+RENAME TABLES child TO child1;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquire SNRW lock on new child table name.
+SELECT * FROM child1;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk
+connection default;
+DROP TABLES child1, parent;
+#
+# 6) Simple ALTER TABLE ... RENAME
+#
+# 6.1) ALTER TABLE ... RENAME must acquire X lock on parent table
+#      for FKs when child is renamed.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+ALTER TABLE child RENAME TO child1;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES child1 TO child;
+# 6.2) ALTER TABLE ... RENAME which acquires lock on parent table and
+#      fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child RENAME TO child1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 6.3) ALTER TABLE ... RENAME which tries to rename parent table must
+#      acquire X lock on child table.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+ALTER TABLE parent RENAME TO parent1;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES parent1 TO parent;
+# 6.4) ALTER TABLE ... RENAME which acquires lock on child table and
+#      fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME TO parent1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 6.5) ALTER TABLE ... RENAME which adds parent table for orphan child
+#      must acquire X lock on this child table.
+connection default;
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+ALTER TABLE parent RENAME TO parent1;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES parent1 TO parent;
+# 6.6) ALTER TABLE ... RENAME which acquires lock on orphan child table
+#      and fails due to timeout.
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME TO parent1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+# 6.7) ALTER TABLE ... RENAME on the child table should invalidate
+#      entries in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk
+connection con1;
+ALTER TABLE child RENAME TO child1;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquire SNRW lock on new child table name.
+SELECT * FROM child1;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk
+connection default;
+DROP TABLES child1, parent;
+#
+# 7) ALTER TABLE ... INPLACE
+#
+# 7.1) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE must start by
+#      acquiring SU lock on parent table.
+#
+# This test uses debug_sync feature so resides in foreign_key_debug.test
+#
+# 7.2) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE should upgrade SU
+#      lock on parent to X before commit (i.e eventually X lock should
+#      be acquired).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT);
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=INPLACE;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+SET FOREIGN_KEY_CHECKS=1;
+ALTER TABLE child DROP FOREIGN KEY fk;
+# 7.3) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE which tries to
+#      acquire SU lock on parent table and fails due to lock timeout.
+connection con1;
+LOCK TABLE parent WRITE;
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=INPLACE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+UNLOCK TABLES;
+# 7.4) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE which tries to
+#      upgrade to X lock on parent table and fails due to lock timeout.
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=INPLACE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET FOREIGN_KEY_CHECKS=1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 7.5) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE should invalidate
+#      entries in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk
+connection con1;
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE, ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS=1;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquired SNRW lock on child table.
+SELECT * FROM child;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk
+# 7.6) ALTER TABLE ... DROP FOREIGN KEY ... INPLACE should acquire
+#      lock on parent to X before commit.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=INPLACE;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE;
+# 7.7) ALTER TABLE ... DROP FOREIGN KEY ... INPLACE which tries to
+#      upgrade to X lock on parent table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=INPLACE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 7.8) ALTER TABLE ... DROP FOREIGN KEY ... INPLACE should invalidate entries
+#      in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk
+connection con1;
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=INPLACE;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and avoid acquiring SNRW lock on child table.
+SELECT * FROM child;
+fk
+connection default;
+UNLOCK TABLES;
+# 7.9) ALTER TABLE ... INPLACE which changes parent key must acquire X
+#      lock on child table.
+DROP TABLES child, parent;
+CREATE TABLE parent (pk INT NOT NULL, UNIQUE u(pk));
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+ALTER TABLE parent RENAME KEY u TO u1, ALGORITHM=INPLACE;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+# 7.10) ALTER TABLE ... INPLACE which changes parent key, so tries to
+#       acquire X lock on child table, but fails due to timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME KEY u1 TO u, ALGORITHM=INPLACE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 7.11) ALTER TABLE ... RENAME ... INPLACE must acquire X lock on
+#       parent table for FKs when child is renamed.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+ALTER TABLE child RENAME TO child1, ADD COLUMN a INT, ALGORITHM=INPLACE;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES child1 TO child;
+# 7.12) ALTER TABLE ... RENAME ... INPLACE which acquires lock on
+#       parent table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child RENAME TO child1, ADD COLUMN b INT, ALGORITHM=INPLACE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 7.13) ALTER TABLE ... RENAME ... INPLACE which tries to rename parent
+#       table must acquire X lock on child table.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk	a
+connection default;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN a INT, ALGORITHM=INPLACE;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES parent1 TO parent;
+# 7.14) ALTER TABLE ... RENAME ... INPLACE which acquires lock on child
+#       table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk	a
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN b INT, ALGORITHM=INPLACE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 7.15) ALTER TABLE ... RENAME ... INPLACE which adds parent table for
+#       orphan child must acquire X lock on this child table.
+connection default;
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN c INT, ALGORITHM=INPLACE;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES parent1 TO parent;
+# 7.16) ALTER TABLE ... RENAME ... INPLACE which acquires lock on
+#       orphan child table and fails due to timeout.
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN d INT, ALGORITHM=INPLACE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+# 7.17) ALTER TABLE ... RENAME ... INPLACE on the child table should
+#       invalidate entries in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk	a	c
+connection con1;
+ALTER TABLE child RENAME TO child1, ADD COLUMN a INT, ALGORITHM=INPLACE;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquire SNRW lock on new child table name.
+SELECT * FROM child1;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk	a
+connection default;
+DROP TABLES child1, parent;
+#
+# 8) ALTER TABLE ... COPY
+#
+# 8.1) ALTER TABLE ... ADD FOREIGN KEY ... COPY must start by
+#      acquiring SU lock on parent table.
+# 8.1') ALTER TABLE ... ADD FOREIGN KEY ... COPY due to workaround
+#       must upgrade SU lock on parent table SRO lock.
+#
+# These tests use debug_sync feature so reside in foreign_key_debug.test
+#
+# 8.2) ALTER TABLE ... ADD FOREIGN KEY ... COPY should upgrade SU (SRO)
+#      lock on parent to X before commit (i.e eventually X lock should
+#      be acquired).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT);
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=COPY;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+ALTER TABLE child DROP FOREIGN KEY fk;
+# 8.3) ALTER TABLE ... ADD FOREIGN KEY ... COPY which tries to
+#      acquire SU lock on parent table and fails due to lock timeout.
+connection con1;
+LOCK TABLE parent WRITE;
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+UNLOCK TABLES;
+# 8.3') ALTER TABLE ... ADD FOREIGN KEY ... COPY which due to workaround
+#       tries to upgrade SU lock on parent table to SRO and fails due to
+#       lock timeout.
+connection con1;
+BEGIN;
+DELETE FROM parent;
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 8.4) ALTER TABLE ... ADD FOREIGN KEY ... COPY which tries to
+#      upgrade to X lock on parent table and fails due to lock timeout.
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk), ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 8.5) ALTER TABLE ... ADD FOREIGN KEY ... COPY should invalidate
+#      entries in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk
+connection con1;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE, ALGORITHM=COPY;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquired SNRW lock on child table.
+SELECT * FROM child;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk
+# 8.6) ALTER TABLE ... DROP FOREIGN KEY ... COPY should acquire
+#      lock on parent to X before commit.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=COPY;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE;
+# 8.7) ALTER TABLE ... DROP FOREIGN KEY ... COPY which tries to
+#      upgrade to X lock on parent table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 8.8) ALTER TABLE ... DROP FOREIGN KEY ... COPY should invalidate entries
+#      in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk
+connection con1;
+ALTER TABLE child DROP FOREIGN KEY fk, ALGORITHM=COPY;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and avoid acquiring SNRW lock on child table.
+SELECT * FROM child;
+fk
+connection default;
+UNLOCK TABLES;
+# 8.9) ALTER TABLE ... COPY which changes parent key must acquire X
+#      lock on child table.
+DROP TABLES child, parent;
+CREATE TABLE parent (pk INT NOT NULL, UNIQUE u(pk));
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+ALTER TABLE parent RENAME KEY u TO u1, ALGORITHM=COPY;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+# 8.10) ALTER TABLE ... COPY which changes parent key, so tries to
+#       acquire X lock on child table, but fails due to timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME KEY u1 TO u, ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 8.11) ALTER TABLE ... RENAME ... COPY must acquire X lock on
+#       parent table for FKs when child is renamed.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+ALTER TABLE child RENAME TO child1, ADD COLUMN a INT, ALGORITHM=COPY;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES child1 TO child;
+# 8.12) ALTER TABLE ... RENAME ... COPY which acquires lock on
+#       parent table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM parent;
+pk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE child RENAME TO child1, ADD COLUMN b INT, ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 8.13) ALTER TABLE ... RENAME ... COPY which tries to rename parent
+#       table must acquire X lock on child table.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk	a
+connection default;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN a INT, ALGORITHM=COPY;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES parent1 TO parent;
+# 8.14) ALTER TABLE ... RENAME ... COPY which acquires lock on child
+#       table and fails due to lock timeout.
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk	a
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN b INT, ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+# 8.15) ALTER TABLE ... RENAME ... COPY which adds parent table for
+#       orphan child must acquire X lock on this child table.
+connection default;
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN c INT, ALGORITHM=COPY;;
+connection con1;
+# Wait until ALTER TABLE is blocked by con1 and then resume it.
+COMMIT;
+connection default;
+# Reap ALTER TABLE
+RENAME TABLES parent1 TO parent;
+# 8.16) ALTER TABLE ... RENAME ... COPY which acquires lock on
+#       orphan child table and fails due to timeout.
+DROP TABLE child;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent1(pk));
+SET FOREIGN_KEY_CHECKS=1;
+connection con1;
+BEGIN;
+SELECT * FROM child;
+fk
+connection default;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent RENAME TO parent1, ADD COLUMN d INT, ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection con1;
+COMMIT;
+connection default;
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE);
+# 8.17) ALTER TABLE ... RENAME ... COPY on the child table should
+#       invalidate entries in TC/TDC and DD caches for the parent table.
+SELECT * FROM parent;
+pk	a	c
+connection con1;
+ALTER TABLE child RENAME TO child1, ADD COLUMN a INT, ALGORITHM=COPY;
+connection default;
+LOCK TABLE parent WRITE;
+connection con1;
+# The above LOCK TABLE should have noticed new table definition
+# and acquire SNRW lock on new child table name.
+SELECT * FROM child1;;
+connection default;
+# Wait until SELECT is blocked by default connection and then resume it.
+UNLOCK TABLES;
+connection con1;
+# Reap SELECT
+fk	a
+connection default;
+DROP TABLES child1, parent;
+connection con1;
+disconnect con1;
+connection con2;
+disconnect con2;
+connection default;
+#
+# Validation of FK and referred column names.
+#
+# Too long constraint name.
+CREATE TABLE t (pk INTEGER PRIMARY KEY, fk_i INTEGER,
+CONSTRAINT xxxxxxxxx1xxxxxxxxx2xxxxxxxxx3xxxxxxxxx4xxxxxxxxx5xxxxxxxxx6xxxxx
+FOREIGN KEY (fk_i) REFERENCES x(x));
+ERROR 42000: Identifier name 'xxxxxxxxx1xxxxxxxxx2xxxxxxxxx3xxxxxxxxx4xxxxxxxxx5xxxxxxxxx6xxxxx' is too long
+# Too long column name.
+CREATE TABLE t (pk INTEGER PRIMARY KEY, fk_i INTEGER,
+FOREIGN KEY (fk_i) REFERENCES x(xxxxxxxxx1xxxxxxxxx2xxxxxxxxx3xxxxxxxxx4xxxxxxxxx5xxxxxxxxx6xxxxx));
+ERROR 42000: Incorrect column name 'xxxxxxxxx1xxxxxxxxx2xxxxxxxxx3xxxxxxxxx4xxxxxxxxx5xxxxxxxxx6xxxxx'
+# Column name having trailing space.
+CREATE TABLE t (pk INTEGER PRIMARY KEY, fk_i INTEGER,
+FOREIGN KEY (fk_i) REFERENCES x(`x `));
+ERROR 42000: Incorrect column name 'x '
+#
+# Test DROP of table with FKs under LOCK TABLES.
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, i INTEGER, fk_i INTEGER,
+UNIQUE KEY parent_i_key(i),
+FOREIGN KEY (fk_i) REFERENCES parent(i));
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk_i INTEGER,
+FOREIGN KEY (fk_i) REFERENCES parent(i));
+SET @@session.foreign_key_checks= 1;
+# Drop only parent with FKC == 0.
+LOCK TABLE parent WRITE;
+DROP TABLES parent;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+UNLOCK TABLE;
+SET @@session.foreign_key_checks= 0;
+# Drop only parent.
+LOCK TABLE parent WRITE;
+DROP TABLES parent;
+UNLOCK TABLE;
+SET @@session.foreign_key_checks= 1;
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, i INTEGER,
+UNIQUE KEY parent_i_key(i));
+# Drop both child and parent.
+LOCK TABLES child WRITE, parent WRITE;
+DROP TABLES child, parent;
+UNLOCK TABLES;
+SET @@session.foreign_key_checks= DEFAULT;
+#
+# Test ALTER TABLE ... ADD FOREIGN KEY under LOCK TABLES.
+#
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT);
+LOCK TABLES child WRITE;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk);
+ERROR HY000: Table 'parent' was not locked with LOCK TABLES
+UNLOCK TABLES;
+# With parent table locked for read it should be possible to add FK.
+LOCK TABLES child WRITE, parent READ;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk);
+UNLOCK TABLES;
+#
+# Test ALTER TABLE ... RENAME with FKs under LOCK TABLES.
+#
+# Bug 26647340 "LIFT LIMITATION ON ALTER TABLE RENAME + TABLES WITH
+#               FOREIGN KEYS + LOCK TABLES".
+#
+# Renaming of tables participating in FKs is allowed.
+LOCK TABLES child WRITE;
+ALTER TABLE child RENAME TO child1;
+UNLOCK TABLES;
+LOCK TABLES parent WRITE;
+ALTER TABLE parent RENAME TO parent1;
+UNLOCK TABLES;
+# Check that it doesn't break FK invariants for LOCK TABLES.
+LOCK TABLES child1 WRITE, parent1 WRITE;
+ALTER TABLE child1 RENAME TO child;
+INSERT INTO child VALUES (NULL);
+DELETE FROM parent1;
+UNLOCK TABLES;
+LOCK TABLES child WRITE, parent1 WRITE;
+ALTER TABLE parent1 RENAME TO parent;
+INSERT INTO child VALUES (NULL);
+UNLOCK TABLES;
+# It is also allowed to add foreign key along with rename.
+ALTER TABLE child DROP FOREIGN KEY fk;
+LOCK TABLES child WRITE, parent WRITE;
+ALTER TABLE child RENAME TO child1, ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent(pk);
+# And FK invariants for LOCK TABLES are preserved too.
+INSERT INTO child1 VALUES (NULL);
+DELETE FROM parent;
+UNLOCK TABLES;
+DROP TABLE child1;
+# We also allow renames which add parent for previously orphan FKs.
+# Provided that we have write lock on these children.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY(fk) REFERENCES parent1(pk) ON DELETE CASCADE);
+SET FOREIGN_KEY_CHECKS=1;
+LOCK TABLE parent WRITE;
+ALTER TABLE parent RENAME TO parent1;
+ERROR HY000: Table 'child' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+LOCK TABLE parent WRITE, child READ;
+ALTER TABLE parent RENAME TO parent1;
+ERROR HY000: Table 'child' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+LOCK TABLE parent WRITE, child WRITE;
+ALTER TABLE parent RENAME TO parent1;
+# Invariants should be fine
+INSERT INTO child VALUES (NULL);
+DELETE FROM parent1;
+UNLOCK TABLES;
+DROP TABLES child, parent1;
+#
+# Bug #25722221 "RENAME COLUMN DID NOT UPDATE FOREIGN_KEY_COLUMN_USAGE
+#                FOR FK CONSTRAINT".
+# Bug #26659110 "LIFT LIMITATION ON RENAMING PARENT COLUMNS WHICH ARE
+#                REFERENCED BY FOREIGN KEYS".
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, fk INT,
+FOREIGN KEY (fk) REFERENCES t1 (pk));
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t1';
+constraint_name	table_name	column_name	referenced_column_name
+PRIMARY	t1	pk	NULL
+t1_ibfk_1	t1	fk	pk
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t1 CHANGE pk id INT;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t1';
+constraint_name	table_name	column_name	referenced_column_name
+PRIMARY	t1	id	NULL
+t1_ibfk_1	t1	fk	id
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# Renaming of parent columns using COPY algorithm is not supported.
+ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=COPY;
+ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t1';
+constraint_name	table_name	column_name	referenced_column_name
+PRIMARY	t1	id	NULL
+t1_ibfk_1	t1	fk	id
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t1';
+constraint_name	table_name	column_name	referenced_column_name
+PRIMARY	t1	pk	NULL
+t1_ibfk_1	t1	fk	pk
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t1 RENAME COLUMN pk TO id;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t1';
+constraint_name	table_name	column_name	referenced_column_name
+PRIMARY	t1	id	NULL
+t1_ibfk_1	t1	fk	id
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# Renaming of parent columns using COPY algorithm is not supported.
+ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=COPY;
+ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t1';
+constraint_name	table_name	column_name	referenced_column_name
+PRIMARY	t1	id	NULL
+t1_ibfk_1	t1	fk	id
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t1';
+constraint_name	table_name	column_name	referenced_column_name
+PRIMARY	t1	pk	NULL
+t1_ibfk_1	t1	fk	pk
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+DROP TABLE t1;
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk));
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t2';
+constraint_name	table_name	column_name	referenced_column_name
+t2_ibfk_1	t2	fk	pk
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t1 CHANGE pk id INT;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t2';
+constraint_name	table_name	column_name	referenced_column_name
+t2_ibfk_1	t2	fk	id
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# Renaming of parent columns using COPY algorithm is not supported.
+ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=COPY;
+ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t2';
+constraint_name	table_name	column_name	referenced_column_name
+t2_ibfk_1	t2	fk	id
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t2';
+constraint_name	table_name	column_name	referenced_column_name
+t2_ibfk_1	t2	fk	pk
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t1 RENAME COLUMN pk TO id;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t2';
+constraint_name	table_name	column_name	referenced_column_name
+t2_ibfk_1	t2	fk	id
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# Renaming of parent columns using COPY algorithm is not supported.
+ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=COPY;
+ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t2';
+constraint_name	table_name	column_name	referenced_column_name
+t2_ibfk_1	t2	fk	id
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t2';
+constraint_name	table_name	column_name	referenced_column_name
+t2_ibfk_1	t2	fk	pk
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+DROP TABLES t2, t1;
+# Coverage for cases with multiple foreign keys.
+CREATE TABLE t1 (pk INT PRIMARY KEY, u1 INT, u2 INT, fk1 INT, fk2 INT,
+UNIQUE (u1), UNIQUE (u2),
+FOREIGN KEY (fk1) REFERENCES t1 (u1),
+FOREIGN KEY (fk2) REFERENCES t1 (u2));
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t1';
+constraint_name	table_name	column_name	referenced_column_name
+PRIMARY	t1	pk	NULL
+u1	t1	u1	NULL
+u2	t1	u2	NULL
+t1_ibfk_1	t1	fk1	u1
+t1_ibfk_2	t1	fk2	u2
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t1 RENAME COLUMN u1 TO u3;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t1';
+constraint_name	table_name	column_name	referenced_column_name
+PRIMARY	t1	pk	NULL
+u1	t1	u3	NULL
+u2	t1	u2	NULL
+t1_ibfk_1	t1	fk1	u3
+t1_ibfk_2	t1	fk2	u2
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t1';
+constraint_name	table_name	column_name	referenced_column_name
+PRIMARY	t1	pk	NULL
+u1	t1	u4	NULL
+u2	t1	u5	NULL
+t1_ibfk_1	t1	fk1	u4
+t1_ibfk_2	t1	fk2	u5
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+DROP TABLE t1;
+CREATE TABLE t1 (pk INT PRIMARY KEY, u1 INT, u2 INT, UNIQUE (u1), UNIQUE (u2));
+CREATE TABLE t2 (fk1 INT, fk2 INT,
+FOREIGN KEY (fk1) REFERENCES t1 (u1),
+FOREIGN KEY (fk2) REFERENCES t1 (u2));
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t2';
+constraint_name	table_name	column_name	referenced_column_name
+t2_ibfk_1	t2	fk1	u1
+t2_ibfk_2	t2	fk2	u2
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t1 RENAME COLUMN u1 TO u3;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t2';
+constraint_name	table_name	column_name	referenced_column_name
+t2_ibfk_1	t2	fk1	u3
+t2_ibfk_2	t2	fk2	u2
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+FROM information_schema.key_column_usage
+WHERE table_schema='test' AND table_name='t2';
+constraint_name	table_name	column_name	referenced_column_name
+t2_ibfk_1	t2	fk1	u4
+t2_ibfk_2	t2	fk2	u5
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+DROP TABLES t2, t1;
+#
+# WL#6049, bug#26654674 "TABLE_CACHE_MANAGER::FREE_TABLE(THD*,
+#                        ENUM_TDC_REMOVE_TABLE_TYPE, TABLE_SHARE*)".
+#
+CREATE TABLE t1 (u INT NOT NULL, UNIQUE u(u));
+# First, check that we correctly handle open HANDLERs during
+# parent invalidation.
+HANDLER t1 OPEN;
+CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (u));
+HANDLER t1 CLOSE;
+HANDLER t1 OPEN AS a;
+HANDLER t1 OPEN AS b;
+CREATE TABLE t3 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (u));
+HANDLER a CLOSE;
+HANDLER b CLOSE;
+# Then, check that we correctly handle HANDLERs on child table
+# during parent definiton change.
+HANDLER t2 OPEN;
+HANDLER t3 OPEN AS a;
+HANDLER t3 OPEN AS b;
+ALTER TABLE t1 RENAME KEY u TO u1;
+HANDLER t2 CLOSE;
+HANDLER a CLOSE;
+HANDLER b CLOSE;
+# Now, let us check what happens when parent is renamed.
+HANDLER t2 OPEN;
+HANDLER t3 OPEN AS a;
+HANDLER t3 OPEN AS b;
+ALTER TABLE t1 RENAME TO t4;
+HANDLER t2 CLOSE;
+HANDLER a CLOSE;
+HANDLER b CLOSE;
+# Finally, check what happens when parent table is deleted.
+# Do clean-up as side-effect.
+HANDLER t2 OPEN;
+HANDLER t3 OPEN AS a;
+HANDLER t3 OPEN AS b;
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE t4;
+DROP TABLES t2, t3;
+SET FOREIGN_KEY_CHECKS=1;
+#
+# Additional test coverage for foreign keys and prepared statement
+# validation.
+#
+CREATE TABLE t1 (i INT PRIMARY KEY);
+CREATE TABLE t2 (j INT, FOREIGN KEY (j) REFERENCES t1 (i) ON DELETE CASCADE);
+CREATE TABLE t3 (k INT);
+CREATE TRIGGER bi_t3 BEFORE INSERT ON t3 FOR EACH ROW
+BEGIN
+IF @a = 1234567890 THEN
+DELETE FROM t1;
+END IF;
+END|
+PREPARE stmt FROM 'INSERT INTO t3 VALUES (1)';
+EXECUTE stmt;
+DROP TABLES t2, t1;
+# Statement should succeed even though we won't be able check
+# prelocked set element for child table.
+EXECUTE stmt;
+CREATE TABLE t1 (i INT PRIMARY KEY);
+CREATE TABLE t2 (j INT, FOREIGN KEY (j) REFERENCES t1 (i) ON DELETE CASCADE);
+EXECUTE stmt;
+DROP TABLES t2, t1;
+CREATE VIEW t2 AS SELECT 1 AS j;
+# Again statement should succeed, even though we have view instead
+# of child table.
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t3;
+DROP VIEW t2;
+#
+# Test for bug #27041477 "ASSERTION `HAS_PRELOCKING_LIST ||
+#                         THD->MDL_CONTEXT.OWNS_EQUAL_OR_STRONGER_LOCK".
+#
+CREATE TABLE t0 (i INT);
+CREATE TRIGGER t0_bi BEFORE INSERT ON t0 FOR EACH ROW DELETE FROM t1;
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk) ON UPDATE SET NULL);
+LOCK TABLE t1 READ;
+DELETE FROM t1;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+UNLOCK TABLES;
+LOCK TABLES t0 WRITE;
+UPDATE t1 SET pk = 10;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+DROP TABLES t2, t1, t0;
+#
+# Additional coverage for bug #25915132 "INPLACE ALTER TABLE WITH
+# FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH".
+#
+#
+# Handling of foreign key names during various RENAME variants.
+# We check that table definition is updated correctly and that
+# asserts about MDL on foreign key names do not fail.
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk1 INT, fk2 INT, fk3 INT,
+CONSTRAINT a FOREIGN KEY (fk1) REFERENCES t1 (pk),
+CONSTRAINT t2_ibfk_1 FOREIGN KEY (fk2) REFERENCES t1 (pk));
+ALTER TABLE t2 ADD FOREIGN KEY (fk3) REFERENCES t1 (pk);
+CREATE SCHEMA mysqltest;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t2_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	test	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t2	t1
+def	test	t2_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t2	t1
+def	test	t2_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t2	t1
+# Simple RENAME TABLE
+RENAME TABLE t2 TO t3;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t3_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	test	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t3	t1
+def	test	t3_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t3	t1
+def	test	t3_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t3	t1
+# Two cross database RENAME TABLE variants
+RENAME TABLE t3 TO mysqltest.t3;
+SHOW CREATE TABLE mysqltest.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t3_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `test`.`t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='mysqltest';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	mysqltest	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t3	t1
+def	mysqltest	t3_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t3	t1
+def	mysqltest	t3_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t3	t1
+RENAME TABLE mysqltest.t3 TO t4;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t4_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	test	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t4	t1
+def	test	t4_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t4	t1
+def	test	t4_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t4	t1
+# Simple ALTER TABLE RENAME variants.
+ALTER TABLE t4 RENAME TO t5;
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t5_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t5_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	test	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t5	t1
+def	test	t5_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t5	t1
+def	test	t5_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t5	t1
+ALTER TABLE t5 RENAME TO mysqltest.t5;
+SHOW CREATE TABLE mysqltest.t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t5_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t5_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `test`.`t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='mysqltest';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	mysqltest	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t5	t1
+def	mysqltest	t5_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t5	t1
+def	mysqltest	t5_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t5	t1
+ALTER TABLE mysqltest.t5 RENAME TO t6;
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t6_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t6_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	test	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t6	t1
+def	test	t6_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t6	t1
+def	test	t6_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t6	t1
+# ALTER TABLE INPLACE with RENAME clause.
+ALTER TABLE t6 ADD COLUMN i INT, RENAME TO t7, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  `i` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t7_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t7_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	test	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t7	t1
+def	test	t7_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t7	t1
+def	test	t7_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t7	t1
+ALTER TABLE t7 ADD COLUMN j INT, RENAME TO mysqltest.t7, ALGORITHM=INPLACE;
+SHOW CREATE TABLE mysqltest.t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t7_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t7_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `test`.`t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='mysqltest';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	mysqltest	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t7	t1
+def	mysqltest	t7_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t7	t1
+def	mysqltest	t7_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t7	t1
+ALTER TABLE mysqltest.t7 ADD COLUMN k INT, RENAME TO t8, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  `k` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t8_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t8_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	test	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t8	t1
+def	test	t8_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t8	t1
+def	test	t8_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t8	t1
+# ALTER TABLE COPY with RENAME clause.
+ALTER TABLE t8 ADD COLUMN l INT, RENAME TO t9, ALGORITHM=COPY;
+SHOW CREATE TABLE t9;
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t9_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t9_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	test	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t9	t1
+def	test	t9_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t9	t1
+def	test	t9_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t9	t1
+ALTER TABLE t9 ADD COLUMN m INT, RENAME TO mysqltest.t9, ALGORITHM=COPY;
+SHOW CREATE TABLE mysqltest.t9;
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  `m` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t9_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t9_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `test`.`t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='mysqltest';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	mysqltest	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t9	t1
+def	mysqltest	t9_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t9	t1
+def	mysqltest	t9_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t9	t1
+ALTER TABLE mysqltest.t9 ADD COLUMN n INT, RENAME TO t10, ALGORITHM=COPY;
+SHOW CREATE TABLE t10;
+Table	Create Table
+t10	CREATE TABLE `t10` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  `m` int(11) DEFAULT NULL,
+  `n` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t10_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t10_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	test	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t10	t1
+def	test	t10_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t10	t1
+def	test	t10_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t10	t1
+# ALTER TABLE INPLACE + ADD FOREIGN KEY with RENAME clause.
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE t10 ADD FOREIGN KEY (i) REFERENCES t1 (pk),
+ADD CONSTRAINT t10_ibfk_4 FOREIGN KEY (j) REFERENCES t1 (pk),
+RENAME TO t11, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t11;
+Table	Create Table
+t11	CREATE TABLE `t11` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  `m` int(11) DEFAULT NULL,
+  `n` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  KEY `i` (`i`),
+  KEY `t10_ibfk_4` (`j`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t11_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t11_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t11_ibfk_3` FOREIGN KEY (`i`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t11_ibfk_4` FOREIGN KEY (`j`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	test	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t11	t1
+def	test	t11_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t11	t1
+def	test	t11_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t11	t1
+def	test	t11_ibfk_3	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t11	t1
+def	test	t11_ibfk_4	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t11	t1
+ALTER TABLE t11 ADD FOREIGN KEY (k) REFERENCES test.t1 (pk),
+ADD CONSTRAINT t11_ibfk_6 FOREIGN KEY (l) REFERENCES test.t1 (pk),
+RENAME TO mysqltest.t11, ALGORITHM=INPLACE;
+SHOW CREATE TABLE mysqltest.t11;
+Table	Create Table
+t11	CREATE TABLE `t11` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  `m` int(11) DEFAULT NULL,
+  `n` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  KEY `i` (`i`),
+  KEY `t10_ibfk_4` (`j`),
+  KEY `k` (`k`),
+  KEY `t11_ibfk_6` (`l`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t11_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t11_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t11_ibfk_3` FOREIGN KEY (`i`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t11_ibfk_4` FOREIGN KEY (`j`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t11_ibfk_5` FOREIGN KEY (`k`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t11_ibfk_6` FOREIGN KEY (`l`) REFERENCES `test`.`t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='mysqltest';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	mysqltest	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t11	t1
+def	mysqltest	t11_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t11	t1
+def	mysqltest	t11_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t11	t1
+def	mysqltest	t11_ibfk_3	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t11	t1
+def	mysqltest	t11_ibfk_4	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t11	t1
+def	mysqltest	t11_ibfk_5	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t11	t1
+def	mysqltest	t11_ibfk_6	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t11	t1
+ALTER TABLE mysqltest.t11 ADD FOREIGN KEY (m) REFERENCES test.t1 (pk),
+ADD CONSTRAINT t12_ibfk_8 FOREIGN KEY (n) REFERENCES test.t1 (pk),
+RENAME TO t12, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t12;
+Table	Create Table
+t12	CREATE TABLE `t12` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  `m` int(11) DEFAULT NULL,
+  `n` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  KEY `i` (`i`),
+  KEY `t10_ibfk_4` (`j`),
+  KEY `k` (`k`),
+  KEY `t11_ibfk_6` (`l`),
+  KEY `m` (`m`),
+  KEY `t12_ibfk_8` (`n`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t12_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t12_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t12_ibfk_3` FOREIGN KEY (`i`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t12_ibfk_4` FOREIGN KEY (`j`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t12_ibfk_5` FOREIGN KEY (`k`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t12_ibfk_6` FOREIGN KEY (`l`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t12_ibfk_7` FOREIGN KEY (`m`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t12_ibfk_8` FOREIGN KEY (`n`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	test	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t12	t1
+def	test	t12_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t12	t1
+def	test	t12_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t12	t1
+def	test	t12_ibfk_3	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t12	t1
+def	test	t12_ibfk_4	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t12	t1
+def	test	t12_ibfk_5	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t12	t1
+def	test	t12_ibfk_6	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t12	t1
+def	test	t12_ibfk_7	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t12	t1
+def	test	t12_ibfk_8	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t12	t1
+SET FOREIGN_KEY_CHECKS=1;
+# ALTER TABLE COPY + ADD FOREIGN KEY with RENAME clause.
+ALTER TABLE t12 ADD COLUMN o INT, ADD COLUMN p INT,
+ADD FOREIGN KEY (o) REFERENCES t1 (pk),
+ADD CONSTRAINT t12_ibfk_10 FOREIGN KEY (p) REFERENCES t1 (pk),
+RENAME TO t13, ALGORITHM=COPY;
+SHOW CREATE TABLE t13;
+Table	Create Table
+t13	CREATE TABLE `t13` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  `m` int(11) DEFAULT NULL,
+  `n` int(11) DEFAULT NULL,
+  `o` int(11) DEFAULT NULL,
+  `p` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  KEY `i` (`i`),
+  KEY `t10_ibfk_4` (`j`),
+  KEY `k` (`k`),
+  KEY `t11_ibfk_6` (`l`),
+  KEY `m` (`m`),
+  KEY `t12_ibfk_8` (`n`),
+  KEY `o` (`o`),
+  KEY `t12_ibfk_10` (`p`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t13_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t13_ibfk_10` FOREIGN KEY (`p`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t13_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t13_ibfk_3` FOREIGN KEY (`i`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t13_ibfk_4` FOREIGN KEY (`j`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t13_ibfk_5` FOREIGN KEY (`k`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t13_ibfk_6` FOREIGN KEY (`l`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t13_ibfk_7` FOREIGN KEY (`m`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t13_ibfk_8` FOREIGN KEY (`n`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t13_ibfk_9` FOREIGN KEY (`o`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	test	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	test	t13_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	test	t13_ibfk_10	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	test	t13_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	test	t13_ibfk_3	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	test	t13_ibfk_4	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	test	t13_ibfk_5	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	test	t13_ibfk_6	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	test	t13_ibfk_7	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	test	t13_ibfk_8	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	test	t13_ibfk_9	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+ALTER TABLE t13 ADD COLUMN q INT, ADD COLUMN r INT,
+ADD FOREIGN KEY (q) REFERENCES test.t1 (pk),
+ADD CONSTRAINT t13_ibfk_12 FOREIGN KEY (r) REFERENCES test.t1 (pk),
+RENAME TO mysqltest.t13, ALGORITHM=COPY;
+SHOW CREATE TABLE mysqltest.t13;
+Table	Create Table
+t13	CREATE TABLE `t13` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  `m` int(11) DEFAULT NULL,
+  `n` int(11) DEFAULT NULL,
+  `o` int(11) DEFAULT NULL,
+  `p` int(11) DEFAULT NULL,
+  `q` int(11) DEFAULT NULL,
+  `r` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  KEY `i` (`i`),
+  KEY `t10_ibfk_4` (`j`),
+  KEY `k` (`k`),
+  KEY `t11_ibfk_6` (`l`),
+  KEY `m` (`m`),
+  KEY `t12_ibfk_8` (`n`),
+  KEY `o` (`o`),
+  KEY `t12_ibfk_10` (`p`),
+  KEY `q` (`q`),
+  KEY `t13_ibfk_12` (`r`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t13_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t13_ibfk_10` FOREIGN KEY (`p`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t13_ibfk_11` FOREIGN KEY (`q`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t13_ibfk_12` FOREIGN KEY (`r`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t13_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t13_ibfk_3` FOREIGN KEY (`i`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t13_ibfk_4` FOREIGN KEY (`j`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t13_ibfk_5` FOREIGN KEY (`k`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t13_ibfk_6` FOREIGN KEY (`l`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t13_ibfk_7` FOREIGN KEY (`m`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t13_ibfk_8` FOREIGN KEY (`n`) REFERENCES `test`.`t1` (`pk`),
+  CONSTRAINT `t13_ibfk_9` FOREIGN KEY (`o`) REFERENCES `test`.`t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='mysqltest';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	mysqltest	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	mysqltest	t13_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	mysqltest	t13_ibfk_10	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	mysqltest	t13_ibfk_11	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	mysqltest	t13_ibfk_12	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	mysqltest	t13_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	mysqltest	t13_ibfk_3	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	mysqltest	t13_ibfk_4	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	mysqltest	t13_ibfk_5	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	mysqltest	t13_ibfk_6	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	mysqltest	t13_ibfk_7	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	mysqltest	t13_ibfk_8	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+def	mysqltest	t13_ibfk_9	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t13	t1
+ALTER TABLE mysqltest.t13 ADD COLUMN s INT, ADD COLUMN t INT,
+ADD FOREIGN KEY (s) REFERENCES test.t1 (pk),
+ADD CONSTRAINT t13_ibfk_14 FOREIGN KEY (t) REFERENCES test.t1 (pk),
+RENAME TO t14, ALGORITHM=COPY;
+SHOW CREATE TABLE t14;
+Table	Create Table
+t14	CREATE TABLE `t14` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  `fk3` int(11) DEFAULT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  `m` int(11) DEFAULT NULL,
+  `n` int(11) DEFAULT NULL,
+  `o` int(11) DEFAULT NULL,
+  `p` int(11) DEFAULT NULL,
+  `q` int(11) DEFAULT NULL,
+  `r` int(11) DEFAULT NULL,
+  `s` int(11) DEFAULT NULL,
+  `t` int(11) DEFAULT NULL,
+  KEY `a` (`fk1`),
+  KEY `t2_ibfk_1` (`fk2`),
+  KEY `fk3` (`fk3`),
+  KEY `i` (`i`),
+  KEY `t10_ibfk_4` (`j`),
+  KEY `k` (`k`),
+  KEY `t11_ibfk_6` (`l`),
+  KEY `m` (`m`),
+  KEY `t12_ibfk_8` (`n`),
+  KEY `o` (`o`),
+  KEY `t12_ibfk_10` (`p`),
+  KEY `q` (`q`),
+  KEY `t13_ibfk_12` (`r`),
+  KEY `s` (`s`),
+  KEY `t13_ibfk_14` (`t`),
+  CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t14_ibfk_1` FOREIGN KEY (`fk2`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t14_ibfk_10` FOREIGN KEY (`p`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t14_ibfk_11` FOREIGN KEY (`q`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t14_ibfk_12` FOREIGN KEY (`r`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t14_ibfk_13` FOREIGN KEY (`s`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t14_ibfk_14` FOREIGN KEY (`t`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t14_ibfk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t14_ibfk_3` FOREIGN KEY (`i`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t14_ibfk_4` FOREIGN KEY (`j`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t14_ibfk_5` FOREIGN KEY (`k`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t14_ibfk_6` FOREIGN KEY (`l`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t14_ibfk_7` FOREIGN KEY (`m`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t14_ibfk_8` FOREIGN KEY (`n`) REFERENCES `t1` (`pk`),
+  CONSTRAINT `t14_ibfk_9` FOREIGN KEY (`o`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	test	a	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t14	t1
+def	test	t14_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t14	t1
+def	test	t14_ibfk_10	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t14	t1
+def	test	t14_ibfk_11	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t14	t1
+def	test	t14_ibfk_12	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t14	t1
+def	test	t14_ibfk_13	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t14	t1
+def	test	t14_ibfk_14	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t14	t1
+def	test	t14_ibfk_2	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t14	t1
+def	test	t14_ibfk_3	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t14	t1
+def	test	t14_ibfk_4	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t14	t1
+def	test	t14_ibfk_5	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t14	t1
+def	test	t14_ibfk_6	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t14	t1
+def	test	t14_ibfk_7	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t14	t1
+def	test	t14_ibfk_8	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t14	t1
+def	test	t14_ibfk_9	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	t14	t1
+DROP TABLE t14;
+#
+# Detection of duplicate foreign key names by various forms of ALTER
+# TABLE.
+#
+CREATE TABLE t2 (fk INT, CONSTRAINT c FOREIGN KEY (fk) REFERENCES t1 (pk));
+CREATE TABLE t3 (pk INT PRIMARY KEY, fk INT, u INT);
+INSERT INTO t3 VALUES (1, 1, 1), (2, 1, 1);
+#
+# ALTER TABLE INPLACE
+#
+SET FOREIGN_KEY_CHECKS=0;
+# Duplicate FK name should be detected before we start addition
+# of unique key and report its violation.
+ALTER TABLE t3 ADD CONSTRAINT c FOREIGN KEY (fk) REFERENCES t1 (pk),
+ADD UNIQUE KEY (u), ALGORITHM=INPLACE;
+ERROR HY000: Duplicate foreign key constraint name 'c'
+# Even for generated names.
+CREATE TABLE t4 (fk INT, CONSTRAINT t3_ibfk_1 FOREIGN KEY (fk) REFERENCES t1 (pk));
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+ADD UNIQUE KEY (u), ALGORITHM=INPLACE;
+ERROR HY000: Duplicate foreign key constraint name 't3_ibfk_1'
+# There should not be conflicting foreign keys before main phase
+# of ALTER INPLACE even if at the end RENAME clause will remove
+# conflict.
+ALTER TABLE t3 ADD CONSTRAINT c FOREIGN KEY (fk) REFERENCES t1 (pk),
+ADD UNIQUE KEY (u), RENAME TO mysqltest.t3,
+ALGORITHM=INPLACE;
+ERROR HY000: Duplicate foreign key constraint name 'c'
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+ADD UNIQUE KEY (u), RENAME TO t5,
+ALGORITHM=INPLACE;
+ERROR HY000: Duplicate foreign key constraint name 't3_ibfk_1'
+# Now let us check that we detect potential conflicts resulting
+# from application of RENAME clause, before ALTER INPLACE main
+# phase as well.
+CREATE TABLE mysqltest.t5 (fk INT,
+CONSTRAINT d FOREIGN KEY (fk) REFERENCES test.t1 (pk));
+CREATE TABLE t6 (fk INT, CONSTRAINT t8_ibfk_1 FOREIGN KEY (fk) REFERENCES test.t1 (pk));
+CREATE TABLE mysqltest.t6 (fk INT,
+CONSTRAINT t8_ibfk_1 FOREIGN KEY (fk) REFERENCES test.t1 (pk));
+DROP TABLE t4;
+ALTER TABLE t3 ADD CONSTRAINT d FOREIGN KEY (fk) REFERENCES t1 (pk),
+ADD UNIQUE KEY (u), RENAME TO mysqltest.t3,
+ALGORITHM=INPLACE;
+ERROR HY000: Duplicate foreign key constraint name 'd'
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+ADD UNIQUE KEY (u), RENAME TO t8,
+ALGORITHM=INPLACE;
+ERROR HY000: Duplicate foreign key constraint name 't8_ibfk_1'
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+ADD UNIQUE KEY (u), RENAME TO mysqltest.t8,
+ALGORITHM=INPLACE;
+ERROR HY000: Duplicate foreign key constraint name 't8_ibfk_1'
+SET FOREIGN_KEY_CHECKS=1;
+#
+# ALTER TABLE COPY
+#
+# Duplicate FK name should be detected before we start copying
+# of rows and report unique/FK constraint violation.
+ALTER TABLE t3 ADD CONSTRAINT c FOREIGN KEY (fk) REFERENCES t1 (pk),
+ADD UNIQUE KEY (u), ALGORITHM=COPY;
+ERROR HY000: Duplicate foreign key constraint name 'c'
+# Even for generated names.
+CREATE TABLE t4 (fk INT, CONSTRAINT t3_ibfk_1 FOREIGN KEY (fk) REFERENCES t1 (pk));
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+ADD UNIQUE KEY (u), ALGORITHM=COPY;
+ERROR HY000: Duplicate foreign key constraint name 't3_ibfk_1'
+# Unlike in INPLACE case, COPY algorithm creates FKs right
+# away in schema targeted by RENAME clause. So it doesn't
+# matter if constraint with the same name exists in the
+# table's original schema.
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE t3 ADD CONSTRAINT c FOREIGN KEY (fk) REFERENCES t1 (pk),
+ADD UNIQUE KEY (u), RENAME TO mysqltest.t3,
+ALGORITHM=COPY;
+ERROR 23000: Duplicate entry '1' for key 'u'
+SET FOREIGN_KEY_CHECKS=1;
+# Updating of generated names still happens at the end of ALTER,
+# so there should not be conflicting foreign keys for generated
+# names for both old and new table name.
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+ADD UNIQUE KEY (u), RENAME TO t5,
+ALGORITHM=COPY;
+ERROR HY000: Duplicate foreign key constraint name 't3_ibfk_1'
+# Check that we detect potential conflicts resulting from
+# application of RENAME clause early.
+DROP TABLE t4;
+ALTER TABLE t3 ADD CONSTRAINT d FOREIGN KEY (fk) REFERENCES t1 (pk),
+ADD UNIQUE KEY (u), RENAME TO mysqltest.t3,
+ALGORITHM=COPY;
+ERROR HY000: Duplicate foreign key constraint name 'd'
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+ADD UNIQUE KEY (u), RENAME TO t8,
+ALGORITHM=COPY;
+ERROR HY000: Duplicate foreign key constraint name 't8_ibfk_1'
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+ADD UNIQUE KEY (u), RENAME TO mysqltest.t8,
+ALGORITHM=COPY;
+ERROR HY000: Duplicate foreign key constraint name 't8_ibfk_1'
+DROP SCHEMA mysqltest;
+DROP TABLES t6, t3, t2, t1;
+#
+# Initial version of the fix triggered asserts in the below statements.
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE T2 (fk INT);
+ALTER TABLE T2 ADD FOREIGN KEY (fk) REFERENCES t1 (pk);
+RENAME TABLE T2 TO T3;
+DROP TABLES T3, t1;

@@ -1,14 +1,21 @@
 /*
- Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; version 2 of the License.
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+ GNU General Public License, version 2.0, for more details.
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
@@ -83,7 +90,7 @@ NdbPool * global_ndb_pool;
   << __LINE__ << ": " << e.getNdbError() << endl; return NDBT_FAILED; }
 
 
-int runSetup(NDBT_Context* ctx, NDBT_Step* step, int waitGroupSize){
+int runSetup(NDBT_Context* ctx, NDBT_Step* step){
 
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
@@ -98,6 +105,8 @@ int runSetup(NDBT_Context* ctx, NDBT_Step* step, int waitGroupSize){
   }
 
   Ndb_cluster_connection* conn = &pNdb->get_ndb_cluster_connection();
+  global_ndb_pool = new NdbPool(conn);
+  int waitGroupSize = 7;
 
   /* The first call to create_multi_ndb_wait_group() should succeed ... */
   global_poll_group = conn->create_ndb_wait_group(waitGroupSize);
@@ -111,23 +120,6 @@ int runSetup(NDBT_Context* ctx, NDBT_Step* step, int waitGroupSize){
   }
 
   return NDBT_OK;
-}
-
-/* NdbWaitGroup version 1 API uses a fixed-size wait group.
-   It cannot grow.  We size it at 1000 Ndbs.
-*/
-int runSetup_v1(NDBT_Context* ctx, NDBT_Step* step) {
-  return runSetup(ctx, step, 1000);
-}
-
-/* Version 2 of the API will allow the wait group to grow on 
-   demand, so we start small.
-*/
-int runSetup_v2(NDBT_Context* ctx, NDBT_Step* step) {
-  Ndb* pNdb = GETNDB(step);
-  Ndb_cluster_connection* conn = &pNdb->get_ndb_cluster_connection();
-  global_ndb_pool = new NdbPool(conn);
-  return runSetup(ctx, step, 7);
 }
 
 int runCleanup(NDBT_Context* ctx, NDBT_Step* step){
@@ -161,7 +153,6 @@ int runPkReadMultiBasic(NDBT_Context* ctx, NDBT_Step* step){
 
   Ndb* ndbObjs[ MAX_NDBS ];
   NdbTransaction* transArray[ MAX_NDBS ];
-  Ndb ** ready_ndbs;
 
   for (int j=0; j < MAX_NDBS; j++)
   {
@@ -209,7 +200,7 @@ int runPkReadMultiBasic(NDBT_Context* ctx, NDBT_Step* step){
         ndb->sendPreparedTransactions();
 
         transArray[ndbcnt] = trans;
-        global_poll_group->addNdb(ndb);
+        global_poll_group->push(ndb);
 
         ndbcnt++;
         pollcnt++;
@@ -222,13 +213,13 @@ int runPkReadMultiBasic(NDBT_Context* ctx, NDBT_Step* step){
       {
         /* Occasionally check with no timeout */
         Uint32 timeout_millis = myRandom48(2)?10000:0;
-        int count = global_poll_group->wait(ready_ndbs, timeout_millis);
+        int count = global_poll_group->wait(timeout_millis);
 
         if (count > 0)
         {
           for (int y=0; y < count; y++)
           {
-            Ndb *ndb = ready_ndbs[y];
+            Ndb *ndb = global_poll_group->pop();
             check(ndb->pollNdb(0, 1) != 0, (*ndb));
           }
           pollcnt -= count;
@@ -319,14 +310,13 @@ int runPkReadMultiWakeupT2(NDBT_Context* ctx, NDBT_Step* step)
                               NdbOperation::AbortOnError) == 0,
         hugoOps);
 
-  global_poll_group->addNdb(ndb);
-  Ndb ** ready_ndbs;
+  global_poll_group->push(ndb);
   int wait_rc = 0;
   int acknowledged = 0;
   do
   {
     ndbout << "Thread 2 : Calling NdbWaitGroup::wait()" << endl;
-    wait_rc = global_poll_group->wait(ready_ndbs, 10000);
+    wait_rc = global_poll_group->wait(10000);
     ndbout << "           Result : " << wait_rc << endl;
     if (wait_rc == 0)
     {
@@ -497,13 +487,13 @@ int sleepAndStop(NDBT_Context* ctx, NDBT_Step* step){
 NDBT_TESTSUITE(testAsynchMultiwait);
 TESTCASE("AsynchMultiwaitPkRead",
          "Verify NdbWaitGroup API (1 thread)") {
-  INITIALIZER(runSetup_v1);
+  INITIALIZER(runSetup);
   STEP(runPkReadMultiBasic);
   FINALIZER(runCleanup);
 }
 TESTCASE("AsynchMultiwaitWakeup",
          "Verify wait-multi-ndb wakeup Api code") {
-  INITIALIZER(runSetup_v1);
+  INITIALIZER(runSetup);
   TC_PROPERTY("PHASE", Uint32(0));
   STEP(runPkReadMultiWakeupT1);
   STEP(runPkReadMultiWakeupT2);
@@ -511,7 +501,7 @@ TESTCASE("AsynchMultiwaitWakeup",
 }
 TESTCASE("AsynchMultiwait_Version2",
          "Verify NdbWaitGroup API version 2") {
-  INITIALIZER(runSetup_v2);
+  INITIALIZER(runSetup);
   TC_PROPERTY("LOOP", Uint32(0));
   STEP(runV2MultiWait_Push_Thd0);
   STEP(runV2MultiWait_Push_Thd1);  
@@ -520,7 +510,7 @@ TESTCASE("AsynchMultiwait_Version2",
   FINALIZER(runCleanup);
 }
 TESTCASE("JustMisc", "Just run the Scan test") {
-  INITIALIZER(runSetup_v2);
+  INITIALIZER(runSetup);
   STEP(runMiscUntilStopped);
   STEP(sleepAndStop);
   FINALIZER(runCleanup);

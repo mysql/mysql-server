@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -30,7 +37,7 @@
 #include <NdbMutex.h>
 #include <NdbThread.h>
 
-#include <ndb_socket.h>
+#include "ndb_socket.h"
 
 class Transporter {
   friend class TransporterRegistry;
@@ -43,6 +50,12 @@ public:
   virtual ~Transporter();
 
   /**
+   * Clear any data buffered in the transporter.
+   * Should only be called in a disconnected state.
+   */
+  virtual void resetBuffers() {};
+
+  /**
    * None blocking
    *    Use isConnected() to check status
    */
@@ -53,7 +66,7 @@ public:
   /**
    * Blocking
    */
-  virtual void doDisconnect();
+  void doDisconnect();
 
   /**
    * Are we currently connected
@@ -73,18 +86,16 @@ public:
   /**
    * Get port we're connecting to (signed)
    */
-  int get_s_port() { return m_s_port; };
+  int get_s_port() const {
+    return m_s_port;
+  }
   
   /**
    * Set port to connect to (signed)
    */
   void set_s_port(int port) {
     m_s_port = port;
-    if(port<0)
-      port= -port;
-    if(m_socket_client)
-      m_socket_client->set_port(port);
-  };
+  }
 
   void update_status_overloaded(Uint32 used)
   {
@@ -94,12 +105,7 @@ public:
                                                used >= m_slowdown_limit);
   }
 
-  virtual int doSend() = 0;
-
-  bool has_data_to_send()
-  {
-    return get_callback_obj()->has_data_to_send(remoteNodeId);
-  }
+  virtual bool doSend() = 0;
 
   /* Get the configured maximum send buffer usage. */
   Uint32 get_max_send_buffer() { return m_max_send_buffer; }
@@ -125,7 +131,8 @@ protected:
 	      bool compression, 
 	      bool checksum, 
 	      bool signalId,
-              Uint32 max_send_buffer);
+        Uint32 max_send_buffer,
+        bool _presend_checksum);
 
   virtual bool configure(const TransporterConfiguration* conf);
   virtual bool configure_derived(const TransporterConfiguration* conf) = 0;
@@ -159,6 +166,7 @@ protected:
   int byteOrder;
   bool compressionUsed;
   bool checksumUsed;
+  bool check_send_checksum;
   bool signalIdUsed;
   Packer m_packer;  
   Uint32 m_max_send_buffer;
@@ -200,6 +208,36 @@ protected:
 
   Uint32 fetch_send_iovec_data(struct iovec dst[], Uint32 cnt);
   void iovec_data_sent(int nBytesSent);
+
+  /*
+   * Keep checksum state for Protocol6 messages over a byte stream.
+   */
+  class checksum_state {
+    enum cs_states
+    {
+      CS_INIT,
+      CS_MSG_CHECK,
+      CS_MSG_NOCHECK
+    };
+    cs_states state;
+    Uint32 chksum; // of already sent bytes, rotated so next byte to process matches first byte of chksum
+    Uint16 pending; // remaining bytes before state change
+  public:
+    bool computev(const struct iovec *iov, int iovcnt, size_t bytecnt = SIZE_T_MAX);
+    checksum_state(): state(CS_INIT), chksum(0), pending(4) {}
+    void init() { state = CS_INIT; chksum = 0; pending = 4; }
+  private:
+    bool compute(const void* bytes, size_t len);
+    static void static_asserts(); // container of static asserts, not to be called
+    void dumpBadChecksumInfo(Uint32 inputSum,
+                             Uint32 badSum,
+                             size_t offset,
+                             Uint32 remaining,
+                             const void* buf,
+                             size_t len) const;
+
+  };
+  checksum_state send_checksum_state;
 };
 
 inline
@@ -239,6 +277,134 @@ Transporter::iovec_data_sent(int nBytesSent)
   Uint32 used_bytes
     = get_callback_obj()->bytes_sent(remoteNodeId, nBytesSent);
   update_status_overloaded(used_bytes);
+}
+
+inline
+void
+Transporter::checksum_state::static_asserts()
+{
+  STATIC_ASSERT(MAX_SEND_MESSAGE_BYTESIZE == (Uint16)MAX_SEND_MESSAGE_BYTESIZE);
+  STATIC_ASSERT(SIZE_T_MAX == (size_t)SIZE_T_MAX);
+}
+
+inline
+bool
+Transporter::checksum_state::compute(const void* buf, size_t len)
+{
+  const Uint32 inputSum = chksum;
+  Uint32 off = 0;
+  unsigned char* psum = static_cast<unsigned char*>(static_cast<void*>(&chksum));
+  const unsigned char* bytes = static_cast<const unsigned char*>(buf);
+
+  while (off < len)
+  {
+    const Uint32 available = len - off;
+    switch (state)
+    {
+    case CS_INIT:
+    {
+      assert(pending <= 4);
+      assert(chksum == 0 || pending < 4);
+      const Uint32 nb = MIN(pending, available);
+      memcpy(psum + (4-pending), bytes + off, nb);
+      off+= nb;
+      pending-= nb;
+
+      if (pending == 0)
+      {
+        /* Msg header word 0 complete, parse to determine msg length */
+        assert(Protocol6::getMessageLength(chksum) <= (MAX_SEND_MESSAGE_BYTESIZE >> 2));
+        assert(Protocol6::getMessageLength(chksum) >= 2);
+        pending = (Protocol6::getMessageLength(chksum) * 4) - 4; /* Word 0 eaten */
+        state = (Protocol6::getCheckSumIncluded(chksum)? CS_MSG_CHECK : CS_MSG_NOCHECK);
+      }
+      break;
+    }
+    case CS_MSG_CHECK:
+    case CS_MSG_NOCHECK:
+    {
+      if (available < pending)
+      {
+        /* Only part of current msg body present */
+        if (state == CS_MSG_CHECK)
+        {
+          /* Add available content to the checksum */
+          chksum = computeXorChecksumBytes(bytes + off, available, chksum);
+        }
+        off += available;
+        pending -= available;
+      }
+      else
+      {
+        /* All of current msg body present, consume and check it */
+        if (state == CS_MSG_CHECK)
+        {
+          chksum = computeXorChecksumBytes(bytes + off, pending, chksum);
+          if (chksum != 0)
+          {
+            dumpBadChecksumInfo(inputSum,
+                                chksum,
+                                off,
+                                pending,
+                                buf,
+                                len);
+            return false;
+          }
+        }
+        off += pending;
+
+        /* Now we are ready for the next msg */
+        pending = 4;
+        state = CS_INIT;
+      }
+      break;
+    }
+    }
+  } // while (off < len)
+
+  return true;
+}
+
+
+inline
+bool
+Transporter::checksum_state::computev(const struct iovec *iov, int iovcnt, size_t bytecnt)
+{
+  // bytecnt is SIZE_T_MAX implies use all iovec
+  size_t off = 0;
+  bool ok = true;
+  for(int iovi = 0; ok && bytecnt > off && iovi < iovcnt; iovi ++)
+  {
+    int nb = iov[iovi].iov_len;
+    if (bytecnt < off + nb)
+    {
+      nb = bytecnt - off;
+    }
+    if (!compute(iov[iovi].iov_base, nb))
+    {
+      fprintf(stderr,
+              "Transporter::checksum_state::computev() failed on IOV %u/%u "
+              "byteCount %llu off %llu nb %u\n",
+              iovi,
+              iovcnt,
+              Uint64(bytecnt),
+              Uint64(off),
+              nb);
+      /* TODO : Dump more IOV + bytecnt details */
+      return false;
+    }
+    off += nb;
+  }
+  if (bytecnt != SIZE_T_MAX && bytecnt != off)
+  {
+    fprintf(stderr,
+            "Transporter::checksum_state::computev() failed : "
+            "bytecnt %llu off %llu\n",
+            Uint64(bytecnt),
+            Uint64(off));
+    ok = false;
+  }
+  return ok;
 }
 
 #endif // Define of Transporter_H

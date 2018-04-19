@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -31,6 +38,7 @@ class PollGuard;
 class NdbScanOperation : public NdbOperation {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
+  friend class NdbImpl;
   friend class NdbTransaction;
   friend class NdbResultSet;
   friend class NdbOperation;
@@ -590,8 +598,10 @@ protected:
 
   int getFirstATTRINFOScan();
   int doSendScan(int ProcessorId);
+  void finaliseScan();
   int finaliseScanOldApi();
-  int prepareSendScan(Uint32 TC_ConnectPtr, Uint64 TransactionId);
+  int prepareSendScan(Uint32 TC_ConnectPtr, Uint64 TransactionId,
+                      const Uint32 * readMask);
   
   int fix_receivers(Uint32 parallel);
   void reset_receivers(Uint32 parallel, Uint32 ordered);
@@ -675,8 +685,12 @@ protected:
   bool m_multi_range; // Mark if operation is part of multi-range scan
   bool m_executed; // Marker if operation should be released at close
 
-  /* Buffer for rows received during NdbRecord scans, or NULL. */
-  char *m_scan_buffer;
+  /* Buffer given to NdbReceivers for batch of rows received 
+     during NdbRecord scans, or NULL. Buffer is chunked up
+     to construct several NdbReceiverBuffer, but is allocated
+     as a single chunk from the NdbScanOperation
+  */
+  Uint32 *m_scan_buffer;
   
   /* Initialise scan operation with user provided information */
   virtual int processTableScanDefs(LockMode lock_mode, 
@@ -710,6 +724,12 @@ protected:
   
   ScanPruningState m_pruneState;
   Uint32 m_pruningKey;  // Can be distr key hash or actual partition id.
+
+  /**
+   * This flag indicates whether a scan operation was 
+   * succesfully finalised
+   */
+  bool  m_scanFinalisedOk;
 private:
   NdbScanOperation(const NdbScanOperation&); // Not impl.
   NdbScanOperation&operator=(const NdbScanOperation&);

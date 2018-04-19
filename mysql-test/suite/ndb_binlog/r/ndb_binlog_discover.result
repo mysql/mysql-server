@@ -1,21 +1,20 @@
-drop table if exists t1,t2;
 create table t2 (a int key) engine=ndb;
 alter table t2 rename t1;
 reset master;
 select * from t1;
 a
 1
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Incident	1	#	#1 (LOST_EVENTS)
-mysqld-bin.000001	#	Rotate	1	#	mysqld-bin.000002;pos=4
-PURGE MASTER LOGS TO 'mysqld-bin.000002';
-show binlog events from <binlog_start>;
+binlog.000001	#	Incident	#	#	#1 (LOST_EVENTS)
+binlog.000001	#	Rotate	#	#	binlog.000002;pos=POS
+PURGE MASTER LOGS TO 'binlog.000002';
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000002	#	Query	1	#	BEGIN
-mysqld-bin.000002	#	Table_map	1	#	table_id: # (test.t1)
-mysqld-bin.000002	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000002	#	Write_rows	1	#	table_id: #
-mysqld-bin.000002	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-mysqld-bin.000002	#	Query	1	#	COMMIT
+binlog.000002	#	Query	#	#	BEGIN
+binlog.000002	#	Table_map	#	#	table_id: # (test.t1)
+binlog.000002	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+binlog.000002	#	Write_rows	#	#	table_id: #
+binlog.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000002	#	Query	#	#	COMMIT
 drop table t1;

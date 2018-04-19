@@ -1,7 +1,6 @@
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE variable_name LIKE '%offline_mode%';
+SELECT * FROM performance_schema.global_variables WHERE variable_name LIKE '%offline_mode%';
 VARIABLE_NAME	VARIABLE_VALUE
-OFFLINE_MODE	OFF
-SET @user_count= 1;
+offline_mode	OFF
 CREATE USER 'user1'@'localhost';
 CREATE USER 'user2'@'localhost';
 CREATE USER 'user3'@'localhost';
@@ -11,14 +10,14 @@ connect conu3,localhost,user3;
 connection default;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-4
+5
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	4
 SET GLOBAL offline_mode = ON;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-1
+2
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	1
@@ -27,17 +26,16 @@ disconnect conu1;
 ERROR HY000: The server is currently in offline mode
 connect(conu1,localhost,user1)
 connect(root,localhost,root)
-SET @user_count= 1;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-1
+2
 connect(default,localhost,root)
 SHOW VARIABLES LIKE '%offline_mode%';
 Variable_name	Value
 offline_mode	ON
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-2
+3
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	2

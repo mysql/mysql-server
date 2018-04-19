@@ -1,0 +1,17 @@
+#Test for Intention Exclusive lock
+drop table if exists t1_ix;
+use test;
+create table t1_ix (id integer, x integer, PRIMARY KEY (id)) engine=INNODB;
+insert into t1_ix values(0,0),(1,1);
+SET autocommit=0;
+SELECT * FROM t1_ix where id=1 for update;
+id	x
+1	1
+select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
+from performance_schema.data_locks
+where object_name="t1_ix";
+object_schema	object_name	lock_type	lock_mode	lock_status	lock_data
+test	t1_ix	TABLE	IX	GRANTED	NULL
+test	t1_ix	RECORD	X	GRANTED	1
+unlock tables;
+drop table t1_ix;

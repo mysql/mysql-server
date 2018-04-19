@@ -1,0 +1,175 @@
+################################################################################
+# Bug#17047208 REPLICATION DIFFERENCE FOR MULTIPLE TRIGGERS
+# Problem: If DML invokes a trigger or a stored function that inserts into an
+# AUTO_INCREMENT column, that DML has to be marked as 'unsafe' statement. If the
+# tables are locked in the transaction prior to DML statement (using LOCK
+# TABLES), then the DML statement is not marked as 'unsafe' statement.
+
+# Steps to reproduce the reported test case (BINLOG_STMT_UNSAFE_AUTOINC_COLUMNS)
+# Case-1:
+#  > Create a trigger on a table and do a insert in the trigger that updates
+#     auto increment column
+#  > A DML that executes the trigger in step.1 and check that DML is marked
+#     as unsafe and DML is written into binlog using row format (in MBR)
+#  > Execute the step 2 by locking the required tables prior to DML and check
+#     that DML is marked as unsafe and DML is written into binlog using row
+#     format (in MBR)
+#
+#  This test script also adds test cases to cover few other unsafe statements.
+#    Case-2: BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT
+#    Case-3: BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST
+#    Case-4: BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS
+################################################################################
+
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+# Case-1: BINLOG_STMT_UNSAFE_AUTOINC_COLUMNS
+#  Statement is unsafe because it invokes a trigger or a
+#  stored function that inserts into an AUTO_INCREMENT column.
+
+# Step-1.1: Create two tables, one with AUTO_INCREMENT column.
+CREATE TABLE t1(id INT AUTO_INCREMENT, i INT, PRIMARY KEY (id)) ENGINE=INNODB;
+CREATE TABLE t2(id INT AUTO_INCREMENT, i INT, PRIMARY KEY (id)) ENGINE=INNODB;
+
+# Step-1.2: Create a trigger that inserts into an AUTO_INCREMENT column.
+CREATE TRIGGER trig1 AFTER INSERT ON t1
+FOR EACH ROW
+  INSERT INTO t2(i) VALUES(new.i);
+
+# Step-1.3: Create some gap in auto increment value on master's t2 table
+# but not on slave (by doing rollback). Just in case if the unsafe statements
+# are written in statement format, diff tables will fail.
+START TRANSACTION;
+INSERT INTO t2(i) VALUES (1);
+ROLLBACK;
+
+# Step-1.4: Insert a tuple into table t1 that triggers trig1 which inserts
+# into an AUTO_INCREMENT column.
+INSERT INTO t1(i) VALUES(2);
+
+# Step-1.5: Repeat step 1.4 but using 'LOCK TABLES' logic.
+START TRANSACTION;
+LOCK TABLES t1 WRITE, t2 WRITE;
+INSERT INTO t1(i) VALUES(3);
+UNLOCK TABLES;
+COMMIT;
+
+# Step-1.6: Sync slave with master
+--sync_slave_with_master
+
+# Step-1.7: Diff master-slave tables to make sure everything is in sync.
+--let $diff_tables=master:t1, slave:t1
+--source include/diff_tables.inc
+
+--let $diff_tables=master:t2, slave:t2
+--source include/diff_tables.inc
+
+# Step-1.8: Cleanup
+--connection master
+DROP TABLE t1,t2;
+
+# Case-2: BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT
+#  Statements writing to a table with an auto-increment column after selecting
+#  from another table are unsafe because the order in which rows are retrieved
+#  determines what (if any) rows will be written. This order cannot be
+#  predicted and may differ on master and the slave.
+
+# Step-2.1: Create two tables,  one with AUTO_INCREMENT column.
+CREATE TABLE t1(i INT) ENGINE=INNODB;
+CREATE TABLE t2(id INT AUTO_INCREMENT, i INT, PRIMARY KEY (id)) ENGINE=INNODB;
+
+# Step-2.2: Create some tuples in table t1.
+INSERT INTO t1 values (1), (2), (3);
+
+# Step-2.3: Create some gap in auto increment value on master's t2 table
+# but not on slave (by doing rollback). Just in case if the unsafe statements
+# are written in statement format, diff tables will fail.
+START TRANSACTION;
+INSERT INTO t2(i) VALUES (1);
+ROLLBACK;
+
+# Step-2.4: Insert into t2 (table with an auto-increment) by selecting tuples
+# from table t1.
+INSERT INTO t2(i) SELECT i FROM t1;
+
+# Step-2.5: Repeat step 2.4 but now with 'LOCK TABLES' logic.
+START TRANSACTION;
+LOCK TABLES t2 WRITE, t1 READ;
+INSERT INTO t2(i) SELECT i FROM t1;
+UNLOCK TABLES;
+COMMIT;
+
+# Step-2.6: Sync slave with master
+--sync_slave_with_master
+
+# Step-2.7: Diff master-slave tables to make sure everything is in sync.
+--let $diff_tables=master:t1, slave:t1
+--source include/diff_tables.inc
+
+--let $diff_tables=master:t2, slave:t2
+--source include/diff_tables.inc
+
+# Step-2.8: Cleanup
+--connection master
+DROP TABLE t1,t2;
+
+# Case-3: BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST
+#  INSERT into autoincrement field which is not the first part in the
+#  composed primary key is unsafe
+#
+# Step-3.1: Create a table with auto increment column and a composed primary key
+# (second column is auto increment column). Such a definition is allowed only
+# with 'myisam' engine.
+CREATE TABLE t1(i int, id INT AUTO_INCREMENT, PRIMARY KEY (i, id)) ENGINE=MYISAM;
+
+# Step-3.2: Inserting into such a table is unsafe.
+INSERT INTO t1 (i) values (1);
+
+# Step-3.3: Repeat step 3.2, now with 'LOCK TABLES' logic.
+START TRANSACTION;
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 (i) values (2);
+UNLOCK TABLES;
+COMMIT;
+
+# Step-3.4: Sync slave with master
+--sync_slave_with_master
+
+# Step-3.5: Diff master-slave tables to make sure everything is in sync.
+--let $diff_tables=master:t1, slave:t1
+--source include/diff_tables.inc
+
+# Step-3.6: Cleanup
+--connection master
+DROP TABLE t1;
+
+# Case-4: BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS
+#  INSERT... ON DUPLICATE KEY UPDATE  on a table with more than one UNIQUE KEY
+#  is unsafe Statement
+
+# Step-4.1: Create a table with two unique keys
+CREATE TABLE t1(i INT, j INT, UNIQUE KEY(i), UNIQUE KEY(j)) ENGINE=INNODB;
+
+# Step-4.2: Inserting into such a table is unsafe.
+INSERT INTO t1 (i,j) VALUES (1,2) ON DUPLICATE KEY UPDATE j=j+1;
+
+# Step-4.3: Repeat step 3.2, now with 'LOCK TABLES' logic.
+START TRANSACTION;
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 (i,j) VALUES (1,2) ON DUPLICATE KEY UPDATE j=j+1;
+UNLOCK TABLES;
+COMMIT;
+
+# Step-4.4: Sync slave with master
+--sync_slave_with_master
+
+# Step-4.5: Diff master-slave tables to make sure everything is in sync.
+--let $diff_tables=master:t1, slave:t1
+--source include/diff_tables.inc
+
+# Step-4.6: Cleanup
+--connection master
+DROP TABLE t1;
+
+--source include/rpl_end.inc

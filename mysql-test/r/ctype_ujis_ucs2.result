@@ -1138,72 +1138,10 @@ update t1 set name='U+9FA3 <CJK>' where ujis=0x8FEDE2;
 update t1 set name='U+9FA5 <CJK>' where ujis=0x8FEDE3;
 update t1 set name='User defined range #2' where ujis >= 0x8FF5A1 and ujis <= 0x8FFEFE;
 update t1 set name='UNASSIGNED' where name='';
+SET @@session.max_error_count = 0;
 update ignore t1 set ucs2=ujis, ujis2=ucs2;
 Warnings:
-Warning	1366	Incorrect string value: '\xA2\xAF' for column 'ucs2' at row 237
-Warning	1366	Incorrect string value: '\xA2\xB0' for column 'ucs2' at row 238
-Warning	1366	Incorrect string value: '\xA2\xB1' for column 'ucs2' at row 239
-Warning	1366	Incorrect string value: '\xA2\xB2' for column 'ucs2' at row 240
-Warning	1366	Incorrect string value: '\xA2\xB3' for column 'ucs2' at row 241
-Warning	1366	Incorrect string value: '\xA2\xB4' for column 'ucs2' at row 242
-Warning	1366	Incorrect string value: '\xA2\xB5' for column 'ucs2' at row 243
-Warning	1366	Incorrect string value: '\xA2\xB6' for column 'ucs2' at row 244
-Warning	1366	Incorrect string value: '\xA2\xB7' for column 'ucs2' at row 245
-Warning	1366	Incorrect string value: '\xA2\xB8' for column 'ucs2' at row 246
-Warning	1366	Incorrect string value: '\xA2\xB9' for column 'ucs2' at row 247
-Warning	1366	Incorrect string value: '\xA2\xC2' for column 'ucs2' at row 256
-Warning	1366	Incorrect string value: '\xA2\xC3' for column 'ucs2' at row 257
-Warning	1366	Incorrect string value: '\xA2\xC4' for column 'ucs2' at row 258
-Warning	1366	Incorrect string value: '\xA2\xC5' for column 'ucs2' at row 259
-Warning	1366	Incorrect string value: '\xA2\xC6' for column 'ucs2' at row 260
-Warning	1366	Incorrect string value: '\xA2\xC7' for column 'ucs2' at row 261
-Warning	1366	Incorrect string value: '\xA2\xC8' for column 'ucs2' at row 262
-Warning	1366	Incorrect string value: '\xA2\xC9' for column 'ucs2' at row 263
-Warning	1366	Incorrect string value: '\xA2\xD1' for column 'ucs2' at row 271
-Warning	1366	Incorrect string value: '\xA2\xD2' for column 'ucs2' at row 272
-Warning	1366	Incorrect string value: '\xA2\xD3' for column 'ucs2' at row 273
-Warning	1366	Incorrect string value: '\xA2\xD4' for column 'ucs2' at row 274
-Warning	1366	Incorrect string value: '\xA2\xD5' for column 'ucs2' at row 275
-Warning	1366	Incorrect string value: '\xA2\xD6' for column 'ucs2' at row 276
-Warning	1366	Incorrect string value: '\xA2\xD7' for column 'ucs2' at row 277
-Warning	1366	Incorrect string value: '\xA2\xD8' for column 'ucs2' at row 278
-Warning	1366	Incorrect string value: '\xA2\xD9' for column 'ucs2' at row 279
-Warning	1366	Incorrect string value: '\xA2\xDA' for column 'ucs2' at row 280
-Warning	1366	Incorrect string value: '\xA2\xDB' for column 'ucs2' at row 281
-Warning	1366	Incorrect string value: '\xA2\xEB' for column 'ucs2' at row 297
-Warning	1366	Incorrect string value: '\xA2\xEC' for column 'ucs2' at row 298
-Warning	1366	Incorrect string value: '\xA2\xED' for column 'ucs2' at row 299
-Warning	1366	Incorrect string value: '\xA2\xEE' for column 'ucs2' at row 300
-Warning	1366	Incorrect string value: '\xA2\xEF' for column 'ucs2' at row 301
-Warning	1366	Incorrect string value: '\xA2\xF0' for column 'ucs2' at row 302
-Warning	1366	Incorrect string value: '\xA2\xF1' for column 'ucs2' at row 303
-Warning	1366	Incorrect string value: '\xA2\xFA' for column 'ucs2' at row 312
-Warning	1366	Incorrect string value: '\xA2\xFB' for column 'ucs2' at row 313
-Warning	1366	Incorrect string value: '\xA2\xFC' for column 'ucs2' at row 314
-Warning	1366	Incorrect string value: '\xA2\xFD' for column 'ucs2' at row 315
-Warning	1366	Incorrect string value: '\xA3\xA1' for column 'ucs2' at row 317
-Warning	1366	Incorrect string value: '\xA3\xA2' for column 'ucs2' at row 318
-Warning	1366	Incorrect string value: '\xA3\xA3' for column 'ucs2' at row 319
-Warning	1366	Incorrect string value: '\xA3\xA4' for column 'ucs2' at row 320
-Warning	1366	Incorrect string value: '\xA3\xA5' for column 'ucs2' at row 321
-Warning	1366	Incorrect string value: '\xA3\xA6' for column 'ucs2' at row 322
-Warning	1366	Incorrect string value: '\xA3\xA7' for column 'ucs2' at row 323
-Warning	1366	Incorrect string value: '\xA3\xA8' for column 'ucs2' at row 324
-Warning	1366	Incorrect string value: '\xA3\xA9' for column 'ucs2' at row 325
-Warning	1366	Incorrect string value: '\xA3\xAA' for column 'ucs2' at row 326
-Warning	1366	Incorrect string value: '\xA3\xAB' for column 'ucs2' at row 327
-Warning	1366	Incorrect string value: '\xA3\xAC' for column 'ucs2' at row 328
-Warning	1366	Incorrect string value: '\xA3\xAD' for column 'ucs2' at row 329
-Warning	1366	Incorrect string value: '\xA3\xAE' for column 'ucs2' at row 330
-Warning	1366	Incorrect string value: '\xA3\xAF' for column 'ucs2' at row 331
-Warning	1366	Incorrect string value: '\xA3\xBA' for column 'ucs2' at row 342
-Warning	1366	Incorrect string value: '\xA3\xBB' for column 'ucs2' at row 343
-Warning	1366	Incorrect string value: '\xA3\xBC' for column 'ucs2' at row 344
-Warning	1366	Incorrect string value: '\xA3\xBD' for column 'ucs2' at row 345
-Warning	1366	Incorrect string value: '\xA3\xBE' for column 'ucs2' at row 346
-Warning	1366	Incorrect string value: '\xA3\xBF' for column 'ucs2' at row 347
-Warning	1366	Incorrect string value: '\xA3\xC0' for column 'ucs2' at row 348
-Warning	1366	Incorrect string value: '\xA3\xDB' for column 'ucs2' at row 375
+SET @@session.max_error_count = DEFAULT;
 Characters with safe Unicode round trip
 select hex(ujis), hex(ucs2), hex(ujis2), name from t1 where ujis=ujis2 order by ujis;
 hex(ujis)	hex(ucs2)	hex(ujis2)	name

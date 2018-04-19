@@ -28,14 +28,10 @@
 ##### Options, for debugging support #####
 let $debug= 0;
 
-# The server must support partitioning.
---source include/have_partition.inc
-
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
---source include/have_innodb.inc
 let $engine= 'InnoDB';
 
 #------------------------------------------------------------------------------#
@@ -244,8 +240,61 @@ SELECT * FROM t1;
 --connection con1
 UNLOCK TABLES;
 
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
 --connection con2
 DROP TABLE t1;
 
---disconnect con1
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
 --connection default
+
+--echo #
+--echo # Bug#53770: Server crash at handler.cc:2076 on LOAD DATA
+--echo #            after timed out COALESCE PARTITION.
+--echo # Rewritten to use InnoDB after WL#8971.
+CREATE TABLE t1 ( i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f INT )
+        ENGINE = InnoDB PARTITION BY HASH(i) PARTITIONS 3;
+
+--echo # Connection 1 starts transaction and gets lock
+START TRANSACTION;
+SELECT * FROM t1;
+
+--connect (con2,localhost,root,,)
+SET lock_wait_timeout = 2;
+--echo # Connection 2 tries to coalesce partitions (timeout):
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 COALESCE PARTITION 2;
+
+--connect (con3,localhost,root,,)
+
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+--write_file $MYSQLD_DATADIR/test/load.in
+1
+2
+3
+EOF
+--echo # Connection 3 tries to load into the table:
+send LOAD DATA INFILE 'load.in' INTO TABLE t1 (f);
+
+--connection default
+--real_sleep 1
+--echo # Connection 1 commits the transaction
+COMMIT;
+
+--connection con3
+--echo # Connection 3...
+--reap
+DROP TABLE t1;
+
+--disconnect con3
+--source include/wait_until_disconnected.inc
+
+--connection con2
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection default
+--remove_file $MYSQLD_DATADIR/test/load.in

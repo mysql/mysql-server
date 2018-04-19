@@ -1,0 +1,53 @@
+# innodb_change_buffering_debug option is debug only
+--source include/have_debug.inc
+
+call mtr.add_suppression("Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
+
+--disable_query_log
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
+--enable_query_log
+
+CREATE TABLE t1(
+        a INT AUTO_INCREMENT PRIMARY KEY,
+        b CHAR(1),
+        c INT,
+        INDEX(b))
+ENGINE=InnoDB STATS_PERSISTENT=0;
+
+# The flag innodb_change_buffering_debug is only available in debug builds.
+# It instructs InnoDB to try to evict pages from the buffer pool when
+# change buffering is possible, so that the change buffer will be used
+# whenever possible.
+SET GLOBAL innodb_change_buffering_debug = 1;
+
+# Create enough rows for the table, so that the change buffer will be
+# used for modifying the secondary index page. There must be multiple
+# index pages, because changes to the root page are never buffered.
+INSERT INTO t1 VALUES(0,'x',1);
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+
+let $restart_parameters = restart: --innodb-force-recovery=6;
+--source include/restart_mysqld.inc
+
+--error ER_CANT_LOCK
+insert into t1 values(0, 'y', 1);
+
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+# Cleanup
+DROP TABLE t1;

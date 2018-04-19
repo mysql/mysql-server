@@ -3,8 +3,11 @@
  *  memcached - memory caching daemon
  *
  *       http://www.danga.com/memcached/
- *
+ *  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
  *  Copyright 2003 Danga Interactive, Inc.  All rights reserved.
+ *  This file was modified by Oracle on 28-08-2015 and 23-03-2016.
+ *  Modifications copyright (c) 2015, 2016, Oracle and/or its affiliates.
+ *  All rights reserved.
  *
  *  Use and distribution licensed under the BSD license.  See
  *  the LICENSE file for full text.
@@ -12,6 +15,8 @@
  *  Authors:
  *      Anatoly Vorobey <mellon@pobox.com>
  *      Brad Fitzpatrick <brad@danga.com>
+ *
+ *  Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 #include "config.h"
 #include "config_static.h"
@@ -37,6 +42,8 @@
 #include "memcached_mysql.h"
 
 #define INNODB_MEMCACHED
+void my_thread_init();
+void my_thread_end();
 
 static inline void item_set_cas(const void *cookie, item *it, uint64_t cas) {
     settings.engine.v1->item_set_cas(settings.engine.v0, cookie, it, cas);
@@ -86,7 +93,7 @@ static inline void item_set_cas(const void *cookie, item *it, uint64_t cas) {
 #define STATS_MISS(conn, op, key, nkey) \
     STATS_TWO(conn, op##_misses, cmd_##op, key, nkey)
 
-#if defined(HAVE_GCC_ATOMIC_BUILTINS)
+#if defined(HAVE_GCC_SYNC_BUILTINS)
 
 #define STATS_NOKEY(conn, op)	\
 do { \
@@ -112,7 +119,7 @@ do { \
 
 #define MEMCACHED_ATOMIC_MSG	"InnoDB MEMCACHED: Memcached uses atomic increment \n"
 
-#else /* HAVE_GCC_ATOMIC_BUILTINS */
+#else /* HAVE_GCC_SYNC_BUILTINS */
 #define STATS_NOKEY(conn, op) { \
     struct thread_stats *thread_stats = \
         get_thread_stats(conn); \
@@ -139,7 +146,7 @@ do { \
 }
 
 #define MEMCACHED_ATOMIC_MSG	"InnoDB Memcached: Memcached DOES NOT use atomic increment"
-#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+#endif /* HAVE_GCC_SYNC_BUILTINS */
 
 volatile sig_atomic_t memcached_shutdown;
 volatile sig_atomic_t memcached_initialized;
@@ -727,11 +734,11 @@ static void conn_cleanup(conn *c) {
     }
 
     if (c->engine_storage) {
-	settings.engine.v1->clean_engine(settings.engine.v0, c,
-					 c->engine_storage);
+	void* cleanup_data = c->engine_storage;
+	c->engine_storage = NULL;
+	settings.engine.v1->clean_engine(settings.engine.v0, c, cleanup_data);
     }
 
-    c->engine_storage = NULL;
     c->tap_iterator = NULL;
     c->thread = NULL;
     assert(c->next == NULL);
@@ -3580,7 +3587,12 @@ static size_t tokenize_command(char *command, token_t *tokens, const size_t max_
     return ntokens;
 }
 
-static void detokenize(token_t *tokens, int ntokens, char **out, int *nbytes) {
+#ifdef INNODB_MEMCACHED
+static void detokenize(token_t *tokens, size_t ntokens, char **out, int *nbytes)
+#else
+static void detokenize(token_t *tokens, int ntokens, char **out, int *nbytes)
+#endif
+{
     int i, nb;
     char *buf, *p;
 
@@ -4042,19 +4054,22 @@ static inline char* process_get_command(conn *c, token_t *tokens, size_t ntokens
     int i = c->ileft;
     item *it;
     token_t *key_token = &tokens[KEY_TOKEN];
+    int range = false;
     assert(c != NULL);
-
-    /* We temporarily block the mgets commands till wl6650 checked in. */
-    if ((key_token + 1)->length > 0) {
-	out_string(c, "We temporarily don't support multiple get option.");
-	return NULL;
-    }
 
     do {
         while(key_token->length != 0) {
+            /* whether there are more keys to fetch */
+            bool next_get = (key_token + 1)->value;
 
             key = key_token->value;
             nkey = key_token->length;
+
+            /* whether this is a range search */
+            if (nkey >=  2 && key[0] == '@'
+		&& (key[1] == '>' || key[1] == '<')) {
+		range = true;
+            }
 
             if(nkey > KEY_MAX_LENGTH) {
                 out_string(c, "CLIENT_ERROR bad command line format");
@@ -4065,7 +4080,8 @@ static inline char* process_get_command(conn *c, token_t *tokens, size_t ntokens
             c->aiostat = ENGINE_SUCCESS;
 
             if (ret == ENGINE_SUCCESS) {
-                ret = settings.engine.v1->get(settings.engine.v0, c, &it, key, nkey, 0);
+                ret = settings.engine.v1->get(settings.engine.v0, c, &it,
+					      key, nkey, next_get);
             }
 
             switch (ret) {
@@ -4179,7 +4195,14 @@ static inline char* process_get_command(conn *c, token_t *tokens, size_t ntokens
                 MEMCACHED_COMMAND_GET(c->sfd, key, nkey, -1, 0);
             }
 
-            key_token++;
+            if (!range) {
+		key_token++;
+            } else {
+		if (ret == ENGINE_KEY_ENOENT) {
+			key_token->value = NULL;
+		}
+		break;
+	    }
         }
 
         /*
@@ -4245,6 +4268,13 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
            && safe_strtol(tokens[3].value, &exptime_int)
            && safe_strtol(tokens[4].value, (int32_t *)&vlen))) {
         out_string(c, "CLIENT_ERROR bad command line format");
+        return;
+    }
+
+    /* Negative expire values not allowed */
+
+    if (exptime_int < 0) {
+        out_string(c, "CLIENT_ERROR Invalid expire time");
         return;
     }
 
@@ -6424,6 +6454,15 @@ static void *new_independent_stats(void) {
     int ii;
     int nrecords = num_independent_stats();
     struct independent_stats *independent_stats = calloc(sizeof(independent_stats) + sizeof(struct thread_stats) * nrecords, 1);
+
+#ifdef INNODB_MEMCACHED
+    if (independent_stats == NULL) {
+	fprintf(stderr, "Unable to allocate memory for"
+		       "independent_stats...\n");
+       return (NULL);
+    }
+#endif
+
     if (settings.topkeys > 0)
         independent_stats->topkeys = topkeys_init(settings.topkeys);
     for (ii = 0; ii < nrecords; ii++)
@@ -7823,8 +7862,13 @@ int main (int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
+#ifdef INNODB_MEMCACHED
+    my_thread_init();
+#endif
+
     if(!init_engine(engine_handle,engine_config,settings.extensions.logger)) {
 #ifdef INNODB_MEMCACHED
+	my_thread_end();
         shutdown_server();
         goto func_exit;
 #else
@@ -7852,6 +7896,12 @@ int main (int argc, char **argv) {
     }
 
     default_independent_stats = new_independent_stats();
+
+#ifdef INNODB_MEMCACHED
+    if (!default_independent_stats) {
+	exit(EXIT_FAILURE);
+    }
+#endif
 
 #ifndef __WIN32__
     /*
@@ -7904,6 +7954,7 @@ int main (int argc, char **argv) {
                                             portnumber_file)) {
 		vperror("failed to listen on TCP port %d", settings.port);
 #ifdef INNODB_MEMCACHED
+		my_thread_end();
 		shutdown_server();
 		goto func_exit;
 #else
@@ -7969,6 +8020,7 @@ func_exit:
         event_base_free(main_base);
         main_base = NULL;
     }
+    my_thread_end();
 #endif
 
     memcached_shutdown = 2;

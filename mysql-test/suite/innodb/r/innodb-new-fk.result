@@ -1,0 +1,58 @@
+#
+# Test for bug #26654685 "INDEX->ID == BTR_PAGE_GET_INDEX_ID(PAGE) AT
+#                         BTR_CUR_SEARCH_TO_NTH_LEVEL IN BTR/B".
+#
+CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+INSERT INTO parent VALUES(1,2),(2,2);
+CREATE TABLE child (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+INSERT INTO child VALUES (10, 2);
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+CREATE UNIQUE INDEX idx ON parent(b);;
+connect  con1,localhost,root,,;
+connection con1;
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+INSERT INTO parent VALUES(4, 2);
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+connection default;
+ERROR 23000: Duplicate entry '2' for key 'idx'
+SET DEBUG_SYNC = 'now SIGNAL conn_add_fk';
+connection con1;
+SET DEBUG_SYNC = 'now WAIT_FOR conn_add_fk';
+ALTER TABLE child ADD CONSTRAINT cfx FOREIGN KEY (b) REFERENCES parent(b);
+ERROR HY000: Cannot add foreign key constraint
+SET DEBUG_SYNC = 'RESET';
+connection default;
+DROP TABLE child;
+DROP TABLE parent;
+connection con1;
+disconnect con1;
+connection default;
+#
+# Test case for bug#26655360 "ASSERTION FAILURE: DICT0DICT.CC:2045
+#                             :TABLE->N_REC_LOCKS == 0".
+CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+CREATE INDEX idx on parent(b);
+INSERT INTO parent VALUES(1,2),(2,2);
+CREATE TABLE child (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+INSERT INTO child VALUES (10, 3);
+SET DEBUG_SYNC = "innodb_ddl_log_before_enter SIGNAL start_create WAIT_FOR go_ahead";
+ALTER TABLE child ADD CONSTRAINT idx17 FOREIGN KEY (b) REFERENCES parent(a);
+# Make table lock _count > 1
+connect  con1,localhost,root,,;
+connection con1;
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+START TRANSACTION;
+DELETE FROM parent WHERE a=1;;
+connect  con2,localhost,root,,;
+# Wait until DELETE is blocked due to MDL on the parent.
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+disconnect con2;
+connection default;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`#sql-xxxxx
+connection con1;
+COMMIT;
+disconnect con1;
+connection default;
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE child;
+DROP TABLE parent;

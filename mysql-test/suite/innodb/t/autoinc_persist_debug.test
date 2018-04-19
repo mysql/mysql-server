@@ -1,0 +1,326 @@
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--echo # Pre-create some tables, so that DDTableBuffer is not empty
+
+set global innodb_flush_log_at_trx_commit=1;
+
+CREATE TABLE t1(a TINYINT AUTO_INCREMENT KEY) ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0), (0), (0), (0), (-1), (-10), (0),
+(20), (30), (31);
+SELECT * FROM t1;
+
+CREATE TABLE t2(a TINYINT UNSIGNED AUTO_INCREMENT KEY) ENGINE = InnoDB;
+--error ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t2 VALUES(-5);
+INSERT INTO t2 VALUES(0), (0), (0), (0), (8), (10), (0),
+(20), (30), (31);
+SELECT * FROM t2;
+
+CREATE TABLE t3(a SMALLINT AUTO_INCREMENT KEY) ENGINE = InnoDB;
+INSERT INTO t3 VALUES(0), (0), (0), (0), (-1), (-10), (0),
+(20), (30), (31), (1024), (4096);
+SELECT * FROM t3;
+
+--source include/restart_mysqld.inc
+
+set global innodb_flush_log_at_trx_commit=1;
+
+--echo # Scenario 1: Create two new tables, with simple DMLs on them,
+--echo # and force a checkpoint, then some other DMLs on them
+
+CREATE TABLE t4(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, KEY b(b)) ENGINE = InnoDB;
+CREATE TABLE t5(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, KEY b(b)) ENGINE = InnoDB;
+
+SET @start_global_value = @@global.innodb_log_checkpoint_now;
+SELECT @start_global_value;
+
+--echo # Invoke a checkpoint, which would persist the autoinc counters
+--echo # of t4 and t5 into DD Table Buffer
+set global innodb_log_checkpoint_now=ON;
+
+INSERT INTO t4 VALUES(0, 1), (0, 2), (10, 3), (12, 4), (0, 5);
+SELECT * FROM t4;
+SHOW CREATE TABLE t4;
+INSERT INTO t5 VALUES(0, 1), (100, 2), (50, 3);
+INSERT INTO t5 VALUES(0, 4), (109, 5), (0, 6);
+SELECT * FROM t5;
+SHOW CREATE TABLE t5;
+
+set global innodb_log_checkpoint_now=ON;
+SELECT @start_global_value;
+SET @@global.innodb_log_checkpoint_now = @start_global_value;
+SELECT @@global.innodb_log_checkpoint_now;
+
+START TRANSACTION;
+--echo # This should insert 14, 15
+INSERT INTO t4 VALUES(0, 10), (0, 20);
+--echo # This should insert 111, 112
+INSERT INTO t5 VALUES(0, 10), (0, 20);
+COMMIT;
+
+START TRANSACTION;
+--echo # This should insert 16, 17
+INSERT INTO t4 VALUES(0, 10), (0, 20);
+--echo # This should insert 113, 114
+INSERT INTO t5 VALUES(0, 10), (0, 20);
+--echo # This will not rollback the counter
+ROLLBACK;
+
+--source include/kill_and_restart_mysqld.inc
+
+SET GLOBAL innodb_flush_log_at_trx_commit=1;
+
+SELECT MAX(a) AS `Expect 15` FROM t4;
+SELECT MAX(a) AS `Expect 112` FROM t5;
+
+SHOW CREATE TABLE t4;
+SHOW CREATE TABLE t5;
+
+--echo # Scenario 2: Mix the persisted autoinc counter and corrupted bits
+
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+TRUNCATE TABLE t3;
+
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t4;
+set debug = "-d, dict_set_index_corrupted";
+
+--error ER_INDEX_CORRUPT
+SELECT b FROM t4 WHERE b > 3;
+
+--echo # This should insert 18, 19
+INSERT INTO t4 VALUES(0, 6), (0, 7);
+SELECT MAX(a) AS `Expect 19` FROM t4;
+
+INSERT INTO t1 VALUES(0), (0);
+INSERT INTO t2 VALUES(0), (0);
+INSERT INTO t3 VALUES(0), (0);
+
+--echo # This should insert 115, 116
+INSERT INTO t5 VALUES(0, 10), (0, 11);
+
+--source include/kill_and_restart_mysqld.inc
+
+set global innodb_flush_log_at_trx_commit=1;
+
+CHECK TABLE t4;
+--error ER_INDEX_CORRUPT
+SELECT b FROM t4 WHERE b > 3;
+
+--echo # This should fix the corrupted index
+DROP INDEX b ON t4;
+CREATE INDEX b ON t4(b);
+CHECK TABLE t4;
+
+INSERT INTO t4 VALUES(0, 8), (0, 9), (30, 10);
+
+SET @start_global_value = @@global.innodb_log_checkpoint_now;
+SELECT @start_global_value;
+set global innodb_log_checkpoint_now=ON;
+
+SELECT MAX(a) AS `Expect 116` FROM t5;
+DELETE FROM t5;
+
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t5;
+set debug = "-d, dict_set_index_corrupted";
+
+SELECT @start_global_value;
+SET @@global.innodb_log_checkpoint_now = @start_global_value;
+SELECT @@global.innodb_log_checkpoint_now;
+
+--echo # This should insert 117, 118
+INSERT INTO t5 VALUES(0, 10), (0, 20);
+
+--source include/kill_and_restart_mysqld.inc
+
+set global innodb_flush_log_at_trx_commit=1;
+
+--error ER_INDEX_CORRUPT
+SELECT b FROM t5 WHERE b > 3;
+
+--echo # This should fix the corrupted index
+DROP INDEX b ON t5;
+CREATE INDEX b ON t5(b);
+CHECK TABLE t5;
+
+--echo # This should insert 31, 32
+INSERT INTO t4 VALUES(0, 11), (0, 12);
+SELECT MAX(a) AS `Expect 32` FROM t4;
+
+--source include/restart_mysqld.inc
+
+set global innodb_flush_log_at_trx_commit=1;
+
+--echo # This should insert 119, 120
+INSERT INTO t5 VALUES(0, 12), (0, 13);
+SELECT MAX(a) AS `Expect 120` FROM t5;
+
+# Scenario 3: Test if the specified autoinc counter would be persisted
+
+CREATE TABLE t6 (
+  id    INT AUTO_INCREMENT PRIMARY KEY,
+  name  VARCHAR(100)
+) ENGINE=InnoDB AUTO_INCREMENT=99;
+
+SET GLOBAL debug="+d,innodb_evict_autoinc_table";
+
+--echo # Evict table from dictionary cache
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_ft_aux_table="test/t6";
+
+SET GLOBAL debug="-d,innodb_evict_autoinc_table";
+
+INSERT INTO t6(name) VALUES('mysql');
+
+SELECT * FROM t6;
+
+DROP TABLE t1, t2, t3, t4, t5, t6;
+
+
+# Test if the auto increment counter would be initialized correctly
+# after the share object gets closed
+CREATE TABLE t1 (a INT AUTO_INCREMENT NOT NULL, b INT, KEY(a))
+PARTITION BY RANGE (b)
+( PARTITION p0 VALUES LESS THAN (4),
+  PARTITION p1 VALUES LESS THAN (100));
+
+SELECT * FROM t1;
+
+set session debug = "+d,partition_truncate_no_reset";
+
+TRUNCATE TABLE t1;
+
+set session debug = "-d,partition_truncate_no_reset";
+
+ALTER TABLE t1 ADD INDEX(b), ALGORITHM = INPLACE;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Scenario 4: Test ALTER TABLE .. AUTO_INCREMENT to a smaller value
+--echo # and maybe crash
+--echo #
+
+# Part 1
+
+CREATE TABLE t1(a TINYINT AUTO_INCREMENT KEY) ENGINE = InnoDB;
+
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 35` FROM t1;
+
+DELETE FROM t1 WHERE a >= 30;
+
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+
+--source include/restart_mysqld.inc
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 23` FROM t1;
+
+DROP TABLE t1;
+
+# Part 2
+
+CREATE TABLE t1(a TINYINT AUTO_INCREMENT KEY) ENGINE = InnoDB;
+
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 35` FROM t1;
+
+DELETE FROM t1 WHERE a >= 30;
+
+SET SESSION debug="+d, ib_ddl_crash_before_update_stats";
+
+--echo # Write file to make mysql-test-run.pl expect crash
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error CR_SERVER_LOST
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+
+--echo # Restart mysqld after the crash and reconnect.
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 38` FROM t1;
+
+DROP TABLE t1;
+
+# Part 3, test partitioned table for part 1
+
+CREATE TABLE t1 (a INT AUTO_INCREMENT NOT NULL, KEY(a))
+PARTITION BY RANGE (a)
+( PARTITION p0 VALUES LESS THAN (10),
+  PARTITION p1 VALUES LESS THAN (20),
+  PARTITION p2 VALUES LESS THAN (50));
+
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 35` FROM t1;
+
+DELETE FROM t1 WHERE a >= 30;
+
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+
+--source include/restart_mysqld.inc
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 23` FROM t1;
+
+DROP TABLE t1;
+
+# Part 4, test partitioned table for part 2
+
+CREATE TABLE t1 (a INT AUTO_INCREMENT NOT NULL, KEY(a))
+PARTITION BY RANGE (a)
+( PARTITION p0 VALUES LESS THAN (10),
+  PARTITION p1 VALUES LESS THAN (20),
+  PARTITION p2 VALUES LESS THAN (50));
+
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 35` FROM t1;
+
+DELETE FROM t1 WHERE a >= 30;
+
+SET SESSION debug="+d, ib_ddl_crash_before_update_stats";
+
+--echo # Write file to make mysql-test-run.pl expect crash
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error CR_SERVER_LOST
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+
+--echo # Restart mysqld after the crash and reconnect.
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 38` FROM t1;
+
+DROP TABLE t1;

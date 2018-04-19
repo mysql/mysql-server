@@ -9,14 +9,118 @@
 # Execution should be successful.
 ###############################################################################
 --source include/have_log_bin.inc
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 
+--connection default
 CREATE TABLE t1(f1 int);
+
 XA START'','';
+--disable_warnings
 INSERT INTO t1 VALUES(10);
+--enable_warnings
 BINLOG '
 SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
 XA END'';
 XA PREPARE'';
 XA COMMIT'';
+
+#
+# Bug#21942487 ASSERTION
+# `STATIC_CAST<SQL_CMD_XA_COMMIT*>(THD->LEX->M_SQL_CMDQL_CMD)->
+# GET_XA_OPT()
+# Bug #24764800 REPLICATION FAILING ON SLAVE WITH XAER_RMFAIL ERROR
+#
+# The following block checks safety of processing of load masquaraded
+# as if it's out of mysqlbinlog. The XA transaction must complete in
+# either rollback or commit mode.
+# Rollback is done two ways: explicit and implicit through connection close.
+#
+SET @sav.pseudo_slave_mode= @@session.pseudo_slave_mode;
+SELECT  @@session.pseudo_slave_mode;
+# A warning out of the following query is improper and caused by a combination
+# of the above BINLOG processing and side effect of BUG#15891524.
+SET @@session.pseudo_slave_mode=1;
+
+# In order to simulate dressing up as the binlog applier the current connection needs
+# to process at least one BINLOG carrying Format-Descriptor log-event.
+BEGIN;
+BINLOG '
+SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
+COMMIT;
+
+XA START 'xa_rollback';
+--disable_warnings
+INSERT INTO t1 VALUES(10);
+--enable_warnings
+XA END 'xa_rollback';
+XA ROLLBACK 'xa_rollback';
+
+#
+# The same but XA END as above in a new connection which is closed to rollback xa
+#
+--connect(con1,localhost,root,,)
+SET @@session.pseudo_slave_mode=1;
+BEGIN;
+BINLOG '
+SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
+COMMIT;
+
+XA START 'xa_disconnect';
+--disable_warnings
+INSERT INTO t1 VALUES(10);
+--enable_warnings
+--disconnect con1
+
+--connection default
+XA START 'xa_commit';
+--disable_warnings
+INSERT INTO t1 VALUES(10);
+--enable_warnings
+XA END 'xa_commit';
+XA PREPARE 'xa_commit';
+XA COMMIT 'xa_commit';
+SET @@session.pseudo_slave_mode= @sav.pseudo_slave_mode;
+
 DROP TABLE t1;
+
+#
+#  BUG#21053526 XA:'XA COMMIT..ONE PHASE' IS BINLOGGED INCORRECTLY AS 'XA PREPARE'
+#
+
+#
+# This is actually the following test:
+# SEQUENCE: XA BEGIN, XA END, XA COMMIT ONE PHASE
+#
+# The test validates that SHOW BINLOG EVENTS shows
+# the correct info for the ONE PHASE statement
+#
+# This test does not test applying the output of
+# mysqlbinlog, since that is already tested in
+# mysql-test/extra/binlog_tests/binlog_xa_prepared.test
+#
+
+# clean up binary log so that the following operation
+# does not have to scan through a long history of
+# events in the log (potentially causing a failure).
+RESET MASTER;
+
+CREATE TABLE t1 (c1 INT);
+XA BEGIN 'xa1';
+--disable_warnings
+INSERT INTO t1 VALUES (1);
+--enable_warnings
+XA END 'xa1';
+XA COMMIT 'xa1' ONE PHASE;
+
+--echo [Validate that SHOW BINLOG EVENTS shows the ONE PHASE statement.]
+--let $wait_binlog_event= ONE PHASE
+--source include/wait_for_binlog_event.inc
+
+DROP TABLE t1;
+
+# clean up the binary log at in the end of the test
+# case as well.
+RESET MASTER;

@@ -264,10 +264,11 @@ set @arg00=1 ;
 --source include/turn_off_only_full_group_by.inc
 
 select a,b FROM t1 where a is not NULL
-AND b is not NULL group by a - @arg00 ;
+AND b is not NULL group by a - @arg00
+order by a;
 
 prepare stmt1 from ' select a,b FROM t1 where a is not NULL
-AND b is not NULL group by a - ? ' ;
+AND b is not NULL group by a - ? order by a ' ;
 execute stmt1 using @arg00 ;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -313,12 +314,13 @@ set @arg00='b' ;
 set @arg01=0 ;
 set @arg02=2 ;
 set @arg03=2 ;
-select sum(a), @arg00 from t1 where a > @arg01
+select sum(a) as the_sum, @arg00 from t1 where a > @arg01
 and b is not null group by substr(b,@arg02)
-having sum(a) <> @arg03 ;
-prepare stmt1 from ' select sum(a), ? from t1 where a > ?
+having sum(a) <> @arg03 order by the_sum ;
+prepare stmt1 from ' select sum(a) as the_sum, ? from t1 where a > ?
 and b is not null group by substr(b,?)
-having sum(a) <> ? ';
+having sum(a) <> ?
+order by the_sum ';
 execute stmt1 using @arg00, @arg01, @arg02, @arg03;
 
 
@@ -610,10 +612,9 @@ select 1 < (select a from t1) ;
 prepare stmt1 from ' select 1 < (select a from t1) ' ;
 --error 1242
 execute stmt1 ;
-# Bug#5066 embedded server, select after failed subquery provides wrong result
+# Bug#5066, select after failed subquery provides wrong result
 #          (two additional records, all column values NULL)
 select 1 as my_col ;
-
 ################ union tests ################
 --disable_query_log
 select '------ union tests ------' as test_sequence ;
@@ -696,10 +697,11 @@ execute stmt1 using @arg00, @arg01, @arg02, @arg03;
 
 set @arg00=1 ;
 # Bug#3686 the wrong server response was 1140 Mixing of GROUP columns ..
-prepare stmt1 from ' select sum(a) + 200, ? from t1
+prepare stmt1 from ' select sum(a) + 200 as the_sum, ? from t1
 union distinct
-select sum(a) + 200, 1 from t1
-group by b ' ;
+select sum(a) + 200 as the_sum, 1 from t1
+group by b
+order by the_sum ' ;
 execute stmt1 using @arg00;
 
 set @Oporto='Oporto' ;
@@ -716,13 +718,15 @@ select sum(a) + 200 as the_sum, @Oporto as the_town from t1
 group by b
 union distinct
 select sum(a) + 200, @Lisboa from t1
-group by b ;
+group by b
+order by the_town, the_sum ;
 
 prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      group by b
                      union distinct
                      select sum(a) + 200, ? from t1
-                     group by b ' ;
+                     group by b
+                     order by the_town, the_sum ' ;
 execute stmt1 using @Oporto, @Lisboa;
 
 
@@ -733,7 +737,8 @@ group by b
 union distinct
 select sum(a) + 200, @Lisboa from t1
 where a > @2
-group by b ;
+group by b
+order by the_town, the_sum ;
 
 prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      where a > ?
@@ -741,7 +746,8 @@ prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      union distinct
                      select sum(a) + 200, ? from t1
                      where a > ?
-                     group by b ' ;
+                     group by b
+                     order by the_town, the_sum' ;
 execute stmt1 using @Oporto, @1, @Lisboa, @2;
 
 ## union + where + group by + having
@@ -753,7 +759,8 @@ union distinct
 select sum(a) + 200, @Lisboa from t1
 where a > @2
 group by b 
-having avg(a) > @3;
+having avg(a) > @3
+order by the_town, the_sum;
 
 prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      where a > ?
@@ -763,6 +770,7 @@ prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      select sum(a) + 200, ? from t1
                      where a > ?
                      group by b
-                     having avg(a) > ? ';
+                     having avg(a) > ?
+                     order by the_town, the_sum ' ;
 execute stmt1 using @Oporto, @1, @2, @Lisboa, @2, @3;
 

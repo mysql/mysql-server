@@ -5,7 +5,7 @@
 # Access Type: Dynamic                                                        #
 # Data Type: numeric                                                          #
 # Default Value: 4096                                                         #
-# Range: 1024-134217728                                                       #
+# Range: 1024-131072                                                          #
 #                                                                             #
 #                                                                             #
 # Creation Date: 2008-02-14                                                   #
@@ -79,7 +79,7 @@ SELECT @@global.transaction_prealloc_size;
 ###################################################################
 # Change the value of variable to a valid value for SESSION Scope #
 ###################################################################
- 
+
 SET @@session.transaction_prealloc_size = 1024;
 SELECT @@session.transaction_prealloc_size;
 
@@ -149,8 +149,8 @@ SELECT @@session.transaction_prealloc_size;
 
 
 --disable_warnings
-SELECT @@global.transaction_prealloc_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+SELECT @@global.transaction_prealloc_size = VARIABLE_VALUE
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='transaction_prealloc_size';
 
 --echo '#------------------FN_DYNVARS_005_07-----------------------#'
@@ -158,8 +158,8 @@ WHERE VARIABLE_NAME='transaction_prealloc_size';
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
-SELECT @@session.transaction_prealloc_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+SELECT @@session.transaction_prealloc_size = VARIABLE_VALUE
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='transaction_prealloc_size';
 --enable_warnings
 
@@ -174,7 +174,7 @@ SET @@global.transaction_prealloc_size = 1024;
 SET @@global.transaction_prealloc_size = 10;
 
 SELECT @@transaction_prealloc_size = @@global.transaction_prealloc_size;
- 
+
 
 --echo '#---------------------FN_DYNVARS_001_10----------------------#'
 ########################################################################
@@ -217,4 +217,3 @@ SELECT @@session.transaction_prealloc_size;
 #############################################################
 #                 END OF transaction_prealloc_size TESTS     #
 #############################################################
-

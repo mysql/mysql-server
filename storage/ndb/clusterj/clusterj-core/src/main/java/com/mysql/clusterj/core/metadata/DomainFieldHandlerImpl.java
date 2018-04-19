@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -118,16 +125,27 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
         }
         notPersistentAnnotation = getMethod.getAnnotation(NotPersistent.class);
         if (isPersistent()) {
+            persistentAnnotation = getMethod.getAnnotation(Persistent.class);
+            if (persistentAnnotation != null) {
+                nullValue = persistentAnnotation.nullValue();
+                if (logger.isDebugEnabled())
+                    logger.debug("Persistent nullValue annotation for " + name + " is " + nullValue);
+                if (persistentAnnotation.column().length() != 0) {
+                    this.columnName = persistentAnnotation.column();
+                }
+            }
             // process column annotation first and check the class annotation
             // for primary key
-            // Initialize default column name; may be overridden with annotation
-            this.columnName = name.toLowerCase();
-            this.columnNames = new String[]{name};
             columnAnnotation = getMethod.getAnnotation(Column.class);
             if (columnAnnotation != null) {
                 if (columnAnnotation.name() != null) {
-                    columnName = columnAnnotation.name();
-                    this.columnNames = new String[]{columnName};
+                    if (columnName.length() != 0) {
+                        String message = local.message("ERR_Multiple_Column_Name", domainTypeHandler.getName(),
+                                name, columnName, columnAnnotation.name());
+                        logger.warn(message);
+                        throw new ClusterJUserException(message);
+                    }
+                    this.columnName = columnAnnotation.name();
                 }
                 if (logger.isDebugEnabled())
                     logger.debug("Column name annotation for " + name + " is "
@@ -145,8 +163,15 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                 if (logger.isDebugEnabled())
                     logger.debug("Column defaultValue annotation for " + name
                             + " is " + columnDefaultValue);
+            } else {
+                // if there is no @Column annotation and no @Persistent annotation
+                // set the default column name to lower case field name
+                if (this.columnName.length() == 0) {
+                    this.columnName = this.name.toLowerCase();
+                }
             }
-            storeColumn = table.getColumn(columnName);
+            this.columnNames = new String[]{this.columnName};
+            storeColumn = table.getColumn(this.columnName);
             if (storeColumn == null) {
                 throw new ClusterJUserException(local.message("ERR_No_Column",
                         name, table.getName(), columnName));
@@ -292,14 +317,9 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
         }
         registerIndices(domainTypeHandler);
 
-        persistentAnnotation = getMethod.getAnnotation(Persistent.class);
-        if (persistentAnnotation != null) {
-            nullValue = persistentAnnotation.nullValue();
-            logger.debug("Persistent nullValue annotation for " + name + " is " + nullValue);
-        }
         // convert the string default value to type-specific value
         defaultValue = objectOperationHandlerDelegate.getDefaultValueFor(this, columnDefaultValue);
-        logger.debug("Default null value for " + name + " is " + defaultValue);
+        if (logger.isDebugEnabled()) logger.debug("Default null value for " + name + " is " + defaultValue);
 
         // set up the null value handler based on the annotation
         switch (nullValue) {

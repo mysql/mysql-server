@@ -1,12 +1,9 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 alter table performance_schema.performance_timers add column foo integer;
 
--- error ER_WRONG_PERFSCHEMA_USAGE
+-- error ER_TABLEACCESS_DENIED_ERROR
 truncate table performance_schema.performance_timers;
 
 -- error ER_DBACCESS_DENIED_ERROR

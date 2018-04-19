@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.tmpdir)
 1 Expected
 '#---------------------BS_STVARS_052_03----------------------#'
 SELECT @@GLOBAL.tmpdir = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='tmpdir';
 @@GLOBAL.tmpdir = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.tmpdir)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='tmpdir';
 COUNT(VARIABLE_VALUE)
 1

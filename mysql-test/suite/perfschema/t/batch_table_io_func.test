@@ -1,5 +1,3 @@
---source include/not_embedded.inc
---source include/have_perfschema.inc
 
 UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'YES';
 

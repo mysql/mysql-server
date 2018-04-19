@@ -85,13 +85,21 @@ ERROR HY000: Partition management on a not partitioned table is not possible
 ALTER TABLE t1 COALESCE PARTITION 1;
 ERROR HY000: Partition management on a not partitioned table is not possible
 ALTER TABLE t1 ANALYZE PARTITION p1;
-ERROR HY000: Partition management on a not partitioned table is not possible
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Error	Partition management on a not partitioned table is not possible
+test.t1	analyze	status	Operation failed
 ALTER TABLE t1 CHECK PARTITION p1;
-ERROR HY000: Partition management on a not partitioned table is not possible
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Partition management on a not partitioned table is not possible
+test.t1	check	status	Operation failed
 ALTER TABLE t1 OPTIMIZE PARTITION p1;
-ERROR HY000: Partition management on a not partitioned table is not possible
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	Error	Partition management on a not partitioned table is not possible
+test.t1	optimize	status	Operation failed
 ALTER TABLE t1 REPAIR PARTITION p1;
-ERROR HY000: Partition management on a not partitioned table is not possible
+Table	Op	Msg_type	Msg_text
+test.t1	repair	Error	Partition management on a not partitioned table is not possible
+test.t1	repair	status	Operation failed
 DROP TABLE t1;
 CREATE TABLE t1 (a int)
 PARTITION BY KEY (a)
@@ -138,13 +146,13 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 PARTITION BY KEY(a) PARTITIONS 2;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 2 */
 DROP TABLE t1;
@@ -158,3 +166,27 @@ PARTITION p1 VALUES IN (0) (SUBPARTITION p1b),
 PARTITION p2 VALUES IN (2) (SUBPARTITION p1b)
 );
 ERROR HY000: Duplicate partition name p1b
+#
+# Bug#20284744: COMMANDS OUT OF SYNC, MALFORMED PACKET, HANG,
+# DISCONNECTIONS
+#
+create table t1 (a int) engine=innodb;
+create procedure `p1`()
+begin
+declare `c`  cursor for select 1 ;
+declare continue handler for sqlexception begin select 1; end ;
+alter table t1 check partition a;
+open `c`;
+end $
+# Without the fix this would fail with 2027: Malformed packet
+call p1();
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Partition management on a not partitioned table is not possible
+test.t1	check	status	Operation failed
+# Without the fix the connection would get out of sync here (error 2014)!
+call p1();
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Partition management on a not partitioned table is not possible
+test.t1	check	status	Operation failed
+drop procedure p1;
+drop table t1;

@@ -35,8 +35,6 @@ f_charbig VARCHAR(1000) )
 ENGINE = MEMORY;
 SET AUTOCOMMIT= 1;
 SET @@session.sql_mode= '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 # End of basic preparations needed for all tests
 #-----------------------------------------------
 
@@ -75,8 +73,8 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`f_int1`)
 PARTITIONS 2 */
 
 # check prerequisites-1 success:    1
@@ -212,8 +210,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -226,8 +222,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -535,7 +529,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1)
 PARTITIONS 5 */
 
@@ -672,8 +666,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -686,8 +678,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -1003,8 +993,8 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (MOD(f_int1,4))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST ((`f_int1` % 4))
 (PARTITION part_3 VALUES IN (-3) ENGINE = InnoDB,
  PARTITION part_2 VALUES IN (-2) ENGINE = InnoDB,
  PARTITION part_1 VALUES IN (-1) ENGINE = InnoDB,
@@ -1147,8 +1137,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -1161,8 +1149,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -1476,8 +1462,8 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f_int1`)
 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB,
  PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB,
  PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB,
@@ -1616,8 +1602,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -1630,8 +1614,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -1943,9 +1925,9 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1 DIV 2)
-SUBPARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE ((`f_int1` DIV 2))
+SUBPARTITION BY HASH (`f_int1`)
 SUBPARTITIONS 2
 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB,
  PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB,
@@ -2085,8 +2067,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -2099,8 +2079,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -2416,8 +2394,8 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f_int1`)
 SUBPARTITION BY KEY (f_int1)
 (PARTITION part1 VALUES LESS THAN (0)
  (SUBPARTITION subpart11 ENGINE = InnoDB,
@@ -2563,8 +2541,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -2577,8 +2553,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -2894,9 +2868,9 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3)))
-SUBPARTITION BY HASH (f_int1 + 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (abs((`f_int1` % 3)))
+SUBPARTITION BY HASH ((`f_int1` + 1))
 (PARTITION part1 VALUES IN (0)
  (SUBPARTITION sp11 ENGINE = InnoDB,
   SUBPARTITION sp12 ENGINE = InnoDB),
@@ -3043,8 +3017,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -3057,8 +3029,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -3370,8 +3340,8 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (abs((`f_int1` % 2)))
 SUBPARTITION BY KEY (f_int1)
 SUBPARTITIONS 3
 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB,
@@ -3511,8 +3481,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -3525,8 +3493,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -3837,8 +3803,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`f_int1`)
 PARTITIONS 2 */
 
 # check prerequisites-1 success:    1
@@ -4009,8 +3975,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -4023,8 +3987,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -4333,7 +4295,7 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1)
 PARTITIONS 5 */
 
@@ -4505,8 +4467,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -4519,8 +4479,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -4837,8 +4795,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (MOD(f_int1,4))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST ((`f_int1` % 4))
 (PARTITION part_3 VALUES IN (-3) ENGINE = InnoDB,
  PARTITION part_2 VALUES IN (-2) ENGINE = InnoDB,
  PARTITION part_1 VALUES IN (-1) ENGINE = InnoDB,
@@ -5016,8 +4974,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -5030,8 +4986,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -5346,8 +5300,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f_int1`)
 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB,
  PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB,
  PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB,
@@ -5521,8 +5475,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -5535,8 +5487,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -5849,9 +5799,9 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1 DIV 2)
-SUBPARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE ((`f_int1` DIV 2))
+SUBPARTITION BY HASH (`f_int1`)
 SUBPARTITIONS 2
 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB,
  PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB,
@@ -6026,8 +5976,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -6040,8 +5988,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -6358,8 +6304,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f_int1`)
 SUBPARTITION BY KEY (f_int1)
 (PARTITION part1 VALUES LESS THAN (0)
  (SUBPARTITION subpart11 ENGINE = InnoDB,
@@ -6540,8 +6486,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -6554,8 +6498,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -6872,9 +6814,9 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3)))
-SUBPARTITION BY HASH (f_int1 + 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (abs((`f_int1` % 3)))
+SUBPARTITION BY HASH ((`f_int1` + 1))
 (PARTITION part1 VALUES IN (0)
  (SUBPARTITION sp11 ENGINE = InnoDB,
   SUBPARTITION sp12 ENGINE = InnoDB),
@@ -7056,8 +6998,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -7070,8 +7010,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -7384,8 +7322,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (abs((`f_int1` % 2)))
 SUBPARTITION BY KEY (f_int1)
 SUBPARTITIONS 3
 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB,
@@ -7560,8 +7498,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -7574,8 +7510,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -7885,8 +7819,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`f_int1`)
 PARTITIONS 2 */
 
 # check prerequisites-1 success:    1
@@ -8057,8 +7991,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -8071,8 +8003,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -8381,7 +8311,7 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1)
 PARTITIONS 5 */
 
@@ -8553,8 +8483,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -8567,8 +8495,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -8885,8 +8811,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (MOD(f_int1,4))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST ((`f_int1` % 4))
 (PARTITION part_3 VALUES IN (-3) ENGINE = InnoDB,
  PARTITION part_2 VALUES IN (-2) ENGINE = InnoDB,
  PARTITION part_1 VALUES IN (-1) ENGINE = InnoDB,
@@ -9064,8 +8990,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -9078,8 +9002,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -9394,8 +9316,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f_int1`)
 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB,
  PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB,
  PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB,
@@ -9569,8 +9491,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -9583,8 +9503,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -9897,9 +9815,9 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1 DIV 2)
-SUBPARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE ((`f_int1` DIV 2))
+SUBPARTITION BY HASH (`f_int1`)
 SUBPARTITIONS 2
 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB,
  PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB,
@@ -10074,8 +9992,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -10088,8 +10004,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -10406,8 +10320,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f_int1`)
 SUBPARTITION BY KEY (f_int1)
 (PARTITION part1 VALUES LESS THAN (0)
  (SUBPARTITION subpart11 ENGINE = InnoDB,
@@ -10588,8 +10502,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -10602,8 +10514,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -10920,9 +10830,9 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3)))
-SUBPARTITION BY HASH (f_int1 + 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (abs((`f_int1` % 3)))
+SUBPARTITION BY HASH ((`f_int1` + 1))
 (PARTITION part1 VALUES IN (0)
  (SUBPARTITION sp11 ENGINE = InnoDB,
   SUBPARTITION sp12 ENGINE = InnoDB),
@@ -11104,8 +11014,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -11118,8 +11026,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -11432,8 +11338,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (abs((`f_int1` % 2)))
 SUBPARTITION BY KEY (f_int1)
 SUBPARTITIONS 3
 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB,
@@ -11608,8 +11514,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -11622,8 +11526,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -11934,8 +11836,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`f_int1`)
 PARTITIONS 2 */
 
 # check prerequisites-1 success:    1
@@ -12122,8 +12024,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -12136,8 +12036,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -12446,7 +12344,7 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1)
 PARTITIONS 5 */
 
@@ -12634,8 +12532,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -12648,8 +12544,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -12966,8 +12860,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (MOD(f_int1,4))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST ((`f_int1` % 4))
 (PARTITION part_3 VALUES IN (-3) ENGINE = InnoDB,
  PARTITION part_2 VALUES IN (-2) ENGINE = InnoDB,
  PARTITION part_1 VALUES IN (-1) ENGINE = InnoDB,
@@ -13161,8 +13055,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -13175,8 +13067,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -13491,8 +13381,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f_int1`)
 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB,
  PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB,
  PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB,
@@ -13682,8 +13572,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -13696,8 +13584,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -14010,9 +13896,9 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1 DIV 2)
-SUBPARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE ((`f_int1` DIV 2))
+SUBPARTITION BY HASH (`f_int1`)
 SUBPARTITIONS 2
 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB,
  PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB,
@@ -14203,8 +14089,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -14217,8 +14101,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -14535,8 +14417,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f_int1`)
 SUBPARTITION BY KEY (f_int1)
 (PARTITION part1 VALUES LESS THAN (0)
  (SUBPARTITION subpart11 ENGINE = InnoDB,
@@ -14733,8 +14615,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -14747,8 +14627,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -15065,9 +14943,9 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3)))
-SUBPARTITION BY HASH (f_int1 + 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (abs((`f_int1` % 3)))
+SUBPARTITION BY HASH ((`f_int1` + 1))
 (PARTITION part1 VALUES IN (0)
  (SUBPARTITION sp11 ENGINE = InnoDB,
   SUBPARTITION sp12 ENGINE = InnoDB),
@@ -15265,8 +15143,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -15279,8 +15155,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -15593,8 +15467,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (abs((`f_int1` % 2)))
 SUBPARTITION BY KEY (f_int1)
 SUBPARTITIONS 3
 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB,
@@ -15785,8 +15659,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -15799,8 +15671,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -16110,8 +15980,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`f_int1`)
 PARTITIONS 2 */
 
 # check prerequisites-1 success:    1
@@ -16298,8 +16168,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -16312,8 +16180,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -16622,7 +16488,7 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1)
 PARTITIONS 5 */
 
@@ -16810,8 +16676,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -16824,8 +16688,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -17142,8 +17004,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (MOD(f_int1,4))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST ((`f_int1` % 4))
 (PARTITION part_3 VALUES IN (-3) ENGINE = InnoDB,
  PARTITION part_2 VALUES IN (-2) ENGINE = InnoDB,
  PARTITION part_1 VALUES IN (-1) ENGINE = InnoDB,
@@ -17337,8 +17199,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -17351,8 +17211,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -17667,8 +17525,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f_int1`)
 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB,
  PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB,
  PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB,
@@ -17858,8 +17716,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -17872,8 +17728,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -18186,9 +18040,9 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1 DIV 2)
-SUBPARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE ((`f_int1` DIV 2))
+SUBPARTITION BY HASH (`f_int1`)
 SUBPARTITIONS 2
 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB,
  PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB,
@@ -18379,8 +18233,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -18393,8 +18245,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -18711,8 +18561,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f_int1`)
 SUBPARTITION BY KEY (f_int1)
 (PARTITION part1 VALUES LESS THAN (0)
  (SUBPARTITION subpart11 ENGINE = InnoDB,
@@ -18909,8 +18759,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -18923,8 +18771,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -19241,9 +19087,9 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3)))
-SUBPARTITION BY HASH (f_int1 + 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (abs((`f_int1` % 3)))
+SUBPARTITION BY HASH ((`f_int1` + 1))
 (PARTITION part1 VALUES IN (0)
  (SUBPARTITION sp11 ENGINE = InnoDB,
   SUBPARTITION sp12 ENGINE = InnoDB),
@@ -19441,8 +19287,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -19455,8 +19299,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -19769,8 +19611,8 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (abs((`f_int1` % 2)))
 SUBPARTITION BY KEY (f_int1)
 SUBPARTITIONS 3
 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB,
@@ -19961,8 +19803,6 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -19975,8 +19815,6 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;

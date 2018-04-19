@@ -1,7 +1,4 @@
---source include/have_innodb.inc
 --source include/have_simple_parser.inc
-# Restart is not supported in embedded
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 
 #-----------------------------------------------------------------------------
@@ -303,5 +300,18 @@ SELECT * FROM t1 WHERE MATCH (a) AGAINST ('NULL');
 
 DROP TABLE t1;
 DROP TABLE t1_join;
+
+#
+# BUG#21638891 NGRAM PARSER: FAILING ASSERTION: STATE->DEPTH > 0
+#
+
+EVAL CREATE TABLE t1 (
+        a VARCHAR(200),
+        FULLTEXT (a) WITH PARSER ngram
+        )ENGINE = InnoDB;
+
+SELECT * FROM t1 WHERE MATCH(a) AGAINST("')'@7" IN BOOLEAN MODE);
+
+DROP TABLE t1;
 
 UNINSTALL PLUGIN simple_parser;

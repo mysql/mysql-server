@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -53,54 +60,43 @@ NdbMixRestarter::restart_cluster(NDBT_Context* ctx,
 
   do 
   {
-    ctx->setProperty(NMR_SR_THREADS_STOPPED, (Uint32)0);
-    ctx->setProperty(NMR_SR_VALIDATE_THREADS_DONE, (Uint32)0);
-    
     ndbout << " -- Shutting down " << endl;
     ctx->setProperty(NMR_SR, NdbMixRestarter::SR_STOPPING);
     CHECK(restartAll(false, true, stopabort) == 0);
     ctx->setProperty(NMR_SR, NdbMixRestarter::SR_STOPPED);
+    ndbout << " -- waitClusterNoStart" << endl;
     CHECK(waitClusterNoStart(timeout) == 0);
-    
-    Uint32 cnt = ctx->getProperty(NMR_SR_THREADS);
-    Uint32 curr= ctx->getProperty(NMR_SR_THREADS_STOPPED);
-    while(curr != cnt && !ctx->isTestStopped())
+    ndbout << " -- available" << endl;
+
+    while(ctx->getProperty(NMR_SR_THREADS_ACTIVE) > 0 && !ctx->isTestStopped())
     {
-      if (curr > cnt)
-      {
-        ndbout_c("stopping: curr: %d cnt: %d", curr, cnt);
-        abort();
-      }
+      ndbout << "Await threads to stop"
+             << ", active: " << ctx->getProperty(NMR_SR_THREADS_ACTIVE)
+             << endl;
       
       NdbSleep_MilliSleep(100);
-      curr= ctx->getProperty(NMR_SR_THREADS_STOPPED);
     }
 
-    CHECK(ctx->isTestStopped() == false);
+    ndbout << " -- startAll" << endl;
     CHECK(startAll() == 0);
+
+    ndbout << " -- waitClusterStarted" << endl;
     CHECK(waitClusterStarted(timeout) == 0);
-    
-    cnt = ctx->getProperty(NMR_SR_VALIDATE_THREADS);
-    if (cnt)
+    ndbout << " -- Started" << endl;
+
+    if (ctx->getProperty(NMR_SR_VALIDATE_THREADS) > 0)
     {
       ndbout << " -- Validating starts " << endl;
-      ctx->setProperty(NMR_SR_VALIDATE_THREADS_DONE, (Uint32)0);
       ctx->setProperty(NMR_SR, NdbMixRestarter::SR_VALIDATING);
-      curr = ctx->getProperty(NMR_SR_VALIDATE_THREADS_DONE);
-      while (curr != cnt && !ctx->isTestStopped())
-      {
-        if (curr > cnt)
-        {
-          ndbout_c("validating: curr: %d cnt: %d", curr, cnt);
-          abort();
-        }
 
+      while (ctx->getProperty(NMR_SR_VALIDATE_THREADS_ACTIVE) > 0 && 
+             !ctx->isTestStopped())
+      {
         NdbSleep_MilliSleep(100);
-        curr = ctx->getProperty(NMR_SR_VALIDATE_THREADS_DONE);
       }
+
       ndbout << " -- Validating complete " << endl;
     }
-    CHECK(ctx->isTestStopped() == false);    
     ctx->setProperty(NMR_SR, NdbMixRestarter::SR_RUNNING);
 
   } while(0);
@@ -200,17 +196,26 @@ NdbMixRestarter::runUntilStopped(NDBT_Context* ctx,
                                  Uint32 freq)
 {
   if (init(ctx, step))
+  {
+    ndbout << "Line: " << __LINE__ << " init failed" << endl;
     return NDBT_FAILED;
+  }
 
   while (!ctx->isTestStopped())
   {
     if (dostep(ctx, step))
+    {
+      ndbout << "Line: " << __LINE__ << " dostep failed" << endl;
       return NDBT_FAILED;
+    }
     NdbSleep_SecSleep(freq);
   }
   
   if (!finish(ctx, step))
+  {
+    ndbout << "Line: " << __LINE__ << " finish failed" << endl;
     return NDBT_FAILED;
+  }
   
   return NDBT_OK;
 }
@@ -221,13 +226,17 @@ NdbMixRestarter::runPeriod(NDBT_Context* ctx,
                            Uint32 period, Uint32 freq)
 {
   if (init(ctx, step))
+  {
+    ndbout << "Line: " << __LINE__ << " init failed" << endl;
     return NDBT_FAILED;
+  }
 
   Uint32 stop = (Uint32)time(0) + period;
-  while (!ctx->isTestStopped() && (time(0) < stop))
+  while (!ctx->isTestStopped() && ((Uint32)time(0) < stop))
   {
     if (dostep(ctx, step))
     {
+      ndbout << "Line: " << __LINE__ << " dostep failed" << endl;
       return NDBT_FAILED;
     }
     NdbSleep_SecSleep(freq);
@@ -235,6 +244,7 @@ NdbMixRestarter::runPeriod(NDBT_Context* ctx,
   
   if (finish(ctx, step))
   {
+    ndbout << "Line: " << __LINE__ << " finish failed" << endl;
     return NDBT_FAILED;
   }
 
@@ -260,7 +270,11 @@ loop:
   switch(action){
   case RTM_RestartCluster:
     if (restart_cluster(ctx, step))
+    {
+      ndbout << "Line: " << __LINE__ << " restart_cluster failed" << endl;
       return NDBT_FAILED;
+    }
+    ndbout << " -- cluster restarted" << endl;
     for (Uint32 i = 0; i<m_nodes.size(); i++)
       m_nodes[i].node_status = NDB_MGM_NODE_STATUS_STARTED;
     break;
@@ -284,11 +298,19 @@ loop:
       ndbout << " inital";
     ndbout << endl;
     
+    ndbout << " -- restartOneDbNode" << endl;
     if (restartOneDbNode(node->node_id, initial, true, true))
+    {
+      ndbout << "Line: " << __LINE__ << " restart node failed" << endl;
       return NDBT_FAILED;
+    }
       
+    ndbout << " -- waitNodesNoStart" << endl;
     if (waitNodesNoStart(&node->node_id, 1))
+    {
+      ndbout << "Line: " << __LINE__ << " wait node nostart failed" << endl;
       return NDBT_FAILED;
+    }
     
     node->node_status = NDB_MGM_NODE_STATUS_NOT_STARTED;
     
@@ -303,13 +325,23 @@ loop:
 start:
     ndbout << "Starting " << node->node_id << endl;
     if (startNodes(&node->node_id, 1))
+    {
+      ndbout << "Line: " << __LINE__ << " start node failed" << endl;
       return NDBT_FAILED;
+    }
+
+    ndbout << " -- waitNodesStarted" << endl;
     if (waitNodesStarted(&node->node_id, 1))
+    {
+      ndbout << "Line: " << __LINE__ << " wait node start failed" << endl;
       return NDBT_FAILED;
+    }
     
+    ndbout << "Started " << node->node_id << endl;
     node->node_status = NDB_MGM_NODE_STATUS_STARTED;      
     break;
   }
+  ndbout << "Step done" << endl;
   return NDBT_OK;
 }
 
@@ -330,9 +362,15 @@ NdbMixRestarter::finish(NDBT_Context* ctx, NDBT_Step* step)
   {
     ndbout << "Starting stopped nodes " << endl;
     if (startNodes(not_started.getBase(), not_started.size()))
+    {
+      ndbout << "Line: " << __LINE__ << " start node failed" << endl;
       return NDBT_FAILED;
+    }
     if (waitClusterStarted())
+    {
+      ndbout << "Line: " << __LINE__ << " wait cluster failed" << endl;
       return NDBT_FAILED;
+    }
   }
   return NDBT_OK;
 }

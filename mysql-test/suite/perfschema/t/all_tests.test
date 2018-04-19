@@ -1,5 +1,3 @@
---source include/not_embedded.inc
-
 #
 # Test based on mysql-test/suite/sys_vars/t/all_vars.test
 # and adapted for the performance schema tables.
@@ -9,6 +7,7 @@
 # In particular, every table there must be covered by:
 # - a ddl_<table_name>.test file.
 # - a dml_<table_name>.test file.
+# - a idx_<table_name>.test file.
 #
 
 #
@@ -38,12 +37,16 @@ insert into t2 select concat('ddl_', table_name, '.test') from information_schem
   where table_schema='performance_schema';
 insert into t2 select concat('dml_', table_name, '.test') from information_schema.tables
   where table_schema='performance_schema';
+insert into t2 select concat('idx_', table_name, '.test') from information_schema.tables
+  where table_schema='performance_schema';
 
 # Abbreviations used for naming test files:
 update t2 set test_name= replace(test_name, "events_waits_summary_", "ews_");
 update t2 set test_name= replace(test_name, "events_stages_summary_", "esgs_");
+update t2 set test_name= replace(test_name, "events_statements_histogram_", "esmh_");
 update t2 set test_name= replace(test_name, "events_statements_summary_", "esms_");
 update t2 set test_name= replace(test_name, "events_transactions_summary_", "ets_");
+update t2 set test_name= replace(test_name, "events_errors_summary_", "ees_");
 update t2 set test_name= replace(test_name, "file_summary_", "fs_");
 update t2 set test_name= replace(test_name, "objects_summary_", "os_");
 update t2 set test_name= replace(test_name, "table_io_waits_summary_", "tiws_");

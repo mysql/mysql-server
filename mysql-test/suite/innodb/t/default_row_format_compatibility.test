@@ -1,0 +1,208 @@
+# *******************************************************************
+# Case 1 :
+# To test, ROW_FORMAT functionality of Intrinsic Temporary tables
+# The intrinsic temp tables will be tested implicitly only, by
+# using Order by,Group by or INSERT INTO SELECT statements
+# This testcase fails/throws error on mysql-5.6 and passes on
+# mysql-5.7 onwards.
+# ROW_FORMAT=Compact support up to 10 BLOB/TEXT columns
+# ROW_FORMAT=Dynamic support up to 199 BLOB/TEXT columns
+# case 2 :
+# Check with Import/Export tablespace with Default_row_format
+# Check with different row_formats Compact vs Dynamic
+# Check with same row_format Compact duing export/import
+# case 3 :
+# Check with Index column size is too long 3070 & 767 Bytes
+# Modify table Dynamic to Compact to Compressed to Dynamic
+# *******************************************************************
+
+# set the variables
+let $MYSQLD_TMPDIR = `SELECT @@tmpdir`;
+let $MYSQLD_DATADIR = `SELECT @@datadir`;
+
+# The following tescases works with page_size=16k only
+--source include/no_valgrind_without_big.inc
+
+# Check storage engine InnoDB
+SELECT @@internal_tmp_disk_storage_engine;
+
+CREATE TABLE tab
+(col1 TEXT, col2 TEXT, col3 TEXT, col4 TEXT, col5 TEXT,
+col6 TEXT, col7 TEXT, col8 TEXT, col9 TEXT, col10 TEXT,
+col11 TEXT) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+
+# Check row_fromat=Dynamic
+--source  ../include/default_row_format_show.inc
+
+INSERT INTO tab SET
+col1=REPEAT('a',1000),col2=REPEAT('b',1000),col3=REPEAT('c',1000),
+col4=REPEAT('d',1000),col5=REPEAT('e',1000),col6=REPEAT('f',1000),
+col7=REPEAT('g',1000),col8=REPEAT('h',1000),col9=REPEAT('i',1000),
+col10=REPEAT('j',1000),col11=REPEAT('k',1000);
+
+# The following query throws error in mysql5.6 version
+# 1118: Row size too large (> 8126) and No error on ,mysql-5.7
+INSERT INTO tab SELECT * FROM tab;
+
+--error ER_TOO_BIG_ROWSIZE
+ALTER TABLE tab ROW_FORMAT=COMPACT;
+
+#Cleaup
+DROP TABLE tab;
+
+--echo # ###########################################################
+--echo # Check with Import/Export tablespace with Default_row_format
+
+# Set row_format=Compact
+SET GLOBAL innodb_default_row_format=Compact;
+
+# Check row_format=Compact
+SELECT @@innodb_default_row_format;
+
+# Check file_per_table=1
+SELECT @@innodb_file_per_table;
+
+CREATE TABLE tab(a INT);
+
+INSERT INTO tab VALUES(1);
+INSERT INTO tab VALUES(2);
+
+# Check the rows
+SELECT * FROM tab;
+
+FLUSH TABLE tab FOR EXPORT;
+
+# Take the backup of the ibd and cfg files
+--copy_file $MYSQLD_DATADIR/test/tab.cfg $MYSQLD_TMPDIR/tab.cfg
+--copy_file $MYSQLD_DATADIR/test/tab.ibd $MYSQLD_TMPDIR/tab.ibd
+
+UNLOCK TABLES;
+
+# Cleanup
+DROP TABLE tab;
+
+# Set the default_row_format=Dynamic
+SET GLOBAL innodb_default_row_format=Dynamic;
+
+CREATE TABLE tab(a INT);
+
+# Remove the *.ibd file
+ALTER TABLE tab DISCARD TABLESPACE;
+
+# Move the *.ibd,*.cfg file into orginal location
+--move_file $MYSQLD_TMPDIR/tab.cfg $MYSQLD_DATADIR/test/tab.cfg
+--move_file $MYSQLD_TMPDIR/tab.ibd $MYSQLD_DATADIR/test/tab.ibd
+
+--error ER_TABLE_SCHEMA_MISMATCH
+ALTER TABLE tab IMPORT TABLESPACE;
+
+# Take the backup of the ibd and cfg files
+--copy_file $MYSQLD_DATADIR/test/tab.cfg $MYSQLD_TMPDIR/tab.cfg
+--copy_file $MYSQLD_DATADIR/test/tab.ibd $MYSQLD_TMPDIR/tab.ibd
+
+# Cleanup
+DROP TABLE tab;
+
+# Remove orphan files
+--remove_file $MYSQLD_DATADIR/test/tab.cfg
+--remove_file $MYSQLD_DATADIR/test/tab.ibd
+
+# Set the default_row_format=Compact
+SET GLOBAL innodb_default_row_format=Compact;
+
+# Check row_format=Compact
+SELECT @@innodb_default_row_format;
+
+CREATE TABLE tab(a INT);
+
+# Check row_fromat=Dynamic
+--source  ../include/default_row_format_show.inc
+
+# Remove the *.ibd file
+ALTER TABLE tab DISCARD TABLESPACE;
+
+# Move the *ibd,*.cfg file into orginal location
+--move_file $MYSQLD_TMPDIR/tab.cfg $MYSQLD_DATADIR/test/tab.cfg
+--move_file $MYSQLD_TMPDIR/tab.ibd $MYSQLD_DATADIR/test/tab.ibd
+
+# Check import is successful (because same row_format)
+ALTER TABLE tab IMPORT TABLESPACE;
+
+# Check the rows
+SELECT * FROM tab;
+
+# Cleanup
+DROP TABLE tab;
+
+--echo # ###########################################################
+# Check when Index Column size (3070 bytes) is too long, Change row_format
+# Check when Index Column size (767 bytes), Change row_format
+# Dynamic to Compact to Dynamic
+
+# Set the default_row_format=Dynamic
+SET GLOBAL innodb_default_row_format=Dynamic;
+
+SELECT @@innodb_default_row_format;
+
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(3070))) ENGINE= InnoDB charset latin1;
+
+INSERT INTO tab(a,b) VALUES(1,'Check with max column size');
+
+# Check by SELECT, no errors
+SELECT * FROM tab;
+
+# Check row_format=dynamic
+--source  ../include/default_row_format_show.inc
+
+# Change row_format to Compact
+SET GLOBAL innodb_default_row_format=COMPACT;
+
+# Check error ERROR 1709 (HY000): Index column size too large
+-- error ER_INDEX_COLUMN_TOO_LONG
+ALTER TABLE tab ROW_FORMAT=COMPACT;
+
+# Cleanup
+DROP TABLE tab;
+
+# Change the default_row_format to default
+SET GLOBAL innodb_default_row_format=Default;
+
+# Change row_format to Dynamic
+SELECT @@innodb_default_row_format;
+
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(767))) ENGINE= InnoDB charset latin1;
+
+INSERT INTO tab(a,b) VALUES(1,'Check with max column size');
+
+# Check by SELECT, no errors
+SELECT * FROM tab;
+
+# Check row_format=dynamic
+--source  ../include/default_row_format_show.inc
+
+# Check no errors because Compact allows 767 bytes
+ALTER TABLE tab ROW_FORMAT=COMPACT;
+
+# Check row_format=Compact
+--source  ../include/default_row_format_show.inc
+
+# Check by SELECT, no errors
+SELECT * FROM tab;
+
+# Check no errors
+ALTER TABLE tab ROW_FORMAT=COMPRESSED;
+
+# Check row_format=Compressed
+--source  ../include/default_row_format_show.inc
+
+# Check by SELECT, no errors
+SELECT * FROM tab;
+
+# Check no errors
+ALTER TABLE tab ROW_FORMAT=Dynamic;
+
+# Check row_format=Dynamic
+--source  ../include/default_row_format_show.inc
+
+# Cleanup
+DROP TABLE tab;

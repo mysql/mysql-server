@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -30,10 +37,9 @@
 
 extern "C" void* runClusterMgr_C(void * me);
 
-
 /**
   @class ClusterMgr
-  This class runs a heart beat protocol between nodes, to detect if remote
+  This class runs a heartbeat protocol between nodes, to detect if remote
   nodes are reachable or not. This protocol is needed because the underlying
   transporter connection may need a long time (or even forever) to detect 
   node or network failure. (TCP typically gives up retransmission after about
@@ -58,13 +64,19 @@ public:
   
   void reportConnected(NodeId nodeId);
   void reportDisconnected(NodeId nodeId);
-  
-  bool checkUpgradeCompatability(Uint32 nodeVersion);
-
+  void setProcessInfoUri(const char * scheme, const char * host,
+                         int port, const char * path);
   void doStop();
   void startThread();
 
-  void forceHB();
+  /**
+   * This method isn't used by the NDB code, it can be used by an API
+   * user through a public method on TransporterFacade if he wants to
+   * force the API node to use a different heartbeat interval than the
+   * one decided by the data node.
+   * 
+   * The variable isn't protected and there is no need for it to be.
+   */
   void set_max_api_reg_req_interval(unsigned int millisec) {
     m_max_api_reg_req_interval = millisec;
   }
@@ -92,13 +104,28 @@ private:
   class TransporterFacade & theFacade;
   class ArbitMgr * theArbitMgr;
 
-public:
   enum Cluster_state {
     CS_waiting_for_clean_cache = 0,
     CS_waiting_for_first_connect,
     CS_connected
   };
 
+public:
+  /**
+   * The node state is protected for updates by ClusterMgrThreadMutex.
+   * One can call hb_received and set hbMissed to 0 though without
+   * protection since this is safe. All other uses of hbFrequency,
+   * hbCounter and hbMissed is internal to ClusterMgr and done with
+   * protection of ClusterMgrThreadMutex.
+   * 
+   * The node data is often read without protection as a way to decide
+   * which node to communicate to. If the information read is old it
+   * will mean a non-optimal decision is taken, but no specific error
+   * will be the result of reading stale node info data.
+   *
+   * getNoOfConnectedNodes is only used by a test program, so is essentially
+   * also a private method.
+   */
   struct Node : public trp_node
   {
     Node();
@@ -109,29 +136,41 @@ public:
     Uint32 hbFrequency; // Heartbeat frequence 
     Uint32 hbCounter;   // # milliseconds passed since last hb sent
     Uint32 hbMissed;    // # missed heartbeats
+
+    bool processInfoSent;  // ProcessInfo Report has been sent to node
   };
   
   const trp_node & getNodeInfo(NodeId) const;
   Uint32        getNoOfConnectedNodes() const;
   void          hb_received(NodeId);
 
+  /**
+   * This variable isn't protected, it's used when the last node disconnects to
+   * ensure that the ClusterMgr stops and doesn't perform any reconnects.
+   */
   int m_auto_reconnect;
   Uint32        m_connect_count;
+
 private:
   Uint32        m_max_api_reg_req_interval;
   Uint32        noOfAliveNodes;
   Uint32        noOfConnectedNodes;
+  Uint32        noOfConnectedDBNodes;
   Uint32        minDbVersion;
   Node          theNodes[MAX_NODES];
   NdbThread*    theClusterMgrThread;
 
-  NodeBitmask   waitForHBFromNodes; // used in forcing HBs
   NdbCondition* waitForHBCond;
-  bool          waitingForHB;
+  class ProcessInfo * m_process_info;
 
   enum Cluster_state m_cluster_state;
   /**
-   * Used for controlling start/stop of the thread
+   * We use the trp_client lock to protect the variables inside of the
+   * ClusterMgr. We use the clusterMgrThreadMutex to control start of
+   * the ClusterMgr main thread. It also protects the theStop variable
+   * against concurrent usage. Finally we need to use the clusterMgrThreadMutex
+   * to protect against concurrent close of trp_client and call of
+   * do_poll.
    */
   NdbMutex*     clusterMgrThreadMutex;
 
@@ -140,6 +179,15 @@ private:
     API_REGREQ heartbeat messages.
    */
   Uint32 m_hbFrequency;
+
+  /**
+   * The maximal time between connection attempts to data nodes.
+   * start_connect_backoff_max_time is used before connection
+   * to the first data node has succeeded.
+   */
+  Uint32	start_connect_backoff_max_time;
+  Uint32	connect_backoff_max_time;
+
   /**
    * Signals received
    */
@@ -153,6 +201,7 @@ private:
 
   void check_wait_for_hb(NodeId nodeId);
 
+  bool is_cluster_completely_unavailable();
   inline void set_node_alive(trp_node& node, bool alive){
 
     // Only DB nodes can be "alive"
@@ -175,10 +224,15 @@ private:
 
   void print_nodes(const char* where, NdbOut& out = ndbout);
   void recalcMinDbVersion();
+  void sendProcessInfoReport(NodeId nodeId);
 
 public:
   /**
    * trp_client interface
+   *
+   * This method is called from do_poll which is called from the ClusterMgr
+   * main thread, we keep the clusterMgrThreadMutex when calling this method,
+   * so all signal methods are protected.
    */
   virtual void trp_deliver_signal(const NdbApiSignal*,
                                   const LinearSectionPtr p[3]);

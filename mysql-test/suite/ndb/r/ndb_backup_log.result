@@ -1,0 +1,74 @@
+Check that backup contains the expected log entries
+use test;
+create table test.t1 (a int primary key, b int) engine=ndb;
+Add 100 rows
+Start a backup with completion stalled
+Run backup
+Starting backup
+Backup started
+Make a set of changes which we expect to be logged
+5 new rows
+insert into test.t1 values (101,101), (102,102), (103,103), (104,104), (105,105);
+10 rows updated
+update test.t1 set b=b+1 where a >= 50 and a < 60;
+5 rows deleted
+delete from test.t1 order by a limit 5;
+5 new rows updated
+update test.t1 set b=b*2 where a>100;
+5 new rows deleted
+delete from test.t1 where a > 100;
+Allow backup to complete...
+Waiting for backup to complete
+Backup completed
+truncate test.t1;
+Now restore it and check the log content
+drop table test.t1;
+create table txt (a varchar(512));
+update txt set a = TRIM(TRAILING "\r" FROM a);
+create table logentries as 
+select * from txt where 
+(a like 'INSERT %') or
+(a like 'UPDATE %') or
+(a like 'DELETE %');
+Count of log entries
+select count(1) from logentries;
+count(1)
+30
+Show logentries
+select * from logentries order by a;
+a
+DELETE test/def/t1 a=1
+DELETE test/def/t1 a=101
+DELETE test/def/t1 a=102
+DELETE test/def/t1 a=103
+DELETE test/def/t1 a=104
+DELETE test/def/t1 a=105
+DELETE test/def/t1 a=2
+DELETE test/def/t1 a=3
+DELETE test/def/t1 a=4
+DELETE test/def/t1 a=5
+INSERT test/def/t1 a=101, a=101, b=101
+INSERT test/def/t1 a=102, a=102, b=102
+INSERT test/def/t1 a=103, a=103, b=103
+INSERT test/def/t1 a=104, a=104, b=104
+INSERT test/def/t1 a=105, a=105, b=105
+UPDATE test/def/t1 a=101, b=202
+UPDATE test/def/t1 a=102, b=204
+UPDATE test/def/t1 a=103, b=206
+UPDATE test/def/t1 a=104, b=208
+UPDATE test/def/t1 a=105, b=210
+UPDATE test/def/t1 a=50, b=51
+UPDATE test/def/t1 a=51, b=52
+UPDATE test/def/t1 a=52, b=53
+UPDATE test/def/t1 a=53, b=54
+UPDATE test/def/t1 a=54, b=55
+UPDATE test/def/t1 a=55, b=56
+UPDATE test/def/t1 a=56, b=57
+UPDATE test/def/t1 a=57, b=58
+UPDATE test/def/t1 a=58, b=59
+UPDATE test/def/t1 a=59, b=60
+Show no duplicates
+select a, count(1) from logentries group by a having (count(1) > 1);
+a	count(1)
+drop table logentries;
+drop table txt;

@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Code coverage testing of TRUNCATE TABLE.
 #
@@ -77,53 +72,6 @@ HANDLER t1 CLOSE;
 DROP TABLE t1;
 SET DEBUG_SYNC='RESET';
 ########
-# Attack reopen_tables(). Remove form file.
-#
-CREATE TABLE t1 (c1 INT);
-INSERT INTO t1 VALUES (1);
-#
-# Acquire a shared metadata lock on table by opening HANDLER for it and wait.
-# TRUNCATE shall block on this metadata lock.
-# We can't use normal DML as such statements would also block LOCK TABLES.
-#
---echo #
---echo # connection con1
---connect (con1, localhost, root,,)
-HANDLER t1 OPEN;
-#
-# Lock the table and start TRUNCATE, which will block on MDL upgrade.
-#
---echo #
---echo # connection default
---connection default
-LOCK TABLE t1 WRITE;
-SET DEBUG_SYNC='mdl_upgrade_lock SIGNAL waiting';
-send TRUNCATE TABLE t1;
-#
-# Remove datafile.
-# Commit to let TRUNCATE continue.
-#
---echo #
---echo # connection con2
---connect (con2, localhost, root,,)
-SET DEBUG_SYNC='now WAIT_FOR waiting';
---remove_file $MYSQLD_DATADIR/test/t1.frm
---disconnect con2
---echo #
---echo # connection con1
---connection con1
-HANDLER t1 CLOSE;
---disconnect con1
---echo #
---echo # connection default
---connection default
---error ER_NO_SUCH_TABLE
-reap;
-UNLOCK TABLES;
---error ER_BAD_TABLE_ERROR
-DROP TABLE t1;
-SET DEBUG_SYNC='RESET';
-########
 # Attack acquire_exclusive_locks(). Hold a global read lock.
 # Non-LOCK TABLE case.
 #
@@ -176,58 +124,3 @@ COMMIT;
 UNLOCK TABLES;
 DROP TABLE t1;
 SET DEBUG_SYNC='RESET';
-
---echo #
---echo # Bug#57659 Segfault in Query_cache::invalidate_data for TRUNCATE TABLE
---echo #
-
---echo # Note that this test case only reproduces the problem
---echo # when it is run with valgrind.
-
---disable_warnings
-DROP TABLE IF EXISTS t1, m1;
---enable_warnings
-
-CREATE TABLE t1(a INT) engine=memory;
-CREATE TABLE m1(a INT) engine=merge UNION(t1);
-connect(con2, localhost, root);
-
---echo # Connection con1
-connect(con1, localhost, root);
-SET DEBUG_SYNC= 'open_tables_after_open_and_process_table SIGNAL opened WAIT_FOR dropped';
---echo # Sending:
---send TRUNCATE TABLE m1
-
---echo # Connection con2
-connection con2;
-SET DEBUG_SYNC= 'now WAIT_FOR opened';
---echo # Sending:
---send FLUSH TABLES
-
---echo # Connection default
-connection default;
---echo # Waiting for FLUSH TABLES to be blocked.
-let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.processlist
-  WHERE state= 'Waiting for table flush' AND info= 'FLUSH TABLES';
---source include/wait_condition.inc
-SET DEBUG_SYNC= 'now SIGNAL dropped';
-
---echo # Connection con1
-connection con1;
---echo # Reaping: TRUNCATE TABLE m1
---error ER_WRONG_MRG_TABLE
---reap
-disconnect con1;
---source include/wait_until_disconnected.inc
-
---echo # Connection con2
-connection con2;
---echo # Reaping: FLUSH TABLES
---reap
-disconnect con2;
---source include/wait_until_disconnected.inc
-
---echo # Connection default
-connection default;
-SET DEBUG_SYNC= 'RESET';
-DROP TABLE m1, t1;

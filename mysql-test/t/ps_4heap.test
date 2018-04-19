@@ -1,4 +1,3 @@
-
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
@@ -27,7 +26,7 @@ eval create table t1
 --disable_warnings
 drop table if exists t9;
 --enable_warnings
-# The used table type doesn't support BLOB/TEXT columns.
+# The used table type does not support BLOB/TEXT columns.
 # (The server would send error 1163  .)
 # So we use char(100) instead.
 eval create table t9 

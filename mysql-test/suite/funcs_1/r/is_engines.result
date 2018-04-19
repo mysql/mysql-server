@@ -31,9 +31,9 @@ Field	Type	Null	Key	Default	Extra
 ENGINE	varchar(64)	NO			
 SUPPORT	varchar(8)	NO			
 COMMENT	varchar(80)	NO			
-TRANSACTIONS	varchar(3)	YES		NULL	
-XA	varchar(3)	YES		NULL	
-SAVEPOINTS	varchar(3)	YES		NULL	
+TRANSACTIONS	varchar(3)	YES			
+XA	varchar(3)	YES			
+SAVEPOINTS	varchar(3)	YES			
 SHOW CREATE TABLE information_schema.ENGINES;
 Table	Create Table
 ENGINES	CREATE TEMPORARY TABLE `ENGINES` (
@@ -49,9 +49,9 @@ Field	Type	Null	Key	Default	Extra
 ENGINE	varchar(64)	NO			
 SUPPORT	varchar(8)	NO			
 COMMENT	varchar(80)	NO			
-TRANSACTIONS	varchar(3)	YES		NULL	
-XA	varchar(3)	YES		NULL	
-SAVEPOINTS	varchar(3)	YES		NULL	
+TRANSACTIONS	varchar(3)	YES			
+XA	varchar(3)	YES			
+SAVEPOINTS	varchar(3)	YES			
 ########################################################################
 # Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
 #           DDL on INFORMATION_SCHEMA tables are not supported

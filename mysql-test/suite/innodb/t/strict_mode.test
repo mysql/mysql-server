@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 
 --echo #
@@ -6,7 +5,7 @@
 --echo # INNODB_STRICT_MODE = 1
 --echo #
 
-call mtr.add_suppression("InnoDB: Cannot add field");
+call mtr.add_suppression("Cannot add field");
 
 set innodb_strict_mode = 0;
 
@@ -57,7 +56,7 @@ col41 text,
 col42 text,
 col43 text,
 col44 text,
-col45 text ,
+col45 text,
 col46 text,
 col47 text,
 col48 text,
@@ -80,7 +79,7 @@ col64 text,
 col65 text,
 col66 text,
 col67 text,
-col68 text ,
+col68 text,
 col69 text,
 col70 text,
 col71 text,
@@ -138,7 +137,7 @@ col122 text,
 col123 text,
 col124 text,
 col125 text,
-col126 text ,
+col126 text,
 col127 text,
 col128 text,
 col129 text,
@@ -159,7 +158,7 @@ col143 text,
 col144 text,
 col145 text,
 col146 text,
-col147 text ,
+col147 text,
 col148 text,
 col149 text,
 col150 text,
@@ -184,7 +183,7 @@ col168 text,
 col169 text,
 col170 text,
 col171 text,
-col172 text ,
+col172 text,
 col173 text,
 col174 text,
 col175 text,
@@ -241,7 +240,7 @@ col225 text,
 col226 text,
 col227 text,
 col228 text
-) ENGINE=InnoDB;
+) ENGINE=InnoDB ROW_FORMAT=COMPACT;
 
 set innodb_strict_mode = 1;
 

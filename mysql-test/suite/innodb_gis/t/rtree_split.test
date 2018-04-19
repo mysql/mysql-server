@@ -1,15 +1,13 @@
 # WL#6745 InnoDB R-tree support
 # This test case will test R-tree split, mostly on duplciate records.
 
-# Not supported in embedded
---source include/not_embedded.inc
 
---source include/have_innodb.inc
 --source include/big_test.inc
 --source include/not_valgrind.inc
+--source include/have_debug.inc
 
 # Create table with R-tree index.
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 
 # Insert enough values to let R-tree split.
 insert into t1 values(1, Point(1,1));
@@ -26,10 +24,13 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
 
+#Check second round spliting.
+SET SESSION debug="+d, rtr_page_need_second_split";
 insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
+SET SESSION debug="-d, rtr_page_need_second_split";
 
 delete from t1;
 
@@ -83,8 +84,8 @@ set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
 select count(*) from t1 where MBRWithin(t1.c2, @g1);
 
 # test read only case
-let $restart_parameters = restart: --innodb-read-only;
---source include/restart_mysqld.inc
+--source include/restart_innodb_read_only.inc
+
 set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
 select count(*) from t1 where MBRWithin(t1.c2, @g1);
 

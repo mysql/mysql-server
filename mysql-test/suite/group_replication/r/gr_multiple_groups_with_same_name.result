@@ -1,0 +1,52 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+#
+# Check that group with one member is formed.
+SELECT CHANNEL_NAME, MEMBER_STATE, COUNT(*) AS COUNT from performance_schema.replication_group_members GROUP BY CHANNEL_NAME, MEMBER_STATE;
+CHANNEL_NAME	MEMBER_STATE	COUNT
+group_replication_applier	ONLINE	1
+[connection server2]
+include/start_group_replication.inc
+#
+# Check that group now have two members.
+SELECT CHANNEL_NAME, MEMBER_STATE, COUNT(*) AS COUNT from performance_schema.replication_group_members GROUP BY CHANNEL_NAME, MEMBER_STATE;
+CHANNEL_NAME	MEMBER_STATE	COUNT
+group_replication_applier	ONLINE	2
+include/stop_group_replication.inc
+RESET MASTER;
+include/start_and_bootstrap_group_replication.inc
+#
+# Check that group with one member is formed.
+SELECT CHANNEL_NAME, MEMBER_STATE, COUNT(*) AS COUNT from performance_schema.replication_group_members GROUP BY CHANNEL_NAME, MEMBER_STATE;
+CHANNEL_NAME	MEMBER_STATE	COUNT
+group_replication_applier	ONLINE	1
+[connection server3]
+include/start_and_bootstrap_group_replication.inc
+#
+# Check that group with one member is formed.
+SELECT CHANNEL_NAME, MEMBER_STATE, COUNT(*) AS COUNT from performance_schema.replication_group_members GROUP BY CHANNEL_NAME, MEMBER_STATE;
+CHANNEL_NAME	MEMBER_STATE	COUNT
+group_replication_applier	ONLINE	1
+#
+# Verify that group name is same on all the three servers.
+include/assert.inc [Verify same group name on server1 and server2]
+include/assert.inc [Verify same group name on server1 and server3]
+include/stop_group_replication.inc
+#
+# Restart GR (not bootstrap) on server2 and server3.
+[connection server2]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+#
+# Check that group with three members is formed.
+SELECT CHANNEL_NAME, MEMBER_STATE, COUNT(*) AS COUNT from performance_schema.replication_group_members GROUP BY CHANNEL_NAME, MEMBER_STATE;
+CHANNEL_NAME	MEMBER_STATE	COUNT
+group_replication_applier	ONLINE	3
+include/group_replication_end.inc

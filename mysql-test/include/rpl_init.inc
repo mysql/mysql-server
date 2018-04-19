@@ -13,6 +13,7 @@
 #  - Sets the following mtr variables for convenience:
 #    $gtid_mode: the value of @@global.gtid_mode on server 1
 #    $gtid_mode_on: 1 if gtid_mode=on, 0 if gtid_mode=off
+#    $binlog_format: The value of @@global.binlog_format.
 #    $server_1_datadir, ..., $server_10_datadir: the @@datadir on each server.
 #    $server_1_uuid, ..., $server_10_uuid: the @@server_uuid on each server.
 #
@@ -60,6 +61,7 @@
 #    [--let $rpl_group_replication= 1]
 #    [--let $rpl_gtid_utils= 1]
 #    [--let $rpl_set_gtid_next_anonymous_in_new_connection= 1]
+#    [--let $rpl_skip_log_bin= 1]
 #    --source include/rpl_init.inc
 #
 #    Parameters:
@@ -129,7 +131,8 @@
 #    $rpl_group_replication
 #      This checks for whether we have Group Replication enabled or not. Based
 #      on the check this parameter we execute change master or not in this
-#      inc file.
+#      inc file. Moreover, it also sets the default timeouts for the group
+#      replication tests.
 #
 #    $rpl_gtid_utils
 #      Create stored functions for GTID manipulation on every server (see
@@ -138,6 +141,9 @@
 #    $rpl_set_gtid_next_anonymous_in_new_connection
 #       Executes SET GTID_NEXT = 'ANONYMOUS' in each new connection.
 #
+#    $rpl_skip_log_bin
+#      Bypasses the binlog related checking to allow testing --skip-log-bin
+#      servers.
 #
 # ==== Side effects ====
 #
@@ -178,9 +184,11 @@
 #
 #
 
-
---source include/have_log_bin.inc
-
+if (!$rpl_skip_log_bin)
+{
+  # The default behaviour is to run the binlog checking
+  --source include/have_log_bin.inc
+}
 
 --let $include_filename= rpl_init.inc [topology=$rpl_topology]
 --source include/begin_include_file.inc
@@ -275,6 +283,13 @@ if ($group_replication_group_name == '')
   --let $group_replication_group_name= `SELECT UUID()`
 }
 
+# if in group replication mode, set the default timeouts
+if($rpl_group_replication)
+{
+  # Reset default timeouts for the group replication tests
+  --source include/group_replication_timeouts.inc
+}
+
 while ($_rpl_server)
 {
   # Connect.
@@ -297,13 +312,9 @@ while ($_rpl_server)
   {
     --source include/gtid_utils.inc
   }
-  --let $opt_binlog= `SELECT @@GLOBAL.log_bin`
   if (!$rpl_skip_reset_master_and_slave)
   {
-    if ($opt_binlog != 0)
-    {
-      RESET MASTER;
-    }
+    RESET MASTER;
     RESET SLAVE;
   }
   # Only way to do this in mtr :-(
@@ -350,9 +361,43 @@ while ($_rpl_server)
 
   if($rpl_group_replication)
   {
+    --source include/store_group_replication_auto_increment.inc
     if(!$rpl_skip_group_replication_start)
     {
       --source include/start_group_replication.inc
+    }
+
+    # Group Replication has its own auto_increment default value:
+    #   GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 7
+    # which on Group Replication start will set server variables:
+    #   auto_increment_increment= 7
+    #   auto_increment_offset= SERVER_ID
+    # This configuration enables conflict free auto-increment transactions
+    # on a group. Please see WL#8445 for further details.
+    #
+    # Group Replication plugin is tested with two MTR suites:
+    #  group_replication: tests written with GR in mind that exploits all
+    #                     GR features.
+    #  rpl:               tests that are written for asynchronous
+    #                     replication, on which changes are written only on
+    #                     master and synced asynchronously later on slaves.
+    #
+    # Tests from rpl suite are run for regression testing. Since these
+    # assume that only master get changes, there is no need to use GR
+    # auto_increment default value. Actually if we use it, that will make
+    # the tests to fail with result content mismatch. Thence for rpl suite
+    # we revert GR auto_increment default value.
+    #
+    # We can distinguish if we are running rpl or group_replication suite
+    # by checking if rpl_group_replication_default_connections.inc file
+    # was included. Only group_replication suite includes it.
+    # So if the flag !$rpl_group_replication_default_connections is false,
+    # we are currently running rpl suite, which means that we need to
+    # revert GR auto_increment default value.
+
+    if (!$using_rpl_group_replication_default_connections)
+    {
+      --source include/restore_group_replication_auto_increment.inc
     }
   }
   --dec $_rpl_server
@@ -365,6 +410,10 @@ if ($rpl_inited)
   --die Detected double invocation of rpl_init.inc. Use rpl_change_topology.inc or invoke rpl_end.inc before the second invocation of rpl_init.inc
 }
 --let $rpl_inited= 1
+
+# Set $show_rpl_debug_info to make subsequent failures in
+# e.g. wait_condition.inc print replication debug output.
+--let $show_rpl_debug_info= 1
 
 
 # Indicate that the server is in a dirty state and needs to be restarted
@@ -408,6 +457,17 @@ if ($use_gtids == '')
 
 --source include/rpl_change_topology.inc
 
+# reconnect group_replication default connection
+# so session variables values can be
+# reinitialized with its corresponding global value.
+if($rpl_group_replication)
+{
+  if ($using_rpl_group_replication_default_connections)
+  {
+    --let $rpl_group_replication_reconnect= 1
+    --source include/rpl_group_replication_default_connections.inc
+  }
+}
 
 if (!$rpl_skip_start_slave)
 {

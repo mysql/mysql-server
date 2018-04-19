@@ -1,15 +1,11 @@
 
-# Can't be tested with embedded server
---source include/not_embedded.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
 # Bug#8471 IP address with mask fail when skip-name-resolve is on
-SET @orig_sql_mode= @@sql_mode;
-SET sql_mode= (SELECT replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+CREATE USER mysqltest_1@'127.0.0.1/255.255.255.255';
 GRANT ALL ON test.* TO mysqltest_1@'127.0.0.1/255.255.255.255';
-SET sql_mode= @orig_sql_mode;
 SHOW GRANTS FOR mysqltest_1@'127.0.0.1/255.255.255.255';
 REVOKE ALL ON test.* FROM mysqltest_1@'127.0.0.1/255.255.255.255';
 DROP USER mysqltest_1@'127.0.0.1/255.255.255.255';
@@ -19,6 +15,9 @@ DROP USER mysqltest_1@'127.0.0.1/255.255.255.255';
 # Bug#13407 Remote connecting crashes server
 # Server crashed when one used USER() function in connection for which
 # was impossible to obtain peer hostname.
+
+--source include/add_extra_root_users.inc
+
 connect (con1, localhost, root, , test, $MASTER_MYPORT, );
 --replace_column 1 #
 SELECT USER();
@@ -32,6 +31,9 @@ disconnect con1;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
+
+# Restore original content of mysql.user
+--source include/remove_extra_root_users.inc
 
 --echo #
 --echo # Bug #37168: Missing variable - skip_name_resolve
@@ -54,3 +56,26 @@ SET @@LOCAL.skip_name_resolve=0;
 SET @@GLOBAL.skip_name_resolve=0;
 
 --echo End of 5.1 tests
+
+
+--echo #
+--echo # Bug #20438524: 5.7.5 SKIP_NAME_RESOLVE STOPS ALL CONNECTION ATTEMPTS
+--echo #
+
+CREATE USER b20438524@'%' IDENTIFIED BY 'pwd';
+--echo # set some valid addresses
+UPDATE mysql.user SET host='localhost' WHERE user='b20438524';
+FLUSH PRIVILEGES;
+
+--echo # cleanup
+DELETE FROM mysql.user WHERE user='b20438524';
+FLUSH PRIVILEGES;
+
+--echo # must find the pattern
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN='user' entry 'b20438524@localhost' ignored in --skip-name-resolve mode
+source include/search_pattern.inc;
+
+
+--echo End of 5.7 tests
+

@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -20,7 +27,6 @@
 
 #include <ndb_types.h>
 #include "../diskpage.hpp"
-
 #define JAM_FILE_ID 419
 
 
@@ -54,11 +60,37 @@ struct Tup_page
   Uint32 m_fragment_id;
   Uint32 m_extent_no;
   Uint32 m_extent_info_ptr;
-  Uint32 unused_ph[9];
+  Uint32 unused_high_index; // size of index + 1
+  Uint32 unused_insert_pos;
+  Uint32 m_flags; /* Currently only LCP_SKIP flag in bit 0 */
+  Uint32 m_ndb_version;
+  Uint32 m_create_table_version;
+  Uint32 unused_ph[4];
 
-  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS - 32 );
+  STATIC_CONST( HEADER_WORDS = 32 );
+  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
+                             HEADER_WORDS );
   
   Uint32 m_data[DATA_WORDS];
+
+  STATIC_CONST ( LCP_SKIP_FLAG = 1 );
+
+  bool is_page_to_skip_lcp() const
+  {
+    if (m_flags & LCP_SKIP_FLAG)
+    {
+      return true;
+    }
+    return false;
+  }
+  void set_page_to_skip_lcp()
+  {
+    m_flags |= LCP_SKIP_FLAG;
+  }
+  void clear_page_to_skip_lcp()
+  {
+    m_flags &= (~LCP_SKIP_FLAG);
+  }
 };
 
 struct Tup_fixsize_page
@@ -90,15 +122,29 @@ struct Tup_fixsize_page
   Uint32 m_fragment_id;
   Uint32 m_extent_no;
   Uint32 m_extent_info_ptr;
-  Uint32 unused_ph[9];
+  Uint32 unused_high_index; // size of index + 1
+  Uint32 unushed_insert_pos;
+  Uint32 m_flags; /* Currently only LCP_SKIP flag in bit 0 */
+  Uint32 m_ndb_version;
+  Uint32 m_schema_version;
+  Uint32 unused_ph[4];
 
-  STATIC_CONST( FREE_RECORD = ~(Uint32)0 );
-  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS - 32 );
+  /**
+   * Don't set/reset LCP_SKIP/LCP_DELETE flags
+   * The LCP_SKIP and LCP_DELETE flags are alive also after the record has
+   * been deleted. This is to track rows that have been scanned, LCP scans
+   * also scans deleted rows to ensure that any deleted rows since last LCP
+   * are tracked.
+   */
+  STATIC_CONST( FREE_RECORD = 0xeeffffff );
+  STATIC_CONST( HEADER_WORDS = 32 );
+  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
+                             HEADER_WORDS );
   
   Uint32 m_data[DATA_WORDS];
   
   Uint32* get_ptr(Uint32 page_idx, Uint32 rec_size){
-    assert(page_idx + rec_size <= DATA_WORDS);
+    require(page_idx + rec_size <= DATA_WORDS);
     return m_data + page_idx;
   }
   
@@ -143,9 +189,14 @@ struct Tup_varsize_page
   Uint32 m_extent_info_ptr;
   Uint32 high_index; // size of index + 1
   Uint32 insert_pos;
-  Uint32 unused_ph[7];
+  Uint32 m_flags; /* Currently only LCP_SKIP flag in bit 0 */
+  Uint32 m_ndb_version;
+  Uint32 m_schema_version;
+  Uint32 unused_ph[4];
   
-  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS - 32 );
+  STATIC_CONST( HEADER_WORDS = 32 );
+  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
+                             HEADER_WORDS );
   STATIC_CONST( CHAIN    = 0x80000000 );
   STATIC_CONST( FREE     = 0x40000000 );
   STATIC_CONST( LEN_MASK = 0x3FFF8000 );

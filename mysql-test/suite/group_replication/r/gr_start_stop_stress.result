@@ -1,0 +1,58 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Setup a new group
+#
+server1
+include/start_and_bootstrap_group_replication.inc
+server2
+include/start_group_replication.inc
+#
+# Create some transactions here to ensure that Recovery works fine in
+# the end
+#
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+#
+# Wait for all servers to be in sync
+#
+include/rpl_sync.inc
+server3
+#
+# Stress server 3 by joining, leaving and joining again without waiting
+#
+SET GLOBAL group_replication_group_name= "57006580-b202-11e4-ab27-0800200c9a66";
+start group_replication;
+stop group_replication;
+start group_replication;
+stop group_replication;
+start group_replication;
+stop group_replication;
+start group_replication;
+stop group_replication;
+start group_replication;
+stop group_replication;
+#
+# Start and assert that server 3 has recovered properly
+#
+include/start_group_replication.inc
+include/assert.inc [GTID_EXECUTED must contain all group transactions]
+#
+# Check that values are present
+#
+SELECT * FROM t1;
+c1
+1
+2
+3
+#
+# Cleanup and exit
+#
+server1
+DROP TABLE t1;
+include/group_replication_end.inc

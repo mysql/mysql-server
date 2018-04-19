@@ -1,0 +1,95 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+
+############################################################
+# 1. Execute some transactions on server 1 with and without
+#    GTID specified.
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SET GTID_NEXT= 'AUTOMATIC';
+INSERT INTO t1 VALUES (1);
+
+############################################################
+# 2. Execute some transactions on server 2  with and without
+#    GTID specified (including empty transactions).
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/rpl_sync.inc
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+INSERT INTO t1 VALUES (2);
+SET GTID_NEXT= 'AUTOMATIC';
+SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1';
+INSERT INTO t2 VALUES (1);
+SET GTID_NEXT= 'AUTOMATIC';
+SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:2';
+INSERT INTO t2 VALUES (2);
+SET GTID_NEXT= 'AUTOMATIC';
+SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:3';
+BEGIN;
+COMMIT;
+SET GTID_NEXT= 'AUTOMATIC';
+INSERT INTO t1 VALUES (3);
+INSERT INTO t2 VALUES (3);
+include/rpl_sync.inc
+
+############################################################
+# 3. Check that GTID_EXECUTED on server 1 contains all
+#    transactions.
+#    Also check that data is on tables.
+include/assert.inc [GTID_EXECUTED must contain all committed GTIDs]
+include/assert.inc ['There is a value 1 in table t1']
+include/assert.inc ['There is a value 2 in table t1']
+include/assert.inc ['There is a value 3 in table t1']
+include/assert.inc ['There is a value 1 in table t2']
+include/assert.inc ['There is a value 2 in table t2']
+include/assert.inc ['There is a value 3 in table t2']
+
+############################################################
+# 4. Check that GTID_EXECUTED on server 2 contains all
+#    transactions.
+#    Also check that data is on tables.
+include/assert.inc [GTID_EXECUTED must contain all committed GTIDs]
+include/assert.inc ['There is a value 1 in table t1']
+include/assert.inc ['There is a value 2 in table t1']
+include/assert.inc ['There is a value 3 in table t1']
+include/assert.inc ['There is a value 1 in table t2']
+include/assert.inc ['There is a value 2 in table t2']
+include/assert.inc ['There is a value 3 in table t2']
+
+############################################################
+# 5. Wait for stable set propagation and certification info
+#    garbage collection.
+
+############################################################
+# 6. Check that stable set and certification info size are
+#    properly updated after stable set propagation and
+#    certification info garbage collection on server 1.
+include/assert.inc ['Count_transactions_rows_validating must be 0']
+include/assert.inc ['Transactions_committed_all_members must be equal to GTID_EXECUTED']
+
+############################################################
+# 7. Check that stable set and certification info size are
+#    properly updated after stable set propagation and
+#    certification info garbage collection on server 2.
+include/assert.inc ['Count_transactions_rows_validating must be 0']
+include/assert.inc ['Transactions_committed_all_members must be equal to GTID_EXECUTED']
+
+############################################################
+# 8. Shutdown.
+DROP TABLE t1;
+DROP TABLE t2;
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+include/group_replication_end.inc

@@ -1,68 +1,70 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file
-
-  @brief
-  Wrapper functions for OpenSSL and YaSSL. Also provides a Compatibility layer
-  to make available YaSSL's MD5 implementation.
+  @file mysys_ssl/my_md5.cc
+  Wrapper functions for OpenSSL and wolfSSL.
 */
 
-#include <my_global.h>
-#include <my_md5.h>
+#include "my_md5.h"
 
-#if defined(HAVE_YASSL)
-#include "my_config.h"
-#include "md5.hpp"
-
-static void my_md5_hash(char *digest, const char *buf, int len)
-{
-  TaoCrypt::MD5 hasher;
-  hasher.Update((TaoCrypt::byte *) buf, len);
-  hasher.Final((TaoCrypt::byte *) digest);
-}
-
-#elif defined(HAVE_OPENSSL)
+#include <openssl/crypto.h>
 #include <openssl/md5.h>
 
-static void my_md5_hash(unsigned char* digest, unsigned const char *buf, int len)
-{
+static void my_md5_hash(unsigned char *digest, unsigned const char *buf,
+                        int len) {
   MD5_CTX ctx;
-  MD5_Init (&ctx);
-  MD5_Update (&ctx, buf, len);
-  MD5_Final (digest, &ctx);
+  MD5_Init(&ctx);
+  MD5_Update(&ctx, buf, len);
+  MD5_Final(digest, &ctx);
 }
-
-#endif /* HAVE_YASSL */
 
 /**
     Wrapper function to compute MD5 message digest.
 
-    @param digest [out]  Computed MD5 digest
-    @param buf    [in]   Message to be computed
-    @param len    [in]   Length of the message
-
-    @return              void
+    @param [out] digest Computed MD5 digest
+    @param [in] buf     Message to be computed
+    @param [in] len     Length of the message
+    @return             0 when MD5 hash function called successfully
+                        1 when MD5 hash function doesn't called because of fips
+   mode (ON/STRICT)
 */
-void compute_md5_hash(char *digest, const char *buf, int len)
-{
-#if defined(HAVE_YASSL)
-  my_md5_hash(digest, buf, len);
-#elif defined(HAVE_OPENSSL)
-  my_md5_hash((unsigned char*)digest, (unsigned const char*)buf, len);
-#endif /* HAVE_YASSL */
+int compute_md5_hash(char *digest, const char *buf, int len) {
+  int retval = 0;
+  int fips_mode = 0;
+#if !defined(HAVE_WOLFSSL)
+  fips_mode = FIPS_mode();
+#endif /* HAVE_WOLFSSL */
+  /* If fips mode is ON/STRICT restricted method calls will result into abort,
+   * skipping call. */
+  if (fips_mode == 0) {
+    my_md5_hash((unsigned char *)digest, (unsigned const char *)buf, len);
+  } else {
+    retval = 1;
+  }
+  return retval;
 }

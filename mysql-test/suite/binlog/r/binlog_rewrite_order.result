@@ -1,0 +1,149 @@
+call mtr.add_suppression("WARNING: The option --database has been used. It may filter parts of transactions,");
+RESET MASTER;
+CREATE SCHEMA schemaa;
+USE schemaa;
+FLUSH LOGS;
+CREATE TABLE test (id int);
+CREATE TABLE tload (c1 TEXT);
+SET SESSION BINLOG_FORMAT='STATEMENT';
+INSERT INTO test (id) VALUES (1);
+SET SESSION BINLOG_FORMAT='ROW';
+INSERT INTO test (id) VALUES (2);
+SET SESSION BINLOG_FORMAT=STATEMENT;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+SET SESSION SQL_LOG_BIN=0;
+CREATE DATABASE _other_;
+USE _other_;
+SET SESSION SQL_LOG_BIN=1;
+CREATE TABLE t1 (a INT);
+SET SESSION BINLOG_FORMAT='STATEMENT';
+INSERT INTO t1 VALUES (1);
+SET SESSION BINLOG_FORMAT='ROW';
+INSERT INTO t1 VALUES (2);
+SET SQL_LOG_BIN=0;
+FLUSH LOGS;
+CREATE SCHEMA db1;
+RESET MASTER;
+TRUNCATE _other_.t1;
+include/diff_tables.inc [schemaa.test,db1.test]
+include/diff_tables.inc [schemaa.tload,db1.tload]
+TRUNCATE db1.test;
+TRUNCATE db1.tload;
+TRUNCATE _other_.t1;
+RESET MASTER;
+USE db1;
+include/assert.inc [Zero records on db1.test]
+include/assert.inc [There is NO data in 'tload' table]
+TRUNCATE db1.test;
+TRUNCATE db1.tload;
+TRUNCATE _other_.t1;
+RESET MASTER;
+DROP TABLE db1.test;
+DROP TABLE db1.tload;
+DROP TABLE _other_.t1;
+include/assert.inc [Verify that other database was not rewritten]
+SET SQL_LOG_BIN=1;
+SET BINLOG_FORMAT=MIXED;
+DROP SCHEMA db1;
+DROP SCHEMA schemaa;
+DROP SCHEMA _other_;
+RESET MASTER;
+RESET MASTER;
+CREATE SCHEMA schemaa;
+USE schemaa;
+FLUSH LOGS;
+CREATE TABLE test (id int);
+CREATE TABLE tload (c1 TEXT);
+SET SESSION BINLOG_FORMAT='STATEMENT';
+INSERT INTO test (id) VALUES (1);
+SET SESSION BINLOG_FORMAT='ROW';
+INSERT INTO test (id) VALUES (2);
+SET SESSION BINLOG_FORMAT=STATEMENT;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+SET SESSION SQL_LOG_BIN=0;
+CREATE DATABASE _other_;
+USE _other_;
+SET SESSION SQL_LOG_BIN=1;
+CREATE TABLE t1 (a INT);
+SET SESSION BINLOG_FORMAT='STATEMENT';
+INSERT INTO t1 VALUES (1);
+SET SESSION BINLOG_FORMAT='ROW';
+INSERT INTO t1 VALUES (2);
+SET SQL_LOG_BIN=0;
+FLUSH LOGS;
+CREATE SCHEMA schemab;
+RESET MASTER;
+TRUNCATE _other_.t1;
+include/diff_tables.inc [schemaa.test,schemab.test]
+include/diff_tables.inc [schemaa.tload,schemab.tload]
+TRUNCATE schemab.test;
+TRUNCATE schemab.tload;
+TRUNCATE _other_.t1;
+RESET MASTER;
+USE schemab;
+include/assert.inc [Zero records on schemab.test]
+include/assert.inc [There is NO data in 'tload' table]
+TRUNCATE schemab.test;
+TRUNCATE schemab.tload;
+TRUNCATE _other_.t1;
+RESET MASTER;
+DROP TABLE schemab.test;
+DROP TABLE schemab.tload;
+DROP TABLE _other_.t1;
+include/assert.inc [Verify that other database was not rewritten]
+SET SQL_LOG_BIN=1;
+SET BINLOG_FORMAT=MIXED;
+DROP SCHEMA schemab;
+DROP SCHEMA schemaa;
+DROP SCHEMA _other_;
+RESET MASTER;
+RESET MASTER;
+CREATE SCHEMA schemaa;
+USE schemaa;
+FLUSH LOGS;
+CREATE TABLE test (id int);
+CREATE TABLE tload (c1 TEXT);
+SET SESSION BINLOG_FORMAT='STATEMENT';
+INSERT INTO test (id) VALUES (1);
+SET SESSION BINLOG_FORMAT='ROW';
+INSERT INTO test (id) VALUES (2);
+SET SESSION BINLOG_FORMAT=STATEMENT;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+SET SESSION SQL_LOG_BIN=0;
+CREATE DATABASE _other_;
+USE _other_;
+SET SESSION SQL_LOG_BIN=1;
+CREATE TABLE t1 (a INT);
+SET SESSION BINLOG_FORMAT='STATEMENT';
+INSERT INTO t1 VALUES (1);
+SET SESSION BINLOG_FORMAT='ROW';
+INSERT INTO t1 VALUES (2);
+SET SQL_LOG_BIN=0;
+FLUSH LOGS;
+CREATE SCHEMA my_new_fancy_and_very_long_schema_name;
+RESET MASTER;
+TRUNCATE _other_.t1;
+include/diff_tables.inc [schemaa.test,my_new_fancy_and_very_long_schema_name.test]
+include/diff_tables.inc [schemaa.tload,my_new_fancy_and_very_long_schema_name.tload]
+TRUNCATE my_new_fancy_and_very_long_schema_name.test;
+TRUNCATE my_new_fancy_and_very_long_schema_name.tload;
+TRUNCATE _other_.t1;
+RESET MASTER;
+USE my_new_fancy_and_very_long_schema_name;
+include/assert.inc [Zero records on my_new_fancy_and_very_long_schema_name.test]
+include/assert.inc [There is NO data in 'tload' table]
+TRUNCATE my_new_fancy_and_very_long_schema_name.test;
+TRUNCATE my_new_fancy_and_very_long_schema_name.tload;
+TRUNCATE _other_.t1;
+RESET MASTER;
+DROP TABLE my_new_fancy_and_very_long_schema_name.test;
+DROP TABLE my_new_fancy_and_very_long_schema_name.tload;
+DROP TABLE _other_.t1;
+include/assert.inc [Verify that other database was not rewritten]
+SET SQL_LOG_BIN=1;
+SET BINLOG_FORMAT=MIXED;
+DROP SCHEMA my_new_fancy_and_very_long_schema_name;
+DROP SCHEMA schemaa;
+DROP SCHEMA _other_;
+RESET MASTER;
+SET BINLOG_FORMAT=MIXED;

@@ -1,235 +1,174 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/btr0cur.ic
-The index tree cursor
+/** @file include/btr0cur.ic
+ The index tree cursor
 
-Created 10/16/1994 Heikki Tuuri
-*******************************************************/
+ Created 10/16/1994 Heikki Tuuri
+ *******************************************************/
 
 #ifndef UNIV_HOTBACKUP
+#endif /* !UNIV_HOTBACKUP */
 #include "btr0btr.h"
 
 #ifdef UNIV_DEBUG
-# define LIMIT_OPTIMISTIC_INSERT_DEBUG(NREC, CODE)\
-if (btr_cur_limit_optimistic_insert_debug > 1\
-    && (NREC) >= (ulint)btr_cur_limit_optimistic_insert_debug) {\
-        CODE;\
-}
+#define LIMIT_OPTIMISTIC_INSERT_DEBUG(NREC, CODE)               \
+  if (btr_cur_limit_optimistic_insert_debug > 1 &&              \
+      (NREC) >= (ulint)btr_cur_limit_optimistic_insert_debug) { \
+    CODE;                                                       \
+  }
 #else
-# define LIMIT_OPTIMISTIC_INSERT_DEBUG(NREC, CODE)
+#define LIMIT_OPTIMISTIC_INSERT_DEBUG(NREC, CODE)
 #endif /* UNIV_DEBUG */
 
 #ifdef UNIV_DEBUG
-/*********************************************************//**
-Returns the page cursor component of a tree cursor.
-@return pointer to page cursor component */
+/** Returns the page cursor component of a tree cursor.
+ @return pointer to page cursor component */
 UNIV_INLINE
-page_cur_t*
-btr_cur_get_page_cur(
-/*=================*/
-	const btr_cur_t*	cursor)	/*!< in: tree cursor */
+page_cur_t *btr_cur_get_page_cur(
+    const btr_cur_t *cursor) /*!< in: tree cursor */
 {
-	return(&((btr_cur_t*) cursor)->page_cur);
+  return (&((btr_cur_t *)cursor)->page_cur);
 }
 
-/*********************************************************//**
-Returns the buffer block on which the tree cursor is positioned.
-@return pointer to buffer block */
+/** Returns the buffer block on which the tree cursor is positioned.
+ @return pointer to buffer block */
 UNIV_INLINE
-buf_block_t*
-btr_cur_get_block(
-/*==============*/
-	const btr_cur_t*	cursor)	/*!< in: tree cursor */
+buf_block_t *btr_cur_get_block(const btr_cur_t *cursor) /*!< in: tree cursor */
 {
-	return(page_cur_get_block(btr_cur_get_page_cur(cursor)));
+  return (page_cur_get_block(btr_cur_get_page_cur(cursor)));
 }
 
-/*********************************************************//**
-Returns the record pointer of a tree cursor.
-@return pointer to record */
+/** Returns the record pointer of a tree cursor.
+ @return pointer to record */
 UNIV_INLINE
-rec_t*
-btr_cur_get_rec(
-/*============*/
-	const btr_cur_t*	cursor)	/*!< in: tree cursor */
+rec_t *btr_cur_get_rec(const btr_cur_t *cursor) /*!< in: tree cursor */
 {
-	return(page_cur_get_rec(btr_cur_get_page_cur(cursor)));
+  return (page_cur_get_rec(btr_cur_get_page_cur(cursor)));
 }
 #endif /* UNIV_DEBUG */
 
-/*********************************************************//**
-Returns the compressed page on which the tree cursor is positioned.
-@return pointer to compressed page, or NULL if the page is not compressed */
+/** Returns the compressed page on which the tree cursor is positioned.
+ @return pointer to compressed page, or NULL if the page is not compressed */
 UNIV_INLINE
-page_zip_des_t*
-btr_cur_get_page_zip(
-/*=================*/
-	btr_cur_t*	cursor)	/*!< in: tree cursor */
+page_zip_des_t *btr_cur_get_page_zip(btr_cur_t *cursor) /*!< in: tree cursor */
 {
-	return(buf_block_get_page_zip(btr_cur_get_block(cursor)));
+  return (buf_block_get_page_zip(btr_cur_get_block(cursor)));
 }
 
-/*********************************************************//**
-Returns the page of a tree cursor.
-@return pointer to page */
+/** Returns the page of a tree cursor.
+ @return pointer to page */
 UNIV_INLINE
-page_t*
-btr_cur_get_page(
-/*=============*/
-	btr_cur_t*	cursor)	/*!< in: tree cursor */
+page_t *btr_cur_get_page(btr_cur_t *cursor) /*!< in: tree cursor */
 {
-	return(page_align(page_cur_get_rec(&(cursor->page_cur))));
+  return (page_align(page_cur_get_rec(&(cursor->page_cur))));
 }
 
-/*********************************************************//**
-Positions a tree cursor at a given record. */
+/** Positions a tree cursor at a given record. */
 UNIV_INLINE
-void
-btr_cur_position(
-/*=============*/
-	dict_index_t*	index,	/*!< in: index */
-	rec_t*		rec,	/*!< in: record in tree */
-	buf_block_t*	block,	/*!< in: buffer block of rec */
-	btr_cur_t*	cursor)	/*!< out: cursor */
+void btr_cur_position(dict_index_t *index, /*!< in: index */
+                      rec_t *rec,          /*!< in: record in tree */
+                      buf_block_t *block,  /*!< in: buffer block of rec */
+                      btr_cur_t *cursor)   /*!< out: cursor */
 {
-	ut_ad(page_align(rec) == block->frame);
+  ut_ad(page_align(rec) == block->frame);
 
-	page_cur_position(rec, block, btr_cur_get_page_cur(cursor));
+  page_cur_position(rec, block, btr_cur_get_page_cur(cursor));
 
-	cursor->index = index;
+  cursor->index = index;
 }
 
-/*********************************************************************//**
-Checks if compressing an index page where a btr cursor is placed makes
-sense.
-@return TRUE if compression is recommended */
+/** Checks if compressing an index page where a btr cursor is placed makes
+ sense.
+ @return true if compression is recommended */
 UNIV_INLINE
-ibool
-btr_cur_compress_recommendation(
-/*============================*/
-	btr_cur_t*	cursor,	/*!< in: btr cursor */
-	mtr_t*		mtr)	/*!< in: mtr */
+ibool btr_cur_compress_recommendation(btr_cur_t *cursor, /*!< in: btr cursor */
+                                      mtr_t *mtr)        /*!< in: mtr */
 {
-	const page_t*	page;
+  const page_t *page;
 
-	ut_ad(mtr_is_block_fix(
-		mtr, btr_cur_get_block(cursor),
-		MTR_MEMO_PAGE_X_FIX, cursor->index->table));
+  ut_ad(mtr_is_block_fix(mtr, btr_cur_get_block(cursor), MTR_MEMO_PAGE_X_FIX,
+                         cursor->index->table));
 
-	page = btr_cur_get_page(cursor);
+  page = btr_cur_get_page(cursor);
 
-	LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page) * 2,
-				      return(FALSE));
+  LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page) * 2, return (FALSE));
 
-	if ((page_get_data_size(page)
-	     < BTR_CUR_PAGE_COMPRESS_LIMIT(cursor->index))
-	    || ((btr_page_get_next(page, mtr) == FIL_NULL)
-		&& (btr_page_get_prev(page, mtr) == FIL_NULL))) {
+  if ((page_get_data_size(page) < BTR_CUR_PAGE_COMPRESS_LIMIT(cursor->index)) ||
+      ((btr_page_get_next(page, mtr) == FIL_NULL) &&
+       (btr_page_get_prev(page, mtr) == FIL_NULL))) {
+    /* The page fillfactor has dropped below a predefined
+    minimum value OR the level in the B-tree contains just
+    one page: we recommend compression if this is not the
+    root page. */
 
-		/* The page fillfactor has dropped below a predefined
-		minimum value OR the level in the B-tree contains just
-		one page: we recommend compression if this is not the
-		root page. */
+    return (dict_index_get_page(cursor->index) != page_get_page_no(page));
+  }
 
-		return(dict_index_get_page(cursor->index)
-		       != page_get_page_no(page));
-	}
-
-	return(FALSE);
+  return (FALSE);
 }
 
-/*********************************************************************//**
-Checks if the record on which the cursor is placed can be deleted without
-making tree compression necessary (or, recommended).
-@return TRUE if can be deleted without recommended compression */
+/** Checks if the record on which the cursor is placed can be deleted without
+ making tree compression necessary (or, recommended).
+ @return true if can be deleted without recommended compression */
 UNIV_INLINE
-ibool
-btr_cur_can_delete_without_compress(
-/*================================*/
-	btr_cur_t*	cursor,	/*!< in: btr cursor */
-	ulint		rec_size,/*!< in: rec_get_size(btr_cur_get_rec(cursor))*/
-	mtr_t*		mtr)	/*!< in: mtr */
+ibool btr_cur_can_delete_without_compress(
+    btr_cur_t *cursor, /*!< in: btr cursor */
+    ulint rec_size,    /*!< in: rec_get_size(btr_cur_get_rec(cursor))*/
+    mtr_t *mtr)        /*!< in: mtr */
 {
-	page_t*		page;
+  page_t *page;
 
-	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
-				MTR_MEMO_PAGE_X_FIX));
+  ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor), MTR_MEMO_PAGE_X_FIX));
 
-	page = btr_cur_get_page(cursor);
+  page = btr_cur_get_page(cursor);
 
-	if ((page_get_data_size(page) - rec_size
-	     < BTR_CUR_PAGE_COMPRESS_LIMIT(cursor->index))
-	    || ((btr_page_get_next(page, mtr) == FIL_NULL)
-		&& (btr_page_get_prev(page, mtr) == FIL_NULL))
-	    || (page_get_n_recs(page) < 2)) {
+  if ((page_get_data_size(page) - rec_size <
+       BTR_CUR_PAGE_COMPRESS_LIMIT(cursor->index)) ||
+      ((btr_page_get_next(page, mtr) == FIL_NULL) &&
+       (btr_page_get_prev(page, mtr) == FIL_NULL)) ||
+      (page_get_n_recs(page) < 2)) {
+    /* The page fillfactor will drop below a predefined
+    minimum value, OR the level in the B-tree contains just
+    one page, OR the page will become empty: we recommend
+    compression if this is not the root page. */
 
-		/* The page fillfactor will drop below a predefined
-		minimum value, OR the level in the B-tree contains just
-		one page, OR the page will become empty: we recommend
-		compression if this is not the root page. */
+    return (dict_index_get_page(cursor->index) == page_get_page_no(page));
+  }
 
-		return(dict_index_get_page(cursor->index)
-		       == page_get_page_no(page));
-	}
-
-	return(TRUE);
+  return (TRUE);
 }
 
-/*******************************************************************//**
-Determine if an operation on off-page columns is an update.
-@return TRUE if op != BTR_STORE_INSERT */
 UNIV_INLINE
-ibool
-btr_blob_op_is_update(
-/*==================*/
-	enum blob_op	op)	/*!< in: operation */
-{
-	switch (op) {
-	case BTR_STORE_INSERT:
-	case BTR_STORE_INSERT_BULK:
-		return(FALSE);
-	case BTR_STORE_INSERT_UPDATE:
-	case BTR_STORE_UPDATE:
-		return(TRUE);
-	}
-
-	ut_ad(0);
-	return(FALSE);
+void btr_rec_set_deleted_flag(rec_t *rec, page_zip_des_t *page_zip,
+                              ulint flag) {
+  if (page_rec_is_comp(rec)) {
+    rec_set_deleted_flag_new(rec, page_zip, flag);
+  } else {
+    ut_ad(!page_zip);
+    rec_set_deleted_flag_old(rec, flag);
+  }
 }
-
-/******************************************************//**
-The following function is used to set the deleted bit of a record. */
-UNIV_INLINE
-void
-btr_rec_set_deleted_flag(
-/*=====================*/
-	rec_t*		rec,	/*!< in/out: physical record */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page (or NULL) */
-	ulint		flag)	/*!< in: nonzero if delete marked */
-{
-	if (page_rec_is_comp(rec)) {
-		rec_set_deleted_flag_new(rec, page_zip, flag);
-	} else {
-		ut_ad(!page_zip);
-		rec_set_deleted_flag_old(rec, flag);
-	}
-}
-
-#endif /* !UNIV_HOTBACKUP */

@@ -2,7 +2,8 @@
 # SET-UP - Creation of various nested stored programs
 #
 
---source suite/perfschema/include/no_protocol.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
 --echo # SET-UP
 CREATE DATABASE nested_sp;

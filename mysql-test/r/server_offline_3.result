@@ -1,9 +1,6 @@
 SET @global_saved_tmp =  @@global.offline_mode;
 SET @global_autocommit =  @@global.autocommit;
 SET @@global.autocommit= OFF;
-SELECT @user_count:=COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
-@user_count:=COUNT(USER)
-1
 CREATE USER 'user1'@'localhost';
 CREATE USER 'user2'@'localhost';
 connect conu1,localhost,user1;
@@ -24,7 +21,7 @@ connection default;
 SET GLOBAL offline_mode = ON;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-1
+2
 SET GLOBAL offline_mode = OFF;
 disconnect conu1;
 disconnect conu2;
@@ -43,7 +40,7 @@ connection default;
 SET GLOBAL offline_mode = ON;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-1
+2
 disconnect conu1;
 disconnect conu2;
 DROP USER 'user1'@'localhost';

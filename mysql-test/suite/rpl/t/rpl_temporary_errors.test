@@ -11,7 +11,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
 --echo **** On Slave ****
 --source include/sync_slave_sql_with_master.inc
-SHOW STATUS LIKE 'Slave_retried_transactions';
+SELECT count_transactions_retries FROM performance_schema.replication_applier_status;
 # since bug#31552/31609 idempotency is not default any longer. In order
 # the following UPDATE t1 to pass the mode is switched temprorarily
 set @@global.slave_exec_mode= 'IDEMPOTENT';
@@ -25,13 +25,80 @@ SELECT * FROM t1 order by a;
 --echo **** On Slave ****
 --source include/sync_slave_sql_with_master.inc
 set @@global.slave_exec_mode= default;
-SHOW STATUS LIKE 'Slave_retried_transactions';
+SELECT count_transactions_retries FROM performance_schema.replication_applier_status;
 SELECT * FROM t1 order by a;
 source include/check_slave_is_running.inc;
 
 connection slave;
 call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on table test.t1");
+call mtr.add_suppression("Slave SQL for channel '': worker thread retried transaction");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+#
+# Bug#24764800 REPLICATION FAILING ON SLAVE WITH XAER_RMFAIL ERROR
+#
+# Verify that a temporary failing replicated xa transaction completes
+# upon slave applier restart after previous
+# @@global.slave_transaction_retries number of retries in vain.
+#
+connection slave;
 
+set @save_innodb_lock_wait_timeout=@@global.innodb_lock_wait_timeout;
+set @save_slave_transaction_retries=@@global.slave_transaction_retries;
+
+# Slave applier parameters for the failed retry
+set @@global.innodb_lock_wait_timeout=1;
+set @@global.slave_transaction_retries=2;
+--source include/restart_slave_sql.inc
+
+# Temporary error implement: a record is blocked by slave local trx
+connection slave1;
+BEGIN;
+INSERT INTO t1 SET a = 6, b = 7;
+
+connection master;
+INSERT INTO t1 SET a = 99, b = 99; # slave applier warm up trx
+XA START 'xa1';
+INSERT INTO t1 SET a = 6, b = 6; # this record eventually must be found on slave
+XA END 'xa1';
+XA PREPARE 'xa1';
+
+connection slave;
+--let $err_timeout= convert_error(ER_LOCK_WAIT_TIMEOUT)
+--let $err_deadlock= convert_error(ER_LOCK_DEADLOCK)
+--let $slave_sql_errno=$err_deadlock,$err_timeout
+--let $show_slave_sql_error=
+--source include/wait_for_slave_sql_error.inc
+
+# b. Slave applier parameters for successful retry after restart
+set @@global.innodb_lock_wait_timeout=1;
+set @@global.slave_transaction_retries=100;
+SELECT count_transactions_retries FROM performance_schema.replication_applier_status INTO @last_retries;
+--source include/start_slave_sql.inc
+--let $wait_condition=SELECT count_transactions_retries > @last_retries+1 FROM performance_schema.replication_applier_status;
+--source include/wait_condition.inc
+
+# Release the record after just one retry
+connection slave1;
+ROLLBACK;
+
+connection master;
+XA COMMIT 'xa1';
+
+--source include/sync_slave_sql_with_master.inc
+
+# Proof of correctness: the committed XA is on the slave
+connection slave;
+--let $assert_text=XA transaction record must be in the table
+--let $assert_cond=count(*)=1 FROM t1 WHERE a=6 AND b=6
+--source include/assert.inc
+
+# Bug#24764800 cleanup:
+set @@global.innodb_lock_wait_timeout=@save_innodb_lock_wait_timeout;
+set @@global.slave_transaction_retries= @save_slave_transaction_retries;
+
+#
+# Total cleanup:
+#
 --echo **** On Master ****
 connection master;
 DROP TABLE t1;

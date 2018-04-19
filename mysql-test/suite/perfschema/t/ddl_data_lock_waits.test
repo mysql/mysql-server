@@ -1,0 +1,14 @@
+# Tests for PERFORMANCE_SCHEMA
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.data_lock_waits add column foo integer;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+truncate table performance_schema.data_lock_waits;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.data_lock_waits ADD INDEX test_index(BLOCKING_THREAD_ID);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON performance_schema.data_lock_waits(BLOCKING_THREAD_ID);
+

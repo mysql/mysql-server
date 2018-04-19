@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test of math functions
 #
@@ -12,31 +7,32 @@ drop table if exists t1;
 --enable_warnings                                                               
 
 select floor(5.5),floor(-5.5);
-explain extended select floor(5.5),floor(-5.5);
+explain select floor(5.5),floor(-5.5);
 select ceiling(5.5),ceiling(-5.5);
-explain extended select ceiling(5.5),ceiling(-5.5);
+explain select ceiling(5.5),ceiling(-5.5);
 select truncate(52.64,1),truncate(52.64,2),truncate(52.64,-1),truncate(52.64,-2), truncate(-52.64,1),truncate(-52.64,-1);
-explain extended select truncate(52.64,1),truncate(52.64,2),truncate(52.64,-1),truncate(52.64,-2), truncate(-52.64,1),truncate(-52.64,-1);
+explain select truncate(52.64,1),truncate(52.64,2),truncate(52.64,-1),truncate(52.64,-2), truncate(-52.64,1),truncate(-52.64,-1);
 select round(5.5),round(-5.5);
-explain extended select round(5.5),round(-5.5);
+explain select round(5.5),round(-5.5);
 select round(5.64,1),round(5.64,2),round(5.64,-1),round(5.64,-2);
 select abs(-10), sign(-5), sign(5), sign(0);
-explain extended select abs(-10), sign(-5), sign(5), sign(0);
+explain select abs(-10), sign(-5), sign(5), sign(0);
+--replace_numeric_round 15
 select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
-explain extended select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
+explain select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
 select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
-explain extended select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
+explain select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
 select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
-explain extended select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
+explain select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
 select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
-explain extended select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
+explain select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
 select pow(10,log10(10)),power(2,4);
-explain extended select pow(10,log10(10)),power(2,4);
+explain select pow(10,log10(10)),power(2,4);
 set @@rand_seed1=10000000,@@rand_seed2=1000000;
 select rand(999999),rand();
-explain extended select rand(999999),rand();
+explain select rand(999999),rand();
 select pi(),format(sin(pi()/2),6),format(cos(pi()/2),6),format(abs(tan(pi())),6),format(cot(1),6),format(asin(1),6),format(acos(0),6),format(atan(1),6);
-explain extended select pi(),format(sin(pi()/2),6),format(cos(pi()/2),6),format(abs(tan(pi())),6),format(cot(1),6),format(asin(1),6),format(acos(0),6),format(atan(1),6);
+explain select pi(),format(sin(pi()/2),6),format(cos(pi()/2),6),format(abs(tan(pi())),6),format(cot(1),6),format(asin(1),6),format(acos(0),6),format(atan(1),6);
 select degrees(pi()),radians(360);
 
 select format(atan(-2, 2), 6);
@@ -69,7 +65,7 @@ SELECT ASIN(1.2-0.2);
 #
 select format(4.55, 1), format(4.551, 1);
 
-explain extended select degrees(pi()),radians(360);
+explain select degrees(pi()),radians(360);
 
 #
 # Bug #7281: problem with rand()
@@ -184,14 +180,14 @@ create table t1
 (f1 varchar(32) not null,
  f2 smallint(5) unsigned not null,
  f3 int(10) unsigned not null default '0')
-engine=myisam default charset=utf8;
+default charset=utf8;
 insert into t1 values ('zombie',0,0),('gold',1,10000),('silver',2,10000);
 
 create table t2
 (f1 int(10) unsigned not null,
  f2 int(10) unsigned not null,
  f3 smallint(5) unsigned not null)
-engine=myisam default charset=utf8;
+default charset=utf8;
 insert into t2 values (16777216,16787215,1),(33554432,33564431,2);
 
 select format(t2.f2-t2.f1+1,0) from t1,t2
@@ -279,7 +275,7 @@ DROP TABLE t1;
 #
 # Bug#45152 crash with round() function on longtext column in a derived table
 #
-CREATE TABLE t1(f1 LONGTEXT) engine=myisam;
+CREATE TABLE t1(f1 LONGTEXT);
 INSERT INTO t1 VALUES ('a');
 SELECT 1 FROM (SELECT ROUND(f1) AS a FROM t1) AS s WHERE a LIKE 'a';
 SELECT 1 FROM (SELECT ROUND(f1, f1) AS a FROM t1) AS s WHERE a LIKE 'a';
@@ -357,9 +353,9 @@ DROP TABLE t1;
 --echo #
 
 --error ER_WRONG_ARGUMENTS
-CREATE TABLE t1 SELECT CEIL(LINESTRINGFROMWKB(1) DIV NULL);
+CREATE TABLE t1 SELECT CEIL(ST_LINESTRINGFROMWKB(1) DIV NULL);
 --error ER_WRONG_ARGUMENTS
-CREATE TABLE t1 SELECT FLOOR(LINESTRINGFROMWKB(1) DIV NULL);
+CREATE TABLE t1 SELECT FLOOR(ST_LINESTRINGFROMWKB(1) DIV NULL);
 
 --echo #
 --echo # Bug#11765923  58937: MANY VALGRIND ERRORS AFTER GROUPING BY RESULT OF DECIMAL COLUMN FUNCTION
@@ -594,7 +590,7 @@ INSERT INTO t1 VALUES (log2(0));
 INSERT INTO t1 VALUES (log10(0));
 SELECT * FROM t1 ORDER BY a;
 
-SET sql_mode='STRICT_ALL_TABLES';
+SET sql_mode=default;
 INSERT INTO t1 VALUES (ln(1));
 --error ER_INVALID_ARGUMENT_FOR_LOGARITHM
 INSERT INTO t1 VALUES (ln(0));
@@ -610,7 +606,6 @@ INSERT INTO t1 VALUES (log2(0));
 INSERT INTO t1 VALUES (log10(0));
 SELECT * FROM t1 ORDER BY a;
 
-SET sql_mode='STRICT_ALL_TABLES';
 --error ER_INVALID_ARGUMENT_FOR_LOGARITHM
 UPDATE t1 SET a = ln(0);
 SELECT * FROM t1 ORDER BY a;
@@ -619,7 +614,7 @@ SET sql_mode='';
 UPDATE t1 SET a = ln(0);
 SELECT * FROM t1 ORDER BY a;
 
-SET sql_mode='STRICT_ALL_TABLES';
+SET sql_mode=default;
 --error ER_INVALID_ARGUMENT_FOR_LOGARITHM
 DELETE FROM t1 WHERE a <=> ln(0);
 SELECT * FROM t1 ORDER BY a;
@@ -629,10 +624,323 @@ DELETE FROM t1 WHERE a <=> ln(0);
 SELECT * FROM t1 ORDER BY a;
 
 DROP TABLE t1;
-SET sql_mode='';
+SET sql_mode=default;
 
 --echo #
 --echo # Bug#19047527 SQRT() : UNINITIALISED VALUE IN MY_STRTOD
 --echo #
 
 do sqrt(weight_string(_eucjpms "0E+"));
+
+
+--echo #
+--echo # Bug#21279005 - ROUND FUNCTION INCORRECT IN WHERE-CLAUSE
+--echo #                USING LOCAL VARIABLE
+
+DELIMITER |;
+CREATE PROCEDURE test_round_fn()
+BEGIN
+  DECLARE num_digits int;
+  SET num_digits := 3;
+
+  CREATE TEMPORARY TABLE tmp_test (
+    number double
+  );
+  INSERT INTO tmp_test
+  VALUES (1),(0);
+
+  SELECT
+    number,
+    Round(number, num_digits) > 0,
+    Round(number, 3) > 0
+  FROM
+    tmp_test;
+
+  SELECT
+    number,
+    Round(number, num_digits) > 0,
+    Round(number, 3) > 0
+  FROM
+    tmp_test
+  WHERE
+    Round(number, 3) >= 0;
+
+  SELECT
+    number,
+    Round(number, num_digits) > 0,
+    Round(number, 3) > 0
+  FROM
+    tmp_test
+  WHERE
+    Round(number, num_digits) >= 0;
+
+END|
+DELIMITER ;|
+
+CALL test_round_fn();
+DROP PROCEDURE test_round_fn;
+
+--echo #
+--echo # Bug#23013359 FUNCTION FLOOR(CEIL()) TRUNCATES BIGINT UNSIGNED
+--echo #
+
+SELECT floor(ceil(12345678901234567890));
+
+SELECT floor(18446744073709551616);
+SELECT floor(floor(18446744073709551616));
+SELECT floor(floor(floor(18446744073709551616)));
+
+--echo # Bug#25669580: regression: assertion failed: 0 in Item_num_func1::str_op
+
+DO ROUND(0xe9b1, NULL);
+
+--echo # Bug#25688504: regression: scale >= 0 && precision >= 0 && ...
+
+DO COUNT(DISTINCT ROUND(CAST(SLEEP(0) AS DECIMAL), NULL));
+
+
+--echo #
+--echo # Bug#26495791 - EXPAND TEST SUITE TO INCLUDE CRC32 TESTS
+--echo #
+
+SELECT CRC32(NULL), CRC32(''), CRC32('MySQL'), CRC32('mysql');
+SELECT CRC32('01234567'), CRC32('012345678');
+SELECT CRC32('~!@$%^*'),  CRC32('-0.0001');
+SELECT CRC32(99999999999999999999999999999999);
+SELECT CRC32(-99999999999999999999999999999999);
+
+# Test cases for using the function in aggregate functions, group-by, having
+# and order-by clauses
+DROP TABLE IF EXISTS t;
+CREATE TABLE t(a INT, b VARCHAR(2));
+INSERT INTO t VALUES (1,'a'), (2,'qw'), (1,'t'), (3,'t');
+SELECT crc32(SUM(a)) FROM t;
+SELECT crc32(AVG(a)) FROM t GROUP BY b;
+SELECT crc32(MAX(b)) FROM t GROUP BY a;
+SELECT a, b, crc32(a) FROM t GROUP BY a,b HAVING crc32(MAX(a))=450215437;
+SELECT a,b,concat(a,b),crc32(concat(a,b)) FROM t ORDER BY crc32(concat(a,b));
+DROP TABLE t;
+
+# Test cases for arithmetic operators and functions
+SELECT CRC32(4+2);
+SELECT CRC32(4/2);
+SELECT CRC32(4-2);
+SELECT CRC32(4*2);
+SELECT CRC32(ABS(-6));
+SELECT CRC32(CEILING(1.23));
+SELECT CRC32(FLOOR(1.23));
+SELECT CRC32(LOG(10,100));
+SELECT CRC32(PI());
+SELECT CRC32(POWER(2,2));
+SELECT CRC32(ROUND(1.58));
+SELECT CRC32(SIGN(0));
+SELECT CRC32(SQRT(4));
+
+# Test cases for comparison operators
+SELECT CRC32(2 > 4);
+SELECT CRC32(2 < 4);
+SELECT CRC32(2 >= 4);
+SELECT CRC32(2 <= 4);
+SELECT CRC32(2 != 4);
+
+# Test cases for logical operators
+SELECT CRC32(NOT 1);
+SELECT CRC32(1 AND 1);
+SELECT CRC32(1 OR 1);
+SELECT CRC32(1 XOR 1);
+
+# Test cases for string functions
+SELECT CRC32(ASCII('2'));
+SELECT CRC32(BIT_LENGTH('text'));
+SELECT CRC32(CHAR('77','121','83','81','76'));
+SELECT CRC32(CONCAT('good','year'));
+SELECT CRC32(INSERT('foodyear', 1, 4, 'good'));
+SELECT CRC32(LEFT('goodyear', 4));
+SELECT CRC32(LENGTH('text'));
+SELECT CRC32(LOWER('GOODYEAR'));
+SELECT CRC32(UPPER('goodyear'));
+SELECT CRC32(LTRIM('  goodyear'));
+SELECT CRC32(RTRIM('goodyear  '));
+SELECT CRC32(REPLACE('godyear','o','oo'));
+SELECT CRC32(REVERSE('goodyear'));
+
+# Test cases for boolean values
+SELECT CRC32(true);
+SELECT CRC32(false);
+
+# Test cases for numeric data types
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 BIT(5),
+                 c2 TINYINT,
+                 c3 MEDIUMINT,
+                 c4 INTEGER,
+                 c5 BIGINT,
+                 c6 DECIMAL(7,5),
+                 c7 FLOAT(7,5),
+                 c8 DOUBLE(7,5));
+
+INSERT INTO t1 VALUES (B'10101', 127, 8388607, 2147483647,
+                       9223372036854775807, 10.5, 11.5, 12.5);
+
+SELECT CRC32(c1) FROM t1;
+SELECT CRC32(c2) FROM t1;
+SELECT CRC32(c3) FROM t1;
+SELECT CRC32(c4) FROM t1;
+SELECT CRC32(c5) FROM t1;
+SELECT CRC32(c6) FROM t1;
+SELECT CRC32(c7) FROM t1;
+SELECT CRC32(c8) FROM t1;
+
+# Test cases for temporal data types
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 DATE,
+                 c2 DATETIME,
+                 c3 TIMESTAMP,
+                 c4 TIME,
+                 c5 YEAR);
+INSERT INTO t1 VALUES ('2007-01-01', '2007-01-01 12:00:01',
+                       '2007-01-01 00:00:01.000000',
+                       '12:00:01.000000', '2007');
+SELECT CRC32(c1) FROM t1;
+SELECT CRC32(c2) FROM t1;
+SELECT CRC32(c3) FROM t1;
+SELECT CRC32(c4) FROM t1;
+SELECT CRC32(c5) FROM t1;
+
+# Test cases for string data types
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 CHAR,
+                 c2 VARCHAR(10),
+                 c3 BINARY(1),
+                 c4 VARBINARY(10),
+                 c5 TINYBLOB,
+                 c6 TINYTEXT,
+                 c7 BLOB,
+                 c8 TEXT,
+                 c9 MEDIUMBLOB,
+                 c10 MEDIUMTEXT,
+                 c11 LONGBLOB,
+                 c12 LONGTEXT);
+
+INSERT INTO t1 VALUES ('a', 'a', 0x61, 0x61, 'a', 'a',
+                       'a', 'a', 'a', 'a', 'a', 'a');
+SELECT CRC32(c1) FROM t1;
+SELECT CRC32(c2) FROM t1;
+SELECT CRC32(c3) FROM t1;
+SELECT CRC32(c4) FROM t1;
+SELECT CRC32(c5) FROM t1;
+SELECT CRC32(c6) FROM t1;
+SELECT CRC32(c7) FROM t1;
+SELECT CRC32(c8) FROM t1;
+SELECT CRC32(c9) FROM t1;
+SELECT CRC32(c10) FROM t1;
+SELECT CRC32(c11) FROM t1;
+SELECT CRC32(c12) FROM t1;
+
+# Test cases for geometric data types
+SELECT CRC32(ST_GeomFromText('POINT(1 1)'));
+
+CREATE TABLE geom_data(id INT,
+  pt POINT NOT NULL,
+  lnstr LINESTRING NOT NULL,
+  mlnstr MULTILINESTRING NOT NULL,
+  poly POLYGON NOT NULL,
+  mpoly MULTIPOLYGON NOT NULL);
+
+INSERT INTO geom_data VALUES (10,
+  ST_GEOMFROMTEXT('POINT(10 20)'),
+  ST_GEOMFROMTEXT('LINESTRING(0 0,5 5,6 6)'),
+  ST_GEOMFROMTEXT('MULTILINESTRING((0 0,2 3,4 5),(6 6,8 8,9 9,10 10))'),
+  ST_GEOMFROMTEXT('POLYGON((0 0,6 7,8 8,3 9,0 0),(3 6,4 6,4 7,3 6))'),
+  ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),
+                                ((2 2,4 5,6 2,2 2)))'));
+
+SELECT CRC32(ST_X(pt)) FROM geom_data;
+SELECT CRC32(ST_NumPoints((lnstr))) FROM geom_data;
+SELECT CRC32(ST_Length((mlnstr))) FROM geom_data;
+SELECT CRC32(ST_Area((poly))) FROM geom_data;
+SELECT CRC32(ST_Area((mpoly))) FROM geom_data;
+DROP TABLE geom_data;
+
+# Test cases for ENUM and SET data types
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (e1 ENUM ('a','b'), s1 SET('a','b'));
+INSERT INTO t1 VALUES(2,'a,b'),('a','b,a');
+SELECT e1, CRC32(e1) FROM t1;
+SELECT s1, CRC32(s1) FROM t1;
+
+# Test cases for JSON data types
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a JSON);
+INSERT INTO t1 VALUES ('{"name" : "goodyear"}'),
+  ('{"name" : "verygood-year"}');
+SELECT a->>'$.name', CRC32(a) FROM t1;
+SELECT CRC32(a->>'$.name') FROM t1 WHERE a->>'$.name' = 'goodyear';
+SELECT CRC32(REPLACE(JSON_EXTRACT(a, "$.name"),'\"',''))
+  FROM t1 WHERE JSON_EXTRACT(a, "$.name") = 'goodyear';
+DROP TABLE t1;
+
+# Test case for views
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES(10);
+CREATE VIEW v1 AS SELECT CRC32(a) AS my_crc FROM t1;
+SELECT * FROM v1;
+SELECT CRC32(CRC32(my_crc)) FROM v1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+# Test case for triggers
+CREATE TABLE t1 (a CHAR);
+CREATE TABLE t2 (b BIGINT);
+CREATE TRIGGER trg1
+  BEFORE INSERT ON t1
+  FOR EACH ROW
+  INSERT INTO t2 VALUES(CRC32(NEW.a));
+INSERT INTO t1 VALUES('a');
+SELECT * FROM t2;
+DROP TRIGGER trg1;
+DROP TABLE t2;
+DROP TABLE t1;
+
+# Test case for a stored procedure
+CREATE PROCEDURE crc32_proc (IN a CHAR, OUT b BIGINT)
+  SELECT CRC32(a) INTO b;
+CALL crc32_proc('a',@val);
+SELECT @val;
+DROP PROCEDURE crc32_proc;
+
+# Test case for a user defined function
+DELIMITER |;
+CREATE FUNCTION crc32_func(inputvar CHAR)
+RETURNS BIGINT
+BEGIN
+  DECLARE crcval BIGINT;
+  SELECT CRC32(inputvar) INTO crcval;
+  RETURN crcval;
+END|
+DELIMITER ;|
+SELECT crc32_func('a');
+DROP FUNCTION crc32_func;
+
+# Test case for a prepared statement
+PREPARE stmt1 FROM 'SELECT CRC32(?)';
+SET @val = 'a';
+EXECUTE stmt1 USING @val;
+DEALLOCATE PREPARE stmt;
+
+# Test case for checksum on contents of a file
+SET NAMES utf8;
+CREATE TABLE t1 (a TEXT) CHARACTER SET = utf8;
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1 CHARACTER SET utf8;
+SELECT HEX(a), CRC32(a) from t1;
+DROP TABLE t1;
+SET NAMES default;
+
+--echo #
+--echo # Bug#27134168 UBSAN: MY_DOUBLE_ROUND - NEGATION OF BLAH
+--echo #
+
+SELECT truncate(
+  0x123,
+  -9223372036854775808
+);

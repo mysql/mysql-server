@@ -1,5 +1,4 @@
 # Test for Bug 14006907 - FOREIGN KEY PROBLEMS AFTER DROP INDEX
---source include/have_innodb.inc
 --source include/have_debug_sync.inc
 
 # Save the initial number of concurrent sessions.
@@ -28,13 +27,34 @@ connect (con1,localhost,root,,);
 connection con1;
 
 SET DEBUG_SYNC = 'now WAIT_FOR drop';
---error ER_CANNOT_ADD_FOREIGN
+--send
 CREATE TABLE t2 (
  c2 INT PRIMARY KEY,
  CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))
 ENGINE = InnoDB;
-SET DEBUG_SYNC = 'now SIGNAL fk';
 
+--echo # Establish session con2 (user=root)
+connect (con2,localhost,root,,);
+
+--echo # After WL#6049 CREATE TABLE t2 must be blocked while trying
+--echo # to acquire exclusive metadata lock on t1.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info LIKE "CREATE TABLE t2 %";
+--source include/wait_condition.inc
+
+SET DEBUG_SYNC = 'now SIGNAL fk';
+disconnect con2;
+
+--echo # Switching to connection con1.
+connection con1;
+
+--echo # So no chance for CREATE TABLE t2 to sneak before DROP INDEX
+--echo # is committed in and succeed.
+--echo /* reap */ CREATE TABLE t2 ...
+--error ER_CANNOT_ADD_FOREIGN
+--reap
 disconnect con1;
 
 --echo # Session default

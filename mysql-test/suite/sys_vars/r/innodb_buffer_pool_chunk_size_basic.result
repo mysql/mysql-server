@@ -10,7 +10,7 @@ COUNT(@@GLOBAL.innodb_buffer_pool_chunk_size)
 1
 1 Expected
 SELECT @@GLOBAL.innodb_buffer_pool_chunk_size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_buffer_pool_chunk_size';
 @@GLOBAL.innodb_buffer_pool_chunk_size = VARIABLE_VALUE
 1
@@ -20,7 +20,7 @@ COUNT(@@GLOBAL.innodb_buffer_pool_chunk_size)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_buffer_pool_chunk_size';
 COUNT(VARIABLE_VALUE)
 1

@@ -12,11 +12,11 @@ Variable_name	Value
 show session variables like 'gtid_next';
 Variable_name	Value
 gtid_next	AUTOMATIC
-select * from information_schema.global_variables where variable_name='gtid_next';
+select * from performance_schema.global_variables where variable_name='gtid_next';
 VARIABLE_NAME	VARIABLE_VALUE
-select * from information_schema.session_variables where variable_name='gtid_next';
+select * from performance_schema.session_variables where variable_name='gtid_next';
 VARIABLE_NAME	VARIABLE_VALUE
-GTID_NEXT	AUTOMATIC
+gtid_next	AUTOMATIC
 set global gtid_next = 1;
 ERROR HY000: Variable 'gtid_next' is a SESSION variable and can't be used with SET GLOBAL
 set session gtid_next = "ANONYMOUS";
@@ -34,6 +34,12 @@ ERROR 42000: Variable 'gtid_next' can't be set to the value of 'NULL'
 select @@session.gtid_next;
 @@session.gtid_next
 AUTOMATIC
+SET @@SESSION.GTID_NEXT = 'ANONYMOUS';
+SET @@SESSION.GTID_NEXT = default;
+ERROR HY000: @@SESSION.GTID_NEXT cannot be changed by a client that owns a GTID. The client owns ANONYMOUS. Ownership is released on COMMIT or ROLLBACK.
+SELECT @@SESSION.GTID_NEXT;
+@@SESSION.GTID_NEXT
+ANONYMOUS
 ROLLBACK;
 set session gtid_next = @start_global_value;
 select @@session.gtid_next;

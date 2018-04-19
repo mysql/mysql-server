@@ -1,0 +1,155 @@
+# create bootstrap file
+# Stop the MTR default DB server
+# Run the bootstrap command with keyring
+# Start the DB server with undo log encryption disabled, and no keyring plugin.
+SET GLOBAL innodb_undo_log_encrypt = ON;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+# Start the DB server with undo log encryption disabled and keyring plugin loaded. It should success.
+SET GLOBAL innodb_undo_log_encrypt = ON;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION='Y' ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+INSERT INTO t1 VALUES(0, "aaaaa");
+INSERT INTO t1 VALUES(1, "bbbbb");
+INSERT INTO t1 VALUES(2, "ccccc");
+INSERT INTO t1 VALUES(3, "ddddd");
+INSERT INTO t1 VALUES(4, "eeeee");
+INSERT INTO t1 VALUES(5, "fffff");
+INSERT INTO t1 VALUES(6, "ggggg");
+INSERT INTO t1 VALUES(7, "hhhhh");
+INSERT INTO t1 VALUES(8, "iiiii");
+INSERT INTO t1 VALUES(9, "jjjjj");
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+CREATE TABLE t2(c1 INT, c2 char(20)) ENGINE = InnoDB;
+INSERT INTO t2 select * from t1;
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+c1	c2
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+SELECT * FROM t2 ORDER BY c1 LIMIT 10;
+c1	c2
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+# Start the DB server with undo log encryption enabled and keyring plugin loaded. It should success.
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+c1	c2
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+SELECT * FROM t2 ORDER BY c1 LIMIT 10;
+c1	c2
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+0	aaaaa
+DROP TABLE t1,t2;
+# Search for particular string of encryption metadata, should success since it's encrypted.
+Pattern "lCC" found
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES(0, "aaaaa");
+INSERT INTO t1 VALUES(1, "bbbbb");
+SET GLOBAL innodb_undo_log_encrypt = OFF;
+INSERT INTO t1 VALUES(2, "ccccc");
+INSERT INTO t1 VALUES(3, "ddddd");
+SET GLOBAL innodb_undo_log_encrypt = ON;
+INSERT INTO t1 VALUES(4, "eeeee");
+INSERT INTO t1 VALUES(5, "fffff");
+COMMIT;
+START TRANSACTION;
+INSERT INTO t1 VALUES(6, "ggggg");
+SET GLOBAL innodb_undo_log_encrypt = OFF;
+INSERT INTO t1 VALUES(7, "hhhhh");
+INSERT INTO t1 VALUES(8, "iiiii");
+SET GLOBAL innodb_undo_log_encrypt = ON;
+INSERT INTO t1 VALUES(9, "jjjjj");
+# Kill the server
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+3	ddddd
+4	eeeee
+5	fffff
+DELETE FROM t1;
+START TRANSACTION;
+INSERT INTO t1 VALUES(0, "aaaaa");
+INSERT INTO t1 VALUES(1, "bbbbb");
+INSERT INTO t1 VALUES(2, "ccccc");
+INSERT INTO t1 VALUES(3, "ddddd");
+INSERT INTO t1 VALUES(4, "eeeee");
+INSERT INTO t1 VALUES(5, "fffff");
+INSERT INTO t1 VALUES(6, "ggggg");
+INSERT INTO t1 VALUES(7, "hhhhh");
+INSERT INTO t1 VALUES(8, "iiiii");
+INSERT INTO t1 VALUES(9, "jjjjj");
+# Start the DB server with undo log encryption disabled and keyring plugin loaded. It should success.
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+c1	c2
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+INSERT INTO t1 VALUES(0, "aaaaa");
+INSERT INTO t1 VALUES(1, "bbbbb");
+INSERT INTO t1 VALUES(2, "ccccc");
+INSERT INTO t1 VALUES(3, "ddddd");
+INSERT INTO t1 VALUES(4, "eeeee");
+INSERT INTO t1 VALUES(5, "fffff");
+INSERT INTO t1 VALUES(6, "ggggg");
+INSERT INTO t1 VALUES(7, "hhhhh");
+INSERT INTO t1 VALUES(8, "iiiii");
+INSERT INTO t1 VALUES(9, "jjjjj");
+FLUSH ENGINE LOGS;
+# Start the DB server with undo log encryption and keyring plugin loaded. It should success.
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+3	ddddd
+4	eeeee
+5	fffff
+6	ggggg
+7	hhhhh
+8	iiiii
+9	jjjjj
+DROP TABLE t1;
+# restart

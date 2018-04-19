@@ -12,8 +12,6 @@ DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t9;
 --enable_warnings
 sync_slave_with_master;
 STOP SLAVE;
-SET @my_sql_mode= @@global.sql_mode;
-SET GLOBAL SQL_MODE='STRICT_ALL_TABLES';
 START SLAVE;
 
 connection master;
@@ -147,12 +145,12 @@ sync_slave_with_master;
 connection master;
 INSERT INTO t4 VALUES (4);
 connection slave;
-call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column [012] type mismatch.* Error_code: 1535");
-call mtr.add_suppression("Slave SQL.*Column [0-9] of table .test.t[0-9]. cannot be converted from type.* Error_code: 1677");
+call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column [012] type mismatch.* Error_code: MY-001535");
+call mtr.add_suppression("Slave SQL.*Column [0-9] of table .test.t[0-9]. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED) # 1677
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED) # 1677
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 connection master;
@@ -163,7 +161,7 @@ connection master;
 INSERT INTO t5 VALUES (5,10,25);
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED) # 1677
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED) # 1677
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 connection master;
@@ -174,7 +172,7 @@ connection master;
 INSERT INTO t6 VALUES (6,12,36);
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED) # 1677
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED) # 1677
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 connection master;
@@ -238,6 +236,3 @@ DROP TABLE IF EXISTS t1_int,t1_bit,t1_char,t1_nodef;
 DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t7,t8,t9;
 --enable_warnings
 sync_slave_with_master;
-
-# Restore sql_mode
-SET @@global.sql_mode= @my_sql_mode;

@@ -23,9 +23,7 @@
 call mtr.add_suppression("Next log extension: 2147483647. Remaining log filename extensions: 0.");
 call mtr.add_suppression("Log filename extension number exhausted:");
 call mtr.add_suppression("Can't generate a unique log-filename");
-call mtr.add_suppression("The server was unable to create a new log file. "
-                         "An incident event has been written to the binary "
-                         "log which will stop the slaves.");
+call mtr.add_suppression("Could not open .*");
 -- source include/have_log_bin.inc
 RESET MASTER;
 
@@ -45,17 +43,17 @@ RESET MASTER;
 -- source include/wait_until_disconnected.inc
 
 # 2. Prepare log and index file
--- copy_file $MYSQLD_DATADIR/master-bin.index $MYSQLD_DATADIR/master-bin.index.orig
--- copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.2147483646
--- append_file $MYSQLD_DATADIR/master-bin.index
-master-bin.2147483646
+-- copy_file $MYSQLD_DATADIR/binlog.index $MYSQLD_DATADIR/binlog.index.orig
+-- copy_file $MYSQLD_DATADIR/binlog.000001 $MYSQLD_DATADIR/binlog.2147483646
+-- append_file $MYSQLD_DATADIR/binlog.index
+binlog.2147483646
 EOF
 
 # 3. Restart the server
 -- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
 -- source include/wait_until_connected_again.inc
-
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 ###########
 # Assertion
 ###########
@@ -74,12 +72,12 @@ FLUSH LOGS;
 -- source include/wait_until_disconnected.inc
 
 # 2. Undo changes to index and log files
--- remove_file $MYSQLD_DATADIR/master-bin.index
--- copy_file $MYSQLD_DATADIR/master-bin.index.orig $MYSQLD_DATADIR/master-bin.index
--- remove_file $MYSQLD_DATADIR/master-bin.index.orig
+-- remove_file $MYSQLD_DATADIR/binlog.index
+-- copy_file $MYSQLD_DATADIR/binlog.index.orig $MYSQLD_DATADIR/binlog.index
+-- remove_file $MYSQLD_DATADIR/binlog.index.orig
 
--- remove_file $MYSQLD_DATADIR/master-bin.2147483646
--- remove_file $MYSQLD_DATADIR/master-bin.2147483647
+-- remove_file $MYSQLD_DATADIR/binlog.2147483646
+-- remove_file $MYSQLD_DATADIR/binlog.2147483647
 
 # 3. Restart the server
 -- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

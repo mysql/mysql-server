@@ -4,14 +4,14 @@
 # Scope: GLOBAL                                                               #
 # Access Type: Dynamic                                                        #
 # Data Type: numeric                                                          #
-# Default Value:0                                                             #
+# Default Value:30                                                            #
 # Range:  0-99                                                                #
 #                                                                             #
 #                                                                             #
 # Creation Date: 2008-02-07                                                   #
 # Author:  Salman                                                             #
 #                                                                             #
-# Description: Test Cases of Dynamic System Variable expire_logs_days         #
+# Description: Test Cases of Dynamic System Variable expire_logs_days and     #
 #              that checks the behavior of this variable in the following ways#
 #              * Default Value                                                #
 #              * Valid & Invalid values                                       #
@@ -25,7 +25,6 @@
 
 --source include/load_sysvars.inc
 
-
 ######################################################################## 
 #                    START OF expire_logs_days TESTS                   #
 ######################################################################## 
@@ -37,6 +36,11 @@
 
 SET @start_value = @@global.expire_logs_days;
 SELECT @start_value;
+SET @start_value_sec = @@global.binlog_expire_logs_seconds;
+SELECT @start_value_sec;
+# Set binlog_expire_logs_seconds to 0 in order to test expire_logs_days
+# or we will get error while setting expire_logs_days
+SET @@global.binlog_expire_logs_seconds = 0;
 
 
 --echo '#--------------------FN_DYNVARS_029_01------------------------#'
@@ -57,8 +61,7 @@ SELECT @@global.expire_logs_days;
 SET @@global.expire_logs_days = @start_value;
 SELECT @@global.expire_logs_days = 0;
 
-
---echo '#--------------------FN_DYNVARS_029_03------------------------#'
+--echo '#--------------------FN_DYNVARS_029_03_01------------------------#'
 ######################################################################## 
 #        Change the value of expire_logs_days to a valid value         #
 ######################################################################## 
@@ -73,7 +76,7 @@ SET @@global.expire_logs_days = 21;
 SELECT @@global.expire_logs_days;
 
 
---echo '#--------------------FN_DYNVARS_029_04-------------------------#'
+--echo '#--------------------FN_DYNVARS_029_04_01-------------------------#'
 ########################################################################### 
 #         Change the value of expire_logs_days to invalid value           #
 ########################################################################### 
@@ -100,7 +103,7 @@ SET @@global.expire_logs_days = 'test';
 SELECT @@global.expire_logs_days;
 
 
---echo '#-------------------FN_DYNVARS_029_05----------------------------#'
+--echo '#-------------------FN_DYNVARS_029_05_01----------------------------#'
 ########################################################################### 
 #       Test if accessing session expire_logs_days gives error            #
 ########################################################################### 
@@ -110,24 +113,23 @@ SET @@session.expire_logs_days = 0;
 SELECT @@expire_logs_days;
 
 
---echo '#----------------------FN_DYNVARS_029_06------------------------#'
+--echo '#----------------------FN_DYNVARS_029_06_01------------------------#'
 ############################################################################## 
 # Check if the value in GLOBAL & SESSION Tables matches values in variable   #
 ##############################################################################
 
 --disable_warnings
 SELECT @@global.expire_logs_days = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='expire_logs_days';
 
 SELECT @@expire_logs_days = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='expire_logs_days';
 --enable_warnings
 
 
-
---echo '#---------------------FN_DYNVARS_029_07----------------------#'
+--echo '#---------------------FN_DYNVARS_029_07_01----------------------#'
 ################################################################### 
 #      Check if TRUE and FALSE values can be used on variable     #
 ################################################################### 
@@ -138,7 +140,7 @@ SET @@global.expire_logs_days = FALSE;
 SELECT @@global.expire_logs_days;
 
 
---echo '#---------------------FN_DYNVARS_029_08----------------------#'
+--echo '#---------------------FN_DYNVARS_029_08_01----------------------#'
 ########################################################################################################
 #    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
 ########################################################################################################
@@ -147,7 +149,7 @@ SET @@global.expire_logs_days = 1;
 SELECT @@expire_logs_days = @@global.expire_logs_days;
 
 
---echo '#---------------------FN_DYNVARS_029_09----------------------#'
+--echo '#---------------------FN_DYNVARS_029_09_01----------------------#'
 ##########################################################################  
 #   Check if expire_logs_days can be accessed with and without @@ sign   #
 ##########################################################################
@@ -166,6 +168,9 @@ SELECT global.expire_logs_days;
 --Error ER_BAD_FIELD_ERROR
 SELECT expire_logs_days = @@session.expire_logs_days;
 
+######################################################################## 
+#              END OF expire_logs_days TESTS                           #
+######################################################################## 
 
 ##############################  
 #   Restore initial value    #
@@ -174,7 +179,5 @@ SELECT expire_logs_days = @@session.expire_logs_days;
 SET @@global.expire_logs_days = @start_value;
 SELECT @@global.expire_logs_days;
 
-
-######################################################################## 
-#              END OF expire_logs_days TESTS                           #
-######################################################################## 
+SET @@global.binlog_expire_logs_seconds = @start_value_sec;
+SELECT @@global.binlog_expire_logs_seconds;

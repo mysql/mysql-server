@@ -1,6 +1,10 @@
 /*
   This libary has been modified for use by the MySQL Archive Engine.
      -Brian Aker
+
+  This file was modified by Oracle on 02-08-2016.
+  Modifications copyright (c) 2016, Oracle and/or its affiliates. All rights
+  reserved.
 */
 
 /* zlib.h -- interface of the 'zlib' general purpose compression library
@@ -33,11 +37,11 @@
   (zlib format), rfc1951.txt (deflate format) and rfc1952.txt (gzip format).
 */
 
-#include "../../mysys/mysys_priv.h"
-#include <my_dir.h>
 #include <zlib.h>
+#include "my_dir.h"
+#include "my_io.h"
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 /* Start of MySQL Specific Information */
@@ -45,11 +49,11 @@ extern "C" {
 /*
   ulonglong + ulonglong + ulonglong + ulonglong + uchar
 */
-#define AZMETA_BUFFER_SIZE sizeof(unsigned long long) \
-  + sizeof(unsigned long long) + sizeof(unsigned long long) + sizeof(unsigned long long) \
-  + sizeof(unsigned int) + sizeof(unsigned int) \
-  + sizeof(unsigned int) + sizeof(unsigned int) \
-  + sizeof(unsigned char)
+#define AZMETA_BUFFER_SIZE                                                 \
+  sizeof(unsigned long long) + sizeof(unsigned long long) +                \
+      sizeof(unsigned long long) + sizeof(unsigned long long) +            \
+      sizeof(unsigned int) + sizeof(unsigned int) + sizeof(unsigned int) + \
+      sizeof(unsigned int) + sizeof(unsigned char)
 
 #define AZHEADER_SIZE 29
 
@@ -72,7 +76,6 @@ extern "C" {
 #define AZ_COMMENT_POS 69
 #define AZ_COMMENT_LENGTH_POS 73
 #define AZ_DIRTY_POS 77
-
 
 /*
   Flags for state
@@ -116,7 +119,6 @@ extern "C" {
   crash even in case of corrupted input.
 */
 
-
 /*
    The application must update next_in and avail_in when avail_in has
    dropped to zero. It must update next_out and avail_out when avail_out
@@ -149,89 +151,88 @@ extern "C" {
    a single step).
 */
 
-                        /* constants */
+/* constants */
 
-#define Z_NO_FLUSH      0
+#define Z_NO_FLUSH 0
 #define Z_PARTIAL_FLUSH 1 /* will be removed, use Z_SYNC_FLUSH instead */
-#define Z_SYNC_FLUSH    2
-#define Z_FULL_FLUSH    3
-#define Z_FINISH        4
-#define Z_BLOCK         5
+#define Z_SYNC_FLUSH 2
+#define Z_FULL_FLUSH 3
+#define Z_FINISH 4
+#define Z_BLOCK 5
 /* Allowed flush values; see deflate() and inflate() below for details */
 
-#define Z_OK            0
-#define Z_STREAM_END    1
-#define Z_NEED_DICT     2
-#define Z_ERRNO        (-1)
+#define Z_OK 0
+#define Z_STREAM_END 1
+#define Z_NEED_DICT 2
+#define Z_ERRNO (-1)
 #define Z_STREAM_ERROR (-2)
-#define Z_DATA_ERROR   (-3)
-#define Z_MEM_ERROR    (-4)
-#define Z_BUF_ERROR    (-5)
+#define Z_DATA_ERROR (-3)
+#define Z_MEM_ERROR (-4)
+#define Z_BUF_ERROR (-5)
 #define Z_VERSION_ERROR (-6)
 /* Return codes for the compression/decompression functions. Negative
  * values are errors, positive values are used for special but normal events.
  */
 
-#define Z_NO_COMPRESSION         0
-#define Z_BEST_SPEED             1
-#define Z_BEST_COMPRESSION       9
-#define Z_DEFAULT_COMPRESSION  (-1)
+#define Z_NO_COMPRESSION 0
+#define Z_BEST_SPEED 1
+#define Z_BEST_COMPRESSION 9
+#define Z_DEFAULT_COMPRESSION (-1)
 /* compression levels */
 
-#define Z_FILTERED            1
-#define Z_HUFFMAN_ONLY        2
-#define Z_RLE                 3
-#define Z_FIXED               4
-#define Z_DEFAULT_STRATEGY    0
+#define Z_FILTERED 1
+#define Z_HUFFMAN_ONLY 2
+#define Z_RLE 3
+#define Z_FIXED 4
+#define Z_DEFAULT_STRATEGY 0
 /* compression strategy; see deflateInit2() below for details */
 
-#define Z_BINARY   0
-#define Z_TEXT     1
-#define Z_ASCII    Z_TEXT   /* for compatibility with 1.2.2 and earlier */
-#define Z_UNKNOWN  2
+#define Z_BINARY 0
+#define Z_TEXT 1
+#define Z_ASCII Z_TEXT /* for compatibility with 1.2.2 and earlier */
+#define Z_UNKNOWN 2
 /* Possible values of the data_type field (though see inflate()) */
 
-#define Z_DEFLATED   8
+#define Z_DEFLATED 8
 /* The deflate compression method (the only one supported in this version) */
 
-#define Z_NULL  0  /* for initializing zalloc, zfree, opaque */
+#define Z_NULL 0 /* for initializing zalloc, zfree, opaque */
 #define AZ_BUFSIZE_READ 32768
 #define AZ_BUFSIZE_WRITE 16384
 
-
 typedef struct azio_stream {
   z_stream stream;
-  int      z_err;   /* error code for last stream operation */
-  int      z_eof;   /* set if end of input file */
-  File     file;   /* .gz file */
-  Byte     inbuf[AZ_BUFSIZE_READ];  /* input buffer */
-  Byte     outbuf[AZ_BUFSIZE_WRITE]; /* output buffer */
-  uLong    crc;     /* crc32 of uncompressed data */
-  char     *msg;    /* error message */
-  int      transparent; /* 1 if input file is not a .gz file */
-  char     mode;    /* 'w' or 'r' */
-  my_off_t  start;   /* start of compressed data in file (header skipped) */
-  my_off_t  in;      /* bytes into deflate or inflate */
-  my_off_t  out;     /* bytes out of deflate or inflate */
-  int      back;    /* one character push-back */
-  int      last;    /* true if push-back is last character */
-  unsigned char version;   /* Version */
-  unsigned char minor_version;   /* Version */
-  unsigned int block_size;   /* Block Size */
-  unsigned long long check_point;   /* Last position we checked */
-  unsigned long long forced_flushes;   /* Forced Flushes */
-  unsigned long long rows;   /* rows */
-  unsigned long long auto_increment;   /* auto increment field */
-  unsigned int longest_row;   /* Longest row */
-  unsigned int shortest_row;   /* Shortest row */
-  unsigned char dirty;   /* State of file */
-  unsigned int frm_start_pos;   /* Position for start of FRM */
-  unsigned int frm_length;   /* Position for start of FRM */
-  unsigned int comment_start_pos;   /* Position for start of comment */
-  unsigned int comment_length;   /* Position for start of comment */
+  int z_err;                     /* error code for last stream operation */
+  int z_eof;                     /* set if end of input file */
+  File file;                     /* .gz file */
+  Byte inbuf[AZ_BUFSIZE_READ];   /* input buffer */
+  Byte outbuf[AZ_BUFSIZE_WRITE]; /* output buffer */
+  uLong crc;                     /* crc32 of uncompressed data */
+  char *msg;                     /* error message */
+  int transparent;               /* 1 if input file is not a .gz file */
+  char mode;                     /* 'w' or 'r' */
+  my_off_t start;        /* start of compressed data in file (header skipped) */
+  my_off_t in;           /* bytes into deflate or inflate */
+  my_off_t out;          /* bytes out of deflate or inflate */
+  int back;              /* one character push-back */
+  int last;              /* true if push-back is last character */
+  unsigned char version; /* Version */
+  unsigned char minor_version;       /* Version */
+  unsigned int block_size;           /* Block Size */
+  unsigned long long check_point;    /* Last position we checked */
+  unsigned long long forced_flushes; /* Forced Flushes */
+  unsigned long long rows;           /* rows */
+  unsigned long long auto_increment; /* auto increment field */
+  unsigned int longest_row;          /* Longest row */
+  unsigned int shortest_row;         /* Shortest row */
+  unsigned char dirty;               /* State of file */
+  unsigned int frm_start_pos;        /* Position for start of FRM */
+  unsigned int frm_length;           /* Position for start of FRM */
+  unsigned int comment_start_pos;    /* Position for start of comment */
+  unsigned int comment_length;       /* Position for start of comment */
 } azio_stream;
 
-                        /* basic functions */
+/* basic functions */
 
 extern int azopen(azio_stream *s, const char *path, int Flags);
 /*
@@ -250,7 +251,7 @@ extern int azopen(azio_stream *s, const char *path, int Flags);
    can be checked to distinguish the two cases (if errno is zero, the
    zlib error is Z_MEM_ERROR).  */
 
-int azdopen(azio_stream *s,File fd, int Flags); 
+int azdopen(azio_stream *s, File fd, int Flags);
 /*
      azdopen() associates a azio_stream with the file descriptor fd.  File
    descriptors are obtained from calls like open, dup, creat, pipe or
@@ -263,8 +264,7 @@ int azdopen(azio_stream *s,File fd, int Flags);
    the (de)compression state.
 */
 
-
-extern size_t azread ( azio_stream *s, voidp buf, size_t len, int *error);
+extern size_t azread(azio_stream *s, voidp buf, size_t len, int *error);
 /*
      Reads the given number of uncompressed bytes from the compressed file.
    If the input file was not in gzip format, gzread copies the given number
@@ -272,13 +272,12 @@ extern size_t azread ( azio_stream *s, voidp buf, size_t len, int *error);
      gzread returns the number of uncompressed bytes actually read (0 for
    end of file, -1 for error). */
 
-extern unsigned int azwrite (azio_stream *s, const voidp buf, unsigned int len);
+extern unsigned int azwrite(azio_stream *s, const voidp buf, unsigned int len);
 /*
      Writes the given number of uncompressed bytes into the compressed file.
    azwrite returns the number of uncompressed bytes actually written
    (0 in case of error).
 */
-
 
 extern int azflush(azio_stream *file, int flush);
 /*
@@ -290,8 +289,7 @@ extern int azflush(azio_stream *file, int flush);
    degrade compression.
 */
 
-extern my_off_t azseek (azio_stream *file,
-                                      my_off_t offset, int whence);
+extern my_off_t azseek(azio_stream *file, my_off_t offset, int whence);
 /*
       Sets the starting position for the next gzread or gzwrite on the
    given compressed file. The offset represents a number of bytes in the
@@ -331,11 +329,11 @@ extern int azclose(azio_stream *file);
    error number (see function gzerror below).
 */
 
-extern int azwrite_frm (azio_stream *s, char *blob, size_t length);
-extern int azread_frm (azio_stream *s, char *blob);
-extern int azwrite_comment (azio_stream *s, char *blob, size_t length);
-extern int azread_comment (azio_stream *s, char *blob);
+extern int azwrite_frm(azio_stream *s, char *blob, size_t length);
+extern int azread_frm(azio_stream *s, char *blob);
+extern int azwrite_comment(azio_stream *s, char *blob, size_t length);
+extern int azread_comment(azio_stream *s, char *blob);
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif

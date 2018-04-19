@@ -1,0 +1,362 @@
+select TABLE_NAME, NON_UNIQUE, INDEX_SCHEMA, INDEX_NAME, INDEX_TYPE, INDEX_COMMENT
+from INFORMATION_SCHEMA.STATISTICS
+where TABLE_SCHEMA = "performance_schema" and SEQ_IN_INDEX = 1
+order by TABLE_NAME collate utf8_general_ci, INDEX_NAME;
+TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	INDEX_TYPE	INDEX_COMMENT
+accounts	0	performance_schema	ACCOUNT	HASH	
+cond_instances	1	performance_schema	NAME	HASH	
+cond_instances	0	performance_schema	PRIMARY	HASH	
+data_locks	1	performance_schema	ENGINE_TRANSACTION_ID	HASH	
+data_locks	1	performance_schema	OBJECT_SCHEMA	HASH	
+data_locks	0	performance_schema	PRIMARY	HASH	
+data_locks	1	performance_schema	THREAD_ID	HASH	
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_LOCK_ID	HASH	
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_TRANSACTION_ID	HASH	
+data_lock_waits	1	performance_schema	BLOCKING_THREAD_ID	HASH	
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_LOCK_ID	HASH	
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_TRANSACTION_ID	HASH	
+data_lock_waits	1	performance_schema	REQUESTING_THREAD_ID	HASH	
+events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	HASH	
+events_errors_summary_by_host_by_error	0	performance_schema	HOST	HASH	
+events_errors_summary_by_thread_by_error	0	performance_schema	THREAD_ID	HASH	
+events_errors_summary_by_user_by_error	0	performance_schema	USER	HASH	
+events_errors_summary_global_by_error	0	performance_schema	ERROR_NUMBER	HASH	
+events_stages_current	0	performance_schema	PRIMARY	HASH	
+events_stages_history	0	performance_schema	PRIMARY	HASH	
+events_stages_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	HASH	
+events_stages_summary_by_host_by_event_name	0	performance_schema	HOST	HASH	
+events_stages_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	HASH	
+events_stages_summary_by_user_by_event_name	0	performance_schema	USER	HASH	
+events_stages_summary_global_by_event_name	0	performance_schema	PRIMARY	HASH	
+events_statements_current	0	performance_schema	PRIMARY	HASH	
+events_statements_histogram_by_digest	0	performance_schema	SCHEMA_NAME	HASH	
+events_statements_histogram_global	0	performance_schema	PRIMARY	HASH	
+events_statements_history	0	performance_schema	PRIMARY	HASH	
+events_statements_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	HASH	
+events_statements_summary_by_digest	0	performance_schema	SCHEMA_NAME	HASH	
+events_statements_summary_by_host_by_event_name	0	performance_schema	HOST	HASH	
+events_statements_summary_by_program	0	performance_schema	PRIMARY	HASH	
+events_statements_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	HASH	
+events_statements_summary_by_user_by_event_name	0	performance_schema	USER	HASH	
+events_statements_summary_global_by_event_name	0	performance_schema	PRIMARY	HASH	
+events_transactions_current	0	performance_schema	PRIMARY	HASH	
+events_transactions_history	0	performance_schema	PRIMARY	HASH	
+events_transactions_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	HASH	
+events_transactions_summary_by_host_by_event_name	0	performance_schema	HOST	HASH	
+events_transactions_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	HASH	
+events_transactions_summary_by_user_by_event_name	0	performance_schema	USER	HASH	
+events_transactions_summary_global_by_event_name	0	performance_schema	PRIMARY	HASH	
+events_waits_current	0	performance_schema	PRIMARY	HASH	
+events_waits_history	0	performance_schema	PRIMARY	HASH	
+events_waits_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	HASH	
+events_waits_summary_by_host_by_event_name	0	performance_schema	HOST	HASH	
+events_waits_summary_by_instance	1	performance_schema	EVENT_NAME	HASH	
+events_waits_summary_by_instance	0	performance_schema	PRIMARY	HASH	
+events_waits_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	HASH	
+events_waits_summary_by_user_by_event_name	0	performance_schema	USER	HASH	
+events_waits_summary_global_by_event_name	0	performance_schema	PRIMARY	HASH	
+file_instances	1	performance_schema	EVENT_NAME	HASH	
+file_instances	0	performance_schema	PRIMARY	HASH	
+file_summary_by_event_name	0	performance_schema	PRIMARY	HASH	
+file_summary_by_instance	1	performance_schema	EVENT_NAME	HASH	
+file_summary_by_instance	1	performance_schema	FILE_NAME	HASH	
+file_summary_by_instance	0	performance_schema	PRIMARY	HASH	
+global_status	0	performance_schema	PRIMARY	HASH	
+global_variables	0	performance_schema	PRIMARY	HASH	
+hosts	0	performance_schema	HOST	HASH	
+host_cache	1	performance_schema	HOST	HASH	
+host_cache	0	performance_schema	PRIMARY	HASH	
+memory_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	HASH	
+memory_summary_by_host_by_event_name	0	performance_schema	HOST	HASH	
+memory_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	HASH	
+memory_summary_by_user_by_event_name	0	performance_schema	USER	HASH	
+memory_summary_global_by_event_name	0	performance_schema	PRIMARY	HASH	
+metadata_locks	1	performance_schema	OBJECT_TYPE	HASH	
+metadata_locks	1	performance_schema	OWNER_THREAD_ID	HASH	
+metadata_locks	0	performance_schema	PRIMARY	HASH	
+mutex_instances	1	performance_schema	LOCKED_BY_THREAD_ID	HASH	
+mutex_instances	1	performance_schema	NAME	HASH	
+mutex_instances	0	performance_schema	PRIMARY	HASH	
+objects_summary_global_by_type	0	performance_schema	OBJECT	HASH	
+persisted_variables	0	performance_schema	PRIMARY	HASH	
+prepared_statements_instances	1	performance_schema	OWNER_OBJECT_TYPE	HASH	
+prepared_statements_instances	0	performance_schema	OWNER_THREAD_ID	HASH	
+prepared_statements_instances	0	performance_schema	PRIMARY	HASH	
+prepared_statements_instances	1	performance_schema	STATEMENT_ID	HASH	
+prepared_statements_instances	1	performance_schema	STATEMENT_NAME	HASH	
+replication_applier_configuration	0	performance_schema	PRIMARY	HASH	
+replication_applier_status	0	performance_schema	PRIMARY	HASH	
+replication_applier_status_by_coordinator	0	performance_schema	PRIMARY	HASH	
+replication_applier_status_by_coordinator	1	performance_schema	THREAD_ID	HASH	
+replication_applier_status_by_worker	0	performance_schema	PRIMARY	HASH	
+replication_applier_status_by_worker	1	performance_schema	THREAD_ID	HASH	
+replication_connection_configuration	0	performance_schema	PRIMARY	HASH	
+replication_connection_status	0	performance_schema	PRIMARY	HASH	
+replication_connection_status	1	performance_schema	THREAD_ID	HASH	
+rwlock_instances	1	performance_schema	NAME	HASH	
+rwlock_instances	0	performance_schema	PRIMARY	HASH	
+rwlock_instances	1	performance_schema	WRITE_LOCKED_BY_THREAD_ID	HASH	
+session_account_connect_attrs	0	performance_schema	PRIMARY	HASH	
+session_connect_attrs	0	performance_schema	PRIMARY	HASH	
+session_status	0	performance_schema	PRIMARY	HASH	
+session_variables	0	performance_schema	PRIMARY	HASH	
+setup_actors	0	performance_schema	PRIMARY	HASH	
+setup_consumers	0	performance_schema	PRIMARY	HASH	
+setup_instruments	0	performance_schema	PRIMARY	HASH	
+setup_objects	0	performance_schema	OBJECT	HASH	
+setup_threads	0	performance_schema	PRIMARY	HASH	
+socket_instances	1	performance_schema	IP	HASH	
+socket_instances	0	performance_schema	PRIMARY	HASH	
+socket_instances	1	performance_schema	SOCKET_ID	HASH	
+socket_instances	1	performance_schema	THREAD_ID	HASH	
+socket_summary_by_event_name	0	performance_schema	PRIMARY	HASH	
+socket_summary_by_instance	1	performance_schema	EVENT_NAME	HASH	
+socket_summary_by_instance	0	performance_schema	PRIMARY	HASH	
+status_by_account	0	performance_schema	ACCOUNT	HASH	
+status_by_host	0	performance_schema	HOST	HASH	
+status_by_thread	0	performance_schema	PRIMARY	HASH	
+status_by_user	0	performance_schema	USER	HASH	
+table_handles	1	performance_schema	OBJECT_TYPE	HASH	
+table_handles	1	performance_schema	OWNER_THREAD_ID	HASH	
+table_handles	0	performance_schema	PRIMARY	HASH	
+table_io_waits_summary_by_index_usage	0	performance_schema	OBJECT	HASH	
+table_io_waits_summary_by_table	0	performance_schema	OBJECT	HASH	
+table_lock_waits_summary_by_table	0	performance_schema	OBJECT	HASH	
+threads	1	performance_schema	NAME	HASH	
+threads	0	performance_schema	PRIMARY	HASH	
+threads	1	performance_schema	PROCESSLIST_ACCOUNT	HASH	
+threads	1	performance_schema	PROCESSLIST_HOST	HASH	
+threads	1	performance_schema	PROCESSLIST_ID	HASH	
+threads	1	performance_schema	RESOURCE_GROUP	HASH	
+threads	1	performance_schema	THREAD_OS_ID	HASH	
+users	0	performance_schema	USER	HASH	
+user_defined_functions	0	performance_schema	PRIMARY	HASH	
+user_variables_by_thread	0	performance_schema	PRIMARY	HASH	
+variables_by_thread	0	performance_schema	PRIMARY	HASH	
+select TABLE_NAME, NON_UNIQUE, INDEX_SCHEMA, INDEX_NAME, SEQ_IN_INDEX,
+COLUMN_NAME, CARDINALITY, NULLABLE
+from INFORMATION_SCHEMA.STATISTICS
+where TABLE_SCHEMA = "performance_schema"
+  order by TABLE_NAME collate utf8_general_ci, INDEX_NAME, SEQ_IN_INDEX;
+TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	CARDINALITY	NULLABLE
+accounts	0	performance_schema	ACCOUNT	1	USER	NULL	YES
+accounts	0	performance_schema	ACCOUNT	2	HOST	NULL	YES
+cond_instances	1	performance_schema	NAME	1	NAME	NULL	
+cond_instances	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
+data_locks	1	performance_schema	ENGINE_TRANSACTION_ID	1	ENGINE_TRANSACTION_ID	NULL	YES
+data_locks	1	performance_schema	ENGINE_TRANSACTION_ID	2	ENGINE	NULL	
+data_locks	1	performance_schema	OBJECT_SCHEMA	1	OBJECT_SCHEMA	NULL	YES
+data_locks	1	performance_schema	OBJECT_SCHEMA	2	OBJECT_NAME	NULL	YES
+data_locks	1	performance_schema	OBJECT_SCHEMA	3	PARTITION_NAME	NULL	YES
+data_locks	1	performance_schema	OBJECT_SCHEMA	4	SUBPARTITION_NAME	NULL	YES
+data_locks	0	performance_schema	PRIMARY	1	ENGINE_LOCK_ID	NULL	
+data_locks	0	performance_schema	PRIMARY	2	ENGINE	NULL	
+data_locks	1	performance_schema	THREAD_ID	1	THREAD_ID	NULL	YES
+data_locks	1	performance_schema	THREAD_ID	2	EVENT_ID	NULL	YES
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_LOCK_ID	1	BLOCKING_ENGINE_LOCK_ID	NULL	
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_LOCK_ID	2	ENGINE	NULL	
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_TRANSACTION_ID	1	BLOCKING_ENGINE_TRANSACTION_ID	NULL	YES
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_TRANSACTION_ID	2	ENGINE	NULL	
+data_lock_waits	1	performance_schema	BLOCKING_THREAD_ID	1	BLOCKING_THREAD_ID	NULL	YES
+data_lock_waits	1	performance_schema	BLOCKING_THREAD_ID	2	BLOCKING_EVENT_ID	NULL	YES
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_LOCK_ID	1	REQUESTING_ENGINE_LOCK_ID	NULL	
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_LOCK_ID	2	ENGINE	NULL	
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_TRANSACTION_ID	1	REQUESTING_ENGINE_TRANSACTION_ID	NULL	YES
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_TRANSACTION_ID	2	ENGINE	NULL	
+data_lock_waits	1	performance_schema	REQUESTING_THREAD_ID	1	REQUESTING_THREAD_ID	NULL	YES
+data_lock_waits	1	performance_schema	REQUESTING_THREAD_ID	2	REQUESTING_EVENT_ID	NULL	YES
+events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	1	USER	NULL	YES
+events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	2	HOST	NULL	YES
+events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	3	ERROR_NUMBER	NULL	YES
+events_errors_summary_by_host_by_error	0	performance_schema	HOST	1	HOST	NULL	YES
+events_errors_summary_by_host_by_error	0	performance_schema	HOST	2	ERROR_NUMBER	NULL	YES
+events_errors_summary_by_thread_by_error	0	performance_schema	THREAD_ID	1	THREAD_ID	NULL	
+events_errors_summary_by_thread_by_error	0	performance_schema	THREAD_ID	2	ERROR_NUMBER	NULL	YES
+events_errors_summary_by_user_by_error	0	performance_schema	USER	1	USER	NULL	YES
+events_errors_summary_by_user_by_error	0	performance_schema	USER	2	ERROR_NUMBER	NULL	YES
+events_errors_summary_global_by_error	0	performance_schema	ERROR_NUMBER	1	ERROR_NUMBER	NULL	YES
+events_stages_current	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+events_stages_current	0	performance_schema	PRIMARY	2	EVENT_ID	NULL	
+events_stages_history	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+events_stages_history	0	performance_schema	PRIMARY	2	EVENT_ID	NULL	
+events_stages_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	1	USER	NULL	YES
+events_stages_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	2	HOST	NULL	YES
+events_stages_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	3	EVENT_NAME	NULL	
+events_stages_summary_by_host_by_event_name	0	performance_schema	HOST	1	HOST	NULL	YES
+events_stages_summary_by_host_by_event_name	0	performance_schema	HOST	2	EVENT_NAME	NULL	
+events_stages_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+events_stages_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	2	EVENT_NAME	NULL	
+events_stages_summary_by_user_by_event_name	0	performance_schema	USER	1	USER	NULL	YES
+events_stages_summary_by_user_by_event_name	0	performance_schema	USER	2	EVENT_NAME	NULL	
+events_stages_summary_global_by_event_name	0	performance_schema	PRIMARY	1	EVENT_NAME	NULL	
+events_statements_current	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+events_statements_current	0	performance_schema	PRIMARY	2	EVENT_ID	NULL	
+events_statements_histogram_by_digest	0	performance_schema	SCHEMA_NAME	1	SCHEMA_NAME	NULL	YES
+events_statements_histogram_by_digest	0	performance_schema	SCHEMA_NAME	2	DIGEST	NULL	YES
+events_statements_histogram_by_digest	0	performance_schema	SCHEMA_NAME	3	BUCKET_NUMBER	NULL	
+events_statements_histogram_global	0	performance_schema	PRIMARY	1	BUCKET_NUMBER	NULL	
+events_statements_history	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+events_statements_history	0	performance_schema	PRIMARY	2	EVENT_ID	NULL	
+events_statements_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	1	USER	NULL	YES
+events_statements_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	2	HOST	NULL	YES
+events_statements_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	3	EVENT_NAME	NULL	
+events_statements_summary_by_digest	0	performance_schema	SCHEMA_NAME	1	SCHEMA_NAME	NULL	YES
+events_statements_summary_by_digest	0	performance_schema	SCHEMA_NAME	2	DIGEST	NULL	YES
+events_statements_summary_by_host_by_event_name	0	performance_schema	HOST	1	HOST	NULL	YES
+events_statements_summary_by_host_by_event_name	0	performance_schema	HOST	2	EVENT_NAME	NULL	
+events_statements_summary_by_program	0	performance_schema	PRIMARY	1	OBJECT_TYPE	NULL	
+events_statements_summary_by_program	0	performance_schema	PRIMARY	2	OBJECT_SCHEMA	NULL	
+events_statements_summary_by_program	0	performance_schema	PRIMARY	3	OBJECT_NAME	NULL	
+events_statements_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+events_statements_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	2	EVENT_NAME	NULL	
+events_statements_summary_by_user_by_event_name	0	performance_schema	USER	1	USER	NULL	YES
+events_statements_summary_by_user_by_event_name	0	performance_schema	USER	2	EVENT_NAME	NULL	
+events_statements_summary_global_by_event_name	0	performance_schema	PRIMARY	1	EVENT_NAME	NULL	
+events_transactions_current	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+events_transactions_current	0	performance_schema	PRIMARY	2	EVENT_ID	NULL	
+events_transactions_history	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+events_transactions_history	0	performance_schema	PRIMARY	2	EVENT_ID	NULL	
+events_transactions_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	1	USER	NULL	YES
+events_transactions_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	2	HOST	NULL	YES
+events_transactions_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	3	EVENT_NAME	NULL	
+events_transactions_summary_by_host_by_event_name	0	performance_schema	HOST	1	HOST	NULL	YES
+events_transactions_summary_by_host_by_event_name	0	performance_schema	HOST	2	EVENT_NAME	NULL	
+events_transactions_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+events_transactions_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	2	EVENT_NAME	NULL	
+events_transactions_summary_by_user_by_event_name	0	performance_schema	USER	1	USER	NULL	YES
+events_transactions_summary_by_user_by_event_name	0	performance_schema	USER	2	EVENT_NAME	NULL	
+events_transactions_summary_global_by_event_name	0	performance_schema	PRIMARY	1	EVENT_NAME	NULL	
+events_waits_current	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+events_waits_current	0	performance_schema	PRIMARY	2	EVENT_ID	NULL	
+events_waits_history	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+events_waits_history	0	performance_schema	PRIMARY	2	EVENT_ID	NULL	
+events_waits_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	1	USER	NULL	YES
+events_waits_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	2	HOST	NULL	YES
+events_waits_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	3	EVENT_NAME	NULL	
+events_waits_summary_by_host_by_event_name	0	performance_schema	HOST	1	HOST	NULL	YES
+events_waits_summary_by_host_by_event_name	0	performance_schema	HOST	2	EVENT_NAME	NULL	
+events_waits_summary_by_instance	1	performance_schema	EVENT_NAME	1	EVENT_NAME	NULL	
+events_waits_summary_by_instance	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
+events_waits_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+events_waits_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	2	EVENT_NAME	NULL	
+events_waits_summary_by_user_by_event_name	0	performance_schema	USER	1	USER	NULL	YES
+events_waits_summary_by_user_by_event_name	0	performance_schema	USER	2	EVENT_NAME	NULL	
+events_waits_summary_global_by_event_name	0	performance_schema	PRIMARY	1	EVENT_NAME	NULL	
+file_instances	1	performance_schema	EVENT_NAME	1	EVENT_NAME	NULL	
+file_instances	0	performance_schema	PRIMARY	1	FILE_NAME	NULL	
+file_summary_by_event_name	0	performance_schema	PRIMARY	1	EVENT_NAME	NULL	
+file_summary_by_instance	1	performance_schema	EVENT_NAME	1	EVENT_NAME	NULL	
+file_summary_by_instance	1	performance_schema	FILE_NAME	1	FILE_NAME	NULL	
+file_summary_by_instance	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
+global_status	0	performance_schema	PRIMARY	1	VARIABLE_NAME	NULL	
+global_variables	0	performance_schema	PRIMARY	1	VARIABLE_NAME	NULL	
+hosts	0	performance_schema	HOST	1	HOST	NULL	YES
+host_cache	1	performance_schema	HOST	1	HOST	NULL	YES
+host_cache	0	performance_schema	PRIMARY	1	IP	NULL	
+memory_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	1	USER	NULL	YES
+memory_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	2	HOST	NULL	YES
+memory_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	3	EVENT_NAME	NULL	
+memory_summary_by_host_by_event_name	0	performance_schema	HOST	1	HOST	NULL	YES
+memory_summary_by_host_by_event_name	0	performance_schema	HOST	2	EVENT_NAME	NULL	
+memory_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+memory_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	2	EVENT_NAME	NULL	
+memory_summary_by_user_by_event_name	0	performance_schema	USER	1	USER	NULL	YES
+memory_summary_by_user_by_event_name	0	performance_schema	USER	2	EVENT_NAME	NULL	
+memory_summary_global_by_event_name	0	performance_schema	PRIMARY	1	EVENT_NAME	NULL	
+metadata_locks	1	performance_schema	OBJECT_TYPE	1	OBJECT_TYPE	NULL	
+metadata_locks	1	performance_schema	OBJECT_TYPE	2	OBJECT_SCHEMA	NULL	YES
+metadata_locks	1	performance_schema	OBJECT_TYPE	3	OBJECT_NAME	NULL	YES
+metadata_locks	1	performance_schema	OBJECT_TYPE	4	COLUMN_NAME	NULL	YES
+metadata_locks	1	performance_schema	OWNER_THREAD_ID	1	OWNER_THREAD_ID	NULL	YES
+metadata_locks	1	performance_schema	OWNER_THREAD_ID	2	OWNER_EVENT_ID	NULL	YES
+metadata_locks	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
+mutex_instances	1	performance_schema	LOCKED_BY_THREAD_ID	1	LOCKED_BY_THREAD_ID	NULL	YES
+mutex_instances	1	performance_schema	NAME	1	NAME	NULL	
+mutex_instances	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
+objects_summary_global_by_type	0	performance_schema	OBJECT	1	OBJECT_TYPE	NULL	YES
+objects_summary_global_by_type	0	performance_schema	OBJECT	2	OBJECT_SCHEMA	NULL	YES
+objects_summary_global_by_type	0	performance_schema	OBJECT	3	OBJECT_NAME	NULL	YES
+persisted_variables	0	performance_schema	PRIMARY	1	VARIABLE_NAME	NULL	
+prepared_statements_instances	1	performance_schema	OWNER_OBJECT_TYPE	1	OWNER_OBJECT_TYPE	NULL	YES
+prepared_statements_instances	1	performance_schema	OWNER_OBJECT_TYPE	2	OWNER_OBJECT_SCHEMA	NULL	YES
+prepared_statements_instances	1	performance_schema	OWNER_OBJECT_TYPE	3	OWNER_OBJECT_NAME	NULL	YES
+prepared_statements_instances	0	performance_schema	OWNER_THREAD_ID	1	OWNER_THREAD_ID	NULL	
+prepared_statements_instances	0	performance_schema	OWNER_THREAD_ID	2	OWNER_EVENT_ID	NULL	
+prepared_statements_instances	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
+prepared_statements_instances	1	performance_schema	STATEMENT_ID	1	STATEMENT_ID	NULL	
+prepared_statements_instances	1	performance_schema	STATEMENT_NAME	1	STATEMENT_NAME	NULL	YES
+replication_applier_configuration	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
+replication_applier_status	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
+replication_applier_status_by_coordinator	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
+replication_applier_status_by_coordinator	1	performance_schema	THREAD_ID	1	THREAD_ID	NULL	YES
+replication_applier_status_by_worker	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
+replication_applier_status_by_worker	0	performance_schema	PRIMARY	2	WORKER_ID	NULL	
+replication_applier_status_by_worker	1	performance_schema	THREAD_ID	1	THREAD_ID	NULL	YES
+replication_connection_configuration	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
+replication_connection_status	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
+replication_connection_status	1	performance_schema	THREAD_ID	1	THREAD_ID	NULL	YES
+rwlock_instances	1	performance_schema	NAME	1	NAME	NULL	
+rwlock_instances	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
+rwlock_instances	1	performance_schema	WRITE_LOCKED_BY_THREAD_ID	1	WRITE_LOCKED_BY_THREAD_ID	NULL	YES
+session_account_connect_attrs	0	performance_schema	PRIMARY	1	PROCESSLIST_ID	NULL	
+session_account_connect_attrs	0	performance_schema	PRIMARY	2	ATTR_NAME	NULL	
+session_connect_attrs	0	performance_schema	PRIMARY	1	PROCESSLIST_ID	NULL	
+session_connect_attrs	0	performance_schema	PRIMARY	2	ATTR_NAME	NULL	
+session_status	0	performance_schema	PRIMARY	1	VARIABLE_NAME	NULL	
+session_variables	0	performance_schema	PRIMARY	1	VARIABLE_NAME	NULL	
+setup_actors	0	performance_schema	PRIMARY	1	HOST	NULL	
+setup_actors	0	performance_schema	PRIMARY	2	USER	NULL	
+setup_actors	0	performance_schema	PRIMARY	3	ROLE	NULL	
+setup_consumers	0	performance_schema	PRIMARY	1	NAME	NULL	
+setup_instruments	0	performance_schema	PRIMARY	1	NAME	NULL	
+setup_objects	0	performance_schema	OBJECT	1	OBJECT_TYPE	NULL	
+setup_objects	0	performance_schema	OBJECT	2	OBJECT_SCHEMA	NULL	YES
+setup_objects	0	performance_schema	OBJECT	3	OBJECT_NAME	NULL	
+setup_threads	0	performance_schema	PRIMARY	1	NAME	NULL	
+socket_instances	1	performance_schema	IP	1	IP	NULL	
+socket_instances	1	performance_schema	IP	2	PORT	NULL	
+socket_instances	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
+socket_instances	1	performance_schema	SOCKET_ID	1	SOCKET_ID	NULL	
+socket_instances	1	performance_schema	THREAD_ID	1	THREAD_ID	NULL	YES
+socket_summary_by_event_name	0	performance_schema	PRIMARY	1	EVENT_NAME	NULL	
+socket_summary_by_instance	1	performance_schema	EVENT_NAME	1	EVENT_NAME	NULL	
+socket_summary_by_instance	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
+status_by_account	0	performance_schema	ACCOUNT	1	USER	NULL	YES
+status_by_account	0	performance_schema	ACCOUNT	2	HOST	NULL	YES
+status_by_account	0	performance_schema	ACCOUNT	3	VARIABLE_NAME	NULL	
+status_by_host	0	performance_schema	HOST	1	HOST	NULL	YES
+status_by_host	0	performance_schema	HOST	2	VARIABLE_NAME	NULL	
+status_by_thread	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+status_by_thread	0	performance_schema	PRIMARY	2	VARIABLE_NAME	NULL	
+status_by_user	0	performance_schema	USER	1	USER	NULL	YES
+status_by_user	0	performance_schema	USER	2	VARIABLE_NAME	NULL	
+table_handles	1	performance_schema	OBJECT_TYPE	1	OBJECT_TYPE	NULL	
+table_handles	1	performance_schema	OBJECT_TYPE	2	OBJECT_SCHEMA	NULL	
+table_handles	1	performance_schema	OBJECT_TYPE	3	OBJECT_NAME	NULL	
+table_handles	1	performance_schema	OWNER_THREAD_ID	1	OWNER_THREAD_ID	NULL	YES
+table_handles	1	performance_schema	OWNER_THREAD_ID	2	OWNER_EVENT_ID	NULL	YES
+table_handles	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
+table_io_waits_summary_by_index_usage	0	performance_schema	OBJECT	1	OBJECT_TYPE	NULL	YES
+table_io_waits_summary_by_index_usage	0	performance_schema	OBJECT	2	OBJECT_SCHEMA	NULL	YES
+table_io_waits_summary_by_index_usage	0	performance_schema	OBJECT	3	OBJECT_NAME	NULL	YES
+table_io_waits_summary_by_index_usage	0	performance_schema	OBJECT	4	INDEX_NAME	NULL	YES
+table_io_waits_summary_by_table	0	performance_schema	OBJECT	1	OBJECT_TYPE	NULL	YES
+table_io_waits_summary_by_table	0	performance_schema	OBJECT	2	OBJECT_SCHEMA	NULL	YES
+table_io_waits_summary_by_table	0	performance_schema	OBJECT	3	OBJECT_NAME	NULL	YES
+table_lock_waits_summary_by_table	0	performance_schema	OBJECT	1	OBJECT_TYPE	NULL	YES
+table_lock_waits_summary_by_table	0	performance_schema	OBJECT	2	OBJECT_SCHEMA	NULL	YES
+table_lock_waits_summary_by_table	0	performance_schema	OBJECT	3	OBJECT_NAME	NULL	YES
+threads	1	performance_schema	NAME	1	NAME	NULL	
+threads	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+threads	1	performance_schema	PROCESSLIST_ACCOUNT	1	PROCESSLIST_USER	NULL	YES
+threads	1	performance_schema	PROCESSLIST_ACCOUNT	2	PROCESSLIST_HOST	NULL	YES
+threads	1	performance_schema	PROCESSLIST_HOST	1	PROCESSLIST_HOST	NULL	YES
+threads	1	performance_schema	PROCESSLIST_ID	1	PROCESSLIST_ID	NULL	YES
+threads	1	performance_schema	RESOURCE_GROUP	1	RESOURCE_GROUP	NULL	YES
+threads	1	performance_schema	THREAD_OS_ID	1	THREAD_OS_ID	NULL	YES
+users	0	performance_schema	USER	1	USER	NULL	YES
+user_defined_functions	0	performance_schema	PRIMARY	1	UDF_NAME	NULL	
+user_variables_by_thread	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+user_variables_by_thread	0	performance_schema	PRIMARY	2	VARIABLE_NAME	NULL	
+variables_by_thread	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
+variables_by_thread	0	performance_schema	PRIMARY	2	VARIABLE_NAME	NULL	

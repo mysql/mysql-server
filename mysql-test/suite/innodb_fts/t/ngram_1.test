@@ -1,11 +1,11 @@
 # Test fulltext with ngram parser
 
 --source include/no_valgrind_without_big.inc
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
+
 
 # Because we have inserted row size > 2k, we require page size > 4k.
-if (`SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE LOWER(variable_name) = 'innodb_page_size' AND variable_value = 4096`)
+if (`SELECT COUNT(*) = 1 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size' AND variable_value = 4096`)
 {
   --skip Test requires InnoDB with Page size > 4k
 }

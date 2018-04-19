@@ -1,0 +1,89 @@
+#
+# ==== Purpose ====
+#
+# This test checks if the sql delay is being applied in a simple master-slave
+# topology.
+#
+# ==== Implementation ====
+#
+# The SQL_Delay is set to 5 seconds.
+# For each for the six different transactions executed (two DDL, three DML and
+# one multi-statement DML), the test verifies if the delay was the expected using
+# replication timestamp infrastructure introduced by WL#7319.
+#
+# ==== References ====
+#
+# WL#7318 Delayed Replication: GTID based and relative to immediate master commit
+
+# This test is very unstable when using windows because support for high
+# precision timestamps in this platform is not as good as in unix
+--source include/not_windows.inc
+# There is a specific test for mts
+--source include/not_mts_slave_parallel_workers.inc
+--source include/have_debug.inc
+
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--let $delay= 7
+--let $slave_sleep= 2
+
+--source include/rpl_connection_slave.inc
+--eval CHANGE MASTER TO MASTER_DELAY= $delay
+source include/start_slave.inc;
+
+# Verify that the DESIRED_DELAY in replication_applier_configuration table
+# of performance_schema and SQL_Delay field of show slave status has the
+# same value as the delay set through the master_delay of the CHM command.
+
+--let $desired_delay= query_get_value(select *from performance_schema.replication_applier_configuration,DESIRED_DELAY,1)
+
+--let $assert_text= Assert that the desired delay from performance_schema is same as set in the Change master to command.
+--let $assert_cond= $desired_delay = $delay
+--source include/assert.inc
+
+--let $sql_delay= query_get_value(show slave status,SQL_Delay,1)
+
+--let $assert_text= Assert that the sql_delay in show slave status is same as set in the Change master to command.
+--let $assert_cond= $sql_delay = $delay
+--source include/assert.inc
+
+--let $debug_point= sql_delay_without_timestamps
+--source include/add_debug_point.inc
+
+--source include/rpl_connection_master.inc
+# $time_1 is collected in the same server as $time_2
+# Since the delay is relative to the master's clock, we collect the time in
+# master
+--let $time_1= `SELECT SYSDATE(6)`
+CREATE TABLE t1 (a INT);
+--source extra/rpl_tests/check_slave_delay_old.inc
+
+INSERT INTO t1 VALUES (1);
+--source extra/rpl_tests/check_slave_delay_old.inc
+
+UPDATE t1 SET a=2;
+--source extra/rpl_tests/check_slave_delay_old.inc
+
+DELETE FROM t1 WHERE a=2;
+--source extra/rpl_tests/check_slave_delay_old.inc
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+COMMIT;
+--source extra/rpl_tests/check_slave_delay_old.inc
+
+DROP TABLE t1;
+--source extra/rpl_tests/check_slave_delay_old.inc
+
+# Cleanup
+--source include/rpl_connection_slave.inc
+--source include/remove_debug_point.inc
+--source include/stop_slave_sql.inc
+CHANGE MASTER TO MASTER_DELAY= 0;
+--source include/start_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+--source include/rpl_end.inc

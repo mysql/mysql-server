@@ -7,11 +7,9 @@
 # a transaction can be recovered during server recovery from
 # a crash, which happened after flushing it to binary log.
 #
---source include/not_embedded.inc
 --source include/not_valgrind.inc
 --source include/have_log_bin.inc
 -- source include/have_debug.inc
--- source include/have_innodb.inc
 
 CREATE TABLE t1(c1 INT) ENGINE= InnoDB;
 

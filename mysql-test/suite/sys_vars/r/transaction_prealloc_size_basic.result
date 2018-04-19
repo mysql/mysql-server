@@ -114,16 +114,16 @@ Warnings:
 Warning	1292	Truncated incorrect transaction_prealloc_size value: '135217728'
 SELECT @@session.transaction_prealloc_size;
 @@session.transaction_prealloc_size
-134217728
+131072
 '#------------------FN_DYNVARS_005_06-----------------------#'
-SELECT @@global.transaction_prealloc_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+SELECT @@global.transaction_prealloc_size = VARIABLE_VALUE
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='transaction_prealloc_size';
 @@global.transaction_prealloc_size = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_005_07-----------------------#'
-SELECT @@session.transaction_prealloc_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+SELECT @@session.transaction_prealloc_size = VARIABLE_VALUE
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='transaction_prealloc_size';
 @@session.transaction_prealloc_size = VARIABLE_VALUE
 1

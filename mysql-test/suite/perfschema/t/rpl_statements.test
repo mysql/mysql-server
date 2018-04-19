@@ -1,9 +1,8 @@
 #
 # Check statement instrumentation of replicated statements
 #
---source include/not_embedded.inc
---source include/have_perfschema.inc
---source ../include/no_protocol.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 

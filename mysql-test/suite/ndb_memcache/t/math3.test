@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
 --source suite/ndb_memcache/include/have_memcache.inc
 
@@ -30,19 +25,19 @@ else {
   $mc->delete("math_test_3b");
   
   $r = $mc->incr("math_test_3a", 1, 1500);   # initialize at 1500
-  ($r == 1500) || Carp::confess("wrong result");
+  ($r == 1500) || $mc->fail("t1 expected 1500");
 
   $r = $mc->incr("math_test_3a", 6);         # increment to 1506
-  ($r == 1506) || Carp::confess("wrong result");
+  ($r == 1506) || $mc->fail("t2 expected 1506");
     
-  $r = $mc->decr("math_test_3b", 1, 1); # initialize at 1
-  ($r == 1) || Carp::confess("wrong result");
+  $r = $mc->decr("math_test_3b", 1, 1);      # initialize at 1
+  ($r == 1)    || $mc->fail("t3 expected 1");
 
-  $r = $mc->decr("math_test_3b", 1);    # decr to 0
-  ($r == 0) || Carp::confess("wrong result");
+  $r = $mc->decr("math_test_3b", 1);         # decr to 0
+  ($r == 0)    || $mc->fail("t4 expected 0");
 
-  $r = $mc->decr("math_test_3b", 1);    # should not wrap below 0.    
-  ($r == 0) || Carp::confess("wrong result");
+  $r = $mc->decr("math_test_3b", 1);         # should not wrap below 0.    
+  ($r == 0)    || $mc->fail("t5 expected 0");
 }
 
 EOF

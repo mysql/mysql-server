@@ -1,6 +1,10 @@
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase x.x.x.1:
 -----------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE IF EXISTS t0, t1, t2;
 CREATE TABLE t0 (col1 CHAR(50))
 ENGINE = <engine_to_be_tested>;
@@ -33,9 +37,13 @@ id	f_id	col1
 3	NULL	Emp 3
 DROP TRIGGER trig;
 DROP TABLE t2, t1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase x.x.x.2:
 -----------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (id INT NOT NULL, col1 CHAR(50), PRIMARY KEY (id))
 ENGINE = <engine_to_be_tested>;

@@ -1,6 +1,6 @@
 #
 # Test engine native conflict resolution for ndb
-#   NDB$EPOCH_TRANS() function
+#   NDB$EPOCH[2]_TRANS() function
 #
 #
 --source include/have_ndb.inc
@@ -9,28 +9,48 @@
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
 --echo Setup circular replication
-
---connection slave
+--disable_query_log
+--disable_result_log
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 RESET MASTER;
-select @slave_server_id:=(variable_value+0)
-       from information_schema.global_variables
+STOP SLAVE;
+select @secondary_server_id:=(variable_value+0)
+       from performance_schema.global_variables
        where variable_name like 'server_id';
-let $SLAVE_SERVER_ID= query_get_value('select @slave_server_id as v',v,1);
+let $SECONDARY_SERVER_ID= query_get_value('select @secondary_server_id as v',v,1);
+select @secondary_port:=(variable_value+0)
+       from performance_schema.global_variables
+       where variable_name like 'port';
+let $SECONDARY_PORT= query_get_value('select @secondary_port as v',v,1);
 
---connection master
---replace_result $SLAVE_MYPORT SLAVE_PORT
---eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SLAVE_MYPORT,master_user="root"
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+RESET MASTER;
+STOP SLAVE;
+--eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SECONDARY_PORT,master_user="root"
 START SLAVE;
-select @master_server_id:=(variable_value+0)
-       from information_schema.global_variables
+select @primary_server_id:=(variable_value+0)
+       from performance_schema.global_variables
        where variable_name like 'server_id';
-let $MASTER_SERVER_ID= query_get_value('select @master_server_id as v',v,1);
+let $PRIMARY_SERVER_ID= query_get_value('select @primary_server_id as v',v,1);
+select @primary_port:=(variable_value+0)
+       from performance_schema.global_variables
+       where variable_name like 'port';
+let $PRIMARY_PORT= query_get_value('select @primary_port as v',v,1);
+
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+--eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$PRIMARY_PORT,master_user="root"
+START SLAVE;
+
+--enable_result_log
+--enable_query_log
+
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Setup ndb_replication and t1$EX exceptions table
 
 --disable_warnings
 --disable_query_log
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 drop table if exists mysql.ndb_replication;
 CREATE TABLE mysql.ndb_replication
   (db VARBINARY(63),
@@ -43,13 +63,22 @@ CREATE TABLE mysql.ndb_replication
 --enable_warnings
 --enable_query_log
 
+if (!$PRIMARY_CONFLICT_ALG)
+{
+  let $PRIMARY_CONFLICT_ALG=\"NDB\$EPOCH_TRANS()\";
+}
+if (!$SECONDARY_CONFLICT_ALG)
+{
+  let $SECONDARY_CONFLICT_ALG=NULL;
+}
+
 --echo Populate ndb_replication table as necessary
 eval replace into mysql.ndb_replication values
-  ("test", "t1", $SLAVE_SERVER_ID, 7, NULL),
-  ("test", "t1", $MASTER_SERVER_ID, 7, "NDB\$EPOCH_TRANS()");
+  ("test", "t1", $SECONDARY_SERVER_ID, 7, $SECONDARY_CONFLICT_ALG),
+  ("test", "t1", $PRIMARY_SERVER_ID, 7, $PRIMARY_CONFLICT_ALG);
 eval replace into mysql.ndb_replication values
-  ("test", "t2", $SLAVE_SERVER_ID, 7, NULL),
-  ("test", "t2", $MASTER_SERVER_ID, 7, "NDB\$EPOCH_TRANS()");
+  ("test", "t2", $SECONDARY_SERVER_ID, 7, $SECONDARY_CONFLICT_ALG),
+  ("test", "t2", $PRIMARY_SERVER_ID, 7, $PRIMARY_CONFLICT_ALG);
 
 create table test.t1 (
   a int primary key,
@@ -59,9 +88,9 @@ create table test.t2 (
   a int primary key,
   b varchar(2000)) engine=ndb;
 
---sync_slave_with_master slave
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
---connection master
 --echo Add some data
 insert into test.t1 values
  (1, "Initial data 1"),
@@ -77,22 +106,23 @@ insert into test.t1 values
 
 --echo Show basic row-level conflict detection
 --echo ---------------------------------------
---sync_slave_with_master slave
---connection slave
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 stop slave;
 
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 update t1 set b="Primary first change 2" where a=2;
 select * from test.t1 order by a;
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 update t1 set b="Secondary first change 2" where a=2;
 select * from test.t1 order by a;
 
---sync_slave_with_master master
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Primary should have rejected change from Secondary, keeping its value
 
@@ -102,15 +132,13 @@ select * from t1 order by a;
 
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 start slave;
 
---connection master
-
---sync_slave_with_master slave
-
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 --echo Secondary should have been realigned to Primary
 
@@ -119,16 +147,16 @@ select * from t1 order by a;
 --echo Show rollback of whole secondary transaction
 --echo --------------------------------------------
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 stop slave;
 
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 update t1 set b="Primary second change 4" where a=4;
 
 select * from test.t1 order by a;
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 begin;
 update t1 set b="Secondary second change 4" where a=4;
 update t1 set b="Secondary second change 5" where a=5;
@@ -136,9 +164,8 @@ commit;
 
 select * from test.t1 order by a;
 
---sync_slave_with_master master
-
---connection master
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Primary should have rejected secondary changes on both rows
 select * from test.t1 order by a;
@@ -147,13 +174,12 @@ select * from test.t1 order by a;
 
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 start slave;
 
---connection master
---sync_slave_with_master slave
-
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 --echo Secondary should have been realigned to Primary
 select * from test.t1 order by a;
@@ -161,15 +187,15 @@ select * from test.t1 order by a;
 --echo Show rollback of dependent transaction as well
 --echo ----------------------------------------------
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 stop slave;
 
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 update t1 set b="Primary third change 1" where a=1;
 
 select * from test.t1 order by a;
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 begin;
 update t1 set b="Secondary third change 3" where a=3;
@@ -182,8 +208,8 @@ commit;
 
 select * from test.t1 order by a;
 
---sync_slave_with_master master
---connection master
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Primary should have rejected all secondary changes
 select * from test.t1 order by a;
@@ -192,12 +218,12 @@ select * from test.t1 order by a;
 
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 start slave;
 
---connection master
---sync_slave_with_master slave
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 --echo Secondary should have been realigned to Primary
 
@@ -207,16 +233,16 @@ select * from test.t1 order by a;
 --echo Show rollback of dependent transaction across different tables
 --echo --------------------------------------------------------------
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 stop slave;
 
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 update t1 set b="Primary fifth change 6" where a=6;
 
 select * from test.t1 order by a;
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 begin;
 update t1 set b="Secondary fifth change 6" where a=6; # Conflict row
@@ -231,8 +257,8 @@ commit;
 select * from test.t1 order by a;
 select * from test.t2 order by a;
 
---sync_slave_with_master master
---connection master
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Primary should have rejected all secondary changes
 select * from test.t1 order by a;
@@ -242,11 +268,11 @@ select * from test.t2 order by a;
 
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 start slave;
---connection master
-
---sync_slave_with_master slave
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 --echo Secondary should have been realigned to primary
 select * from test.t1 order by a;
@@ -256,13 +282,13 @@ select * from test.t2 order by a;
 --echo ----------------------------------------
 # Whole epoch is rolled back when --ndb-serverid-transid-bits is 0!
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 stop slave;
 
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 update t1 set b="Primary is king" where a=10;
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 begin;
 update t1 set b="Secondary is emperor" where a=10;
 insert into t1 values (11, "Secondary is pleni-potentiary");
@@ -274,8 +300,8 @@ insert into t1 values (13, "This history will not be lost");
 insert into t1 values (14, "Look on my works ye mighty, and despair");
 commit;
 
---sync_slave_with_master master
---connection master
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Primary should have rejected conflicting trans (emperor, pleni-potentiary)
 --echo but accepted unrelated trans (history)
@@ -286,12 +312,12 @@ select * from t1 order by a;
 
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 start slave;
 
---connection master
---sync_slave_with_master slave
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 --echo Secondary should be aligned with Primary
 
@@ -301,16 +327,16 @@ select * from t1 order by a;
 --echo Show that non-conflicting ancestors are not implicated
 --echo ------------------------------------------------------
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 stop slave;
 
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 update t1 set b="7 : Primary is king" where a=7;
 
 --echo Primary state
 select * from test.t1 order by a;
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 # 'Innocent' secondary transaction
 begin;
@@ -330,9 +356,8 @@ commit;
 --echo Secondary with guilty overlaid
 select * from test.t1 order by a;
 
---sync_slave_with_master master
-
---connection master
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Primary cluster should have rejected 'guilty' secondary transaction, but
 --echo accepted 'innocent' secondary transaction.
@@ -343,31 +368,31 @@ select * from test.t1 order by a;
 
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 start slave;
 
---connection master
---sync_slave_with_master slave
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 --echo Secondary cluster should be realigned with Primary
 
 select * from test.t1 order by a;
 
-
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Classic banking example
 --echo -----------------------
 
 eval replace into mysql.ndb_replication values
-  ("test", "balances", $SLAVE_SERVER_ID, 7, NULL),
-  ("test", "balances", $MASTER_SERVER_ID, 7, "NDB\$EPOCH_TRANS()");
+  ("test", "balances", $SECONDARY_SERVER_ID, 7, $SECONDARY_CONFLICT_ALG),
+  ("test", "balances", $PRIMARY_SERVER_ID, 7, $PRIMARY_CONFLICT_ALG);
 
 # Transactions table may not need conflict-detection?
 eval replace into mysql.ndb_replication values
-  ("test", "transactions", $SLAVE_SERVER_ID, 7, NULL),
-  ("test", "transactions", $MASTER_SERVER_ID, 7, "NDB\$EPOCH_TRANS()");
+  ("test", "transactions", $SECONDARY_SERVER_ID, 7, $SECONDARY_CONFLICT_ALG),
+  ("test", "transactions", $PRIMARY_SERVER_ID, 7, $PRIMARY_CONFLICT_ALG);
 
 create table test.balances
 (name     varchar(100) primary key,
@@ -424,20 +449,21 @@ insert into test.balances values
  ("Yacht dealer", 0),
  ("Newsagent", 0);
 
---sync_slave_with_master slave
---connection slave
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 # Sync back to master, to ensure that what follows on slave,
 # is in a separate epoch transaction.
 # This is needed to get stable counts, not for correctness
 #
 FLUSH LOGS; # To give a position to sync
---sync_slave_with_master master
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 
 --echo Bank sites are disconnected
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 stop slave;
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Larry buys a yacht using Primary bank site
 
@@ -453,7 +479,7 @@ commit;
 select * from test.transactions order by auto_key;
 select * from test.balances order by name;
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 --echo Larry pays employees using Secondary bank site
 
 begin;
@@ -482,16 +508,15 @@ commit;
 select * from test.transactions order by auto_key;
 select * from test.balances order by name;
 
---sync_slave_with_master master
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 --echo Bank sites re-connected
---connection slave
 start slave;
 
---connection master
---sync_slave_with_master slave
-
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Records at Primary bank site
 
@@ -533,16 +558,15 @@ select ndb$server_id, ndb$master_server_id, auto_key, from_name, to_name, detail
 
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 --echo Records at Secondary bank site
 
 select * from test.transactions order by auto_key;
 select * from test.balances order by name;
 
---sync_slave_with_master master
-
---connection master
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 drop table test.balances;
 drop table test.transactions;
 drop table test.transactions$EX;
@@ -550,15 +574,15 @@ drop table test.transactions$EX;
 --echo Test mixing transactional and non transactional
 --echo -----------------------------------------------
 --echo Remove old data from t1
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 delete from test.t1;
---sync_slave_with_master slave
---connection master
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Define table with row-based epoch detection
 eval replace into mysql.ndb_replication values
-           ("test", "t3", $SLAVE_SERVER_ID, 7, NULL),
-           ("test", "t3", $MASTER_SERVER_ID, 7, 'NDB\$EPOCH()');
+           ("test", "t3", $SECONDARY_SERVER_ID, 7, NULL),
+           ("test", "t3", $PRIMARY_SERVER_ID, 7, 'NDB\$EPOCH()');
 
 create table t3 (a int primary key, b int) engine=ndb;
 create table t4 (a int primary key, b int) engine=ndb;
@@ -596,19 +620,19 @@ insert into test.t5 values
   (3, REPEAT("A", 10000));
 
 --echo Allow to propagate
---sync_slave_with_master slave
-
---connection slave
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 FLUSH LOGS;  # Ensure Inserts are in previous epoch trans to what follows
---sync_slave_with_master master
+
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
 
 --echo Case 1 : Transactional detection affects row - based entries in same trans
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 stop slave;
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 update test.t1 set b=100 where a=1;
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 # t3 is in a table without trans conflict detection (but with row based)
 # t4 is in a table without any detection
 # t1 is in a table with trans conflict detection
@@ -623,10 +647,9 @@ select * from test.t1 order by a;
 select * from test.t3 order by a;
 select * from test.t4 order by a;
 
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
---sync_slave_with_master master
-
---connection master
 --echo Expect Primary to have rejected whole trans across 3 tables
 
 select * from test.t1 order by a;
@@ -641,23 +664,23 @@ select * from test.t4 order by a;
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
 --echo Now restart rep to Secondary, and check realignment
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 start slave;
---connection master
---sync_slave_with_master slave
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 select * from test.t1 order by a;
 select * from test.t3 order by a;
 select * from test.t4 order by a;
 
 --echo Case 2 : Row based detection does not affect other transaction entries
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 stop slave;
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 update test.t3 set b=1200 where a=12;
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 # Transaction conflicts with master, on table without transactional
 # conflict detection
 # Conflict will be detected on row, but no other transaction state
@@ -674,12 +697,12 @@ select * from test.t1 order by a;
 select * from test.t3 order by a;
 select * from test.t4 order by a;
 
---sync_slave_with_master master
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Show effect of transaction on Primary
 --echo Only t3 should have been reverted
 
---connection master
 select * from test.t1 order by a;
 select * from test.t3 order by a;
 select * from test.t4 order by a;
@@ -691,27 +714,28 @@ select * from test.t4 order by a;
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
 --echo Show effect of transaction on Secondary
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 start slave;
---connection master
---sync_slave_with_master slave
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 select * from test.t1 order by a;
 select * from test.t3 order by a;
 select * from test.t4 order by a;
 
 flush logs;
---sync_slave_with_master master
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Case 3 : Check behaviour where table with Blob is implicated
 --echo          in transactional conflict.  Should result in Slave
 --echo          stopping with an error.
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 STOP SLAVE;
 
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Setup warning suppression
 --disable_query_log
@@ -724,7 +748,7 @@ begin;
 update t1 set b= 11 where a=1;
 commit;
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 begin;
 update t1 set b= 111 where a=1;                 # Conflict
 update t1 set b= 222 where a=2;                 # Implicated row
@@ -736,7 +760,7 @@ select * from test.t1 order by a;
 select left(b,1), length(b) from test.t5 order by a;
 
 --echo Check that Primary Slave has stopped
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --let $slave_sql_errno=1296
 --source include/wait_for_slave_sql_error.inc
@@ -747,23 +771,29 @@ set global sql_slave_skip_counter=1;
 
 START SLAVE;
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
 --echo Restart Secondary Slave
 START SLAVE;
 
 flush logs;
---sync_slave_with_master master
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 drop table test.t3;
 drop table test.t4;
 drop table test.t5;
 
---sync_slave_with_master slave
---connection slave
---sync_slave_with_master master
---connection master
+--echo Fix misalignment caused above
+--echo Makes following result sets look nicer
+
+update test.t1 set b=2 where a=2;
+
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --echo Show a simple row-level delete-delete conflict
 --echo PRIMARY:
@@ -772,18 +802,18 @@ insert into test.t1 values (77, "A good year");
 
 select * from test.t1 order by a;
 
---sync_slave_with_master slave
---connection slave
---sync_slave_with_master master
---connection master
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 
 --source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 --echo SECONDARY:
 stop slave;
 
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --echo PRIMARY:
 --echo Primary Delete
 delete from test.t1 where a=77;
@@ -791,7 +821,7 @@ delete from test.t1 where a=77;
 --echo Show Primary contents
 select * from test.t1 order by a;
 
---connection slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 --echo SECONDARY:
 select * from test.t1 order by a;
 
@@ -802,6 +832,17 @@ begin;
 delete from test.t1 where a=77;
 insert into test.t1 values (73, "A superb year");
 commit;
+
+# Grab commit epoch
+--disable_query_log
+--disable_result_log
+SELECT @s1_epoch:=(Variable_value + 0) 
+   FROM performance_schema.global_status
+  WHERE variable_name like 'Ndb_last_commit_epoch_session';
+let $S1_EPOCH= query_get_value('select @s1_epoch as v',v,1);
+--enable_result_log
+--enable_query_log
+
 
 --echo Unrelated transaction from Secondary
 begin;
@@ -828,52 +869,502 @@ insert into test.t1 values (77, "Exceptional");
 insert into test.t1 values (80, "Poor");
 commit;
 
+# Grab commit epoch
+--disable_query_log
+--disable_result_log
+SELECT @s2_epoch:=(Variable_value + 0) 
+   FROM performance_schema.global_status
+  WHERE variable_name like 'Ndb_last_commit_epoch_session';
+let $S2_EPOCH= query_get_value('select @s2_epoch as v',v,1);
+--enable_result_log
+--enable_query_log
+
 --echo Show Secondary contents
 select * from test.t1 order by a;
 
 --echo Allow propagation to Primary
---sync_slave_with_master master
---connection master
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --echo PRIMARY:
 --echo Expect:
---echo - Delete-Delete conflict did not result in rejection of Secondary transaction
---echo   Therefore related row from Secondary Deleting transaction (73) is present
---echo - Unrelated transaction from Secondary (84) is present
---echo - Following insert on delete-delete conflict row (77) is not in conflict,
---echo   so both it and the related row from the same transaction (80) are present
+--echo - NDB\$EPOCH_TRANS :
+--echo   - Will not detect delete-delete conflict, so first
+--echo     Secondary transaction will apply row 73.
+--echo   - Unrelated transaction from Secondary (84) is present
+--echo   - Following insert on delete-delete conflict row (77) is not in conflict,
+--echo     so both it and the related row from the same transaction (80) are present
+--echo     This applies whether the following insert is in the same or a different
+--echo     epoch
+--echo   Divergence:
+--echo     - Primary will have 73,84,77,80
+--echo     - Secondary will have 73,84,80, no 77
+--echo
+--echo - NDB\$EPOCH_TRANS2 :
+--echo   - Will detect delete-delete conflict, so first 
+--echo     Secondary transaction will not apply (no row 73)
+--echo     77 and 73 will be refreshed (DEL)
+--echo   - Unrelated transaction from Secondary (84) is present and applied
+--echo     84 will be reflected (INS)
+--echo   - Following insert on delete-delete conflict row (77) will be found in 
+--echo     conflict iff this transaction is in the same epoch as the first 
+--echo     conflicting transaction.  If it is in a different epoch then it will
+--echo     not be found in conflict, as there will be no state available to 
+--echo     use.
+--echo   - If it is in-conflict, then 77 and 80 will be refreshed (DEL)
+--echo     Result on both should be :
+--echo       84
+--echo   - If it is not in-conflict, then 77 and 80 will be reflected (INS)
+--echo     Result on both should be :
+--echo       84, 77, 80
+--echo   No divergence
+
+--disable_query_log
+--disable_result_log
+eval select @epochs_equal:=$S1_EPOCH=$S2_EPOCH as epochs_equal;
+let $EPOCHS_EQUAL= query_get_value('select @epochs_equal as v',v,1);
+
+eval select @Epoch2:=$PRIMARY_CONFLICT_ALG LIKE "%EPOCH2%";
+let $HAVE_EPOCH2= query_get_value('select @Epoch2 as v',v,1); 
+
+select @PrimaryRow77Present:=count(1) from test.t1 where a=77;
+select @PrimaryRow73Present:=count(1) from test.t1 where a=73;
+select @PrimaryRow80Present:=count(1) from test.t1 where a=80;
+select @PrimaryRow84Present:=count(1) from test.t1 where a=84;
+
+eval select @epoch_trans:=
+  !$HAVE_EPOCH2 and
+  @PrimaryRow77Present and
+  @PrimaryRow73Present and
+  @PrimaryRow80Present and
+  @PrimaryRow84Present;
+
+eval select @epoch_trans2_same_epoch:=
+  $HAVE_EPOCH2 and
+  $EPOCHS_EQUAL and
+  !@PrimaryRow77Present and
+  !@PrimaryRow73Present and
+  !@PrimaryRow80Present and
+  @PrimaryRow84Present;
+
+eval select @epoch_trans2_diff_epoch:=
+  $HAVE_EPOCH2 and
+  !$EPOCHS_EQUAL and
+  @PrimaryRow77Present and
+  !@PrimaryRow73Present and
+  @PrimaryRow80Present and
+  @PrimaryRow84Present;
+
+
+--enable_result_log
+--enable_query_log
+
+select @primary_ok:=
+  ((@epoch_trans XOR
+    @epoch_trans2_same_epoch) XOR
+   @epoch_trans2_diff_epoch);
+
+let $primary_ok= query_get_value('select @primary_ok as v',v,1);
+
+if (!$primary_ok)
+{
+  echo Problem, dumping data;
+  select * from test.t1;
+  eval select $HAVE_EPOCH2 as have_epoch2;
+  eval select $EPOCHS_EQUAL as epochs_equal;
+  die  Testcase problem;
+}
+
+if (!$HAVE_EPOCH2)
+{
+  echo EPOCH_TRANS has stable results independent of;
+  echo epoch boundaries: ;
+
+  select * from test.t1 order by a;
+
+  source suite/ndb_rpl/t/ndb_trans_conflict_info_stable.inc;
+}
+if ($HAVE_EPOCH2)
+{
+  echo EPOCH2_TRANS results are dependent on epoch boundaries;
+}
+
+--echo Now sync with Secondary to show outcomes
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+start slave;
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+--echo SECONDARY:
 --echo
 
+--disable_query_log
+--disable_result_log
+
+select @SecondaryRow77Present:=count(1) from test.t1 where a=77;
+select @SecondaryRow73Present:=count(1) from test.t1 where a=73;
+select @SecondaryRow80Present:=count(1) from test.t1 where a=80;
+select @SecondaryRow84Present:=count(1) from test.t1 where a=84;
+
+
+eval select @epoch_trans:=
+  !$HAVE_EPOCH2 and
+  !@SecondaryRow77Present and
+  @SecondaryRow73Present and
+  @SecondaryRow80Present and
+  @SecondaryRow84Present;
+
+eval select @epoch_trans2_same_epoch:=
+  $HAVE_EPOCH2 and
+  $EPOCHS_EQUAL and
+  !@SecondaryRow77Present and
+  !@SecondaryRow73Present and
+  !@SecondaryRow80Present and
+  @SecondaryRow84Present;
+
+eval select @epoch_trans2_diff_epoch:=
+  $HAVE_EPOCH2 and
+  !$EPOCHS_EQUAL and
+  @SecondaryRow77Present and
+  !@SecondaryRow73Present and
+  @SecondaryRow80Present and
+  @SecondaryRow84Present;
+
+--enable_result_log
+--enable_query_log
+
+select @secondary_ok:=
+  ((@epoch_trans XOR
+    @epoch_trans2_same_epoch) XOR
+   @epoch_trans2_diff_epoch);
+
+let $secondary_ok= query_get_value('select @secondary_ok as v',v,1);
+
+if (!$secondary_ok)
+{
+  echo Problem, dumping data;
+  select * from test.t1;
+  eval select $HAVE_EPOCH2 as have_epoch2;
+  eval select $EPOCHS_EQUAL as epochs_equal;
+  die  Testcase problem;
+}
+
+if (!$HAVE_EPOCH2)
+{
+  echo EPOCH_TRANS has stable results independent of;
+  echo epoch boundaries: ;
+  select * from test.t1 order by a;
+}
+if ($HAVE_EPOCH2)
+{
+  echo EPOCH2_TRANS results are dependent on epoch boundaries;
+}
+
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+
+--echo PRIMARY
+--echo Cleanup
+delete from test.t1 where a != 6;
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+
+
+
+
+
+
+
+--echo PRIMARY
+--echo Transactional Delete testcase
+
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+
+--echo STOP slave on SECONDARY
+stop slave;
+
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+
+--echo PRIMARY
+--echo Primary updates row with pk 6
+
+update test.t1 set b="Pentland" where a=6;
+
+--echo PRIMARY content
+--echo Row 6 updated
 select * from test.t1 order by a;
 
---source suite/ndb_rpl/t/ndb_trans_conflict_info_stable.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 
---echo Now sync with Secondary to show divergence
---connection slave
-start slave;
---connection master
---sync_slave_with_master slave
---connection slave
---echo SECONDARY:
---echo Expect:
---echo - Primary delete of row 77 took out the newly inserted row 77 
---echo - Otherwise Secondary is as before
+--echo SECONDARY
+--echo Transaction deleting pk 6, inserting pk 7
+begin;
+  delete from test.t1 where a = 6;
+  insert into test.t1 values (7, "Mendip");
+commit;
+
+# Grab commit epoch
+--disable_query_log
+--disable_result_log
+SELECT @s1_epoch:=(Variable_value + 0) 
+   FROM performance_schema.global_status
+  WHERE variable_name like 'Ndb_last_commit_epoch_session';
+let $S1_EPOCH= query_get_value('select @s1_epoch as v',v,1);
+--enable_result_log
+--enable_query_log
+
+
+# Optionally flush logs here to mix separate-epoch and
+# same-epoch
+--echo Optionally flush logs
+let $do_flush=query_get_value(SELECT (RAND() * 10) > 5 AS y, y, 1);
+
+if ($do_flush)
+{
+  --disable_query_log
+  --disable_result_log
+  FLUSH LOGS;
+  --enable_query_log
+  --enable_result_log
+}
+
+#--echo Flushed? $do_flush
+
+--echo Transaction deleting pk 7, inserting pk 8
+begin;
+delete from test.t1 where a = 7;
+insert into test.t1 values (8, "Ochil");
+commit;
+
+# Grab commit epoch
+--disable_query_log
+--disable_result_log
+SELECT @s2_epoch:=(Variable_value + 0) 
+   FROM performance_schema.global_status
+  WHERE variable_name like 'Ndb_last_commit_epoch_session';
+let $S2_EPOCH= query_get_value('select @s2_epoch as v',v,1);
+eval select @epochs_equal:=$S1_EPOCH=$S2_EPOCH as epochs_equal;
+let $EPOCHS_EQUAL= query_get_value('select @epochs_equal as v',v,1);
+
+eval select @Epoch2:=$PRIMARY_CONFLICT_ALG LIKE "%EPOCH2%";
+let $HAVE_EPOCH2= query_get_value('select @Epoch2 as v',v,1); 
+--enable_result_log
+--enable_query_log
+
+--echo SECONDARY content
+--echo Rows 6 + 7 deleted.  Row 8 present.
+select * from test.t1 order by a;
+
+--echo Sync SECONDARY -> PRIMARY
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+
+--echo Expected Behaviour
+--echo EPOCH_TRANS
+--echo
+--echo   1.  Conflict between Primary update to 6 + Secondary
+--echo       [Delete of 6 + Insert of 7] is detected by Primary
+--echo       and transaction is not applied at the Primary.
+--echo       Rows 6 (INS) and 7 (DEL) are refreshed.  Row 6 has its 
+--echo       epoch updated.
+--echo
+--echo   2.  Following Secondary transaction, [delete of 7
+--echo       + insert of 8] behaviour depends on whether it
+--echo       arrives in the same or a different epoch.
+--echo       Same epoch : 
+--echo         Will conflict with refreshed row 7, and so will
+--echo         not be applied.  Row 8 will be refreshed (DEL)
+--echo       Different epoch :
+--echo         Will not conflict with Not-present row 7, and so
+--echo         will be applied.
+--echo
+--echo   3.  On the Secondary, the observed sequence will be :
+--echo         - Update 6 from PRIMARY : (Idempotent insert)
+--echo         - Refresh (INS) 6 from PRIMARY
+--echo         - Refresh (DEL) 7 from PRIMARY
+--echo         Same epoch :
+--echo         - Refresh (DEL) 8 from PRIMARY
+--echo         Different epoch :
+--echo         - Nothing
 --echo 
-select * from test.t1 order by a;
+--echo       Results (no divergence) :
+--echo         Same epoch :
+--echo           PRIMARY : 6
+--echo           SECONDARY : 6
+--echo         Diff epoch :
+--echo           PRIMARY : 6,8
+--echo           SECONDARY : 6,8
+--echo
+--echo
+--echo EPOCH_TRANS2
+--echo
+--echo   1.  Conflict between Primary update to 6 + Secondary
+--echo       [Delete of 6 + Insert of 7] is detected by Primary
+--echo       and transaction is not applied at the Primary.
+--echo       Rows 6 (INS) and 7 (DEL) are refreshed.  Row 6 has its 
+--echo       epoch updated.
+--echo
+--echo   2.  Following Secondary transaction [delete of 7 + 
+--echo       insert of 8] will conflict with the first 
+--echo       transaction as EPOCH_TRANS2 does not allow
+--echo       a delete of an already deleted row.
+--echo       Row 7 will be refreshed (DEL) and row 8 will be 
+--echo       refreshed (DEL)
+--echo 
+--echo   3.  On the Secondary, the observed sequence will be :
+--echo       - Update 6 from PRIMARY : (Idempotent insert)
+--echo       - Refresh (INS) 6 from PRIMARY
+--echo       - Refresh (DEL) 7 from PRIMARY
+--echo       - [Refresh (DEL) 7 from PRIMARY] - diff epoch
+--echo       - Refresh (DEL) 8 from PRIMARY
+--echo 
+--echo       Results (no divergence) :
+--echo           PRIMARY : 6
+--echo           SECONDARY : 6
+--echo
+
+#eval select $EPOCHS_EQUAL;
+#eval select $HAVE_EPOCH2;
+
+--echo PRIMARY content 
+
+--disable_query_log
+--disable_result_log
+select @PrimaryRow6Present:=count(1) from test.t1 where a=6;
+select @PrimaryRow7Present:=count(1) from test.t1 where a=7;
+select @PrimaryRow8Present:=count(1) from test.t1 where a=8;
+
+eval select @epoch_trans_same_epoch:=
+  !$HAVE_EPOCH2 and
+  $EPOCHS_EQUAL and
+  @PrimaryRow6Present and
+  !@PrimaryRow7Present and
+  !@PrimaryRow8Present;
+
+eval select @epoch_trans_diff_epoch:=
+  !$HAVE_EPOCH2 and
+  !$EPOCHS_EQUAL and
+  @PrimaryRow6Present and
+  !@PrimaryRow7Present and
+  @PrimaryRow8Present;
+
+eval select @epoch2_trans:=
+  $HAVE_EPOCH2 and
+  @PrimaryRow6Present and
+  !@PrimaryRow7Present and
+  !@PrimaryRow8Present;
+--enable_result_log
+--enable_query_log
+
+
+select @primary_ok:=
+  ((@epoch_trans_same_epoch XOR
+    @epoch_trans_diff_epoch) XOR
+   @epoch2_trans);
+
+let $primary_ok= query_get_value('select @primary_ok as v',v,1);
+
+if (!$primary_ok)
+{
+  echo Problem, dumping data;
+  select * from test.t1;
+  eval select $HAVE_EPOCH2 as have_epoch2;
+  eval select $EPOCHS_EQUAL as epochs_equal;
+  die  Testcase problem;
+}
+
+if ($HAVE_EPOCH2)
+{
+ select * from test.t1 order by a;
+}
+
+--echo Restart SECONDARY Slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+START SLAVE;
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+
+
+--echo Sync PRIMARY -> SECONDARY
+
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+
+--echo SECONDARY content
+
+--disable_query_log
+--disable_result_log
+
+select @SecondaryRow6Present:=count(1) from test.t1 where a=6;
+select @SecondaryRow7Present:=count(1) from test.t1 where a=7;
+select @SecondaryRow8Present:=count(1) from test.t1 where a=8;
+
+eval select @epoch_trans_same_epoch:=
+  !$HAVE_EPOCH2 and
+  $EPOCHS_EQUAL and
+  @SecondaryRow6Present and
+  !@SecondaryRow7Present and
+  !@SecondaryRow8Present;
+
+eval select @epoch_trans_diff_epoch:=
+  !$HAVE_EPOCH2 and
+  !$EPOCHS_EQUAL and
+  @SecondaryRow6Present and
+  !@SecondaryRow7Present and
+  @SecondaryRow8Present;
+
+eval select @epoch2_trans:=
+  $HAVE_EPOCH2 and
+  @SecondaryRow6Present and
+  !@SecondaryRow7Present and
+  !@SecondaryRow8Present;
+
+--enable_result_log
+--enable_query_log
+
+select @secondary_ok:=
+  ((@epoch_trans_same_epoch XOR
+    @epoch_trans_diff_epoch) XOR
+   @epoch2_trans);
+
+let $secondary_ok= query_get_value('select @secondary_ok as v',v,1);
+
+if (!$secondary_ok)
+{
+  echo Problem, dumping data;
+  select * from test.t1;
+  eval select $HAVE_EPOCH2 as have_epoch2;
+  eval select $EPOCHS_EQUAL as epochs_equal;
+  die  Testcase problem;
+}
+
+if ($HAVE_EPOCH2)
+{
+ select * from test.t1 order by a;
+}
+
+--echo STABILISE
+
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
 
 
 # Cleanup
---connection master
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 drop table mysql.ndb_replication;
 drop table test.t1;
 drop table test.t2;
 
---sync_slave_with_master slave
-
---connection slave
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 flush logs;
---sync_slave_with_master master
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+
+--connection master
 stop slave;
 reset slave;
+
 #change master to master_host='';
 --source include/rpl_end.inc
 

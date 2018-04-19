@@ -1,0 +1,53 @@
+--echo #
+--echo # Bug#26091333 : ASSERTION `RC == TYPE_OK' FAILED
+--echo #
+
+SET timestamp=1000;
+SET time_zone='+00:00';
+CREATE EVENT event1 ON SCHEDULE EVERY 15 MINUTE STARTS NOW() DO BEGIN END;
+DROP EVENT event1;
+
+--source include/count_sessions.inc
+connect (con1,localhost,root,,);
+SET timestamp=1000;
+SET time_zone='+00:00';
+
+connect (con2,localhost,root,,);
+SET timestamp=1000;
+SET time_zone='+05:30';
+
+connection con1;
+CREATE EVENT event1 ON SCHEDULE EVERY 15 MINUTE DO BEGIN END;
+--replace_column 19 #
+SELECT * FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_NAME='event1';
+CREATE VIEW v1 AS SELECT 1;
+SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='v1';
+CREATE TABLE t1(a int);
+SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1';
+CREATE FUNCTION hello (s CHAR(20)) RETURNS CHAR(50) DETERMINISTIC RETURN CONCAT('Hello, ',s,'!');
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME='hello';
+
+disconnect con1;
+
+connection con2;
+ALTER EVENT event1 RENAME TO event2;
+--replace_column 19 #
+SELECT * FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_NAME='event2';
+DROP event event2;
+ALTER VIEW v1 AS SELECT 2;
+SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='v1';
+DROP VIEW v1;
+RENAME TABLE t1 TO t2;
+SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t2';
+DROP TABLE t2;
+ALTER FUNCTION hello comment 'abcd';
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME='hello';
+DROP FUNCTION hello;
+
+disconnect con2;
+
+connection default;
+
+--source include/wait_until_count_sessions.inc
+
+

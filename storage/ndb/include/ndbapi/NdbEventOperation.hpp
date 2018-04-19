@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -18,8 +25,13 @@
 #ifndef NdbEventOperation_H
 #define NdbEventOperation_H
 
-class NdbGlobalEventBuffer;
+#include "NdbDictionary.hpp"
+#include "ndb_types.h"
+
+class NdbBlob;
 class NdbEventOperationImpl;
+class NdbGlobalEventBuffer;
+class NdbRecAttr;
 
 /**
  * @class NdbEventOperation
@@ -170,8 +182,23 @@ public:
   /**
    * Query for occured event type.
    *
-   * @note Only valid after Ndb::nextEvent() has been called and 
-   * returned a not NULL value
+   * @note Only valid after Ndb::nextEvent2() has been called and
+   * returned a non-NULL value
+   *
+   * @return type of event, including the exceptional event data types:
+   * TE_EMPTY, TE_INCONSISTENT, TE_OUT_OF_MEMORY
+   */
+  NdbDictionary::Event::TableEvent getEventType2() const;
+
+  /**
+   * Query for occured event type. This is a backward compatibility
+   * wrapper for getEventType2(). Since it is called after nextEvent()
+   * returned a non-NULL event operation after filtering exceptional epoch
+   * event data, it should not see the exceptional event data types:
+   * TE_EMPTY, TE_INCONSISTENT, TE_OUT_OF_MEMORY
+   *
+   * @note Only valid after Ndb::nextEvent() has been called and
+   * returned a non-NULL value
    *
    * @return type of event
    */
@@ -198,9 +225,18 @@ public:
   bool tableRangeListChanged() const;
 
   /**
+   * Retrieve the epoch of the latest retrieved event data
+   *
+   * @return epoch
+   */
+  Uint64 getEpoch() const;
+
+  /**
    * Retrieve the GCI of the latest retrieved event
    *
    * @return GCI number
+   *
+   * This is a wrapper to getEpoch() for backward compatibility.
    */
   Uint64 getGCI() const;
 
@@ -236,6 +272,37 @@ public:
    * @return   Error object.
    */			     
   const struct NdbError & getNdbError() const;
+
+  /**
+   * Set allow empty updates
+   *
+   * To support monitoring of pseudo columns we need to
+   * explicitely allow for receiving events with no updates
+   * to user defined columns.
+   * Normally update events with no changes to monitored columns
+   * are filtered out by NdbApi. By calling setAllowEmptyUpdate(true),
+   * these are passed to the user.
+   */
+  void setAllowEmptyUpdate(bool allow);
+
+  /**
+   * Get allow empty updates value
+   *
+   * @return current value (with initial value being false)
+   */
+  bool getAllowEmptyUpdate();
+
+  /**
+   * Check whether the consumed event data marks an empty epoch
+   */
+  bool isEmptyEpoch();
+
+  /**
+   * Check whether the consumed event data marks an error epoch
+   * and get the error.
+   */
+  bool isErrorEpoch(NdbDictionary::Event::TableEvent *error_type = 0);
+
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** these are subject to change at any time */

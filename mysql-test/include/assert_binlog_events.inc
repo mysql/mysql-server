@@ -67,7 +67,7 @@
 #
 #       !Q(STATEMENT) -> Query/(use .*; )?STATEMENT
 #       !Begin -> !Q(BEGIN)
-#       !Commit -> !Q(COMMIT)
+#       !Commit -> (!Q(COMMIT) | Xid)
 #       !Insert -> (!Q(INSERT.*) | Table_map # Write_rows)
 #       !Update -> (!Q(UPDATE.*) | Table_map # Update_rows)
 #       !Delete -> (!Q(DELETE.*) | Table_map # Delete_rows)
@@ -77,6 +77,7 @@
 #       !DDL -> !Q(neither BEGIN or COMMIT)
 #       !Gtid_transaction -> Gtid # (DML_transaction | DDL)
 #       !Empty_gtid_transaction -> Gtid # Begin # Commit
+#       !Gtid_or_anon -> (Gtid | Anonymous_Gtid)
 #
 #     Whitespace around / and # is ignored.
 #
@@ -116,7 +117,9 @@
 #     the expected events. The timeout is given by $slave_timeout.
 #
 #   $slave_timeout
-#     Timeout used if $wait_for_binlog_events is enabled.
+#     Default timeout used if $wait_for_binlog_events is enabled.
+#     The default timeout is 300 seconds. You can change the timeout by
+#     setting $slave_timeout. The unit for time is seconds.
 #
 #   $rpl_debug
 #     Print lots of debug info.
@@ -162,7 +165,7 @@ if ($binlog_position)
 {
   --let $statement= $statement FROM $binlog_position
 }
-if ($limit)
+if ($limit != "")
 {
   --let $statement= $statement LIMIT $limit
 }
@@ -171,6 +174,7 @@ if ($wait_for_binlog_events)
 {
   --let $_abe_counter= 0
   --let $_abe_timeout= $slave_timeout
+  # Wait 300 seconds for binlog events
   if (!$_abe_timeout)
   {
     --let $_abe_timeout= 300
@@ -219,6 +223,7 @@ while ($_abe_verdict != 'ok')
 
   # Expand syntactic sugar definitions.
   $event_sequence =~ s{!Gtid_transaction}{Gtid\n(!DDL|!DML_transaction)}g;
+  $event_sequence =~ s{!Gtid_or_anon}{(Gtid|Anonymous_Gtid)}g;
   $event_sequence =~ s{!Empty_gtid_transaction}{Gtid\n!Begin\n!Commit}g;
   $event_sequence =~ s{!DML_transaction}{!Begin\n!Multi_DML\n!Commit}g;
   $event_sequence =~ s{!DDL}{Query/(?!BEGIN|COMMIT).*}g;

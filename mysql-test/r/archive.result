@@ -11132,7 +11132,7 @@ t2	CREATE TABLE `t2` (
   `fld3` char(30) NOT NULL DEFAULT '',
   `fld4` char(35) NOT NULL DEFAULT '',
   `fld5` char(35) NOT NULL DEFAULT ''
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
+) ENGINE=ARCHIVE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t2 WHERE auto != 100000;
 auto	fld1	companynr	fld3	fld4	fld5
 1	000001	00	Omaha	teethe	neat
@@ -12688,15 +12688,21 @@ a	b
 2	NULL
 DROP TABLE t1;
 CREATE TABLE t1(a INT, b BLOB) ENGINE=archive;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 SELECT DATA_LENGTH, AVG_ROW_LENGTH FROM
 INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test';
 DATA_LENGTH	AVG_ROW_LENGTH
-8666	15
+88	15
 INSERT INTO t1 VALUES(1, 'sampleblob1'),(2, 'sampleblob2');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 SELECT DATA_LENGTH, AVG_ROW_LENGTH FROM
 INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test';
 DATA_LENGTH	AVG_ROW_LENGTH
-8700	4350
+122	61
 DROP TABLE t1;
 SET @save_join_buffer_size= @@join_buffer_size;
 SET @@join_buffer_size= 8192;
@@ -12719,19 +12725,6 @@ id	id	name	name
 1	1	a	b
 2	2	a	b
 DROP TABLE t1,t2;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `col1` int(11) DEFAULT NULL,
-  `col2` varchar(20) DEFAULT NULL
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
-SELECT * FROM t1;
-col1	col2
-INSERT INTO t1 (col1, col2) VALUES (1, "value");
-REPAIR TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
-DROP TABLE t1;
 #
 # BUG#48757 - missing .ARZ file causes server crash
 #
@@ -12739,8 +12732,9 @@ CREATE TABLE t1(a INT) ENGINE=ARCHIVE;
 FLUSH TABLE t1;
 SELECT * FROM t1;
 ERROR HY000: Can't find file: 't1' (errno: 2 - No such file or directory)
-DROP TABLE t1;
-ERROR 42S02: Unknown table 'test.t1'
+DROP TABLE IF EXISTS t1;
+Warnings:
+Warning	1017	Can't find file: 't1' (errno: 2 - No such file or directory)
 #
 # Ensure that TRUNCATE fails for non-empty archive tables.
 #
@@ -12753,6 +12747,7 @@ DROP TABLE t1;
 # BUG#46565 - repair of partition fail for archive engine
 #
 # Installing corrupted table files for t1.
+CREATE TABLE t1(a INT) ENGINE=archive;
 SELECT * FROM t1;
 ERROR HY000: Table 't1' is marked as crashed and should be repaired
 REPAIR TABLE t1;
@@ -12769,44 +12764,14 @@ a
 2
 DROP TABLE t1;
 #
-# Bug#45377: ARCHIVE tables aren't discoverable after OPTIMIZE
-#
-DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (a int) ENGINE=ARCHIVE;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
-INSERT INTO t1 VALUES (1);
-OPTIMIZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	optimize	status	OK
-FLUSH TABLES;
-INSERT INTO t1 VALUES (2);
-SELECT * FROM t1 ORDER BY a;
-a
-1
-2
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
-DROP TABLE t1;
-#
-# BUG#58205 - Valgrind failure in fn_format when called from
-#             archive_discover
-#
-CREATE TABLE `a/../`(a INT) ENGINE=ARCHIVE;
-DROP TABLE `a/../`;
-#
 # BUG#57162 - valgrind errors, random data when returning
 #             ordered data from archive tables
 #
 SET sort_buffer_size=32804;
 CREATE TABLE t1(a INT, b CHAR(255), c CHAR(255), d CHAR(255),
 e CHAR(255), f INT) ENGINE=ARCHIVE DEFAULT CHARSET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES(-1,'b','c','d','e',1);
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
@@ -12817,78 +12782,14 @@ a	b	c	d	e	f
 DROP TABLE t1;
 SET sort_buffer_size=DEFAULT;
 #
-# BUG#11756687 - 48633: ARCHIVE TABLES ARE NOT UPGRADEABLE
-#
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` text,
-  `c` varchar(255) DEFAULT NULL,
-  `d` blob,
-  `e` blob
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
-SELECT * FROM t1;
-a	b	c	d	e
-1	text	varchar	blob1	blob2
-2	text	varchar	blob1	blob2
-SELECT * FROM t1;
-a	b	c	d	e
-1	text	varchar	blob1	blob2
-2	text	varchar	blob1	blob2
-FLUSH TABLE t1;
-SELECT * FROM t1;
-a	b	c	d	e
-1	text	varchar	blob1	blob2
-2	text	varchar	blob1	blob2
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	error	Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
-SELECT * FROM t1;
-a	b	c	d	e
-1	text	varchar	blob1	blob2
-2	text	varchar	blob1	blob2
-INSERT INTO t1 VALUES(3, 'text', 'varchar', 'blob1', 'blob2');
-SELECT * FROM t1;
-a	b	c	d	e
-1	text	varchar	blob1	blob2
-2	text	varchar	blob1	blob2
-3	text	varchar	blob1	blob2
-FLUSH TABLE t1;
-SELECT * FROM t1;
-a	b	c	d	e
-1	text	varchar	blob1	blob2
-2	text	varchar	blob1	blob2
-3	text	varchar	blob1	blob2
-REPAIR TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
-SELECT * FROM t1;
-a	b	c	d	e
-1	text	varchar	blob1	blob2
-2	text	varchar	blob1	blob2
-3	text	varchar	blob1	blob2
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
-DROP TABLE t1;
-#
 # BUG 11757503 - 49556: ERROR 1005 (HY000): CAN'T CREATE TABLE '#SQL-B7C_3' (ERRNO: -1)
 #
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (c1 decimal(19,14) NOT NULL) ENGINE=ARCHIVE;
 CALL mtr.add_suppression("Found wrong key definition in #sql.* Please do \"ALTER TABLE `#sql.*` FORCE \" to fix it!");
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE INDEX i1 ON t1(c1);
-ERROR HY000: Got error -1 from storage engine
-SHOW WARNINGS;
-Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 8 bytes
-Warning	1194	Found wrong key definition in #sql-temporary; Please do "ALTER TABLE `#sql-temporary` FORCE" to fix it!
-Warning	1194	Found wrong key definition in #sql-temporary; Please do "ALTER TABLE `#sql-temporary` FORCE" to fix it!
-Error	1030	Got error -1 from storage engine
+Got one of the listed errors
 SET sql_mode= default;
 DROP TABLE t1;
 #

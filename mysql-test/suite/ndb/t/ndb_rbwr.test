@@ -9,7 +9,6 @@
 # shouldn't be checked.
 #
 -- source include/have_ndb.inc
--- source include/have_innodb.inc
 
 --disable_query_log
 --disable_result_log
@@ -282,6 +281,46 @@ while (`select count(*) from rbwr_tests`)
   delete from rbwr_tests where test_id = @test_id;
 }
 
+## Table with triggers
+CREATE TABLE main(id int NOT NULL AUTO_INCREMENT PRIMARY KEY, val int)engine=ndb;
+CREATE TABLE log(id int NOT NULL AUTO_INCREMENT PRIMARY KEY, bug_text varchar(500) NOT NULL)engine=ndb;
+
+# Check execute count to verify that read removal is not done for
+# a delete on a table which has a delete trigger
+CREATE TRIGGER log_deletes AFTER DELETE ON main FOR EACH ROW
+INSERT INTO log (bug_text) VALUES ("one row deleted");
+
+let $before= `select VARIABLE_VALUE from performance_schema.session_status
+                where variable_name like 'NDB_EXECUTE_COUNT'`;
+eval DELETE FROM main WHERE id = 1;
+let $after= `select VARIABLE_VALUE from performance_schema.session_status
+               where variable_name like 'NDB_EXECUTE_COUNT'`;
+if (!`select $after-$before >= 4`)
+{
+  enable_result_log;
+  echo before: $before;
+  echo after: $after;
+  die Read removal used even when table has delete triggers, $after, $before - exiting;
+}
+
+# Check execute count to verify that read removal is not done for
+# an update on a table which has an update trigger
+CREATE TRIGGER log_updates AFTER UPDATE ON main FOR EACH ROW
+INSERT INTO log (bug_text) VALUES ("one row updated");
+
+let $before= `select VARIABLE_VALUE from performance_schema.session_status
+                where variable_name like 'NDB_EXECUTE_COUNT'`;
+eval UPDATE main SET val = 111 WHERE id = 1;
+let $after= `select VARIABLE_VALUE from performance_schema.session_status
+               where variable_name like 'NDB_EXECUTE_COUNT'`;
+if (!`select $after-$before >= 3`)
+{
+  enable_result_log;
+  echo before: $before;
+  echo after: $after;
+  die Read removal used even when table has update triggers, $after, $before - exiting;
+}
+
 ### Cleanup
 # Drop test tables
 drop table t1, data_t1;
@@ -289,6 +328,11 @@ drop table t2, data_t2;
 drop table t3, data_t3;
 drop table t4, data_t4;
 drop table t5, data_t5;
+
+drop trigger log_deletes;
+drop trigger log_updates;
+drop table main;
+drop table log;
 
 # Drop parameter tables
 drop table rbwr_tests;

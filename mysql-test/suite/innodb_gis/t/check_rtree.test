@@ -1,12 +1,9 @@
 # This test case will test checking R-tree features.
 
-# Not supported in embedded
---source include/not_embedded.inc
 --source include/have_debug.inc
---source include/have_innodb.inc
 
 # Create table with R-tree index.
-create table t1 (i int, g geometry not null, spatial index (g))engine=innodb;
+create table t1 (i int, g geometry not null SRID 0, spatial index (g))engine=innodb;
 
 # Turn on the geometry data print.
 SET SESSION debug="+d,rtree_test_check_count";
@@ -18,7 +15,7 @@ insert into t1 values (1, POINT(3,3));
 insert into t1 values (1, POINT(3.1,3.1));
 insert into t1 values (1, POINT(5,5));
 
-CALL mtr.add_suppression("InnoDB: Flagged corruption of `g` in table `test`.`t1` in CHECK TABLE; Wrong count");
+CALL mtr.add_suppression("Flagged corruption of `g` in table `test`.`t1` in CHECK TABLE; Wrong count");
 
 # Select by R-tree index.
 check table t1;

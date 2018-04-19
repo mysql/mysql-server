@@ -1,6 +1,5 @@
 # This is the basic function tests for innodb FTS
 
--- source include/have_innodb.inc
 
 # Create FTS table
 CREATE TABLE articles (
@@ -221,3 +220,42 @@ SELECT * FROM articles
 	AGAINST ('"more test proximity"' IN BOOLEAN MODE);
 
 drop table articles;
+
+--echo #
+--echo # Bug #22679185	INVALID INNODB FTS DOC ID DURING INSERT
+--echo #
+
+create table t1 (f1 int not null primary key, f2 varchar(100),
+		 FTS_DOC_ID bigint(20) unsigned not null,
+		 unique key `FTS_DOC_ID_INDEX` (`FTS_DOC_ID`),
+		 fulltext key (f2))engine=innodb;
+
+insert into t1 values(1, "This is the first record", 20000);
+insert into t1 values(2, "This is the second record", 40000);
+select FTS_DOC_ID from t1;
+drop table t1;
+
+
+create table t1 (f1 int not null primary key, f2 varchar(100),
+		 FTS_DOC_ID bigint(20) unsigned not null auto_increment,
+		 unique key `FTS_DOC_ID_INDEX` (`FTS_DOC_ID`),
+		 fulltext key (f2))engine=innodb;
+
+set auto_increment_increment = 65535;
+insert into t1(f1, f2) values(1, "This is the first record");
+insert into t1(f1, f2) values(2, "This is the second record");
+insert into t1(f1, f2) values(3, "This is the third record");
+select FTS_DOC_ID from t1;
+drop table t1;
+
+create table t1( a text character set utf8mb4 collate utf8mb4_czech_ci not null, fulltext key(a))engine=innodb;
+insert into t1 values('');
+select match(a)against(0xf3) from t1;
+drop table t1;
+
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Doc ID 20030101000000 is too big. Its difference with largest used Doc ID 0 cannot exceed or equal to 65535");
+CREATE TABLE t1 (FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+		 title VARCHAR(200), FULLTEXT(title)) ENGINE=InnoDB;
+--error 182
+INSERT INTO t1 VALUES (NULL, NULL), (20030101000000, 20030102000000);
+DROP TABLE t1;

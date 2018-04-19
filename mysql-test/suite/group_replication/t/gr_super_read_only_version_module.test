@@ -1,0 +1,76 @@
+################################################################################
+# This test verifies that when a server with higher major version tries to
+# join the group, its compatibility type is set to READ_COMPATIBLE. As such
+# that node can only be a part of the group in READ ONLY mode and cannot
+# execute any writes.
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Bootstrap start a group on M1. Start GR on M2. Check both are running.
+# 2. Set DEBUG point in M3 to ensure that the major version of that node is
+#    higher than that of the group.
+#  - Start GR on M3. It should be able to join the group but in read only mode.
+#  - Try executing DDL (create table) on M3. It must fail.
+# 3. Stop GR on M3. The server's super_read_only mode should be 0 now.
+#  - Try executing DDL (create table) on M3. It must succeed.
+# 4. Clean up.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--let $group_replication_group_name= 5e3c00e0-8f04-11e5-a837-0800200c9a66
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo # Start group_replication on the first two nodes and check if the group
+--echo # of two members is running.
+
+--connection server1
+--source include/start_and_bootstrap_group_replication.inc
+
+--connection server2
+--source include/start_group_replication.inc
+
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--echo # Add the debug point on the third member to ensure that the major
+--echo # version of that node is higher than that of the group. It should be able to
+--echo # join the group but in read only mode.
+
+--connection server3
+SET @debug_saved= @@GLOBAL.DEBUG;
+# Cause the member to broadcast and compare himself using a higher version
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_major_version';
+
+--source include/start_group_replication.inc
+
+--let $group_replication_number_of_members= 3
+--source include/gr_wait_for_number_of_members.inc
+
+--echo # Verify that the server 3 joining the group is in super_read_only mode
+--echo # and cannot execute writes.
+
+--error ER_OPTION_PREVENTS_STATEMENT
+CREATE TABLE t1 (i INT PRIMARY KEY NOT NULL);
+
+--connection server3
+--source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= @debug_saved;
+
+--echo # The server's super_read_only mode should be 0 here.
+--let $assert_text= The super_read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+#The create table now works
+CREATE TABLE t1 (i INT PRIMARY KEY NOT NULL);
+
+#Drop the table and reset the server allowing a clean test exit
+DROP TABLE t1;
+RESET MASTER;
+
+--source include/group_replication_end.inc

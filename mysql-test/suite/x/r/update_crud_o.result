@@ -1,0 +1,1812 @@
+==============================================
+CRUD UPDATE SCENARIOS
+==============================================
+
+================================================================================
+PREAMBLE
+================================================================================
+create user updatecruduser@localhost identified by 'updatecruduser';
+grant all on *.* to updatecruduser@localhost;
+================================================================================
+TEST START
+================================================================================
+RUN DROP SCHEMA if EXISTS mysqlxplugin
+
+0 rows affected
+RUN CREATE SCHEMA mysqlxplugin DEFAULT CHARSET='utf8'
+
+1 rows affected
+RUN USE mysqlxplugin
+
+0 rows affected
+RUN CREATE TABLE categories (
+ CategoryID int NOT NULL AUTO_INCREMENT,
+ CategoryName varchar(100),
+ CategoryDescription varchar(200),
+ CategoryIMEI tinyint,	  
+ CategoryDecimal decimal(5,2),
+ CategoryBool bit(1),
+ PRIMARY key (CategoryID)
+ )
+
+0 rows affected
+RUN INSERT INTO categories(CategoryID, CategoryName, CategoryDescription, CategoryIMEI, CategoryDecimal,CategoryBool)
+ VALUES
+ (1,'Sports','Sports related category',1,235.15,true),
+ (2,'Entertaiment','Entertaiment related category',2,235.15,false),
+ (3, 'Home','Home related category',3,235.15,true),
+ (4, 'Kitchen','Kitchen related category',4,235.15,false),
+ (5, 'Garden','Garden related category',5,535.15,true),
+ (6, 'Toys','Toys related category',6,635.15,false)
+
+6 rows affected
+last insert id: 6
+Records: 6  Duplicates: 0  Warnings: 0
+RUN SET SQL_SAFE_UPDATES = 1
+
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_update'
+Variable_name	Value
+Mysqlx_crud_update	0
+0 rows affected
+Update varchar with where based in key column 
+send Mysqlx.Crud.Update {
+  collection {
+    name: "categories"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryName"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "SportsUpdate"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from mysqlxplugin.categories where CategoryID=1
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal	CategoryBool
+1	SportsUpdate	Sports related category	1	235.15	1
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_update'
+Variable_name	Value
+Mysqlx_crud_update	1
+0 rows affected
+Update Tiny Int with where based in key column
+send Mysqlx.Crud.Update {
+  collection {
+    name: "categories"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryIMEI"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 110
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from mysqlxplugin.categories where CategoryID=1
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal	CategoryBool
+1	SportsUpdate	Sports related category	110	235.15	1
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_update'
+Variable_name	Value
+Mysqlx_crud_update	2
+0 rows affected
+Update Decimal with where based in key column
+send Mysqlx.Crud.Update {
+  collection {
+    name: "categories"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryDecimal"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 613.57
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from mysqlxplugin.categories where CategoryID in (1,2)
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal	CategoryBool
+1	SportsUpdate	Sports related category	110	613.57	1
+2	Entertaiment	Entertaiment related category	2	235.15	0
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_update'
+Variable_name	Value
+Mysqlx_crud_update	3
+0 rows affected
+Update with Quotes value
+send Mysqlx.Crud.Update {
+  collection {
+    name: "categories"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 2
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryDescription"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\"Quotes\""
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from mysqlxplugin.categories where CategoryID=2
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal	CategoryBool
+2	Entertaiment	"Quotes"	2	235.15	0
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_update'
+Variable_name	Value
+Mysqlx_crud_update	4
+0 rows affected
+Update with NULL value
+send Mysqlx.Crud.Update {
+  collection {
+    name: "categories"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 2
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryName"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_NULL
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from mysqlxplugin.categories where CategoryID in (2,3)
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal	CategoryBool
+2	null	"Quotes"	2	235.15	0
+3	Home	Home related category	3	235.15	1
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_update'
+Variable_name	Value
+Mysqlx_crud_update	5
+0 rows affected
+Update with Corner decimal value and != operator
+send Mysqlx.Crud.Update {
+  collection {
+    name: "categories"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 2
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryDecimal"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 999.99
+      }
+    }
+  }
+}
+
+
+5 rows affected
+Rows matched: 5  Changed: 5  Warnings: 0
+RUN select * from mysqlxplugin.categories where CategoryID != 2
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal	CategoryBool
+1	SportsUpdate	Sports related category	110	999.99	1
+3	Home	Home related category	3	999.99	1
+4	Kitchen	Kitchen related category	4	999.99	0
+5	Garden	Garden related category	5	999.99	1
+6	Toys	Toys related category	6	999.99	0
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_update'
+Variable_name	Value
+Mysqlx_crud_update	6
+0 rows affected
+Update with Corner decimal value and "in" operator
+send Mysqlx.Crud.Update {
+  collection {
+    name: "categories"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "in"
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 3
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 4
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryDecimal"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: -999.99
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN select * from mysqlxplugin.categories where CategoryID in (3,4)
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal	CategoryBool
+3	Home	Home related category	3	-999.99	1
+4	Kitchen	Kitchen related category	4	-999.99	0
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_update'
+Variable_name	Value
+Mysqlx_crud_update	7
+0 rows affected
+Update with Corner decimal value and != operator
+send Mysqlx.Crud.Update {
+  collection {
+    name: "categories"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 2
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryIMEI"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 127
+      }
+    }
+  }
+}
+
+
+5 rows affected
+Rows matched: 5  Changed: 5  Warnings: 0
+RUN select * from mysqlxplugin.categories where CategoryID != 2
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal	CategoryBool
+1	SportsUpdate	Sports related category	127	999.99	1
+3	Home	Home related category	127	-999.99	1
+4	Kitchen	Kitchen related category	127	-999.99	0
+5	Garden	Garden related category	127	999.99	1
+6	Toys	Toys related category	127	999.99	0
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_update'
+Variable_name	Value
+Mysqlx_crud_update	8
+0 rows affected
+Update with Corner decimal value and "in" operator
+send Mysqlx.Crud.Update {
+  collection {
+    name: "categories"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "in"
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 4
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 5
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryIMEI"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: -128
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN select * from mysqlxplugin.categories where CategoryID in (4,5)
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal	CategoryBool
+4	Kitchen	Kitchen related category	-128	-999.99	0
+5	Garden	Garden related category	-128	999.99	1
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_update'
+Variable_name	Value
+Mysqlx_crud_update	9
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+.
+#---------- TEST WITH SAFE MODE OFF ----------#
+.
+RUN USE mysqlxplugin
+
+0 rows affected
+RUN SET SQL_SAFE_UPDATES = 0
+
+0 rows affected
+Update with wrong schema name
+send Mysqlx.Crud.Update {
+  collection {
+    name: "categories"
+    schema: "noschemalikethis"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "in"
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 4
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 5
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryIMEI"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 101
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1049
+  msg: "Unknown database \'noschemalikethis\'"
+  sql_state: "42000"
+}
+
+Update with wrong table name
+send Mysqlx.Crud.Update {
+  collection {
+    name: "notablelikethis"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "in"
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 4
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 5
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryIMEI"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 101.02
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1146
+  msg: "Table \'mysqlxplugin.notablelikethis\' doesn\'t exist"
+  sql_state: "42S02"
+}
+
+Update with wrong column name
+send Mysqlx.Crud.Update {
+  collection {
+    name: "categories"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "in"
+      param {
+        type: IDENT
+        identifier {
+          name: "nocolumnname"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 4
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 5
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryIMEI"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 101
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1054
+  msg: "Unknown column \'nocolumnname\' in \'where clause\'"
+  sql_state: "42S22"
+}
+
+Update decimal value with a corner value plus 1
+send Mysqlx.Crud.Update {
+  collection {
+    name: "categories"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 4
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryDecimal"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 1000
+      }
+    }
+  }
+}
+
+Got expected error: Out of range value for column 'CategoryDecimal' at row 1 (code 1264)
+Update tiny int value with a corner value plus 1
+send Mysqlx.Crud.Update {
+  collection {
+    name: "categories"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 4
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryIMEI"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: -129
+      }
+    }
+  }
+}
+
+Got expected error: Out of range value for column 'CategoryIMEI' at row 1 (code 1264)
+Update multiple column
+RUN select * from mysqlxplugin.categories where CategoryID=4
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal	CategoryBool
+4	Kitchen	Kitchen related category	-128	-999.99	0
+0 rows affected
+send Mysqlx.Crud.Update {
+  collection {
+    name: "categories"
+    schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "CategoryID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 4
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryIMEI"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: -99
+      }
+    }
+  }
+  operation {
+    source {
+      name: "CategoryDecimal"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 501.11
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from mysqlxplugin.categories where CategoryID=4
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal	CategoryBool
+4	Kitchen	Kitchen related category	-99	501.11	0
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN SET SQL_SAFE_UPDATES = 0
+
+0 rows affected
+RUN DROP SCHEMA if EXISTS mysqlxcoll
+
+0 rows affected
+RUN CREATE SCHEMA mysqlxcoll
+
+1 rows affected
+RUN USE mysqlxcoll
+
+0 rows affected
+RUN CREATE TABLE maincoll (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY)
+
+0 rows affected
+RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "1", "name": "Victor", "last_name": "Otero","amount": 4.99}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "2", "name": "Gonzalo", "last_name": "Chrystens","amount": 120.57}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "3", "name": "Abraham", "last_name": "Vega","amount": 74.56}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "4", "name": "Jennifer", "last_name": "Leon","amount": 387.14}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "5", "name": "Jhonny", "last_name": "Test","amount": 125.45}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+Update a valid collection with string value and > operator for multiple docs
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "_id"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "3"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\"xtest_>\""
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": "Victor", "amount": 4.99, "last_name": "Otero"}	1
+{"_id": "2", "name": "Gonzalo", "amount": 120.57, "last_name": "Chrystens"}	2
+{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}	3
+{"_id": "4", "name": "\"xtest_>\"", "amount": 387.14, "last_name": "Leon"}	4
+{"_id": "5", "name": "\"xtest_>\"", "amount": 125.45, "last_name": "Test"}	5
+0 rows affected
+Update a valid collection with string value and > operator for multiple docs
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "<"
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "_id"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "3"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\"xtest_<\""
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": "\"xtest_<\"", "amount": 4.99, "last_name": "Otero"}	1
+{"_id": "2", "name": "\"xtest_<\"", "amount": 120.57, "last_name": "Chrystens"}	2
+{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}	3
+{"_id": "4", "name": "\"xtest_>\"", "amount": 387.14, "last_name": "Leon"}	4
+{"_id": "5", "name": "\"xtest_>\"", "amount": 125.45, "last_name": "Test"}	5
+0 rows affected
+Update a valid collection with string value and <= operator for multiple docs
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "<="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "_id"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "3"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\"xtest_<=\""
+        }
+      }
+    }
+  }
+}
+
+
+3 rows affected
+Rows matched: 3  Changed: 3  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "Otero"}	1
+{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "Chrystens"}	2
+{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "Vega"}	3
+{"_id": "4", "name": "\"xtest_>\"", "amount": 387.14, "last_name": "Leon"}	4
+{"_id": "5", "name": "\"xtest_>\"", "amount": 125.45, "last_name": "Test"}	5
+0 rows affected
+Update a valid collection with string value and >= operator for multiple docs
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: ">="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "_id"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "4"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\"xtest_>=\""
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "Otero"}	1
+{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "Chrystens"}	2
+{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "Vega"}	3
+{"_id": "4", "name": "\"xtest_>=\"", "amount": 387.14, "last_name": "Leon"}	4
+{"_id": "5", "name": "\"xtest_>=\"", "amount": 125.45, "last_name": "Test"}	5
+0 rows affected
+Update a valid collection with string value and != operator for multiple docs
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "_id"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "2"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "last_name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\"xtest_!=\""
+        }
+      }
+    }
+  }
+}
+
+
+4 rows affected
+Rows matched: 4  Changed: 4  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"xtest_!=\""}	1
+{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "Chrystens"}	2
+{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}	3
+{"_id": "4", "name": "\"xtest_>=\"", "amount": 387.14, "last_name": "\"xtest_!=\""}	4
+{"_id": "5", "name": "\"xtest_>=\"", "amount": 125.45, "last_name": "\"xtest_!=\""}	5
+0 rows affected
+Update order clause update last _id in desc order (_id = 5)
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "_id"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "0"
+          }
+        }
+      }
+    }
+  }
+  limit {
+    row_count: 1
+  }
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        name: "_id"
+      }
+    }
+    direction: DESC
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "last_name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\"Limit1OrderDesc\""
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"xtest_!=\""}	1
+{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "Chrystens"}	2
+{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}	3
+{"_id": "4", "name": "\"xtest_>=\"", "amount": 387.14, "last_name": "\"xtest_!=\""}	4
+{"_id": "5", "name": "\"xtest_>=\"", "amount": 125.45, "last_name": "\"Limit1OrderDesc\""}	5
+0 rows affected
+Update with order clause update first two _id in asc order (_id = 1,2)
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "_id"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "0"
+          }
+        }
+      }
+    }
+  }
+  limit {
+    row_count: 2
+  }
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        name: "_id"
+      }
+    }
+    direction: ASC
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "last_name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\"Limit2OrderAsc\""
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"Limit2OrderAsc\""}	1
+{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "\"Limit2OrderAsc\""}	2
+{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}	3
+{"_id": "4", "name": "\"xtest_>=\"", "amount": 387.14, "last_name": "\"xtest_!=\""}	4
+{"_id": "5", "name": "\"xtest_>=\"", "amount": 125.45, "last_name": "\"Limit1OrderDesc\""}	5
+0 rows affected
+Invalid type of update for Document
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "_id"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "3"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "xtest"
+        }
+      }
+    }
+  }
+}
+
+Got expected error: Invalid type of update operation for document (code 5051)
+Update multiple column + transaction
+RUN START TRANSACTION
+
+0 rows affected
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "_id"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "3"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "name_mul_update_save_a"
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "last_name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "last_name_mul_update_save_a"
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN SELECT * FROM mysqlxcoll.maincoll where _id > 3
+doc	_id
+{"_id": "4", "name": "name_mul_update_save_a", "amount": 387.14, "last_name": "last_name_mul_update_save_a"}	4
+{"_id": "5", "name": "name_mul_update_save_a", "amount": 125.45, "last_name": "last_name_mul_update_save_a"}	5
+0 rows affected
+RUN SAVEPOINT A
+
+0 rows affected
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "_id"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "3"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "name_mul_update_save_b"
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "last_name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "last_name_mul_update_save_b"
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN SELECT * FROM mysqlxcoll.maincoll where _id > 3
+doc	_id
+{"_id": "4", "name": "name_mul_update_save_b", "amount": 387.14, "last_name": "last_name_mul_update_save_b"}	4
+{"_id": "5", "name": "name_mul_update_save_b", "amount": 125.45, "last_name": "last_name_mul_update_save_b"}	5
+0 rows affected
+RUN ROLLBACK TO SAVEPOINT A
+
+0 rows affected
+RUN COMMIT
+
+0 rows affected
+RUN SELECT * FROM mysqlxcoll.maincoll where _id > 3
+doc	_id
+{"_id": "4", "name": "name_mul_update_save_a", "amount": 387.14, "last_name": "last_name_mul_update_save_a"}	4
+{"_id": "5", "name": "name_mul_update_save_a", "amount": 125.45, "last_name": "last_name_mul_update_save_a"}	5
+0 rows affected
+document member _id is immutable
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "last_name"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_STRING
+          v_string {
+            value: "Chrystens"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "_id"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_OCTETS
+        v_octets {
+          value: "11"
+        }
+      }
+    }
+  }
+}
+
+Got expected error: Forbidden update operation on '$._id' member (code 5053)
+RUN SELECT * FROM mysqlxcoll.maincoll
+doc	_id
+{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"Limit2OrderAsc\""}	1
+{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "\"Limit2OrderAsc\""}	2
+{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}	3
+{"_id": "4", "name": "name_mul_update_save_a", "amount": 387.14, "last_name": "last_name_mul_update_save_a"}	4
+{"_id": "5", "name": "name_mul_update_save_a", "amount": 125.45, "last_name": "last_name_mul_update_save_a"}	5
+0 rows affected
+document member _id is immutable but _id column can be updated
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "last_name"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_STRING
+          v_string {
+            value: "Chrystens"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "_id"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_OCTETS
+        v_octets {
+          value: "11"
+        }
+      }
+    }
+  }
+}
+
+
+0 rows affected
+Rows matched: 0  Changed: 0  Warnings: 0
+RUN SELECT * FROM mysqlxcoll.maincoll
+doc	_id
+{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"Limit2OrderAsc\""}	1
+{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "\"Limit2OrderAsc\""}	2
+{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}	3
+{"_id": "4", "name": "name_mul_update_save_a", "amount": 387.14, "last_name": "last_name_mul_update_save_a"}	4
+{"_id": "5", "name": "name_mul_update_save_a", "amount": 125.45, "last_name": "last_name_mul_update_save_a"}	5
+0 rows affected
+Update using multiple condition
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: ">="
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "_id"
+              }
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 4
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: "=="
+          param {
+            type: IDENT
+            identifier {
+              name: "_id"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 4
+            }
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "amount"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_OCTETS
+        v_octets {
+          value: "444"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN SELECT * FROM mysqlxcoll.maincoll
+doc	_id
+{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"Limit2OrderAsc\""}	1
+{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "\"Limit2OrderAsc\""}	2
+{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}	3
+{"_id": "4", "name": "name_mul_update_save_a", "amount": "444", "last_name": "last_name_mul_update_save_a"}	4
+{"_id": "5", "name": "name_mul_update_save_a", "amount": 125.45, "last_name": "last_name_mul_update_save_a"}	5
+0 rows affected
+================================================================================
+CLEAN UP
+================================================================================
+RUN DROP SCHEMA if EXISTS mysqlxplugin
+
+1 rows affected
+RUN DROP SCHEMA if EXISTS mysqlxcoll
+
+1 rows affected
+RUN DROP USER updatecruduser@localhost
+
+0 rows affected
+RUN SET SQL_SAFE_UPDATES = 1
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

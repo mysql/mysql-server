@@ -27,45 +27,28 @@ CREATE USER 'testuser1'@'localhost';
 #
 
 --connection user1
-let $cmd= SET PASSWORD = PASSWORD('cleartext password');
-let $chk= SELECT Password FROM mysql.user
-          WHERE Host='localhost' AND User='testuser1';
---source ndb_dist_priv_check.inc
-
-# Can only use OLD_PASSWORD if user has been created with old_passwords=1
-# thus this is a good way to check that the command is not sent to the
-# binlog and ends up on the slave
---connection user1
-let $cmd_error= ER_PASSWD_LENGTH;
-let $cmd= SET PASSWORD = OLD_PASSWORD('cleartext password');
-let $chk= SELECT Password FROM mysql.user
+let $cmd= SET PASSWORD = 'cleartext password';
+let $chk= SELECT Authentication_string FROM mysql.user
           WHERE Host='localhost' AND User='testuser1';
 --source ndb_dist_priv_check.inc
 
 --connection user1
-let $encrypted_password_hash = PASSWORD('new cleartext password');
+let $encrypted_password_hash = 'new cleartext password';
 let $cmd=SET PASSWORD = $encrypted_password_hash;
-let $chk= SELECT Password FROM mysql.user
+let $chk= SELECT Authentication_string FROM mysql.user
           WHERE Host='localhost' AND User='testuser1';
 --source ndb_dist_priv_check.inc
 
 --connection server2
-let $cmd= SET PASSWORD FOR testuser1@localhost= PASSWORD('pass_for_user1');
-let $chk= SELECT Password FROM mysql.user
+let $cmd= SET PASSWORD FOR testuser1@localhost= 'pass_for_user1';
+let $chk= SELECT Authentication_string FROM mysql.user
           WHERE Host='localhost' AND User='testuser1';
 --source ndb_dist_priv_check.inc
 
 --connection server2
-let $cmd_error= ER_PASSWD_LENGTH;
-let $cmd= SET PASSWORD FOR testuser1@localhost= OLD_PASSWORD('pass_for_user');
-let $chk= SELECT Password FROM mysql.user
-          WHERE Host='localhost' AND User='testuser1';
---source ndb_dist_priv_check.inc
-
---connection server2
-let $encrypted_password_hash = PASSWORD('another pass');
+let $encrypted_password_hash = 'another pass';
 let $cmd=SET PASSWORD FOR testuser1@localhost = $encrypted_password_hash;
-let $chk= SELECT Password FROM mysql.user
+let $chk= SELECT Authentication_string FROM mysql.user
           WHERE Host='localhost' AND User='testuser1';
 --source ndb_dist_priv_check.inc
 
@@ -73,8 +56,8 @@ let $chk= SELECT Password FROM mysql.user
 # replicted to slave
 --connection server2
 let $cmd_error= ER_PASSWORD_NO_MATCH;
-let $cmd= SET PASSWORD FOR no_such_user@localhost= PASSWORD('new pass');
-let $chk= SELECT Password FROM mysql.user
+let $cmd= SET PASSWORD FOR no_such_user@localhost= 'new pass';
+let $chk= SELECT Authentication_string FROM mysql.user
           WHERE Host='localhost' AND User='no_such_user';
 --source ndb_dist_priv_check.inc
 
@@ -191,8 +174,8 @@ let $chk= SELECT Password_expired='Y' FROM mysql.user
 --source ndb_dist_priv_check.inc
 
 --connection server2
-let $cmd= SET PASSWORD FOR testuser1@localhost= PASSWORD('pass_for_user1');
-let $chk= SELECT Password FROM mysql.user
+let $cmd= SET PASSWORD FOR testuser1@localhost= 'pass_for_user1';
+let $chk= SELECT Authentication_string FROM mysql.user
           WHERE Host='localhost' AND User='testuser1';
 --source ndb_dist_priv_check.inc
 

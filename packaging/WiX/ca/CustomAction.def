@@ -6,3 +6,4 @@ EXPORTS
 RemoveService
 RemoveServiceNoninteractive
 TestService
+RunPostInstall

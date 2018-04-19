@@ -296,52 +296,6 @@ f1()
 # --> connection default
 drop function f1;
 drop procedure p1;
-# 
-# 4) MDL lock should not be taken for 
-# unrolled CALL statements.
-# The primary goal of metadata locks is a consistent binary log.
-# When a call statement is unrolled, it doesn't get to the
-# binary log, instead the statements that are contained
-# in the procedure body do. This can nest to any level.
-#
-create procedure p1() begin end;
-create procedure p2() begin end;
-create table t1 (a int);
-create procedure p3()
-begin
-call p1();
-call p1();
-call p2();
-end|
-create procedure p4()
-begin
-call p1();
-call p1();
-call p2();
-call p2();
-call p3();
-end|
-begin;
-select * from t1;
-a
-savepoint sv;
-call p4();
-# Prepared statement should not add any locks either.
-prepare stmt from "call p4()";
-execute stmt;
-execute stmt;
-# --> connection con1
-drop procedure p1;
-drop procedure p2;
-drop procedure p3;
-drop procedure p4;
-# --> connection default
-# This is to verify there was no implicit commit.
-rollback to savepoint sv;
-call p4();
-ERROR 42000: PROCEDURE test.p4 does not exist
-commit;
-drop table t1;
 #
 # 5) Locks should be taken on routines
 # used indirectly by views or triggers.
@@ -700,7 +654,8 @@ set @@session.max_sp_recursion_depth=default;
 #
 CREATE PROCEDURE p1()
 BEGIN
-SELECT get_lock("test", 10);
+SHOW CREATE PROCEDURE p1;
+SELECT get_lock("test", 100000);
 SHOW CREATE PROCEDURE p1;
 END|
 # Connection default
@@ -722,14 +677,18 @@ release_lock("test")
 1
 # Connection 2
 # Reaping: CALL p1()
-get_lock("test", 10)
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+BEGIN
+SHOW CREATE PROCEDURE p1;
+SELECT get_lock("test", 100000);
+SHOW CREATE PROCEDURE p1;
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+get_lock("test", 100000)
 1
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
-BEGIN
-SELECT get_lock("test", 10);
-SHOW CREATE PROCEDURE p1;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+BEGIN END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 # Connection 3
 # Connection 2
 # Connection default;

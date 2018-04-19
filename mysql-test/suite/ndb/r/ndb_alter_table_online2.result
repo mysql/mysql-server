@@ -32,7 +32,7 @@ set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and 
 
 ALTER TABLE t1 algorithm=inplace, ADD b INT;
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'b' to DYNAMIC to enable online ADD COLUMN
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~ Check table t1 ID has not changed
@@ -57,7 +57,7 @@ update t1 set b = 0 where pk = 1;
 
 ALTER TABLE t1 algorithm=inplace, ADD c INT;
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~ Check table t1 ID has not changed

@@ -19,7 +19,10 @@
 #
 # There are two parts to this test.
 #  - When the replication is running in single threaded mode(STS), we have only
-#    one aplier thread- SQL thread.
+#    one aplier thread- SQL thread. Since the SQL thread acts as an applier in
+#    the case of STS mode, post BUG#20001173 fix SQL thread's status will be
+#    available as part of
+#    performance_schema.replication_applier_status_by_worker.
 #  - When the replication is running in multi-threaded mode(MTS), we have one
 #    cordinator and some worker threads. Since, the same table shows both the
 #    status of SQL and coordinator thread, we need to test the coordinator
@@ -51,6 +54,10 @@ let $assert_text= On master, the table should return an empty set.;
 let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_coordinator] = 0;
 source include/assert.inc;
 
+let $assert_text= On master, the table should return an empty set.;
+let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_worker] = 0;
+source include/assert.inc;
+
 --connection slave
 
 --let $slave_param= Slave_SQL_Running_State
@@ -63,7 +70,22 @@ source include/wait_for_slave_param.inc;
 
 # To verify the correctness of thread_id field, we check for the name of
 # the thread.
-let $thread_name= `select name from performance_schema.threads where thread_id= (select Thread_Id from performance_schema.replication_applier_status_by_coordinator)`;
+# Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
+# table for applier status.
+let $worker_count= `select @@global.slave_parallel_workers`;
+if ($worker_count == 0)
+{
+  let $thread_name= `select name from performance_schema.threads where
+thread_id= (select Thread_Id from performance_schema.replication_applier_status_by_worker)`;
+}
+# In MTS mode check
+# performance_schema.replication_applier_status_by_coordinator
+# table for applier status.
+if ($worker_count != 0)
+{
+  let $thread_name= `select name from performance_schema.threads where
+thread_id= (select Thread_Id from performance_schema.replication_applier_status_by_coordinator)`;
+}
 let $assert_text= thread_name should should indicate sql thread.;
 let $assert_cond= "$thread_name" = "thread/sql/slave_sql";
 source include/assert.inc;
@@ -75,7 +97,7 @@ let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "ON";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
-let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_applier_status_by_coordinator, Last_Error_Number, 1);
+let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_applier_status_by_worker, Last_Error_Number, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
@@ -87,13 +109,13 @@ let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error_Timestamp, 1);
-let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_applier_status_by_coordinator, Last_Error_Timestamp, 1);
-let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.;
-let $assert_cond= "$ps_value" = "0000-00-00 00:00:00";
+let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_applier_status_by_worker, Last_Error_Timestamp, 1);
+let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.000000.;
+let $assert_cond= "$ps_value" = "0000-00-00 00:00:00.000000";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
-let $ps_value= query_get_value(select Service_State from performance_schema.replication_applier_status_by_coordinator, Service_State, 1);
+let $ps_value= query_get_value(select Service_State from performance_schema.replication_applier_status_by_worker, Service_State, 1);
 let $assert_text= SSS shows Slave_SQL_Running as "Yes". So, Service_State from this PS table should be "ON".;
 let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "ON";
 source include/assert.inc;
@@ -126,7 +148,21 @@ source include/wait_for_slave_sql_error.inc;
 --echo
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
-let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_applier_status_by_coordinator, Last_Error_Number, 1);
+# Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
+# table for applier status.
+let $worker_count= `select @@global.slave_parallel_workers`;
+if ($worker_count == 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_applier_status_by_worker, Last_Error_Number, 1);
+}
+# In MTS mode check
+# performance_schema.replication_applier_status_by_coordinator
+# table for applier status.
+if ($worker_count != 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_applier_status_by_coordinator, Last_Error_Number, 1);
+}
+
 let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
@@ -136,7 +172,20 @@ source include/assert.inc;
 # So, the equality of error messages is checked using the below perl code.
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
-let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_applier_status_by_coordinator, Last_Error_Message, 1);
+# Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
+# table for applier status.
+let $worker_count= `select @@global.slave_parallel_workers`;
+if ($worker_count == 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_applier_status_by_worker, Last_Error_Message, 1);
+}
+# In MTS mode check
+# performance_schema.replication_applier_status_by_coordinator
+# table for applier status.
+if ($worker_count != 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_applier_status_by_coordinator, Last_Error_Message, 1);
+}
 
 let PS_VALUE= $ps_value;
 let SSS_VALUE= $sss_value;
@@ -160,16 +209,31 @@ EOF
 
 # The timestamp format is slightly different in SSS and PS.
 # SSS => YYMMDD HH:MM:SS
-# PS  => YYYY-MM-DD HH:MM:SS
+# PS  => YYYY-MM-DD HH:MM:SS.ssssss
 # To match the two, we get rid of hyphons from PS output and first two digits
-# the year field so that it can be matched directly.
+# the year field and the microseconds (after(WL#7319) so that it can be matched
+# directly.
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error_Timestamp, 1);
-let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_applier_status_by_coordinator, Last_Error_Timestamp, 1);
+# Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
+# table for applier status.
+let $worker_count= `select @@global.slave_parallel_workers`;
+if ($worker_count == 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_applier_status_by_worker, Last_Error_Timestamp, 1);
+}
+# In MTS mode check
+# performance_schema.replication_applier_status_by_coordinator
+# table for applier status.
+if ($worker_count != 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_applier_status_by_coordinator, Last_Error_Timestamp, 1);
+}
 let $ps_value_without_hyphons= `SELECT REPLACE("$ps_value", '-', '')`;
 let $ps_value_in_sss_format= `select substring("$ps_value_without_hyphons", 3)`;
+let $ps_value_without_microseconds= `select substring_index("$ps_value_in_sss_format", '.', 1)`;
 let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
-let $assert_cond= "$sss_value" = "$ps_value_in_sss_format";
+let $assert_cond= "$sss_value" = "$ps_value_without_microseconds";
 source include/assert.inc;
 
 --echo
@@ -182,13 +246,13 @@ source include/assert.inc;
 --echo #    STOP SLAVE.
 --echo
 
-let $ps_value= query_get_value(select thread_id from performance_schema.replication_applier_status_by_coordinator, thread_id, 1);
+let $ps_value= query_get_value(select thread_id from performance_schema.replication_applier_status_by_worker, thread_id, 1);
 let $assert_text= After STOP SLAVE, thread_id should be NULL;
 let $assert_cond= "$ps_value" = "NULL";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
-let $ps_value= query_get_value(select Service_State from performance_schema.replication_applier_status_by_coordinator, Service_State, 1);
+let $ps_value= query_get_value(select Service_State from performance_schema.replication_applier_status_by_worker, Service_State, 1);
 let $assert_text= SSS shows Slave_SQL_Running as "No". So, Service_State from this PS table should be "OFF".;
 let $assert_cond= "$sss_value" = "No" AND "$ps_value"= "OFF";
 source include/assert.inc;
@@ -199,7 +263,20 @@ source include/assert.inc;
 --echo
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
-let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_applier_status_by_coordinator, Last_Error_Number, 1);
+# Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
+# table for applier status.
+let $worker_count= `select @@global.slave_parallel_workers`;
+if ($worker_count == 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_applier_status_by_worker, Last_Error_Number, 1);
+}
+# In MTS mode check
+# performance_schema.replication_applier_status_by_coordinator
+# table for applier status.
+if ($worker_count != 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_applier_status_by_coordinator, Last_Error_Number, 1);
+}
 let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
@@ -209,7 +286,20 @@ source include/assert.inc;
 # So, the equality of error messages is checked using the below perl code.
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
-let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_applier_status_by_coordinator, Last_Error_Message, 1);
+# Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
+# table for applier status.
+let $worker_count= `select @@global.slave_parallel_workers`;
+if ($worker_count == 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_applier_status_by_worker, Last_Error_Message, 1);
+}
+# In MTS mode check
+# performance_schema.replication_applier_status_by_coordinator
+# table for applier status.
+if ($worker_count != 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_applier_status_by_coordinator, Last_Error_Message, 1);
+}
 
 let PS_VALUE= $ps_value;
 let SSS_VALUE= $sss_value;
@@ -233,16 +323,31 @@ EOF
 
 # The timestamp format is slightly different in SSS and PS.
 # SSS => YYMMDD HH:MM:SS
-# PS  => YYYY-MM-DD HH:MM:SS
+# PS  => YYYY-MM-DD HH:MM:SS.ssssss
 # To match the two, we get rid of hyphons from PS output and first two digits
-# the year field so that it can be matched directly.
+# the year field and the microseconds (after WL#7319) so that it can be matched
+# directly.
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error_Timestamp, 1);
-let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_applier_status_by_coordinator, Last_Error_Timestamp, 1);
+# Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
+# table for applier status.
+let $worker_count= `select @@global.slave_parallel_workers`;
+if ($worker_count == 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_applier_status_by_worker, Last_Error_Timestamp, 1);
+}
+# In MTS mode check
+# performance_schema.replication_applier_status_by_coordinator
+# table for applier status.
+if ($worker_count != 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_applier_status_by_coordinator, Last_Error_Timestamp, 1);
+}
 let $ps_value_without_hyphons= `SELECT REPLACE("$ps_value", '-', '')`;
 let $ps_value_in_sss_format= `select substring("$ps_value_without_hyphons", 3)`;
+let $ps_value_without_microseconds= `select substring_index("$ps_value_in_sss_format", '.', 1)`;
 let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
-let $assert_cond= "$sss_value" = "$ps_value_in_sss_format";
+let $assert_cond= "$sss_value" = "$ps_value_without_microseconds";
 source include/assert.inc;
 
 source include/stop_slave.inc;
@@ -310,8 +415,8 @@ source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error_Timestamp, 1);
 let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_applier_status_by_coordinator, Last_Error_Timestamp, 1);
-let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.;
-let $assert_cond= "$ps_value" = "0000-00-00 00:00:00";
+let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.000000.;
+let $assert_cond= "$ps_value" = "0000-00-00 00:00:00.000000";
 source include/assert.inc;
 
 --echo

@@ -122,11 +122,11 @@ SELECT @@session.key_cache_block_size;
 
 --disable_warnings
 SELECT @@global.key_cache_block_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='key_cache_block_size';
 
 SELECT @@key_cache_block_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='key_cache_block_size';
 --enable_warnings
 

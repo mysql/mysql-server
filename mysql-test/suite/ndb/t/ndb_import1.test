@@ -1,0 +1,193 @@
+--source include/have_ndb.inc
+
+perl;
+use strict;
+require 'suite/ndb/t/ndb_import.pl';
+
+# tables
+
+# native numbers
+my $t1attrs = [
+  { name=>"a", type=>"bigint", unsigned=>1, pk=>1 },
+  { name=>'b', type=>"bigint" },
+  { name=>'c', type=>"int", unsigned=>1 },
+  { name=>'d', type=>"int" },
+  { name=>'e', type=>"mediumint", unsigned=>1 },
+  { name=>'f', type=>"mediumint" },
+  { name=>'g', type=>"smallint", unsigned=>1 },
+  { name=>'h', type=>"smallint" },
+  { name=>'i', type=>"tinyint", unsigned=>1 },
+  { name=>'j', type=>"tinyint" },
+  { name=>'k', type=>"double" },
+  { name=>'l', type=>"float" },
+];
+my $t1 = {
+  name => 't1',
+  attrs => $t1attrs,
+  rows => 1000,
+};
+
+# char
+my $t2attrs = [
+  { name=>"a", type=>"char", len=>10, pk=>1 },
+  { name=>"b", type=>"char", len=>255 },
+  { name=>"c", type=>"varchar", len=>10 },
+  { name=>"d", type=>"varchar", len=>1000 },
+];
+my $t2 = {
+  name => 't2',
+  attrs => $t2attrs,
+  rows => 1000,
+};
+
+# binary
+my $t3attrs = [
+  { name=>"a", type=>"binary", len=>10, pk=>1 },
+  { name=>"b", type=>"binary", len=>255 },
+  { name=>"c", type=>"varbinary", len=>10 },
+  { name=>"d", type=>"varbinary", len=>1000 },
+];
+my $t3 = {
+  name => 't3',
+  attrs => $t3attrs,
+  rows => 1000,
+};
+
+# decimal
+my $t4attrs = [
+  { name=>"a", type=>"decimal", prec=>10, scale=>0 },
+  { name=>"b", type=>"decimal", prec=>20, scale=>0 },
+  { name=>"c", type=>"decimal", prec=>10, scale=>5 },
+  { name=>"d", type=>"decimal", prec=>20, scale=>5 },
+  { name=>"e", type=>"decimal", prec=>10, scale=>10 },
+  { name=>"f", type=>"decimal", prec=>20, scale=>10 },
+  { name=>"g", type=>"int", pk=>1 },
+];
+my $t4 = {
+  name => 't4',
+  attrs => $t4attrs,
+  rows => 1000,
+};
+
+# bit XXX fix odd lengths
+my $t5attrs = [
+  { name=>"a", type=>"bit", len=>1 },
+  { name=>"b", type=>"bit", len=>8 },
+  { name=>"c", type=>"bit", len=>16 },
+  { name=>"d", type=>"bit", len=>32 },
+  { name=>"e", type=>"bit", len=>64 },
+  { name=>"f", type=>"int", pk=>1 },
+];
+my $t5 = {
+  name => 't5',
+  attrs => $t5attrs,
+  rows => 1000,
+};
+
+# date and time
+my $t6attrs = [
+  { name=>"a", type=>"year" },
+  { name=>"b", type=>"date" },
+  { name=>"c", type=>"time", prec=>6 },
+  { name=>"d", type=>"datetime", prec=>3 },
+  { name=>"e", type=>"timestamp", prec=>6, notnull=>1 },
+  { name=>"f", type=>"int", pk=>1 }
+];
+my $t6 = {
+  name => 't6',
+  attrs => $t6attrs,
+  rows => 1000,
+};
+
+# blobs
+my $t7attrs = [
+  { name=>"a", type=>"text", len=>10 },
+  { name=>"b", type=>"text", len=>255 },
+  { name=>"c", type=>"text", len=>65536 },
+  { name=>"d", type=>"int", pk=>1 },
+  { name=>"e", type=>"blob", len=>10 },
+  { name=>"f", type=>"blob", len=>256 },
+  { name=>"g", type=>"blob", len=>65535 },
+];
+my $t7 = {
+  name => 't7',
+  attrs => $t7attrs,
+  rows => 20,
+};
+
+# simple table for rejects testing
+my $t8attrs = [
+  { name=>"a", type=>"int", unsigned=>1, pk=>1 },
+  { name=>"b", type=>"smallint", notnull=>1 },
+  { name=>"c", type=>"float", notnull=>1 },
+  { name=>"d", type=>"char", len=>10, minlen=>1, notnull=>1 },
+];
+my $t8 = {
+  name => 't8',
+  attrs => $t8attrs,
+  rows => 1000,
+};
+
+# tests
+
+my $test1 = {
+  tag => "a",
+  desc => "all data types, csv default format",
+  tables => [ $t1, $t2, $t3, $t4, $t5, $t6, $t7 ],
+  csvfmt => get_csvfmt1(),
+  rejectsopt => 0,      # option to ndb_import
+  rejectsgen => 0,      # number of bad rows to generate
+  verify => 'all',
+};
+
+my $test2 = {
+  tag => "b",
+  desc => "all data types, csv complex format",
+  tables => [ $t1, $t2, $t3, $t4, $t5, $t6, $t7 ],
+  csvfmt => get_csvfmt2(),
+  rejectsopt => 0,
+  rejectsgen => 0,
+  resumeopt => 0,
+  verify => 'all',
+};
+
+my $test3 = {
+  tag => "c",
+  desc => "success, with rejected rows",
+  tables => [ $t8 ],
+  csvfmt => get_csvfmt1(),
+  rejectsopt => 100,
+  rejectsgen => 100,
+  resumeopt => 0,
+  verify => 'pk',
+  dumpdata => 1,
+};
+
+my $test4 = {
+  tag => "d",
+  desc => "success, with rejected rows and resume",
+  tables => [ $t8 ],
+  csvfmt => get_csvfmt1(),
+  rejectsopt => 0,
+  rejectsgen => 10,
+  resumeopt => 1,
+  verify => 'pk',
+  dumpdata => 1,
+};
+
+my $tests = {
+  tag => '1',
+  testlist => [ $test1, $test2, $test3, $test4 ],
+};
+
+write_tests($tests);
+exit(0);
+EOF
+
+# run test
+
+--source include/have_ndb.inc
+--source suite/ndb/include/ndb_find_import_tool.inc
+--source $MYSQLTEST_VARDIR/tmp/ndb_import1.inc
+
+# vim:set ft=perl:

@@ -3,7 +3,6 @@
 # 2011-11-15 - Added
 #
 
---source include/have_innodb.inc
 
 SET @start_global_value = @@global.innodb_ft_server_stopword_table;
 SELECT @start_global_value;
@@ -16,11 +15,11 @@ select @@session.innodb_ft_server_stopword_table;
 show global variables like 'innodb_ft_server_stopword_table';
 show session variables like 'innodb_ft_server_stopword_table';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_ft_server_stopword_table';
-select * from information_schema.session_variables where variable_name='innodb_ft_server_stopword_table';
+select * from performance_schema.global_variables where variable_name='innodb_ft_server_stopword_table';
+select * from performance_schema.session_variables where variable_name='innodb_ft_server_stopword_table';
 --enable_warnings
 
-call mtr.add_suppression("\\[ERROR\\] InnoDB: user stopword table Salmon does not exist.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* user stopword table Salmon does not exist.");
 
 --error ER_GLOBAL_VARIABLE
 set session innodb_ft_server_stopword_table='Salmon';

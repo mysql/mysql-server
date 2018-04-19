@@ -1,7 +1,5 @@
 set @name="This is a very long string, that mustn't find room in a system field like Table_name. Thus it should be cut by the actual size of the field. So we can use this string to find out the actual length of the field and to use it in any compare queries";
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table test_db select * from mysql.db;
 delete from test_db;
 insert into test_db (Host,Db,User) values (@name,@name,@name);

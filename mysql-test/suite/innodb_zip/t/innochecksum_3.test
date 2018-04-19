@@ -1,14 +1,12 @@
 #************************************************************
 # WL6045:Improve Innochecksum
 #************************************************************
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
+# Run this a as big test, otherwise MTR's check-warnings times out
+--source include/big_test.inc
+--source include/have_innodb_max_16k.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
-
-# Embedded server does not support crashing.
---source include/not_embedded.inc
 
 # Avoid CrashReporter popup on Mac.
 --source include/not_crashrep.inc
@@ -17,7 +15,8 @@
 let MYSQLD_BASEDIR= `SELECT @@basedir`;
 let MYSQLD_DATADIR= `SELECT @@datadir`;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
-call mtr.add_suppression("InnoDB: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+call mtr.add_suppression("Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+call mtr.add_suppression("innodb_checksum_algorithm is set to");
 
 SET GLOBAL innodb_file_per_table=on;
 
@@ -72,13 +71,13 @@ SELECT * FROM tab2 ORDER BY col_7;
 --exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/test/tab2.ibd
 --exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/ibdata1
 perl;
-foreach (glob("$ENV{MYSQLD_DATADIR}/mysql/*.ibd")) {
+foreach (glob("$ENV{MYSQLD_DATADIR}/*/*.ibd")) {
 	system("$ENV{INNOCHECKSUM} --no-check --write=InnoDB $_")
 }
 EOF
 
 --echo : start the server with innodb_checksum_algorithm=strict_innodb
---let restart_options= : --innodb_checksum_algorithm=strict_innodb --default_storage_engine=InnoDB
+--let restart_parameters=restart: --innodb_checksum_algorithm=strict_innodb --default_storage_engine=InnoDB
 --source include/start_mysqld.inc
 
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
@@ -112,13 +111,13 @@ SELECT * FROM tab2 ORDER BY col_7;
 --exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/test/tab2.ibd
 --exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/ibdata1
 perl;
-foreach (glob("$ENV{MYSQLD_DATADIR}/mysql/*.ibd")) {
+foreach (glob("$ENV{MYSQLD_DATADIR}/*/*.ibd")) {
 	system("$ENV{INNOCHECKSUM} --no-check --write=crc32 $_")
 }
 EOF
 
 --echo # start the server with innodb_checksum_algorithm=strict_crc32
---let restart_options= : --innodb_checksum_algorithm=strict_crc32 --default_storage_engine=InnoDB
+--let restart_parameters=restart: --innodb_checksum_algorithm=strict_crc32 --default_storage_engine=InnoDB
 --source include/start_mysqld.inc
 
 # check the table status is GOOD with DML
@@ -150,15 +149,16 @@ SELECT * FROM tab2 ORDER BY col_7;
 --echo # stop the server
 --source include/shutdown_mysqld.inc
 
---echo [1(c)]: Rewrite into new checksum=none for all *.ibd file and ibdata1
---exec $INNOCHECKSUM --write=none  $MYSQLD_DATADIR/test/tab1.ibd
---exec $INNOCHECKSUM --write=none  $MYSQLD_DATADIR/test/tab2.ibd
+--echo [1(c)]: Rewrite into new checksum=none for all *.ibd file, ibdata1 and mysql.ibd
+--exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/test/tab2.ibd
 --exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/ibdata1
+--exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/mysql.ibd
 perl;
 foreach (glob("$ENV{MYSQLD_DATADIR}/undo*")) {
 	system("$ENV{INNOCHECKSUM} --no-check --write=NONE $_")
 }
-foreach (glob("$ENV{MYSQLD_DATADIR}/mysql/*.ibd")) {
+foreach (glob("$ENV{MYSQLD_DATADIR}/*/*.ibd")) {
 	system("$ENV{INNOCHECKSUM} --no-check --write=NONE $_")
 }
 EOF
@@ -206,13 +206,16 @@ SELECT * FROM tab2 ORDER BY col_7;
 --remove_file $MYSQLTEST_VARDIR/tmp/page_summary_short.txt
 --remove_file $MYSQLTEST_VARDIR/tmp/page_summary_long.txt
 --echo [4]: Page type dump for  with longform for tab1.ibd
+--replace_result $MYSQLD_DATADIR MYSQL_DATADIR
 --exec $INNOCHECKSUM --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/tab1.ibd
 
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'MYSQLTEST_VARDIR'};
+my $dir = $ENV{'MYSQLTEST_VARDIR'} or die $!;
+my $datadir=$ENV{'MYSQLD_DATADIR'};
+$datadir =~ s/\\/\//g;
 opendir(DIR, $dir) or die $!;
 my $file= 'dump.txt';
 # open file in write mode
@@ -220,10 +223,16 @@ open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>)
 {
- # Replace the intergers to # and complete file patht to file name only.
- $_=~ s/Filename.+/Filename::tab1.ibd/g;
- $_=~ s/\d+/#/g;
- print OUT_FILE $_;
+ # Replace the integers to # and complete file path to file name only.
+ # We exclude Inode Page here because this will cause result content
+ # mismatch on 4k page size
+  unless (/Inode page/) {
+   s/\\/\//g;
+   s/$datadir/MYSQLD_DATADIR/g;
+   s/\s*[1-9][0-9]*\s*/#/g;
+   s/\s+0\s+/0/g;
+   print OUT_FILE;
+ }
 }
 close(IN_FILE);
 close(OUT_FILE);
@@ -249,6 +258,8 @@ use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
+my $datadir=$ENV{'MYSQLD_DATADIR'};
+$datadir =~ s/\\/\//g;
 opendir(DIR, $dir) or die $!;
 my $file= 'dump.txt';
 # open file in write mode
@@ -256,10 +267,16 @@ open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>)
 {
- # Replace teh intergers to # and complete file patht to file name only.
- $_=~ s/Filename.+/Filename::tab1.ibd/g;
- $_=~ s/\d+/#/g;
- print OUT_FILE $_;
+ # Replace the integers to # and complete file path to file name only.
+ # We exclude Inode Page here because this will cause result content
+ # mismatch on 4k page size
+ unless (/Inode page/) {
+   s/\\/\//g;
+   s/$datadir/MYSQLD_DATADIR/g;
+   s/\s*[1-9][0-9]*\s*/#/g;
+   s/\s+0\s+/0/g;
+   print OUT_FILE;
+ }
 }
 close(IN_FILE);
 close(OUT_FILE);
@@ -309,64 +326,64 @@ cat_file $MYSQLTEST_VARDIR/tmp/dump.txt;
 --error 1
 --exec $INNOCHECKSUM --page=18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error: Unable to seek to necessary offset: Invalid argument;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM -p 18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error: Unable to seek to necessary offset: Invalid argument;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM --start-page=18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error: Unable to seek to necessary offset: Invalid argument;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM -s 18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error: Unable to seek to necessary offset: Invalid argument;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo [34]: check the invalid upper bound values for options, allow-mismatches, end-page, start-page and page.
 --echo # innochecksum will fail with error code: 1
 --error 1
 --exec $INNOCHECKSUM --allow-mismatches=18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM -a 18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM --end-page=18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM -e 18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM --page=18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM -p 18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM --start-page=18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 1
 --exec $INNOCHECKSUM -s 18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 # Cleanup

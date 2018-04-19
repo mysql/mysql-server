@@ -209,10 +209,10 @@ optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	id	A	#	NULL	NULL		BTREE		
-t1	1	parent_id	1	parent_id	A	#	NULL	NULL		BTREE		
-t1	1	level	1	level	A	#	NULL	NULL		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	id	A	#	NULL	NULL		BTREE			YES
+t1	1	parent_id	1	parent_id	A	#	NULL	NULL		BTREE			YES
+t1	1	level	1	level	A	#	NULL	NULL		BTREE			YES
 drop table t1;
 CREATE TABLE t1 (
 gesuchnr int(11) DEFAULT '0' NOT NULL,
@@ -252,8 +252,8 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	skr	1	a	A	#	NULL	NULL	YES	BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	skr	1	a	A	#	NULL	NULL	YES	BTREE			YES
 drop table t1;
 create table t1 (a int,b varchar(20),key(a)) engine=MyISAM;
 insert into t1 values (1,""), (2,"testing");
@@ -295,21 +295,19 @@ user_id	name	phone	ref_email	detail
 10291	sanjeev	29153373	sansh777@hotmail.com	xxx
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a int not null, b int not null,c int not null,
 key(a),primary key(a,b), unique(c),key(a),unique(b)) ENGINE = MyISAM;
 Warnings:
 Warning	1831	Duplicate index 'a_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 SET sql_mode = default;
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	a	A	#	NULL	NULL		BTREE		
-t1	0	PRIMARY	2	b	A	#	NULL	NULL		BTREE		
-t1	0	c	1	c	A	#	NULL	NULL		BTREE		
-t1	0	b	1	b	A	#	NULL	NULL		BTREE		
-t1	1	a	1	a	A	#	NULL	NULL		BTREE		
-t1	1	a_2	1	a	A	#	NULL	NULL		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	a	A	#	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	2	b	A	#	NULL	NULL		BTREE			YES
+t1	0	c	1	c	A	#	NULL	NULL		BTREE			YES
+t1	0	b	1	b	A	#	NULL	NULL		BTREE			YES
+t1	1	a	1	a	A	#	NULL	NULL		BTREE			YES
+t1	1	a_2	1	a	A	#	NULL	NULL		BTREE			YES
 drop table t1;
 create table t1 (col1 int not null, col2 char(4) not null, primary key(col1)) ENGINE = MEMORY;
 alter table t1 engine=MyISAM;
@@ -683,8 +681,8 @@ optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	a	A	#	NULL	NULL		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	a	A	#	NULL	NULL		BTREE			YES
 drop table t1;
 create table t1 (i int, j int ) ENGINE=MyISAM;
 insert into t1 values (1,2);
@@ -766,7 +764,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(20) DEFAULT NULL,
   KEY `a` (`a`(5))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create temporary table t1 (a int not null auto_increment, primary key(a)) engine=MyISAM;
 insert into t1 values (NULL),(NULL),(NULL);
@@ -897,8 +895,6 @@ Field	Type	Null	Key	Default	Extra
 t	int(11)	NO	MUL	1	
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (
 number bigint(20) NOT NULL default '0',
 cname char(15) NOT NULL default '',
@@ -965,8 +961,8 @@ SET sql_mode = default;
 create table t1 (id int unsigned not null auto_increment, code tinyint unsigned not null, name char(20) not null, primary key (id), key (code), unique (name)) engine=MyISAM;
 BEGIN;
 SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-SELECT @@tx_isolation,@@global.tx_isolation;
-@@tx_isolation	@@global.tx_isolation
+SELECT @@transaction_isolation, @@global.transaction_isolation;
+@@transaction_isolation	@@global.transaction_isolation
 SERIALIZABLE	REPEATABLE-READ
 insert into t1 (code, name) values (1, 'Tim'), (1, 'Monty'), (2, 'David');
 select id, code, name from t1 order by id;
@@ -1354,7 +1350,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1,t2;
 flush status;
 show status like "binlog_cache_use";
@@ -1499,7 +1495,7 @@ t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t2 like t1;
 show create table t2;
 Table	Create Table
@@ -1507,7 +1503,7 @@ t2	CREATE TABLE `t2` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t3 select * from t1;
 show create table t3;
 Table	Create Table
@@ -1515,7 +1511,7 @@ t3	CREATE TABLE `t3` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 modify c varchar(10);
 show create table t1;
 Table	Create Table
@@ -1523,7 +1519,7 @@ t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 modify v char(10);
 show create table t1;
 Table	Create Table
@@ -1531,7 +1527,7 @@ t1	CREATE TABLE `t1` (
   `v` char(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 modify t varchar(10);
 Warnings:
 Note	1265	Data truncated for column 't' at row 2
@@ -1541,13 +1537,14 @@ t1	CREATE TABLE `t1` (
   `v` char(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` varchar(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select concat('*',v,'*',c,'*',t,'*') from t1;
 concat('*',v,'*',c,'*',t,'*')
 *+*+*+ *
 *+*+*+         *
 drop table t1,t2,t3;
-create table t1 (v varchar(10), c char(10), t text, key(v), key(c), key(t(10))) stats_persistent=0;
+create table t1 (v varchar(10), c char(10), t text, key(v), key(c), key(t(10)))
+stats_persistent=0 charset latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1650,8 +1647,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	v,v_2	#	13	const	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`t` AS `t` from `test`.`t1` where (`test`.`t1`.`v` = 'a')
-select v,count(*) from t1 group by v limit 10;
-v	count(*)
+select TRIM(v),count(*) from t1 group by TRIM(v) asc limit 10;
+TRIM(v)	count(*)
 a	1
 a	10
 b	10
@@ -1662,8 +1659,8 @@ f	10
 g	10
 h	10
 i	10
-select v,count(t) from t1 group by v limit 10;
-v	count(t)
+select TRIM(v),count(t) from t1 group by TRIM(v) asc limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -1674,8 +1671,8 @@ f	10
 g	10
 h	10
 i	10
-select v,count(c) from t1 group by v limit 10;
-v	count(c)
+select TRIM(v),count(c) from t1 group by TRIM(v) asc limit 10;
+TRIM(v)	count(c)
 a	1
 a	10
 b	10
@@ -1686,8 +1683,8 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result v,count(t) from t1 group by v limit 10;
-v	count(t)
+select sql_big_result TRIM(v),count(t) from t1 group by TRIM(v) asc limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -1698,8 +1695,8 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result v,count(c) from t1 group by v limit 10;
-v	count(c)
+select sql_big_result TRIM(v),count(c) from t1 group by TRIM(v) asc limit 10;
+TRIM(v)	count(c)
 a	1
 a	10
 b	10
@@ -1710,7 +1707,7 @@ f	10
 g	10
 h	10
 i	10
-select c,count(*) from t1 group by c limit 10;
+select c,count(*) from t1 group by c asc limit 10;
 c	count(*)
 a	1
 a	10
@@ -1722,7 +1719,7 @@ f	10
 g	10
 h	10
 i	10
-select c,count(t) from t1 group by c limit 10;
+select c,count(t) from t1 group by c asc limit 10;
 c	count(t)
 a	1
 a	10
@@ -1746,7 +1743,7 @@ f	10
 g	10
 h	10
 i	10
-select t,count(*) from t1 group by t limit 10;
+select t,count(*) from t1 group by t asc limit 10;
 t	count(*)
 a	1
 a	10
@@ -1758,7 +1755,7 @@ f	10
 g	10
 h	10
 i	10
-select t,count(t) from t1 group by t limit 10;
+select t,count(t) from t1 group by t asc limit 10;
 t	count(t)
 a	1
 a	10
@@ -1770,7 +1767,7 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result t,count(t) from t1 group by t limit 10;
+select sql_big_result t,count(t) from t1 group by t asc limit 10;
 t	count(t)
 a	1
 a	10
@@ -1836,7 +1833,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	v	v	303	const	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`t` AS `t` from `test`.`t1` where (`test`.`t1`.`v` = 'a')
-select v,count(*) from t1 group by v limit 10;
+select v,count(*) from t1 group by v asc limit 10;
 v	count(*)
 a	1
 a	10
@@ -1848,8 +1845,8 @@ f	10
 g	10
 h	10
 i	10
-select v,count(t) from t1 group by v limit 10;
-v	count(t)
+select TRIM(v),count(t) from t1 group by v asc limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -1860,8 +1857,8 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result v,count(t) from t1 group by v limit 10;
-v	count(t)
+select sql_big_result TRIM(v),count(t) from t1 group by v asc limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -1908,7 +1905,7 @@ Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where (`test`.`t1`.`v` = 'a  ')
 explain select count(*) from t1 where v like 'a%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	v	v	33	NULL	#	100.00	Using where
+1	SIMPLE	t1	NULL	range	v	v	33	NULL	#	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where (`test`.`t1`.`v` like 'a%')
 explain select count(*) from t1 where v between 'a' and 'a ';
@@ -1926,8 +1923,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	v	v	33	const	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`t` AS `t` from `test`.`t1` where (`test`.`t1`.`v` = 'a')
-select v,count(*) from t1 group by v limit 10;
-v	count(*)
+select TRIM(v),count(*) from t1 group by v asc limit 10;
+TRIM(v)	count(*)
 a	1
 a	10
 b	10
@@ -1938,8 +1935,8 @@ f	10
 g	10
 h	10
 i	10
-select v,count(t) from t1 group by v limit 10;
-v	count(t)
+select TRIM(v),count(t) from t1 group by v asc limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -1950,8 +1947,8 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result v,count(t) from t1 group by v limit 10;
-v	count(t)
+select sql_big_result TRIM(v),count(t) from t1 group by v asc limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -1973,8 +1970,8 @@ t1	CREATE TABLE `t1` (
   KEY `t` (`t`(10)),
   KEY `v` (`v`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
-select v,count(*) from t1 group by v limit 10;
-v	count(*)
+select TRIM(v),count(*) from t1 group by v asc limit 10;
+TRIM(v)	count(*)
 a	1
 a	10
 b	10
@@ -1985,8 +1982,8 @@ f	10
 g	10
 h	10
 i	10
-select v,count(t) from t1 group by v limit 10;
-v	count(t)
+select TRIM(v),count(t) from t1 group by v asc limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -1997,8 +1994,8 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result v,count(t) from t1 group by v limit 10;
-v	count(t)
+select sql_big_result TRIM(v),count(t) from t1 group by v asc limit 10;
+TRIM(v)	count(t)
 a	1
 a	10
 b	10
@@ -2010,19 +2007,20 @@ g	10
 h	10
 i	10
 drop table t1;
+SET NAMES utf8mb4;
 create table t1 (a char(10), unique (a));
 insert into t1 values ('a   ');
 insert into t1 values ('a ');
 ERROR 23000: Duplicate entry 'a' for key 'a'
 alter table t1 modify a varchar(10);
-insert into t1 values ('a '),('a  '),('a   '),('a         ');
-ERROR 23000: Duplicate entry 'a ' for key 'a'
-insert into t1 values ('a     ');
-ERROR 23000: Duplicate entry 'a     ' for key 'a'
-insert into t1 values ('a          ');
-ERROR 23000: Duplicate entry 'a         ' for key 'a'
-insert into t1 values ('a ');
-ERROR 23000: Duplicate entry 'a ' for key 'a'
+insert into t1 values ('a'),('á'),('à'),('å');
+ERROR 23000: Duplicate entry 'a' for key 'a'
+insert into t1 values ('á');
+ERROR 23000: Duplicate entry 'á' for key 'a'
+insert into t1 values ('A');
+ERROR 23000: Duplicate entry 'A' for key 'a'
+insert into t1 values ('å');
+ERROR 23000: Duplicate entry 'å' for key 'a'
 update t1 set a='a  ' where a like 'a%';
 select concat(a,'.') from t1;
 concat(a,'.')
@@ -2040,6 +2038,7 @@ select concat(a,'.') from t1;
 concat(a,'.')
 a  .
 drop table t1;
+SET NAMES DEFAULT;
 create table t1 (v varchar(10), c char(10), t text, key(v(5)), key(c(5)), key(t(5)));
 show create table t1;
 Table	Create Table
@@ -2050,14 +2049,16 @@ t1	CREATE TABLE `t1` (
   KEY `v` (`v`(5)),
   KEY `c` (`c`(5)),
   KEY `t` (`t`(5))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (v char(10) character set utf8);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) CHARACTER SET utf8 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `v` char(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
 show create table t1;
@@ -2065,14 +2066,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=FIXED
 insert into t1 values('a','a'),('a ','a ');
 select concat('*',v,'*',c,'*') from t1;
 concat('*',v,'*',c,'*')
 *a*a*
 *a *a*
 drop table t1;
-create table t1 (v varchar(65530), key(v(10)));
+create table t1 (v varchar(65530), key(v(10))) charset latin1;
 insert into t1 values(repeat('a',65530));
 select length(v) from t1 where v=repeat('a',65530);
 length(v)
@@ -2082,7 +2083,7 @@ create table t1(a int, b varchar(12), key ba(b, a));
 insert into t1 values (1, 'A'), (20, NULL);
 explain select * from t1 where a=20 and b is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	ba	ba	20	const,const	1	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	ba	ba	56	const,const	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 20) and isnull(`test`.`t1`.`b`))
 select * from t1 where a=20 and b is null;
@@ -2090,9 +2091,7 @@ a	b
 20	NULL
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
-create table t1 (v varchar(65530), key(v));
+create table t1 (v varchar(65530), key(v)) charset latin1;
 Warnings:
 Warning	1071	Specified key was too long; max key length is 1000 bytes
 drop table t1;
@@ -2103,20 +2102,21 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` mediumtext
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (v varchar(65530) character set utf8);
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Note	1246	Converting column 'v' from VARCHAR to TEXT
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` mediumtext CHARACTER SET utf8
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `v` mediumtext CHARACTER SET utf8 COLLATE utf8_general_ci
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET sql_mode = default;
 set default_storage_engine=MEMORY;
-create table t1 (v varchar(16384)) engine=MyISAM;
+create table t1 (v varchar(16384)) charset latin1 engine=MyISAM;
 drop table t1;
 create table t1 (a char(1), b char(1), key(a, b)) engine=MyISAM;
 insert into t1 values ('8', '6'), ('4', '7');

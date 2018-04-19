@@ -1,7 +1,5 @@
 drop table if exists t1,t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (a int, b int not null,unique key (a,b),index(b)) engine=myisam;
 insert ignore into t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(null,7),(9,9),(8,8),(7,7),(null,9),(null,9),(6,6);
 Warnings:
@@ -113,7 +111,7 @@ Warning	1739	Cannot use range access on index 'b' due to type or collation conve
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (isnull(`test`.`t1`.`a`) and (`test`.`t1`.`b` = 2))
 explain select * from t1 where a is null and b = 2 and c=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a,b	a	5	const	3	1.67	Using where
+1	SIMPLE	t1	NULL	ref	a,b	a	5	const	3	8.33	Using where
 Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
@@ -121,7 +119,7 @@ Warning	1739	Cannot use range access on index 'b' due to type or collation conve
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = 0) and isnull(`test`.`t1`.`a`) and (`test`.`t1`.`b` = 2))
 explain select * from t1 where a is null and b = 7 and c=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a,b	a	5	const	3	1.67	Using where
+1	SIMPLE	t1	NULL	ref	a,b	a	5	const	3	8.33	Using where
 Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
@@ -142,14 +140,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` <=> `test`.`t1`.`b`) limit 2
 explain select * from t1 where (a is null or a > 0 and a < 3) and b < 5 and c=0 limit 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a,b	a	5	NULL	5	3.33	Using where
+1	SIMPLE	t1	NULL	range	a,b	a	5	NULL	5	8.33	Using where
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = 0) and (isnull(`test`.`t1`.`a`) or ((`test`.`t1`.`a` > 0) and (`test`.`t1`.`a` < 3))) and (`test`.`t1`.`b` < 5)) limit 3
 explain select * from t1 where (a is null or a = 7) and b=7 and c=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref_or_null	a,b	a	5	const	4	1.25	Using where
+1	SIMPLE	t1	NULL	ref_or_null	a,b	a	5	const	4	8.33	Using where
 Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
@@ -514,11 +512,11 @@ COUNT(*)
 EXPLAIN SELECT SQL_CALC_FOUND_ROWS * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
 LEFT JOIN t3 ON t2.b=t3.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	idx	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ref	idx	idx	5	test.t2.b	1	100.00	Using index
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	idx	NULL	NULL	NULL	#	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ref	idx	idx	5	test.t2.b	#	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select sql_calc_found_rows `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`)) left join `test`.`t3` on((`test`.`t2`.`b` = `test`.`t3`.`b`)) where 1
+Note	1003	/* select#1 */ select sql_calc_found_rows `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) left join `test`.`t3` on((`test`.`t3`.`b` = `test`.`t2`.`b`)) where 1
 FLUSH STATUS ;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
 LEFT JOIN t3 ON t2.b=t3.b;
@@ -532,8 +530,8 @@ FOUND_ROWS()
 4
 SHOW STATUS LIKE "handler_read%";
 Variable_name	Value
-Handler_read_first	0
-Handler_read_key	2
+Handler_read_first	2
+Handler_read_key	4
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -573,7 +571,7 @@ SELECT a FROM t1 WHERE a IN (42) OR (a IS TRUE AND a IS NULL);
 a
 explain SELECT a FROM t1 WHERE a IN (42) OR (a=NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref_or_null	a	a	5	const	4	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref_or_null	a	a	5	const	#	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = 42) or (`test`.`t1`.`a` = NULL))
 SELECT a FROM t1 WHERE a IN (42) OR (a=NULL);

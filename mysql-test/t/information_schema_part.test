@@ -1,14 +1,10 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
-
--- source include/have_partition.inc
-
 --disable_warnings
 drop table if exists t1,t2,t3,t4;
 --enable_warnings
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=InnoDB;
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd' ENGINE=InnoDB;
+CREATE TABLESPACE ts3 ADD DATAFILE 'ts3.ibd' ENGINE=InnoDB;
 
 create table t1 (a int not null,b int not null,c int not null, primary key(a,b))
 partition by list (b*a)
@@ -46,26 +42,29 @@ and table_name="t4";
 
 drop table t1,t2,t3,t4;
 
+CREATE TABLESPACE tbsp1 ADD DATAFILE 't1.ibd' ENGINE=InnoDB;
+CREATE TABLESPACE tbsp2 ADD DATAFILE 't2.ibd' ENGINE=InnoDB;
+
 create table t1 (a int not null,b int not null,c int not null,primary key (a,b))
 partition by range (a)
 subpartition by hash (a+b)
 ( partition x1 values less than (1)
-  ( subpartition x11 tablespace t1,
-    subpartition x12 tablespace t2),
+  ( subpartition x11 tablespace tbsp1,
+    subpartition x12 tablespace tbsp2),
    partition x2 values less than (5)
-  ( subpartition x21 tablespace t1,
-    subpartition x22 tablespace t2)
+  ( subpartition x21 tablespace tbsp1,
+    subpartition x22 tablespace tbsp2)
 );
 
 create table t2 (a int not null,b int not null,c int not null,primary key (a,b))
 partition by range (a)
 subpartition by key (a)
 ( partition x1 values less than (1)
-  ( subpartition x11 tablespace t1,
-    subpartition x12 tablespace t2),
+  ( subpartition x11 tablespace tbsp1,
+    subpartition x12 tablespace tbsp2),
    partition x2 values less than (5)
-  ( subpartition x21 tablespace t1,
-    subpartition x22 tablespace t2)
+  ( subpartition x21 tablespace tbsp1,
+    subpartition x22 tablespace tbsp2)
 );
 --replace_column 16 # 19 # 20 #
 select * from information_schema.partitions where table_schema="test"; 
@@ -79,11 +78,14 @@ primary key (a,b))
 partition by range (a)
 subpartition by hash (a+b)
 ( partition x1 values less than (1)
- ( subpartition x11 tablespace t1 nodegroup 0,
-   subpartition x12 tablespace t2 nodegroup 1),
+ ( subpartition x11 tablespace tbsp1 nodegroup 0,
+   subpartition x12 tablespace tbsp2 nodegroup 1),
   partition x2 values less than (5)
-( subpartition x21 tablespace t1 nodegroup 0,
-  subpartition x22 tablespace t2 nodegroup 1)
+( subpartition x21 tablespace tbsp1 nodegroup 0,
+  subpartition x22 tablespace tbsp2 nodegroup 1),
+  partition x3 values less than (10)
+( subpartition x31 tablespace tbsp1 max_rows=50,
+  subpartition x32 tablespace tbsp2 nodegroup 1)
 );
    
 --replace_column 16 # 19 # 20 #
@@ -105,7 +107,7 @@ and table_name="t1";
 drop table t1;
 
 #
-# Bug 20161 Partitions: SUBPARTITION METHOD doesn't show LINEAR keyword
+# Bug 20161 Partitions: SUBPARTITION METHOD does not show LINEAR keyword
 #
 create table t1 (a int)
 PARTITION BY RANGE (a)
@@ -136,3 +138,8 @@ drop table if exists t1;
 create table t1 (f1 int key) partition by key(f1) partitions 2;
 select create_options from information_schema.tables where table_schema="test";
 drop table t1;
+drop tablespace ts1;
+drop tablespace ts2;
+drop tablespace ts3;
+drop tablespace tbsp1;
+drop tablespace tbsp2;

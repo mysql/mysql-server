@@ -1,4 +1,4 @@
-call mtr.add_suppression("\\[ERROR\\] InnoDB: table .* does not exist "
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* table .* does not exist "
 			 "in the InnoDB internal");
 set global innodb_file_per_table = off;
 "testing creation of tablepsace by enabling error path"
@@ -8,6 +8,7 @@ ibtmp1
 # files in MYSQL_DATA_DIR
 --innodb-force-recovery-crash=100
 "Next stmt will crash server"
+Pattern "Creating shared tablespace for temporary tables" found
 # restart
 # files in MYSQL_DATA_DIR
 ibtmp1

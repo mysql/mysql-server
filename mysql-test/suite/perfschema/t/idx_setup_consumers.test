@@ -1,0 +1,13 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = ENABLED;
+let $table = performance_schema.setup_consumers;
+
+# Test index on NAME
+
+let $column_count = 1;
+let $col1 = NAME;
+let $col1_act = "statements_digest";
+
+--source ../include/idx_explain_test.inc

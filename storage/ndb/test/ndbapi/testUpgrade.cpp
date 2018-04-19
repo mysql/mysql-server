@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -25,6 +32,7 @@
 #include <NdbBackup.hpp>
 #include <ndb_version.h>
 #include <random.h>
+#include <NdbMutex.h>
 
 static Vector<BaseString> table_list;
 
@@ -53,7 +61,11 @@ int CMT_createTableHook(Ndb* ndb,
                          num);
     table.setName(buf);
     if (fragCount > 0)
+    {
       table.setFragmentCount(fragCount);
+      table.setPartitionBalance(
+        NdbDictionary::Object::PartitionBalance_Specific);
+    }
     
     ndbout << "Creating " << buf 
            << " with fragment count " << fragCount 
@@ -301,18 +313,34 @@ dropEvent(Ndb *pNdb, const NdbDictionary::Table &tab)
 }
 
 
+static NdbMutex* createDropEvent_mutex = 0;
+
 static
 int
-createDropEvent(NDBT_Context* ctx, NDBT_Step* step)
+createDropEvent(NDBT_Context* ctx, NDBT_Step* step, bool wait = true)
 {
+  if (!wait)
+  {
+    if (NdbMutex_Trylock(createDropEvent_mutex) != 0)
+    {
+      g_err << "Skipping createDropEvent since already running in other process" << endl;
+      return NDBT_OK;
+    }
+  }
+  else if (NdbMutex_Lock(createDropEvent_mutex) != 0)
+  {
+    g_err << "Error while locking createDropEvent_mutex" << endl;
+    return NDBT_FAILED;
+  }
+
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
 
+  int res = NDBT_OK;
   if (ctx->getProperty("NoDDL", Uint32(0)) == 0)
   {
     for (unsigned i = 0; i<table_list.size(); i++)
     {
-      int res = NDBT_OK;
       const NdbDictionary::Table* tab = myDict->getTable(table_list[i].c_str());
       if (tab == 0)
       {
@@ -320,19 +348,26 @@ createDropEvent(NDBT_Context* ctx, NDBT_Step* step)
       }
       if ((res = createEvent(pNdb, *tab) != NDBT_OK))
       {
-        return res;
+        goto done;
       }
       
       
       
       if ((res = dropEvent(pNdb, *tab)) != NDBT_OK)
       {
-        return res;
+        goto done;
       }
     }
   }
 
-  return NDBT_OK;
+done:
+  if (NdbMutex_Unlock(createDropEvent_mutex) != 0)
+  {
+    g_err << "Error while unlocking createDropEvent_mutex" << endl;
+    return NDBT_FAILED;
+  }
+
+  return res;
 }
 
 /* An enum for expressing how many of the multiple nodes
@@ -611,6 +646,8 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
     if (restarter.waitClusterStarted())
       return NDBT_FAILED;
 
+    CHK_NDB_READY(GETNDB(step));
+
     if (event && createDropEvent(ctx, step))
     {
       return NDBT_FAILED;
@@ -665,6 +702,8 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
     
     if (restarter.waitClusterStarted())
       return NDBT_FAILED;
+
+    CHK_NDB_READY(GETNDB(step));
 
     if (event && createDropEvent(ctx, step))
     {
@@ -742,6 +781,22 @@ int runUpgrade_NdbdFirst(NDBT_Context* ctx, NDBT_Step* step)
 */
 int runUpgrade_NotAllMGMD(NDBT_Context* ctx, NDBT_Step* step)
 {
+  NdbRestarter restarter;
+  int minMgmVer = 0;
+  int maxMgmVer = 0;
+  int myVer = NDB_VERSION;
+
+  if (restarter.getNodeTypeVersionRange(NDB_MGM_NODE_TYPE_MGM,
+                                        minMgmVer,
+                                        maxMgmVer) == -1)
+  {
+    g_err << "runUpgrade_NotAllMGMD: getNodeTypeVersionRange call failed" << endl;
+  }
+
+  g_err << "runUpgrade_NotAllMGMD: My version " << myVer
+        << " Min mgm version " << minMgmVer
+        << " Max mgm version " << maxMgmVer << endl;
+
   ctx->setProperty("MgmdNodeSet", (Uint32) NodeSet(NotAll));
   ctx->setProperty("NdbdNodeSet", (Uint32) NodeSet(None));
   int res = runUpgrade_Half(ctx, step);
@@ -982,7 +1037,7 @@ runBasic(NDBT_Context* ctx, NDBT_Step* step)
         trans.clearTable(pNdb, records/2);
         break;
       case 3:
-        if (createDropEvent(ctx, step))
+        if (createDropEvent(ctx, step, false))
         {
           return NDBT_FAILED;
         }
@@ -1286,7 +1341,9 @@ runPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
       ndbout_c("waitClusterStarted() failed");
       return NDBT_FAILED;
     }
-    
+
+    CHK_NDB_READY(pNdb);
+
     if (pDict->getTable("I3") == 0)
     {
       ndbout_c("Table disappered");
@@ -1536,6 +1593,61 @@ runUpgrade_SR(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+static
+int
+runStartBlockLcp(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  restarter.setReconnect(true);
+
+  
+  while ((ctx->getProperty("HalfStartedDone", (Uint32)0) == 0) &&
+         !ctx->isTestStopped())
+  {
+    ndbout << "runStartBlockLcp: waiting for half nodes to be restarted..." << endl;
+    NdbSleep_MilliSleep(5000);
+  }
+
+  if (ctx->isTestStopped())
+  {
+    return NDBT_FAILED;
+  }
+
+  ndbout << "Half of the nodes restarted, beginning slow LCPs for remainder..." << endl;
+
+  /* Trigger LCPs which will be slow to complete, 
+   * testing more complex LCP takeover protocols
+   * especially when the last 'old' data node 
+   * (likely to be DIH Master) fails.
+   * */
+  do
+  {
+    int dumpCode[] = { 7099 };
+    while (restarter.dumpStateAllNodes(dumpCode, 1) != 0) {};
+
+    /* Stall fragment completions */
+    while (restarter.insertErrorInAllNodes(5073) != 0) {};
+
+    /* Allow restarts to continue... */
+    ctx->setProperty("HalfStartedHold", Uint32(0));
+
+    /**
+     * Only stall for 20s to avoid default LCP frag
+     * watchdog timeouts
+     */
+    NdbSleep_MilliSleep(20000);
+    
+    ndbout << "Unblocking LCP..." << endl;
+    while (restarter.insertErrorInAllNodes(0) != 0) 
+    {};
+
+    NdbSleep_MilliSleep(5000);
+    
+  } while (!ctx->isTestStopped());
+
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testUpgrade);
 TESTCASE("Upgrade_NR1",
@@ -1749,6 +1861,25 @@ POSTUPGRADE("Upgrade_SR_ManyTablesMaxFrag")
   INITIALIZER(runPostUpgradeChecks);
   INITIALIZER(dropManyTables);
 }
+TESTCASE("Upgrade_NR3_LCP_InProgress",
+         "Check that half-cluster upgrade with LCP in progress is ok")
+{
+  TC_PROPERTY("HalfStartedHold", Uint32(1)); /* Stop half way through */
+  INITIALIZER(runCheckStarted);
+  STEP(runStartBlockLcp);
+  STEP(runUpgrade_NR3);
+  /* No need for postUpgrade, and cannot rely on it existing for
+   * downgrades...
+   * Better solution needed for downgrades where postUpgrade is
+   * useful, e.g. RunIfPresentElseIgnore...
+   */
+  //VERIFIER(startPostUpgradeChecks);
+}
+//POSTUPGRADE("Upgrade_NR3_LCP_InProgress")
+//{
+//  INITIALIZER(runCheckStarted);
+//  INITIALIZER(runPostUpgradeChecks);
+//}
   
 NDBT_TESTSUITE_END(testUpgrade);
 
@@ -1762,7 +1893,10 @@ int main(int argc, const char** argv){
     strcpy(env, "API_SIGNAL_LOG=-"); // stdout
     putenv(env);
   }
-  return testUpgrade.execute(argc, argv);
+  createDropEvent_mutex = NdbMutex_Create();
+  int ret = testUpgrade.execute(argc, argv);
+  NdbMutex_Destroy(createDropEvent_mutex);
+  return ret;
 }
 
 template class Vector<NodeInfo>;

@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 #
 # only global
 #
@@ -12,9 +11,9 @@ show global variables like 'slave_load_tmpdir';
 show session variables like 'slave_load_tmpdir';
 --disable_warnings
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-select * from information_schema.global_variables where variable_name='slave_load_tmpdir';
+select * from performance_schema.global_variables where variable_name='slave_load_tmpdir';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-select * from information_schema.session_variables where variable_name='slave_load_tmpdir';
+select * from performance_schema.session_variables where variable_name='slave_load_tmpdir';
 --enable_warnings
 
 #

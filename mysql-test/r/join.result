@@ -51,12 +51,12 @@ id	id
 75	75
 select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t1.id;
 id	count(t2.id)
-75	1
 107	1
+75	1
 select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t2.id;
 id	count(t2.id)
-75	1
 107	1
+75	1
 select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0 where t2.id=75 and t1.id is null;
 id	id
 NULL	75
@@ -73,8 +73,6 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t2`.`id` AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`id` < 0) and (`test`.`t1`.`id` > 0) and multiple equal(`test`.`t2`.`id`, `test`.`t1`.`id`))
 drop table t1,t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (
 id int(11) NOT NULL auto_increment,
 token varchar(100) DEFAULT '' NOT NULL,
@@ -418,7 +416,7 @@ SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
 ORDER BY t1.b, t1.c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	16	1.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	16	6.25	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`t2`.`e` AS `e` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`e` = `test`.`t1`.`b`) and (`test`.`t2`.`d` = 1)) order by `test`.`t1`.`b`,`test`.`t1`.`c`
 SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
@@ -763,13 +761,16 @@ select t1.b from v1a;
 ERROR 42S22: Unknown column 't1.b' in 'field list'
 select * from v1a join v1b on t1.b = t2.b;
 ERROR 42S22: Unknown column 't1.b' in 'on clause'
+ANALYZE TABLE mysql.user;
+Table	Op	Msg_type	Msg_text
+mysql.user	analyze	status	OK
 select 
 statistics.TABLE_NAME, statistics.COLUMN_NAME, statistics.TABLE_CATALOG, statistics.TABLE_SCHEMA, statistics.NON_UNIQUE, statistics.INDEX_SCHEMA, statistics.INDEX_NAME, statistics.SEQ_IN_INDEX, statistics.COLLATION, statistics.SUB_PART, statistics.PACKED, statistics.NULLABLE, statistics.INDEX_TYPE, statistics.COMMENT, 
-columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_NULLABLE, columns.DATA_TYPE, columns.CHARACTER_MAXIMUM_LENGTH, columns.CHARACTER_OCTET_LENGTH, columns.NUMERIC_PRECISION, columns.NUMERIC_SCALE, columns.CHARACTER_SET_NAME, columns.COLLATION_NAME, columns.COLUMN_TYPE, columns.COLUMN_KEY, columns.EXTRA, columns.COLUMN_COMMENT
+columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_NULLABLE, columns.DATA_TYPE, columns.CHARACTER_MAXIMUM_LENGTH, columns.CHARACTER_OCTET_LENGTH, columns.NUMERIC_PRECISION, columns.NUMERIC_SCALE, columns.CHARACTER_SET_NAME, columns.COLLATION_NAME, columns.COLUMN_TYPE, columns.COLUMN_KEY, columns.EXTRA, columns.PRIVILEGES, columns.COLUMN_COMMENT
 from information_schema.statistics join information_schema.columns using(table_name,column_name) where table_name='user';
-TABLE_NAME	COLUMN_NAME	TABLE_CATALOG	TABLE_SCHEMA	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLLATION	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	TABLE_CATALOG	TABLE_SCHEMA	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	COLUMN_COMMENT
-user	Host	def	mysql	0	mysql	PRIMARY	1	A	NULL	NULL		BTREE		def	mysql		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
-user	User	def	mysql	0	mysql	PRIMARY	2	A	NULL	NULL		BTREE		def	mysql		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
+TABLE_NAME	COLUMN_NAME	TABLE_CATALOG	TABLE_SCHEMA	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLLATION	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	TABLE_CATALOG	TABLE_SCHEMA	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+user	Host	def	mysql	0	mysql	PRIMARY	1	A	NULL	NULL		BTREE		def	mysql		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references	
+user	User	def	mysql	0	mysql	PRIMARY	2	A	NULL	NULL		BTREE		def	mysql		NO	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references	
 drop table t1;
 drop table t2;
 drop table t3;
@@ -885,12 +886,12 @@ create table t3 (a int, b int, filler char(100), key(a), key(b));
 insert into t2 
 select @a:= A.a + 10*(B.a + 10*C.a), @a, 'filler' from t1 A, t1 B, t1 C;
 insert into t3 select * from t2 where a < 800;
-explain select * from t2,t3 where t2.a < 200 and t2.b=t3.b;
+explain select * from t2,t3 where t2.a < 400 and t2.b=t3.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	a,b	NULL	NULL	NULL	1000	19.80	Using where
+1	SIMPLE	t2	NULL	ALL	a,b	NULL	NULL	NULL	1000	39.50	Using where
 1	SIMPLE	t3	NULL	ref	b	b	5	test.t2.b	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`b` = `test`.`t2`.`b`) and (`test`.`t2`.`a` < 200))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`b` = `test`.`t2`.`b`) and (`test`.`t2`.`a` < 400))
 drop table t1, t2, t3;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -903,7 +904,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 show status like '%cost%';
 Variable_name	Value
-Last_query_cost	4.016090
+Last_query_cost	1.503272
 select 'The cost of accessing t1 (dont care if it changes' '^';
 The cost of accessing t1 (dont care if it changes
 The cost of accessing t1 (dont care if it changes^
@@ -919,10 +920,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`a`.`a` AS `a`,`test`.`a`.`b` AS `b`,`test`.`b`.`a` AS `a`,`test`.`b`.`b` AS `b` from `test`.`t1` join `test`.`t2` `a` join `test`.`t2` `b` where ((`test`.`b`.`a` = `test`.`a`.`b`) and (`test`.`a`.`a` = `test`.`t1`.`a`))
 show status like '%cost%';
 Variable_name	Value
-Last_query_cost	28.016090
-select '^^: The above should be ~= 20 + cost(select * from t1). Value less than 20 is an error' Z;
+Last_query_cost	8.503272
+select '^^: The above should be ~= 8 + cost(select * from t1). Value less than 8 is an error' Z;
 Z
-^^: The above should be ~= 20 + cost(select * from t1). Value less than 20 is an error
+^^: The above should be ~= 8 + cost(select * from t1). Value less than 8 is an error
 drop table t1, t2;
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
 CREATE TABLE t2 (c INT PRIMARY KEY, d INT);
@@ -1158,7 +1159,7 @@ DROP TABLE t1,t2,t3,t4,t5,t6;
 CREATE TABLE t1(f1 INT);
 INSERT INTO t1 VALUES (1),(2);
 CREATE VIEW v1 AS SELECT 1 FROM t1 LEFT JOIN t1 AS t2 on 1=1;
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT 1 FROM v1 right join v1 AS v2 ON RAND();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -1166,7 +1167,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` on((1 = 1)) left join (`test`.`t1` left join `test`.`t1` `t2` on((1 = 1))) on(rand()) where 1
 DROP VIEW v1;
 DROP TABLE t1;
@@ -1180,9 +1180,9 @@ EXPLAIN SELECT 1 FROM t1 LEFT JOIN t1 a ON 1
 WHERE ROW(t1.a, 1111.11) = ROW(1111.11, 1111.11) AND
 ROW(t1.b, 1111.11) <=> ROW('','');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `a` on(1) where (((`test`.`t1`.`b`,1111.11) <=> ('','')) and (`test`.`t1`.`a` = 1111.11))
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `a` on(1) where 0
 DROP TABLE t1;
 #
 # Bug #50335: Assertion `!(order->used & map)' in eq_ref_table
@@ -1380,8 +1380,8 @@ Note	1003	/* select#1 */ select `test`.`t4`.`c1` AS `c1`,`test`.`t4`.`c2` AS `c2
 EXPLAIN SELECT STRAIGHT_JOIN * FROM t4 JOIN (t1 join t3 on t3.ref_t1 =
 t1.c1 join t2 on t2.ref_t1 = t1.c1) on t4.ref_t1 = t1.c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t4.ref_t1	1	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
@@ -1403,7 +1403,7 @@ FROM (SELECT 1 FROM t1 WHERE a) AS q
 NATURAL LEFT JOIN t1
 NATURAL LEFT JOIN t1 AS t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	5.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
@@ -1418,7 +1418,7 @@ FROM t1
 NATURAL RIGHT JOIN t1 AS t2
 NATURAL RIGHT JOIN (SELECT 1 FROM t1 WHERE a) AS q;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	5.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
@@ -1429,3 +1429,112 @@ NATURAL RIGHT JOIN t1 AS t2
 NATURAL RIGHT JOIN (SELECT 1 FROM t1 WHERE a) AS q;
 1
 DROP TABLE t1;
+# Bug#21045724: Assertion '!table || !table->read_set ...
+CREATE TABLE t1
+(pk INTEGER,
+dummy VARCHAR(64),
+col_check TINYINT,
+PRIMARY KEY(pk)
+) engine=innodb;
+INSERT INTO t1 VALUES (13, '13', 13);
+CREATE VIEW v1 AS
+SELECT *
+FROM t1
+WHERE pk BETWEEN 13 AND 14;
+PREPARE st1 FROM "
+UPDATE v1 AS a NATURAL JOIN v1 AS b
+SET a.dummy = '', b.col_check = NULL ";
+EXECUTE st1;
+EXECUTE st1;
+DEALLOCATE PREPARE st1;
+DROP VIEW v1;
+DROP TABLE t1;
+# Bug#25424289: Assert '!table->has_null_row()' failed in join_read_key
+CREATE TABLE t1
+(pk INT,
+col_int_key INT DEFAULT NULL,
+col_varchar_10_latin1_key VARCHAR(10) DEFAULT NULL,
+col_varchar_255_utf8 VARCHAR(255) CHARACTER SET utf8 DEFAULT NULL,
+col_int INT DEFAULT NULL,
+col_datetime_key datetime DEFAULT NULL,
+col_varchar_255_latin1_key VARCHAR(255) DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+col_datetime datetime DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_date_key (col_date_key)
+) charset latin1 ENGINE=MyISAM;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 VALUES
+(8,9,'h','FDUMQ',-1356726272,'2007-09-02 05:48:23','she','2002-04-02','2002-12-20 17:54:07');
+CREATE TABLE t2
+(pk INT,
+col_int INT DEFAULT NULL,
+col_int_key INT DEFAULT NULL,
+PRIMARY KEY (pk)
+) charset latin1 ENGINE=MyISAM;
+CREATE TABLE t3
+(col_int INT DEFAULT NULL,
+col_int_key INT DEFAULT NULL,
+pk INT,
+PRIMARY KEY (pk),
+KEY test_idx (col_int_key,pk,col_int)
+) charset latin1 ENGINE=InnoDB;
+INSERT INTO t3 VALUES
+(NULL,9, 41), (NULL,-1596719104, 48), (-1068105728,9, 49);
+CREATE TABLE t4
+(col_varchar_255_latin1_key VARCHAR(255) DEFAULT NULL,
+pk INT,
+PRIMARY KEY (pk)
+) charset latin1 ENGINE=MyISAM;
+INSERT INTO t4 VALUES ('RUXDY',8);
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	Table is already up to date
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+explain SELECT alias1.pk AS field5
+FROM t3 AS alias1
+LEFT JOIN t4 AS alias2
+LEFT JOIN t4 AS alias3
+LEFT JOIN t1 AS alias4
+LEFT JOIN t2 AS alias5
+ON alias4.pk = alias5.col_int_key
+ON alias3.pk = alias5.col_int
+ON alias2.col_varchar_255_latin1_key = alias4.col_varchar_10_latin1_key
+RIGHT JOIN t1 AS alias6
+ON alias4.pk = alias6.pk
+RIGHT JOIN t4 AS alias7
+ON alias6.pk = alias7.pk
+ON alias1.col_int_key = alias6.col_int_key
+WHERE alias1.col_int > 5 OR
+alias5.col_int > 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	alias1	NULL	index	NULL	test_idx	14	NULL	3	100.00	Using index
+1	SIMPLE	alias7	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
+1	SIMPLE	alias6	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias7.pk	1	100.00	Using where
+1	SIMPLE	alias4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias6.pk	1	100.00	Using where
+1	SIMPLE	alias5	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	alias3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias5.col_int	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`alias1`.`pk` AS `field5` from `test`.`t3` `alias1` left join (`test`.`t4` `alias7` join `test`.`t1` `alias6` left join (`test`.`t4` `alias2` join `test`.`t4` `alias3` join `test`.`t1` `alias4` join `test`.`t2` `alias5`) on(((`test`.`alias3`.`pk` = `test`.`alias5`.`col_int`) and (`test`.`alias4`.`pk` = `test`.`alias7`.`pk`) and (`test`.`alias5`.`col_int_key` = `test`.`alias7`.`pk`) and (`test`.`alias2`.`col_varchar_255_latin1_key` = `test`.`alias4`.`col_varchar_10_latin1_key`)))) on(((`test`.`alias6`.`pk` = `test`.`alias7`.`pk`) and (`test`.`alias6`.`col_int_key` = `test`.`alias1`.`col_int_key`))) where ((`test`.`alias1`.`col_int` > 5) or (`test`.`alias5`.`col_int` > 5))
+SELECT alias1.pk AS field5
+FROM t3 AS alias1
+LEFT JOIN t4 AS alias2
+LEFT JOIN t4 AS alias3
+LEFT JOIN t1 AS alias4
+LEFT JOIN t2 AS alias5
+ON alias4.pk = alias5.col_int_key
+ON alias3.pk = alias5.col_int
+ON alias2.col_varchar_255_latin1_key = alias4.col_varchar_10_latin1_key
+RIGHT JOIN t1 AS alias6
+ON alias4.pk = alias6.pk
+RIGHT JOIN t4 AS alias7
+ON alias6.pk = alias7.pk
+ON alias1.col_int_key = alias6.col_int_key
+WHERE alias1.col_int > 5 OR
+alias5.col_int > 5;
+field5
+DROP TABLE t1, t2, t3, t4;

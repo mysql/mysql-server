@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 SET @start_global_value = @@global.innodb_trx_rseg_n_slots_debug;
@@ -14,8 +13,8 @@ select @@session.innodb_trx_rseg_n_slots_debug;
 show global variables like 'innodb_trx_rseg_n_slots_debug';
 show session variables like 'innodb_trx_rseg_n_slots_debug';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_trx_rseg_n_slots_debug';
-select * from information_schema.session_variables where variable_name='innodb_trx_rseg_n_slots_debug';
+select * from performance_schema.global_variables where variable_name='innodb_trx_rseg_n_slots_debug';
+select * from performance_schema.session_variables where variable_name='innodb_trx_rseg_n_slots_debug';
 --enable_warnings
 
 #
@@ -24,14 +23,14 @@ select * from information_schema.session_variables where variable_name='innodb_t
 set global innodb_trx_rseg_n_slots_debug=1;
 select @@global.innodb_trx_rseg_n_slots_debug;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_trx_rseg_n_slots_debug';
-select * from information_schema.session_variables where variable_name='innodb_trx_rseg_n_slots_debug';
+select * from performance_schema.global_variables where variable_name='innodb_trx_rseg_n_slots_debug';
+select * from performance_schema.session_variables where variable_name='innodb_trx_rseg_n_slots_debug';
 --enable_warnings
 set @@global.innodb_trx_rseg_n_slots_debug=0;
 select @@global.innodb_trx_rseg_n_slots_debug;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_trx_rseg_n_slots_debug';
-select * from information_schema.session_variables where variable_name='innodb_trx_rseg_n_slots_debug';
+select * from performance_schema.global_variables where variable_name='innodb_trx_rseg_n_slots_debug';
+select * from performance_schema.session_variables where variable_name='innodb_trx_rseg_n_slots_debug';
 --enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_trx_rseg_n_slots_debug='some';

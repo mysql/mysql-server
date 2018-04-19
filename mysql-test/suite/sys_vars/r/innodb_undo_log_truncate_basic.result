@@ -1,7 +1,7 @@
 SET @start_global_value = @@global.innodb_undo_log_truncate;
 SELECT @start_global_value;
 @start_global_value
-0
+1
 '#---------------------BS_STVARS_028_01----------------------#'
 SELECT COUNT(@@GLOBAL.innodb_undo_log_truncate);
 COUNT(@@GLOBAL.innodb_undo_log_truncate)
@@ -26,7 +26,7 @@ SELECT @@global.innodb_undo_log_truncate;
 1
 '#---------------------BS_STVARS_028_03----------------------#'
 SELECT IF(@@GLOBAL.innodb_undo_log_truncate,'ON','OFF') = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_undo_log_truncate';
 IF(@@GLOBAL.innodb_undo_log_truncate,'ON','OFF') = VARIABLE_VALUE
 1
@@ -36,7 +36,7 @@ COUNT(@@GLOBAL.innodb_undo_log_truncate)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_undo_log_truncate';
 COUNT(VARIABLE_VALUE)
 1
@@ -66,4 +66,4 @@ ERROR 42S22: Unknown column 'innodb_undo_log_truncate' in 'field list'
 SET @@global.innodb_undo_log_truncate = @start_global_value;
 SELECT @@global.innodb_undo_log_truncate;
 @@global.innodb_undo_log_truncate
-0
+1

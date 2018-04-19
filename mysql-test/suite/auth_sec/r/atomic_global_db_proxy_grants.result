@@ -1,0 +1,363 @@
+include/save_binlog_position.inc
+# ----------------------------------------------------------------------
+# Begin : Tests for GRANT : Global grants
+CREATE USER userX, userY, userZ;
+include/save_binlog_position.inc
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+# Case 1 : Trying to create user with empty password
+GRANT SUPER ON *.* TO userX, userY, userA;
+ERROR 42000: You are not allowed to create a user with GRANT
+# Grants for userX, userY, userZ should not have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+# Check mysql.user table too
+SELECT user, Super_priv FROM mysql.user WHERE user like 'user%';
+user	Super_priv
+userX	N
+userY	N
+userZ	N
+# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT SUPER ON.*userX.*userY.*userA.*)
+include/assert_binlog_events.inc
+# Case 3 : GRANT to a user with empty plugin
+# Create userW and get rid of the plugin value for userW
+CREATE USER userW IDENTIFIED BY 'abcd';
+UPDATE mysql.user SET plugin="" WHERE user like 'userW';
+call mtr.add_suppression("User entry .* has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+FLUSH PRIVILEGES;
+include/save_binlog_position.inc
+# Attempt to GRANT privileges to userW
+GRANT SUPER ON *.* TO userX, userW, userY;
+ERROR 42000: You are not allowed to create a user with GRANT
+Grants for userX, userY, userZ should not have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+# Check mysql.user table too
+SELECT user, Super_priv FROM mysql.user WHERE user like 'user%';
+user	Super_priv
+userW	N
+userX	N
+userY	N
+userZ	N
+# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT SUPER ON.*userX.*userW.*userY.*)
+include/assert_binlog_events.inc
+# Restore userW to its former state
+UPDATE mysql.user SET plugin="caching_sha2_password" WHERE user like 'userW';
+FLUSH PRIVILEGES;
+include/save_binlog_position.inc
+# Case 4 : Use unprivileged account to create new user using GRANT
+CREATE USER userSUPER;
+GRANT SUPER ON *.* TO userSUPER WITH GRANT OPTION;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+include/save_binlog_position.inc
+GRANT SUPER ON *.* TO userX, userY, userA , userB;
+ERROR 42000: You are not allowed to create a user with GRANT
+Grants for userX, userY, userZ should not have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+# Check mysql.user table too
+SELECT user, Super_priv FROM mysql.user WHERE user like 'user%';
+user	Super_priv
+userSUPER	Y
+userW	N
+userX	N
+userY	N
+userZ	N
+# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT SUPER ON.*userX.*userY.*userA.*userB)
+include/assert_binlog_events.inc
+# Case 5 : Valid grant
+GRANT SUPER ON *.* TO userX, userY, userZ;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+Grants for userX, userY, userZ should show SUPER
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT SUPER ON *.* TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT SUPER ON *.* TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT SUPER ON *.* TO `userZ`@`%`
+# Check mysql.user table too
+SELECT user, Super_priv FROM mysql.user WHERE user like 'user%';
+user	Super_priv
+userSUPER	Y
+userW	N
+userX	Y
+userY	Y
+userZ	Y
+# This event sequence pattern MUST be present in binlog: !Q(GRANT SUPER ON.*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+DROP USER userW, userX, userY, userZ, userSUPER;
+include/save_binlog_position.inc
+# End : Tests for GRANT : Global grants
+# ----------------------------------------------------------------------
+# Begin : Tests for GRANT : DB grants
+CREATE USER userX, userY, userZ;
+# Grant some DB privileges to some of the users so that
+# we cover both path : One creates new entry in mysql.db and
+# the other which updates existing entries.
+GRANT INSERT ON mysql.* TO userX;
+include/save_binlog_position.inc
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT INSERT ON `mysql`.* TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+# Case 1 : Trying to create user with empty password
+GRANT SELECT ON mysql.* TO userX, userY, userA;
+ERROR 42000: You are not allowed to create a user with GRANT
+# Grants for userX, userY, userZ should not have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT INSERT ON `mysql`.* TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+# Check mysql.db table too
+SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
+user	db	Insert_priv	Select_priv
+userX	mysql	Y	N
+# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT SELECT ON.*mysql.*userX.*userY.*userA)
+include/assert_binlog_events.inc
+# Case 3 : GRANT to a user with empty plugin
+# Create userW and get rid of the plugin value for userW
+CREATE USER userW IDENTIFIED BY 'abcd';
+UPDATE mysql.user SET plugin="" WHERE user like 'userW';
+call mtr.add_suppression("User entry .* has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+FLUSH PRIVILEGES;
+include/save_binlog_position.inc
+# Attempt to GRANT privileges to userW
+GRANT SELECT ON mysql.* TO userX, userW, userY;
+ERROR 42000: You are not allowed to create a user with GRANT
+Grants for userX, userY, userZ should show SUPER
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT INSERT ON `mysql`.* TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+# Check mysql.db table too
+SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
+user	db	Insert_priv	Select_priv
+userX	mysql	Y	N
+# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT SELECT ON.*mysql.*userX.*userW.*userY.*)
+include/assert_binlog_events.inc
+# Restore userW to its former state
+UPDATE mysql.user SET plugin="caching_sha2_password" WHERE user like 'userW';
+FLUSH PRIVILEGES;
+# Case 4 : Use unprivileged account to create new user using GRANT
+CREATE USER userSELECT;
+GRANT SELECT ON mysql.* TO userSELECT WITH GRANT OPTION;
+include/save_binlog_position.inc
+GRANT SELECT ON mysql.* TO userX, userY, userA , userB;
+ERROR 42000: You are not allowed to create a user with GRANT
+Grants for userX, userY, userZ should show SUPER
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT INSERT ON `mysql`.* TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+# Check mysql.db table too
+SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
+user	db	Insert_priv	Select_priv
+userSELECT	mysql	N	Y
+userX	mysql	Y	N
+# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT SELECT ON.*mysql.*userX.*userW.*userA.*userB.*)
+include/assert_binlog_events.inc
+# Case 5 : Valid grant
+GRANT SELECT ON mysql.* TO userX, userY, userZ;
+Grants for userX, userY, userZ should show SELECT on mysql.*
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT SELECT, INSERT ON `mysql`.* TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT ON `mysql`.* TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT ON `mysql`.* TO `userZ`@`%`
+# Check mysql.db table too
+SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
+user	db	Insert_priv	Select_priv
+userSELECT	mysql	N	Y
+userX	mysql	Y	Y
+userY	mysql	N	Y
+userZ	mysql	N	Y
+# This event sequence pattern MUST be present in binlog: !Q(GRANT SELECT ON.*mysql.*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Case 6 : Wrong set of privileges for DB grant
+GRANT SUPER ON mysql.* TO userX, userY, userZ;
+ERROR HY000: Incorrect usage of DB GRANT and GLOBAL PRIVILEGES
+Grants for userX, userY, userZ should not have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT SELECT, INSERT ON `mysql`.* TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT ON `mysql`.* TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT ON `mysql`.* TO `userZ`@`%`
+# Check mysql.db table too
+SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
+user	db	Insert_priv	Select_priv
+userSELECT	mysql	N	Y
+userX	mysql	Y	Y
+userY	mysql	N	Y
+userZ	mysql	N	Y
+# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT SUPER ON.*mysql.*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+DROP USER userW, userX, userY, userZ, userSELECT;
+include/save_binlog_position.inc
+# End : Tests for GRANT : DB grants
+# ----------------------------------------------------------------------
+# Begin : Tests for GRANT : Proxy grants
+CREATE USER userX, userY, userZ;
+CREATE USER proxied;
+include/save_binlog_position.inc
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+# Case 1 : Trying to create user with empty password
+GRANT PROXY ON proxied TO userX, userY, userA;
+ERROR 42000: You are not allowed to create a user with GRANT
+# Grants for userX, userY, userZ should not have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT PROXY ON.*proxied.*TO.*mysql.*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+# Case 3 : GRANT to a user with empty plugin
+# Create userW and get rid of the plugin value for userW
+CREATE USER userW IDENTIFIED BY 'abcd';
+UPDATE mysql.user SET plugin="" WHERE user like 'userW';
+call mtr.add_suppression("User entry .* has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+FLUSH PRIVILEGES;
+include/save_binlog_position.inc
+# Attempt to GRANT privileges to userW
+GRANT PROXY ON proxied TO userX, userW, userY;
+ERROR 42000: You are not allowed to create a user with GRANT
+Grants for userX, userY, userZ should show SUPER
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT PROXY ON.*proxied.*TO.*mysql.*userX.*userW.*userY.*)
+include/assert_binlog_events.inc
+# Restore userW to its former state
+UPDATE mysql.user SET plugin="caching_sha2_password" WHERE user like 'userW';
+FLUSH PRIVILEGES;
+include/save_binlog_position.inc
+# Case 4 : Use unprivileged account to create new user using GRANT
+CREATE USER userPROXY;
+GRANT PROXY ON proxied TO userPROXY WITH GRANT OPTION;
+include/save_binlog_position.inc
+GRANT PROXY ON proxied TO userX, userY, userA, userB;
+ERROR 42000: You are not allowed to create a user with GRANT
+Grants for userX, userY, userZ should show SUPER
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT PROXY ON.*proxied.*TO.*mysql.*userX.*userY.*userA.*userB.*)
+include/assert_binlog_events.inc
+# Case 5 : Valid grant
+GRANT PROXY ON proxied TO userX, userY, userZ;
+Grants for userX, userY, userZ should show SELECT on mysql.*
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT PROXY ON 'proxied'@'%' TO 'userX'@'%'
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+GRANT PROXY ON 'proxied'@'%' TO 'userY'@'%'
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT PROXY ON 'proxied'@'%' TO 'userZ'@'%'
+# This event sequence pattern MUST be present in binlog: !Q(GRANT PROXY ON.*proxied.*TO.*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+DROP USER proxied, userW, userX, userY, userZ, userPROXY;
+include/save_binlog_position.inc
+# End : Tests for GRANT : Proxy grants
+# ----------------------------------------------------------------------

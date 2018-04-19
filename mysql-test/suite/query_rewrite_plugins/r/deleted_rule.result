@@ -15,7 +15,7 @@ c1
 123
 456
 Warnings:
-Note	1105	Query 'SELECT * FROM test.t1' rewritten to 'SELECT * FROM test.t2' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM test.t1' rewritten to 'SELECT * FROM test.t2' by a query rewrite plugin
 DELETE FROM query_rewrite.rewrite_rules
 WHERE pattern = 'SELECT * FROM test.t1';
 CALL query_rewrite.flush_rewrite_rules();
@@ -25,4 +25,6 @@ c1
 abc
 def
 DROP TABLE t1, t2;
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

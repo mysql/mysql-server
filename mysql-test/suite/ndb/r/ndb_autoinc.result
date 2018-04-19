@@ -24,7 +24,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   KEY `id` (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t3
 ADD PRIMARY KEY (id);
 SHOW CREATE TABLE t3;
@@ -33,6 +33,83 @@ t3	CREATE TABLE `t3` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
   KEY `id` (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t3;
 End of 5.1 tests
+set @@auto_increment_increment=4;
+set @@auto_increment_offset=1;
+set @@ndb_autoincrement_prefetch_sz=2;
+create table t1 (a int unsigned not null primary key auto_increment)
+engine ndb;
+insert into t1 values ();
+insert into t1 values (2);
+insert into t1 values ();
+insert into t1 values ();
+select * from t1 order by a;
+a
+1
+2
+5
+9
+drop table t1;
+set @@auto_increment_increment=2;
+set @@auto_increment_offset=1;
+First look at default SE behaviour on manual insert unaligned with
+offset + step
+create table t1 (a int unsigned not null primary key auto_increment);
+show variables like 'LAST_INSERT_ID';
+Variable_name	Value
+last_insert_id	9
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+Variable_name	Value
+last_insert_id	1
+insert into t1 values(18);
+show variables like 'LAST_INSERT_ID';
+Variable_name	Value
+last_insert_id	1
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+Variable_name	Value
+last_insert_id	19
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+Variable_name	Value
+last_insert_id	21
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+Variable_name	Value
+last_insert_id	23
+insert into t1 values(22);
+show variables like 'LAST_INSERT_ID';
+Variable_name	Value
+last_insert_id	23
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+Variable_name	Value
+last_insert_id	25
+insert into t1 values(28);
+show variables like 'LAST_INSERT_ID';
+Variable_name	Value
+last_insert_id	25
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+Variable_name	Value
+last_insert_id	29
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+Variable_name	Value
+last_insert_id	31
+select * from t1 order by a;
+a
+1
+18
+19
+21
+22
+23
+25
+28
+29
+31
+drop table t1;

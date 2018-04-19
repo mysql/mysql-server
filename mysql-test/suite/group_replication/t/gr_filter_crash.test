@@ -1,0 +1,82 @@
+################################################################################
+# BUG#25813258 CRASH ON
+#              SHOW SLAVE STATUS FOR CHANNEL 'GROUP_REPLICATION_RECOVERY'
+#
+# Verify the command doesn't crash after server restarts.
+# Step 1. Setup group replication
+# Step 2. Leave and rejoin server_2. Keeps server_2 in RECOVERY status
+# Step 3. Restart server_2
+# Step 4. Execute SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery'
+################################################################################
+
+--source include/big_test.inc
+
+--echo #
+--echo # Initialize group replication
+--echo #
+--source include/have_group_replication_plugin.inc
+--source include/force_restart.inc
+
+--let $rpl_server_count= 2
+--source include/group_replication.inc
+
+CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY);
+--source include/rpl_sync.inc
+
+--echo #
+--echo # Leave and rejoin the group
+--echo #
+--let rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("The member has failed to gracefully leave the group.");
+call mtr.add_suppression("read failed");
+SET SESSION sql_log_bin=1;
+
+INSERT INTO t1 VALUES(1);
+
+# It keeps server_2 is in RECOVERY status.
+--source include/gr_stop_applier_sql_thread.inc
+
+--let rpl_connection_name= server_2
+--source include/rpl_connection.inc
+START GROUP_REPLICATION;
+
+--echo # Wait until donor is confirmed
+--let $wait_condition= SELECT count(*) != 0 FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_recovery" AND service_state="ON"
+--source include/wait_condition.inc
+
+--echo #
+--echo # Restart server_2
+--echo #
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+--source include/rpl_reconnect.inc
+
+--echo #
+--echo # Verify no crash happens
+--echo #
+--disable_result_log
+SHOW SLAVE STATUS FOR CHANNEL "group_replication_recovery";
+--enable_result_log
+
+DROP TABLE t1;
+
+--echo #
+--echo # Cleanup
+--echo #
+--let rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--source include/gr_start_applier_sql_thread.inc
+
+--source include/stop_group_replication.inc
+
+DROP TABLE t1;
+--source include/group_replication_end.inc

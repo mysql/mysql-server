@@ -1,17 +1,17 @@
 SET @start_value = @@global.table_open_cache ;
-SELECT IF(@@open_files_limit < 5000, 2000, @start_value);
-IF(@@open_files_limit < 5000, 2000, @start_value)
-2000
+SELECT IF(@@open_files_limit < 5000, 4000, @start_value);
+IF(@@open_files_limit < 5000, 4000, @start_value)
+4000
 '#--------------------FN_DYNVARS_001_01------------------------#'
 SET @@global.table_open_cache  = 99;
 SET @@global.table_open_cache  = DeFAULT;
 SELECT @@global.table_open_cache;
 @@global.table_open_cache
-2000
+4000
 '#---------------------FN_DYNVARS_001_02-------------------------#'
 SET @@global.table_open_cache = Default;
-SELECT IF(@@open_files_limit < 5000, 2000, @@global.table_open_cache) = 2000;
-IF(@@open_files_limit < 5000, 2000, @@global.table_open_cache) = 2000
+SELECT IF(@@open_files_limit < 5000, 4000, @@global.table_open_cache) = 4000;
+IF(@@open_files_limit < 5000, 4000, @@global.table_open_cache) = 4000
 1
 '#--------------------FN_DYNVARS_001_03------------------------#'
 SET @@global.table_open_cache  = 8;
@@ -77,7 +77,7 @@ ERROR 42000: Incorrect argument type to variable 'table_open_cache'
 SET @@session.table_open_cache = 0;
 ERROR HY000: Variable 'table_open_cache' is a GLOBAL variable and should be set with SET GLOBAL
 '#----------------------FN_DYNVARS_001_06------------------------#'
-SELECT @@global.table_open_cache = VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='table_open_cache ';
+SELECT @@global.table_open_cache = VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='table_open_cache';
 @@global.table_open_cache = VARIABLE_VALUE
 1
 '#---------------------FN_DYNVARS_001_09----------------------#'
@@ -106,6 +106,6 @@ ERROR 42S02: Unknown table 'global' in field list
 SELECT table_open_cache = @@session.table_open_cache ;
 ERROR 42S22: Unknown column 'table_open_cache' in 'field list'
 SET @@global.table_open_cache = @start_value;
-SELECT IF(@@open_files_limit < 5000, 2000, @start_value);
-IF(@@open_files_limit < 5000, 2000, @start_value)
-2000
+SELECT IF(@@open_files_limit < 5000, 4000, @start_value);
+IF(@@open_files_limit < 5000, 4000, @start_value)
+4000

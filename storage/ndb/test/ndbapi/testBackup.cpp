@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -52,6 +59,16 @@ int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runLoadTable10000(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int records = 10000;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  if (hugoTrans.loadTable(GETNDB(step), records) != 0){
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 bool testMaster = true;
 bool testSlave = false;
 
@@ -68,6 +85,207 @@ int setMasterAsSlave(NDBT_Context* ctx, NDBT_Step* step){
 int setSlave(NDBT_Context* ctx, NDBT_Step* step){
   testMaster = false;
   testSlave = true;
+  return NDBT_OK;
+}
+
+struct scan_holder_type
+{
+  NdbScanOperation *pOp;
+  NdbTransaction *pTrans;
+};
+
+int createOrderedPkIndex(NDBT_Context* ctx, NDBT_Step* step)
+{
+  char orderedPkIdxName[255];
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+
+  // Create index
+  BaseString::snprintf(orderedPkIdxName, sizeof(orderedPkIdxName),
+                       "IDC_O_PK_%s", pTab->getName());
+  NdbDictionary::Index pIdx(orderedPkIdxName);
+  pIdx.setTable(pTab->getName());
+  pIdx.setType(NdbDictionary::Index::OrderedIndex);
+  pIdx.setLogging(false);
+
+  for (int c = 0; c< pTab->getNoOfColumns(); c++)
+  {
+    const NdbDictionary::Column * col = pTab->getColumn(c);
+    if (col->getPrimaryKey())
+    {
+      pIdx.addIndexColumn(col->getName());
+    }
+  }
+  if (pNdb->getDictionary()->createIndex(pIdx) != 0)
+  {
+    ndbout << "FAILED! to create index" << endl;
+    const NdbError err = pNdb->getDictionary()->getNdbError();
+    NDB_ERR(err);
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int start_scan_no_close(NDBT_Context *ctx,
+                        Ndb *pNdb,
+                        scan_holder_type *scan_holder,
+                        int scan_flags,
+                        int i)
+{
+  const NdbDictionary::Table *tab = ctx->getTab();
+  scan_holder->pTrans = pNdb->startTransaction();
+  if (scan_holder->pTrans == NULL)
+  {
+    g_err << "Failed to start transaction, line: "
+          << __LINE__ << " i = " << i << endl;
+    return NDBT_FAILED;
+  }
+  if (scan_flags != NdbScanOperation::SF_OrderBy)
+  {
+    scan_holder->pOp =
+      scan_holder->pTrans->getNdbScanOperation(tab->getName());
+  }
+  else
+  {
+    char pkIdxName[255];
+    BaseString::snprintf(pkIdxName, 255, "IDC_O_PK_%s", tab->getName());
+    scan_holder->pOp =
+      scan_holder->pTrans->getNdbIndexScanOperation(pkIdxName, tab->getName());
+  }
+  if (scan_holder->pOp == NULL)
+  {
+    g_err << "Failed to get scan op, line: "
+          << __LINE__ << " i = " << i << endl;
+    return NDBT_FAILED;
+  }
+  if (scan_holder->pOp->readTuples(NdbOperation::LM_CommittedRead,
+                                   scan_flags,
+                                   240))
+  {
+    g_err << "Failed call to readTuples, line: "
+          << __LINE__ << " i = " << i << endl;
+    return NDBT_FAILED;
+  }
+  for (int j = 0; j < tab->getNoOfColumns(); j++)
+  {
+    if (scan_holder->pOp->getValue(tab->getColumn(j)->getName()) == 0)
+    {
+      g_err << "Failed to get value, line: "
+            << __LINE__ << " i = " << i << " j = " << j << endl;
+      return NDBT_FAILED;
+    }
+  }
+  if (scan_holder->pTrans->execute(NoCommit, AbortOnError) == -1)
+  {
+    g_err << "Failed to exec scan op, line: "
+          << __LINE__ << " i = " << i << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int outOfScanRecordsInLDM(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbBackup backup;
+  unsigned backupId = 0;
+  int i;
+  Ndb* pNdb;
+  scan_holder_type scan_holder_array[256];
+  const static int NUM_ACC_SCANS = 12;
+  const static int NUM_TUX_SCANS = 122;
+  const static int NUM_TUP_SCANS = 119;
+  
+  pNdb = GETNDB(step);
+  for (i = 0; i < NUM_ACC_SCANS; i++)
+  {
+    /**
+     * We start 12 ACC scans, we can have at most 12 ACC scans, if more
+     * are used we will queue up the scans. Here we use up all of them
+     * but don't queue up any.
+     */
+    if (start_scan_no_close(ctx,
+                            pNdb,
+                            &scan_holder_array[i],
+                            0,
+                            i)
+                            == NDBT_FAILED)
+    {
+      return NDBT_FAILED;
+    }
+  }
+  for (; i < NUM_ACC_SCANS + NUM_TUX_SCANS; i++)
+  {
+    /**
+     * In the default config which we assume in this test case, we can
+     * start up 122 parallel range scans on a fragment. Here we use up
+     * all of those slots, so no queueing will occur.
+     */
+    if (start_scan_no_close(ctx,
+                            pNdb,
+                            &scan_holder_array[i],
+                            NdbScanOperation::SF_OrderBy,
+                            i)
+                            == NDBT_FAILED)
+    {
+      return NDBT_FAILED;
+    }
+  }
+  for (; i < NUM_ACC_SCANS + NUM_TUX_SCANS + NUM_TUP_SCANS + 1; i++)
+  {
+    /**
+     * In the default config we can have up to 119 Tup scans without queueing.
+     * Here we will attempt to start 120 Tup scans. The last one will be
+     * queued. This runs some code where queued scans are handled from
+     * close scan which aborted. This found a bug which we ensure gets
+     * retested by this overallocation.
+     */
+    if (start_scan_no_close(ctx,
+                            pNdb,
+                            &scan_holder_array[i],
+                            NdbScanOperation::SF_TupScan,
+                            i)
+                            == NDBT_FAILED)
+    {
+      return NDBT_FAILED;
+    }
+  }
+
+  /**
+   * Start an LCP to ensure that we test LCP scans while grabbing all
+   * scan number resources.
+   */
+  NdbRestarter restarter;
+  int dumpCode = 7099;
+  restarter.dumpStateAllNodes(&dumpCode, 1);
+
+  /**
+   * At this point we have allocated all scan numbers, so no more scan
+   * numbers are available. Backup should still function since it uses
+   * a reserved scan number, we verify this here.
+   */
+  if (backup.start(backupId) == -1)
+  {
+    return NDBT_FAILED;
+  }
+  ndbout << "Started backup " << backupId << endl;
+  ctx->setProperty("BackupId", backupId);
+
+  /**
+   * We sleep for 5 seconds which randomly leads to execution of LCP
+   * scans. This also uses reserved scan number. To decrease randomness
+   * we programmatically start an LCP above.
+   */
+  NdbSleep_SecSleep(5);
+
+  /**
+   * Close down all connections.
+   */
+  for (i = 0; i < NUM_ACC_SCANS + NUM_TUX_SCANS + NUM_TUP_SCANS + 1; i++)
+  {
+    scan_holder_array[i].pTrans->execute(NdbTransaction::Rollback);
+    pNdb->closeTransaction(scan_holder_array[i].pTrans);
+    scan_holder_array[i].pTrans = NULL;
+  }
   return NDBT_OK;
 }
 
@@ -136,6 +354,77 @@ int runFail(NDBT_Context* ctx, NDBT_Step* step){
     }
   }
 
+  return NDBT_OK;
+}
+
+int outOfLDMRecords(NDBT_Context *ctx, NDBT_Step *step)
+{
+  int res;
+  int row = 0;
+  NdbBackup backup;
+  NdbRestarter restarter;
+  unsigned backupId = 0;
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb *pNdb = GETNDB(step);
+
+  if (hugoOps.startTransaction(pNdb) != 0)
+  {
+    g_err << "Failed to start transaction, line: " << __LINE__ << endl;
+    return NDBT_FAILED;
+  }
+  while (true)
+  {
+    if (hugoOps.pkInsertRecord(pNdb, row) != 0)
+    {
+      g_err << "Failed to define insert, line: " << __LINE__ << endl;
+      return NDBT_FAILED;
+    }
+    res = hugoOps.execute_NoCommit(pNdb, AO_IgnoreError);
+    if (res == 0)
+    {
+      row++;
+    }
+    else
+    {
+      break;
+    }
+  }
+  /**
+   * Here we always come with a failure, but we want the failure to
+   * be out of operation records in LDM, any other error isn't
+   * testing what we want, but we will pass the test even with
+   * other error codes. The only indication of the test failing is
+   * when executed as part of the autotest framework when a data node
+   * failure will happen if the test fails. This is what the original
+   * bug caused and what we verify that we actually fixed.
+   *
+   * Getting error code 1217 here means that at least 1 LDM thread is
+   * out of operation records, this is sufficient to test since LCPs
+   * always use all of the LDMs. Backups currently only use 1, so here
+   * the test only is only temporary testing. We ensure that an LCP is
+   * ongoing while we're out of operation records.
+   */
+  if (res == 1217)
+  {
+    ndbout << "Out of LDM operation records as desired" << endl;
+  }
+  else
+  {
+    ndbout << "Result code is " << res << endl;
+    ndbout << "We will continue anyways although test isn't useful" << endl;
+  }
+  /* Ensure an LCP is executed in out of resource state. */
+  int dumpCode=7099;
+  restarter.dumpStateAllNodes(&dumpCode, 1);
+
+  if (backup.start(backupId) == -1)
+  {
+    g_err << "Start backup failed: Line: " << __LINE__ << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Started backup " << backupId << endl;
+  NdbSleep_SecSleep(5); /* Give LCP some time to execute */
+  hugoOps.closeTransaction(pNdb);
   return NDBT_OK;
 }
 
@@ -459,6 +748,7 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
 
     if (restarter.waitClusterStarted() != 0)
       return NDBT_FAILED;
+    CHK_NDB_READY(GETNDB(step));
 
     ndbout << "Dropping " << tabname << endl;
     NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
@@ -785,15 +1075,23 @@ runBug16656639(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
-int makeTmpTable(NdbDictionary::Table& tab, const char *name)
+int makeTmpTable(NdbDictionary::Table& tab, NdbDictionary::Index &idx, const char *tableName, const char *columnName)
 {
-  tab.setName(name);
+  tab.setName(tableName);
   tab.setLogging(true);
   {
-    NdbDictionary::Column col("_id");
+    // create column
+    NdbDictionary::Column col(columnName);
     col.setType(NdbDictionary::Column::Unsigned);
     col.setPrimaryKey(true);
     tab.addColumn(col);
+
+    // create index on column
+    idx.setTable(tableName);
+    idx.setName("idx1");
+    idx.setType(NdbDictionary::Index::OrderedIndex);
+    idx.setLogging(false);
+    idx.addColumnName(columnName);
   }
   NdbError error;
   return tab.validate(error);
@@ -803,14 +1101,17 @@ int
 runBug17882305(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbBackup backup;
+  NdbRestarter res;
   NdbDictionary::Table tab;
+  NdbDictionary::Index idx;
   const char *tablename = "#sql-dummy"; 
+  const char *colname = "_id"; 
   
   Ndb* const ndb = GETNDB(step);
   NdbDictionary::Dictionary* const dict = ndb->getDictionary();
 
   // create "#sql-dummy" table
-  if(makeTmpTable(tab, tablename) == -1) {
+  if(makeTmpTable(tab, idx, tablename, colname) == -1) {
     g_err << "Validation of #sql table failed" << endl;
     return NDBT_FAILED;
   }
@@ -818,6 +1119,15 @@ runBug17882305(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "Failed to create #sql table." << endl;
     return NDBT_FAILED;
   }
+  if (dict->createIndex(idx) == -1) {
+    g_err << "Failed to create index, error: " << dict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  /**
+   * Test CONTINUEB in get table fragmentation while at it.
+   */
+  res.insertErrorInAllNodes(10046);
 
   // start backup which will contain "#sql-dummy"
   g_err << "Starting backup." << endl;
@@ -845,6 +1155,65 @@ runBug17882305(NDBT_Context* ctx, NDBT_Step* step)
 
   return NDBT_OK;
 }   
+
+int
+runBug19202654(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbBackup backup;
+  NdbDictionary::Dictionary* const dict = GETNDB(step)->getDictionary();
+
+  g_err << "Creating 35 ndb tables." << endl;
+  for(int i=0; i<35; i++)
+  {
+    char tablename[10];
+    sprintf(tablename, "t%d", i);
+    const char *colname = "id";
+    NdbDictionary::Table tab;
+    NdbDictionary::Index idx;
+
+    if(makeTmpTable(tab, idx, tablename, colname) == -1) {
+      g_err << "Failed to validate table " << tablename << ", error: " << dict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    // Create large number of dictionary objects
+    if (dict->createTable(tab) == -1) {
+      g_err << "Failed to create table " << tablename << ", error: " << dict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    // Create an index per table to double the number of dictionary objects
+    if (dict->createIndex(idx) == -1) {
+      g_err << "Failed to create index, error: " << dict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+  
+  g_err << "Starting backup." << endl;
+  unsigned backupId = 0;
+  if (backup.start(backupId) == -1) {
+    g_err << "Failed to start backup." << endl;
+    return NDBT_FAILED;
+  }
+
+  g_err << "Dropping 35 ndb tables." << endl;
+  for(int i=0; i<35; i++)
+  {
+    char tablename[10];
+    sprintf(tablename, "t%d", i);
+    if (dict->dropTable(tablename) == -1) {
+      g_err << "Failed to drop table " << tablename << ", error: " << dict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  g_err << "Restoring from backup with error insert and no metadata or data restore." << endl;
+  // just load metadata and exit
+  if (backup.restore(backupId, false, false, 1) != 0) {
+    g_err << "Failed to restore from backup." << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testBackup);
 TESTCASE("BackupOne", 
 	 "Test that backup and restore works on one table \n"
@@ -859,6 +1228,12 @@ TESTCASE("BackupOne",
   INITIALIZER(runDropTablesRestart);
   INITIALIZER(runRestoreOne);
   VERIFIER(runVerifyOne);
+  FINALIZER(runClearTable);
+}
+TESTCASE("BackupWhenOutOfLDMRecords",
+      "Test that backup works also when we have no LDM records available\n")
+{
+  INITIALIZER(outOfLDMRecords);
   FINALIZER(runClearTable);
 }
 TESTCASE("BackupRandom", 
@@ -982,6 +1357,13 @@ TESTCASE("Bug14019036", "")
 {
   INITIALIZER(runBug14019036);
 }
+TESTCASE("OutOfScanRecordsInLDM",
+         "Test that uses up all scan slots before starting backup")
+{
+  INITIALIZER(createOrderedPkIndex);
+  INITIALIZER(runLoadTable10000);
+  INITIALIZER(outOfScanRecordsInLDM);
+}
 TESTCASE("Bug16656639", "")
 {
   INITIALIZER(runBug16656639);
@@ -989,6 +1371,11 @@ TESTCASE("Bug16656639", "")
 TESTCASE("Bug17882305", "")
 {
   INITIALIZER(runBug17882305);
+}
+TESTCASE("Bug19202654", 
+         "Test restore with a large number of tables")
+{
+  INITIALIZER(runBug19202654);
 }
 NDBT_TESTSUITE_END(testBackup);
 

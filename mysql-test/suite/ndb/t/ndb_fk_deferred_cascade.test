@@ -28,7 +28,7 @@ create table grandchild (
 alter table child add constraint fkname foreign key (a) references parent (a)
 on delete cascade on update restrict;
 
-alter table grandchild add constraint fkname foreign key (a) references child
+alter table grandchild add constraint fkname_child foreign key (a) references child
 (a) on delete cascade on update restrict;
 
 insert into parent values (1,1,1),(2,2,2);

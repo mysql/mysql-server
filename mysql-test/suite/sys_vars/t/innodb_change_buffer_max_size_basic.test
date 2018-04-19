@@ -3,7 +3,6 @@
 # 2011-02-09 - Added
 #
 
---source include/have_innodb.inc
 
 SET @start_global_value = @@global.innodb_change_buffer_max_size;
 SELECT @start_global_value;
@@ -19,8 +18,8 @@ select @@session.innodb_change_buffer_max_size;
 show global variables like 'innodb_change_buffer_max_size';
 show session variables like 'innodb_change_buffer_max_size';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_change_buffer_max_size';
-select * from information_schema.session_variables where variable_name='innodb_change_buffer_max_size';
+select * from performance_schema.global_variables where variable_name='innodb_change_buffer_max_size';
+select * from performance_schema.session_variables where variable_name='innodb_change_buffer_max_size';
 --enable_warnings
 
 #
@@ -29,8 +28,8 @@ select * from information_schema.session_variables where variable_name='innodb_c
 set global innodb_change_buffer_max_size=10;
 select @@global.innodb_change_buffer_max_size;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_change_buffer_max_size';
-select * from information_schema.session_variables where variable_name='innodb_change_buffer_max_size';
+select * from performance_schema.global_variables where variable_name='innodb_change_buffer_max_size';
+select * from performance_schema.session_variables where variable_name='innodb_change_buffer_max_size';
 --enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_change_buffer_max_size=1;
@@ -48,12 +47,12 @@ set global innodb_change_buffer_max_size="foo";
 set global innodb_change_buffer_max_size=-7;
 select @@global.innodb_change_buffer_max_size;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_change_buffer_max_size';
+select * from performance_schema.global_variables where variable_name='innodb_change_buffer_max_size';
 --enable_warnings
 set global innodb_change_buffer_max_size=56;
 select @@global.innodb_change_buffer_max_size;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_change_buffer_max_size';
+select * from performance_schema.global_variables where variable_name='innodb_change_buffer_max_size';
 --enable_warnings
 
 #

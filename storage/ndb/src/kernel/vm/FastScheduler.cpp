@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,6 +23,7 @@
 */
 
 #include "FastScheduler.hpp"
+#include "ThreadConfig.hpp"
 #include "RefConvert.hpp"
 
 #include "Emulator.hpp"
@@ -85,8 +93,8 @@ FastScheduler::activateSendPacked()
 // packed signals we do another turn in the loop (unless we have already
 // executed too many signals in the loop).
 //------------------------------------------------------------------------
-void 
-FastScheduler::doJob()
+Uint32
+FastScheduler::doJob(Uint32 loopStartCount)
 {
   Uint32 loopCount = 0;
   Uint32 TminLoops = getBOccupancy() + EXTRA_SIGNALS_PER_DO_JOB;
@@ -101,7 +109,22 @@ FastScheduler::doJob()
   register Uint32 tHighPrio= globalData.highestAvailablePrio;
   do{
     while ((tHighPrio < LEVEL_IDLE) && (loopCount < TloopMax)) {
-      // signal->garbage_register(); 
+#ifdef VM_TRACE
+      /* Find reading / propagation of junk */
+      signal->garbage_register();
+#endif 
+      if (unlikely(loopStartCount >
+          MAX_SIGNALS_EXECUTED_BEFORE_ZERO_TIME_QUEUE_SCAN))
+      {
+        /**
+         * This implements the bounded delay signal concept. This
+         * means that we will never execute more than 160 signals
+         * before getting the signals with delay 0 put into the
+         * A-level job buffer.
+         */
+        loopStartCount = 0;
+        globalEmulatorData.theThreadConfig->scanZeroTimeQueue();
+      }
       // To ensure we find bugs quickly
       register Uint32 gsnbnr = theJobBuffers[tHighPrio].retrieve(signal);
       // also strip any instance bits since this is non-MT code
@@ -147,6 +170,7 @@ FastScheduler::doJob()
         globalData.highestAvailablePrio = tHighPrio;
       }//if
       loopCount++;
+      loopStartCount++;
     }//while
     sendPacked();
     tHighPrio = globalData.highestAvailablePrio;
@@ -168,7 +192,7 @@ FastScheduler::doJob()
     theDoJobCallCounter = 0;
     theDoJobTotalCounter = 0;
   }//if
-
+  return loopStartCount;
 }//FastScheduler::doJob()
 
 void
@@ -499,8 +523,7 @@ FastScheduler::traceDumpGetJam(Uint32 thr_no,
   thrdTheEmulatedJam = NULL;
   thrdTheEmulatedJamIndex = 0;
 #else
-  const EmulatedJamBuffer *jamBuffer =
-    (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM);
+  const EmulatedJamBuffer *jamBuffer = NDB_THREAD_TLS_JAM;
   thrdTheEmulatedJam = jamBuffer->theEmulatedJam;
   thrdTheEmulatedJamIndex = jamBuffer->theEmulatedJamIndex;
 #endif

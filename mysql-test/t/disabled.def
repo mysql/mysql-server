@@ -10,9 +10,12 @@
 #
 ##############################################################################
 read_many_rows_innodb    : Bug#11748886 2010-11-15 mattiasj report already exists
-sum_distinct-big         : Bug#11764126 2010-11-15 mattiasj was not tested
 archive-big              : Bug#11817185 2011-03-10 Anitha Disabled since this leads to timeout on Solaris Sparc
 ds_mrr-big @solaris      : Bug#14168107 2012-04-03 Hemant disabled new test added by Olav Sandstå,since this leads to timeout on Solaris on slow sparc servers
-mysql_embedded_client_test	: Bug#13964673 2012-04-16 amitbha since most of the test cases are failing
-mysql_client_test_embedded : Bug#16084066 2013-01-08 Disabled since this test is failing
-ssl-big @solaris         : Bug #18977126 MAIN.SSL-BIG FAILS WITH TIMEOUT Times out on Solaris, disable it here
+
+# For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
+
+# Disabled list(Due to InnoDB issues)
+main.internal_tmp_disk_storage_engine : Bug#26917416 2017-04-13 Allen Disabled it since it's failing on pb2.
+
+# log_components_syslog    : WL#9343 2017-02-07 Tatiana provided for review/QA; should not be run routinely to prevent spamming the test host's log. may be removed later.

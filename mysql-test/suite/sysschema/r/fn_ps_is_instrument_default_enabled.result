@@ -1,5 +1,5 @@
-SELECT sys.ps_is_instrument_default_enabled('wait/io/file/sql/binlog');
-sys.ps_is_instrument_default_enabled('wait/io/file/sql/binlog')
+SELECT sys.ps_is_instrument_default_enabled('memory/performance_schema/internal_buffers');
+sys.ps_is_instrument_default_enabled('memory/performance_schema/internal_buffers')
 YES
 SELECT sys.ps_is_instrument_default_enabled('statement/sql/select');
 sys.ps_is_instrument_default_enabled('statement/sql/select')
@@ -9,6 +9,9 @@ sys.ps_is_instrument_default_enabled('statement/sp/error')
 YES
 SELECT sys.ps_is_instrument_default_enabled('statement/com/Prepare');
 sys.ps_is_instrument_default_enabled('statement/com/Prepare')
+YES
+SELECT sys.ps_is_instrument_default_enabled('wait/io/file/sql/binlog');
+sys.ps_is_instrument_default_enabled('wait/io/file/sql/binlog')
 YES
 SELECT sys.ps_is_instrument_default_enabled('wait/io/table/sql/handler');
 sys.ps_is_instrument_default_enabled('wait/io/table/sql/handler')
@@ -39,9 +42,6 @@ sys.ps_is_instrument_default_enabled('transaction')
 NO
 SELECT sys.ps_is_instrument_default_enabled('wait/io/socket/sql/server_tcpip_socket');
 sys.ps_is_instrument_default_enabled('wait/io/socket/sql/server_tcpip_socket')
-NO
-SELECT sys.ps_is_instrument_default_enabled('memory/performance_schema/internal_buffers');
-sys.ps_is_instrument_default_enabled('memory/performance_schema/internal_buffers')
 NO
 SELECT sys.ps_is_instrument_default_enabled('wait/lock/metadata/sql/mdl');
 sys.ps_is_instrument_default_enabled('wait/lock/metadata/sql/mdl')

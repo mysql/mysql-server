@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -41,7 +48,7 @@ bool
 Loopback_Transporter::connect_client()
 {
   NDB_SOCKET_TYPE pair[2];
-  if (my_socketpair(pair))
+  if (ndb_socketpair(pair))
   {
     perror("socketpair failed!");
     return false;
@@ -55,12 +62,13 @@ Loopback_Transporter::connect_client()
 
   theSocket = pair[0];
   m_send_socket = pair[1];
+
   m_connected = true;
   return true;
 
 err:
-  my_socket_close(pair[0]);
-  my_socket_close(pair[1]);
+  ndb_socket_close(pair[0]);
+  ndb_socket_close(pair[1]);
   return false;
 }
 
@@ -71,17 +79,16 @@ Loopback_Transporter::disconnectImpl()
 
   get_callback_obj()->lock_transporter(remoteNodeId);
 
-  receiveBuffer.clear();
-  my_socket_invalidate(&theSocket);
-  my_socket_invalidate(&m_send_socket);
+  ndb_socket_invalidate(&theSocket);
+  ndb_socket_invalidate(&m_send_socket);
 
   get_callback_obj()->unlock_transporter(remoteNodeId);
 
-  if (my_socket_valid(pair[0]))
-    my_socket_close(pair[0]);
+  if (ndb_socket_valid(pair[0]))
+    ndb_socket_close(pair[0]);
 
-  if (my_socket_valid(pair[1]))
-    my_socket_close(pair[1]);
+  if (ndb_socket_valid(pair[1]))
+    ndb_socket_close(pair[1]);
 }
 
 bool
@@ -93,14 +100,14 @@ Loopback_Transporter::send_is_possible(int timeout_millisec) const
 #define DISCONNECT_ERRNO(e, sz) ((sz == 0) || \
                                  (!((sz == -1) && ((e == SOCKET_EAGAIN) || (e == SOCKET_EWOULDBLOCK) || (e == SOCKET_EINTR)))))
 
-int
+bool
 Loopback_Transporter::doSend() {
   struct iovec iov[64];
   Uint32 cnt = fetch_send_iovec_data(iov, NDB_ARRAY_SIZE(iov));
 
   if (cnt == 0)
   {
-    return 0;
+    return false;
   }
 
   Uint32 sum = 0;
@@ -126,15 +133,17 @@ Loopback_Transporter::doSend() {
   {
     send_cnt++;
     Uint32 iovcnt = cnt > m_os_max_iovec ? m_os_max_iovec : cnt;
-    int nBytesSent = (int)my_socket_writev(m_send_socket, iov+pos, iovcnt);
+    int nBytesSent = (int)ndb_socket_writev(m_send_socket, iov+pos, iovcnt);
     assert(nBytesSent <= (int)remain);
 
-    if (Uint32(nBytesSent) == remain)
+    if (Uint32(nBytesSent) == remain)  //Completed this send
     {
       sum_sent += nBytesSent;
-      goto ok;
+      assert(sum >= sum_sent);
+      remain = sum - sum_sent;
+      break;
     }
-    else if (nBytesSent > 0)
+    else if (nBytesSent > 0)           //Sent some, more pending
     {
       sum_sent += nBytesSent;
       remain -= nBytesSent;
@@ -150,37 +159,29 @@ Loopback_Transporter::doSend() {
         cnt--;
       }
 
-      if (nBytesSent)
+      if (nBytesSent > 0)
       {
         assert(iov[pos].iov_len > Uint32(nBytesSent));
         iov[pos].iov_len -= nBytesSent;
         iov[pos].iov_base = ((char*)(iov[pos].iov_base))+nBytesSent;
       }
-      continue;
     }
-    else
+    else                               //Send failed, terminate
     {
-      int err = my_socket_errno();
-      if (!(DISCONNECT_ERRNO(err, nBytesSent)))
+      const int err = ndb_socket_errno();
+      if ((DISCONNECT_ERRNO(err, nBytesSent)))
       {
-        if (sum_sent)
-        {
-          goto ok;
-        }
-        else
-        {
-          return remain;
-        }
+        do_disconnect(err); //Initiate pending disconnect
+        remain = 0;
       }
-
-      do_disconnect(err);
-      return 0;
+      break;
     }
   }
 
-ok:
-  assert(sum >= sum_sent);
-  iovec_data_sent(sum_sent);
+  if (sum_sent > 0)
+  {
+    iovec_data_sent(sum_sent);
+  }
   sendCount += send_cnt;
   sendSize  += sum_sent;
   if(sendCount >= reportFreq)
@@ -190,5 +191,5 @@ ok:
     sendSize  = 0;
   }
 
-  return sum - sum_sent; // 0 if every thing flushed else >0
+  return (remain>0); // false if nothing remains or disconnected, else true
 }

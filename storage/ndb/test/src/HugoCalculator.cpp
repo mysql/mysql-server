@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -38,13 +45,14 @@ static char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 /* *************************************************************
  * HugoCalculator
  *
- *  Comon class for the Hugo test suite, provides the functions 
+ *  Common class for the Hugo test suite, provides the functions 
  *  that is used for calculating values to load in to table and 
  *  also knows how to verify a row that's been read from db 
  *
  * ************************************************************/
-HugoCalculator::HugoCalculator(const NdbDictionary::Table& tab) : m_tab(tab) {
-
+HugoCalculator::HugoCalculator(const NdbDictionary::Table& tab)
+  : m_tab(tab), m_idCol(-1), m_updatesCol(-1)
+{
   // The "id" column of this table is found in the first integer column
   int i;
   for (i=0; i<m_tab.getNoOfColumns(); i++){ 
@@ -69,7 +77,9 @@ HugoCalculator::HugoCalculator(const NdbDictionary::Table& tab) : m_tab(tab) {
   ndbout << "updatesCol = " << m_updatesCol << endl;
 #endif
   // Check that idCol is not conflicting with updatesCol
-  require(m_idCol != m_updatesCol && m_idCol != -1 && m_updatesCol != -1);
+  require(m_idCol != -1);
+  require(m_updatesCol != -1);
+  require(m_idCol != m_updatesCol);
 }
 
 Int32
@@ -310,17 +320,16 @@ write_char:
 
 int
 HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
-  int id, updates;
-
-  id = pRow->attributeStore(m_idCol)->u_32_value();
-  updates = pRow->attributeStore(m_updatesCol)->u_32_value();
-  int result = 0;	  
+  const int id = getIdValue(pRow);
+  const int updates = pRow->attributeStore(m_updatesCol)->u_32_value();
+  int result = 0;
   
   // Check the values of each column
   for (int i = 0; i<m_tab.getNoOfColumns(); i++){
-    if (i != m_updatesCol && id != m_idCol) {
+    if (i != m_updatesCol && i != m_idCol) {
       const NdbDictionary::Column* attr = m_tab.getColumn(i);      
-      Uint32 len = attr->getSizeInBytes(), real_len;
+      const Uint32 len = attr->getSizeInBytes();
+      Uint32 real_len;
       char buf[NDB_MAX_TUPLE_SIZE];
       const char* res = calcValue(id, i, updates, buf, len, &real_len);
       if (res == NULL){

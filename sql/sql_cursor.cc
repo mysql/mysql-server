@@ -1,24 +1,56 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_cursor.h"
-#include "probes_mysql.h"
-#include "sql_parse.h"                        // mysql_execute_command
-#include "sql_tmp_table.h"                   // tmp tables
-#include "debug_sync.h"
-#include "sql_union.h"                       // Query_result_union
+#include "sql/sql_cursor.h"
+
+#include <stddef.h>
+#include <sys/types.h>
+#include <algorithm>
+
+#include "memory_debugging.h"
+#include "my_alloc.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql_com.h"
+#include "sql/debug_sync.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/protocol.h"
+#include "sql/query_options.h"
+#include "sql/query_result.h"
+#include "sql/sql_digest_stream.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"      // mysql_execute_command
+#include "sql/sql_tmp_table.h"  // tmp tables
+#include "sql/sql_union.h"      // Query_result_union
+#include "sql/system_variables.h"
+#include "sql/table.h"
 
 /****************************************************************************
   Declarations.
@@ -31,9 +63,7 @@
   handler of the temporary table.
 */
 
-class Materialized_cursor: public Server_side_cursor
-{
-  MEM_ROOT main_mem_root;
+class Materialized_cursor final : public Server_side_cursor {
   /* A fake unit to supply to Query_result_send when fetching */
   SELECT_LEX_UNIT fake_unit;
   TABLE *table;
@@ -41,37 +71,38 @@ class Materialized_cursor: public Server_side_cursor
   ulong fetch_limit;
   ulong fetch_count;
   bool is_rnd_inited;
-public:
+
+ public:
   Materialized_cursor(Query_result *result, TABLE *table);
 
   int send_result_set_metadata(THD *thd, List<Item> &send_result_set_metadata);
-  virtual bool is_open() const { return table != 0; }
-  virtual int open(JOIN *join __attribute__((unused)));
-  virtual bool fetch(ulong num_rows);
-  virtual void close();
+  bool is_open() const override { return table != 0; }
+  int open(JOIN *) override;
+  bool fetch(ulong num_rows) override;
+  void close() override;
   virtual ~Materialized_cursor();
 };
-
 
 /**
   Query_result_materialize -- a mediator between a cursor query and the
   protocol. In case we were not able to open a non-materialzed
-  cursor, it creates an internal temporary HEAP table, and insert
-  all rows into it. When the table reaches max_heap_table_size,
-  it's converted to a MyISAM table. Later this table is used to
-  create a Materialized_cursor.
+  cursor, it creates an internal temporary memory table, and inserts
+  all rows into it. If the table is in the Heap engine and if it reaches
+  maximum Heap table size, it's converted to a disk-based temporary
+  table. Later this table is used to create a Materialized_cursor.
 */
 
-class Query_result_materialize: public Query_result_union
-{
+class Query_result_materialize final : public Query_result_union {
   Query_result *result; /**< the result object of the caller (PS or SP) */
-public:
+ public:
   Materialized_cursor *materialized_cursor;
-  Query_result_materialize(Query_result *result_arg)
-    :result(result_arg), materialized_cursor(0) {}
-  virtual bool send_result_set_metadata(List<Item> &list, uint flags);
+  Query_result_materialize(THD *thd, Query_result *result_arg)
+      : Query_result_union(thd), result(result_arg), materialized_cursor(0) {}
+  bool send_result_set_metadata(List<Item> &list, uint flags) override;
+  void cleanup() override {
+    table = NULL;  // Pass table object to Materialized_cursor
+  }
 };
-
 
 /**************************************************************************/
 
@@ -92,39 +123,31 @@ public:
 */
 
 bool mysql_open_cursor(THD *thd, Query_result *result,
-                       Server_side_cursor **pcursor)
-{
+                       Server_side_cursor **pcursor) {
   sql_digest_state *parent_digest;
   PSI_statement_locker *parent_locker;
   Query_result *save_result;
   Query_result_materialize *result_materialize;
-  LEX *lex= thd->lex;
+  LEX *lex = thd->lex;
 
-  if (! (result_materialize=
-           new (thd->mem_root) Query_result_materialize(result)))
+  if (!(result_materialize =
+            new (thd->mem_root) Query_result_materialize(thd, result)))
     return true;
 
-  save_result= lex->result;
+  save_result = lex->result;
 
-  lex->result= result_materialize;
+  lex->result = result_materialize;
 
-  MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
-                         thd->thread_id(),
-                         (char *) (thd->db().str ? thd->db().str : ""),
-                         (char *) thd->security_context()->priv_user().str,
-                         (char *) thd->security_context()->host_or_ip().str,
-                         2);
-  parent_digest= thd->m_digest;
-  parent_locker= thd->m_statement_psi;
-  thd->m_digest= NULL;
-  thd->m_statement_psi= NULL;
-  bool rc= mysql_execute_command(thd);
-  thd->m_digest= parent_digest;
+  parent_digest = thd->m_digest;
+  parent_locker = thd->m_statement_psi;
+  thd->m_digest = NULL;
+  thd->m_statement_psi = NULL;
+  bool rc = mysql_execute_command(thd);
+  thd->m_digest = parent_digest;
   DEBUG_SYNC(thd, "after_table_close");
-  thd->m_statement_psi= parent_locker;
-  MYSQL_QUERY_EXEC_DONE(rc);
+  thd->m_statement_psi = parent_locker;
 
-  lex->result= save_result;
+  lex->result = save_result;
   /*
     Possible options here:
     - a materialized cursor is open. In this case rc is 0 and
@@ -137,10 +160,8 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
       network, bypassing Query_result mechanism. An example of
       such command is SHOW VARIABLES or SHOW STATUS.
   */
-  if (rc)
-  {
-    if (result_materialize->materialized_cursor)
-    {
+  if (rc) {
+    if (result_materialize->materialized_cursor) {
       /* Rollback metadata in the client-server protocol. */
       result_materialize->abort_result_set();
 
@@ -150,10 +171,9 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
     goto end;
   }
 
-  if (result_materialize->materialized_cursor)
-  {
-    Materialized_cursor *materialized_cursor=
-      result_materialize->materialized_cursor;
+  if (result_materialize->materialized_cursor) {
+    Materialized_cursor *materialized_cursor =
+        result_materialize->materialized_cursor;
 
     /*
       NOTE: close_thread_tables() has been called in
@@ -161,18 +181,17 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
       temporary table have been closed.
     */
 
-    if ((rc= materialized_cursor->open(0)))
-    {
+    if ((rc = materialized_cursor->open(0))) {
       delete materialized_cursor;
       goto end;
     }
 
-    *pcursor= materialized_cursor;
+    *pcursor = materialized_cursor;
     thd->stmt_arena->cleanup_stmt();
   }
 
 end:
-  delete result_materialize;
+  destroy(result_materialize);
   return rc;
 }
 
@@ -180,28 +199,24 @@ end:
   Server_side_cursor
 ****************************************************************************/
 
-Server_side_cursor::~Server_side_cursor()
-{
-}
+Server_side_cursor::~Server_side_cursor() {}
 
-
-void Server_side_cursor::operator delete(void *ptr, size_t size)
-{
-  Server_side_cursor *cursor= (Server_side_cursor*) ptr;
-  MEM_ROOT own_root= *cursor->mem_root;
-
+void Server_side_cursor::operator delete(void *ptr,
+                                         size_t size MY_ATTRIBUTE((unused))) {
   DBUG_ENTER("Server_side_cursor::operator delete");
-  TRASH(ptr, size);
+  Server_side_cursor *cursor = (Server_side_cursor *)ptr;
   /*
-    If this cursor has never been opened mem_root is empty. Otherwise
-    mem_root points to the memory the cursor object was allocated in.
-    In this case it's important to call free_root last, and free a copy
-    instead of *mem_root to avoid writing into freed memory.
+    If this cursor has never been opened, mem_root is empty. Otherwise,
+    mem_root is allocated on itself. In this case, it's important to move
+    it out before freeing, to avoid writing into freed memory during the
+    free process.
   */
+  MEM_ROOT own_root = std::move(*cursor->mem_root);
+
+  TRASH(ptr, size);
   free_root(&own_root, MYF(0));
   DBUG_VOID_RETURN;
 }
-
 
 /***************************************************************************
  Materialized_cursor
@@ -209,16 +224,14 @@ void Server_side_cursor::operator delete(void *ptr, size_t size)
 
 Materialized_cursor::Materialized_cursor(Query_result *result_arg,
                                          TABLE *table_arg)
-  :Server_side_cursor(&table_arg->mem_root, result_arg),
-  fake_unit(CTX_NONE),
-  table(table_arg),
-  fetch_limit(0),
-  fetch_count(0),
-  is_rnd_inited(0)
-{
-  fake_unit.thd= table->in_use;
+    : Server_side_cursor(&table_arg->s->mem_root, result_arg),
+      fake_unit(CTX_NONE),
+      table(table_arg),
+      fetch_limit(0),
+      fetch_count(0),
+      is_rnd_inited(0) {
+  fake_unit.thd = table->in_use;
 }
-
 
 /**
   Preserve the original metadata to be sent to the client.
@@ -230,8 +243,7 @@ Materialized_cursor::Materialized_cursor(Query_result *result_arg,
 */
 
 int Materialized_cursor::send_result_set_metadata(
-  THD *thd, List<Item> &send_result_set_metadata)
-{
+    THD *thd, List<Item> &send_result_set_metadata) {
   Query_arena backup_arena;
   int rc;
   List_iterator_fast<Item> it_org(send_result_set_metadata);
@@ -241,8 +253,7 @@ int Materialized_cursor::send_result_set_metadata(
 
   thd->set_n_backup_active_arena(this, &backup_arena);
 
-  if ((rc= table->fill_item_list(&item_list)))
-    goto end;
+  if ((rc = table->fill_item_list(&item_list))) goto end;
 
   DBUG_ASSERT(send_result_set_metadata.elements == item_list.elements);
 
@@ -253,14 +264,13 @@ int Materialized_cursor::send_result_set_metadata(
     items with original names are always kept in memory,
     but in case this changes a memory leak may be hard to notice.
   */
-  while ((item_dst= it_dst++, item_org= it_org++))
-  {
+  while ((item_dst = it_dst++, item_org = it_org++)) {
     Send_field send_field;
-    Item_ident *ident= static_cast<Item_ident *>(item_dst);
+    Item_ident *ident = static_cast<Item_ident *>(item_dst);
     item_org->make_field(&send_field);
 
-    ident->db_name=    thd->mem_strdup(send_field.db_name);
-    ident->table_name= thd->mem_strdup(send_field.table_name);
+    ident->db_name = thd->mem_strdup(send_field.db_name);
+    ident->table_name = thd->mem_strdup(send_field.table_name);
   }
 
   /*
@@ -268,7 +278,7 @@ int Materialized_cursor::send_result_set_metadata(
     mysql_execute_command() is finished, item_list can not be used for
     sending metadata, because it references closed table.
   */
-  rc= result->send_result_set_metadata(item_list, Protocol::SEND_NUM_ROWS);
+  rc = result->send_result_set_metadata(item_list, Protocol::SEND_NUM_ROWS);
 
 end:
   thd->restore_active_arena(this, &backup_arena);
@@ -276,10 +286,8 @@ end:
   return rc || thd->is_error();
 }
 
-
-int Materialized_cursor::open(JOIN *join __attribute__((unused)))
-{
-  THD *thd= fake_unit.thd;
+int Materialized_cursor::open(JOIN *join MY_ATTRIBUTE((unused))) {
+  THD *thd = fake_unit.thd;
   int rc;
   Query_arena backup_arena;
 
@@ -287,27 +295,23 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
 
   /* Create a list of fields and start sequential scan. */
 
-  rc= result->prepare(item_list, &fake_unit);
-  rc= !rc && table->file->ha_rnd_init(TRUE);
-  is_rnd_inited= !rc;
+  rc = result->prepare(item_list, &fake_unit);
+  rc = !rc && table->file->ha_rnd_init(true);
+  is_rnd_inited = !rc;
 
   thd->restore_active_arena(this, &backup_arena);
 
   /* Commit or rollback metadata in the client-server protocol. */
 
-  if (!rc)
-  {
-    thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
+  if (!rc) {
+    thd->server_status |= SERVER_STATUS_CURSOR_EXISTS;
     result->send_eof();
-  }
-  else
-  {
+  } else {
     result->abort_result_set();
   }
 
   return rc;
 }
-
 
 /**
   Fetch up to the given number of rows from a materialized cursor.
@@ -321,107 +325,85 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
     SERVER_STATUS_LAST_ROW_SENT along with the last row.
 */
 
-bool Materialized_cursor::fetch(ulong num_rows)
-{
-  THD *thd= table->in_use;
+bool Materialized_cursor::fetch(ulong num_rows) {
+  THD *thd = table->in_use;
 
-  int res= 0;
+  int res = 0;
   result->begin_dataset();
-  for (fetch_limit+= num_rows; fetch_count < fetch_limit; fetch_count++)
-  {
-    if ((res= table->file->ha_rnd_next(table->record[0])))
-      break;
+  for (fetch_limit += num_rows; fetch_count < fetch_limit; fetch_count++) {
+    if ((res = table->file->ha_rnd_next(table->record[0]))) break;
     /* Send data only if the read was successful. */
     /*
       If network write failed (i.e. due to a closed socked),
       the error has already been set. Return true if the error
       is set.
     */
-    if (result->send_data(item_list))
-      return true;
+    if (result->send_data(item_list)) return true;
   }
 
   switch (res) {
-  case 0:
-    thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
-    result->send_eof();
-    break;
-  case HA_ERR_END_OF_FILE:
-    thd->server_status|= SERVER_STATUS_LAST_ROW_SENT;
-    result->send_eof();
-    close();
-    break;
-  default:
-    table->file->print_error(res, MYF(0));
-    close();
-    return true;
+    case 0:
+      thd->server_status |= SERVER_STATUS_CURSOR_EXISTS;
+      result->send_eof();
+      break;
+    case HA_ERR_END_OF_FILE:
+      thd->server_status |= SERVER_STATUS_LAST_ROW_SENT;
+      result->send_eof();
+      close();
+      break;
+    default:
+      table->file->print_error(res, MYF(0));
+      close();
+      return true;
   }
 
   return false;
 }
 
-
-void Materialized_cursor::close()
-{
+void Materialized_cursor::close() {
   /* Free item_list items */
   free_items();
-  if (is_rnd_inited)
-    (void) table->file->ha_rnd_end();
+  if (is_rnd_inited) (void)table->file->ha_rnd_end();
   /*
     We need to grab table->mem_root to prevent free_tmp_table from freeing:
-    the cursor object was allocated in this memory.
+    the cursor object was allocated in this memory. The mem_root will be
+    freed in Materialized_cursor::operator delete.
   */
-  main_mem_root= table->mem_root;
-  mem_root= &main_mem_root;
-  clear_alloc_root(&table->mem_root);
+  mem_root = new (&table->s->mem_root) MEM_ROOT(std::move(table->s->mem_root));
   free_tmp_table(table->in_use, table);
-  table= 0;
+  table = 0;
 }
 
-
-Materialized_cursor::~Materialized_cursor()
-{
-  if (is_open())
-    close();
+Materialized_cursor::~Materialized_cursor() {
+  if (is_open()) close();
 }
-
 
 /***************************************************************************
  Query_result_materialize
 ****************************************************************************/
 
 bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
-                                                        uint flags)
-{
+                                                        uint) {
   DBUG_ASSERT(table == 0);
-  /*
-    PROCEDURE ANALYSE installs a result filter that has a different set
-    of input and output column Items:
-  */
-  List<Item> *column_types= (unit->first_select()->parent_lex->proc_analyse ?
-                             &list : unit->get_field_list());
-  if (create_result_table(unit->thd, column_types,
-                          FALSE,
+  if (create_result_table(unit->thd, unit->get_field_list(), false,
                           thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
-                          "", FALSE, TRUE))
-    return TRUE;
+                          "", false, true))
+    return true;
 
-  materialized_cursor= new (&table->mem_root)
-                       Materialized_cursor(result, table);
+  materialized_cursor =
+      new (&table->s->mem_root) Materialized_cursor(result, table);
 
-  if (!materialized_cursor)
-  {
+  if (!materialized_cursor) {
     free_tmp_table(table->in_use, table);
-    table= 0;
-    return TRUE;
+    table = 0;
+    return true;
   }
 
-  if (materialized_cursor->send_result_set_metadata(unit->thd, list))
-  {
+  if (materialized_cursor->send_result_set_metadata(unit->thd, list)) {
     delete materialized_cursor;
-    table= 0;
-    materialized_cursor= 0;
-    return TRUE;
+    table = 0;
+    materialized_cursor = 0;
+    return true;
   }
 
   /*
@@ -429,9 +411,7 @@ bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
     will close all tables except the cursor temporary table. Hence set the
     orig_table in the field definition to NULL.
   */
-  for (Field **fld= this->table->field; *fld; fld++)
-     (*fld)->orig_table= NULL;
+  for (Field **fld = this->table->field; *fld; fld++) (*fld)->orig_table = NULL;
 
-  return FALSE;
+  return false;
 }
-

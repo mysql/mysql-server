@@ -1,0 +1,310 @@
+--echo #
+--echo # WL#9636: Rename tx_{isolation,isolation} variables to transaction_*
+--echo #
+
+--echo # Setup.
+SET @session_transaction_isolation = @@SESSION.transaction_isolation;
+SET @global_transaction_isolation = @@GLOBAL.transaction_isolation;
+
+--echo # Creating connections
+
+--enable_connect_log
+connect (con0,localhost,root,,);
+connection con0;
+
+SET SESSION AUTOCOMMIT = OFF;
+
+connect (con1, localhost, root,,);
+connection con1;
+
+SET SESSION AUTOCOMMIT = OFF;
+
+connection default;
+
+--echo # Creating tables
+
+CREATE TABLE t1 (a int PRIMARY KEY, b int) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES(2, 2);
+INSERT INTO t1 VALUES(4, 4);
+INSERT INTO t1 VALUES(6, 6);
+INSERT INTO t1 VALUES(8, 8);
+INSERT INTO t1 VALUES(16, 16);
+INSERT INTO t1 VALUES(18, 18);
+INSERT INTO t1 VALUES(20, 20);
+INSERT INTO t1 VALUES(22, 22);
+INSERT INTO t1 VALUES(24, 24);
+
+--echo # Testing for value READ-UNCOMMITTED
+connection con0;
+SET SESSION transaction_isolation = 'READ-UNCOMMITTED';
+set binlog_format=mixed;
+
+connection con1;
+SET SESSION transaction_isolation = 'READ-UNCOMMITTED';
+set binlog_format=mixed;
+
+--echo # Testing WHERE on keys using IN clause
+connection con0;
+
+START TRANSACTION;
+
+SELECT * FROM t1 WHERE a IN (2,4,6,8) FOR UPDATE;
+UPDATE t1 SET b = 10 WHERE a IN (2,4,6,8);
+
+connection con1;
+
+START TRANSACTION;
+
+SELECT * FROM t1;
+
+INSERT INTO t1 VALUES(1, 1);
+INSERT INTO t1 VALUES(3, 3);
+
+SELECT * FROM t1;
+
+COMMIT;
+
+connection con0;
+
+DELETE FROM t1 WHERE a = 1 OR a = 3;
+
+COMMIT;
+
+--echo # Testing WHERE on keys using # on even rows
+
+connection con0;
+
+START TRANSACTION;
+
+SELECT * FROM t1 WHERE a % 2 = 0 FOR UPDATE;
+UPDATE t1 SET b = 10 WHERE a % 2 = 0;
+
+connection con1;
+
+START TRANSACTION;
+
+SELECT * FROM t1;
+
+INSERT INTO t1 VALUES(23, 23);
+
+INSERT INTO t1 VALUES(25, 25);
+
+SELECT * FROM t1;
+
+COMMIT;
+
+connection con0;
+
+COMMIT;
+
+--echo # Testing for value READ-COMMITTED
+connection con0;
+SET SESSION transaction_isolation = 'READ-COMMITTED';
+
+connection con1;
+SET SESSION transaction_isolation = 'READ-COMMITTED';
+
+--echo # Testing WHERE on keys using % on even rows
+connection con0;
+
+START TRANSACTION;
+
+SELECT * FROM t1 WHERE a % 2 = 0 FOR UPDATE;
+UPDATE t1 SET b = 11 WHERE a % 2 = 0;
+
+connection con1;
+
+START TRANSACTION;
+
+SELECT * FROM t1;
+
+INSERT INTO t1 VALUES(5, 5);
+INSERT INTO t1 VALUES(7, 7);
+
+SELECT * FROM t1;
+
+COMMIT;
+
+connection con0;
+
+COMMIT;
+
+--echo # Testing for value REPEATABLE-READ
+connection con0;
+SET SESSION transaction_isolation = 'REPEATABLE-READ';
+
+connection con1;
+SET SESSION transaction_isolation = 'REPEATABLE-READ';
+
+--echo # Testing WHERE on keys using % on even rows
+connection con0;
+
+START TRANSACTION;
+
+SELECT * FROM t1 WHERE a % 2 = 0 FOR UPDATE;
+UPDATE t1 SET b = 12 WHERE a % 2 = 0;
+
+connection con1;
+
+START TRANSACTION;
+
+SELECT * FROM t1;
+
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES(9, 9);
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES(13, 13);
+--echo Expected error "Lock wait timeout"
+
+SELECT * FROM t1;
+
+COMMIT;
+
+--echo ** Connection con0 **
+connection con0;
+
+COMMIT;
+
+--echo # Testing WHERE on keys using IN clause
+connection con0;
+
+START TRANSACTION;
+
+SELECT * FROM t1 WHERE a IN (2,4,6,8,10,12,14,16,18,20,22,24,26) = 0 FOR UPDATE;
+UPDATE t1 SET b = 13 WHERE a IN (2,4,6,8,10,12,14,16,18,20,22,24,26) = 0;
+
+connection con1;
+
+START TRANSACTION;
+
+SELECT * FROM t1;
+
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES(9, 9);
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES(13, 13);
+--echo Expected error "Lock wait timeout"
+
+SELECT * FROM t1;
+
+COMMIT;
+
+connection con0;
+
+COMMIT;
+
+--echo # Testing WHERE on keys using IN clause
+connection con0;
+
+START TRANSACTION;
+
+SELECT * FROM t1 WHERE a IN (2,4,6,8) = 0 FOR UPDATE;
+UPDATE t1 SET b = 14 WHERE a IN (2,4,6,8) = 0;
+
+connection con1;
+
+START TRANSACTION;
+
+SELECT * FROM t1;
+
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES(9, 9);
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES(13, 13);
+--echo Expected error "Lock wait timeout"
+
+SELECT * FROM t1;
+
+COMMIT;
+
+connection con0;
+
+COMMIT;
+
+--echo # Testing for value SERIALIZABLE
+connection con0;
+SET SESSION transaction_isolation = 'SERIALIZABLE';
+
+connection con1;
+SET SESSION transaction_isolation = 'SERIALIZABLE';
+
+--echo # Testing WHERE on keys using # on even rows
+connection con0;
+
+START TRANSACTION;
+
+SELECT * FROM t1 WHERE a % 2 = 0 FOR UPDATE;
+UPDATE t1 SET b = 15 WHERE a % 2 = 0;
+
+connection con1;
+
+START TRANSACTION;
+
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES(15, 15);
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES(17, 17);
+
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+
+COMMIT;
+
+connection con0;
+
+COMMIT;
+
+
+--echo # Session data integrity check & GLOBAL Value check
+
+SET GLOBAL transaction_isolation = 'READ-UNCOMMITTED';
+connect (con_int1,localhost,root,,);
+
+connection con_int1;
+SELECT @@SESSION.transaction_isolation;
+--echo READ-UNCOMMITTED Expected
+
+SET SESSION transaction_isolation = 'SERIALIZABLE';
+
+connect (con_int2,localhost,root,,);
+
+connection con_int2;
+SELECT @@SESSION.transaction_isolation;
+--echo READ-UNCOMMITTED Expected
+
+SET SESSION transaction_isolation = 'REPEATABLE-READ';
+
+connection con_int2;
+SELECT @@SESSION.transaction_isolation;
+--echo REPEATABLE-READ Expected
+
+connection con_int1;
+SELECT @@SESSION.transaction_isolation;
+--echo SERIALIZABLE Expected
+
+
+SELECT @@GLOBAL.transaction_isolation;
+--echo READ-UNCOMMITTED Expected
+
+connection default;
+
+--echo Disconnecting Connections con_int1, con_int2
+disconnect con_int1;
+disconnect con_int2;
+
+--echo # Cleanup
+
+SET @@SESSION.transaction_isolation = @session_transaction_isolation;
+SET @@GLOBAL.transaction_isolation = @global_transaction_isolation;
+
+connection default;
+--echo Disconnecting Connections con0, con1
+disconnect con0;
+disconnect con1;
+--disable_connect_log
+
+DROP TABLE t1;

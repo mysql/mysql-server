@@ -20,7 +20,6 @@
  echo "WL6369 Explain for Connection";
 
   --source include/have_debug_sync.inc
-  --source include/not_embedded.inc
   --source include/not_windows.inc
   --source include/have_grep.inc
   --disable_query_log
@@ -42,6 +41,7 @@
   insert into t1 values (1, 2), (2, 3), (2, 4), (3, 5) ;
   create table t2 (a int, c int) ;
   insert into t2 values (1, 5), (2, 4), (3, 3), (3,3) ;
+  ANALYZE TABLE t1, t2;
   let $point=   before_reset_query_plan;let $query=  SELECT group_concat(c order by (select c from t2 where t2.a=t1.a limit 1)) as grp from t1 ;
   --source include/explain_for_connection.inc
   drop table t1,t2;

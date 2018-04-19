@@ -1,0 +1,40 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+include/gtid_utils.inc
+include/rpl_reset.inc
+[connection master]
+RESET MASTER;
+CREATE DATABASE db;
+CREATE TABLE db.t (a INT);
+INSERT INTO db.t SET a=1;
+FLUSH LOGS;
+PURGE BINARY LOGS TO 'master-bin.000002';
+SHOW WARNINGS;
+Level	Code	Message
+[connection slave]
+SET @@GTID_NEXT='11111111-1111-1111-1111-111111111111:1';
+BEGIN;
+COMMIT;
+SET @@GTID_NEXT=AUTOMATIC;
+[connection slave]
+CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
+include/start_slave.inc
+[connection master]
+DROP DATABASE db;
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET @@GTID_NEXT='11111111-1111-1111-1111-111111111111:1';
+BEGIN;
+COMMIT;
+SET @@GTID_NEXT=AUTOMATIC;
+include/sync_slave_sql_with_master.inc
+[connection master]
+[connection slave]
+include/assert.inc [The slave's GTID_PURGED must be equal to the master's one]
+include/assert.inc [The slave's GTID_EXECUTED must be equal to the master's one]
+include/gtid_utils_end.inc
+include/rpl_end.inc

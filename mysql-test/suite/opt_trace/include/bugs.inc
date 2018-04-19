@@ -2,7 +2,6 @@
 
 --source include/have_optimizer_trace.inc
 # InnoDB page size influences cost numbers
---source include/have_innodb_16k.inc
 
 let $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
 eval set optimizer_trace_max_mem_size=$DEFAULT_TRACE_MEM_SIZE;
@@ -56,7 +55,7 @@ CREATE TABLE t1 (
   col_int_key INT DEFAULT NULL,
   col_varchar_key VARCHAR(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
   
 CREATE TABLE t2 (  
   pk INT NOT NULL AUTO_INCREMENT,
@@ -64,7 +63,7 @@ CREATE TABLE t2 (
   col_varchar_key VARCHAR(1) DEFAULT NULL,
   col_varchar_nokey VARCHAR(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 
 CREATE TABLE t3 (  
   pk INT NOT NULL AUTO_INCREMENT,
@@ -72,14 +71,14 @@ CREATE TABLE t3 (
   col_varchar_key VARCHAR(1) DEFAULT NULL,
   col_varchar_nokey VARCHAR(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 
 CREATE TABLE t4 (
   pk INT NOT NULL AUTO_INCREMENT,
   col_int_key INT DEFAULT NULL,
   col_varchar_key VARCHAR(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 
 CREATE VIEW view_t4 AS SELECT * FROM t4;
 
@@ -269,15 +268,21 @@ DROP TABLE t1;
 --echo #
 --echo # Bug #18346750 OPTIMIZER_TRACE & DBUG_PRINT CRASH IN ST_SELECT_LEX::PRINT
 --echo #
-
-CREATE TABLE t1 (a INT, PRIMARY KEY (a))
- PARTITION BY KEY (a) PARTITIONS 2;
-INSERT INTO t1 VALUES (1),(2);
---ERROR ER_SUBQUERY_NO_1_ROW
-SELECT  1 FROM t1 ,t1 w
- WHERE t1.a <=> (SELECT 22 FROM t1 GROUP BY (SELECT 1 FROM t1));
-SELECT TRACE LIKE "%select had some error%" FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-DROP TABLE t1;
+if ($support_native_partitioning)
+{
+  CREATE TABLE t1 (a INT, PRIMARY KEY (a))
+   PARTITION BY KEY (a) PARTITIONS 2;
+  INSERT INTO t1 VALUES (1),(2);
+  --ERROR ER_SUBQUERY_NO_1_ROW
+  SELECT  1 FROM t1 ,t1 w
+   WHERE t1.a <=> (SELECT 22 FROM t1 GROUP BY (SELECT 1 FROM t1));
+  SELECT TRACE LIKE "%select had some error%" FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+  DROP TABLE t1;
+}
+if (!$support_native_partitioning)
+{
+  --echo "Skipped since this engine does not support native partitioning.
+}
 
 --echo #
 --echo # Bug#18791851 CRASH IN ST_SELECT_LEX::PRINT WITH OPTIMIZER_TRACE ON SUBQUERY
@@ -470,3 +475,55 @@ EXECUTE stmt;
 EXECUTE stmt;
 
 DROP TABLE B,C,CC;
+
+--echo #
+--echo # Bug #23259872: OPTIMIZER CHOOSES TO USE NON PRIMARY
+--echo #                INDEX, EVEN THOUGH COST IS HIGHER
+--echo #
+
+CREATE TABLE t1 (
+  a TINYTEXT NOT NULL,
+  b TINYINT(3) UNSIGNED NOT NULL,
+  PRIMARY KEY (a(32),b)
+) ENGINE=MyISAM, CHARSET utf8mb4;
+CREATE TABLE t2 (
+  a TINYTEXT NOT NULL,
+  b TINYINT(3) UNSIGNED NOT NULL,
+  PRIMARY KEY (a(32),b)
+) ENGINE=INNODB, CHARSET utf8mb4;
+
+INSERT INTO t1 VALUES ('a',1),('a',2);
+INSERT INTO t2 VALUES ('a',1),('a',2),('a',3),('b',1),('c',1),('c',4),('e',2);
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+
+# range uses more keyparts than ref, so range is chosen.
+EXPLAIN SELECT * FROM t1 WHERE a='a' AND b in (1,2);
+SELECT TRACE into @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "range_uses_more_keyparts";
+
+EXPLAIN SELECT * FROM t2 WHERE a='a' AND b in (1,2);
+SELECT TRACE into @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "range_uses_more_keyparts";
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #23227428: SQL PLAN IS NOT ACCORDING WITH OPTIMIZER_TRACE
+--echo #
+
+CREATE TABLE t1(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                c2 CHAR(12)) ENGINE=INNODB;
+disable_query_log;
+let $1 = 1000;
+while ($1)
+{
+ eval INSERT INTO t1(c2) VALUES ('$1');
+ dec $1;
+}
+enable_query_log;
+ANALYZE TABLE t1;
+
+EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1;
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+DROP TABLE t1;

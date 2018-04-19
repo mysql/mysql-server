@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
 
 --disable_warnings
@@ -162,7 +157,8 @@ b INT NOT NULL ,
 c VARCHAR ( 11 ) NOT NULL ,
 PRIMARY KEY ( a ) ,
 INDEX ( b )
-) ENGINE = NDB;
+) ENGINE = NDB
+  COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
  
 INSERT INTO t1 (a ,b ,c) VALUES 
 (NULL , '1', 'test'), (NULL , '2', 'test'), (NULL , '1', 'test'), 
@@ -203,7 +199,9 @@ create table t1(vc varchar(16), i int, vc2 varchar(1024)
   , PRIMARY KEY(vc,vc2) USING HASH
   , KEY i1(i)
   , KEY i2(vc)
- )  ENGINE=ndbcluster;
+ )  ENGINE=ndbcluster
+    CHARACTER SET latin1
+    COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t1 values
 ('1',1,'1'), ('2',2,'2'), ('3',3,'3'), ('4',1,'4'), ('5',2,'5'),
@@ -237,7 +235,8 @@ select i,vc from t1
 create table t2(vc varchar(16), i int, vc2 varchar(1024)
   , KEY i1(i)
   , KEY i2(vc)
- )  ENGINE=ndbcluster;
+ )  ENGINE=ndbcluster
+    COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t2 select * from t1;
 analyze table t2;
@@ -277,3 +276,26 @@ SELECT * from inleveroverzicht  ORDER BY id;
 
 DROP TABLE inleveroverzicht;
 
+# Bug#18487960: SIG 11 ON DELETE OPERATION WITH INDEX MERGE
+CREATE TABLE indexmerge(
+  `id` bigint(20) unsigned NOT NULL,
+  `similar_id` bigint(20) unsigned NOT NULL,
+  `similarity` varchar(512) NOT NULL,
+  PRIMARY KEY (`id`,`similar_id`),
+  KEY `fk_similar_id` (`similar_id`),
+  KEY `ix_id_similarity` (`id`,`similarity`) USING BTREE
+) ENGINE=ndb CHARACTER SET utf8;
+
+insert into indexmerge values(1, 2, REPEAT("A",512));
+insert into indexmerge values(2, 1, REPEAT("B",512));
+insert into indexmerge values(3, 4, REPEAT("C",512));
+insert into indexmerge values(4, 3, REPEAT("D",512));
+insert into indexmerge values(5, 6, REPEAT("E",512));
+insert into indexmerge values(6, 5, REPEAT("F",512));
+insert into indexmerge values(7, 8, REPEAT("G",512));
+insert into indexmerge values(8, 7, REPEAT("H",512));
+insert into indexmerge values(9, 0, REPEAT("I",512));
+insert into indexmerge values(0, 9, REPEAT("J",512));
+
+delete quick from indexmerge where id = 2 or similar_id = 2;
+drop table indexmerge; 

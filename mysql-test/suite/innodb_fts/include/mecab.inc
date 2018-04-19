@@ -9,51 +9,103 @@
 #
 #------------------------------------------------------------------------------
 
-# restart does not work with embedded
--- source include/not_embedded.inc
 
 call mtr.add_suppression("unknown variable 'loose_mecab_rc_file");
 call mtr.add_suppression("Fulltext index charset 'big5' doesn't match mecab charset");
-call mtr.add_suppression("Mecab: param.cpp");
+call mtr.add_suppression("Mecab: createModel.* failed: param.cpp");
 call mtr.add_suppression("Plugin 'mecab' init function returned error");
+
+-- disable_query_log
+
+-- error 0, ER_CANT_INITIALIZE_UDF
+
+# Restart with package dictionary
+let $MYSQL_DATADIR=`select @@datadir`;
+let MYSQL_BASEDIR=`select @@basedir`;
+let MECABRC=$MYSQL_DATADIR/mecabrc;
+let DICDIR=ipadic_$ipadic_charset;
+
+# In standard layout libdir is
+#  $basedir/lib
+# while RPMS (el and sles) uses
+#  $basedir/lib/mysql
+#  $basedir/lib64/mysql
+#
+# Fedora, Debian and Ubuntu uses system mecab
+#
+# Fedora has
+#  UTF-8 in %{_libdir}/mecab/dic/ipadic
+#  EUCJP in %{_libdir}/mecab/dic/ipadic-EUCJP
+#
+# Debian and Ubuntu have
+#  UTF-8 in /var/lib/mecab/dic/ipadic-utf8
+#  EUCJP in /var/lib/mecab/dic/ipadic
+#
+--perl
+  use strict;
+  use lib "lib/";
+  use My::Find;
+  my $dir = "$ENV{'DICDIR'}";
+  my $basedir = $ENV{'MYSQL_BASEDIR'};
+
+  my $dicdir = my_find_dir("$basedir",
+			   ['lib/mecab/dic',           # Bundled mecab
+			    'lib/mysql/mecab/dic',     # 32 bits RPMS
+			    'lib64/mysql/mecab/dic'] , # 64 bits RPMS
+			   ["$dir"], 1);
+
+  if ($dicdir eq '' && index($dir, 'utf-8') != -1) {
+    # Fedora
+    $dicdir = my_find_dir("/usr",
+			  ['lib/mecab/dic',            # System mecab 32 bits
+			   'lib64/mecab/dic'],         # System mecab 64 bits
+			  ["ipadic"], 1);
+    # Debian/Ubuntu
+    if ($dicdir eq '') {
+        $dicdir = my_find_dir("/var",
+			      ['lib/mecab/dic'],       # System mecab
+			      ["ipadic-utf8"], 1);
+    }
+  } elsif ($dicdir eq '' && index($dir, 'euc-jp') != -1) {
+    # Fedora
+    $dicdir = my_find_dir("/usr",
+			  ['lib/mecab/dic/',           # System mecab 32 bits
+			   'lib64/mecab/dic/', ],      # System mecab 64 bits
+			  ["ipadic-EUCJP"], 1);
+    # Debian/Ubuntu
+    if ($dicdir eq '') {
+        $dicdir = my_find_dir("/var",
+			      ['lib/mecab/dic'],       # System mecab
+			      ["ipadic"], 1);
+    }
+  }
+  open(my $rc, '>', "$ENV{'MECABRC'}") || die "Could not open $ENV{'MECABRC'}: $!";
+  print $rc "dicdir =  ${dicdir}\n";
+  close $rc;
+EOF
+
+-- source include/shutdown_mysqld.inc
+-- exec echo "restart: --loose_mecab_rc_file=$mecabrc $MECAB_OPT --innodb_ft_min_token_size=2" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+-- disable_reconnect
 
 -- disable_query_log
 
 -- error 0, ER_CANT_INITIALIZE_UDF
 eval INSTALL PLUGIN mecab SONAME '$MECAB';
 
-let $mecab_charset=`SELECT variable_value FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME='mecab_charset'`;
-if ($mecab_charset == '') {
-  # Restart with package dictionary.
-  let $MYSQL_DATADIR=`select @@datadir`;
-  let $MYSQL_BASEDIR=`select @@basedir`;
-
-  let $mecabrc = $MYSQL_DATADIR/mecabrc;
-  let $dicdir  = $MYSQL_BASEDIR/lib/mecab/dic/ipadic_$ipadic_charset;
-
-  -- exec echo "dicdir=$dicdir" > $mecabrc
-
-  -- source include/shutdown_mysqld.inc
-  -- exec echo "restart: --loose_mecab_rc_file=$mecabrc $MECAB_OPT --innodb_ft_min_token_size=2" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-  -- enable_reconnect
-  -- source include/wait_until_connected_again.inc
-  -- disable_reconnect
-
-  -- disable_query_log
-
-  -- error 0, ER_CANT_INITIALIZE_UDF
-  eval INSTALL PLUGIN mecab SONAME '$MECAB';
-
-  let $mecab_charset=`SELECT variable_value FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME='mecab_charset'`;
-}
+let $mecab_charset=`SELECT variable_value FROM performance_schema.global_status WHERE VARIABLE_NAME='mecab_charset'`;
 
 if ($mecab_charset == '') {
-  -- skip Test fail to load mecab parser, please set correct 'loose_mecab_rc_file'.
+  --remove_file $MYSQL_DATADIR/mecabrc
+  -- skip Test fail to load mecab parser, IPADIC files for $ipadic_charset might be missing.
 }
 
 if ($mecab_charset != $mysql_charset) {
   UNINSTALL PLUGIN mecab;
-  -- skip Test mecab charset mismatch.
+  --remove_file $MYSQL_DATADIR/mecabrc
+  -- skip Test mecab charset mismatch (MeCab: $mecab_charset vs MySQL: $mysql_charset). Correct IPADIC files might be missing.
 }
 
 --enable_query_log
@@ -196,3 +248,4 @@ if ($mysql_win_charset)
 SET GLOBAL innodb_ft_aux_table=default;
 
 UNINSTALL PLUGIN mecab;
+--remove_file $MYSQL_DATADIR/mecabrc

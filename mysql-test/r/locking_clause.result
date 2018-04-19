@@ -1,0 +1,338 @@
+CREATE TABLE t1 ( a INT, b INT );
+INSERT INTO t1 VALUES (1, 1);
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE TABLE t2 ( a INT );
+INSERT INTO t2 VALUES (1);
+#
+# The new non-standard keywords should still be useable as identifiers.
+# The standard ones should not.
+#
+CREATE TABLE t ( of INT );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'of INT )' at line 1
+CREATE TABLE t0 ( skip INT, locked INT, nowait INT );
+DROP TABLE t0;
+CREATE PROCEDURE p() BEGIN of: LOOP LEAVE of; END LOOP of; END|
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'of: LOOP LEAVE of; END LOOP of; END' at line 1
+CREATE PROCEDURE p1() BEGIN skip: LOOP LEAVE skip; END LOOP skip; END|
+CREATE PROCEDURE p2() BEGIN locked: LOOP LEAVE locked; END LOOP locked; END|
+CREATE PROCEDURE p3() BEGIN nowait: LOOP LEAVE nowait; END LOOP nowait; END|
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+#
+#  Test of the syntax.
+#
+#
+#  UPDATE ...
+#
+SELECT * FROM t1 FOR UPDATE;
+a	b
+1	1
+SELECT * FROM t1 FOR UPDATE NOWAIT;
+a	b
+1	1
+SELECT * FROM t1 FOR UPDATE SKIP LOCKED;
+a	b
+1	1
+#
+#  SHARE ...
+#
+SELECT * FROM t1 FOR SHARE;
+a	b
+1	1
+SELECT * FROM t1 FOR SHARE NOWAIT;
+a	b
+1	1
+SELECT * FROM t1 FOR SHARE SKIP LOCKED;
+a	b
+1	1
+#
+#  OF ...
+#
+SELECT * FROM t1 FOR SHARE OF t1;
+a	b
+1	1
+SELECT * FROM t1 FOR SHARE OF t1 NOWAIT;
+a	b
+1	1
+SELECT * FROM t1 FOR SHARE OF t1 SKIP LOCKED;
+a	b
+1	1
+SELECT * FROM t1 FOR UPDATE OF t1;
+a	b
+1	1
+SELECT * FROM t1 FOR UPDATE OF t1 NOWAIT;
+a	b
+1	1
+SELECT * FROM t1 FOR UPDATE OF t1 SKIP LOCKED;
+a	b
+1	1
+#
+#  OF ...
+#
+SELECT * FROM t1, t2 FOR SHARE OF t1, t2;
+a	b	a
+1	1	1
+SELECT * FROM t1, t2 FOR SHARE OF t1, t2 NOWAIT;
+a	b	a
+1	1	1
+SELECT * FROM t1, t2 FOR SHARE OF t1, t2 SKIP LOCKED;
+a	b	a
+1	1	1
+SELECT * FROM t1, t2 FOR UPDATE OF t1, t2;
+a	b	a
+1	1	1
+SELECT * FROM t1, t2 FOR UPDATE OF t1, t2 NOWAIT;
+a	b	a
+1	1	1
+SELECT * FROM t1, t2 FOR UPDATE OF t1, t2 SKIP LOCKED;
+a	b	a
+1	1	1
+#
+#  Dual locking clauses
+#
+SELECT * FROM t1 JOIN t2 FOR UPDATE;
+a	b	a
+1	1	1
+SELECT * FROM t1 JOIN t2 FOR SHARE;
+a	b	a
+1	1	1
+SELECT * FROM t1 STRAIGHT_JOIN t2 FOR UPDATE;
+a	b	a
+1	1	1
+SELECT * FROM t1 STRAIGHT_JOIN t2 AS t12 FOR UPDATE OF t12;
+a	b	a
+1	1	1
+SELECT * FROM t1 STRAIGHT_JOIN t2 FOR SHARE;
+a	b	a
+1	1	1
+SELECT * FROM t1 STRAIGHT_JOIN t2 FOR SHARE OF t1;
+a	b	a
+1	1	1
+SELECT * FROM t1 STRAIGHT_JOIN t2 FOR SHARE OF t1 FOR UPDATE OF t2;
+a	b	a
+1	1	1
+SELECT * FROM t1 STRAIGHT_JOIN t2 AS t12 FOR UPDATE OF t12, t1 ;
+a	b	a
+1	1	1
+SELECT * FROM t1 JOIN t2 FOR SHARE OF t1 FOR UPDATE OF t2;
+a	b	a
+1	1	1
+SELECT * FROM t1 NATURAL JOIN t2 FOR SHARE OF t1 FOR UPDATE OF t2;
+a	b
+1	1
+SELECT * FROM t1, t2 FOR SHARE OF t1 FOR UPDATE OF t2;
+a	b	a
+1	1	1
+SELECT * FROM t1, t2 FOR SHARE OF t1 FOR SHARE OF t2;
+a	b	a
+1	1	1
+SELECT * FROM t1 FOR SHARE OF t1 NOWAIT;
+a	b
+1	1
+SELECT * FROM t1 FOR SHARE OF t1 SKIP LOCKED;
+a	b
+1	1
+SELECT * FROM t1, t2 FOR SHARE OF t1 NOWAIT FOR SHARE OF t2 NOWAIT;
+a	b	a
+1	1	1
+#
+# Derived tables and views.
+#
+SELECT 1 FROM ( SELECT 1 ) AS t2 FOR UPDATE;
+1
+1
+SELECT 1 FROM v1 FOR UPDATE;
+1
+1
+#
+#  Test of syntax errors.
+#
+SELECT * FROM t1 FOR SHARE WAIT WAIT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WAIT WAIT' at line 1
+SELECT * FROM t1 FOR SHARE WAIT NOWAIT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WAIT NOWAIT' at line 1
+SELECT * FROM t1 FOR SHARE WAIT SKIP LOCKED;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WAIT SKIP LOCKED' at line 1
+SELECT 1 FOR UPDATE UNION SELECT 2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 2' at line 1
+SELECT 1 LOCK IN SHARE MODE UNION SELECT 2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 2' at line 1
+SELECT 1 FOR SHARE UNION SELECT 2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 2' at line 1
+SELECT * FROM t1 LEFT JOIN t2 FOR UPDATE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FOR UPDATE' at line 1
+SELECT * FROM t1 LEFT JOIN t2 FOR SHARE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FOR SHARE' at line 1
+SELECT * FROM t1 LEFT JOIN t2 FOR SHARE OF t1 FOR UPDATE OF t2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FOR SHARE OF t1 FOR UPDATE OF t2' at line 1
+SELECT * FROM t1 RIGHT JOIN t2 FOR SHARE OF t1 FOR UPDATE OF t2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FOR SHARE OF t1 FOR UPDATE OF t2' at line 1
+#
+# Test of deprecation warnings.
+#
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE c CURSOR FOR SELECT a FROM t1 FOR UPDATE;
+END|
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE c CURSOR FOR SELECT a FROM t1 LOCK IN SHARE MODE;
+END|
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+SELECT MIN(a) FROM t1 FOR UPDATE;
+MIN(a)
+1
+SELECT MAX(a) FROM t1 FOR UPDATE;
+MAX(a)
+1
+SELECT SUM(a) FROM t1 FOR UPDATE;
+SUM(a)
+1
+SELECT DISTINCT * FROM t1 FOR UPDATE;
+a	b
+1	1
+SELECT MIN(b) FROM t1 GROUP BY a FOR UPDATE;
+MIN(b)
+1
+SELECT MIN(a) FROM t1 LOCK IN SHARE MODE;
+MIN(a)
+1
+SELECT MAX(a) FROM t1 LOCK IN SHARE MODE;
+MAX(a)
+1
+SELECT SUM(a) FROM t1 LOCK IN SHARE MODE;
+SUM(a)
+1
+SELECT DISTINCT * FROM t1 LOCK IN SHARE MODE;
+a	b
+1	1
+SELECT MIN(b) FROM t1 GROUP BY a LOCK IN SHARE MODE;
+MIN(b)
+1
+SELECT 1 UNION SELECT 2 FOR UPDATE;
+1
+1
+2
+SELECT 1 UNION SELECT 2 LOCK IN SHARE MODE;
+1
+1
+2
+#
+# Test of error messages.
+#
+SELECT * FROM t1 FOR SHARE OF t2;
+ERROR HY000: Unresolved table name `t2` in locking clause.
+SELECT * FROM t1 t1a FOR SHARE OF t1;
+ERROR HY000: Unresolved table name `t1` in locking clause.
+SELECT * FROM t1 t1a, t2 t2a FOR SHARE OF t1a, t2;
+ERROR HY000: Unresolved table name `t2` in locking clause.
+SELECT * FROM t1 STRAIGHT JOIN t2 FOR SHARE OF t1;
+ERROR HY000: Unresolved table name `t1` in locking clause.
+SELECT * FROM t1 STRAIGHT JOIN t2 FOR SHARE OF t1 FOR UPDATE OF t2;
+ERROR HY000: Unresolved table name `t1` in locking clause.
+SELECT * FROM t1 STRAIGHT JOIN t2 AS t12 FOR UPDATE OF t12, t1 ;
+ERROR HY000: Unresolved table name `t1` in locking clause.
+SELECT * FROM no_such_database.t1 FOR SHARE OF no_such_database.t1;
+ERROR 42000: Unknown database 'no_such_database'
+SELECT * FROM no_such_database.t1 t1a FOR SHARE OF no_such_database.t1;
+ERROR HY000: Unresolved table name `no_such_database`.`t1` in locking clause.
+SELECT * FROM no_such_database.t1 t1a FOR SHARE OF t1a;
+ERROR 42000: Unknown database 'no_such_database'
+SELECT * FROM no_such_database.t1 FOR SHARE OF t1;
+ERROR 42000: Unknown database 'no_such_database'
+SELECT * FROM t1 FOR SHARE OF no_such_database.t1;
+ERROR HY000: Unresolved table name `no_such_database`.`t1` in locking clause.
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 ( a INT, b INT );
+INSERT INTO t1 VALUES (10, 10);
+SELECT * FROM t1 FOR SHARE OF db1.t1;
+ERROR HY000: Unresolved table name `db1`.`t1` in locking clause.
+SELECT * FROM t1 FOR UPDATE OF t1 FOR SHARE OF t1;
+ERROR HY000: Table `t1` appears in multiple locking clauses.
+SELECT * FROM t1, t2 FOR UPDATE OF t2 FOR SHARE OF t1 FOR UPDATE OF t2;
+ERROR HY000: Table `t2` appears in multiple locking clauses.
+SELECT * FROM t1, t2 FOR UPDATE FOR SHARE OF t1;
+ERROR HY000: Table `t1` appears in multiple locking clauses.
+SELECT * FROM t1, t2 FOR UPDATE FOR SHARE OF t2;
+ERROR HY000: Table `t2` appears in multiple locking clauses.
+SELECT * FROM t1, t2 FOR SHARE FOR UPDATE OF t1;
+ERROR HY000: Table `t1` appears in multiple locking clauses.
+SELECT * FROM t1, t2 FOR SHARE FOR UPDATE OF t2;
+ERROR HY000: Table `t2` appears in multiple locking clauses.
+SELECT * FROM t1, t2 FOR UPDATE OF t1 FOR SHARE;
+ERROR HY000: Table t1 appears in multiple locking clauses.
+SELECT * FROM t1, t2 FOR UPDATE OF t2 FOR SHARE;
+ERROR HY000: Table t2 appears in multiple locking clauses.
+SELECT MIN(a) FROM t1 FOR UPDATE SKIP LOCKED;
+MIN(a)
+1
+SELECT MAX(a) FROM t1 FOR UPDATE SKIP LOCKED;
+MAX(a)
+10
+SELECT SUM(a) FROM t1 FOR UPDATE SKIP LOCKED;
+SUM(a)
+11
+SELECT MIN(a) FROM t1 FOR UPDATE NOWAIT;
+MIN(a)
+1
+SELECT MAX(a) FROM t1 FOR UPDATE NOWAIT;
+MAX(a)
+10
+SELECT SUM(a) FROM t1 FOR UPDATE NOWAIT;
+SUM(a)
+11
+SELECT DISTINCT * FROM t1 FOR UPDATE SKIP LOCKED;
+a	b
+1	1
+10	10
+SELECT DISTINCT * FROM t1 FOR UPDATE NOWAIT;
+a	b
+1	1
+10	10
+SELECT MIN(b) FROM t1 GROUP BY a FOR UPDATE OF t1;
+MIN(b)
+1
+10
+SELECT MIN(b) FROM t1 GROUP BY a FOR UPDATE SKIP LOCKED;
+MIN(b)
+1
+10
+SELECT MIN(b) FROM t1 GROUP BY a FOR SHARE;
+MIN(b)
+1
+10
+#
+# Regression testing.
+#
+DROP DATABASE db1;
+DROP VIEW v1;
+DROP TABLE t1, t2;
+#
+# Bug#24741298: "SELECT ... FOR UPDATE NOWAIT" ON MYISAM TABLE CAUSED
+# CRASH
+#
+CREATE TABLE t1 ( a INT ) ENGINE = MyISAM;
+SELECT * FROM t1 FOR UPDATE NOWAIT;
+a
+DROP TABLE t1;
+#
+# Bug#25972285: UNCLEAR ERROR MESSAGE FOR NOWAIT
+#
+CREATE USER test@localhost;
+GRANT CREATE, SELECT, UPDATE on *.* to test@localhost;
+CREATE USER test2@localhost;
+GRANT CREATE, SELECT, UPDATE on *.* to test2@localhost;
+CREATE TABLE t1 ( a INT ) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ( 1 );
+BEGIN;
+SELECT * FROM t1 WHERE a = 2 FOR UPDATE ;
+a
+BEGIN;
+SELECT * FROM t1 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+COMMIT;
+DROP TABLE t1;
+DROP USER test@localhost;
+DROP USER test2@localhost;

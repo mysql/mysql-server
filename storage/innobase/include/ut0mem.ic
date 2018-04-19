@@ -1,30 +1,37 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/*******************************************************************//**
-@file include/ut0mem.ic
-Memory primitives
+/** @file include/ut0mem.ic
+ Memory primitives
 
-Created 5/30/1994 Heikki Tuuri
-************************************************************************/
+ Created 5/30/1994 Heikki Tuuri
+ ************************************************************************/
 
-#include "ut0byte.h"
 #include "mach0data.h"
+#include "ut0byte.h"
 
 /** Wrapper for memcpy(3).  Copy memory area when the source and
 target are not overlapping.
@@ -33,10 +40,8 @@ target are not overlapping.
 @param[in]	n	number of bytes to copy
 @return dest */
 UNIV_INLINE
-void*
-ut_memcpy(void* dest, const void* src, ulint n)
-{
-	return(memcpy(dest, src, n));
+void *ut_memcpy(void *dest, const void *src, ulint n) {
+  return (memcpy(dest, src, n));
 }
 
 /** Wrapper for memmove(3).  Copy memory area when the source and
@@ -46,10 +51,8 @@ target are overlapping.
 @param[in]	n	number of bytes to move
 @return dest */
 UNIV_INLINE
-void*
-ut_memmove(void* dest, const void* src, ulint n)
-{
-	return(memmove(dest, src, n));
+void *ut_memmove(void *dest, const void *src, ulint n) {
+  return (memmove(dest, src, n));
 }
 
 /** Wrapper for memcmp(3).  Compare memory areas.
@@ -57,12 +60,10 @@ ut_memmove(void* dest, const void* src, ulint n)
 @param[in]	str2	second memory block to compare
 @param[in]	n	number of bytes to compare
 @return negative, 0, or positive if str1 is smaller, equal,
-		or greater than str2, respectively. */
+                or greater than str2, respectively. */
 UNIV_INLINE
-int
-ut_memcmp(const void* str1, const void* str2, ulint n)
-{
-	return(memcmp(str1, str2, n));
+int ut_memcmp(const void *str1, const void *str2, ulint n) {
+  return (memcmp(str1, str2, n));
 }
 
 /** Wrapper for strcpy(3).  Copy a NUL-terminated string.
@@ -70,248 +71,194 @@ ut_memcmp(const void* str1, const void* str2, ulint n)
 @param[in]	src	Source to copy from
 @return dest */
 UNIV_INLINE
-char*
-ut_strcpy(char* dest, const char* src)
-{
-	return(strcpy(dest, src));
-}
+char *ut_strcpy(char *dest, const char *src) { return (strcpy(dest, src)); }
 
 /** Wrapper for strlen(3).  Determine the length of a NUL-terminated string.
 @param[in]	str	string
 @return length of the string in bytes, excluding the terminating NUL */
 UNIV_INLINE
-ulint
-ut_strlen(const char* str)
-{
-	return(strlen(str));
-}
+ulint ut_strlen(const char *str) { return (strlen(str)); }
 
 /** Wrapper for strcmp(3).  Compare NUL-terminated strings.
 @param[in]	str1	first string to compare
 @param[in]	str2	second string to compare
 @return negative, 0, or positive if str1 is smaller, equal,
-		or greater than str2, respectively. */
+                or greater than str2, respectively. */
 UNIV_INLINE
-int
-ut_strcmp(const char* str1, const char* str2)
-{
-	return(strcmp(str1, str2));
+int ut_strcmp(const char *str1, const char *str2) {
+  return (strcmp(str1, str2));
 }
 
-/**********************************************************************//**
-Converts a raw binary data to a NUL-terminated hex string. The output is
-truncated if there is not enough space in "hex", make sure "hex_size" is at
-least (2 * raw_size + 1) if you do not want this to happen. Returns the
-actual number of characters written to "hex" (including the NUL).
-@return number of chars written */
+/** Converts a raw binary data to a NUL-terminated hex string. The output is
+ truncated if there is not enough space in "hex", make sure "hex_size" is at
+ least (2 * raw_size + 1) if you do not want this to happen. Returns the
+ actual number of characters written to "hex" (including the NUL).
+ @return number of chars written */
 UNIV_INLINE
-ulint
-ut_raw_to_hex(
-/*==========*/
-	const void*	raw,		/*!< in: raw data */
-	ulint		raw_size,	/*!< in: "raw" length in bytes */
-	char*		hex,		/*!< out: hex string */
-	ulint		hex_size)	/*!< in: "hex" size in bytes */
+ulint ut_raw_to_hex(const void *raw, /*!< in: raw data */
+                    ulint raw_size,  /*!< in: "raw" length in bytes */
+                    char *hex,       /*!< out: hex string */
+                    ulint hex_size)  /*!< in: "hex" size in bytes */
 {
-
 #ifdef WORDS_BIGENDIAN
 
-#define MK_UINT16(a, b) (((uint16) (a)) << 8 | (uint16) (b))
+#define MK_UINT16(a, b) (((uint16)(a)) << 8 | (uint16)(b))
 
-#define UINT16_GET_A(u)	((unsigned char) ((u) >> 8))
-#define UINT16_GET_B(u)	((unsigned char) ((u) & 0xFF))
+#define UINT16_GET_A(u) ((unsigned char)((u) >> 8))
+#define UINT16_GET_B(u) ((unsigned char)((u)&0xFF))
 
 #else /* WORDS_BIGENDIAN */
 
-#define MK_UINT16(a, b) (((uint16) (b)) << 8 | (uint16) (a))
+#define MK_UINT16(a, b) (((uint16)(b)) << 8 | (uint16)(a))
 
-#define UINT16_GET_A(u)	((unsigned char) ((u) & 0xFF))
-#define UINT16_GET_B(u)	((unsigned char) ((u) >> 8))
+#define UINT16_GET_A(u) ((unsigned char)((u)&0xFF))
+#define UINT16_GET_B(u) ((unsigned char)((u) >> 8))
 
 #endif /* WORDS_BIGENDIAN */
 
-#define MK_ALL_UINT16_WITH_A(a)	\
-	MK_UINT16(a, '0'),	\
-	MK_UINT16(a, '1'),	\
-	MK_UINT16(a, '2'),	\
-	MK_UINT16(a, '3'),	\
-	MK_UINT16(a, '4'),	\
-	MK_UINT16(a, '5'),	\
-	MK_UINT16(a, '6'),	\
-	MK_UINT16(a, '7'),	\
-	MK_UINT16(a, '8'),	\
-	MK_UINT16(a, '9'),	\
-	MK_UINT16(a, 'A'),	\
-	MK_UINT16(a, 'B'),	\
-	MK_UINT16(a, 'C'),	\
-	MK_UINT16(a, 'D'),	\
-	MK_UINT16(a, 'E'),	\
-	MK_UINT16(a, 'F')
+#define MK_ALL_UINT16_WITH_A(a)                                               \
+  MK_UINT16(a, '0'), MK_UINT16(a, '1'), MK_UINT16(a, '2'), MK_UINT16(a, '3'), \
+      MK_UINT16(a, '4'), MK_UINT16(a, '5'), MK_UINT16(a, '6'),                \
+      MK_UINT16(a, '7'), MK_UINT16(a, '8'), MK_UINT16(a, '9'),                \
+      MK_UINT16(a, 'A'), MK_UINT16(a, 'B'), MK_UINT16(a, 'C'),                \
+      MK_UINT16(a, 'D'), MK_UINT16(a, 'E'), MK_UINT16(a, 'F')
 
-	static const uint16	hex_map[256] = {
-		MK_ALL_UINT16_WITH_A('0'),
-		MK_ALL_UINT16_WITH_A('1'),
-		MK_ALL_UINT16_WITH_A('2'),
-		MK_ALL_UINT16_WITH_A('3'),
-		MK_ALL_UINT16_WITH_A('4'),
-		MK_ALL_UINT16_WITH_A('5'),
-		MK_ALL_UINT16_WITH_A('6'),
-		MK_ALL_UINT16_WITH_A('7'),
-		MK_ALL_UINT16_WITH_A('8'),
-		MK_ALL_UINT16_WITH_A('9'),
-		MK_ALL_UINT16_WITH_A('A'),
-		MK_ALL_UINT16_WITH_A('B'),
-		MK_ALL_UINT16_WITH_A('C'),
-		MK_ALL_UINT16_WITH_A('D'),
-		MK_ALL_UINT16_WITH_A('E'),
-		MK_ALL_UINT16_WITH_A('F')
-	};
-	const unsigned char*	rawc;
-	ulint			read_bytes;
-	ulint			write_bytes;
-	ulint			i;
+  static const uint16 hex_map[256] = {
+      MK_ALL_UINT16_WITH_A('0'), MK_ALL_UINT16_WITH_A('1'),
+      MK_ALL_UINT16_WITH_A('2'), MK_ALL_UINT16_WITH_A('3'),
+      MK_ALL_UINT16_WITH_A('4'), MK_ALL_UINT16_WITH_A('5'),
+      MK_ALL_UINT16_WITH_A('6'), MK_ALL_UINT16_WITH_A('7'),
+      MK_ALL_UINT16_WITH_A('8'), MK_ALL_UINT16_WITH_A('9'),
+      MK_ALL_UINT16_WITH_A('A'), MK_ALL_UINT16_WITH_A('B'),
+      MK_ALL_UINT16_WITH_A('C'), MK_ALL_UINT16_WITH_A('D'),
+      MK_ALL_UINT16_WITH_A('E'), MK_ALL_UINT16_WITH_A('F')};
+  const unsigned char *rawc;
+  ulint read_bytes;
+  ulint write_bytes;
+  ulint i;
 
-	rawc = (const unsigned char*) raw;
+  rawc = (const unsigned char *)raw;
 
-	if (hex_size == 0) {
+  if (hex_size == 0) {
+    return (0);
+  }
 
-		return(0);
-	}
+  if (hex_size <= 2 * raw_size) {
+    read_bytes = hex_size / 2;
+    write_bytes = hex_size;
+  } else {
+    read_bytes = raw_size;
+    write_bytes = 2 * raw_size + 1;
+  }
 
-	if (hex_size <= 2 * raw_size) {
+#define LOOP_READ_BYTES(ASSIGN)      \
+  for (i = 0; i < read_bytes; i++) { \
+    ASSIGN;                          \
+    hex += 2;                        \
+    rawc++;                          \
+  }
 
-		read_bytes = hex_size / 2;
-		write_bytes = hex_size;
-	} else {
+  if (ut_align_offset(hex, 2) == 0) {
+    LOOP_READ_BYTES(*(uint16 *)hex = hex_map[*rawc]);
+  } else {
+    LOOP_READ_BYTES(*hex = UINT16_GET_A(hex_map[*rawc]);
+                    *(hex + 1) = UINT16_GET_B(hex_map[*rawc]));
+  }
 
-		read_bytes = raw_size;
-		write_bytes = 2 * raw_size + 1;
-	}
+  if (hex_size <= 2 * raw_size && hex_size % 2 == 0) {
+    hex--;
+  }
 
-#define LOOP_READ_BYTES(ASSIGN)			\
-	for (i = 0; i < read_bytes; i++) {	\
-		ASSIGN;				\
-		hex += 2;			\
-		rawc++;				\
-	}
+  *hex = '\0';
 
-	if (ut_align_offset(hex, 2) == 0) {
-
-		LOOP_READ_BYTES(
-			*(uint16*) hex = hex_map[*rawc]
-		);
-	} else {
-
-		LOOP_READ_BYTES(
-			*hex       = UINT16_GET_A(hex_map[*rawc]);
-			*(hex + 1) = UINT16_GET_B(hex_map[*rawc])
-		);
-	}
-
-	if (hex_size <= 2 * raw_size && hex_size % 2 == 0) {
-
-		hex--;
-	}
-
-	*hex = '\0';
-
-	return(write_bytes);
+  return (write_bytes);
 }
 
-/*******************************************************************//**
-Adds single quotes to the start and end of string and escapes any quotes
-by doubling them. Returns the number of bytes that were written to "buf"
-(including the terminating NUL). If buf_size is too small then the
-trailing bytes from "str" are discarded.
-@return number of bytes that were written */
+/** Adds single quotes to the start and end of string and escapes any quotes
+ by doubling them. Returns the number of bytes that were written to "buf"
+ (including the terminating NUL). If buf_size is too small then the
+ trailing bytes from "str" are discarded.
+ @return number of bytes that were written */
 UNIV_INLINE
-ulint
-ut_str_sql_format(
-/*==============*/
-	const char*	str,		/*!< in: string */
-	ulint		str_len,	/*!< in: string length in bytes */
-	char*		buf,		/*!< out: output buffer */
-	ulint		buf_size)	/*!< in: output buffer size
-					in bytes */
+ulint ut_str_sql_format(const char *str, /*!< in: string */
+                        ulint str_len,   /*!< in: string length in bytes */
+                        char *buf,       /*!< out: output buffer */
+                        ulint buf_size)  /*!< in: output buffer size
+                                         in bytes */
 {
-	ulint	str_i;
-	ulint	buf_i;
+  ulint str_i;
+  ulint buf_i;
 
-	buf_i = 0;
+  buf_i = 0;
 
-	switch (buf_size) {
-	case 3:
+  switch (buf_size) {
+    case 3:
 
-		if (str_len == 0) {
+      if (str_len == 0) {
+        buf[buf_i] = '\'';
+        buf_i++;
+        buf[buf_i] = '\'';
+        buf_i++;
+      }
+      /* FALLTHROUGH */
+    case 2:
+    case 1:
 
-			buf[buf_i] = '\'';
-			buf_i++;
-			buf[buf_i] = '\'';
-			buf_i++;
-		}
-		/* FALLTHROUGH */
-	case 2:
-	case 1:
+      buf[buf_i] = '\0';
+      buf_i++;
+      /* FALLTHROUGH */
+    case 0:
 
-		buf[buf_i] = '\0';
-		buf_i++;
-		/* FALLTHROUGH */
-	case 0:
+      return (buf_i);
+  }
 
-		return(buf_i);
-	}
+  /* buf_size >= 4 */
 
-	/* buf_size >= 4 */
+  buf[0] = '\'';
+  buf_i = 1;
 
-	buf[0] = '\'';
-	buf_i = 1;
+  for (str_i = 0; str_i < str_len; str_i++) {
+    char ch;
 
-	for (str_i = 0; str_i < str_len; str_i++) {
+    if (buf_size - buf_i == 2) {
+      break;
+    }
 
-		char	ch;
+    ch = str[str_i];
 
-		if (buf_size - buf_i == 2) {
+    switch (ch) {
+      case '\0':
 
-			break;
-		}
+        if (buf_size - buf_i < 4) {
+          goto func_exit;
+        }
+        buf[buf_i] = '\\';
+        buf_i++;
+        buf[buf_i] = '0';
+        buf_i++;
+        break;
+      case '\'':
+      case '\\':
 
-		ch = str[str_i];
+        if (buf_size - buf_i < 4) {
+          goto func_exit;
+        }
+        buf[buf_i] = ch;
+        buf_i++;
+        /* FALLTHROUGH */
+      default:
 
-		switch (ch) {
-		case '\0':
-
-			if (buf_size - buf_i < 4) {
-
-				goto func_exit;
-			}
-			buf[buf_i] = '\\';
-			buf_i++;
-			buf[buf_i] = '0';
-			buf_i++;
-			break;
-		case '\'':
-		case '\\':
-
-			if (buf_size - buf_i < 4) {
-
-				goto func_exit;
-			}
-			buf[buf_i] = ch;
-			buf_i++;
-			/* FALLTHROUGH */
-		default:
-
-			buf[buf_i] = ch;
-			buf_i++;
-		}
-	}
+        buf[buf_i] = ch;
+        buf_i++;
+    }
+  }
 
 func_exit:
 
-	buf[buf_i] = '\'';
-	buf_i++;
-	buf[buf_i] = '\0';
-	buf_i++;
+  buf[buf_i] = '\'';
+  buf_i++;
+  buf[buf_i] = '\0';
+  buf_i++;
 
-	return(buf_i);
+  return (buf_i);
 }

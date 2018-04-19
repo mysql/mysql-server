@@ -1,0 +1,27 @@
+
+--echo # Creating table t1
+CREATE TABLE t1(c1 INT NOT NULL, c2 INT, PRIMARY KEY(c1));
+INSERT INTO t1 VALUES (1,1), (2,2), (3,1), (4,2), (5,1), (6,2), (7,3);
+
+--echo ##########################################
+--echo # Run plugin
+--echo ##########################################
+--replace_result $TEST_SQL_COMMIT TEST_SQL_COMMIT
+eval INSTALL PLUGIN test_sql_commit SONAME '$TEST_SQL_COMMIT';
+
+--echo ##########################################
+--echo # Stop plugin
+--echo ##########################################
+UNINSTALL PLUGIN test_sql_commit;
+
+--echo ##########################################
+--echo # Plugin log
+--echo ##########################################
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_sql_commit.log;
+remove_file $MYSQLD_DATADIR/test_sql_commit.log;
+
+SET AUTOCOMMIT = 1;
+
+--echo # Dropping the created table
+DROP TABLE t1;

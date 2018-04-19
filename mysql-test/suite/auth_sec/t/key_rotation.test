@@ -1,0 +1,23 @@
+
+# This test will will check parser support for
+# ALTER INSTANCE ROTATE <key_type> MASTER KEY statement.
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--error ER_PARSE_ERROR
+ALTER INSTANCE ROTATE BLAH MASTER KEY;
+
+CREATE USER u1@localhost IDENTIFIED BY 'AbCd13!#';
+
+--connect(u1_conn, localhost, u1, AbCd13!#)
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+connection default;
+disconnect u1_conn;
+
+DROP USER u1@localhost;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

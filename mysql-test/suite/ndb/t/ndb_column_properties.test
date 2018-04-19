@@ -1,13 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
-
---disable_warnings
-drop table if exists t1;
---enable_warnings
 
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
@@ -18,14 +9,16 @@ ENGINE=NDB;
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
-INITIAL_SIZE 6M
+INITIAL_SIZE 8M
 EXTENT_SIZE 256k
 ENGINE NDB;
 
-create table t1 (a int column_format DYNAMIC STORAGE DISK) TABLESPACE ts1 engine NDB;
+create table t1 (a int column_format DYNAMIC STORAGE DISK) TABLESPACE ts1 engine NDB CHARACTER SET latin1;
 #select column_name, storage, format from information_schema.columns
 #where table_name = "t1";
+--disable_warnings
 show create table t1;
+--enable_warnings
 source show_attributes.inc;
 drop table t1;
 
@@ -41,51 +34,65 @@ create table t1 (a int column_format DYNAMIC,
                  e1 CHAR(100) column_format DYNAMIC,
                  f CHAR(100) NOT NULL column_format FIXED,
                  f1 char(100) NOT NULL column_format DYNAMIC storage DISK,
-                 index (b)) TABLESPACE ts1 engine NDB;
+                 index (b)) TABLESPACE ts1 engine NDB CHARACTER SET latin1;
 insert into t1 (b, b1, d,d1,f,f1) values
 (1,1,"1","1","1","1"),
 (2,2,"2","2","2","2"),
 (3,3,"3","3","3","3");
 alter table t1 change column a a int column_format FIXED;
+--disable_warnings
 show create table t1;
+--enable_warnings
 #select column_name, storage, format from information_schema.columns
 #where table_name = "t1";
 alter table t1 change column a a int storage disk;
+--disable_warnings
 show create table t1;
+--enable_warnings
 source show_attributes.inc;
 alter table t1 change column a a int storage memory;
+--disable_warnings
 show create table t1;
+--enable_warnings
 source show_attributes.inc;
 alter table t1 change column b b int NOT NULL storage memory;
 alter table t1 add column a2 int column_format FIXED;
+--disable_warnings
 show create table t1;
+--enable_warnings
 source show_attributes.inc;
 alter table t1 add column c2 VARCHAR(100) column_format DYNAMIC;
+--disable_warnings
 show create table t1;
+--enable_warnings
 source show_attributes.inc;
 alter table t1 add column c3 VARCHAR(100) column_format FIXED;
+--disable_warnings
 show create table t1;
+--enable_warnings
 source show_attributes.inc;
 drop table t1;
 
-create table t1 (a int storage disk column_format FIXED) TABLESPACE ts1 engine NDB;
+create table t1 (a int storage disk column_format FIXED) TABLESPACE ts1 engine NDB CHARACTER SET latin1;
 alter table t1 change column a a int storage memory column_format DYNAMIC;
+--disable_warnings
 show create table t1;
+--enable_warnings
 source show_attributes.inc;
 drop table t1;
 
 # Checking keywords
-create table t1 (column_format int storage disk column_format FIXED, storage int storage disk column_format FIXED) TABLESPACE ts1 engine NDB;
+create table t1 (column_format int storage disk column_format FIXED, storage int storage disk column_format FIXED) TABLESPACE ts1 engine NDB CHARACTER SET latin1;
+--disable_warnings
 show create table t1;
+--enable_warnings
 source show_attributes.inc;
 drop table t1;
 
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE NDB;
+DROP DATAFILE 'datafile.dat';
 
-drop tablespace ts1
-engine ndb;
+drop tablespace ts1;
 
 drop logfile group lg1
 engine ndb;

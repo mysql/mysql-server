@@ -7,7 +7,6 @@
 # to be able to use the same code for all these different
 # test and to have control over the tests.
 ##############################################################
--- source include/have_innodb.inc
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
 -- source suite/ndb_rpl/ndb_master-slave.inc

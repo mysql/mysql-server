@@ -1,0 +1,43 @@
+###############################################################################
+# Bug#21507981: REPLICATION POSITION LOST AFTER CRASH ON MTS CONFIGURED SLAVE
+#
+# Problem:
+# ========
+# Enable MTS along with crash-safe replication tables. Make sure that the
+# server
+# is busily inserting data with multiple threads in parallel. Shutdown mysqld
+# uncleanly (kill -9 or power off server without notice).
+#
+# Now users are restarting the server with --relay-log-recovery=1 to recover
+# the
+# crashed slave.
+#
+# This results in following error:
+# ================================
+# 2015-06-24 13:49:03 3895 [ERROR] --relay-log-recovery cannot
+# be executed when the slave was stopped with an error or
+# killed in MTS mode; consider using RESET SLAVE or restart
+# the server with --relay-log-recovery = 0 followed by
+# START SLAVE UNTIL SQL_AFTER_MTS_GAPS.
+#
+# i.e relay-log-recovery will not work in MTS mode.
+###############################################################################
+# Following test demonstrates that when gaps are generated due to MTS crash
+# but not due to an error then recovery should be successful with
+# --relay-log-recovery=1 option.
+
+--source include/force_restart.inc
+--source include/have_binlog_format_statement.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+--source include/only_mts_slave_parallel_workers.inc
+--source include/only_mts_slave_parallel_type_database.inc
+--source include/master-slave.inc
+
+--let $skip_slave_start_var= FALSE
+--source extra/rpl_tests/rpl_mts_relay_log_recovery.test
+
+--let $skip_slave_start_var= TRUE
+--source extra/rpl_tests/rpl_mts_relay_log_recovery.test
+
+--source include/rpl_end.inc

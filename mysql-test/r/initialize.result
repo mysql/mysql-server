@@ -1,34 +1,6 @@
-# We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
 # Save the count of columns in mysql
 # shut server down
 # Server is down
-#
-# Try --bootstrap and see if you get a warning
-#
-# create bootstrap file
-# play tiny_bootstrap.sql
-# create the empty datadir
-# try --bootstrap
-# look for bootstrap deprecated
-bootstrap deprecated found 1 times
-# delete datadir
-# delete bootstrap file
-# delete mysqld log
-#
-# Try --bootstrap and --initialize and expect an error
-#
-# create bootstrap file
-# try --bootstrap --initialize
-# delete bootstrap file
-# delete mysqld log
-#
-# Try --bootstrap and --initialize-insecure and expect an error
-#
-# create bootstrap file
-# try --bootstrap --initialize-initialize-insecure
-# delete bootstrap file
-# delete mysqld log
 #
 # Try --initialize
 #
@@ -39,25 +11,28 @@ password found
 # connect as root
 # must fail due to password expiration
 SELECT 1;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 # reset the password
 SET PASSWORD='';
 # Check the count of columns in mysql
 # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string)
-FROM mysql.user;
+FROM mysql.user ORDER by user;
 user	host	plugin	LENGTH(authentication_string)
-root	localhost	mysql_native_password	0
+mysql.infoschema	localhost	mysql_native_password	41
+mysql.session	localhost	mysql_native_password	41
+mysql.sys	localhost	mysql_native_password	41
+root	localhost	caching_sha2_password	0
 # Check the sys schema exists with the right object counts
 #
 # If this value differs, also update SYS_PROCEDURE_COUNT within ./client/upgrade/program.cc
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'PROCEDURE';
 COUNT(*)
-22
+26
 # If this value differs, also update SYS_FUNCTION_COUNT within ./client/upgrade/program.cc
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'FUNCTION';
 COUNT(*)
-14
+22
 # If this value differs, also update SYS_TABLE_COUNT within ./client/upgrade/program.cc
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'BASE TABLE';
 COUNT(*)
@@ -65,7 +40,7 @@ COUNT(*)
 # If this value differs, also update SYS_VIEW_COUNT within ./client/upgrade/program.cc
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'VIEW';
 COUNT(*)
-91
+100
 # If this value differs, also update SYS_TRIGGER_COUNT within ./client/upgrade/program.cc
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys';
 COUNT(*)
@@ -92,9 +67,12 @@ SELECT 1;
 # Take out the extra t1 column
 # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string)
-FROM mysql.user;
+FROM mysql.user ORDER BY user;
 user	host	plugin	LENGTH(authentication_string)
-root	localhost	mysql_native_password	0
+mysql.infoschema	localhost	mysql_native_password	41
+mysql.session	localhost	mysql_native_password	41
+mysql.sys	localhost	mysql_native_password	41
+root	localhost	caching_sha2_password	0
 # check the result of running --init-file
 SELECT a FROM t1 ORDER BY a;
 a
@@ -117,6 +95,11 @@ a
 #
 # Run the server with --initialize-insecure --init-file=haha.sql
 # delete mysqld log
+# delete datadir
+#
+# Bug#22777039 - MYSQLD --INITIALIZE DOES NOT SUPPORT THE KEYRING_FILE_DATA OPTION
+#
+# delete temp keyring file
 # delete datadir
 #
 # Cleanup

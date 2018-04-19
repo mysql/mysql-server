@@ -7,9 +7,9 @@ partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `a` timestamp NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
@@ -37,9 +37,9 @@ partition by key (a) partitions 12;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `a` timestamp NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 12 */
 insert into t2 values ('1975-01-01 0:1:1'), ('2020-12-31 10:11:12'), ('1980-10-14 13:14:15'), ('2000-06-15 14:15:16');
@@ -195,7 +195,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` date NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
@@ -225,7 +225,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` date NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 12 */
 insert into t2 values ('1975-01-01'), ('2020-12-31'), ('1980-10-14'), ('2000-06-15');
@@ -433,8 +433,8 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` date NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (month(a))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (month(`a`))
 SUBPARTITION BY KEY (a)
 SUBPARTITIONS 3
 (PARTITION quarter1 VALUES LESS THAN (4) ENGINE = InnoDB,
@@ -485,8 +485,8 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` date NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (month(a))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (month(`a`))
 SUBPARTITION BY KEY (a)
 SUBPARTITIONS 3
 (PARTITION quarter1 VALUES IN (1,2,3) ENGINE = InnoDB,
@@ -535,7 +535,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` time NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
@@ -565,7 +565,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` time NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 12 */
 insert into t2 values ('0:1:1'), ('10:11:12'), ('13:14:15'), ('14:15:16');
@@ -723,8 +723,8 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` time NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (second(a))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (second(`a`))
 SUBPARTITION BY KEY (a)
 SUBPARTITIONS 3
 (PARTITION quarter1 VALUES LESS THAN (16) ENGINE = InnoDB,
@@ -869,8 +869,8 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` time NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (second(a))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (second(`a`))
 SUBPARTITION BY KEY (a)
 SUBPARTITIONS 3
 (PARTITION quarter1 VALUES IN (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15) ENGINE = InnoDB,
@@ -1013,7 +1013,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
@@ -1043,7 +1043,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` datetime NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 12 */
 insert into t2 values ('1975-01-01 0:1:1'), ('2020-12-31 10:11:12'), ('1980-10-14 13:14:15'), ('2000-06-15 14:15:16');
@@ -1201,8 +1201,8 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` datetime NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (month(a))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (month(`a`))
 SUBPARTITION BY KEY (a)
 SUBPARTITIONS 3
 (PARTITION quarter1 VALUES LESS THAN (4) ENGINE = InnoDB,
@@ -1253,8 +1253,8 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` datetime NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (month(a))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (month(`a`))
 SUBPARTITION BY KEY (a)
 SUBPARTITIONS 3
 (PARTITION quarter1 VALUES IN (1,2,3) ENGINE = InnoDB,
@@ -1303,7 +1303,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` year(4) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
@@ -1333,7 +1333,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` year(4) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 12 */
 insert into t2 values ('1975'), ('2020'), ('1980'), ('2000');
@@ -1354,8 +1354,6 @@ a
 2000
 delete from t2;
 255 inserts;
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 select count(*) from t2;

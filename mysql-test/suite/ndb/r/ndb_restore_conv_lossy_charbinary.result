@@ -1,3 +1,5 @@
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 ************************************************************
 * Creating table with char+binary types
 ************************************************************
@@ -6,7 +8,7 @@ c1 char(2), c2 char(128), c3 char(255),
 b1 binary(2), b2 binary(128), b3 binary(255),
 vc1 varchar(2), vc2 varchar(255), vc3 varchar(1024),
 vb1 varbinary(2), vb2 varbinary(255), vb3 varbinary(1024)
-) ENGINE=NDB;
+) CHARACTER SET latin1 ENGINE=NDB;
 INSERT INTO t2 VALUES(
 repeat('a', 2), repeat('b', 128), repeat('c', 255),
 repeat('d', 2), repeat('e', 128), repeat('f', 255),

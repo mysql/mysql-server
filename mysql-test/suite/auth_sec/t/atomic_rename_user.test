@@ -1,0 +1,96 @@
+--source include/have_log_bin.inc
+--source include/save_binlog_position.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # -----------------------------------------------------------------------
+
+--echo # Begin : Tests for RENAME USER
+
+CREATE USER userX, userY, userZ;
+
+SELECT user, authentication_string FROM mysql.user WHERE user like 'user%';
+--source include/save_binlog_position.inc
+
+--echo # Modify multiple users
+RENAME USER userX TO userA, userY TO userB, userZ TO userC;
+
+--echo # Must show userA, userB, userC
+SELECT user, authentication_string FROM mysql.user WHERE user like 'user%';
+
+--let $event= !Q(RENAME USER.*userX.TO.*userA.*,.*userY.*TO.*userB.*,.*userZ.*TO.*userC.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # Try renaming a non-existent user
+--error ER_CANNOT_USER
+RENAME USER userA TO userX, user_ne1 TO user_ne2, userC TO userZ;
+
+--echo # Must show userA, userB, userC
+SELECT user, authentication_string FROM mysql.user WHERE user like 'user%';
+
+--let $invert= 1
+--let $event= !Q(RENAME USER.*userA.*TO.*userX.*,.*user_ne1.*TO.*user_ne2.*,.*userC.*TO.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+--echo # Insert an entry in mysql.user table but do not execute FLUSH PRIVILEGES
+CREATE TABLE mysql.tmp_user LIKE mysql.user;
+INSERT INTO mysql.tmp_user SELECT * FROM mysql.user WHERE user LIKE 'userC';
+UPDATE mysql.tmp_user SET user='userZ' WHERE user LIKE 'userC';
+INSERT INTO mysql.user SELECT * FROM mysql.tmp_user;
+DROP TABLE mysql.tmp_user;
+
+--source include/save_binlog_position.inc
+
+--echo # Though userX is not present in cache, RENAME should check in mysql.user
+--echo # table for the presence of an entry which may create problem while
+--echo # renaming users.
+
+--error ER_CANNOT_USER
+RENAME USER userA TO userX, userB TO userY, userC TO userZ;
+
+--echo # Must show userA, userB, userC and userZ
+SELECT user, authentication_string FROM mysql.user WHERE user like 'user%';
+
+--let $invert= 1
+--let $event= !Q(RENAME USER.*userA.*TO.*userX.*,.*userB.*TO.*userY.*,.*userC.*TO.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+FLUSH PRIVILEGES;
+--source include/save_binlog_position.inc
+
+--echo # Try renaming two different user and use same user as target
+--error ER_CANNOT_USER
+RENAME USER userA TO userX, userB TO userX;
+
+--echo # Must show userA, userB, userC
+SELECT user, authentication_string FROM mysql.user WHERE user like 'user%';
+
+--let $invert= 1
+--let $event= !Q(RENAME USER.*userA.*TO.*userX.*,.*userB.*TO.*userX.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+--echo # This should succeed
+RENAME USER userA TO userX, userB TO userA, userZ TO userB, userC TO userZ;
+
+--echo # Must show userA, userB, userX and userZ
+SELECT user, authentication_string FROM mysql.user WHERE user like 'user%';
+
+--let $event= !Q(RENAME USER.*userA.*TO.*userX.*,.*userB.*TO.*userA.*,.*userZ.*TO.*userB.*,.*userC.*TO.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+DROP USER userA, userB, userX, userZ;
+
+--source include/save_binlog_position.inc
+
+--echo # End : Tests for RENAME USER
+
+--echo # -----------------------------------------------------------------------
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

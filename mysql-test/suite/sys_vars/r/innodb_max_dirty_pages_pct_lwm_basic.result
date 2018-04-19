@@ -1,23 +1,23 @@
 SET @pct_lwm_start_value = @@global.innodb_max_dirty_pages_pct_lwm;
 SELECT @pct_lwm_start_value;
 @pct_lwm_start_value
-0
+10
 SET @pct_start_value = @@global.innodb_max_dirty_pages_pct;
 SELECT @pct_start_value;
 @pct_start_value
-75
+90
 '#--------------------FN_DYNVARS_046_01------------------------#'
 SET @@global.innodb_max_dirty_pages_pct_lwm = 0;
 SET @@global.innodb_max_dirty_pages_pct_lwm = DEFAULT;
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
-0.000000
+10.000000
 '#---------------------FN_DYNVARS_046_02-------------------------#'
 SET innodb_max_dirty_pages_pct_lwm = 1;
 ERROR HY000: Variable 'innodb_max_dirty_pages_pct_lwm' is a GLOBAL variable and should be set with SET GLOBAL
 SELECT @@innodb_max_dirty_pages_pct_lwm;
 @@innodb_max_dirty_pages_pct_lwm
-0.000000
+10.000000
 SELECT local.innodb_max_dirty_pages_pct_lwm;
 ERROR 42S02: Unknown table 'local' in field list
 SET global innodb_max_dirty_pages_pct_lwm = 0;
@@ -32,7 +32,7 @@ SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 SET @@global.innodb_max_dirty_pages_pct_lwm = @pct_start_value;
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
-75.000000
+90.000000
 '#--------------------FN_DYNVARS_046_04-------------------------#'
 SET @@global.innodb_max_dirty_pages_pct_lwm = -1;
 Warnings:
@@ -53,10 +53,10 @@ SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 SET @@global.innodb_max_dirty_pages_pct_lwm = @pct_start_value + 1;
 Warnings:
 Warning	1210	innodb_max_dirty_pages_pct_lwm cannot be set higher than innodb_max_dirty_pages_pct.
-Warning	1210	Setting innodb_max_dirty_page_pct_lwm to 75.000000
+Warning	1210	Setting innodb_max_dirty_page_pct_lwm to 90.000000
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
-75.000000
+90.000000
 SET @@global.innodb_max_dirty_pages_pct_lwm = 0.0;
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
@@ -73,45 +73,45 @@ SET @@global.innodb_max_dirty_pages_pct_lwm = 100;
 Warnings:
 Warning	1292	Truncated incorrect innodb_max_dirty_pages_pct_lwm value: '100'
 Warning	1210	innodb_max_dirty_pages_pct_lwm cannot be set higher than innodb_max_dirty_pages_pct.
-Warning	1210	Setting innodb_max_dirty_page_pct_lwm to 75.000000
+Warning	1210	Setting innodb_max_dirty_page_pct_lwm to 90.000000
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
-75.000000
+90.000000
 SET @@global.innodb_max_dirty_pages_pct_lwm = " ";
 ERROR 42000: Incorrect argument type to variable 'innodb_max_dirty_pages_pct_lwm'
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
-75.000000
+90.000000
 SET @@global.innodb_max_dirty_pages_pct_lwm = ' ';
 ERROR 42000: Incorrect argument type to variable 'innodb_max_dirty_pages_pct_lwm'
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
-75.000000
+90.000000
 '#----------------------FN_DYNVARS_046_05------------------------#'
 SELECT @@global.innodb_max_dirty_pages_pct_lwm =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_max_dirty_pages_pct_lwm';
 @@global.innodb_max_dirty_pages_pct_lwm =
 VARIABLE_VALUE
 1
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
-75.000000
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+90.000000
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_max_dirty_pages_pct_lwm';
 VARIABLE_VALUE
-75.000000
+90.000000
 '#---------------------FN_DYNVARS_046_06-------------------------#'
 SET @@global.innodb_max_dirty_pages_pct_lwm = OFF;
 ERROR 42000: Incorrect argument type to variable 'innodb_max_dirty_pages_pct_lwm'
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
-75.000000
+90.000000
 SET @@global.innodb_max_dirty_pages_pct_lwm = ON;
 ERROR 42000: Incorrect argument type to variable 'innodb_max_dirty_pages_pct_lwm'
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
-75.000000
+90.000000
 '#---------------------FN_DYNVARS_046_07----------------------#'
 SET @@global.innodb_max_dirty_pages_pct_lwm = TRUE;
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
@@ -124,8 +124,8 @@ SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 SET @@global.innodb_max_dirty_pages_pct = @pct_start_value;
 SELECT @@global.innodb_max_dirty_pages_pct;
 @@global.innodb_max_dirty_pages_pct
-75.000000
+90.000000
 SET @@global.innodb_max_dirty_pages_pct_lwm = @pct_lwm_start_value;
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
-0.000000
+10.000000

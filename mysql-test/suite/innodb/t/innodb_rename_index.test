@@ -2,11 +2,6 @@
 # Test "ALTER TABLE ... RENAME INDEX" in InnoDB
 #
 
--- source include/have_innodb.inc
---disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table `mysql`\.`innodb_index_stats` not found");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Fetch of persistent statistics requested for table `test`.`t` but the required system tables .* are not present.*");
---enable_query_log
 let create =
 CREATE TABLE t (
 	a INT,
@@ -33,9 +28,9 @@ t.name AS table_name,
 i.name AS index_name,
 f.name AS column_name
 FROM
-information_schema.innodb_sys_tables t,
-information_schema.innodb_sys_indexes i,
-information_schema.innodb_sys_fields f
+information_schema.innodb_tables t,
+information_schema.innodb_indexes i,
+information_schema.innodb_fields f
 WHERE
 t.name LIKE '%/t' AND
 t.table_id = i.table_id AND
@@ -519,25 +514,6 @@ ALTER TABLE t RENAME INDEX i TO iiiii;
 ALTER TABLE t RENAME INDEX iiiii TO i;
 ALTER TABLE t RENAME INDEX i TO iiiii;
 -- disable_info
-DROP TABLE t;
-
-# Test basic RENAME INDEX with a broken persistent stats storage
-
-CREATE TABLE t (a INT, b INT, PRIMARY KEY (a), INDEX i1 (b)) ENGINE=INNODB;
-INSERT INTO t SET a=1;
-
-RENAME TABLE mysql.innodb_index_stats TO mysql.innodb_index_stats_;
-
--- enable_info
-ALTER TABLE t RENAME INDEX i1 TO i7;
--- disable_info
-
-RENAME TABLE mysql.innodb_index_stats_ TO mysql.innodb_index_stats;
-
--- eval $show_table
--- eval $show_sys
--- eval $show_stats
-
 DROP TABLE t;
 
 # Below is a shell script to generate the full set of ALTER TABLE

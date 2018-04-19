@@ -1,0 +1,71 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+include/assert.inc [Default slave parallel type must be DATABASE]
+include/assert.inc [Default slave parallel workers must be 0]
+SET @slave_parallel_type_saved= @@GLOBAL.SLAVE_PARALLEL_TYPE;
+SET @slave_parallel_workers_saved= @@GLOBAL.SLAVE_PARALLEL_WORKERS;
+SET @slave_preserver_commit_order_saved= @@GLOBAL.SLAVE_PRESERVE_COMMIT_ORDER;
+SET GLOBAL SLAVE_PRESERVE_COMMIT_ORDER= OFF;
+
+############################################################
+# 1. Test with SLAVE_PARALLEL_TYPE default value and
+#    parallel workers number set to 4.
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET GLOBAL SLAVE_PARALLEL_WORKERS=4;
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+ERROR HY000: START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0 and SLAVE_PARALLEL_TYPE != LOGICAL_CLOCK or SLAVE_PRESERVE_COMMIT_ORDER != ON cannot be performed on channel 'group_replication_applier'.
+
+############################################################
+# 2. Test with SLAVE_PARALLEL_TYPE set to DATABASE and
+#    parallel workers number set to 4.
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Note	3084	Replication thread(s) for channel 'group_replication_applier' are already stopped.
+SET @@GLOBAL.SLAVE_PARALLEL_TYPE= "DATABASE";
+SET GLOBAL SLAVE_PARALLEL_WORKERS= 4;
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+ERROR HY000: START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0 and SLAVE_PARALLEL_TYPE != LOGICAL_CLOCK or SLAVE_PRESERVE_COMMIT_ORDER != ON cannot be performed on channel 'group_replication_applier'.
+
+############################################################
+# 3. Test with SLAVE_PARALLEL_TYPE set to LOGICAL_CLOCK and
+#    parallel workers number set to 4.
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Note	3084	Replication thread(s) for channel 'group_replication_applier' are already stopped.
+SET @@GLOBAL.SLAVE_PARALLEL_TYPE= "LOGICAL_CLOCK";
+SET GLOBAL SLAVE_PARALLEL_WORKERS= 4;
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+ERROR HY000: START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0 and SLAVE_PARALLEL_TYPE != LOGICAL_CLOCK or SLAVE_PRESERVE_COMMIT_ORDER != ON cannot be performed on channel 'group_replication_applier'.
+
+############################################################
+# 4. Test with SLAVE_PARALLEL_TYPE set to LOGICAL_CLOCK,
+#    parallel workers number set to 4 and
+#    SLAVE_PRESERVE_COMMIT_ORDER set to ON.
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Note	3084	Replication thread(s) for channel 'group_replication_applier' are already stopped.
+SET @@GLOBAL.SLAVE_PARALLEL_TYPE= "LOGICAL_CLOCK";
+SET GLOBAL SLAVE_PARALLEL_WORKERS= 4;
+SET GLOBAL SLAVE_PRESERVE_COMMIT_ORDER= ON;
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+############################################################
+# 5. Test with SLAVE_PARALLEL_TYPE set to LOGICAL_CLOCK and
+#    parallel workers number set to 0.
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.SLAVE_PARALLEL_TYPE= "LOGICAL_CLOCK";
+SET GLOBAL SLAVE_PARALLEL_WORKERS= 0;
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+############################################################
+# 6. Test with SLAVE_PARALLEL_TYPE default value and default
+#    parallel workers number.
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+SET @@GLOBAL.SLAVE_PARALLEL_TYPE= @slave_parallel_type_saved;
+SET @@GLOBAL.SLAVE_PARALLEL_WORKERS= @slave_parallel_workers_saved;
+SET @@GLOBAL.SLAVE_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+include/group_replication_end.inc

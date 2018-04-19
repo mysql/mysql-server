@@ -23,9 +23,7 @@ Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
 Warning	1478	InnoDB: INDEX DIRECTORY is not supported
 Error	1031	Table storage engine for 't1' doesn't have this option
 #
-# InnoDB is different from MyISAM in that it uses a text file
-# with an '.isl' extension instead of a symbolic link so that
-# the tablespace can be re-located on any OS. Also, instead of
+# InnoDB is different from MyISAM in that instead of
 # putting the file directly into the DATA DIRECTORY,
 # it adds a folder under it with the name of the database.
 # Since strict mode is off, InnoDB ignores the INDEX DIRECTORY
@@ -49,14 +47,21 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	1618	<INDEX DIRECTORY> option ignored
 Warning	1618	<INDEX DIRECTORY> option ignored
-# Verifying .frm, .par, .isl & .ibd files
+# Also create a partitioned table with DATA DIRECTORY clasue at
+# the table level.
+CREATE TABLE t2 (c1 int) ENGINE = InnoDB
+DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir'
+PARTITION BY HASH (c1)
+(PARTITION p0,
+PARTITION p1
+);
+# Verifying .ibd files
 ---- MYSQLD_DATADIR/test
-t1#P#p0.isl
-t1#P#p1.isl
-t1.frm
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir/test
 t1#P#p0.ibd
 t1#P#p1.ibd
+t2#P#p0.ibd
+t2#P#p1.ibd
 # The ibd tablespaces should not be directly under the DATA DIRECTORY
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir
 test
@@ -66,38 +71,47 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (c1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+(PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = InnoDB) */
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
 (PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = InnoDB,
  PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = InnoDB) */
 #
-# Verify that the DATA/INDEX DIRECTORY is stored and used if we
+# Verify how the DATA/INDEX DIRECTORY is stored and used if we
 # ALTER TABLE to MyISAM.
 #
-ALTER TABLE t1 engine=MyISAM;
+ALTER TABLE t1 engine=MyISAM REMOVE PARTITIONING;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (c1)
-(PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = MyISAM,
- PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = MyISAM) */
-# Verifying .frm, .par and MyISAM files (.MYD, MYI)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t2 engine=MyISAM REMOVE PARTITIONING;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Verifying .par and MyISAM files (.MYD, MYI)
 ---- MYSQLD_DATADIR/test
-t1#P#p0.MYD
-t1#P#p0.MYI
-t1#P#p1.MYD
-t1#P#p1.MYI
-t1.frm
-t1.par
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir
-t1#P#p0.MYD
-t1#P#p1.MYD
 test
 ---- MYSQLTEST_VARDIR/mysql-test-idx-dir
 #
-# Now verify that the DATA DIRECTORY is used again if we
+# Now verify how the DATA DIRECTORY is used again if we
 # ALTER TABLE back to InnoDB.
 #
 SET SESSION innodb_strict_mode = ON;
@@ -106,22 +120,68 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (c1)
-(PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = InnoDB,
- PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = InnoDB) */
-# Verifying .frm, .par, .isl and InnoDB .ibd files
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t2 engine=InnoDB;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Verifying InnoDB .ibd files
 ---- MYSQLD_DATADIR/test
-t1#P#p0.isl
-t1#P#p1.isl
-t1.frm
+t1.ibd
+t2.ibd
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir
 test
 ---- MYSQLTEST_VARDIR/mysql-test-idx-dir
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir/test
-t1#P#p0.ibd
-t1#P#p1.ibd
 DROP TABLE t1;
+DROP TABLE t2;
+# Creating two non colliding tables test2.t1 and test.t1.
+CREATE DATABASE test2;
+USE test2;
+CREATE TABLE t1 (a INT)
+ENGINE = InnoDB
+DATA DIRECTORY 'MYSQLTEST_VARDIR/tmp'
+   PARTITION BY LIST (a) (
+PARTITION p0 VALUES IN (0),
+PARTITION p1 VALUES IN (1)
+);
+INSERT INTO t1 VALUES (0);
+USE test;
+CREATE TABLE t1 (a INT)
+ENGINE = InnoDB
+DATA DIRECTORY 'MYSQLTEST_VARDIR/tmp'
+   PARTITION BY LIST (a) (
+PARTITION p0 VALUES IN (0),
+PARTITION p1 VALUES IN (1)
+);
+INSERT INTO t1 VALUES (1);
+ALTER TABLE test.t1 ENGINE= MyISAM REMOVE PARTITIONING;
+# datadir/test:
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+# datadir/test2:
+ALTER TABLE test2.t1 ENGINE= MyISAM REMOVE PARTITIONING;
+# datadir/test:
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+# datadir/test2:
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+FLUSH TABLES;
+SELECT * FROM test.t1;
+a
+1
+SELECT * FROM test2.t1;
+a
+0
+DROP TABLE test2.t1;
+DROP TABLE test.t1;
+DROP DATABASE test2;
 #
 # Cleanup
 #

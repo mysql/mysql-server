@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 # suite/rpl/t/rpl_checksum.test contains similar testing of 
 # all checksum related system variables.

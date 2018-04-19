@@ -114,7 +114,7 @@ drop table t2;
 RESET MASTER;
 USE test;
 SET @old_binlog_format= @@binlog_format;
-SET SESSION binlog_format=ROW;
+SET SESSION binlog_format='ROW';
 CREATE TABLE t1(c1 INT);
 INSERT INTO t1 VALUES (1);
 FLUSH LOGS;

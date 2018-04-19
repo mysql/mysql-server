@@ -8,18 +8,38 @@ drop table if exists `Ｔ７`;
 drop table if exists `Ｔ８`;
 drop table if exists `Ｔ９`;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET character_set_database = utf8;
 Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE TABLE `Ｔ１` (`Ｃ１` char(20)) DEFAULT CHARSET = utf8 engine = innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ２` (`Ｃ１` char(20)) DEFAULT CHARSET = utf8 engine = innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ３` (`Ｃ１` char(20)) DEFAULT CHARSET = utf8 engine = innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ４` (`Ｃ１` char(20)) DEFAULT CHARSET = utf8 engine = myisam;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ５` (`Ｃ１` char(20)) DEFAULT CHARSET = utf8 engine = myisam;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ６` (`Ｃ１` char(20)) DEFAULT CHARSET = utf8 engine = myisam;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ７` (`Ｃ１` char(20)) DEFAULT CHARSET = utf8 engine = MEMORY;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ８` (`Ｃ１` char(20)) DEFAULT CHARSET = utf8 engine = MEMORY;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ９` (`Ｃ１` char(20)) DEFAULT CHARSET = utf8 engine = MEMORY;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ１`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ２`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ３`;
@@ -41,6 +61,8 @@ utf8
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING utf8)) FROM `Ｔ１`;
 CHARSET(CONVERT(`Ｃ１` USING utf8))
 utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING ucs2)) FROM `Ｔ１`;
 CHARSET(CONVERT(`Ｃ１` USING ucs2))
 ucs2
@@ -53,6 +75,8 @@ ujis
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING utf8)) FROM `Ｔ２`;
 CHARSET(CONVERT(`Ｃ１` USING utf8))
 utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING ucs2)) FROM `Ｔ２`;
 CHARSET(CONVERT(`Ｃ１` USING ucs2))
 ucs2
@@ -65,6 +89,8 @@ ujis
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING utf8)) FROM `Ｔ３`;
 CHARSET(CONVERT(`Ｃ１` USING utf8))
 utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING ucs2)) FROM `Ｔ３`;
 CHARSET(CONVERT(`Ｃ１` USING ucs2))
 ucs2
@@ -86,6 +112,8 @@ utf8
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING utf8)) FROM `Ｔ４`;
 CHARSET(CONVERT(`Ｃ１` USING utf8))
 utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING ucs2)) FROM `Ｔ４`;
 CHARSET(CONVERT(`Ｃ１` USING ucs2))
 ucs2
@@ -98,6 +126,8 @@ ujis
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING utf8)) FROM `Ｔ５`;
 CHARSET(CONVERT(`Ｃ１` USING utf8))
 utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING ucs2)) FROM `Ｔ５`;
 CHARSET(CONVERT(`Ｃ１` USING ucs2))
 ucs2
@@ -110,6 +140,8 @@ ujis
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING utf8)) FROM `Ｔ６`;
 CHARSET(CONVERT(`Ｃ１` USING utf8))
 utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING ucs2)) FROM `Ｔ６`;
 CHARSET(CONVERT(`Ｃ１` USING ucs2))
 ucs2
@@ -131,6 +163,8 @@ utf8
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING utf8)) FROM `Ｔ７`;
 CHARSET(CONVERT(`Ｃ１` USING utf8))
 utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING ucs2)) FROM `Ｔ７`;
 CHARSET(CONVERT(`Ｃ１` USING ucs2))
 ucs2
@@ -143,6 +177,8 @@ ujis
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING utf8)) FROM `Ｔ８`;
 CHARSET(CONVERT(`Ｃ１` USING utf8))
 utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING ucs2)) FROM `Ｔ８`;
 CHARSET(CONVERT(`Ｃ１` USING ucs2))
 ucs2
@@ -155,6 +191,8 @@ ujis
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING utf8)) FROM `Ｔ９`;
 CHARSET(CONVERT(`Ｃ１` USING utf8))
 utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`Ｃ１` USING ucs2)) FROM `Ｔ９`;
 CHARSET(CONVERT(`Ｃ１` USING ucs2))
 ucs2

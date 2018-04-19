@@ -1,17 +1,24 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # This is the CMakeLists for InnoDB
 
@@ -19,16 +26,25 @@ INCLUDE(CheckFunctionExists)
 INCLUDE(CheckCSourceCompiles)
 INCLUDE(CheckCSourceRuns)
 
+IF(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
+  ADD_DEFINITIONS(-DHAVE_LZ4=1)
+  INCLUDE_DIRECTORIES(${LZ4_INCLUDE_DIR})
+ENDIF()
+
 # OS tests
-IF(UNIX)
+IF(UNIX AND NOT IGNORE_AIO_CHECK)
   IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+
+    ADD_DEFINITIONS("-DUNIV_LINUX -D_GNU_SOURCE=1")
+
     CHECK_INCLUDE_FILES (libaio.h HAVE_LIBAIO_H)
     CHECK_LIBRARY_EXISTS(aio io_queue_init "" HAVE_LIBAIO)
-    ADD_DEFINITIONS("-DUNIV_LINUX -D_GNU_SOURCE=1")
+
     IF(HAVE_LIBAIO_H AND HAVE_LIBAIO)
       ADD_DEFINITIONS(-DLINUX_NATIVE_AIO=1)
       LINK_LIBRARIES(aio)
     ENDIF()
+
   ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
     ADD_DEFINITIONS("-DUNIV_SOLARIS")
   ENDIF()
@@ -42,6 +58,11 @@ IF(INNODB_COMPILER_HINTS)
 ENDIF()
 
 SET(MUTEXTYPE "event" CACHE STRING "Mutex type: event, sys or futex")
+
+# Turn off unused parameter warnings for InnoDB.
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter")
+ENDIF()
 
 IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 # After: WL#5825 Using C++ Standard Library with MySQL code
@@ -65,8 +86,8 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   ENDIF()
 ENDIF()
 
-# Enable InnoDB's UNIV_DEBUG and UNIV_SYNC_DEBUG in debug builds
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUNIV_DEBUG -DUNIV_SYNC_DEBUG")
+# Enable InnoDB's UNIV_DEBUG in debug builds
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUNIV_DEBUG")
 
 OPTION(WITH_INNODB_EXTRA_DEBUG "Enable extra InnoDB debug checks" OFF)
 IF(WITH_INNODB_EXTRA_DEBUG)
@@ -95,7 +116,31 @@ IF(HAVE_NANOSLEEP)
 ENDIF()
 
 IF(NOT MSVC)
-# Define some HAVE_IB_GCC_* if available
+  CHECK_C_SOURCE_RUNS(
+  "
+  #ifndef _GNU_SOURCE
+  #define _GNU_SOURCE
+  #endif
+  #include <fcntl.h>
+  #include <linux/falloc.h>
+  int main()
+  {
+    /* Ignore the return value for now. Check if the flags exist.
+    The return value is checked  at runtime. */
+    fallocate(0, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, 0, 0);
+
+    return(0);
+  }"
+  HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE
+  )
+ENDIF()
+
+IF(HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE)
+ ADD_DEFINITIONS(-DHAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE=1)
+ENDIF()
+
+IF(NOT MSVC)
+# either define HAVE_IB_GCC_ATOMIC_BUILTINS or not
 IF(NOT CMAKE_CROSSCOMPILING)
   CHECK_C_SOURCE_RUNS(
   "#include<stdint.h>
@@ -116,6 +161,21 @@ IF(NOT CMAKE_CROSSCOMPILING)
   }"
   HAVE_IB_GCC_ATOMIC_THREAD_FENCE
   )
+  CHECK_C_SOURCE_RUNS(
+  "#include<stdint.h>
+  int main()
+  {
+    unsigned char	a = 0;
+    unsigned char	b = 0;
+    unsigned char	c = 1;
+
+    __atomic_exchange(&a, &b,  &c, __ATOMIC_RELEASE);
+    __atomic_compare_exchange(&a, &b, &c, 0,
+			      __ATOMIC_RELEASE, __ATOMIC_ACQUIRE);
+    return(0);
+  }"
+  HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE
+  )
 ENDIF()
 
 IF(HAVE_IB_GCC_SYNC_SYNCHRONISE)
@@ -124,6 +184,10 @@ ENDIF()
 
 IF(HAVE_IB_GCC_ATOMIC_THREAD_FENCE)
  ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_THREAD_FENCE=1)
+ENDIF()
+
+IF(HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE)
+ ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE=1)
 ENDIF()
 
  # either define HAVE_IB_ATOMIC_PTHREAD_T_GCC or not
@@ -192,9 +256,6 @@ ENDIF()
 
 ENDIF(NOT MSVC)
 
-CHECK_FUNCTION_EXISTS(asprintf  HAVE_ASPRINTF)
-CHECK_FUNCTION_EXISTS(vasprintf  HAVE_VASPRINTF)
-
 # Solaris atomics
 IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   IF(NOT CMAKE_CROSSCOMPILING)
@@ -225,7 +286,7 @@ ELSE()
 ENDIF()
 
 # Include directories under innobase
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/
+		    ${CMAKE_SOURCE_DIR}/storage/innobase/include
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
-                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include )
-
+		    ${CMAKE_SOURCE_DIR}/libbinlogevents/include)

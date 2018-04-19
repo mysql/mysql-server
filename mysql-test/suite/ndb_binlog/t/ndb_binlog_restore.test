@@ -1,8 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
+#Server variable option 'lower_case_table_names' sets '0' as default value
+#in case sensitive filesystem. Using 'lower_case_table_names=0' in case of
+#insensitive filsystem is not allowed.
+-- source include/have_case_sensitive_file_system.inc
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
 
@@ -44,7 +43,7 @@ create table binlogmarker (a int) engine=ndb;
 let $wait_binlog_event= binlogmarker;
 --source include/wait_for_binlog_event.inc
 
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 --echo #
 --echo # reset and restore schema again
@@ -67,7 +66,7 @@ create table binlogmarker (a int) engine=ndb;
 let $wait_binlog_event= binlogmarker;
 --source include/wait_for_binlog_event.inc
 
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 drop table binlogmarker, t1;
 
@@ -132,6 +131,6 @@ reset master;
 --exec $NDB_RESTORE --no-defaults --no-binlog -b 1 -n 2 -p 1 -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
 
 select count(*) from TRANSACTION;
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 DROP DATABASE BANK;

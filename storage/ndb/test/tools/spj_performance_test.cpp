@@ -1,19 +1,31 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+
+#include <ndb_global.h>
+#include <ndb_opts.h>
+#include <NDBT.hpp>
+#include <NdbApi.hpp>
 
 #include <mysql.h>
 #include <mysqld_error.h>
@@ -21,10 +33,6 @@
 //#include <iostream>
 //#include <stdio.h>
 
-#include <ndb_global.h>
-#include <ndb_opts.h>
-#include <NDBT.hpp>
-#include <NdbApi.hpp>
 #include "../../src/ndbapi/NdbQueryBuilder.hpp"
 #include "../../src/ndbapi/NdbQueryOperation.hpp"
 #include <pthread.h>
@@ -50,12 +58,18 @@
 const char* databaseName = "PTDB";
 const char* tableName = "TT";
 
+enum JoinType
+{ lookupJoin,
+  scanLookupJoin,
+  scanScanJoin
+};
+
 class TestParameters{
 public:
   int m_iterations;
   /** Number of child lookup operations.*/
   int m_depth;
-  int m_scanLength; // m_scanLength==0 means root should be lookup.
+  int m_scanLength; // m_scanLength==0 implies 'lookupJoin'.
   /** Specifies how many times a query definition should be reused before.
    * It is recreated. Setting this to 0 means that the definition is never
    * recreated.*/ 
@@ -63,6 +77,8 @@ public:
   bool m_useLinkedOperations;
   /** If true, run an equivalent SQL query.*/
   bool m_useSQL;
+
+  JoinType m_joinType;
 
   explicit TestParameters(){bzero(this, sizeof *this);}
 };
@@ -137,7 +153,8 @@ TestThread::TestThread(Ndb_cluster_connection& con,
                        int port): 
   m_params(NULL),
   m_ndb(&con, databaseName),
-  m_state(State_Active){
+  m_state(State_Active)
+{
   require(m_ndb.init()==0);
   require(pthread_mutex_init(&m_mutex, NULL)==0);
   require(pthread_cond_init(&m_condition, NULL)==0);
@@ -157,7 +174,7 @@ TestThread::TestThread(Ndb_cluster_connection& con,
   const NdbDictionary::Column *col1= m_tab->getColumn("a");
   require(col1 != NULL);
   NdbDictionary::RecordSpecification spec = {
-    col1, 0, 0, 0
+    col1, 0, 0, 0, 0
   };
   
   m_keyRec = dict->createRecord(m_tab, &spec, 1, sizeof spec);
@@ -287,7 +304,7 @@ void TestThread::doLinkedAPITest(){
         };
         parentOpDef = builder->readTuple(m_tab, key);
       }
-      queryDef = builder->prepare();
+      queryDef = builder->prepare(&m_ndb);
     }
         
     if (!trans) {
@@ -337,7 +354,7 @@ void TestThread::doNonLinkedAPITest(){
   for(int iterNo = 0; iterNo<m_params->m_iterations; iterNo++){
     //      NdbTransaction* const trans = m_ndb.startTransaction();
     if(m_params->m_scanLength>0){
-      const KeyRow highKey = { m_params->m_scanLength };
+      const KeyRow highKey = { (Uint32)m_params->m_scanLength };
       NdbIndexScanOperation* scanOp = NULL;
       if(m_params->m_scanLength==1){ // Pruned scan
         const NdbIndexScanOperation::IndexBound bound = {
@@ -440,7 +457,6 @@ void TestThread::doSQLTest(){
   }else{
     mySQLExec(m_mysql, "set ndb_join_pushdown = off;");
   }
-  mySQLExec(m_mysql, "SET SESSION query_cache_type = OFF");
 
   class TextBuf{
   public:
@@ -454,7 +470,7 @@ void TestThread::doSQLTest(){
 
   TextBuf text;
 
-  sprintf(text.tail(), "select * from ");
+  sprintf(text.tail(), "select straight_join * from ");
   for(int i = 0; i<m_params->m_depth+1; i++){
     sprintf(text.tail(), "%s t%d", tableName, i);
     if(i < m_params->m_depth){
@@ -473,8 +489,13 @@ void TestThread::doSQLTest(){
   }
 
   for(int i = 1; i<m_params->m_depth+1; i++){
-    // Compare primary key of Tn to attribute of Tn-1.
-    sprintf(text.tail(), "and t%d.b=t%d.a ", i-1, i);
+    if (m_params->m_joinType == scanLookupJoin){
+      // Compare primary key of Tn to attribute of Tn-1.
+      sprintf(text.tail(), "and t%d.b=t%d.a ", i-1, i);
+    }else{ //scanScanJoin
+      // Compare index column of Tn to attribute of Tn-1.
+      sprintf(text.tail(), "and t%d.b=t%d.a ", i, i-1);
+    }
   }
   if(printQuery){
     ndbout << text.m_buffer << endl;
@@ -520,6 +541,12 @@ static void makeDatabase(const char* host, int port, int rowCount){
             i, (i+1)%rowCount);
     mySQLExec(mysql, text);
   }
+
+  sprintf(text, "create index ix on %s(b)", tableName);
+  mySQLExec(mysql, text);
+
+  sprintf(text, "analyze table %s", tableName);
+  mySQLExec(mysql, text);
 }
 
 static void printHeading(){
@@ -574,6 +601,7 @@ TestThread** threads = NULL;
 void warmUp(){
   ndbout << endl << "warmUp()" << endl;
   TestParameters param;
+  param.m_joinType = lookupJoin;
   param.m_useSQL = true;
   param.m_iterations = 10;
   param.m_useLinkedOperations = false;
@@ -596,6 +624,7 @@ void warmUp(){
 void testLookupDepth(bool useSQL){
   ndbout << endl << "testLookupDepth()" << endl;
   TestParameters param;
+  param.m_joinType = lookupJoin;
   param.m_useSQL = useSQL;
   param.m_iterations = 100;
   param.m_useLinkedOperations = false;
@@ -615,9 +644,32 @@ void testLookupDepth(bool useSQL){
   }
 }
 
-void testScanDepth(int scanLength, bool useSQL){
-  ndbout  << endl << "testScanDepth()" << endl;
+void testScanLookupDepth(int scanLength, bool useSQL=true){
+  ndbout  << endl << "testScanLookupDepth()" << endl;
   TestParameters param;
+  param.m_joinType = scanLookupJoin;
+  param.m_useSQL = useSQL;
+  param.m_iterations = 20;
+  param.m_useLinkedOperations = false;
+  param.m_scanLength = scanLength;
+  param.m_queryDefReuse = 0;
+  printHeading();
+  for(int i = 0; i<10; i++){
+    param.m_depth = i;
+    runTest(threads, threadCount, param);
+  }
+  printHeading();
+  param.m_useLinkedOperations = true;
+  for(int i = 0; i<10; i++){
+    param.m_depth = i;
+    runTest(threads, threadCount, param);
+  }
+}
+
+void testScanScanDepth(int scanLength, bool useSQL=true){
+  ndbout  << endl << "testScanScanDepth()" << endl;
+  TestParameters param;
+  param.m_joinType = scanScanJoin;
   param.m_useSQL = useSQL;
   param.m_iterations = 20;
   param.m_useLinkedOperations = false;
@@ -659,20 +711,21 @@ int main(int argc, char* argv[]){
     require(con.connect(12, 5, 1) == 0);
     require(con.wait_until_ready(30,30) == 0);
 
-    const int threadCount = 1;
     threads = new TestThread*[threadCount];
     for(int i = 0; i<threadCount; i++){
       threads[i] = new TestThread(con, host, port);
     }
     sleep(1);
 
-    //testScanDepth(1);
-    //testScanDepth(2);
-    //testScanDepth(5);
+
+    //testScanLookupDepth(1);
+    //testScanLookupDepth(2);
+    //testScanLookupDepth(5);
     warmUp();
-    testScanDepth(50, true);
     testLookupDepth(true);
- 
+    testScanLookupDepth(50, true);
+    testScanScanDepth(50, true);
+
     for(int i = 0; i<threadCount; i++){
       delete threads[i];
     }

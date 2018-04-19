@@ -17,22 +17,22 @@ innodb_old_blocks_time	1000
 show session variables like 'innodb_old_blocks_time';
 Variable_name	Value
 innodb_old_blocks_time	1000
-select * from information_schema.global_variables where variable_name='innodb_old_blocks_time';
+select * from performance_schema.global_variables where variable_name='innodb_old_blocks_time';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OLD_BLOCKS_TIME	1000
-select * from information_schema.session_variables where variable_name='innodb_old_blocks_time';
+innodb_old_blocks_time	1000
+select * from performance_schema.session_variables where variable_name='innodb_old_blocks_time';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OLD_BLOCKS_TIME	1000
+innodb_old_blocks_time	1000
 set global innodb_old_blocks_time=10;
 select @@global.innodb_old_blocks_time;
 @@global.innodb_old_blocks_time
 10
-select * from information_schema.global_variables where variable_name='innodb_old_blocks_time';
+select * from performance_schema.global_variables where variable_name='innodb_old_blocks_time';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OLD_BLOCKS_TIME	10
-select * from information_schema.session_variables where variable_name='innodb_old_blocks_time';
+innodb_old_blocks_time	10
+select * from performance_schema.session_variables where variable_name='innodb_old_blocks_time';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OLD_BLOCKS_TIME	10
+innodb_old_blocks_time	10
 set session innodb_old_blocks_time=1;
 ERROR HY000: Variable 'innodb_old_blocks_time' is a GLOBAL variable and should be set with SET GLOBAL
 set global innodb_old_blocks_time=1.1;
@@ -47,9 +47,9 @@ Warning	1292	Truncated incorrect innodb_old_blocks_time value: '-7'
 select @@global.innodb_old_blocks_time;
 @@global.innodb_old_blocks_time
 0
-select * from information_schema.global_variables where variable_name='innodb_old_blocks_time';
+select * from performance_schema.global_variables where variable_name='innodb_old_blocks_time';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_OLD_BLOCKS_TIME	0
+innodb_old_blocks_time	0
 SET @@global.innodb_old_blocks_time = @start_global_value;
 SELECT @@global.innodb_old_blocks_time;
 @@global.innodb_old_blocks_time

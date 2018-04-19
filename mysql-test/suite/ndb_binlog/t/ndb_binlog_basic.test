@@ -1,19 +1,5 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
-
---disable_warnings
-drop table if exists t1, t2;
-drop database if exists mysqltest;
-create database mysqltest;
-use mysqltest;
-drop database mysqltest;
-use test;
---enable_warnings
 
 #
 # basic insert, update, delete test, alter, rename, drop
@@ -52,19 +38,13 @@ select inserts,updates,deletes from
 #
 # check that purge clears the ndb_binlog_index
 #
-# TODO: make this deterministic
-# This test is disabled until we can make this determistic under load.
-# The problem is that in some cases, the binlog writing thread gets
-# scheduled after the purge, writes pending things, then the select
-# gets scheduled
-#
 flush logs;
 --sleep 1
---replace_regex /\.[\\\/]mysqld/.\/mysqld/;
+# Fix windows dir separators in file name of the warning
+--replace_regex /\.[\\\/]binlog/.\/binlog/;
 purge master logs before now();
---disable_parsing
+
 select count(*) from mysql.ndb_binlog_index;
---enable_parsing
 
 #
 # several tables in different databases

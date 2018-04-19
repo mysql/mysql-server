@@ -1,0 +1,417 @@
+--source include/not_valgrind.inc
+--source include/not_sparc_debug.inc
+--source include/big_test.inc
+
+--echo # ----------------------------------------------------------------------
+--echo # Time consuming tests of window functions.
+--echo # ----------------------------------------------------------------------
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of SQL window functions with frame buffer in MEM only and with
+--echo # spill over to INNODB as tmp file for the frame buffer (slower)
+--echo # ----------------------------------------------------------------------
+
+--echo default size is 16777216. Use 10 * 16777216 to fit frame buffer in memory
+SET tmp_table_size=167772160;
+SET max_heap_table_size=167772160;
+SET internal_tmp_mem_storage_engine=MEMORY;
+
+CREATE TABLE td(d INT);
+
+INSERT INTO td(d) VALUES (10),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+INSERT INTO td(d) SELECT d+10 FROM td UNION
+               SELECT d+20 FROM td UNION
+               SELECT d+30 FROM td UNION
+               SELECT d+40 FROM td UNION
+               SELECT d+50 FROM td UNION
+               SELECT d+60 FROM td UNION
+               SELECT d+70 FROM td UNION
+               SELECT d+80 FROM td UNION
+               SELECT d+90 FROM td;
+INSERT INTO td(d) SELECT d+100 FROM td UNION
+               SELECT d+200 FROM td UNION
+               SELECT d+300 FROM td UNION
+               SELECT d+400 FROM td UNION
+               SELECT d+500 FROM td UNION
+               SELECT d+600 FROM td UNION
+               SELECT d+700 FROM td UNION
+               SELECT d+800 FROM td UNION
+               SELECT d+900 FROM td;
+INSERT INTO td(d) SELECT d+1000 FROM td UNION
+               SELECT d+2000 FROM td UNION
+               SELECT d+3000 FROM td UNION
+               SELECT d+4000 FROM td UNION
+               SELECT d+5000 FROM td UNION
+               SELECT d+6000 FROM td UNION
+               SELECT d+7000 FROM td UNION
+               SELECT d+8000 FROM td UNION
+               SELECT d+9000 FROM td;
+INSERT INTO td(d) SELECT d+10000 FROM td UNION
+               SELECT d+20000 FROM td UNION
+               SELECT d+30000 FROM td UNION
+               SELECT d+40000 FROM td UNION
+               SELECT d+50000 FROM td UNION
+               SELECT d+60000 FROM td UNION
+               SELECT d+70000 FROM td UNION
+               SELECT d+80000 FROM td UNION
+               SELECT d+90000 FROM td;
+INSERT INTO td(d) SELECT d+100000 FROM td UNION
+               SELECT d+200000 FROM td UNION
+               SELECT d+300000 FROM td UNION
+               SELECT d+400000 FROM td UNION
+               SELECT d+500000 FROM td UNION
+               SELECT d+600000 FROM td UNION
+               SELECT d+700000 FROM td UNION
+               SELECT d+800000 FROM td UNION
+               SELECT d+900000 FROM td;
+
+CREATE TABLE cpy(d INT, summ INT, nth INT, lagg INT);
+--echo Frame buffer in MEM engine
+INSERT INTO cpy SELECT d, SUM(d) OVER w summ, NTH_VALUE(d, 3) OVER w nth, LAG(d, 20) OVER w lagg FROM td
+                WINDOW w AS (ORDER BY d ROWS BETWEEN 10 PRECEDING AND 10 FOLLOWING);
+
+SELECT * from cpy ORDER BY d DESC LIMIT 10;
+TRUNCATE cpy;
+
+
+set tmp_table_size=16384;
+set max_heap_table_size=16384;
+
+--echo Spill frame buffer to INNODB
+INSERT INTO cpy SELECT d, SUM(d) OVER w summ, NTH_VALUE(d, 3) OVER w nth, LAG(d, 20) OVER w lagg FROM td
+                WINDOW w AS (ORDER BY d ROWS BETWEEN 10 PRECEDING AND 10 FOLLOWING);
+
+SELECT * from cpy ORDER BY d DESC LIMIT 10;
+
+DROP TABLE td, cpy;
+
+--echo Set tmp_table_size and max_heap_table_size back to default
+SET tmp_table_size=DEFAULT;
+SET max_heap_table_size=DEFAULT;
+SET internal_tmp_mem_storage_engine=DEFAULT;
+
+--echo #
+--echo # Bug#25894783 WL9603: CAN'T FIND RECORD IN '/TMP/#SQL6E16_3_4'
+--echo #
+SET SQL_MODE='';
+SET @sav_big= (SELECT COALESCE(@session.big_tables, 0));
+SET SESSION big_tables=1;
+
+CREATE TABLE `C` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int` int(11) NOT NULL,
+  `col_int_gckey` int(11) GENERATED ALWAYS AS ((`col_int` + `col_int`)) VIRTUAL NOT NULL,
+  `col_int_key` int(11) GENERATED ALWAYS AS ((`col_int_gckey` + `col_int`)) VIRTUAL NOT NULL,
+  `col_date` date NOT NULL,
+  `col_date_gckey` date GENERATED ALWAYS AS ((`col_date` + interval 30 day)) VIRTUAL NOT NULL,
+  `col_date_key` date GENERATED ALWAYS AS ((`col_date_gckey` + interval 30 day)) VIRTUAL NOT NULL,
+  `col_datetime` datetime NOT NULL,
+  `col_time` time NOT NULL,
+  `col_datetime_gckey` datetime GENERATED ALWAYS AS (addtime(`col_datetime`,`col_time`)) VIRTUAL NOT NULL,
+  `col_time_gckey` time GENERATED ALWAYS AS (addtime(`col_datetime`,`col_time`)) VIRTUAL NOT NULL,
+  `col_datetime_key` datetime GENERATED ALWAYS AS (addtime(`col_datetime_gckey`,`col_time`)) VIRTUAL NOT NULL,
+  `col_time_key` time GENERATED ALWAYS AS (addtime(`col_datetime`,`col_time_gckey`)) VIRTUAL NOT NULL,
+  `col_varchar` varchar(15) NOT NULL,
+  `col_varchar_gckey` varchar(15) GENERATED ALWAYS AS (concat(`col_varchar`,`col_varchar`)) VIRTUAL NOT NULL,
+  `col_varchar_key` varchar(15) GENERATED ALWAYS AS (concat(`col_varchar_gckey`,_latin1'x')) VIRTUAL NOT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `col_date_key` (`col_date_key`),
+  UNIQUE KEY `col_date_key_2` (`col_date_key`,`col_time_key`,`col_datetime_key`),
+  UNIQUE KEY `col_varchar_key` (`col_varchar_key`(3)),
+  UNIQUE KEY `col_varchar_key_2` (`col_varchar_key`(5) DESC),
+  UNIQUE KEY `col_int_key_3` (`col_int_key`,`col_varchar_key`(5)),
+  UNIQUE KEY `col_int_key_4` (`col_int_key` DESC,`col_varchar_key`(5)),
+  UNIQUE KEY `col_varchar_key_3` (`col_varchar_key`(2),`col_varchar`(3)),
+  UNIQUE KEY `col_varchar_key_4` (`col_varchar_key`(2) DESC,`col_varchar`(3) DESC),
+  UNIQUE KEY `col_int_key_10` (`col_int_key`,`col_varchar_key`(5),`col_date_key`,`col_time_key`,`col_datetime_key`),
+  KEY `col_int_gckey` (`col_int_gckey`),
+  KEY `col_int_gckey_2` (`col_int_gckey` DESC),
+  KEY `col_date_gckey` (`col_date_gckey`),
+  KEY `col_datetime_gckey` (`col_datetime_gckey`),
+  KEY `col_time_gckey` (`col_time_gckey`),
+  KEY `col_varchar_gckey` (`col_varchar_gckey`(5)),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_int_key_2` (`col_int_key` DESC),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_datetime_key` (`col_datetime_key`),
+  KEY `col_int_key_5` (`col_int_key`,`col_int`),
+  KEY `col_int_key_6` (`col_int_key` DESC,`col_int` DESC),
+  KEY `col_int_key_7` (`col_int_key`,`col_date_key`),
+  KEY `col_int_key_8` (`col_int_key`,`col_time_key`),
+  KEY `col_int_key_9` (`col_int_key`,`col_datetime_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=latin1;
+
+INSERT INTO `C` (`pk`, `col_int`, `col_date`, `col_datetime`, `col_time`, `col_varchar`)
+       VALUES (1, 9, '2009-11-04', '2006-10-12 19:52:02', '18:19:40', 'a'),
+              (2, 4, '2009-05-21', '2005-09-13 00:00:00', '07:45:25', 'tef'),
+              (3, 0, '1900-01-01', '2002-09-03 04:42:41', '13:17:14', 'efqsd'),
+              (4, 149, '2000-11-05', '2007-02-08 07:29:31', '10:38:21', 'fqsdk'),
+              (5, 8, '0000-00-00', '2000-11-07 15:28:31', '23:04:47', 'qsdksji'),
+              (6, 8, '2002-06-07', '2007-09-19 02:35:12', '07:33:31', 'sdks'),
+              (7, 5, '2008-06-02', '1900-01-01 00:00:00', '14:41:02', 'dksjij'),
+              (8, 7, '2000-07-26', '2007-11-27 00:19:33', '23:30:25', 'sjijcsz'),
+              (9, 8, '2008-09-16', '2004-12-17 11:22:46', '06:11:14', 'i'),
+              (10, 104, '2002-03-06', '2007-02-04 13:09:16', '22:24:50', 'jcszxw'),
+              (11, 1, '2004-01-10', '2008-03-19 08:36:41', '00:03:00', 'csz'),
+              (12, 4, '2002-02-21', '2008-03-27 03:09:30', '06:52:39', 'szxwbjj'),
+              (13, 8, '2004-07-01', '2001-10-20 06:42:39', '08:49:41', 'xwb'),
+              (14, 7, '2008-08-13', '2002-04-05 00:00:00', '05:52:03', 'wbjjvvk'),
+              (15, 8, '2008-12-18', '1900-01-01 00:00:00', '00:00:00', 'bj'),
+              (16, 6, '2002-08-03', '2008-04-14 09:20:36', '00:00:00', 'jjvvk'),
+              (17, 97, '2001-06-11', '2002-11-07 00:00:00', '13:30:55', 'j');
+
+CREATE TABLE `DD` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int` int(11) NOT NULL,
+  `col_int_gckey` int(11) GENERATED ALWAYS AS ((`col_int` + `col_int`)) VIRTUAL NOT NULL,
+  `col_int_key` int(11) GENERATED ALWAYS AS ((`col_int_gckey` + `col_int`)) VIRTUAL NOT NULL,
+  `col_date` date NOT NULL,
+  `col_date_gckey` date GENERATED ALWAYS AS ((`col_date` + interval 30 day)) VIRTUAL NOT NULL,
+  `col_date_key` date GENERATED ALWAYS AS ((`col_date_gckey` + interval 30 day)) VIRTUAL NOT NULL,
+  `col_datetime` datetime NOT NULL,
+  `col_time` time NOT NULL,
+  `col_datetime_gckey` datetime GENERATED ALWAYS AS (addtime(`col_datetime`,`col_time`)) VIRTUAL NOT NULL,
+  `col_time_gckey` time GENERATED ALWAYS AS (addtime(`col_datetime`,`col_time`)) VIRTUAL NOT NULL,
+  `col_datetime_key` datetime GENERATED ALWAYS AS (addtime(`col_datetime_gckey`,`col_time`)) VIRTUAL NOT NULL,
+  `col_time_key` time GENERATED ALWAYS AS (addtime(`col_datetime`,`col_time_gckey`)) VIRTUAL NOT NULL,
+  `col_varchar` varchar(15) NOT NULL,
+  `col_varchar_gckey` varchar(15) GENERATED ALWAYS AS (concat(`col_varchar`,`col_varchar`)) VIRTUAL NOT NULL,
+  `col_varchar_key` varchar(15) GENERATED ALWAYS AS (concat(`col_varchar_gckey`,_latin1'x')) VIRTUAL NOT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `col_date_key` (`col_date_key`),
+  UNIQUE KEY `col_date_key_2` (`col_date_key`,`col_time_key`,`col_datetime_key`),
+  UNIQUE KEY `col_varchar_key` (`col_varchar_key`(3)),
+  UNIQUE KEY `col_varchar_key_2` (`col_varchar_key`(5) DESC),
+  UNIQUE KEY `col_int_key_3` (`col_int_key`,`col_varchar_key`(5)),
+  UNIQUE KEY `col_int_key_4` (`col_int_key` DESC,`col_varchar_key`(5)),
+  UNIQUE KEY `col_varchar_key_3` (`col_varchar_key`(2),`col_varchar`(3)),
+  UNIQUE KEY `col_varchar_key_4` (`col_varchar_key`(2) DESC,`col_varchar`(3) DESC),
+  UNIQUE KEY `col_int_key_10` (`col_int_key`,`col_varchar_key`(5),`col_date_key`,`col_time_key`,`col_datetime_key`),
+  KEY `col_int_gckey` (`col_int_gckey`),
+  KEY `col_int_gckey_2` (`col_int_gckey` DESC),
+  KEY `col_date_gckey` (`col_date_gckey`),
+  KEY `col_datetime_gckey` (`col_datetime_gckey`),
+  KEY `col_time_gckey` (`col_time_gckey`),
+  KEY `col_varchar_gckey` (`col_varchar_gckey`(5)),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_int_key_2` (`col_int_key` DESC),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_datetime_key` (`col_datetime_key`),
+  KEY `col_int_key_5` (`col_int_key`,`col_int`),
+  KEY `col_int_key_6` (`col_int_key` DESC,`col_int` DESC),
+  KEY `col_int_key_7` (`col_int_key`,`col_date_key`),
+  KEY `col_int_key_8` (`col_int_key`,`col_time_key`),
+  KEY `col_int_key_9` (`col_int_key`,`col_datetime_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=73 DEFAULT CHARSET=latin1;
+
+INSERT INTO `DD` (`pk`, `col_int`, `col_date`, `col_datetime`, `col_time`, `col_varchar`)
+       VALUES (10,7,'0000-00-00','2000-02-09 06:46:23','03:56:10','i'),
+              (11,5,'2008-12-11','2004-03-07 18:05:11','00:00:00','jrll'),
+              (12,7,'2005-11-18','2001-01-18 08:29:29','20:17:57','rllqunt'),
+              (13,9,'2009-02-08','2005-10-25 00:00:00','08:09:49','l'),
+              (14,3,'2002-05-26','2009-09-01 10:19:05','09:40:42','lq'),
+              (15,66,'2002-03-10','2002-09-06 04:43:02','08:28:55','quntp'),
+              (16,3,'2003-07-07','2006-04-07 00:00:00','20:12:00','untppi'),
+              (17,95,'2006-06-22','2004-05-08 00:00:00','18:50:24','ntppirz'),
+              (18,7,'2004-01-21','2000-01-23 03:34:04','17:01:57','tppirzd'),
+              (19,5,'2001-05-01','2005-12-26 20:42:01','15:11:27','pirzdp'),
+              (20,8,'2008-12-15','1900-01-01 00:00:00','05:49:51','irzd'),
+              (21,3,'2000-08-28','2003-02-28 16:30:52','14:58:44','zdphpdu'),
+              (22,96,'2008-06-08','2005-09-15 03:55:22','02:20:01','dp'),
+              (23,9,'2002-04-02','2001-01-08 10:44:10','19:03:57','p'),
+              (24,3,'2005-03-04','2001-03-23 00:00:00','00:27:13','h'),
+              (25,8,'2001-01-21','2004-03-02 00:00:00','13:39:32','pduhwq'),
+              (26,8,'2006-10-05','1900-01-01 00:00:00','08:06:08','uhwqh'),
+              (27,4,'2001-12-26','2006-10-24 05:59:20','16:15:34','hwqh'),
+              (28,7,'1900-01-01','2005-06-14 00:00:00','12:04:50','wqhnsm'),
+              (29,6,'2007-12-02','2001-08-25 03:00:31','00:00:00','qh'),
+              (30,4,'2009-02-06','2001-06-14 19:13:14','06:00:42','nsmu'),
+              (31,9,'2007-01-15','2006-12-18 07:54:16','11:18:35','smujjj'),
+              (32,5,'2004-11-07','2000-09-18 04:53:37','16:20:06','muj'),
+              (33,1,'2003-12-07','2002-08-18 04:47:11','01:41:35','jj'),
+              (34,1,'2008-09-07','2000-10-14 16:58:18','17:42:13','jbld'),
+              (35,5,'2005-03-08','2008-11-22 16:40:01','00:59:59','bldnki'),
+              (36,181,'2006-11-18','1900-01-01 00:00:00','00:00:00','nkiws'),
+              (37,5,'2007-01-26','2008-01-21 00:00:00','02:16:04','kiwsr'),
+              (38,1,'2003-08-24','1900-01-01 00:00:00','00:00:00','iwsrsx'),
+              (39,162,'2001-12-01','2008-05-17 00:00:00','14:34:36','srsxnd'),
+              (40,8,'2003-07-02','2000-06-07 00:00:00','23:02:05','r'),
+              (41,2,'2007-03-01','2009-01-03 12:22:04','00:00:00','sxndo'),
+              (42,7,'2009-08-04','2009-10-05 04:15:15','00:00:00','xndolp'),
+              (43,119,'2000-05-03','2002-02-17 23:12:12','23:23:35','olpujd'),
+              (44,3,'2001-05-18','2008-03-27 11:51:54','11:26:20','lp'),
+              (45,119,'2004-02-22','1900-01-01 00:00:00','00:00:00','pu'),
+              (46,8,'2002-07-15','2008-08-24 21:36:28','12:51:37','dnozrhh'),
+              (47,2,'2008-04-22','2005-01-12 08:50:22','20:55:45','no'),
+              (48,4,'2006-06-01','2000-04-20 00:00:00','13:02:05','ozrhhcx'),
+              (49,8,'2009-09-12','2000-02-16 03:57:05','17:04:35','zrhhcxs'),
+              (50,6,'2009-01-06','1900-01-01 00:00:00','05:15:45','rhhcxsx'),
+              (51,6,'2008-07-13','2002-04-27 14:13:27','00:00:00','hhcxsxw'),
+              (52,8,'2002-03-15','2008-01-17 20:30:57','07:09:22','hcxsxw'),
+              (53,6,'2007-10-14','2006-10-11 22:48:02','06:11:59','cxs'),
+              (54,1,'2008-07-23','2005-09-11 07:19:40','03:05:06','x'),
+              (55,1,'2007-05-22','2002-11-24 16:25:27','10:10:42','s'),
+              (56,6,'2008-01-08','2005-06-09 01:11:17','06:03:27','w'),
+              (57,9,'2006-10-18','1900-01-01 00:00:00','00:00:00','uju'),
+              (58,7,'2000-07-22','1900-01-01 00:00:00','00:00:00','ju'),
+              (59,6,'2004-07-21','2009-10-25 16:05:29','11:04:39','ul'),
+              (60,2,'2001-10-03','2002-06-13 11:41:55','10:20:49','lpjd'),
+              (61,8,'2002-08-17','1900-01-01 00:00:00','00:00:00','jdz'),
+              (62,0,'2009-11-10','2000-05-04 05:15:19','00:00:00','zvkpaij'),
+              (63,6,'2005-06-26','2002-08-19 00:00:00','09:21:09','vkpaij'),
+              (64,6,'2000-06-04','2002-03-22 04:37:00','00:00:00','kp'),
+              (65,9,'2005-10-02','2009-01-10 09:03:59','04:56:37','paiju'),
+              (66,0,'2009-11-13','1900-01-01 00:00:00','00:00:00','aij'),
+              (67,0,'2006-11-26','2001-09-21 00:00:00','08:16:28','ijurspr'),
+              (68,6,'2007-09-24','2003-08-27 05:11:09','19:55:11','j'),
+              (69,0,'2009-01-24','1900-01-01 00:00:00','11:25:58','urspr'),
+              (70,5,'2001-06-22','2005-07-07 00:00:00','14:38:03','rsprn'),
+              (71,4,'2006-07-18','2000-07-16 06:17:20','15:32:00','sprnw'),
+              (72,5,'2009-05-12','2007-07-26 00:00:00','09:25:59','rnwgrp');
+
+CREATE TABLE `E` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int` int(11) NOT NULL,
+  `col_int_gckey` int(11) GENERATED ALWAYS AS ((`col_int` + `col_int`)) VIRTUAL NOT NULL,
+  `col_int_key` int(11) GENERATED ALWAYS AS ((`col_int_gckey` + `col_int`)) VIRTUAL NOT NULL,
+  `col_date` date NOT NULL,
+  `col_date_gckey` date GENERATED ALWAYS AS ((`col_date` + interval 30 day)) VIRTUAL NOT NULL,
+  `col_date_key` date GENERATED ALWAYS AS ((`col_date_gckey` + interval 30 day)) VIRTUAL NOT NULL,
+  `col_datetime` datetime NOT NULL,
+  `col_time` time NOT NULL,
+  `col_datetime_gckey` datetime GENERATED ALWAYS AS (addtime(`col_datetime`,`col_time`)) VIRTUAL NOT NULL,
+  `col_time_gckey` time GENERATED ALWAYS AS (addtime(`col_datetime`,`col_time`)) VIRTUAL NOT NULL,
+  `col_datetime_key` datetime GENERATED ALWAYS AS (addtime(`col_datetime_gckey`,`col_time`)) VIRTUAL NOT NULL,
+  `col_time_key` time GENERATED ALWAYS AS (addtime(`col_datetime`,`col_time_gckey`)) VIRTUAL NOT NULL,
+  `col_varchar` varchar(15) NOT NULL,
+  `col_varchar_gckey` varchar(15) GENERATED ALWAYS AS (concat(`col_varchar`,`col_varchar`)) VIRTUAL NOT NULL,
+  `col_varchar_key` varchar(15) GENERATED ALWAYS AS (concat(`col_varchar_gckey`,_latin1'x')) VIRTUAL NOT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `col_date_key` (`col_date_key`),
+  UNIQUE KEY `col_date_key_2` (`col_date_key`,`col_time_key`,`col_datetime_key`),
+  UNIQUE KEY `col_varchar_key` (`col_varchar_key`(3)),
+  UNIQUE KEY `col_varchar_key_2` (`col_varchar_key`(5) DESC),
+  UNIQUE KEY `col_int_key_3` (`col_int_key`,`col_varchar_key`(5)),
+  UNIQUE KEY `col_int_key_4` (`col_int_key` DESC,`col_varchar_key`(5)),
+  UNIQUE KEY `col_varchar_key_3` (`col_varchar_key`(2),`col_varchar`(3)),
+  UNIQUE KEY `col_varchar_key_4` (`col_varchar_key`(2) DESC,`col_varchar`(3) DESC),
+  UNIQUE KEY `col_int_key_10` (`col_int_key`,`col_varchar_key`(5),`col_date_key`,`col_time_key`,`col_datetime_key`),
+  KEY `col_int_gckey` (`col_int_gckey`),
+  KEY `col_int_gckey_2` (`col_int_gckey` DESC),
+  KEY `col_date_gckey` (`col_date_gckey`),
+  KEY `col_datetime_gckey` (`col_datetime_gckey`),
+  KEY `col_time_gckey` (`col_time_gckey`),
+  KEY `col_varchar_gckey` (`col_varchar_gckey`(5)),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_int_key_2` (`col_int_key` DESC),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_datetime_key` (`col_datetime_key`),
+  KEY `col_int_key_5` (`col_int_key`,`col_int`),
+  KEY `col_int_key_6` (`col_int_key` DESC,`col_int` DESC),
+  KEY `col_int_key_7` (`col_int_key`,`col_date_key`),
+  KEY `col_int_key_8` (`col_int_key`,`col_time_key`),
+  KEY `col_int_key_9` (`col_int_key`,`col_datetime_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=80 DEFAULT CHARSET=latin1;
+
+INSERT INTO `E` (`pk`, `col_int`, `col_date`, `col_datetime`, `col_time`, `col_varchar`)
+   VALUES (1, 202, '0000-00-00', '2008-11-25 09:14:26', '07:23:12', 'en'),
+          (2, 4, '2005-07-10', '2005-03-15 22:48:25', '23:28:02', 'nchyhu'),
+          (3, 7, '2005-06-09', '2006-11-22 00:00:00', '10:51:23', 'chy'),
+          (4, 2, '2007-12-08', '2007-11-01 09:02:50', '01:12:13', 'hyhu'),
+          (5, 7, '2007-12-22', '2001-04-08 00:00:00', '06:34:46', 'yhuoo'),
+          (6, 1, '1900-01-01', '2001-11-27 19:47:15', '10:16:53', 'huoo'),
+          (7, 7, '2002-10-07', '2009-09-15 04:42:26', '07:07:58', 'uoowit'),
+          (8, 7, '2005-01-09', '2001-08-12 02:07:43', '06:15:07', 'oo'),
+          (9, 3, '2007-10-12', '2009-05-09 17:06:27', '00:00:00', 'ow'),
+          (10, 3, '2004-01-22', '1900-01-01 00:00:00', '06:41:21', 'wityzg'),
+          (11, 5, '2007-10-11', '2000-03-03 23:40:04', '22:28:00', 'ityzg'),
+          (12, 8, '2001-08-19', '2005-10-18 17:41:54', '04:47:49', 'tyz'),
+          (13, 9, '2001-02-12', '2000-03-23 23:22:54', '03:24:01', 'gktbkjr'),
+          (14, 0, '2000-07-14', '2007-01-25 11:00:51', '14:37:06', 'ktbkjrk'),
+          (15, 4, '2007-11-14', '2003-12-21 10:46:23', '05:53:49', 'tbkjrkm'),
+          (16, 9, '2004-01-25', '2003-09-02 01:45:27', '00:00:00', 'k'),
+          (17, 2, '2003-12-15', '2009-05-28 08:03:38', '23:41:09', 'j'),
+          (18, 4, '2002-01-25', '2003-10-23 18:22:15', '09:26:45', 'kmqm'),
+          (19, 0, '2009-09-08', '2001-12-28 00:00:00', '17:04:03', 'mq'),
+          (20, 7, '2008-03-15', '2005-05-06 19:42:18', '02:15:17', 'mkn'),
+          (21, 0, '2005-11-10', '2003-03-05 00:00:00', '00:00:00', 'knbtoe'),
+          (22, 1, '2008-11-12', '2001-12-26 16:47:05', '19:09:36', 'n'),
+          (23, 2, '2007-11-22', '2003-02-09 00:00:00', '07:55:11', 'btoer'),
+          (24, 4, '2002-04-25', '2008-10-13 00:00:00', '11:24:50', 'toe'),
+          (25, 4, '2004-02-14', '2001-07-16 16:05:48', '08:46:01', 'oervq'),
+          (26, 4, '2004-04-21', '2004-04-23 14:00:22', '20:16:19', 'rvqlzs'),
+          (27, 3, '2003-03-26', '2002-11-10 08:15:17', '13:03:14', 'vqlzs'),
+          (28, 0, '2007-06-18', '2006-06-24 03:59:58', '06:11:33', 'qlzsva'),
+          (29, 5, '2006-12-09', '2008-04-08 18:06:18', '09:40:31', 'lzsvasu'),
+          (30, 8, '2001-10-01', '2000-10-12 16:32:35', '03:34:01', 'zsvasu'),
+          (31, 6, '2001-01-07', '2005-09-11 10:09:54', '00:00:00', 'svas'),
+          (32, 0, '2007-11-02', '2009-09-10 01:44:18', '12:23:27', 'v'),
+          (33, 9, '2005-07-23', '2002-10-20 21:55:02', '05:12:10', 'surqdhu'),
+          (34, 4, '2003-09-13', '2009-11-03 09:54:42', '20:54:06', 'urqdh'),
+          (35, 165, '2001-05-14', '2002-10-19 00:00:00', '00:00:00', 'rqd'),
+          (36, 2, '2006-07-04', '2008-10-26 00:00:00', '00:59:06', 'qdhu'),
+          (37, 6, '2001-08-15', '2002-08-14 14:52:08', '07:22:34', 'dhu'),
+          (38, 5, '2000-04-27', '2007-06-10 00:00:00', '11:27:19', 'hucjx'),
+          (39, 9, '2007-10-13', '2002-07-07 04:10:43', '10:03:09', 'uc'),
+          (40, 214, '2004-02-06', '2007-08-15 13:56:29', '23:00:35', 'cjxd'),
+          (41, 194, '2008-12-27', '1900-01-01 00:00:00', '11:59:05', 'jx'),
+          (42, 1, '2002-08-16', '2000-08-11 11:34:38', '21:39:43', 'xdo'),
+          (43, 220, '2001-06-17', '1900-01-01 00:00:00', '00:00:00', 'oyg'),
+          (44, 9, '2002-10-16', '2008-12-07 23:41:33', '00:00:00', 'gx'),
+          (45, 248, '2008-04-06', '1900-01-01 00:00:00', '12:32:24', 'x'),
+          (46, 0, '2000-07-08', '2001-12-27 19:38:22', '00:00:00', 'vgqmw'),
+          (47, 0, '2005-03-16', '1900-01-01 00:00:00', '06:22:01', 'qmwcid'),
+          (48, 4, '2002-06-19', '2007-03-08 02:43:50', '07:00:21', 'mwc'),
+          (49, 3, '2005-11-25', '2001-11-14 17:21:32', '17:59:20', 'wcidtu'),
+          (50, 7, '2007-07-08', '1900-01-01 00:00:00', '01:58:05', 'cidtum'),
+          (51, 7, '2000-06-20', '2004-07-20 11:05:12', '22:24:24', 'dtumxwc'),
+          (52, 5, '2006-03-28', '2008-08-15 08:28:18', '04:22:26', 'tumxwc'),
+          (53, 1, '2004-03-05', '1900-01-01 00:00:00', '00:00:00', 'umxwcf'),
+          (54, 0, '2009-05-10', '2004-01-28 15:16:19', '11:46:32', 'mxwcft'),
+          (55, 67, '2004-04-18', '2001-06-23 00:00:00', '20:12:09', 'xwcfted'),
+          (56, 204, '2008-01-10', '2009-02-12 07:59:52', '13:58:17', 'wc'),
+          (57, 9, '2000-07-12', '2004-12-10 07:32:31', '04:04:48', 'ftedx'),
+          (58, 5, '2001-06-16', '2006-09-06 12:15:44', '10:14:16', 't'),
+          (59, 6, '2000-02-20', '2003-09-13 14:23:06', '21:22:20', 'dx'),
+          (60, 6, '2001-02-07', '2004-01-18 00:00:00', '10:15:21', 'xqyciak'),
+          (61, 1, '2008-12-24', '2004-04-02 07:16:01', '16:30:10', 'qy'),
+          (62, 1, '2009-12-14', '2000-01-04 14:51:24', '03:57:54', 'y'),
+          (63, 5, '2008-03-07', '2001-06-24 00:00:00', '06:41:05', 'ciak'),
+          (64, 4, '2005-01-19', '2001-06-02 03:41:12', '00:00:00', 'iakh'),
+          (65, 4, '2003-02-10', '1900-01-01 00:00:00', '08:51:25', 'ak'),
+          (66, 9, '2005-12-25', '2007-07-13 14:26:05', '14:32:55', 'hxptz'),
+          (67, 4, '2003-10-13', '2008-03-20 21:14:50', '00:21:31', 'xptzfp'),
+          (68, 3, '2001-08-03', '1900-01-01 00:00:00', '00:00:00', 'ptzfpjw'),
+          (69, 0, '2006-04-01', '1900-01-01 00:00:00', '11:26:05', 'tzfpjwr'),
+          (70, 2, '2003-12-27', '2002-05-09 18:39:28', '05:28:11', 'wrgeo'),
+          (71, 100, '2001-10-25', '2006-01-13 00:00:00', '04:35:51', 'r'),
+          (72, 37, '2006-09-12', '2003-12-04 05:20:00', '06:10:43', 'geo'),
+          (73, 5, '2003-06-04', '2003-07-21 11:43:03', '17:26:47', 'eozxnby'),
+          (74, 6, '2009-11-13', '2006-12-24 00:00:00', '22:34:54', 'oz'),
+          (75, 1, '2006-08-13', '2005-08-25 00:00:00', '21:27:38', 'zxnbyc'),
+          (76, 7, '2007-07-09', '2003-10-16 01:16:30', '03:14:14', 'xnbycjz'),
+          (77, 6, '2000-01-07', '2001-06-22 00:00:00', '00:00:00', 'nby'),
+          (78, 5, '2004-12-21', '2004-09-01 18:53:04', '16:06:30', 'bycj'),
+          (79, 0, '2003-10-14', '2000-04-13 05:21:03', '19:04:51', 'ycjzxie');
+
+SELECT outr1.col_varchar AS f1, outr2.col_varchar AS f2
+    FROM `C` AS outr1 LEFT JOIN `E` AS outr2
+    ON (outr1.col_int_key = outr2.col_int_key)
+    WHERE outr1.col_varchar_key !=
+         (SELECT LEAD(innr1.pk, 5) OVER () AS y
+          FROM `DD` AS innr2 LEFT OUTER JOIN `DD` AS innr1
+          ON (innr2.col_date <> innr1.col_date_key)
+          WHERE innr1.col_int < 5 XOR outr2.col_date IS NULL
+          LIMIT 1);
+
+DROP TABLE `C`, `E`, `DD`;
+SET SQL_MODE=DEFAULT;
+SET SESSION big_tables=(SELECT CAST(@sav_big AS SIGNED));
+
+# Local Variables:
+# mode: sql
+# sql-product: mysql
+# comment-column: 48
+# comment-start: "# "
+# fill-column: 80
+# End:

@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -153,5 +160,20 @@
 #define NDB_FK_CASCADE     2
 #define NDB_FK_SET_NULL    3
 #define NDB_FK_SET_DEFAULT 4
+
+/**
+ * Defines for FragmentCount specifier
+ */
+#define NDB_PARTITION_BALANCE_SPECIFIC             ~Uint32(0)
+#define NDB_PARTITION_BALANCE_FOR_RP_BY_LDM        ~Uint32(1)
+#define NDB_PARTITION_BALANCE_FOR_RA_BY_LDM        ~Uint32(2)
+#define NDB_PARTITION_BALANCE_FOR_RP_BY_NODE       ~Uint32(3)
+#define NDB_PARTITION_BALANCE_FOR_RA_BY_NODE       ~Uint32(4)
+#define NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2    ~Uint32(5)
+#define NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3    ~Uint32(6)
+#define NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4    ~Uint32(7)
+
+#define NDB_DEFAULT_PARTITION_BALANCE \
+            NDB_PARTITION_BALANCE_FOR_RP_BY_LDM
 
 #endif

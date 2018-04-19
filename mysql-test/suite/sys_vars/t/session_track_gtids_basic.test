@@ -63,7 +63,7 @@ while ($i)
 
   # Check if the value in GLOBAL Table matches value in variable
 
-  --let $is_value=`SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='session_track_gtids'`
+  --let $is_value=`SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='session_track_gtids'`
   --let $val= `SELECT @@GLOBAL.session_track_gtids`
   --let $assert_text= Assert that I_S.GLOBAL_VARIABLES captures the variable value.
   --let $assert_cond= `SELECT '$is_value'='$val'`
@@ -71,7 +71,7 @@ while ($i)
 
   # Check if the value in SESSION Table matches value in variable
 
-  --let $is_value= `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='session_track_gtids'`
+  --let $is_value= `SELECT VARIABLE_VALUE FROM performance_schema.session_variables WHERE VARIABLE_NAME='session_track_gtids'`
   --let $val= `SELECT @@SESSION.session_track_gtids`
   --let $assert_text= Assert that I_S.SESSION_VARIABLES captures the variable value.
   --let $assert_cond= `SELECT '$is_value'='$val'`

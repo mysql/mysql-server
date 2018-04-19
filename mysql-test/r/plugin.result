@@ -7,15 +7,15 @@ UNINSTALL PLUGIN example;
 INSTALL PLUGIN example SONAME 'ha_example.so';
 # Example engine does not support indexes
 CREATE TABLE t1 (a int PRIMARY KEY) ENGINE=EXAMPLE;
-ERROR 42000: Too many key parts specified; max 0 parts allowed
+ERROR 42000: Too many keys specified; max 0 keys allowed
 CREATE TABLE t1 (a int, KEY (a)) ENGINE=EXAMPLE;
-ERROR 42000: Too many key parts specified; max 0 parts allowed
+ERROR 42000: Too many keys specified; max 0 keys allowed
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=EXAMPLE DEFAULT CHARSET=latin1
+) ENGINE=EXAMPLE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Let's do some advanced ops with the example engine :)
 INSERT INTO t1 VALUES (0);
 # Only supports table scans (and does always return zero rows :)
@@ -30,23 +30,32 @@ DELETE FROM t1 WHERE a = 0;
 # No support for SQL HANDLER statement
 HANDLER t1 OPEN;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
+# Try to delete table when plugin is not loaded.
+# Remove table from TDC to allow plugin unload.
+FLUSH TABLE t1;
+UNINSTALL PLUGIN example;
+DROP TABLE t1;
+ERROR 42000: Unknown storage engine 'EXAMPLE'
+INSTALL PLUGIN example SONAME 'ha_example.so';
 DROP TABLE t1;
 set global example_ulong_var=500;
 set global example_enum_var= e1;
-select * from information_schema.global_status where variable_name like 'example%' order by variable_name;
+select * from performance_schema.global_status where variable_name like 'example%' order by variable_name;
 VARIABLE_NAME	VARIABLE_VALUE
-EXAMPLE_FUNC_EXAMPLE	enum_var is 0, ulong_var is 500, double_var is 8.500000, really
-EXAMPLE_STATUS_ARRAY_VAR1	100
-EXAMPLE_STATUS_ARRAY_VAR2	20.010000
-EXAMPLE_STATUS_VAR3	three hundred
-EXAMPLE_STATUS_VAR4	ON
-EXAMPLE_STATUS_VAR5	OFF
-EXAMPLE_STATUS_VAR6	8250
+example_func_example	enum_var is 0, ulong_var is 500, double_var is 8.500000
+example_status_array_var1	100
+example_status_array_var2	20.010000
+example_status_var3	three hundred
+example_status_var4	ON
+example_status_var5	OFF
+example_status_var6	8250
 show variables like 'example%';
 Variable_name	Value
+example_create_count_thdvar	1
 example_double_thdvar	8.500000
 example_double_var	8.500000
 example_enum_var	e1
+example_last_create_thdvar	Last creation 't1'
 example_ulong_var	500
 UNINSTALL PLUGIN example;
 UNINSTALL PLUGIN EXAMPLE;
@@ -66,8 +75,6 @@ UNINSTALL PLUGIN example;
 INSTALL PLUGIN example SONAME 'ha_example.so';
 select @@session.sql_mode into @old_sql_mode;
 set session sql_mode='';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 set global example_ulong_var=500;
 select @@global.example_ulong_var;
 @@global.example_ulong_var
@@ -79,6 +86,8 @@ select @@global.example_ulong_var;
 @@global.example_ulong_var
 1000
 set session sql_mode='STRICT_ALL_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 set global example_ulong_var=500;
 select @@global.example_ulong_var;
 @@global.example_ulong_var
@@ -89,8 +98,6 @@ select @@global.example_ulong_var;
 @@global.example_ulong_var
 500
 set session sql_mode=@old_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 set session old=bla;
 ERROR HY000: Variable 'old' is a read only variable
 UNINSTALL PLUGIN example;
@@ -182,7 +189,7 @@ END
 |
 CREATE PROCEDURE p_show_vars()
 BEGIN
-SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES;
+SELECT COUNT(*) FROM performance_schema.global_variables;
 END|
 connect con1, localhost, root,,;
 # Case 18008907_1: Deadlock situation cause by
@@ -246,3 +253,52 @@ disconnect con2;
 #
 UNINSTALL PLUGIN innodb;
 ERROR HY000: Built-in plugins cannot be deleted
+#
+# Bug #19917521: MEMORY LEAK WITH STRING THREAD VARIABLE 
+#                THAT SET MEMALLOC FLAG
+#
+INSTALL PLUGIN example SONAME 'ha_example.so';
+SET SESSION example_create_count_thdvar = 0;
+SET SESSION example_last_create_thdvar = '';
+CREATE TABLE t10(a INT) ENGINE=EXAMPLE;
+SELECT @@SESSION.example_create_count_thdvar;
+@@SESSION.example_create_count_thdvar
+1
+SELECT @@SESSION.example_last_create_thdvar;
+@@SESSION.example_last_create_thdvar
+Last creation 't10'
+CREATE TABLE t20(a INT) ENGINE=EXAMPLE;
+SELECT @@SESSION.example_create_count_thdvar;
+@@SESSION.example_create_count_thdvar
+2
+SELECT @@SESSION.example_last_create_thdvar;
+@@SESSION.example_last_create_thdvar
+Last creation 't20'
+DROP TABLE t10, t20;
+UNINSTALL PLUGIN example;
+#
+# BUG#24344026 - SIG 11 IN MY_VALID_MBCHARLEN_UTF8 AT STRINGS/CTYPE-UTF8.CC:9437
+#
+SET GLOBAL DEBUG='+d,set_uninstall_sync_point';
+INSTALL PLUGIN example SONAME 'ha_example.so';
+SET DEBUG_SYNC='before_store_plugin_name SIGNAL uninstall_plugin WAIT_FOR plugin_uninstalled';
+SELECT * FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='example';;
+SET DEBUG_SYNC='now WAIT_FOR uninstall_plugin';
+UNINSTALL PLUGIN example;
+SET DEBUG_SYNC='now SIGNAL plugin_uninstalled';
+PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_TYPE_VERSION	PLUGIN_LIBRARY	PLUGIN_LIBRARY_VERSION	PLUGIN_AUTHOR	PLUGIN_DESCRIPTION	PLUGIN_LICENSE	LOAD_OPTION
+SET DEBUG_SYNC='RESET';
+SET GLOBAL DEBUG='-d,set_uninstall_sync_point';
+#
+# Bug#51770: UNINSTALL PLUGIN requires no privileges
+#
+CREATE USER bug51770@localhost;
+GRANT INSERT ON mysql.plugin TO bug51770@localhost;
+INSTALL PLUGIN example SONAME 'ha_example.so';
+UNINSTALL PLUGIN example;
+ERROR 42000: DELETE command denied to user 'bug51770'@'localhost' for table 'plugin'
+GRANT DELETE ON mysql.plugin TO bug51770@localhost;
+UNINSTALL PLUGIN example;
+DROP USER bug51770@localhost;
+INSTALL PLUGIN example SONAME '../ha_example.so';
+ERROR HY000: No paths allowed for shared library

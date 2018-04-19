@@ -1,25 +1,18 @@
 CREATE USER 'kristofer';
-SET old_passwords=2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
-SELECT user, plugin FROM mysql.user;
+SELECT user, plugin FROM mysql.user ORDER BY user;
 user	plugin
-root	mysql_native_password
-root	mysql_native_password
-root	mysql_native_password
-root	mysql_native_password
 kristofer	sha256_password
+mysql.infoschema	mysql_native_password
+mysql.session	mysql_native_password
+mysql.sys	mysql_native_password
+root	caching_sha2_password
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 kristofer@localhost	kristofer@%
 DROP USER 'kristofer';
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-GRANT ALL ON *.* TO 'kristofer2'@'localhost' IDENTIFIED WITH 'sha256_password';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
+CREATE USER 'kristofer2'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY 'secret2';
 ALTER USER 'kristofer2'@'localhost' IDENTIFIED BY 'secret2';
 SELECT USER(),CURRENT_USER();
@@ -27,7 +20,7 @@ USER()	CURRENT_USER()
 kristofer@localhost	kristofer@localhost
 SHOW GRANTS FOR 'kristofer'@'localhost';
 Grants for kristofer@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost'
+GRANT USAGE ON *.* TO `kristofer`@`localhost`
 Change user (should succeed)
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
@@ -43,39 +36,25 @@ user()	current_user()
 kristofer@localhost	kristofer@localhost
 DROP USER 'kristofer'@'localhost';
 DROP USER 'kristofer2'@'localhost';
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
-GRANT ALL ON *.* TO 'kristofer'@'localhost';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-ALTER USER 'kristofer'@'localhost' IDENTIFIED BY '';
+CREATE USER 'kristofer'@'localhost';
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 kristofer@localhost	kristofer@localhost
 SHOW GRANTS FOR 'kristofer'@'localhost';
 Grants for kristofer@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost'
+GRANT USAGE ON *.* TO `kristofer`@`localhost`
 DROP USER 'kristofer'@'localhost';
-GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+CREATE USER 'kristofer'@'33.33.33.33';
 ALTER USER 'kristofer'@'33.33.33.33' IDENTIFIED BY '';
 Connection should fail for localhost
 ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: NO)
 DROP USER 'kristofer'@'33.33.33.33';
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY 'awesomeness';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER 'kristofer'@'localhost' IDENTIFIED BY 'awesomeness';
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 kristofer@localhost	kristofer@localhost
 SHOW GRANTS FOR 'kristofer'@'localhost';
 Grants for kristofer@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost'
+GRANT USAGE ON *.* TO `kristofer`@`localhost`
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY 'error';
 DROP USER 'kristofer'@'localhost';

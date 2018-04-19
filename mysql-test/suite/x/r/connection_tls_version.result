@@ -1,0 +1,517 @@
+call mtr.add_suppression("Plugin mysqlx reported: 'Error during SSL handshake for client connection \\([-0-9]*\\)'");
+call mtr.add_suppression("Plugin mysqlx reported: '[-0-9]*: Error during SSL handshake'");
+SET GLOBAL mysqlx_connect_timeout = 300;
+CREATE USER user5_mysqlx@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
+            REQUIRE SSL;
+GRANT ALL ON *.* TO user5_mysqlx@localhost;
+CONNECTION_TYPE
+TCP/IP
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+not ok
+# restart: --tls-version=TLSv1
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: protocol version mismatch (code 2026)
+not ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: protocol version mismatch (code 2026)
+not ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+not ok
+# restart: --tls-version=TLSv1.1
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: socket layer receive error (code 2026)
+not ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: socket layer receive error (code 2026)
+not ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+not ok
+DROP USER user5_mysqlx@localhost;
+SET GLOBAL mysqlx_connect_timeout = DEFAULT;
+# restart: --tls_version=TLSv1,TLSv1.1
+SET GLOBAL mysqlx_connect_timeout = 300;
+CREATE USER user5_mysqlx@localhost
+IDENTIFIED WITH 'sha256_password' BY 'auth_string'
+            REQUIRE SSL;
+GRANT ALL ON *.* TO user5_mysqlx@localhost;
+CONNECTION_TYPE
+TCP/IP
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1,TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+not ok
+# restart: --tls-version=TLSv1
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: protocol version mismatch (code 2026)
+not ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: protocol version mismatch (code 2026)
+not ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+not ok
+# restart: --tls-version=TLSv1.1
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: socket layer receive error (code 2026)
+not ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: socket layer receive error (code 2026)
+not ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.1
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+not ok
+DROP USER user5_mysqlx@localhost;
+SET GLOBAL mysqlx_connect_timeout = DEFAULT;

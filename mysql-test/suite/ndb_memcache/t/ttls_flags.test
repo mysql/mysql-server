@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
 --source suite/ndb_memcache/include/have_memcache.inc
 
@@ -29,13 +24,13 @@ $mc->set_expires(0);    $mc->set("t:1", "Groen");  ## Will not expire
 $mc->set_expires(3);    $mc->set("t:2", "Yello");  ## Expire in 3 seconds
 
 sleep(1);
-($mc->get("t:1") == "Groen")  || Carp::confess "Expected result";
-($mc->get("t:2") == "Yello")  || Carp::confess "Expected result";
+($mc->get("t:1") == "Groen")  || $mc->fail("Expected Groen");
+($mc->get("t:2") == "Yello")  || $mc->fail("Expected Yello");
 
 sleep(3); 
-($mc->get("t:1") == "Groen")  || Carp::confess "Expected result";
-$mc->get("t:2")               && Carp::confess "Item should have expired";  
-($mc->{error} == "NOT_FOUND") || Carp::confess "Expected NOT_FOUND";
+($mc->get("t:1") == "Groen")  || $mc->fail("Expected result Groen");
+$mc->get("t:2")               && $mc->fail("Item should have expired");
+($mc->{error} == "NOT_FOUND") || $mc->fail("Expected NOT_FOUND");
 
 print "TTL Test OK \n";
 
@@ -50,11 +45,11 @@ $mc->set_flags(0);
 
 $mc->get("t:12");
 my $result = $mc->next_result();
-($result->{flags} == 100)  || Carp::confess("Expected flags = 100");
+($result->{flags} == 100)  || $mc->fail("Expected flags = 100; got: ", $result->{flags});
 
 $mc->get("t:13");
 $result = $mc->next_result();
-($result->{flags} == 200)  || Carp::confess("Expected flags = 200");
+($result->{flags} == 200)  || $mc->fail("Expected flags = 200; got: ", $result->{flags});
 
 print "Flags Test OK \n";
 

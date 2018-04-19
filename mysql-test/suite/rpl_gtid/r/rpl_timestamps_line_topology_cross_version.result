@@ -1,0 +1,43 @@
+include/rpl_init.inc [topology=1->2, 2->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+# A. First server in the replication chain is not 5.8
+[connection server_1]
+# Adding debug point 'do_not_write_rpl_timestamps' to @@GLOBAL.debug
+# A1. Execute a transaction and sync it on all the servers.
+CREATE TABLE t1 (a INT);
+include/rpl_sync.inc
+# A2. Collect both timestamps (original/immediate) from servers 2 and 3.
+[connection server_1]
+[connection server_2]
+[connection server_3]
+# A3. Verify that the timestamps are correct.
+include/assert.inc [Assert that the OCT is zero in server_2.]
+include/assert.inc [Assert that the OCT is zero in server_3.]
+include/assert.inc [Assert that ICT exists in server_2.]
+include/assert.inc [Assert that ICT exists in server_3.]
+# A4. Cleanup
+[connection server_1]
+# Removing debug point 'do_not_write_rpl_timestamps' from @@GLOBAL.debug
+# B. Server in the middle of the replication chain is not 5.8
+[connection server_2]
+# Adding debug point 'do_not_write_rpl_timestamps' to @@GLOBAL.debug
+# B1. Execute a transaction and sync it on all the servers.
+[connection server_1]
+DROP TABLE t1;
+include/rpl_sync.inc
+# B2. Collect both timestamps (original/immediate) from servers 1 and 3.
+[connection server_1]
+[connection server_3]
+# B3. Verify that the timestamps are correct.
+include/assert.inc [Assert that OCT is same as ICT on server_1 (originating server).]
+include/assert.inc [Assert that ICT exists in server_3.]
+include/assert.inc [Assert that the OCT is zero in server 3.]
+# B4. Cleanup
+[connection server_2]
+# Removing debug point 'do_not_write_rpl_timestamps' from @@GLOBAL.debug
+include/rpl_end.inc

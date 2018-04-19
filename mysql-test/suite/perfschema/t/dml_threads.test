@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --disable_result_log
 select * from performance_schema.threads
   where name like 'Thread/%' limit 1;
@@ -35,6 +32,10 @@ update performance_schema.threads
 select instrumented from performance_schema.threads
   where PROCESSLIST_ID=connection_id();
 
+--error ER_WRONG_PERFSCHEMA_USAGE
+update performance_schema.threads
+  set resource_group = 'FOO' where PROCESSLIST_ID=connection_id();
+ 
 --error ER_TABLEACCESS_DENIED_ERROR
 delete from performance_schema.threads
   where id=1;

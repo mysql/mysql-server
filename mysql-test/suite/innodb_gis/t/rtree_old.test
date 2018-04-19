@@ -1,6 +1,5 @@
 # This is a testcase ported from mysql-test/t/gis-rtree.test
 
--- source include/have_geometry.inc
 
 #
 # test of rtree (using with spatial data)
@@ -11,7 +10,7 @@ DROP TABLE IF EXISTS t1, t2;
 
 CREATE TABLE t1 (
   fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  g GEOMETRY NOT NULL,
+  g GEOMETRY NOT NULL SRID 0,
   SPATIAL KEY(g)
 ) ENGINE=InnoDB;
 
@@ -27,14 +26,13 @@ while ($1)
 }
 
 SELECT count(*) FROM t1;
-EXPLAIN SELECT fid, ST_AsText(g) FROM t1 WHERE MBRWithin(g, ST_GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))')) ORDER BY fid;
 SELECT fid, ST_AsText(g) FROM t1 WHERE MBRWithin(g, ST_GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))')) ORDER BY fid;
 
 DROP TABLE t1;
 
 CREATE TABLE t2 (
   fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  g GEOMETRY NOT NULL
+  g GEOMETRY NOT NULL SRID 0
 ) ENGINE=InnoDB;
 
 let $1=10;
@@ -61,7 +59,7 @@ while ($1)
   let $2=10;
   while ($2)
   {
-    eval DELETE FROM t2 WHERE MBRWithin(g, ST_Envelope(ST_GeometryFromWKB(Point($1 * 10 - 9, $2 * 10 - 9), Point($1 * 10, $2 * 10))));
+    eval DELETE FROM t2 WHERE MBRWithin(g, ST_Envelope(ST_GeometryFromWKB(St_AsWKB(Point($1 * 10 - 9, $2 * 10 - 9)), St_AsWKB(Point($1 * 10, $2 * 10)))));
     SELECT count(*) FROM t2;
     dec $2;
   }
@@ -71,7 +69,7 @@ while ($1)
 DROP TABLE t2;
 
 drop table if exists t1;
-CREATE TABLE t1 (a geometry NOT NULL, SPATIAL (a));
+CREATE TABLE t1 (a geometry NOT NULL SRID 0, SPATIAL (a));
 INSERT INTO t1 VALUES (ST_GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
 INSERT INTO t1 VALUES (ST_GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
 INSERT INTO t1 VALUES (ST_GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
@@ -111,7 +109,7 @@ drop table t1;
 
 CREATE TABLE t1 (
   fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  g GEOMETRY NOT NULL,
+  g GEOMETRY NOT NULL SRID 0,
   SPATIAL KEY(g)
 ) ENGINE=InnoDB;
 
@@ -120,7 +118,7 @@ INSERT INTO t1 (g) VALUES (ST_GeomFromText('LineString(1 2, 2 3)')),(ST_GeomFrom
 drop table t1;
 
 CREATE TABLE t1 (
-  line LINESTRING NOT NULL,
+  line LINESTRING NOT NULL SRID 0,
   kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
   name VARCHAR(32),
 
@@ -130,6 +128,7 @@ CREATE TABLE t1 (
 ) engine=InnoDB;
 
 ALTER TABLE t1 DISABLE KEYS;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 INSERT INTO t1 (name, kind, line) VALUES
   ("Aadaouane", "pp", ST_GeomFromText("POINT(32.816667 35.983333)")),
   ("Aadassiye", "pp", ST_GeomFromText("POINT(35.816667 36.216667)")),
@@ -167,13 +166,13 @@ drop table t1;
 
 CREATE TABLE t1 (st varchar(100));
 INSERT INTO t1 VALUES ("Fake string");
-CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom));
+CREATE TABLE t2 (geom GEOMETRY NOT NULL SRID 0, SPATIAL KEY gk(geom));
 --error ER_GIS_INVALID_DATA
 INSERT INTO t2 SELECT ST_GeomFromText(st) FROM t1;
 drop table t1, t2;
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+CREATE TABLE t1 (`geometry` geometry NOT NULL SRID 0,SPATIAL KEY `gndx` (`geometry`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 INSERT INTO t1 (geometry) VALUES
 (ST_PolygonFromText('POLYGON((-18.6086111000 -66.9327777000, -18.6055555000
@@ -188,7 +187,7 @@ check table t1 extended;
 
 drop table t1;
 
-CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+CREATE TABLE t1 (`geometry` geometry NOT NULL SRID 0,SPATIAL KEY `gndx` (`geometry`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 INSERT INTO t1 (geometry) VALUES
 (ST_PolygonFromText('POLYGON((2 2, 2 8, 10 8, 10 2, 2 2))'));
@@ -233,7 +232,7 @@ DROP TABLE t1;
 # Bug#17877 - Corrupted spatial index
 #
 CREATE TABLE t1 (
-  c1 geometry NOT NULL default '',
+  c1 geometry NOT NULL SRID 0,
   SPATIAL KEY i1 (c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 INSERT INTO t1 (c1) VALUES (
@@ -247,7 +246,7 @@ CHECK TABLE t1 EXTENDED;
 DROP TABLE t1;
 #
 CREATE TABLE t1 (
-  c1 geometry NOT NULL default '',
+  c1 geometry NOT NULL SRID 0,
   SPATIAL KEY i1 (c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 INSERT INTO t1 (c1) VALUES (
@@ -277,7 +276,7 @@ SET sql_mode = default;
 #
 # Bug #21888: Query on GEOMETRY field using PointFromWKB() results in lost connection
 #
-CREATE TABLE t1 (foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) );
+CREATE TABLE t1 (foo GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(foo) );
 INSERT INTO t1 (foo) VALUES (POINT(1,1));
 INSERT INTO t1 (foo) VALUES (POINT(1,0));
 INSERT INTO t1 (foo) VALUES (POINT(0,1));
@@ -292,7 +291,7 @@ CREATE TABLE t1 (id bigint(12) unsigned NOT NULL auto_increment,
   c2 varchar(15) collate utf8_bin default NULL,
   c1 varchar(15) collate utf8_bin default NULL,
   c3 varchar(10) collate utf8_bin default NULL,
-  spatial_point point NOT NULL,
+  spatial_point point NOT NULL SRID 0,
   PRIMARY KEY(id),
   SPATIAL KEY (spatial_point)
   )ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
@@ -846,7 +845,7 @@ DROP TABLE t1;
 # Bug #30286 spatial index cause corruption and server crash!
 #
 
-create table t1 (a geometry not null, spatial index(a));
+create table t1 (a geometry not null SRID 0, spatial index(a));
 insert into t1 values (POINT(1.1517219314031e+164, 131072));
 insert into t1 values (POINT(9.1248812352444e+192, 2.9740338169556e+284));
 insert into t1 values (POINT(4.7783097267365e-299, -0));
@@ -883,11 +882,11 @@ drop table t1;
 #
 # bug #21790 (UNKNOWN ERROR on NULLs in RTree)
 #
-CREATE TABLE t1(foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) );
---error 1048
+CREATE TABLE t1(foo GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(foo) );
+--error ER_BAD_NULL_ERROR_NOT_IGNORED
 INSERT INTO t1(foo) VALUES (NULL);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
---error 1416
+--error ER_NO_DEFAULT_FOR_FIELD
 INSERT INTO t1() VALUES ();
 SET sql_mode = default;
 --error 1416
@@ -899,7 +898,7 @@ DROP TABLE t1;
 #             spatial index
 #
 
-CREATE TABLE t1 (a INT AUTO_INCREMENT, b POINT NOT NULL, KEY (a), SPATIAL KEY (b));
+CREATE TABLE t1 (a INT AUTO_INCREMENT, b POINT NOT NULL SRID 0, KEY (a), SPATIAL KEY (b));
 
 INSERT INTO t1 (b) VALUES (ST_GeomFromText('POINT(1 2)'));
 INSERT INTO t1 (b) SELECT b FROM t1;
@@ -916,7 +915,7 @@ DROP TABLE t1;
 # Bug #29070: Error in spatial index
 #
 
-CREATE TABLE t1 (a INT, b GEOMETRY NOT NULL, SPATIAL KEY b(b));
+CREATE TABLE t1 (a INT, b GEOMETRY NOT NULL SRID 0, SPATIAL KEY b(b));
 INSERT INTO t1 VALUES (1, ST_GEOMFROMTEXT('LINESTRING(1102218.456 1,2000000 2)'));
 INSERT INTO t1 VALUES (2, ST_GEOMFROMTEXT('LINESTRING(1102218.456 1,2000000 2)'));
 
@@ -932,7 +931,7 @@ DROP TABLE t1;
 --echo #
 --echo # Bug #48258: Assertion failed when using a spatial index
 --echo #
-CREATE TABLE t1(a LINESTRING NOT NULL, SPATIAL KEY(a));
+CREATE TABLE t1(a LINESTRING NOT NULL SRID 0, SPATIAL KEY(a));
 INSERT INTO t1 VALUES
   (ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')),
   (ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
@@ -961,7 +960,7 @@ DROP TABLE t1;
 --echo # Bug #51357: crash when using handler commands on spatial indexes
 --echo #
 
-CREATE TABLE t1(a GEOMETRY NOT NULL,SPATIAL INDEX a(a));
+CREATE TABLE t1(a GEOMETRY NOT NULL SRID 0,SPATIAL INDEX a(a));
 HANDLER t1 OPEN;
 HANDLER t1 READ a FIRST;
 HANDLER t1 READ a NEXT;
@@ -990,22 +989,23 @@ DROP TABLE t1;
 --echo # and invalid spatial data
 --echo #
 
-CREATE TABLE t1(a LINESTRING NOT NULL, b GEOMETRY NOT NULL,
+CREATE TABLE t1(a LINESTRING NOT NULL SRID 0, b GEOMETRY NOT NULL SRID 0,
   SPATIAL KEY(a), SPATIAL KEY(b)) ENGINE=InnoDB;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 INSERT INTO t1 VALUES(ST_GEOMFROMTEXT("point (0 0)"), ST_GEOMFROMTEXT("point (1 1)"));
---error ER_GIS_INVALID_DATA
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 INSERT IGNORE INTO t1 SET a=ST_GEOMFROMTEXT("point (-6 0)"), b=ST_GEOMFROMTEXT("error");
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
 INSERT IGNORE INTO t1 SET a=ST_GEOMFROMTEXT("point (-6 0)"), b=NULL;
 SELECT ST_ASTEXT(a), ST_ASTEXT(b) FROM t1;
 DROP TABLE t1;
 
-CREATE TABLE t1(a INT NOT NULL, b GEOMETRY NOT NULL,
+CREATE TABLE t1(a INT NOT NULL, b GEOMETRY NOT NULL SRID 0,
   KEY(a), SPATIAL KEY(b)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(0, ST_GEOMFROMTEXT("point (1 1)"));
 --error ER_GIS_INVALID_DATA
 INSERT IGNORE INTO t1 SET a=0, b=ST_GEOMFROMTEXT("error");
---error ER_CANT_CREATE_GEOMETRY_OBJECT
+--error ER_BAD_NULL_ERROR_NOT_IGNORED
 INSERT IGNORE INTO t1 SET a=1, b=NULL;
 SELECT a, ST_ASTEXT(b) FROM t1;
 DROP TABLE t1;

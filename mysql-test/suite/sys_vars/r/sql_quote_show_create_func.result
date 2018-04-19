@@ -6,27 +6,27 @@ CREATE TEMPORARY TABLE t1(a varchar(20), b varchar(20));
 SET SESSION sql_quote_show_create = TRUE;
 SHOW CREATE DATABASE test;
 Database	Create Database
-test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET latin1 */
+test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 EXPECTING identifiers test TO BE quoted like 'test'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `a` varchar(20) DEFAULT NULL,
   `b` varchar(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 EXPECTING identifiers a, b, t1 TO BE quoted like 'a','b','t1'
 '#-----------------------------FN_DYNVARS_163_02------------------------------------#'
 SET SESSION sql_quote_show_create = FALSE;
 SHOW CREATE DATABASE test;
 Database	Create Database
-test	CREATE DATABASE test /*!40100 DEFAULT CHARACTER SET latin1 */
+test	CREATE DATABASE test /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 EXPECTING identifiers test NOT TO BE quoted like 'test'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE t1 (
   a varchar(20) DEFAULT NULL,
   b varchar(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 EXPECTING identifiers a, b, t1 NOT TO BE quoted like 'a','b','t1'
 '#----------------------------FN_DYNVARS_163_03--------------------------------------#'
 ** Connecting con_int1 using root **

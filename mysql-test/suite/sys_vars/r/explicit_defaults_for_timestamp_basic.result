@@ -1,22 +1,43 @@
-select @@global.explicit_defaults_for_timestamp;
-@@global.explicit_defaults_for_timestamp
-0
-select @@session.explicit_defaults_for_timestamp;
-@@session.explicit_defaults_for_timestamp
-0
+select @@global.explicit_defaults_for_timestamp into @save_global_explicit_defaults_for_timestamp;
+select @@session.explicit_defaults_for_timestamp into @save_session_explicit_defaults_for_timestamp;
 show global variables like 'explicit_defaults_for_timestamp';
 Variable_name	Value
-explicit_defaults_for_timestamp	OFF
+explicit_defaults_for_timestamp	ON
 show session variables like 'explicit_defaults_for_timestamp';
 Variable_name	Value
+explicit_defaults_for_timestamp	ON
+select * from performance_schema.global_variables where variable_name='explicit_defaults_for_timestamp';
+VARIABLE_NAME	VARIABLE_VALUE
+explicit_defaults_for_timestamp	ON
+select * from performance_schema.session_variables where variable_name='explicit_defaults_for_timestamp';
+VARIABLE_NAME	VARIABLE_VALUE
+explicit_defaults_for_timestamp	ON
+SET GLOBAL explicit_defaults_for_timestamp=TRUE;
+SET SESSION explicit_defaults_for_timestamp=TRUE;
+SET GLOBAL explicit_defaults_for_timestamp=@save_global_explicit_defaults_for_timestamp;
+SET SESSION explicit_defaults_for_timestamp=@save_session_explicit_defaults_for_timestamp;
+** Creating new user without super privilege**
+CREATE USER damn;
+** Connecting connn using username 'sameea' **
+SET GLOBAL explicit_defaults_for_timestamp=TRUE;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION explicit_defaults_for_timestamp=TRUE;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+DROP USER damn;
+#
+# WL#9687 : Change default for explicit_defaults_for_timestamp to ON
+#
+SET GLOBAL explicit_defaults_for_timestamp = 0;
+Warnings:
+Warning	1287	'explicit_defaults_for_timestamp' is deprecated and will be removed in a future release.
+SET explicit_defaults_for_timestamp = 0;
+Warnings:
+Warning	1287	'explicit_defaults_for_timestamp' is deprecated and will be removed in a future release.
+SHOW VARIABLES LIKE 'explicit_defaults_for_timestamp';
+Variable_name	Value
 explicit_defaults_for_timestamp	OFF
-select * from information_schema.global_variables where variable_name='explicit_defaults_for_timestamp';
-VARIABLE_NAME	VARIABLE_VALUE
-EXPLICIT_DEFAULTS_FOR_TIMESTAMP	OFF
-select * from information_schema.session_variables where variable_name='explicit_defaults_for_timestamp';
-VARIABLE_NAME	VARIABLE_VALUE
-EXPLICIT_DEFAULTS_FOR_TIMESTAMP	OFF
-set global explicit_defaults_for_timestamp=true;
-ERROR HY000: Variable 'explicit_defaults_for_timestamp' is a read only variable
-set session explicit_defaults_for_timestamp=true;
-ERROR HY000: Variable 'explicit_defaults_for_timestamp' is a read only variable
+SET GLOBAL explicit_defaults_for_timestamp = default;
+SET explicit_defaults_for_timestamp = default;
+SHOW VARIABLES LIKE 'explicit_defaults_for_timestamp';
+Variable_name	Value
+explicit_defaults_for_timestamp	ON

@@ -65,7 +65,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where c>=-1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	range	c	c	5	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	range	c	c	5	NULL	1	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` >= <cache>(-(1)))
 # select_type=SIMPLE, type=ref
@@ -75,16 +75,16 @@ a	b	c	a	b	c
 1	-1	-1	1	-1	-1
 explain select * from t1,t3 where t1.c=t3.c and t3.c=-1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	const	c	c	5	const	1	100.00	Using index
+1	SIMPLE	t3	NULL	const	c	c	5	const	1	100.00	NULL
 1	SIMPLE	t1	NULL	ref	c	c	5	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,'1' AS `a`,'-1' AS `b`,'-1' AS `c` from `test`.`t1` join `test`.`t3` where (`test`.`t1`.`c` = -(1))
 # select_type=PRIMARY, type=index,ALL
 select * from t1 where b in (select c from t3);
 a	b	c
+1	-1	-1
+1	-1	-1
 2	-2	-2
-1	-1	-1
-1	-1	-1
 3	-3	-3
 explain select * from t1 where b in (select c from t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -95,21 +95,21 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 # select_type=PRIMARY, type=range,ref
 select * from t1 where c in (select c from t3 where c between -2 and -1);
 a	b	c
+1	-1	-1
+1	-1	-1
 2	-2	-2
-1	-1	-1
-1	-1	-1
 explain select * from t1 where c in (select c from t3 where c between -2 and -1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	range	c	c	5	NULL	2	100.00	Using where; Using index
-1	SIMPLE	t1	NULL	ALL	c	NULL	NULL	NULL	5	60.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ref	c	c	5	test.t3.c	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t3` join `test`.`t1` where ((`test`.`t1`.`c` = `test`.`t3`.`c`) and (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))))
 # select_type=UNION, type=system
 # select_type=UNION RESULT, type=<union1,2>
 select * from t1 union select * from t2;
 a	b	c
-2	-2	-2
 1	-1	-1
+2	-2	-2
 3	-3	-3
 NULL	NULL	NULL
 explain select * from t1 union select * from t2;
@@ -122,9 +122,9 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 # select_type=DERIVED, type=system
 select * from (select a,b,c from t1) as t11;
 a	b	c
+1	-1	-1
+1	-1	-1
 2	-2	-2
-1	-1	-1
-1	-1	-1
 3	-3	-3
 NULL	NULL	NULL
 explain select * from (select a,b,c from t1) as t11;
@@ -178,41 +178,41 @@ Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`c`) AS `count(distin
 # SELECT * FROM tbl_name WHERE <gcol expr>
 select * from t3 where c >= -2;
 a	b	c
-2	-2	-2
 1	-1	-1
+2	-2	-2
 explain select * from t3 where c >= -2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	range	c	c	5	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	range	c	c	5	NULL	2	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` >= <cache>(-(2)))
 # SELECT * FROM tbl_name WHERE <non-gcol expr>
 select * from t3 where a between 1 and 2;
 a	b	c
-2	-2	-2
 1	-1	-1
+2	-2	-2
 explain select * from t3 where a between 1 and 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	PRIMARY	c	5	NULL	3	66.67	Using where; Using index
+1	SIMPLE	t3	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`a` between 1 and 2)
 # SELECT * FROM tbl_name WHERE <non-indexed gcol expr>
 select * from t3 where b between -2 and -1;
 a	b	c
-2	-2	-2
 1	-1	-1
+2	-2	-2
 explain select * from t3 where b between -2 and -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	NULL	c	5	NULL	3	33.33	Using where; Using index
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`b` between <cache>(-(2)) and <cache>(-(1)))
 # SELECT * FROM tbl_name WHERE <indexed gcol expr>
 select * from t3 where c between -2 and -1;
 a	b	c
-2	-2	-2
 1	-1	-1
+2	-2	-2
 explain select * from t3 where c between -2 and -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	range	c	c	5	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	range	c	c	5	NULL	2	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1)))
 # SELECT * FROM tbl_name WHERE <non-gcol expr> ORDER BY <non-indexed gcol>
@@ -222,7 +222,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where a between 1 and 2 order by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	PRIMARY	c	5	NULL	3	66.67	Using where; Using index; Using filesort
+1	SIMPLE	t3	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`a` between 1 and 2) order by `test`.`t3`.`b`
 # bug#20022189: WL411:DEBUG ASSERT AT FIELD_LONG::VAL_INT IN SQL/FIELD.CC
@@ -233,7 +233,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where a between 1 and 2 order by c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	PRIMARY	c	5	NULL	3	66.67	Using where; Using index
+1	SIMPLE	t3	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`a` between 1 and 2) order by `test`.`t3`.`c`
 # bug#20022189: WL411:DEBUG ASSERT AT FIELD_LONG::VAL_INT IN SQL/FIELD.CC
@@ -265,7 +265,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where a between 1 and 2 order by c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	PRIMARY	c	5	NULL	3	66.67	Using where; Using index
+1	SIMPLE	t3	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`a` between 1 and 2) order by `test`.`t3`.`c`
 # SELECT * FROM tbl_name WHERE <non-indexed gcol expr> ORDER BY <non-gcol>
@@ -285,7 +285,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where b between -2 and -1 order by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	NULL	c	5	NULL	3	33.33	Using where; Using index; Using filesort
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`b` between <cache>(-(2)) and <cache>(-(1))) order by `test`.`t3`.`b`
 # SELECT * FROM tbl_name WHERE <indexed gcol expr> ORDER BY <non-indexed gcol>
@@ -295,7 +295,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where c between -2 and -1 order by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	range	c	c	5	NULL	2	100.00	Using where; Using index; Using filesort
+1	SIMPLE	t3	NULL	range	c	c	5	NULL	2	100.00	Using index condition; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))) order by `test`.`t3`.`b`
 # SELECT * FROM tbl_name WHERE <non-indexed gcol expr> ORDER BY <indexed gcol>
@@ -305,7 +305,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where b between -2 and -1 order by c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	NULL	c	5	NULL	3	33.33	Using where; Using index
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`b` between <cache>(-(2)) and <cache>(-(1))) order by `test`.`t3`.`c`
 # SELECT * FROM tbl_name WHERE <indexed gcol expr> ORDER BY <indexed gcol>
@@ -315,19 +315,19 @@ a	b	c
 1	-1	-1
 explain select * from t3 where c between -2 and -1 order by c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	range	c	c	5	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	range	c	c	5	NULL	2	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))) order by `test`.`t3`.`c`
 # SELECT sum(<non-indexed gcol>) FROM tbl_name GROUP BY <non-indexed gcol>
 select sum(b) from t1 group by b;
 sum(b)
-NULL
+-2
+-2
 -3
--2
--2
+NULL
 explain select sum(b) from t1 group by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `sum(b)` from `test`.`t1` group by `test`.`t1`.`b`
 # SELECT sum(<indexed gcol>) FROM tbl_name GROUP BY <indexed gcol>
@@ -357,15 +357,16 @@ Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `sum(b)` from `test`.`t1
 # SELECT sum(<indexed gcol>) FROM tbl_name GROUP BY <non-indexed gcol>
 select sum(c) from t1 group by b;
 sum(c)
-NULL
+-2
+-2
 -3
--2
--2
+NULL
 explain select sum(c) from t1 group by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select sum(`test`.`t1`.`c`) AS `sum(c)` from `test`.`t1` group by `test`.`t1`.`b`
+drop table t1;
 #
 # Bug#20241655: WL411:FAILING ASSERTION ASSERTION 
 # 
@@ -456,6 +457,1199 @@ ORDER BY alias1.col_time_key, alias1.col_datetime_key, alias1.pk ASC;
 field1	field2
 NULL	0
 DROP TABLE A,C;
+#
+# Bug#20566325: WL8149: INNODB: FAILING ASSERTION:
+#               COL_NR < TABLE->N_DEF
+#
+CREATE TABLE A (
+pk INTEGER AUTO_INCREMENT,
+col_varchar_nokey VARCHAR(1) NOT NULL,
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk)
+);
+INSERT /*! IGNORE */ INTO A (col_varchar_nokey) VALUES ('k');
+CREATE TABLE CC (
+pk INTEGER AUTO_INCREMENT,
+col_datetime_nokey DATETIME /*! NULL */,
+col_time_nokey TIME /*! NULL */,
+col_time_key TIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime_nokey, col_time_nokey)),
+col_varchar_nokey VARCHAR(1) /*! NULL */,
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk));
+INSERT INTO CC (col_time_nokey,col_datetime_nokey,col_varchar_nokey) VALUES
+('13:06:13.033877','1900-01-01 00:00:00', 'p'),
+(NULL, '2007-05-25 11:58:54.015689', 'g');
+SELECT
+table1.col_time_key AS field1,
+'z' AS field2
+FROM
+(CC AS table1 LEFT OUTER JOIN (A AS table2 STRAIGHT_JOIN CC AS table3 ON
+(table3.col_varchar_key = table2.col_varchar_nokey)) ON
+(table3.col_varchar_key = table2.col_varchar_nokey))
+WHERE
+table2.pk != 6
+AND table1.col_varchar_key IN ('l', 's' , 'b' )
+AND table3.col_varchar_key != table1.col_varchar_key
+ORDER BY table1.col_varchar_key , field1 , field2;
+field1	field2
+DROP TABLE A,CC;
+#
+# Bug#20573302: WL8149: SEGV IN HA_INNOBASE::
+#               BUILD_TEMPLATE AT INNOBASE/HANDLER/HA_INNODB.CC:665
+#
+CREATE TABLE c (
+pk INTEGER AUTO_INCREMENT,
+col_int_nokey INTEGER NOT NULL,
+col_int_key INTEGER GENERATED ALWAYS AS (col_int_nokey) VIRTUAL,
+col_date_nokey DATE NOT NULL,
+col_date_key DATE GENERATED ALWAYS AS (DATE_ADD(col_date_nokey,interval 30 day)) VIRTUAL,
+col_datetime_nokey DATETIME NOT NULL,
+col_time_nokey TIME NOT NULL,
+col_datetime_key DATETIME GENERATED ALWAYS AS (ADDTIME(col_datetime_nokey, col_time_nokey)),
+col_time_key TIME GENERATED ALWAYS AS (ADDTIME(col_datetime_nokey, col_time_nokey)),
+col_varchar_nokey VARCHAR(1) NOT NULL,
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS (CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk),
+KEY (col_int_key),
+KEY (col_varchar_key),
+KEY (col_date_key),
+KEY (col_time_key),
+KEY (col_datetime_key),
+KEY (col_int_key, col_varchar_key),
+KEY (col_int_key, col_varchar_key, col_date_key,
+col_time_key, col_datetime_key));
+INSERT /*! IGNORE */ INTO c (
+col_int_nokey,
+col_date_nokey,
+col_time_nokey,
+col_datetime_nokey,
+col_varchar_nokey
+) VALUES
+(1, '2009-12-01', '00:21:38.058143', '2007-05-28 00:00:00', 'c'),
+(8, '2004-12-17', '04:08:02.046897', '2009-07-25 09:21:20.064099', 'm'),
+(9, '2000-03-14', '16:25:11.040240', '2002-01-16 00:00:00', 'd'),
+(24, '2000-10-08', '10:14:58.018534', '2006-10-12 04:32:53.031976', 'd'),
+(6, '2006-05-25', '19:47:59.011283', '2001-02-15 03:08:38.035426', 'y'),
+(1, '2008-01-23', '11:14:24.032949', '2004-10-02 20:31:15.022553', 't'),
+(6, '2007-06-18', NULL, '2002-08-20 22:48:00.035785', 'd'),
+(2, '2002-10-13', '00:00:00', '1900-01-01 00:00:00', 's'),
+(4, '1900-01-01', '15:57:25.019666', '2005-08-15 00:00:00', 'r'),
+(8, NULL, '07:05:51.006712', '1900-01-01 00:00:00', 'm'),
+(4, '2006-03-09', '19:22:21.057406', '2008-05-16 08:09:06.002924', 'b'),
+(4, '2001-06-05', '03:53:16.001370', '2001-01-20 12:47:23.022022', 'x'),
+(7, '2006-05-28', '09:16:38.034570', '2008-07-02 00:00:00', 'g'),
+(4, '2001-04-19', '15:37:26.028315', '1900-01-01 00:00:00', 'p'),
+(1, '1900-01-01', '00:00:00', '2002-12-08 11:34:58.001571', 'q'),
+(9, '2004-08-20', '05:03:03.047452', '1900-01-01 00:00:00', 'w'),
+(4, '2004-10-10', '02:59:24.063764', '1900-01-01 00:00:00', 'd'),
+(8, '2000-04-02', '00:01:58.064243', '2002-08-25 20:35:06.064634', 'e'),
+(4, '2006-11-02', '00:00:00', '2001-10-22 11:13:24.048128', 'b'),
+(8, '2009-01-28', '02:20:16.024931', '2003-03-12 02:00:34.029335', 'y');
+Warnings:
+Warning	1048	Column 'col_time_nokey' cannot be null
+Warning	1048	Column 'col_date_nokey' cannot be null
+CREATE TABLE cc (
+pk INTEGER AUTO_INCREMENT,
+col_int_nokey INTEGER NOT NULL,
+col_int_key INTEGER GENERATED ALWAYS AS (col_int_nokey) VIRTUAL,
+col_date_nokey DATE NOT NULL,
+col_date_key DATE GENERATED ALWAYS AS (DATE_ADD(col_date_nokey,interval 30 day)) VIRTUAL,
+col_datetime_nokey DATETIME NOT NULL,
+col_time_nokey TIME NOT NULL,
+col_datetime_key DATETIME GENERATED ALWAYS AS (ADDTIME(col_datetime_nokey, col_time_nokey)),
+col_time_key TIME GENERATED ALWAYS AS (ADDTIME(col_datetime_nokey, col_time_nokey)),
+col_varchar_nokey VARCHAR(1) NOT NULL,
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS (CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk),
+KEY (col_int_key),
+KEY (col_varchar_key),
+KEY (col_date_key),
+KEY (col_time_key),
+KEY (col_datetime_key),
+KEY (col_int_key, col_varchar_key),
+KEY (col_int_key, col_varchar_key, col_date_key,
+col_time_key, col_datetime_key));
+INSERT /*! IGNORE */ INTO cc (
+col_int_nokey,
+col_date_nokey,
+col_time_nokey,
+col_datetime_nokey,
+col_varchar_nokey
+) VALUES
+(0, '2003-02-06', '22:02:09.059926', '2003-08-07 14:43:09.011144', 'x'),
+(0, '2005-04-16', '19:33:15.014160', '2005-12-11 00:00:00', 'n'),
+(1, '2005-07-23', '22:03:16.058787', '2005-12-26 20:48:07.043628', 'w'),
+(7, '2001-11-15', '06:31:23.027263', '2008-06-12 06:41:21.012493', 's'),
+(0, '2006-03-24', '02:19:08.013275', '2007-10-11 18:46:28.030000', 'a'),
+(4, '2008-07-10', NULL, '2006-04-04 22:22:40.057947', 'd'),
+(1, '2009-12-07', NULL, '2002-08-10 20:52:58.035137', 'w'),
+(1, '2008-05-01', '10:28:01.038587', '2008-10-03 11:17:23.005299', 'j'),
+(1, '2008-06-22', '00:00:00', '2009-01-06 20:11:01.034339', 'm'),
+(4, '2001-11-11', '15:02:50.048785', '2009-09-19 00:00:00', 'k'),
+(7, '2000-12-21', '05:29:13.012729', '2007-09-02 12:14:27.029187', 't'),
+(4, '2007-09-03', '23:45:33.048507', '2003-09-26 00:00:00', 'k'),
+(2, '2003-02-18', '19:10:53.057455', '2001-11-18 18:10:16.063189', 'e'),
+(0, '2008-12-01', '01:45:27.037313', '2005-02-15 04:08:17.015554', 'i'),
+(1, '2008-10-18', '03:56:03.060218', '2009-06-13 23:04:40.013006', 't'),
+(91, '2004-08-28', '12:43:17.023797', '1900-01-01 00:00:00', 'm'),
+(6, '2006-10-05', '13:33:46.053634', '2005-03-20 02:48:24.045653', 'z'),
+(3, '2003-05-16', NULL, '2002-03-16 11:47:27.045297', 'c'),
+(6, '2008-10-10', NULL, '2000-05-22 00:00:00', 'i'),
+(8, '2002-01-19', '05:18:40.006865', '2009-02-12 00:00:00', 'v');
+Warnings:
+Warning	1048	Column 'col_time_nokey' cannot be null
+EXPLAIN
+SELECT subquery2_t2.col_int_key AS subquery2_field1
+FROM (c AS subquery2_t1 RIGHT JOIN
+(c AS subquery2_t2 LEFT JOIN cc AS subquery2_t3 ON
+(subquery2_t3.col_int_nokey = subquery2_t2.col_int_key )) ON
+(subquery2_t3.col_varchar_key = subquery2_t2.col_varchar_key))
+ORDER BY subquery2_field1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	subquery2_t2	NULL	index	NULL	col_int_key_2	16	NULL	#	#	Using index; Using temporary; Using filesort
+1	SIMPLE	subquery2_t3	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	subquery2_t1	NULL	index	NULL	col_date_key	4	NULL	#	#	Using where; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`subquery2_t2`.`col_int_key` AS `subquery2_field1` from `test`.`c` `subquery2_t2` left join `test`.`cc` `subquery2_t3` on((`test`.`subquery2_t3`.`col_int_nokey` = `test`.`subquery2_t2`.`col_int_key`)) left join `test`.`c` `subquery2_t1` on((`test`.`subquery2_t3`.`col_varchar_key` = `test`.`subquery2_t2`.`col_varchar_key`)) where 1 order by `subquery2_field1`
+SELECT subquery2_t2.col_int_key AS subquery2_field1
+FROM (c AS subquery2_t1 RIGHT JOIN
+(c AS subquery2_t2 LEFT JOIN cc AS subquery2_t3 ON
+(subquery2_t3.col_int_nokey = subquery2_t2.col_int_key )) ON
+(subquery2_t3.col_varchar_key = subquery2_t2.col_varchar_key))
+ORDER BY subquery2_field1;
+subquery2_field1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+2
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+6
+6
+6
+6
+7
+7
+8
+8
+8
+8
+9
+9
+24
+SELECT subquery2_t2.col_int_key AS subquery2_field1
+FROM (c AS subquery2_t1 RIGHT JOIN
+(c AS subquery2_t2 LEFT JOIN cc AS subquery2_t3 ON
+(subquery2_t3.col_int_nokey = subquery2_t2.col_int_key )) ON
+(subquery2_t3.col_varchar_key = subquery2_t2.col_varchar_key))
+ORDER BY subquery2_field1;
+subquery2_field1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+2
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+6
+6
+6
+6
+7
+7
+8
+8
+8
+8
+9
+9
+24
+DROP TABLE c,cc;
+#
+# Bug#2081065: WL8149:RESULT DIFF SEEN FOR SIMPLE
+#              RANGE QUERIES WITH ORDER BY
+#
+CREATE TABLE cc (
+pk INTEGER AUTO_INCREMENT,
+col_int_nokey INTEGER NOT NULL,
+col_int_key INTEGER GENERATED ALWAYS AS
+(col_int_nokey + col_int_nokey) VIRTUAL,
+PRIMARY KEY (pk),
+KEY (col_int_key)
+);
+INSERT INTO cc (col_int_nokey) VALUES (0),(1),(7),(0),(4),(5);
+EXPLAIN SELECT pk FROM cc WHERE col_int_key > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	cc	NULL	range	col_int_key	col_int_key	5	NULL	#	#	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`cc`.`pk` AS `pk` from `test`.`cc` where (`test`.`cc`.`col_int_key` > 3)
+SELECT pk FROM cc WHERE col_int_key > 3;
+pk
+5
+6
+3
+EXPLAIN SELECT pk FROM cc WHERE col_int_key > 3 ORDER BY 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	cc	NULL	range	col_int_key	col_int_key	5	NULL	#	#	Using where; Using index; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`cc`.`pk` AS `pk` from `test`.`cc` where (`test`.`cc`.`col_int_key` > 3) order by `test`.`cc`.`pk`
+SELECT pk FROM cc WHERE col_int_key > 3 ORDER BY 1;
+pk
+3
+5
+6
+DROP TABLE cc;
+#
+# Bug#20849676 :WL8149:ASSERTION `!TABLE || (!TABLE->READ_SET
+#  || BITMAP_IS_SET(TABLE->READ_SET
+#
+CREATE TABLE c (
+pk INTEGER AUTO_INCREMENT,
+col_int_nokey INTEGER NOT NULL,
+col_int_key INTEGER GENERATED ALWAYS AS
+(col_int_nokey + col_int_nokey) VIRTUAL,
+col_varchar_nokey VARCHAR(1) NOT NULL,
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk),
+KEY (col_int_key),
+KEY (col_varchar_key),
+KEY (col_int_key, col_varchar_key)
+) ;
+INSERT INTO c (col_int_nokey, col_varchar_nokey) VALUES
+(1, 'c'),(8, 'm'),(9, 'd'),(24, 'd'),(6, 'y'),(1, 't'),(6, 'd'),
+(2, 'r'),(8, 'm'),(4, 'b'),(4, 'x'),(7, 'g'),(4, 'p'),(1, 'q'),
+(9, 'w'),(4, 'd'),(8, 'e'),(4, 'b'),(8, 'y');
+CREATE TABLE a (
+pk INTEGER AUTO_INCREMENT,
+col_datetime_nokey DATETIME NOT NULL,
+col_time_nokey TIME NOT NULL,
+col_datetime_key DATETIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime_nokey, col_time_nokey)),
+col_time_key TIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime_nokey, col_time_nokey)),
+col_varchar_nokey VARCHAR(1) NOT NULL,
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk),
+KEY (col_varchar_key),
+KEY (col_time_key),
+KEY (col_datetime_key),
+KEY (col_varchar_key, col_time_key, col_datetime_key)
+);
+INSERT INTO a (
+col_time_nokey,
+col_datetime_nokey,
+col_varchar_nokey) VALUES
+('04:08:02.046897', '2001-11-04 19:07:55.051133', 'k');
+ANALYZE TABLE a, c;
+Table	Op	Msg_type	Msg_text
+test.a	analyze	status	OK
+test.c	analyze	status	OK
+EXPLAIN
+SELECT
+table1.pk AS field1 ,
+table1.col_datetime_key AS field2
+FROM
+( a AS table1 LEFT JOIN ( ( c AS table2 STRAIGHT_JOIN (  SELECT
+SUBQUERY1_t1.* FROM ( c AS SUBQUERY1_t1 INNER JOIN ( c AS SUBQUERY1_t2
+STRAIGHT_JOIN c AS SUBQUERY1_t3 ON (SUBQUERY1_t3.col_varchar_key =
+SUBQUERY1_t2.col_varchar_key  ) )
+ON (SUBQUERY1_t3.pk = SUBQUERY1_t2.col_int_key
+OR SUBQUERY1_t1.col_int_key <> 1 ) )
+WHERE SUBQUERY1_t2.pk >= 9 ) AS table3
+ON (table3.col_int_key = table2.col_int_key  ) ) )
+ON (table3.col_int_nokey = table2.pk  ) )
+GROUP BY field1, field2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	table1	NULL	index	col_datetime_key,col_varchar_key_2	col_datetime_key	6	NULL	#	100.00	Using index; Using temporary
+1	PRIMARY	table2	NULL	index	PRIMARY,col_int_key,col_int_key_2	col_int_key	5	NULL	#	100.00	Using index
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	test.table2.pk,test.table2.col_int_key	#	100.00	NULL
+2	DERIVED	SUBQUERY1_t2	NULL	range	PRIMARY,col_int_key,col_varchar_key,col_int_key_2	PRIMARY	4	NULL	#	100.00	Using where
+2	DERIVED	SUBQUERY1_t3	NULL	ref	PRIMARY,col_varchar_key	col_varchar_key	11	test.SUBQUERY1_t2.col_varchar_key	#	100.00	Using index
+2	DERIVED	SUBQUERY1_t1	NULL	ALL	col_int_key,col_int_key_2	NULL	NULL	NULL	#	100.00	Using where; Using join buffer (Block Nested Loop)
+SELECT
+table1.pk AS field1 ,
+table1.col_datetime_key AS field2
+FROM
+( a AS table1 LEFT JOIN ( ( c AS table2 STRAIGHT_JOIN (  SELECT
+SUBQUERY1_t1.* FROM ( c AS SUBQUERY1_t1 INNER JOIN ( c AS SUBQUERY1_t2
+STRAIGHT_JOIN c AS SUBQUERY1_t3 ON (SUBQUERY1_t3.col_varchar_key =
+SUBQUERY1_t2.col_varchar_key  ) )
+ON (SUBQUERY1_t3.pk = SUBQUERY1_t2.col_int_key
+OR SUBQUERY1_t1.col_int_key <> 1 ) )
+WHERE SUBQUERY1_t2.pk >= 9 ) AS table3
+ON (table3.col_int_key = table2.col_int_key  ) ) )
+ON (table3.col_int_nokey = table2.pk  ) )
+GROUP BY field1, field2;
+field1	field2
+1	2001-11-04 23:15:57
+DROP TABLE IF EXISTS c,a;
+CREATE TABLE c (
+col_int_nokey INTEGER NOT NULL,
+col_int_key INTEGER GENERATED ALWAYS AS 
+(col_int_nokey + col_int_nokey) VIRTUAL,
+col_varchar_nokey VARCHAR(1) NOT NULL,
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+KEY (col_int_key),
+KEY (col_int_key, col_varchar_key)
+) ;
+INSERT INTO c (
+col_int_nokey,
+col_varchar_nokey
+) VALUES (1, 'c'),(8, 'm'),(9, 'd'),(24, 'd'),(6, 'y'),(1, 't'),
+(6, 'd'),(2, 's'),(4, 'r'),(8, 'm'),(4, 'b'),(4, 'x'),(7, 'g'),(4, 'p'),
+(1, 'q'),(9, 'w'),(4, 'd'),(8, 'e'),(4, 'b'),(8, 'y');
+CREATE TABLE cc (
+col_int_nokey INTEGER,
+col_int_key INTEGER GENERATED ALWAYS AS
+(col_int_nokey + col_int_nokey) VIRTUAL,
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+KEY (col_int_key),
+KEY (col_varchar_key),
+KEY (col_int_key, col_varchar_key),
+KEY (col_int_key, col_int_nokey),
+KEY (col_varchar_key, col_varchar_nokey)
+);
+INSERT INTO cc (
+col_int_nokey,
+col_varchar_nokey
+) VALUES (8, 'p'),(9, 'g'),(9, 'i'),(4, 'p'),(7, 'h'),(1, 'e'),(8, 'e'),(6, 'u'),
+(6, 'j'),(6, 'e'),(1, 'z'),(227, 'w'),(NULL, 't'),(9, 'i'),(1, 'i'),(8, 'i'),
+(5, 'b'),(8,'m'),(7, 'j'),(2, 'v');
+ANALYZE TABLE c, cc;
+Table	Op	Msg_type	Msg_text
+test.c	analyze	status	OK
+test.cc	analyze	status	OK
+EXPLAIN SELECT
+alias2 . col_varchar_key AS field1
+FROM ( cc AS alias1 , cc AS alias2 )
+WHERE
+( alias2 . col_int_key , alias1 . col_int_nokey )
+NOT IN
+(
+SELECT
+DISTINCT  SQ1_alias2 . col_int_nokey AS SQ1_field1 ,
+SQ1_alias1 . col_int_key AS SQ1_field2
+FROM ( cc AS SQ1_alias1 , c AS SQ1_alias2 )
+GROUP BY SQ1_field1 , SQ1_field2
+)
+GROUP BY field1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	alias1	NULL	index	NULL	col_int_key_3	10	NULL	#	100.00	Using index; Using temporary
+1	PRIMARY	alias2	NULL	index	col_varchar_key,col_int_key_2,col_varchar_key_2	col_int_key_2	16	NULL	#	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	SQ1_alias1	NULL	ref_or_null	col_int_key,col_int_key_2,col_int_key_3	col_int_key	5	func	#	100.00	Using where; Using index; Full scan on NULL key
+2	DEPENDENT SUBQUERY	SQ1_alias2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where; Using join buffer (Block Nested Loop)
+SELECT
+alias2 . col_varchar_key AS field1
+FROM ( cc AS alias1 , cc AS alias2 )
+WHERE
+( alias2 . col_int_key , alias1 . col_int_nokey )
+NOT IN
+(
+SELECT
+DISTINCT  SQ1_alias2 . col_int_nokey AS SQ1_field1 ,
+SQ1_alias1 . col_int_key AS SQ1_field2
+FROM ( cc AS SQ1_alias1 , c AS SQ1_alias2 )
+GROUP BY SQ1_field1 , SQ1_field2
+)
+GROUP BY field1;
+field1
+bb
+ee
+jj
+uu
+hh
+ii
+mm
+pp
+gg
+ww
+DROP TABLE IF EXISTS c,cc;
+SET @save_old_sql_mode= @@sql_mode;
+SET sql_mode="";
+CREATE TABLE d (
+col_int int(11) DEFAULT NULL,
+col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_key int(11) GENERATED ALWAYS AS (col_int+col_int) VIRTUAL,
+col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 GENERATED ALWAYS AS (REPEAT(SUBSTRING(col_varchar_10_utf8, -1), 5)) VIRTUAL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
+KEY cover_key1 (col_int_key, col_varchar_10_utf8_key)
+);
+INSERT INTO d (col_int, col_varchar_10_utf8) VALUES  ('qhlhtrovam',1),('how',2),('htrovamzqr',3),('rovamzqrdc',4),('well',5),('g',6),('rdcenchyhu',7),('want',8);
+SELECT table1.pk AS field1 FROM d AS table1 LEFT JOIN d AS table2 ON table1.col_varchar_10_utf8_key = table2.col_varchar_10_utf8_key WHERE table1.col_int_key IS NULL GROUP BY table1.pk ;
+field1
+DROP TABLE d;
+#
+# Bug#21153237: WL8149: QUERIES USING FILESORT
+#   ON VIRTUAL GC HAVING INDEX GIVES WRONG RESULTS
+#
+CREATE TABLE j (
+col_int int(11),
+pk int(11) NOT NULL,
+col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8 GENERATED ALWAYS AS 
+(col_varchar_10_utf8) VIRTUAL,
+PRIMARY KEY (pk),
+KEY cover_key1 (col_int, col_varchar_255_utf8_key));
+INSERT INTO j(col_int, pk, col_varchar_10_utf8) VALUES(9, 1, '951910400'),
+(-1934295040, 2, '1235025920'),(-584581120, 3, '-1176633344'),(3, 4, '1074462720');
+EXPLAIN SELECT col_varchar_255_utf8_key FROM j ORDER BY 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	j	NULL	index	NULL	cover_key1	773	NULL	#	100.00	Using index; Using filesort
+SELECT col_varchar_255_utf8_key FROM j ORDER BY col_varchar_255_utf8_key;
+col_varchar_255_utf8_key
+-117663334
+1074462720
+1235025920
+951910400
+DROP TABLE j;
+set sql_mode= @save_old_sql_mode;
+CREATE TABLE cc (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_nokey int(11) NOT NULL,
+col_int_key int(11) GENERATED ALWAYS AS (col_int_nokey) STORED,
+col_date_nokey date NOT NULL,
+col_date_key date GENERATED ALWAYS AS (col_date_nokey) STORED,
+col_datetime_nokey datetime NOT NULL,
+col_time_nokey time NOT NULL,
+col_datetime_key datetime GENERATED ALWAYS AS (col_datetime_nokey)STORED,
+col_time_key time GENERATED ALWAYS AS (col_time_nokey) STORED,
+col_varchar_nokey varchar(1) NOT NULL,
+col_varchar_key varchar(1) GENERATED ALWAYS AS (col_varchar_nokey)STORED,
+PRIMARY KEY (pk),
+KEY gc_idx1 (col_int_key),
+KEY gc_idx2 (col_varchar_key),
+KEY gc_idx3 (col_date_key),
+KEY gc_idx4 (col_time_key),
+KEY gc_idx5 (col_datetime_key),
+KEY gc_idx6 (col_varchar_key,col_int_key),
+KEY gc_idx7 (col_date_key,col_datetime_key,col_time_key),
+KEY gc_idx8(col_int_key,col_varchar_key,col_date_key,col_time_key,
+col_datetime_key)
+);
+INSERT INTO cc (
+col_int_nokey,
+col_date_nokey,
+col_time_nokey,
+col_datetime_nokey,
+col_varchar_nokey
+) VALUES (1, '2009-12-01', '00:21:38.058143', '2007-05-28 00:00:00', 'c'),
+(8, '2004-12-17', '04:08:02.046897', '2009-07-25 09:21:20.064099', 'm'),
+(9, '2000-03-14', '16:25:11.040240', '2002-01-16 00:00:00', 'd'),
+(24, '2000-10-08', '10:14:58.018534', '2006-10-12 04:32:53.031976', 'd'),
+(6, '2006-05-25', '19:47:59.011283', '2001-02-15 03:08:38.035426', 'y'),
+(1, '2008-01-23', '11:14:24.032949', '2004-10-02 20:31:15.022553', 't');
+SET @save_old_sql_mode= @@sql_mode;
+SET sql_mode="";
+SELECT DISTINCT alias1.col_varchar_key AS field1
+FROM ( cc AS alias1 STRAIGHT_JOIN
+(( cc AS alias2 STRAIGHT_JOIN cc AS alias3 ON
+(alias3.col_varchar_key > alias2.col_varchar_key ) ) ) ON
+(( alias3 .pk >= alias2.col_int_nokey ) AND
+(alias3 .pk >= alias2.col_int_nokey ) ))
+WHERE alias1.col_varchar_key <= 'v'
+GROUP BY field1 HAVING field1 = 91
+ORDER BY field1, alias1.col_date_key, field1 ASC, field1 DESC,
+alias1.col_time_key ASC, field1;
+field1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 't'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'd'
+DROP TABLE cc;
+SET sql_mode=@save_old_sql_mode;
+#
+# Bug#20797941: WL8149:ASSERTION !TABLE ||
+#  (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET
+#
+CREATE TABLE t(a int, b int as(a+1));
+INSERT INTO t(a) values(1),(2);
+SELECT * FROM t ORDER BY b;
+a	b
+1	2
+2	3
+DROP TABLE t;
+#
+# Testing a few index-based accesses on the virtual column
+#
+CREATE TABLE t1 (
+id int(11) NOT NULL,
+b int(11) GENERATED ALWAYS AS (id+1) VIRTUAL NOT NULL,
+UNIQUE KEY (b) );
+INSERT INTO t1 (id) VALUES(NULL);
+ERROR 23000: Column 'id' cannot be null
+INSERT INTO t1 VALUES(2,3);
+ERROR HY000: The value specified for generated column 'b' in table 't1' is not allowed.
+INSERT INTO t1 (id) VALUES(2),(3);
+EXPLAIN SELECT * FROM t1 FORCE INDEX(b) WHERE b=3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	b	b	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '2' AS `id`,'3' AS `b` from `test`.`t1` FORCE INDEX (`b`) where 1
+EXPLAIN SELECT * FROM t1 AS t2 STRAIGHT_JOIN t1 FORCE INDEX(b) WHERE t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	b	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	eq_ref	b	b	4	test.t2.b	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`b` AS `b` from `test`.`t1` `t2` straight_join `test`.`t1` FORCE INDEX (`b`) where (`test`.`t1`.`b` = `test`.`t2`.`b`)
+EXPLAIN SELECT b FROM t1 FORCE INDEX(b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	b	4	NULL	2	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (`b`)
+INSERT INTO t1 (id) VALUES(4),(5),(6),(7),(8),(9),(10);
+EXPLAIN SELECT b FROM t1 FORCE INDEX(b) WHERE b BETWEEN 1 AND 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	b	b	4	NULL	3	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (`b`) where (`test`.`t1`.`b` between 1 and 5)
+EXPLAIN SELECT * FROM t2 AS t1 WHERE b NOT IN (SELECT b FROM t1 FORCE INDEX(b));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	unique_subquery	b	b	4	func	1	100.00	Using where; Using index; Full scan on NULL key
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t2` `t1` where (not(<in_optimizer>(`test`.`t1`.`b`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`b`) in t1 on b where <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`b`) = `test`.`t1`.`b`), true))))))
+DROP TABLE t1;
+DROP TABLE t2, t3;
+#
+# Bug#21317507:GC: STORED COLUMN REJECTED, BUT VIRTUAL IS ACCEPTED
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(2147483647);
+ALTER TABLE t1 ADD INDEX idx(a), WITH VALIDATION;
+ERROR HY000: Incorrect usage of ALTER and WITH VALIDATION
+ALTER TABLE t1 ADD COLUMN b SMALLINT AS (a) VIRTUAL;
+ALTER TABLE t1 DROP COLUMN b;
+ALTER TABLE t1 ADD COLUMN c SMALLINT AS (a) VIRTUAL, WITH VALIDATION;
+ERROR 22003: Out of range value for column 'c' at row 1
+ALTER TABLE t1 ADD COLUMN d SMALLINT AS (a) VIRTUAL, WITHOUT VALIDATION;
+ALTER TABLE t1 DROP COLUMN d;
+ALTER TABLE t1 ADD COLUMN c INT AS(a) VIRTUAL;
+ALTER TABLE t1 CHANGE c c SMALLINT AS(a) VIRTUAL, WITH VALIDATION;
+ERROR 22003: Out of range value for column 'c' at row 1
+ALTER TABLE t1 CHANGE c c SMALLINT AS(a) VIRTUAL, WITHOUT VALIDATION;
+ERROR 22003: Out of range value for column 'c' at row 1
+ALTER TABLE t1 MODIFY c TINYINT AS(a) VIRTUAL, WITH VALIDATION;
+ERROR 22003: Out of range value for column 'c' at row 1
+ALTER TABLE t1 MODIFY c TINYINT AS(a) VIRTUAL, WITHOUT VALIDATION;
+ERROR 22003: Out of range value for column 'c' at row 1
+SELECT * FROM t1;
+a	c
+2147483647	2147483647
+DROP TABLE t1;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(2147483647);
+ALTER TABLE t1 ADD COLUMN h INT AS (a) VIRTUAL, WITHOUT VALIDATION;
+ALTER TABLE t1 CHANGE h i INT AS (a) VIRTUAL, WITH VALIDATION,
+ALGORITHM=INPLACE;
+Got one of the listed errors
+ALTER TABLE t1 CHANGE h i INT AS (a) VIRTUAL, WITHOUT VALIDATION,
+ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD COLUMN b SMALLINT AS (a) VIRTUAL, WITH VALIDATION,
+ALGORITHM=INPLACE, LOCK=NONE;
+Got one of the listed errors
+ALTER TABLE t1 ADD COLUMN c SMALLINT AS (a) VIRTUAL, WITH VALIDATION,
+ALGORITHM=INPLACE, LOCK=SHARED;
+Got one of the listed errors
+ALTER TABLE t1 ADD COLUMN d SMALLINT AS (a) VIRTUAL, WITH VALIDATION,
+ALGORITHM=INPLACE, LOCK=EXCLUSIVE;
+Got one of the listed errors
+Shouldn't fail on Innodb
+ALTER TABLE t1 ADD COLUMN e SMALLINT AS (a) VIRTUAL, WITHOUT VALIDATION,
+ALGORITHM=INPLACE, LOCK=NONE;
+Shouldn't fail on Innodb
+ALTER TABLE t1 ADD COLUMN f SMALLINT AS (a) VIRTUAL, WITHOUT VALIDATION,
+ALGORITHM=INPLACE, LOCK=SHARED;
+Shouldn't fail on Innodb
+ALTER TABLE t1 ADD COLUMN g SMALLINT AS (a) VIRTUAL, WITHOUT VALIDATION,
+ALGORITHM=INPLACE, LOCK=EXCLUSIVE;
+DROP TABLE t1;
+#
+# Bug#21980430 GCOLS: CRASHING
+#
+CREATE TABLE t (
+a INT,
+b BLOB,
+c BLOB GENERATED ALWAYS AS (a+b) VIRTUAL,
+UNIQUE KEY i0008 (a)
+);
+INSERT INTO t(a,b) VALUES(1,'cccc');
+EXPLAIN SELECT /*+ bka() */ 1 AS c FROM t AS b RIGHT JOIN t AS c ON b.a > c.c
+WHERE b.b>c.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	b	NULL	ALL	i0008	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	c	NULL	ALL	i0008	NULL	NULL	NULL	1	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(@`select#1`) */ 1 AS `c` from `test`.`t` `c` join `test`.`t` `b` where ((`test`.`b`.`b` > `test`.`c`.`a`) and (`test`.`b`.`a` > `test`.`c`.`c`))
+SELECT /*+ bka() */ 1 AS c FROM t AS b RIGHT JOIN t AS c ON b.a > c.c
+WHERE b.b>c.a;
+c
+DROP TABLE t;
+set @optimizer_switch_save = @@optimizer_switch;
+set optimizer_switch='mrr_cost_based=off';
+set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
+set read_rnd_buffer_size=32;
+CREATE TABLE t0 (
+i1 INTEGER NOT NULL
+);
+INSERT INTO t0 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1 (
+pk INTEGER NOT NULL,
+i1 INTEGER NOT NULL,
+i2 INTEGER NOT NULL,
+v1 INTEGER GENERATED ALWAYS AS (i2 + 1) VIRTUAL,
+v2 INTEGER GENERATED ALWAYS AS (i1 / (i1 - i2 + 57)) VIRTUAL,
+PRIMARY KEY (pk),
+INDEX idx(i1)
+);
+INSERT INTO t1 (pk, i1, i2)
+SELECT a0.i1 + a1.i1*10 + a2.i1*100,
+a0.i1 + a1.i1*10,
+a0.i1 + a1.i1*10
+FROM t0 AS a0, t0 AS a1, t0 AS a2;
+EXPLAIN SELECT * FROM t1
+WHERE i1 > 41 AND i1 <= 43;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx	idx	4	NULL	20	100.00	Using index condition; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`v1` AS `v1`,`test`.`t1`.`v2` AS `v2` from `test`.`t1` where ((`test`.`t1`.`i1` > 41) and (`test`.`t1`.`i1` <= 43))
+SELECT * FROM t1
+WHERE i1 > 41 AND i1 <= 43;
+pk	i1	i2	v1	v2
+142	42	42	43	1
+143	43	43	44	1
+242	42	42	43	1
+243	43	43	44	1
+342	42	42	43	1
+343	43	43	44	1
+42	42	42	43	1
+43	43	43	44	1
+442	42	42	43	1
+443	43	43	44	1
+542	42	42	43	1
+543	43	43	44	1
+642	42	42	43	1
+643	43	43	44	1
+742	42	42	43	1
+743	43	43	44	1
+842	42	42	43	1
+843	43	43	44	1
+942	42	42	43	1
+943	43	43	44	1
+ALTER TABLE t1 ADD INDEX idx2(v1);
+EXPLAIN SELECT * FROM t1
+WHERE v1 > 41 AND v1 <= 43;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	5	NULL	20	100.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`v1` AS `v1`,`test`.`t1`.`v2` AS `v2` from `test`.`t1` where ((`test`.`t1`.`v1` > 41) and (`test`.`t1`.`v1` <= 43))
+SELECT * FROM t1
+WHERE v1 > 41 AND v1 <= 43;
+pk	i1	i2	v1	v2
+141	41	41	42	1
+142	42	42	43	1
+241	41	41	42	1
+242	42	42	43	1
+341	41	41	42	1
+342	42	42	43	1
+41	41	41	42	1
+42	42	42	43	1
+441	41	41	42	1
+442	42	42	43	1
+541	41	41	42	1
+542	42	42	43	1
+641	41	41	42	1
+642	42	42	43	1
+741	41	41	42	1
+742	42	42	43	1
+841	41	41	42	1
+842	42	42	43	1
+941	41	41	42	1
+942	42	42	43	1
+DROP TABLE t0, t1;
+set optimizer_switch= @optimizer_switch_save;
+set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
+#
+# Bug#21872184 CONDITIONAL JUMP AT JOIN_CACHE::WRITE_RECORD_DATA IN 
+#              SQL_JOIN_BUFFER.CC
+#
+#
+# Test 1: Dynamic range scan with one covering index
+#
+CREATE TABLE t1 (
+i1 INTEGER NOT NULL,
+c1 VARCHAR(1) NOT NULL
+);
+INSERT INTO t1
+VALUES (10, 'c'), (10, 'i'), (2, 't'), (4, 'g');
+CREATE TABLE t2 (
+i1 INTEGER NOT NULL,
+c1 VARCHAR(1) NOT NULL
+);
+INSERT INTO t2
+VALUES (2, 'k'), (9, 'k'), (7, 'o'), (5, 'n'), (7, 'e');
+CREATE TABLE t3 (
+pk INTEGER NOT NULL,
+i1 INTEGER,
+i2_key INTEGER GENERATED ALWAYS AS (i1 + i1) VIRTUAL NOT NULL,
+PRIMARY KEY (pk)
+);
+# Add a covering index. The reason for this index being covering is that
+# secondary indexes in InnoDB include the primary key.
+ALTER TABLE t3 ADD INDEX v_idx (i2_key);
+INSERT INTO t3 (pk, i1)
+VALUES (1, 1), (2, 48), (3, 228), (4, 3), (5, 5),
+(6, 39), (7, 6), (8, 8), (9, 3);
+CREATE TABLE t4 (
+i1 INTEGER NOT NULL,
+c1 VARCHAR(1) NOT NULL
+);
+INSERT INTO t4 
+VALUES (1, 'j'), (2, 'c'), (0, 'a');
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+EXPLAIN SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	t3	NULL	ALL	v_idx	NULL	NULL	NULL	9	33.33	Range checked for each record (index map: 0x2)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+c1	i1
+c	2
+c	5
+c	7
+c	7
+c	9
+g	2
+g	5
+g	7
+g	7
+g	9
+i	2
+i	5
+i	7
+i	7
+i	9
+t	2
+t	2
+t	5
+t	5
+t	7
+t	7
+t	7
+t	7
+t	9
+t	9
+#
+# Test 2: Two alternative covering indexes for the range scan
+#
+ALTER TABLE t3 ADD INDEX v_idx2 (i2_key, i1);
+EXPLAIN SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	t3	NULL	ALL	v_idx,v_idx2	NULL	NULL	NULL	9	33.33	Range checked for each record (index map: 0x6)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+c1	i1
+c	2
+c	5
+c	7
+c	7
+c	9
+g	2
+g	5
+g	7
+g	7
+g	9
+i	2
+i	5
+i	7
+i	7
+i	9
+t	2
+t	2
+t	5
+t	5
+t	7
+t	7
+t	7
+t	7
+t	9
+t	9
+#
+# Test 3: One covering index including the base column for the virtual
+#         column
+#
+# Drop the index with only the virtual column
+ALTER TABLE t3 DROP INDEX v_idx;
+EXPLAIN SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	t3	NULL	ALL	v_idx2	NULL	NULL	NULL	9	33.33	Range checked for each record (index map: 0x2)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+c1	i1
+c	2
+c	5
+c	7
+c	7
+c	9
+g	2
+g	5
+g	7
+g	7
+g	9
+i	2
+i	5
+i	7
+i	7
+i	9
+t	2
+t	2
+t	5
+t	5
+t	7
+t	7
+t	7
+t	7
+t	9
+t	9
+#
+# Test 4: One non-covering index
+#
+# Drop the index on two columns, add index on just one virtual column
+ALTER TABLE t3 DROP INDEX v_idx2;
+ALTER TABLE t3 ADD INDEX v_idx (i2_key);
+# Add more data to the table so that it will run the dynamic range scan
+# as both table scan and range scan (the purpose of this is to make the
+# table scan more expensive).
+INSERT INTO t3 (pk, i1)
+VALUES (10,1), (11,1), (12,1), (13,1), (14,1),(15,1), (16,1),(17,1), (18,1),
+(19,1), (20,1), (21,1), (22,1), (23,1), (24,1),(25,1),(26,1),(27,1), 
+(28,1), (29,1);
+# Change the query to read an extra column (t3.i1) making the index
+# non-covering.
+EXPLAIN SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1, t3.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	t3	NULL	ALL	v_idx	NULL	NULL	NULL	29	33.33	Range checked for each record (index map: 0x2)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1`,`test`.`t3`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1, t3.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+c1	i1	i1
+c	2	48
+c	5	48
+c	7	48
+c	7	48
+c	9	48
+g	2	48
+g	5	48
+g	7	48
+g	7	48
+g	9	48
+i	2	48
+i	5	48
+i	7	48
+i	7	48
+i	9	48
+t	2	1
+t	2	48
+t	5	1
+t	5	48
+t	7	1
+t	7	1
+t	7	48
+t	7	48
+t	9	1
+t	9	48
+#
+# Test 5: Test where the added primary key to secondary indexes is
+#         used after it has been included in the join buffer
+#
+EXPLAIN SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o' and t4.i1 < (t2.i1 + 1)
+)
+) 
+AND t1.i1 <= t3.i2_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	t3	NULL	ALL	v_idx	NULL	NULL	NULL	29	33.33	Range checked for each record (index map: 0x2)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1276	Field or reference 'test.t2.i1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ 1 from `test`.`t4` where ((`test`.`t4`.`c1` < 'o') and (`test`.`t4`.`i1` < (`test`.`t2`.`i1` + 1)) and (<cache>(`test`.`t3`.`pk`) = `test`.`t4`.`i1`)))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o' and t4.i1 < (t2.i1 + 1)
+)
+) 
+AND t1.i1 <= t3.i2_key;
+c1	i1
+c	2
+c	5
+c	7
+c	7
+c	9
+g	2
+g	5
+g	7
+g	7
+g	9
+i	2
+i	5
+i	7
+i	7
+i	9
+t	2
+t	2
+t	5
+t	5
+t	7
+t	7
+t	7
+t	7
+t	9
+t	9
+DROP TABLE t1, t2, t3, t4;
 SET optimizer_switch='derived_merge=default';
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;

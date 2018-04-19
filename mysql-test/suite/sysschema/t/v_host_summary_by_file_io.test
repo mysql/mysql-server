@@ -1,4 +1,4 @@
--- source include/not_embedded.inc
+-- source ../include/ps_truncate_all_tables.inc
 # Tests for sys schema
 # Verify the sys.host_summary_by_file_io view
 
@@ -9,7 +9,6 @@ DESC sys.host_summary_by_file_io;
 --disable_result_log
 SELECT * FROM sys.host_summary_by_file_io;
 --enable_result_log
-
 
 # Ensure structure changes don't slip in
 DESC sys.x$host_summary_by_file_io;

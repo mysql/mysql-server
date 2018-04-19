@@ -19,9 +19,7 @@
 
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_statement.inc
---source include/have_innodb.inc
 --source include/have_debug.inc
---source include/not_embedded.inc
 --source include/master-slave.inc
 
 ##########################################################################
@@ -57,7 +55,7 @@ connection slave;
 #                         resolve the realpath, ending up stating that we 
 #                         have a mismatch)
 call mtr.add_suppression("LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir");
-call mtr.add_suppression("The MySQL server is running with the --slave-load-tmpdir option so it cannot execute this statement.*Error_code: 1290");
+call mtr.add_suppression("The MySQL server is running with the --slave-load-tmpdir option so it cannot execute this statement.*Error_code: MY-001290");
 --let $slave_sql_errno= 29, 13, 1290
 --source include/wait_for_slave_sql_error.inc
 
@@ -75,9 +73,9 @@ RESET SLAVE;
 drop table t1;
 
 call mtr.add_suppression("Slave: Can't get stat of .*");
-call mtr.add_suppression("Slave SQL for channel '': .*Error .Can.t get stat of.* Error_code: 13");
+call mtr.add_suppression("Slave SQL for channel '': .*Error .Can.t get stat of.* Error_code: MY-000013");
 call mtr.add_suppression("Slave.*: File.* not found.*");
-call mtr.add_suppression("Slave.*: .*Error .File.* not found.* Error_code: 29");
+call mtr.add_suppression("Slave.*: .*Error .File.* not found.* Error_code: MY-000029");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --let $rpl_only_running_threads= 1

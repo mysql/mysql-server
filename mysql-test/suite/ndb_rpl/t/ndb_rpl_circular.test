@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
 
 # set up circular replication
@@ -52,7 +47,7 @@ SELECT * FROM t1 ORDER BY a;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_slave_updates';
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 source include/check_slave_is_running.inc;
 # connect to master and ensure data it there.
@@ -65,7 +60,7 @@ source include/check_slave_is_running.inc;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_slave_updates';
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 # stop replication on "master" as not to replicate
 # shutdown circularly, eg drop table
@@ -94,7 +89,7 @@ show variables like 'ndb_log_apply_status';
 --echo 'Slave' has only Master's serverid entry
 select server_id, log_name from mysql.ndb_apply_status order by server_id;
 --echo 'Slave' has following ndb_binlog_index entries
-select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position;
+select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position,orig_epoch;
 
 set global ndb_log_apply_status=On;
 show variables like 'ndb_log_apply_status';
@@ -110,10 +105,10 @@ insert into t1 values (1,1);
 select server_id, log_name from mysql.ndb_apply_status order by server_id;
 
 --disable_result_log
-show binlog events;
+--source include/wait_for_ndb_committed_to_binlog.inc
 --enable_result_log
 --echo 'Slave' has following ndb_binlog_index entries
-select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position;
+select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position,orig_epoch;
 
 --connection master
 --echo 'Master' still has only Slave's serverid entry

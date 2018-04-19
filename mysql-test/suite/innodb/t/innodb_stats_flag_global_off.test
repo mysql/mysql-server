@@ -3,8 +3,4 @@
 # --innodb-stats-persistent=0 is specified in -master.opt
 #
 
--- source include/have_innodb.inc
-# include/restart_mysqld.inc does not work in embedded mode
--- source include/not_embedded.inc
-
 -- source suite/innodb/include/innodb_stats_table_flag.inc

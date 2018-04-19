@@ -1,16 +1,23 @@
-#!/usr/bin/perl
+#!@PERL_PATH@
 # -*- cperl -*-
 #
-# Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
@@ -40,13 +47,6 @@ use File::Basename;
 use Getopt::Long;
 use Cwd;
 use strict;
-
-my @exclude_cflags =
-  qw/DDBUG_OFF DSAFE_MUTEX
-     DEXTRA_DEBUG DHAVE_VALGRIND O O[0-9] xO[0-9] W[-A-Za-z]*
-     unroll2 ip mp restrict/;
-
-my @exclude_libs = qw/lmtmalloc static-libcxa i-static static-intel/;
 
 my $cwd = cwd();
 my $basedir;
@@ -173,75 +173,34 @@ if ( '@MYSQL_TCP_PORT_DEFAULT@' == 0 ) {
 
 # ----------------------------------------------------------------------
 # Create options 
-# We intentionally add a space to the beginning and end of lib strings, simplifies replace later
 # ----------------------------------------------------------------------
 
-my (@lib_opts,@lib_r_opts,@lib_e_opts);
+my(@lib_opts,@lib_e_opts);
 if ( $^O eq "MSWin32" )
 {
   my $linkpath   = "$pkglibdir";
-  # user32 is only needed for debug or embedded
-  my @winlibs = ("wsock32.lib","advapi32.lib","user32.lib");
-  @lib_opts   = ("$linkpath/mysqlclient.lib",@winlibs);
-  @lib_r_opts = @lib_opts;
-  @lib_e_opts = ("$linkpath/mysqlserver.lib",@winlibs);
+  @lib_opts   = ("$linkpath/@LIBMYSQL_OS_OUTPUT_NAME@");
+  @lib_e_opts = ("$linkpath/@LIBEMBED_OS_OUTPUT_NAME@");
 }
 else
 {
-  my $linkpath   = "-L$pkglibdir @RPATH_OPTION@";
-  @lib_opts   = ($linkpath,"-lmysqlclient");
-  @lib_r_opts = ($linkpath,"-lmysqlclient_r");
-  @lib_e_opts = ($linkpath,"-lmysqld");
+  my $linkpath   = "-L$pkglibdir@RPATH_OPTION@";
+  @lib_opts   = ($linkpath,"-l@LIBMYSQL_OS_OUTPUT_NAME@");
+  @lib_e_opts = ($linkpath,"-l@LIBEMBED_OS_OUTPUT_NAME@");
 }
 
+
 my $flags;
-$flags->{libs} =
-  [@ldflags,@lib_opts,'@ZLIB_DEPS@','@CLIENT_LIBS@','@openssl_libs@'];
-$flags->{libs_r} =
-  [@ldflags,@lib_r_opts,'@ZLIB_DEPS@','@CLIENT_LIBS@','@openssl_libs@'];
-$flags->{embedded_libs} =
-  [@ldflags,@lib_e_opts,'@ZLIB_DEPS@','@LIBS@','@WRAPLIBS@','@openssl_libs@'];
+$flags->{libs} = [@lib_opts, qw(@CONFIG_CLIENT_LIBS@)];
 
 $flags->{include} = ["-I$pkgincludedir"];
 $flags->{cflags}  = [@{$flags->{include}},split(" ",'@CFLAGS@')];
 $flags->{cxxflags}= [@{$flags->{include}},split(" ",'@CXXFLAGS@')];
 
-# ----------------------------------------------------------------------
-# Remove some options that a client doesn't have to care about
-# ----------------------------------------------------------------------
-
-my $filter = "-".join("|[/-]", @exclude_cflags);
-my @tmp = @{$flags->{cflags}};          # Copy the flag list
-$flags->{cflags} = [];                  # Clear it
-foreach my $cflag ( @tmp )
-{
-  push(@{$flags->{cflags}}, $cflag) unless $cflag =~ m/^($filter)$/o;
-}
-@tmp = @{$flags->{cxxflags}};           # Copy the flag list
-$flags->{cxxflags} = [];                # Clear it
-foreach my $cxxflag ( @tmp )
-{
-  push(@{$flags->{cxxflags}}, $cxxflag) unless $cxxflag =~ m/^($filter)$/o;
-}
-
-# Same for --libs(_r)
-$filter = join("|", @exclude_libs);
-foreach my $lib_type ( "libs","libs_r","embedded_libs" )
-{
-  my @tmp = @{$flags->{$lib_type}};          # Copy the flag list
-  $flags->{$lib_type} = [];                  # Clear it
-  foreach my $lib ( @tmp )
-  {
-    push(@{$flags->{$lib_type}}, $lib) unless $lib =~ m/^($filter)$/o;
-  }
-}
-
 my $include =       quote_options(@{$flags->{include}});
 my $cflags  =       quote_options(@{$flags->{cflags}});
 my $cxxflags=       quote_options(@{$flags->{cxxflags}});
 my $libs    =       quote_options(@{$flags->{libs}});
-my $libs_r  =       quote_options(@{$flags->{libs_r}});
-my $embedded_libs = quote_options(@{$flags->{embedded_libs}});
 
 ##############################################################################
 #
@@ -258,10 +217,10 @@ Options:
         --cxxflags       [$cxxflags]
         --include        [$include]
         --libs           [$libs]
-        --libs_r         [$libs_r]
+        --libs_r         [$libs]
         --socket         [$socket]
         --port           [$port]
-        --version        [$version]@LIBMYSQLD_LIBS_USAGE@
+        --version        [$version]
 EOF
   exit 1;
 }
@@ -279,12 +238,10 @@ GetOptions(
            "cxxflags"=> sub { print "$cxxflags\n" },
            "include" => sub { print "$include\n" },
            "libs"    => sub { print "$libs\n" },
-           "libs_r"  => sub { print "$libs_r\n" },
+           "libs_r"  => sub { print "$libs\n" },
            "socket"  => sub { print "$socket\n" },
            "port"    => sub { print "$port\n" },
            "version" => sub { print "$version\n" },
-           "embedded-libs|embedded|libmysqld-libs" =>
-             sub { @DISABLE_EMBEDDED_PL@ print "$embedded_libs\n" },
            ) or usage();
 
 exit 0

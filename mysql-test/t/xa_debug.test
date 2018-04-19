@@ -1,7 +1,8 @@
+# Skipping the test when logbin is enabled due to Bug#22292900
+--source include/not_log_bin.inc
+
 # This file contains XA-related test cases that requires mysql server
 # built with debug.
--- source include/have_innodb.inc
---source include/not_embedded.inc
 --source include/not_valgrind.inc
 --source include/have_debug.inc
 
@@ -155,4 +156,77 @@ XA RECOVER;
 XA START 'xid1';
 
 XA COMMIT 'xid1';
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#20538956 - XA PREPARE ERROR BRANCH LEAVES THE TRANSACTION IN SCREWED STATE
+--echo #
+--connect (con1, 127.0.0.1,root,,test,$MASTER_MYPORT,)
+CREATE TABLE t1 (a INT);
+
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+SET @@session.debug = '+d,simulate_xa_failure_prepare';
+--error ER_XA_RBROLLBACK
+XA PREPARE 'xid1';
+SET @@session.debug = '-d,simulate_xa_failure_prepare';
+
+--error ER_XAER_NOTA
+XA ROLLBACK 'xid1';
+
+#
+# The following query failed before patch applied.
+#
+
+XA START 'trx_another_one';
+--disconnect con1
+
+--connection default
+--echo #
+--echo # Bug#20488921 - ERROR PROPAGATION DOES NOT FULLY WORK IN XA
+--echo #
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA PREPARE 'xid1';
+SET @@session.debug= '+d,simulate_xa_commit_log_failure';
+--error ER_XAER_RMERR
+XA COMMIT 'xid1';
+# Without a patch for the bug#20488921 execution of the following SET statement
+# led to an assert firing.
+SET @@session.debug= '-d,simulate_xa_commit_log_failure';
+# The following statement is just to check that there isn't any XA transaction
+# independently from its state.
+INSERT INTO t1 VALUES (2);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#23264552 - XA: ASSERT `m_status == da_error' IN mysql_errno:sql_error.h:385
+--echo #
+--connect (con1, 127.0.0.1,root,,test,$MASTER_MYPORT,)
+CREATE TABLE t1 (a INT);
+
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+SET @@session.debug = '+d,simulate_xa_failure_prepare_in_engine';
+--error ER_XA_RBROLLBACK
+XA PREPARE 'xid1';
+SET @@session.debug = '-d,simulate_xa_failure_prepare_in_engine';
+
+--error ER_XAER_NOTA
+XA ROLLBACK 'xid1';
+
+#
+# Check that subsequent XA transaction can be initiated.
+#
+
+XA START 'trx_another_one';
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connection default
+
 DROP TABLE t1;

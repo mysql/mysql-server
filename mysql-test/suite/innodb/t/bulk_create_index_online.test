@@ -2,8 +2,6 @@
 --echo # BUG#19316315 CRASH RECOVERY FAILS AFTER ONLINE ADD INDEX
 --echo #
 
---source include/have_innodb.inc
---source include/not_embedded.inc
 --source include/have_debug_sync.inc
 
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT) ENGINE=InnoDB;
@@ -30,6 +28,17 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 
-# Clean up temporary files left by crash.
-let MYSQLD_DATADIR= `SELECT @@datadir`;
---remove_files_wildcard $MYSQLD_DATADIR/test #sql*.frm
+# Clean up temporary tables left by crash.
+# TODO: Revisit this after WL#9536
+--disable_query_log
+SET SESSION debug= "+d,skip_dd_table_access_check";
+DELETE FROM mysql.index_column_usage WHERE column_id IN (
+  SELECT c.id FROM mysql.columns c, mysql.tables t WHERE
+  c.table_id = t.id AND t.name LIKE '#sql%');
+DELETE FROM mysql.columns WHERE table_id IN (
+  SELECT id FROM mysql.tables WHERE name LIKE '#sql%');
+DELETE FROM mysql.indexes WHERE table_id IN (
+  SELECT id FROM mysql.tables WHERE name LIKE '#sql%');
+DELETE FROM mysql.tables WHERE name LIKE '#sql%';
+SET SESSION debug= "-d,skip_dd_table_access_check";
+--enable_query_log

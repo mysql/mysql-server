@@ -1,6 +1,0 @@
-call mtr.add_suppression(
-"Column count of performance_schema.setup_instruments is wrong. "
-"Expected 4, found 3. The table is probably corrupted");
-select * from performance_schema.setup_instruments limit 1;
-ERROR HY000: Native table 'performance_schema'.'setup_instruments' has the wrong structure
-select * from performance_schema.setup_consumers limit 1;

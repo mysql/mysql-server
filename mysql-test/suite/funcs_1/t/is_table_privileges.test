@@ -16,11 +16,7 @@
 #                   Create this script based on older scripts and new code.
 #
 
-# This test cannot be used for the embedded server because we check here
-# privileges.
---source include/not_embedded.inc
 
---source include/have_innodb.inc
 let $engine_type       = InnoDB;
 let $other_engine_type = InnoDB;
 
@@ -66,6 +62,7 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 #       about information_schema.table_privileges is in is_columns_is.test.
 
 # Show that TABLE_CATALOG is always NULL.
+--sorted_result
 SELECT table_catalog, table_schema, table_name, privilege_type
 FROM information_schema.table_privileges WHERE table_catalog IS NOT NULL;
 
@@ -221,6 +218,7 @@ WHERE table_name LIKE 't1_%'
 ORDER BY grantee, table_name;
 --error ER_NONEXISTING_GRANT
 SHOW GRANTS FOR 'testuser1'@'localhost';
+--sorted_result
 SHOW GRANTS FOR 'the_user'@'localhost';
 #
 # Check modification of TABLE_SCHEMA (no migration of permissions)
@@ -233,6 +231,7 @@ RENAME TABLE test.t1_view  TO db_datadict.t1_view;
 SELECT DISTINCT table_schema,table_name FROM information_schema.table_privileges
 WHERE table_name LIKE 't1_%'
 ORDER BY table_schema,table_name;
+--sorted_result
 SHOW GRANTS FOR 'the_user'@'localhost';
 REVOKE ALL PRIVILEGES ON test.t1_table FROM 'the_user'@'localhost';
 REVOKE ALL PRIVILEGES ON test.t1_view  FROM 'the_user'@'localhost';

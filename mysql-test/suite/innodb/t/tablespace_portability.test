@@ -1,0 +1,54 @@
+--echo #
+--echo # Non-Windows version of Tablespace Portability test.
+--echo #
+--echo # This testcase is related to WL#5980 & WL#6205.
+--echo # It tests whether datafiles can be copied from one location
+--echo # to another, and still be opened. In order to make this testcase run
+--echo # on any OS, we create the tablespaces here.
+--echo #
+
+# On Windows, MTR converts '\' to '/' in file names.
+# On other systems, '\' is left unchanged.
+# So this output file is different from the Windows version.
+
+--source include/not_windows.inc
+
+SET DEFAULT_STORAGE_ENGINE=InnoDB;
+
+--disable_query_log
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+LET $restart_parameters = restart:--innodb-directories=$MYSQL_TMP_DIR;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+--enable_query_log
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW VARIABLES LIKE 'innodb_directories';
+
+--echo #
+--echo # Try to create a tablespace in a read-only directory.
+--echo #
+# This section is does not work on Windows since it uses chmod to prevent
+# a file from being created in that directory.  On Windows, the user is often
+# an Administrator who can still create files in that directory
+--mkdir $MYSQL_TMP_DIR/read_only_dir
+--chmod 0444 $MYSQL_TMP_DIR/read_only_dir
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_CREATE_FILEGROUP_FAILED
+eval CREATE TABLESPACE s7_def ADD DATAFILE '$MYSQL_TMP_DIR/read_only_dir/s7.ibd';
+SHOW WARNINGS;
+--rmdir $MYSQL_TMP_DIR/read_only_dir
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\].* The error means mysqld does not have the access rights to the directory.");
+call mtr.add_suppression("\\[ERROR\\].* Cannot create file");
+call mtr.add_suppression("\\[Warning\\].* Converting backslash to forward slash in ADD DATAFILE");
+call mtr.add_suppression("\\[Warning\\].* '.*' permission error, can't delete!");
+--enable_query_log
+
+--source suite/innodb/include/tablespace_filenames.inc
+
+# There is no tablespace portabilility in mysql-trunk at the moment since ISL
+# files have been disabled and fil_ibd_open() only looks for a file in one place.
+# --source suite/innodb/include/tablespace_portability.inc
+

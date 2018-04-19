@@ -1,4 +1,6 @@
 #
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+#
 # This test is executed once after each test to check the servers
 # for unexpected warnings found in the servers error log
 #
@@ -18,15 +20,35 @@ set debug="";
 
 use mtr;
 # Allow this session to read-write even if server is started
-# with --transaction-read-only
+# with --transaction-read-only. And set autocommit mode for
+# the session irrespective of server --autocommit setting.
 set session transaction read write;
 
+# Due to the lack of WL#7828 / WL#8003 now, we might have a pending Data
+# Dictionary read-only transaction at this point. Even though
+# DD-RO-transactions are usually committed in the end, there are cases when
+# it does not happen. It will be changed when WL#7828 / WL#8003 are merged
+# in.
+#
+# Until that happens, we do 'SET SESSION AUTOCOMMIT = 1' here in order to
+# commit that DD-RO-transaction that might be pending. Otherwise, the
+# following statements will fail. By turning autocommit ON we achieve two
+# effects:
+#   1. Ensure there is no loose DD-RO-transaction (i.e. the effect of
+#   COMMIT statement);
+#   2. Make sure all future DD-RO-transactions that might happen below will
+#   be properly committed.
+#
+# We set session variable to not affect other tests. 
+set session autocommit=1;
+
 create temporary table error_log (
-  row int auto_increment primary key,
+  `row` int auto_increment primary key,
   suspicious int default 1,
   file_name varchar(255),
-  line varchar(1024) default null
+  line varchar(1024) charset latin1 default null
 ) engine=myisam;
+COMMIT;
 
 # Get the name of servers error log
 let $log_error= $MTR_LOG_ERROR;
@@ -38,6 +60,7 @@ let $log_warning= $log_error.warnings;
 # an attempt to load the file using LOAD DATA LOCAL is made
 --error 0,1290
 eval load data infile '$log_warning' into table error_log
+  character set latin1
   fields terminated by 'xykls37' escaped by ''
   ignore 1 lines
   (line)
@@ -47,6 +70,7 @@ if ($mysql_errno)
 {
   # Try LOAD DATA LOCAL
   eval load data local infile '$log_warning' into table error_log
+    character set latin1
     fields terminated by 'xykls37' escaped by ''
     ignore 1 lines
     (line)

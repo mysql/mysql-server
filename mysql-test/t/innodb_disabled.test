@@ -3,10 +3,10 @@
 # InnoDB is still enabled.
 
 # Just for consistency.
---source include/have_innodb.inc
 
 --let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let SEARCH_PATTERN= The use of InnoDB is mandatory since MySQL 5\.7\. The former options like .* are ignored\.
+--let SEARCH_PATTERN1= The syntax 'avoid_temporal_upgrade' is deprecated and will be removed in a future release
 # >= 7 because
 # - We have 7 server startup options which cause one warning in server error
 #   log per option.
@@ -27,28 +27,26 @@ eval CALL mtr.add_suppression("$SEARCH_PATTERN");
 
 SELECT support FROM INFORMATION_SCHEMA.ENGINES WHERE engine = 'innodb';
 
-# In case of the embedded server the server error log will not contain
-# the warnings.
-if (`select version() like '%embedded%' = 1`)
-{
-exit;
-}
 perl;
     use strict;
     my $search_file=     $ENV{'SEARCH_FILE'}     or die "SEARCH_FILE not set";
     my $search_pattern=  $ENV{'SEARCH_PATTERN'}  or die "SEARCH_PATTERN not set";
+    my $search_pattern1= $ENV{'SEARCH_PATTERN1'}  or die "SEARCH_PATTERN1 not set";
     my $minimum_matches= $ENV{'MINIMUM_MATCHES'} or die "MINIMUM_MATCHES not set";
     open(FILE, "$search_file") or die("Unable to open '$search_file': $!\n");
-    read(FILE, my $file_content, 10000000, 0);
+    my $count = 0;
+    while (<FILE>) {
+      if (m{$search_pattern}) { ++$count; }
+      if (m{$search_pattern1}) {
+        die ("# ERROR: The file '$search_file' contains \n".
+           "#        the unexpected pattern '$search_pattern1' at $_\n");
+      }
+    }
     close(FILE);
-    my $file_content1= $file_content;
-    my $count = ( $file_content1 =~ s{$search_pattern}{}gm );
-    if ( not $count >= $minimum_matches ) {
+    if ( $count < $minimum_matches ) {
        die("# ERROR: The file '$search_file' does not contain \n".
            "#        the expected pattern '$search_pattern' often enough.\n".
-           "#        Found: $count    Expected: >= $minimum_matches\n".
-           "# File content begin ===========\n$file_content\n".
-           "# File content end   ===========\n");
+           "#        Found: $count    Expected: >= $minimum_matches");
     }
 EOF
 

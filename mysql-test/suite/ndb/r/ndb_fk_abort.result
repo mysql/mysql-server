@@ -1,0 +1,22 @@
+drop table if exists t1,t2;
+create table t1 (
+a int not null,
+b int not null,
+primary key using hash (a),
+unique key using hash (b)
+) engine ndb;
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b)
+) engine ndb comment="NDB_TABLE=FULLY_REPLICATED=1";
+alter table t2 add constraint fk1 foreign key (b) references t1(a);
+insert into t1 values (1,1);
+insert into t2 values (1,1);
+delete from t2 where b = 1;
+ERROR HY000: Got temporary error 1218 'Send Buffers overloaded in NDB kernel' from NDBCLUSTER
+insert into t2 values (2,1);
+ERROR HY000: Got temporary error 1218 'Send Buffers overloaded in NDB kernel' from NDBCLUSTER
+drop table t2;
+drop table t1;

@@ -11,7 +11,7 @@
 #
 # [--let $sync_slave_connection= <connection_name>]
 # [--let $use_gtids= 1]
-# [--let $rpl_channel_name= 1]
+# [--let $rpl_channel_name= 'NAME']
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # [--let $wait_for_executed_gtid_set= 1]
@@ -51,6 +51,10 @@
 #
 
 --let $include_filename= sync_slave_sql_with_master.inc
+if ($rpl_channel_name)
+{
+  --let $include_filename= $include_filename [FOR CHANNEL $rpl_channel_name]
+}
 --source include/begin_include_file.inc
 
 --source include/wait_for_ndb_committed_to_binlog.inc
@@ -75,4 +79,5 @@ if ($rpl_connection_name == $CURRENT_CONNECTION)
 
 --let $include_filename= sync_slave_sql_with_master.inc
 --let $skip_restore_connection= 1
+--let $_saved_channel_name=
 --source include/end_include_file.inc

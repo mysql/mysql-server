@@ -1,13 +1,20 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,14 +23,16 @@
 #ifndef _mysys_err_h
 #define _mysys_err_h
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
+/**
+  @file include/mysys_err.h
+*/
 
-#define GLOBERRS (EE_ERROR_LAST - EE_ERROR_FIRST + 1) /* Nr of global errors */
-#define EE(X)    (globerrs[(X) - EE_ERROR_FIRST])
+#define GLOBERRS                                              \
+  (EE_ERROR_LAST - EE_ERROR_FIRST + 1) /* Nr of global errors \
+                                        */
+#define EE(X) (globerrs[(X)-EE_ERROR_FIRST])
 
-extern const char *globerrs[];  /* my_error_messages is here */
+extern const char *globerrs[]; /* my_error_messages is here */
 
 /* Error message numbers in global map */
 /*
@@ -33,61 +42,58 @@ extern const char *globerrs[];  /* my_error_messages is here */
   We start with error 1 to not confuse peoples with 'error 0'
 */
 
-#define EE_ERROR_FIRST          1 /*Copy first error nr.*/
-#define EE_CANTCREATEFILE	1
-#define EE_READ			2
-#define EE_WRITE		3
-#define EE_BADCLOSE		4
-#define EE_OUTOFMEMORY		5
-#define EE_DELETE		6
-#define EE_LINK			7
-#define EE_EOFERR		9
-#define EE_CANTLOCK		10
-#define EE_CANTUNLOCK		11
-#define EE_DIR			12
-#define EE_STAT			13
-#define EE_CANT_CHSIZE		14
-#define EE_CANT_OPEN_STREAM	15
-#define EE_GETWD		16
-#define EE_SETWD		17
-#define EE_LINK_WARNING		18
-#define EE_OPEN_WARNING		19
-#define EE_DISK_FULL		20
-#define EE_CANT_MKDIR		21
-#define EE_UNKNOWN_CHARSET	22
-#define EE_OUT_OF_FILERESOURCES	23
-#define EE_CANT_READLINK	24
-#define EE_CANT_SYMLINK		25
-#define EE_REALPATH		26
-#define EE_SYNC			27
-#define EE_UNKNOWN_COLLATION	28
-#define EE_FILENOTFOUND		29
-#define EE_FILE_NOT_CLOSED	30
-#define EE_CHANGE_OWNERSHIP     31
-#define EE_CHANGE_PERMISSIONS   32
-#define EE_CANT_SEEK            33
-#define EE_ERROR_LAST           33 /* Copy last error nr */
+#define EE_ERROR_FIRST 1 /*Copy first error nr.*/
+#define EE_CANTCREATEFILE 1
+#define EE_READ 2
+#define EE_WRITE 3
+#define EE_BADCLOSE 4
+#define EE_OUTOFMEMORY 5
+#define EE_DELETE 6
+#define EE_LINK 7
+#define EE_EOFERR 9
+#define EE_CANTLOCK 10
+#define EE_CANTUNLOCK 11
+#define EE_DIR 12
+#define EE_STAT 13
+#define EE_CANT_CHSIZE 14
+#define EE_CANT_OPEN_STREAM 15
+#define EE_GETWD 16
+#define EE_SETWD 17
+#define EE_LINK_WARNING 18
+#define EE_OPEN_WARNING 19
+#define EE_DISK_FULL 20
+#define EE_CANT_MKDIR 21
+#define EE_UNKNOWN_CHARSET 22
+#define EE_OUT_OF_FILERESOURCES 23
+#define EE_CANT_READLINK 24
+#define EE_CANT_SYMLINK 25
+#define EE_REALPATH 26
+#define EE_SYNC 27
+#define EE_UNKNOWN_COLLATION 28
+#define EE_FILENOTFOUND 29
+#define EE_FILE_NOT_CLOSED 30
+#define EE_CHANGE_OWNERSHIP 31
+#define EE_CHANGE_PERMISSIONS 32
+#define EE_CANT_SEEK 33
+#define EE_CAPACITY_EXCEEDED 34
+#define EE_ERROR_LAST 34 /* Copy last error nr */
 /* Add error numbers before EE_ERROR_LAST and change it accordingly. */
 
-  /* exit codes for all MySQL programs */
+/* Exit codes for option processing. When exiting from server use the
+   MYSQLD_*EXIT codes defined in sql_const.h */
 
-#define EXIT_UNSPECIFIED_ERROR		1
-#define EXIT_UNKNOWN_OPTION		2
-#define EXIT_AMBIGUOUS_OPTION		3
-#define EXIT_NO_ARGUMENT_ALLOWED	4
-#define EXIT_ARGUMENT_REQUIRED		5
-#define EXIT_VAR_PREFIX_NOT_UNIQUE	6
-#define EXIT_UNKNOWN_VARIABLE		7
-#define EXIT_OUT_OF_MEMORY		8
-#define EXIT_UNKNOWN_SUFFIX		9
-#define EXIT_NO_PTR_TO_VARIABLE		10
-#define EXIT_CANNOT_CONNECT_TO_SERVICE	11
-#define EXIT_OPTION_DISABLED            12
-#define EXIT_ARGUMENT_INVALID           13
+#define EXIT_UNSPECIFIED_ERROR 1
+#define EXIT_UNKNOWN_OPTION 2
+#define EXIT_AMBIGUOUS_OPTION 3
+#define EXIT_NO_ARGUMENT_ALLOWED 4
+#define EXIT_ARGUMENT_REQUIRED 5
+#define EXIT_VAR_PREFIX_NOT_UNIQUE 6
+#define EXIT_UNKNOWN_VARIABLE 7
+#define EXIT_OUT_OF_MEMORY 8
+#define EXIT_UNKNOWN_SUFFIX 9
+#define EXIT_NO_PTR_TO_VARIABLE 10
+#define EXIT_CANNOT_CONNECT_TO_SERVICE 11
+#define EXIT_OPTION_DISABLED 12
+#define EXIT_ARGUMENT_INVALID 13
 
-
-#ifdef	__cplusplus
-}
 #endif
-#endif
-

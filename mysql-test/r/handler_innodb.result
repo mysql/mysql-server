@@ -768,7 +768,7 @@ handler t1 close;
 drop table t1;
 USE information_schema;
 HANDLER COLUMNS OPEN;
-ERROR HY000: Incorrect usage of HANDLER OPEN and information_schema
+ERROR HY000: 'information_schema.COLUMNS' is not BASE TABLE
 USE test;
 #
 # Add test coverage for HANDLER and LOCK TABLES, HANDLER and DDL.
@@ -1577,7 +1577,7 @@ CREATE TABLE t1 (id INT);
 HANDLER t1 OPEN;
 SELECT table_name, table_comment FROM information_schema.tables
 WHERE table_schema= 'test' AND table_name= 't1';
-table_name	table_comment
+TABLE_NAME	TABLE_COMMENT
 t1	
 HANDLER t1 CLOSE;
 DROP TABLE t1;
@@ -1824,3 +1824,23 @@ a	b
 4	40
 HANDLER t1 CLOSE;
 DROP TABLE t1;
+#
+# Bug#21650603 ASSERT `0' FAILED AT THD::SEND_STATEMENT_STATUS() ON
+#              HANDLER READ + INVALID DATE
+#
+CREATE TABLE t (
+col_date DATE
+, col_datetime DATETIME
+, col_time TIME
+, col_year YEAR
+, KEY col_date_key (col_date)
+, KEY col_datetime_key (col_datetime)
+, KEY col_year_key (col_year));
+HANDLER t OPEN;
+HANDLER t READ col_date_key <= ('p');
+ERROR HY000: Incorrect arguments to HANDLER ... READ
+HANDLER t READ col_datetime_key <= ('p');
+ERROR HY000: Incorrect arguments to HANDLER ... READ
+HANDLER t READ col_year_key <= ('p');
+ERROR HY000: Incorrect arguments to HANDLER ... READ
+DROP TABLE t;

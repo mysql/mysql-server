@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -40,6 +47,7 @@ struct TriggerType {
     
     SUBSCRIPTION_BEFORE   = 9, // Only used by TUP/SUMA, should be REMOVED!!
     REORG_TRIGGER         = DictTabInfo::ReorgTrigger
+    ,FULLY_REPLICATED_TRIGGER = DictTabInfo::FullyReplicatedTrigger
   };
 };
 
@@ -153,6 +161,10 @@ struct TriggerInfo {
     switch (val) {
     case TriggerType::SECONDARY_INDEX:
       return "SECONDARY_INDEX";
+    case TriggerType::FK_PARENT:
+      return "FK_PARENT";
+    case TriggerType::FK_CHILD:
+      return "FK_CHILD";
     case TriggerType::SUBSCRIPTION:
       return "SUBSCRIPTION";
     case TriggerType::READ_ONLY_CONSTRAINT:
@@ -161,6 +173,10 @@ struct TriggerInfo {
       return "ORDERED_INDEX";
     case TriggerType::SUBSCRIPTION_BEFORE:
       return "SUBSCRIPTION_BEFORE";
+    case TriggerType::REORG_TRIGGER:
+      return "REORG_TRIGGER";
+    case TriggerType::FULLY_REPLICATED_TRIGGER:
+      return "FULLY_REPLICATED";
     }
     return "UNKNOWN";
   }

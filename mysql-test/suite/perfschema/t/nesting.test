@@ -1,22 +1,16 @@
 # Test to check the proper nesting of events
 
-## To skip the test with QC enabled till BUG#14830950 is fixed.
--- source include/have_QC_Disabled.inc
-
---source include/not_embedded.inc
---source include/have_perfschema.inc
 # On windows, the socket instrumentation collects an extra "opt"
 # event, which changes the test output.
 --source include/not_windows.inc
---source ../include/no_protocol.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 --source ../include/wait_for_pfs_thread_count.inc
 
 --disable_query_log
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user user1@localhost;
 grant ALL on *.* to user1@localhost;
-set sql_mode= @orig_sql_mode;
 
 flush privileges;
 
@@ -30,7 +24,7 @@ create table test.setup_actors as
 # Only instrument the user connections
 truncate table performance_schema.setup_actors;
 insert into performance_schema.setup_actors
-  set host= 'localhost', user= 'user1', role= '%';
+  set host= 'localhost', user= 'user1', `role`= '%';
 
 update performance_schema.threads set instrumented='NO';
 
@@ -114,7 +108,7 @@ set @marker_end = (select end_event_id from performance_schema.events_statements
 select (@marker_end is not null) as expected;
 
 # Will point to what happened on spurious test failures
-show global status like "performance_schema%";
+show global status like "performance_schema%_lost";
 
 #
 # This is the test itself:

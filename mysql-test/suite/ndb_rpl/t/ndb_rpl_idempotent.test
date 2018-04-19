@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
@@ -78,7 +73,7 @@ eval CHANGE MASTER TO
 
 source include/check_slave_no_error.inc;
 
-call mtr.add_suppression("NDB Slave : At SQL thread start applying epoch .*");
+call mtr.add_suppression("NDB Slave: At SQL thread start applying epoch .*");
 
 # start the slave again
 # -> same events should have been applied again
@@ -209,7 +204,7 @@ source include/check_slave_no_error.inc;
 # Add a suppression for the warning that will appear in the
 # Slave's .err file
 call mtr.add_suppression("Slave: Table \'t2\' already exists .*");
-call mtr.add_suppression("Slave SQL: Error \'Table \'t2\' already exists\' .*");
+call mtr.add_suppression("Slave SQL for channel '': Error \'Table \'t2\' already exists\' .*");
 
 
 START SLAVE;

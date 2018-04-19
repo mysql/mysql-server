@@ -4,22 +4,35 @@
 #
 # ==== Usage ====
 #
-# [--let $rpl_channel_name= CHANNEL]
+# [--let $rpl_channel_name= 'NAME']
 # --source include/rpl_get_end_of_relay_log.inc
 # --echo Last relay log: $relay_log_file
 # --echo Size of last relay log: $relay_log_size
 
 --let $include_filename= include/rpl_get_end_of_relay_log.inc
+if ($rpl_channel_name)
+{
+  --let $include_filename= $include_filename [FOR CHANNEL $rpl_channel_name]
+}
 --source include/begin_include_file.inc
 
 --let _RGEORL_CHANNEL_NAME= $rpl_channel_name
 --let _RGEORL_OUTPUT_FILE= `SELECT CONCAT('$MYSQLTEST_VARDIR/tmp/_end_of_relay_log-', UUID(), '.txt')`
 --let _RGEORL_INDEX_FILE= `SELECT @@GLOBAL.RELAY_LOG_INDEX`
 --let _RGEORL_DATADIR= `SELECT @@GLOBAL.DATADIR`
+if ($rpl_debug)
+{
+  --echo _RGEORL_OUTPUT_FILE='$_RGEORL_OUTPUT_FILE'
+  --echo _RGEORL_INDEX_FILE='$_RGEORL_INDEX_FILE'
+  --echo _RGEORL_DATADIR='$_RGEORL_DATADIR'
+}
+
 perl;
   # Compute relay log filename.
   my $index_file= $ENV{'_RGEORL_INDEX_FILE'};
   my $channel_name= $ENV{'_RGEORL_CHANNEL_NAME'};
+  # Remove the single quotes from $channel_name
+  $channel_name=~ s/\'//g;
   if ($channel_name) {
     $index_file =~ s/(.*)(\.index)/$1-$channel_name$2/;
   }

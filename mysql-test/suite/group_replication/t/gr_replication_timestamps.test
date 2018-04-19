@@ -1,0 +1,280 @@
+#
+## ==== Purpose ====
+##
+## This test checks if the immediate_commit_timestamp (ICT) and the
+## original_commit_timestamp (OCT) are generated and replicated correctly in
+## transations originated both inside and outside the group, with the following
+## replication topology: server1 -> group -> server4 (server2, server3 and
+## server5 are members of the group, with server2 setup as slave of server1).
+## server5 will only be added to the group after all transactions have been
+## executed to verify that the timestamps were propagated correctly from the
+## donor.
+## The test also checks if the queueing_transaction and last_queued_transaction
+## fields are cleared from the group_replication_recovery channel after the
+## member is online.
+## The test also check that the last_applied_transaction is in the correct state
+## for both channels when a server joins a group.
+##
+## ==== Implementation ====
+##
+## Considering the previously mentioned replication chain, we make the following
+## assertions:
+## 1) original_commit_timestamp is the same across all servers
+## 2) On the original server, original_commit_timestamp = immediate_commit_timestamp.
+##    (unless the transaction was originated inside the group).
+## 3) the immediate_commit_timestamp increases as we go down in the topology
+##    (not applicable between group members).
+## This assertions are performed in two examples of DDL statements and three
+## different DML statements.
+##
+## ==== References ====
+##
+## WL#7319 Infrastructure for GTID based delayed replication and replication lag
+##         monitoring
+## WL#7374 Performance schema tables to monitor replication lags and queue
+
+
+# accesses to some tables in the test require only one applier thread (worker)
+--source include/not_mts_slave_parallel_workers.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 5
+--let $rpl_multi_source= 1
+--source include/group_replication.inc
+
+# start first member of the group
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+# this group member is also a slave of server1
+# (server2 was implicitely set up as slave of server1 in include/group_replication.inc)
+--source include/start_slave.inc
+
+
+# start second member of the group
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $queueing_trx= query_get_value(SELECT QUEUEING_TRANSACTION FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME = "group_replication_recovery", QUEUEING_TRANSACTION, 1)
+--let $last_queued_trx= query_get_value(SELECT LAST_QUEUED_TRANSACTION FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME = "group_replication_recovery", LAST_QUEUED_TRANSACTION, 1)
+
+--let $assert_text= QUEUEING_TRANSACTION was cleared in the group_replication_recovery channel after the member is online
+--let $assert_cond= "$queueing_trx" = ""
+--source include/assert.inc
+
+--let $assert_text= LAST_QUEUED_TRANSACTION was cleared in the group_replication_recovery channel after the member is online
+--let $assert_cond= "$last_queued_trx" = ""
+--source include/assert.inc
+
+# check last_applied_transaction in table performance_schema.replication_applier_status_by_worker
+--let $last_applied_trx_applier= query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM performance_schema.replication_applier_status_by_worker WHERE CHANNEL_NAME="group_replication_applier", LAST_APPLIED_TRANSACTION,1)
+--let $last_applied_trx_recovery= query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM performance_schema.replication_applier_status_by_worker WHERE CHANNEL_NAME="group_replication_recovery", LAST_APPLIED_TRANSACTION,1)
+
+--let $assert_text= LAST_APPLIED_TRANSACTION is not cleared because channel group_replication_recovery applied view change log events for joining the group
+--let $assert_cond= "$last_applied_trx_recovery" != ""
+--source include/assert.inc
+
+# start server4 as slave of server2
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--disable_warnings
+--replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2, MASTER_USER='root', MASTER_AUTO_POSITION=1
+--enable_warnings
+--source include/start_slave.inc
+
+# run transactions on server1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server_1_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(a INT PRIMARY KEY);
+INSERT INTO db1.t1 VALUES(1);
+UPDATE db1.t1 SET a= 2;
+DELETE FROM db1.t1 WHERE a= 1;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
+
+# sync server2 with its master, server1
+--let $sync_slave_connection= server2
+--source include/sync_slave_sql_with_master.inc
+
+# sync group members
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $sync_slave_connection= server3
+--source include/sync_slave_sql_with_master.inc
+
+# sync server4 with its master, server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $sync_slave_connection= server4
+--source include/sync_slave_sql_with_master.inc
+
+# run transactions on server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(a INT PRIMARY KEY);
+INSERT INTO db1.t1 VALUES(1);
+UPDATE db1.t1 SET a= 2;
+DELETE FROM db1.t1 WHERE a= 1;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
+
+# sync group members
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $sync_slave_connection= server3
+--source include/sync_slave_sql_with_master.inc
+
+# sync server4 with its master, server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $sync_slave_connection= server4
+--source include/sync_slave_sql_with_master.inc
+
+# start third member of the group (which will be synced with the group as it joins)
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+# check if replication timestamps from server1 were propagated correctly
+--let $i= 1
+while ($i<8)
+{
+  --let $gtid= $server_1_uuid:$i
+
+  --let $master= server1
+  --let $slave= server2
+  --let $check_master_OCT= 1
+  --let $check_master_slave_ICT= 1
+  --source extra/rpl_tests/rpl_replication_timestamps.inc
+
+  --let $server_1= server1
+  --let $server_2= server2
+  --let $server_3= server4
+  --source extra/rpl_tests/rpl_timestamps_line_topology.inc
+
+  --let $master= server2
+  --let $slave= server3
+  --let $check_master_OCT= 0
+  --let $check_master_slave_ICT= 0
+  --source extra/rpl_tests/rpl_replication_timestamps.inc
+
+  --let $master= server2
+  --let $slave= server5
+  --source extra/rpl_tests/rpl_replication_timestamps.inc
+
+  --inc $i
+}
+
+# check View_change log events
+--let $i= 1
+while ($i<3)
+{
+  --let $gtid= $group_replication_group_name:$i
+
+  --let $master= server2
+  --let $slave= server4
+  --let $check_master_OCT= 0
+  --let $check_master_slave_ICT= 1
+  --source extra/rpl_tests/rpl_replication_timestamps.inc
+
+  --let $rpl_connection_name= server_2
+  --source include/rpl_connection.inc
+  --source include/get_original_commit_timestamp.inc
+  --let $server_OCT= $original_commit_timestamp
+  --source include/get_immediate_commit_timestamp.inc
+  --let $server_ICT= $immediate_commit_timestamp
+
+  --let $assert_text= Assert that the View_change_event ICT is bigger than zero for server_2.
+  --let $assert_cond= $server_ICT > 0
+  --source include/assert.inc
+
+  --let $assert_text= Assert that the View_change_event OCT is zero for server_2.
+  --let $assert_cond= $server_OCT = 0
+  --source include/assert.inc
+
+  --let $rpl_connection_name= server_3
+  --source include/rpl_connection.inc
+  --source include/get_original_commit_timestamp.inc
+  --let $server_OCT= $original_commit_timestamp
+  --source include/get_immediate_commit_timestamp.inc
+  --let $server_ICT= $immediate_commit_timestamp
+
+  --let $assert_text= Assert that the View_change_event ICT is bigger than zero for server_3.
+  --let $assert_cond= $server_ICT > 0
+  --source include/assert.inc
+
+  --let $assert_text= Assert that the View_change_event OCT is zero for server_3.
+  --let $assert_cond= $server_OCT = 0
+  --source include/assert.inc
+
+  --let $rpl_connection_name= server_5
+  --source include/rpl_connection.inc
+  --source include/get_original_commit_timestamp.inc
+  --let $server_OCT= $original_commit_timestamp
+  --source include/get_immediate_commit_timestamp.inc
+  --let $server_ICT= $immediate_commit_timestamp
+
+  --let $assert_text= Assert that the View_change_event ICT is bigger than zero for server_3.
+  --let $assert_cond= $server_ICT > 0
+  --source include/assert.inc
+
+  --let $assert_text= Assert that the View_change_event OCT is zero for server_3.
+  --let $assert_cond= $server_OCT = 0
+  --source include/assert.inc
+
+  --inc $i
+}
+
+# check the remaining transactions
+# (the first two events, both View change log events, have already been checked)
+--let $i= 3
+while ($i<9)
+{
+  --let $gtid= $group_replication_group_name:$i
+
+  --let $master= server2
+  --let $slave= server4
+  --let $check_master_OCT= 0
+  --let $check_master_slave_ICT= 1
+  --source extra/rpl_tests/rpl_replication_timestamps.inc
+
+  --let $master= server2
+  --let $slave= server3
+  --let $check_master_slave_ICT= 0
+  --source extra/rpl_tests/rpl_replication_timestamps.inc
+
+  --let $master= server2
+  --let $slave= server5
+  --source extra/rpl_tests/rpl_replication_timestamps.inc
+
+  --inc $i
+}
+
+# cleanup
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $rpl_channel_name= 'channel_1'
+--source include/stop_slave.inc
+--source include/rpl_reset_slave_helper.inc
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--let $rpl_channel_name=
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+
+--let $rpl_skip_sync= 1
+--source include/group_replication_end.inc

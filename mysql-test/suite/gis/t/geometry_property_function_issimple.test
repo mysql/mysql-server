@@ -8,7 +8,43 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_geometry.inc
+############################################################################################
+# Code coverage test                                                                       #
+############################################################################################
+# Covering:
+#   sql/gis/functor.h:Unary_functor
+#   sql/gis/is_simple.cc
+#   sql/item_geofunc.cc:Item_func_st_issimple::val_int()
+
+# Null
+SELECT ST_ISSIMPLE(NULL);
+
+# Cartesian
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)'));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOINT((0 0))'));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)'));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0, 0 1))'));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0, 0 1, 1 0, 0 0))'));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0, 0 1, 1 0, 0 0)))'));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), POINT(0 1))'));
+
+# Geographic
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)', 4326));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0, 0 1))', 4326));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0, 0 1, 1 0, 0 0))', 4326));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0, 0 1, 1 0, 0 0)))', 4326));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), POINT(0 1))', 4326));
+
+# Projected
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 3857));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 3857));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)', 3857));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0, 0 1))', 3857));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0, 0 1, 1 0, 0 0))', 3857));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0, 0 1, 1 0, 0 0)))', 3857));
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), POINT(0 1))', 3857));
 
 ############################################################################################
 # Creating the spatial objects                                                             #
@@ -17,7 +53,7 @@
 --echo # Creating the spatial Geometry object
 USE test;
 
-CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 
 ############################################################################################
 # Inserting the values specific to the spatial objects                                     #
@@ -122,6 +158,7 @@ SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_line_horizontal));
 
 SELECT ST_ISSIMPLE(g) FROM gis_geometrycollection WHERE fid=110;
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0)'));
 
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0,-0.00 0)'));
@@ -149,6 +186,7 @@ SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT ST_ISSIMPLE(g) FROM gis_geometrycollection WHERE fid=114;
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
 
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,1 1,1 1))'));
@@ -256,6 +294,7 @@ SELECT ST_ISSIMPLE(g) FROM gis_geometrycollection WHERE fid=115;
 
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'));
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0))'));
 
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
@@ -355,20 +394,20 @@ SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),'
 --echo # ST_ISSIMPLE(geometry) with different SRID values
 --echo #####################################################################################
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_center,-1024));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_all_points,-1));
 
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_top_to_center,0));
 
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_lines_near_vertical,4326));
 
-SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star,123456789));
-
-SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295));
-
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_of_elems,4294967296));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000));
 
 --echo #####################################################################################
@@ -449,26 +488,54 @@ SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5)),((0 0)))'));
 --error ER_GIS_INVALID_DATA
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5)),((0 0,2 2,3 3)))'));
 
---error ER_GIS_DATA_WRONG_ENDIANESS
+--error ER_GIS_INVALID_DATA
 SELECT ST_ISSIMPLE(0x000000000200000000000000000000000000000000);
 
---error ER_GIS_DATA_WRONG_ENDIANESS
-SELECT ST_ISSIMPLE(0x010100000001000000010100000000000000000000);
-
---error ER_GIS_DATA_WRONG_ENDIANESS
-SELECT ST_ISSIMPLE(0x010100000002000000000000000000000000000000);
-
---error ER_GIS_DATA_WRONG_ENDIANESS
+--error ER_GIS_INVALID_DATA
 SELECT ST_ISSIMPLE(0x000000000600000001000000000200000002000000);
 
---error ER_GIS_DATA_WRONG_ENDIANESS
+--error ER_GIS_INVALID_DATA
 SELECT ST_ISSIMPLE(0x000000000200000001000000050000000000000000);
-
---error ER_GIS_DATA_WRONG_ENDIANESS
-SELECT ST_ISSIMPLE(0x010300000002000000010300000002000000050000);
-
---error ER_GIS_DATA_WRONG_ENDIANESS
-SELECT ST_ISSIMPLE(0x010400000002000000010100000000000000000000);
 
 --echo # Clean up
 DROP TABLE gis_geometrycollection;
+
+--echo #
+--echo # Bug #21841051 PREPARE STATEMENT RETURNS DIFFERENT NUMBER OF ROWS WHEN
+--echo # EXECUTED SECOND TIME
+--echo #
+
+CREATE TABLE t1 (id INT, g GEOMETRY);
+INSERT INTO t1 VALUES (2, ST_GeomFromText('POINT(0 0)'));
+CREATE TABLE t2 (id INT);
+INSERT INTO t2 VALUES (1), (3);
+
+PREPARE stmt FROM 'SELECT ST_IsSimple(g) AS a1
+FROM t1 RIGHT OUTER JOIN t2 ON (t1.id > t2.id) GROUP BY a1';
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # WL#8579 Spatial Reference Systems
+--echo #
+
+--echo # SRID 0 (should pass)
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 0));
+
+--echo # Projected SRS (should pass)
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
+
+--echo # Geographic SRS (should pass)
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_ISSIMPLE(x'0A000000010100000000000000000000000000000000000000');

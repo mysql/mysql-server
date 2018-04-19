@@ -1,0 +1,56 @@
+#
+# Bug#27189701 INNODB: EARLY RELEASE OF GAP LOCKS FOR RC
+# ISOLATION [XA PREPARE]
+#
+CREATE TABLE t1 (col1 INT PRIMARY KEY, col2 int);
+Connection: default
+SET DEBUG='+d,ib_force_release_gap_lock_prepare';
+# 1.Test GAP lock only on supremum record
+XA START 'lock_trx';
+SELECT * FROM t1;
+col1	col2
+# Update empty table acquire GAP lock on supremum
+UPDATE t1 SET col2 = 100 where col1 = 10;
+Connection: con1
+INSERT INTO t1 values(10, 100);
+Connection: default
+XA END 'lock_trx';
+XA PREPARE 'lock_trx';
+Connection: con1
+INSERT INTO t1 values(20, 200);
+SELECT * FROM t1 ORDER BY col1;
+col1	col2
+10	100
+20	200
+Connection: default
+XA COMMIT 'lock_trx';
+# 2.Test GAP lock on multiple records
+XA START 'lock_trx_1';
+# Update table acquire GAP lock on all rows
+UPDATE t1 SET col2 = col2 + 1;
+Connection: con1
+INSERT INTO t1 values(5, 50);
+Connection: default
+XA END 'lock_trx_1';
+XA PREPARE 'lock_trx_1';
+Connection: con1
+INSERT INTO t1 values(15, 150);
+INSERT INTO t1 values(25, 150);
+SELECT * FROM t1 ORDER BY col1;
+col1	col2
+5	50
+10	100
+15	150
+20	200
+25	150
+Connection: default
+XA COMMIT 'lock_trx_1';
+SELECT * FROM t1 ORDER BY col1;
+col1	col2
+5	50
+10	101
+15	150
+20	201
+25	150
+SET DEBUG='-d,ib_force_release_gap_lock_prepare';
+DROP TABLE t1;

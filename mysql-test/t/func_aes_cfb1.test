@@ -1,3 +1,6 @@
+# AES CFB1 block mode is supported by OpenSSL only.
+--source include/have_openssl.inc
+
 --echo # Tests of the AES CFB1 block mode
 --disable_query_log
 --disable_result_log
@@ -5,10 +8,6 @@
 SET SESSION block_encryption_mode='aes-128-cfb1';
 --enable_query_log
 --enable_result_log
-
-if (`SELECT @@SESSION.block_encryption_mode <> 'aes-128-cfb1'`) {
-  skip No cfb1 support;
-}
 
 let $block_mode=cfb1;
 source include/func_aes_block.inc;

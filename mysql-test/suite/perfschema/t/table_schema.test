@@ -1,13 +1,10 @@
 # Test to detect changest to the PERFORMANCE_SCHEMA table schemas
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 # Use the INFORMATION_SCHEMA to examine the tables in the PERFORMANCE_SCHEMA
 # and detect any tables that have changed.
 
 select * from information_schema.columns where table_schema="performance_schema"
-   order by table_name, ordinal_position;
+   order by table_name collate utf8_general_ci, ordinal_position;
 
 # Bug#11766504 "59631: BIGINT UNSIGNED BYTE RELATED COLUMNS IN PERFORMANCE_SCHEMA"
 

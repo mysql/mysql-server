@@ -1,0 +1,175 @@
+###############################################################################
+# Bug#25656123 MEMORY LEAK IN MASTER-MASTER GTID REPLICATION WITH
+#              SYNC_RELAY_LOG_INFO
+#
+# Problem:  Applier thread is leaking memory when it is updating
+#           repository tables for ignored/skipped events.
+#
+# Steps to reproduce:
+#
+# 1) Create M1<->M2 replication topology
+#
+# 2) Create a sample table to create ignored/skipped insert events
+#    on the table. And run some sample inserts on both nodes, so that
+#    initially bytes used will not be counted.
+#
+# 3) If gtid_mode is OFF, set sql_slave_skip_counter to 50 on M2 node
+#    and restart sql thread to make the change effective.
+#
+#    If gtid_mode is ON, execute 50 empty transactions on M2 node,
+#    so that 50 transactions from M1 will be skipped.
+#
+# 4) Record thd::main_mem_root usage values on both servers before
+#    starting the experiment.
+#
+# 5) Insert 100 sample queries on M1 node. First 50 inserts will be ignored
+#    on M2 node (because sql_slave_skip_counter set to 50 in step-3).
+#    Second 50 inserts will be executed on M2 and will be replicated back to
+#    M1 node. But they will be ignored on M1 because they were originated on
+#    M1 node.
+#
+# 6) Record thd::main_mem_root usage value on M1 after
+#    the experiment. Check that thd::main_mem_root value
+#    did not increased.
+#
+# 7) Record thd::main_mem_root usage value on M2 after
+#    the experiment. Check that thd::main_mem_root value
+#    did not increased.
+#
+# 8) Cleanup.
+###############################################################################
+
+# This test is independent of binlog format. Choosing 'row' format.
+--source include/have_binlog_format_row.inc
+# Performance schema Query used to test memory growth
+--let $perf_query=SELECT high_number_of_bytes_used/1024/1024 FROM performance_schema.memory_summary_global_by_event_name WHERE event_name = 'memory/sql/thd::main_mem_root'
+--let $master_uuid=`SELECT @@SERVER_UUID`
+
+--echo #
+--echo # Step-1) Create M1<->M2 replication topology
+--echo #
+--let $rpl_topology= 1->2->1
+--source include/rpl_init.inc
+
+--echo #
+--echo # Step-2) Create a sample table to create ignored/skipped
+--echo #         insert events on the table. And run some sample
+--echo #         inserts on both nodes, so that initial hiccups
+--echo #         in bytes used will not be counted.
+--echo #
+--let $rpl_connection_name=server_1
+--source include/rpl_connection.inc
+CREATE TABLE t1(i INT);
+--source include/rpl_sync.inc
+--let $rpl_connection_name=server_1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+--let $rpl_connection_name=server_2
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+--source include/rpl_sync.inc
+
+--echo #
+--echo # Step-3) If gtid_mode is OFF, set sql_slave_skip_counter to 50 on
+--echo #         M2 node and restart sql thread to make the change effective.
+--echo #
+--echo #         If gtid_mode is ON, execute 50 empty transactions on
+--echo #         M2 node, so that 50 transactions from M1 will be skipped.
+--echo #
+--let $rpl_connection_name=server_2
+--source include/rpl_connection.inc
+--source include/stop_slave_sql.inc
+--disable_query_log
+if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
+{
+  SET GLOBAL sql_slave_skip_counter=50;
+}
+if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
+{
+  --let $trx_no=2
+  while ($trx_no <= 50)
+  {
+    --replace_result $master_uuid MASTER_UUID
+    --eval SET GTID_NEXT='$master_uuid:$trx_no'
+    BEGIN;
+    COMMIT;
+    --inc $trx_no
+  }
+  SET GTID_NEXT='AUTOMATIC';
+}
+--enable_query_log
+--source include/start_slave_sql.inc
+
+--echo #
+--echo # Step-4) Record thd::main_mem_root usage values on both servers before
+--echo #         starting the experiment.
+--echo #
+--let $rpl_connection_name=server_1
+--source include/rpl_connection.inc
+
+--let $thd_mem_root_usage_on_M1_before_experiment=`$perf_query`
+
+--let $rpl_connection_name=server_2
+--source include/rpl_connection.inc
+--let $thd_mem_root_usage_on_M2_before_experiment=`$perf_query`
+
+--echo #
+--echo # Step-5) Insert 100 sample queries on M1 node. First 50 inserts will
+--echo #         be ignored on M2 node (because sql_slave_skip_counter set to
+--echo #         50). Second 50 inserts will be executed on M2 and will be
+--echo #         replicated back to M1 node. But they will be ignored on M1
+--echo #         because they were originated on M1 node.
+--echo #
+--let $rpl_connection_name=server_1
+--source include/rpl_connection.inc
+--disable_query_log
+--let $i=0
+while ($i < 100)
+{
+  --eval INSERT INTO t1 VALUES ($i)
+  --inc $i
+}
+--enable_query_log
+--source include/rpl_sync.inc
+# Wait for all the events from M2 reach M1 back (they will be ignored but we
+# should wait till all the events reach M1 to verify our experiment).
+# Simple sync will not work in case of GTIDs, as the GTID_EXECUTED already contains
+# everything, sync will think that everything is applied.
+# So to achieve what we wanted, execute a sample query on M2 that will *not* be ignored
+# by M1, and wait till M1 executes that particular query (i.e., a query and then sync).
+--let $rpl_connection_name=server_2
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (100);
+--source include/rpl_sync.inc
+
+--echo #
+--echo # Step-6) Record thd::main_mem_root usage value on M1 after
+--echo #         the experiment. Check that thd::main_mem_root value
+--echo #         did not increased.
+--echo #
+--let $rpl_connection_name=server_1
+--source include/rpl_connection.inc
+--let $thd_mem_root_usage_on_M1_after_experiment=`$perf_query`
+--let $assert_text= thd::main_mem_root on M1 should be the same value as before experiment value.
+--let $assert_cond= $thd_mem_root_usage_on_M1_after_experiment = $thd_mem_root_usage_on_M1_before_experiment
+--source include/assert.inc
+
+--echo #
+--echo # Step-7) Record thd::main_mem_root usage value on M2 after
+--echo #         the experiment. Check that thd::main_mem_root value
+--echo #         did not increased.
+--echo #
+--let $rpl_connection_name=server_2
+--source include/rpl_connection.inc
+--let $thd_mem_root_usage_on_M2_after_experiment=`$perf_query`
+--let $assert_text= thd::main_mem_root on M2 should be the same value as before experiment value.
+--let $assert_cond= $thd_mem_root_usage_on_M2_after_experiment = $thd_mem_root_usage_on_M2_before_experiment
+--source include/assert.inc
+
+--echo #
+--echo # Step-8) Cleanup.
+--echo #
+DROP TABLE t1;
+--source include/rpl_end.inc

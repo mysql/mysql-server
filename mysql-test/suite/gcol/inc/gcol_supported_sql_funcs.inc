@@ -15,7 +15,7 @@
 
 --enable_warnings
 set sql_warnings = 1;
-eval create table t1 ($cols);
+eval create table t1 ($cols) charset latin1;
 show create table t1;
 if ($rows)
 {
@@ -41,6 +41,7 @@ if ($rows)
   eval insert into t1 values ($values4);
   dec $rows;
 }
+--sorted_result
 select * from t1;
 drop table t1;
 set sql_warnings = 0;

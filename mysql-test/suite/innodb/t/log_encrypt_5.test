@@ -1,0 +1,150 @@
+# InnoDB transparent encryption on redo log.
+# This test case will test basic encryption support features.
+
+--source include/no_valgrind_without_big.inc
+--source include/not_windows.inc
+
+#Suppress following messages from myslqd log
+--disable_query_log
+call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
+call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
+call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
+call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
+call mtr.add_suppression("Ignoring tablespace .* because it could not be opened");
+call mtr.add_suppression("Can't set redo log tablespace to be encrypted.");
+call mtr.add_suppression("Plugin keyring_file reported: 'File");
+--enable_query_log
+
+let $old_innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+let $old_innodb_redo_log_encrypt = `SELECT @@innodb_redo_log_encrypt`;
+let $START_PAGE_SIZE= `select @@innodb_page_size`;
+let $LOG_FILE_SIZE= `select @@innodb_log_file_size`;
+
+let MYSQLD_DATADIR =`SELECT @@datadir`;
+let $MYSQLD_BASEDIR= `select @@basedir`;
+--mkdir $MYSQL_TMP_DIR/log_encrypt_dir1
+--mkdir $MYSQL_TMP_DIR/innodb_undo_data_dir
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/log_encrypt_dir1;
+# Set path for undo* files.
+let $MYSQLD_UNDO_DATADIR = $MYSQL_TMP_DIR/innodb_undo_data_dir;
+
+let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+--echo # Stop the MTR default DB server
+--source include/shutdown_mysqld.inc
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --innodb_undo_tablespaces=2 --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap1.log 2>&1;
+
+--echo # Run the bootstrap command of datadir1
+--exec $NEW_CMD
+
+--let $restart_parameters= restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --datadir=$MYSQLD_DATADIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --innodb_undo_tablespaces=2 $KEYRING_PLUGIN_OPT
+--replace_regex /\.dll/.so/
+--source include/start_mysqld_no_echo.inc
+
+
+
+--disable_warnings
+DROP DATABASE IF EXISTS tde_db;
+CREATE DATABASE tde_db;
+USE tde_db;
+
+# Install Plugin : Start server without --early-plugin-load.
+# Explicitly run , INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
+# and Set innodb_redo_log_encrypt = ON/OFF
+# Expected result : Plugin should install without any error and it's should
+# show in SHOW PLUGINS; Redo file encryption is enabled/disable for redo log.
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
+--enable_warnings
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SET @@global.keyring_file_data= '$MYSQL_TMP_DIR/my_key_log3';
+SELECT
+  PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE
+FROM INFORMATION_SCHEMA.PLUGINS
+  WHERE PLUGIN_NAME LIKE '%keyring_file%' ;
+SET GLOBAL innodb_redo_log_encrypt = 1;
+SET GLOBAL innodb_undo_log_encrypt = 1;
+--sleep 1
+SELECT @@global.innodb_redo_log_encrypt ;
+CREATE TABLE tde_db.t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t1 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t1;
+CREATE TABLE tde_db.t2 (a BIGINT PRIMARY KEY, b LONGBLOB)
+                        ENCRYPTION='Y' ENGINE=InnoDB;
+INSERT INTO t2 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t2;
+SET GLOBAL innodb_redo_log_encrypt = 0;
+SET GLOBAL innodb_undo_log_encrypt = 0;
+SELECT @@global.innodb_redo_log_encrypt ;
+CREATE TABLE tde_db.t3 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t3 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t3;
+CREATE TABLE tde_db.t4 (a BIGINT PRIMARY KEY, b LONGBLOB)
+                        ENCRYPTION='Y' ENGINE=InnoDB;
+INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t4;
+
+SET GLOBAL innodb_redo_log_encrypt = 1;
+SET GLOBAL innodb_undo_log_encrypt = 1;
+SELECT @@global.innodb_redo_log_encrypt ;
+CREATE TABLE tde_db.t5 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t5 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t5;
+CREATE TABLE tde_db.t6 (a BIGINT PRIMARY KEY, b LONGBLOB)
+                        ENCRYPTION='Y' ENGINE=InnoDB;
+INSERT INTO t6 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t6;
+START TRANSACTION;
+INSERT INTO t5 (a, b) VALUES (2, REPEAT('a', 6*512*512));
+INSERT INTO t6 (a, b) VALUES (2, REPEAT('a', 6*512*512));
+COMMIT;
+START TRANSACTION;
+INSERT INTO t5 (a, b) VALUES (3, REPEAT('a', 6*512*512));
+INSERT INTO t6 (a, b) VALUES (3, REPEAT('a', 6*512*512));
+ROLLBACK;
+SELECT a,LEFT(b,10) FROM tde_db.t5;
+SELECT a,LEFT(b,10) FROM tde_db.t6;
+
+UNINSTALL PLUGIN keyring_file;
+
+# Enable following after bug fix
+#--remove_file $MYSQL_TMP_DIR/new_keyring_file
+#--echo # Starting server without keyring plugin & innodb_redo_log_encrypt=OFF
+#--echo # See server comes up after clean shutdown
+#let $restart_parameters = restart:  ;
+#--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+#--source include/restart_mysqld.inc
+#SELECT a,LEFT(b,10) FROM tde_db.t1;
+#--error ER_CANNOT_FIND_KEY_IN_KEYRING
+#SELECT a,LEFT(b,10) FROM tde_db.t2;
+#SELECT a,LEFT(b,10) FROM tde_db.t3;
+#--error ER_CANNOT_FIND_KEY_IN_KEYRING
+#SELECT a,LEFT(b,10) FROM tde_db.t4;
+#SELECT a,LEFT(b,10) FROM tde_db.t5;
+#--error ER_CANNOT_FIND_KEY_IN_KEYRING
+#SELECT a,LEFT(b,10) FROM tde_db.t6;
+#
+DROP TABLE tde_db.t1,tde_db.t2,tde_db.t3,tde_db.t4,tde_db.t5,tde_db.t6;
+DROP DATABASE tde_db;
+--let $restart_parameters= restart:
+--replace_regex /\.dll/.so/
+--source include/restart_mysqld_no_echo.inc
+
+
+
+# Cleanup
+#
+
+--force-rmdir $MYSQL_TMP_DIR/log_encrypt_dir1
+--force-rmdir $MYSQL_TMP_DIR/innodb_undo_data_dir
+--remove_file $MYSQLTEST_VARDIR/tmp/bootstrap1.log
+--remove_file $BOOTSTRAP_SQL
+--disable_query_log
+eval SET GLOBAL innodb_file_per_table=$old_innodb_file_per_table;
+eval SET GLOBAL innodb_redo_log_encrypt=$old_innodb_redo_log_encrypt;
+--enable_query_log

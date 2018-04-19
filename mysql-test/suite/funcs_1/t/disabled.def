@@ -6,7 +6,8 @@
 #
 #      <testcasename>  : Comment test
 #
-#  Don't use any TAB characters for whitespace.
+#  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-
+is_basics_mixed @windows : bug#25882809 2017-04-12 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW
+is_basics_mixed @darwin : bug#25882809 2017-04-12 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW

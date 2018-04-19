@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/no_valgrind_without_big.inc
 
 #------------------------------------------------------------------------------
@@ -404,12 +403,12 @@ DROP TABLE t1;
 drop table if exists t50;
 --enable_warnings
 
-set names utf8;
+SET NAMES utf8mb4;
 
 
 --echo "----------Test1---------"
 # Create FTS table
-create table t50 (s1 varchar(60) character set utf8 collate utf8_bin) engine = innodb;
+create table t50 (s1 varchar(60) character set utf8mb4 collate utf8mb4_bin) engine = innodb;
 create fulltext index i on t50 (s1);
 # INNODB_FTS: Assert - fixed
 # Assert : InnoDB: Failing assertion: rbt_validate(result_doc->tokens)
@@ -421,7 +420,7 @@ drop table t50;
 
 --echo "----------Test2---------"
 create table t50 (s1 int unsigned primary key auto_increment, s2
-varchar(60) character set utf8) engine = innodb;
+varchar(60) character set utf8mb4) engine = innodb;
 create fulltext index i on t50 (s2);
 insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCDE');
 # INNODB_FTS: RESULT DIFF
@@ -435,7 +434,7 @@ drop table t50;
 
 --echo "----------Test3---------"
 create table t50 (id int unsigned primary key auto_increment, s2
-varchar(60) character set utf8) engine = innodb;
+varchar(60) character set utf8mb4) engine = innodb;
 create fulltext index i on t50 (s2);
 insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCDE');
 set @@autocommit=0;
@@ -449,7 +448,7 @@ set @@autocommit=1;
 
 --echo "----------Test4---------"
 create table t50 (id int unsigned primary key auto_increment, s2
-varchar(60) character set utf8) engine = innodb;
+varchar(60) character set utf8mb4) engine = innodb;
 create fulltext index i on t50 (s2);
 insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCD*');
 select * from t50 where match(s2) against ('abcd*' in natural language
@@ -581,9 +580,9 @@ DROP TABLE t2,t1;
 
 
 --echo "----------Test13---------"
-set names utf8;
+SET NAMES utf8mb4;
 
-CREATE TABLE t1 (s1 INT, s2 VARCHAR(200) CHARACTER SET UTF8 COLLATE UTF8_SPANISH_CI) ENGINE = InnoDB;
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200) CHARACTER SET UTF8MB4 COLLATE UTF8MB4_SPANISH_CI) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX i ON t1 (s2);
 INSERT INTO t1 VALUES (1,'aaCen'),(2,'aaCha'),(3,'aaCio'),(4,'aaçen'),(5,'aaçha'),(6,'aaçio');
 SELECT * FROM t1 WHERE MATCH(s2) AGAINST ('aach*' IN BOOLEAN MODE);
@@ -600,23 +599,23 @@ DROP TABLE t1;
 
 
 --echo "----------Test15---------"
-CREATE TABLE t1 (s1 VARCHAR (60) CHARACTER SET UTF8 COLLATE UTF8_UNICODE_520_CI) ENGINE = MyISAM;
+CREATE TABLE t1 (s1 VARCHAR (60) CHARACTER SET UTF8MB4 COLLATE UTF8MB4_UNICODE_520_CI) ENGINE = MyISAM;
 CREATE FULLTEXT INDEX i ON t1 (s1);
 INSERT INTO t1 VALUES
 ('a'),('b'),('c'),('d'),('ŁŁŁŁ'),('LLLL'),(NULL),('ŁŁŁŁ ŁŁŁŁ'),('LLLLLLLL');
-SELECT * FROM t1 WHERE MATCH(s1) AGAINST ('LLLL' COLLATE UTF8_UNICODE_520_CI);
+SELECT * FROM t1 WHERE MATCH(s1) AGAINST ('LLLL' COLLATE UTF8MB4_UNICODE_520_CI);
 DROP TABLE if EXISTS t2;
-CREATE TABLE t2 (s1 VARCHAR(60) CHARACTER SET UTF8 COLLATE UTF8_POLISH_CI) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 VARCHAR(60) CHARACTER SET UTF8MB4 COLLATE UTF8MB4_POLISH_CI) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX i ON t2 ( s1);
 INSERT INTO t2 VALUES
 ('a'),('b'),('c'),('d'),('ŁŁŁŁ'),('LLLL'),(NULL),('ŁŁŁŁ ŁŁŁŁ'),('LLLLLLLL');
-SELECT * FROM t2 WHERE MATCH(s1) AGAINST ('LLLL' COLLATE UTF8_UNICODE_520_CI);
+SELECT * FROM t2 WHERE MATCH(s1) AGAINST ('LLLL' COLLATE UTF8MB4_UNICODE_520_CI);
 --disable_warnings
 DROP TABLE t1,t2;
 --enable_warnings
 
 --echo "----------Test16---------"
-CREATE TABLE t1 (s1 INT, s2 VARCHAR(50) CHARACTER SET UTF8) ENGINE = InnoDB;
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(50) CHARACTER SET UTF8MB4) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX i ON t1(s2);
 INSERT INTO t1 VALUES (2, 'ğė Daśi      p          ');
 SELECT * FROM t1 WHERE MATCH(s2) AGAINST ('+p +"ğė Daśi*"' IN BOOLEAN MODE);
@@ -625,7 +624,7 @@ DROP TABLE t1;
 
 --echo "----------Test19---------"
 #19 Failure with Boolean quoted search
-CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8) ENGINE = InnoDB;
+CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8MB4) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,'İóëɠ');
 CREATE FULLTEXT INDEX i ON t1 (char_column);
 SELECT * FROM t1 WHERE MATCH(char_column) AGAINST ('"İóëɠ"' IN BOOLEAN MODE);
@@ -633,7 +632,7 @@ DROP TABLE t1;
 
 --echo "----------Test20---------"
 #20 Crash with utf32 and boolean mode.
-CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF32, char_column2 VARCHAR(60) character set utf8) ENGINE = InnoDB;
+CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF32, char_column2 VARCHAR(60) character set utf8mb4) ENGINE = InnoDB;
 INSERT INTO t1 (char_column) VALUES ('abcde'),('fghij'),('klmno'),('qrstu');
 UPDATE t1 SET char_column2 = char_column;
 CREATE FULLTEXT INDEX i ON t1 (char_column2);
@@ -643,7 +642,7 @@ DROP TABLE t1;
 
 --echo "----------Test22---------"
 # case 22
-CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8) ENGINE = InnoDB;
+CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8MB4) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,'aaa'),(2,'bbb'),(3,'ccc');
 CREATE FULLTEXT INDEX i ON t1 (char_column);
 HANDLER t1 OPEN;
@@ -654,7 +653,7 @@ DROP TABLE t1;
 
 --echo "----------Test25---------"
 #25 Failure with Croatian boolean truncated search.
-CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8 COLLATE UTF8_CROATIAN_CI) ENGINE=InnoDB;
+CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8MB4 COLLATE UTF8MB4_CROATIAN_CI) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1,'Ǉin'),(2,'ljin'),(3,'lmin'),(4,'ǇǇǇǇǇ');
 CREATE FULLTEXT INDEX i ON t1 (char_column);
 #inndob:error incorrect result correct it after fix
@@ -1127,7 +1126,7 @@ SELECT id FROM t1 WHERE MATCH (a,b)
 DROP TABLE t1;
 
 # Test for Bug 14588091 - FTS: BUFFER OVERFLOW IN FTS_AST_CREATE_NODE_TEXT
-CREATE TABLE `t` (`a` char(20) character set utf8 default null,
+CREATE TABLE `t` (`a` char(20) character set utf8mb4 default null,
 fulltext key (`a`)) ENGINE=INNODB;
 INSERT INTO `t` VALUES ('a');
 INSERT INTO `t` VALUES ('aaa');

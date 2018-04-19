@@ -20,33 +20,34 @@ ERROR HY000: Variable 'sha256_password_auto_generate_rsa_keys' is a read only va
 #          --sha256_password_auto_generate_rsa_keys=0
 # Restart completed.
 # Search for : Skipping generation of SSL certificates as --auto_generate_certs is set to OFF.
+Pattern "Skipping generation of SSL certificates as --auto_generate_certs is set to OFF" found
 # Search completed.
 # Search for : Skipping generation of RSA key pair as --sha256_password_auto_generate_rsa_keys is set to OFF.
+Pattern "Skipping generation of RSA key pair as --sha256_password_auto_generate_rsa_keys is set to OFF" found
 # Search completed.
 # Ensure that certificate files are not there after server is started
 # Ensure that server is not ssl enabled
 # Ensure that sha connection is not possible in absence of certificates and keys
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 drop user wl7699_sha256;
 # Test 3 : SSL certificates
 # 3.1 : Restarting mysqld with : --auto-generate-certs=1
 # Restart completed.
 # Search for : Auto generated SSL certificates are placed in data directory.
+Pattern "Auto generated SSL certificates are placed in data directory." found
 # Search completed.
 # Search for SSL certificate and key files in Data directory.
 # Search completed.
 # Ensure that RSA files are not there in data directory
 # Ensure that server is ssl enabled
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	SSL_CIPHER
 # Test 4 : RSA key pair
 # 4.1 : Restarting mysqld with :
 #       --sha256_password_auto_generate_rsa_keys=1
 # Restart completed.
-# Search for : Auto generated RSA key files are placed in data directory.
+# Search for : Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.
+Pattern "Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory." found
 # Search completed.
 # Search for RSA key files in Data directory.
 # Search completed.
@@ -59,6 +60,8 @@ Ssl_cipher	DHE-RSA-AES256-SHA
 # Generation of SSL ceritificates/key files and
 # RSA key pair files is skipped.
 # Search for : Messages related to skipped generation of SSL certificates and RSA key pair files.
+Pattern "Skipping generation of SSL certificates as certificate files are present in data directory" found
+Pattern "Skipping generation of RSA key pair" found
 # Search completed.
 # 5.2 : System variables
 # auto_generate_certs, ssl_ca, ssl_cert and ssl_key should be set.
@@ -70,6 +73,7 @@ ssl_cert	server-cert.pem
 ssl_cipher	
 ssl_crl	
 ssl_crlpath	
+ssl_fips_mode	OFF
 ssl_key	server-key.pem
 # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 # and sha256_password_public_key_path should be set.
@@ -80,13 +84,10 @@ sha256_password_private_key_path	private_key.pem
 sha256_password_proxy_users	OFF
 sha256_password_public_key_path	public_key.pem
 # 5.3 : SHA256_password user
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 # Should be able to connect to server using generated SSL certificates.
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	SSL_CIPHER
 # Should be able to connect to server using RSA key pair.
 current_user()
 wl7699_sha256@%
@@ -97,8 +98,10 @@ drop user wl7699_sha256;
 #       --sha256_password_auto_generate_rsa_keys=ON
 # Restart completed.
 # Search for : Auto generated SSL certificates are placed in data directory.
+Pattern "Auto generated SSL certificates are placed in data directory." found
 # Search completed.
-# Search for : Auto generated RSA key files are placed in data directory.
+# Search for : Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.
+Pattern "Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory." found
 # Search completed.
 # 6.2 : System variables
 # auto_generate_certs, ssl_ca, ssl_cert and ssl_key should be set.
@@ -110,6 +113,7 @@ ssl_cert	server-cert.pem
 ssl_cipher	
 ssl_crl	
 ssl_crlpath	
+ssl_fips_mode	OFF
 ssl_key	server-key.pem
 # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 # and sha256_password_public_key_path should be set.
@@ -122,15 +126,12 @@ sha256_password_public_key_path	public_key.pem
 # 6.3 : SSL connection
 # Should be able to connect to server using generated SSL certificates.
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	SSL_CIPHER
 # 6.4 : SHA256_password user
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 # Should be able to connect to server using generated SSL certificates.
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	SSL_CIPHER
 # Should be able to connect to server using RSA key pair.
 current_user()
 wl7699_sha256@%
@@ -141,7 +142,8 @@ drop user wl7699_sha256;
 #       --auto_generate_certs=ON
 #       --sha256_password_auto_generate_rsa_keys=ON
 # Restart completed.
-# Search for : Auto generated RSA key files are placed in data directory.
+# Search for : Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.
+Pattern "Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory." found
 # Search completed.
 # 7.2 : System variables
 # No ssl variables should be set
@@ -153,6 +155,7 @@ ssl_cert
 ssl_cipher	
 ssl_crl	
 ssl_crlpath	
+ssl_fips_mode	OFF
 ssl_key	
 # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 # and sha256_password_public_key_path should be set.
@@ -165,13 +168,23 @@ sha256_password_public_key_path	public_key.pem
 # 7.3 : SSL connection
 # Should not be able to connect to server using generated SSL certificates.
 # 7.4 : SHA256_password user
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 # Should not be able to connect to server using generated SSL certificates.
 # Should be able to connect to server using RSA key pair.
 current_user()
 wl7699_sha256@%
 drop user wl7699_sha256;
+#
+# Bug#21108296 : --SSL-CIPHER OPTION CAUSES SSL INITIALIZATION FAILURE
+#
+# Restarting mysqld with :
+#       --auto_generate_certs=ON
+#       --ssl-cipher=DHE-RSA-AES256-SHA
+#       --skip-sha256_password_auto_generate_rsa_keys
+# Restart completed.
+# Search for : Auto generated SSL certificates are placed in data directory.
+Pattern "Auto generated SSL certificates are placed in data directory." found
+# Search completed.
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA
 # Clean-up

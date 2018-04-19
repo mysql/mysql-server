@@ -121,19 +121,19 @@ SELECT @@global.myisam_data_pointer_size;
 --disable_warnings
 SET @@global.myisam_data_pointer_size = 3;
 SELECT @@global.myisam_data_pointer_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='myisam_data_pointer_size';
 --enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_093_07-----------------------#'
 ###########################################################################
-#  Check if the value is present in INFORMATION_SCHEMA.SESSION_VARIABLES  #
+#  Check if the value is present in performance_schema.session_variables  #
 ###########################################################################
 
 --disable_warnings
 SELECT count(VARIABLE_VALUE) 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='myisam_data_pointer_size';
 --enable_warnings
 

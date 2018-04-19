@@ -6,8 +6,6 @@
 # Partitions: crash if varchar length > 65530
 # BUG#48164 limited size to 3072 bytes
 #
--- source include/have_partition.inc
--- source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists t1;
@@ -194,21 +192,21 @@ create table t1 (a set('y','n')) partition by key (a);
 insert into t1 values ('y');
 select * from t1 where a = 'y';
 drop table t1;
-create table t1 (a varchar(3068)) partition by key (a);
+create table t1 (a varchar(3068)) charset latin1 partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
 select * from t1 where a = 'aaaa';
 select * from t1 where a like 'aaa%';
 select * from t1 where a = 'bbbb';
 drop table t1;
-create table t1 (a varchar(3069)) partition by key (a);
+create table t1 (a varchar(3069)) charset latin1 partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
 select * from t1 where a = 'aaaa';
 select * from t1 where a like 'aaa%';
 select * from t1 where a = 'bbbb';
 drop table t1;
-create table t1 (a varchar(3070) not null) partition by key (a);
+create table t1 (a varchar(3070) not null) charset latin1 partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
 select * from t1 where a = 'aaaa';
@@ -218,16 +216,16 @@ drop table t1;
 -- error ER_PARTITION_FIELDS_TOO_LONG
 create table t1 (a varchar(3070)) partition by key (a);
 -- error ER_TOO_BIG_ROWSIZE
-create table t1 (a varchar(65533)) partition by key (a);
+create table t1 (a varchar(65533)) charset latin1 partition by key (a);
 -- error ER_TOO_BIG_ROWSIZE
-create table t1 (a varchar(65534) not null) partition by key (a);
+create table t1 (a varchar(65534) not null) charset latin1 partition by key (a);
 -- error ER_TOO_BIG_ROWSIZE
-create table t1 (a varchar(65535)) partition by key (a);
+create table t1 (a varchar(65535)) charset latin1 partition by key (a);
 
 #
 # Bug#34358: error in key_restore for bitfields with uneven bits
 #
-create table t1 (a bit(27), primary key (a)) engine=myisam
+create table t1 (a bit(27), primary key (a))
 partition by hash (a)
 (partition p0, partition p1, partition p2);
 show create table t1;
@@ -240,11 +238,9 @@ drop table t1;
 --echo #            by partition pruning
 SET @old_time_zone= @@session.time_zone;
 SET @@session.time_zone = 'UTC';
---echo # Using MyISAM to get stable values on TABLE_ROWS in I_S.PARTITIONS
 CREATE TABLE t1
 (a TIMESTAMP NULL,
- tz varchar(16))
-ENGINE = MyISAM;
+ tz varchar(16));
 CREATE TABLE t2 LIKE t1;
 ALTER TABLE t2 PARTITION BY RANGE (UNIX_TIMESTAMP(a))
 (PARTITION `p0` VALUES LESS THAN (0),
@@ -325,34 +321,42 @@ SET @@session.time_zone = 'UTC';
 
 INSERT INTO t2 SELECT * FROM t1;
 
+# Do ANALYZE to get predictable results from I_S and EXPLAIN.
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t1; 
+ANALYZE TABLE t2; 
+--enable_result_log
+--enable_query_log
+
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't2';
+WHERE TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
 
 SELECT * FROM t1 ORDER BY a, tz;
 SELECT * FROM t2 ORDER BY a, tz;
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-01 00:00:00' and '2011-03-26 23:00:00' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-01 00:00:00' and '2011-03-26 23:00:00' ORDER BY a, tz;
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-01 00:00:00' and '2011-03-26 22:59:59' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-01 00:00:00' and '2011-03-26 22:59:59' ORDER BY a, tz;
 
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 22:59:59' and '2011-03-28 00:00:00' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 22:59:59' and '2011-03-28 00:00:00' ORDER BY a, tz;
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 23:00:00' and '2011-03-28 00:00:00' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 23:00:00' and '2011-03-28 00:00:00' ORDER BY a, tz;
 
@@ -360,26 +364,26 @@ WHERE a BETWEEN '2011-03-26 23:00:00' and '2011-03-28 00:00:00' ORDER BY a, tz;
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 23:00:00' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 23:00:00' ORDER BY a, tz;
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 22:59:59' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 22:59:59' ORDER BY a, tz;
 
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 22:59:59' and '2011-10-31 00:00:00' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 22:59:59' and '2011-10-31 00:00:00' ORDER BY a, tz;
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 23:00:00' and '2011-10-31 00:00:00' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 23:00:00' and '2011-10-31 00:00:00' ORDER BY a, tz;
 
@@ -396,7 +400,7 @@ SELECT MIN(a), MAX(a) FROM t2;
 SELECT COUNT(*) FROM t2;
 SELECT COUNT(*) FROM t2 WHERE a = 0;
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't2';
+WHERE TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
 SELECT * FROM t2 ORDER BY a, tz;
 
 --echo # Test start range changes
@@ -410,7 +414,7 @@ SELECT MIN(a), MAX(a) FROM t2;
 SELECT COUNT(*) FROM t2;
 SELECT COUNT(*) FROM t2 WHERE a = 0;
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't2';
+WHERE TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
 SELECT * FROM t2 ORDER BY a, tz;
 
 SHOW CREATE TABLE t2;
@@ -421,7 +425,7 @@ SET @@session.time_zone = 'Europe/Moscow';
 INSERT INTO t2 SELECT * FROM t1;
 
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't2';
+WHERE TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
 
 SELECT * FROM t1 ORDER BY a, tz;
 SELECT * FROM t2 ORDER BY a, tz;
@@ -429,26 +433,26 @@ SELECT * FROM t2 ORDER BY a, tz;
 --echo # Testing the leap from 01:59:59 to 03:00:00
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-01 00:00:00' and '2011-03-27 03:00:00' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-01 00:00:00' and '2011-03-27 03:00:00' ORDER BY a, tz;
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-01 00:00:00' and '2011-03-27 01:59:59' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-01 00:00:00' and '2011-03-27 01:59:59' ORDER BY a, tz;
 
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 01:59:59' and '2011-03-28 00:00:00' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 01:59:59' and '2011-03-28 00:00:00' ORDER BY a, tz;
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 03:00:00' and '2011-03-28 00:00:00' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 03:00:00' and '2011-03-28 00:00:00' ORDER BY a, tz;
 
@@ -457,26 +461,26 @@ WHERE a BETWEEN '2011-03-26 03:00:00' and '2011-03-28 00:00:00' ORDER BY a, tz;
 --echo # Testing the leap from 02:59:59 to 02:00:00
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 02:00:00' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 02:00:00' ORDER BY a, tz;
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 02:59:59' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 02:59:59' ORDER BY a, tz;
 
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 03:00:00' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 03:00:00' ORDER BY a, tz;
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 01:59:59' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 01:59:59' ORDER BY a, tz;
 
@@ -484,26 +488,26 @@ WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 01:59:59' ORDER BY a, tz;
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 02:00:00' and '2011-10-31 00:00:00' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 02:00:00' and '2011-10-31 00:00:00' ORDER BY a, tz;
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 02:59:59' and '2011-10-31 00:00:00' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 02:59:59' and '2011-10-31 00:00:00' ORDER BY a, tz;
 
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 03:00:00' and '2011-10-31 00:00:00' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 03:00:00' and '2011-10-31 00:00:00' ORDER BY a, tz;
 
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 01:59:59' and '2011-10-31 00:00:00' ORDER BY a, tz;
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 01:59:59' and '2011-10-31 00:00:00' ORDER BY a, tz;
 
@@ -521,7 +525,7 @@ SELECT MIN(a), MAX(a) FROM t2;
 SELECT COUNT(*) FROM t2;
 SELECT COUNT(*) FROM t2 WHERE a = 0;
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't2';
+WHERE TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
 SELECT * FROM t2 ORDER BY a, tz;
 
 --echo # Test start range changes
@@ -535,7 +539,7 @@ SELECT MIN(a), MAX(a) FROM t2;
 SELECT COUNT(*) FROM t2;
 SELECT COUNT(*) FROM t2 WHERE a = 0;
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't2';
+WHERE TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
 SELECT * FROM t2 ORDER BY a, tz;
 
 SHOW CREATE TABLE t2;

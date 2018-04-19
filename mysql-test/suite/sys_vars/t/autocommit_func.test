@@ -18,7 +18,6 @@
 #                                                                              #
 ################################################################################
 
---source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists t1;

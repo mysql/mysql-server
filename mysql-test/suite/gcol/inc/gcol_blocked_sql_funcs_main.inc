@@ -67,6 +67,14 @@ create table t1 (a datetime, b varchar(10) generated always as (localtimestamp) 
 -- error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
 create table t1 (a datetime, b varchar(10) generated always as (now()) virtual);
 
+--echo # STATEMENT_DIGEST
+-- error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+create table t1 (a int, b int generated always as (statement_digest(a)) virtual);
+
+--echo # STATEMENT_DIGEST_TEXT
+-- error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+create table t1 (a int, b int generated always as (statement_digest_text(a)) virtual);
+
 --echo # SYSDATE()
 -- error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
 create table t1 (a int, b varchar(10) generated always as (sysdate()) virtual);
@@ -88,7 +96,7 @@ create table t1 (a datetime, b datetime generated always as (utc_time()) virtual
 create table t1 (a datetime, b datetime generated always as (utc_timestamp()) virtual);
 
 --echo # MATCH()
-if (!$skip_full_text_checks)
+if (!$skip_full_text_check)
 {
   -- error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
   create table t1 (a varchar(32), b bool generated always as (match a against ('sample text')) virtual);
@@ -320,3 +328,24 @@ drop table t1;
 --echo #
 --echo # Constant expression
 create table t1 (a int generated always as (PI()) virtual);
+drop table t1;
+
+if(! $testing_ndb) {
+--echo # bug#21098119: GCOL WITH MATCH/AGAINST -->
+--echo # ASSERTION FAILED: TR && TR->TABLE->FILE
+--echo #
+create table t1 (a int);
+--error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+alter table t1 add column r blob generated always
+as (match(a) against ('' in boolean mode)) virtual;
+drop table t1;
+}
+
+# Deprecated functions are not allowed in generation expressions
+--echo #
+--echo # Bug#26279884 : VIRTUAL COLUMNS ALLOW DEPRECATED FUNCTION TO BE USED
+--echo #
+
+--echo # JSON_MERGE()
+--error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t2(a JSON, b JSON, c JSON  GENERATED ALWAYS AS  (JSON_MERGE(a,b)));

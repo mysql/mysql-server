@@ -1,0 +1,912 @@
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SET @@foreign_key_checks= DEFAULT;
+#
+# WL#6929: Move FOREIGN KEY constraints to the global data dictionary
+#
+# Test coverage for foreign key name generation. Should be removed
+# or rewritten when WL#7141 is pushed.
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT PRIMARY KEY);
+CREATE TABLE t3(a INT PRIMARY KEY, b INT, c INT);
+ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`),
+  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+name
+t3_ibfk_1
+ALTER TABLE t3 ADD FOREIGN KEY (c) REFERENCES t1(a);
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`),
+  KEY `c` (`c`),
+  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t3_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+name
+t3_ibfk_1
+t3_ibfk_2
+ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`),
+  KEY `b` (`b`),
+  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t3_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t3_ibfk_3` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+name
+t3_ibfk_1
+t3_ibfk_2
+t3_ibfk_3
+ALTER TABLE t3 DROP FOREIGN KEY t3_ibfk_1;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`),
+  KEY `b` (`b`),
+  CONSTRAINT `t3_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t3_ibfk_3` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+name
+t3_ibfk_2
+t3_ibfk_3
+ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`),
+  KEY `b` (`b`),
+  CONSTRAINT `t3_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t3_ibfk_3` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t3_ibfk_4` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
+WHERE fk.table_id = t.id AND t.name = 't3';
+name
+t3_ibfk_2
+t3_ibfk_3
+t3_ibfk_4
+DROP TABLE t3, t2, t1;
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE name567890123456789012345678901234567890123456789012345678901234(a INT PRIMARY KEY, b INT);
+ALTER TABLE name567890123456789012345678901234567890123456789012345678901234
+ADD FOREIGN KEY(b) REFERENCES t1(a);
+ERROR 42000: Identifier name 'name567890123456789012345678901234567890123456789012345678901234_ibfk_1' is too long
+DROP TABLE name567890123456789012345678901234567890123456789012345678901234, t1;
+#
+# WL#6049: Meta data locking for foreign keys.
+#
+#
+# Normal CT will set the FK unique constraint name.
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
+UNIQUE KEY my_key (j));
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES parent(j));
+SELECT unique_constraint_name FROM mysql.foreign_keys
+WHERE referenced_table_name LIKE 'parent';
+unique_constraint_name
+my_key
+DROP TABLES child, parent;
+#
+# CT introducing a missing parent will update the FK unique constraint name in the child.
+#
+SET @@foreign_key_checks= 0;
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES parent(j));
+# An index is created for the FK, but the unique constraint name is NULL.
+SELECT name FROM mysql.indexes
+WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'child');
+name
+fk
+PRIMARY
+SELECT unique_constraint_name FROM mysql.foreign_keys
+WHERE referenced_table_name LIKE 'parent';
+unique_constraint_name
+NULL
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
+UNIQUE KEY my_key (j));
+SET @@foreign_key_checks= 1;
+# After creating the parent, the unique constraint name is updated.
+SELECT unique_constraint_name FROM mysql.foreign_keys
+WHERE referenced_table_name LIKE 'parent';
+unique_constraint_name
+my_key
+DROP TABLES child, parent;
+#
+# CTL does not copy FKs from the source table.
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
+UNIQUE KEY my_key (j));
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES parent(j));
+SELECT unique_constraint_name FROM mysql.foreign_keys
+WHERE referenced_table_name LIKE 'parent';
+unique_constraint_name
+my_key
+CREATE TABLE child_copy LIKE child;
+## The index is re-created for the new table.
+SELECT name FROM mysql.indexes
+WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'child');
+name
+fk
+PRIMARY
+SELECT name FROM mysql.indexes
+WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'child_copy');
+name
+fk
+PRIMARY
+## ... but not the constraint.
+SELECT unique_constraint_name FROM mysql.foreign_keys
+WHERE referenced_table_name LIKE 'parent';
+unique_constraint_name
+my_key
+DROP TABLES child, child_copy, parent;
+#
+# CTL introducing a missing parent will update the FK in the child.
+#
+SET @@foreign_key_checks= 0;
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES parent(j));
+## An index is created for the FK, but the unique constraint name is NULL.
+SELECT name FROM mysql.indexes
+WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'parent');
+name
+SELECT unique_constraint_name FROM mysql.foreign_keys
+WHERE referenced_table_name LIKE 'parent';
+unique_constraint_name
+NULL
+CREATE TABLE parent_base(pk INTEGER PRIMARY KEY, j INTEGER,
+UNIQUE KEY my_key (j));
+CREATE TABLE parent LIKE parent_base;
+SET @@foreign_key_checks= 1;
+## After creating the parent, the unique constraint name is updated.
+SELECT unique_constraint_name FROM mysql.foreign_keys
+WHERE referenced_table_name LIKE 'parent';
+unique_constraint_name
+my_key
+DROP TABLE child, parent_base, parent;
+#
+# CTS will update the unique constraint name in its FK info.
+#
+CREATE TABLE source(pk INTEGER PRIMARY KEY, j INTEGER);
+INSERT INTO source VALUES (1, 1);
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
+UNIQUE KEY my_key(j));
+INSERT INTO parent VALUES (2, 1);
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES parent(j)) AS SELECT pk, j AS fk FROM source;
+SELECT * FROM child;
+pk	fk
+1	1
+## An index is created for the FK, and the unique constraint name is updated.
+SELECT name FROM mysql.indexes
+WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'child');
+name
+fk
+PRIMARY
+SELECT unique_constraint_name FROM mysql.foreign_keys
+WHERE referenced_table_name LIKE 'parent';
+unique_constraint_name
+my_key
+DROP TABLES source, child, parent;
+#
+# CTS introducing a missing parent will update the FK in the child.
+#
+SET @@foreign_key_checks= 0;
+CREATE TABLE source(pk INTEGER PRIMARY KEY, j INTEGER);
+INSERT INTO source VALUES (1, 1);
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES parent(j));
+## An index is created for the FK, but the unique constraint name is NULL.
+SELECT name FROM mysql.indexes
+WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'child');
+name
+fk
+PRIMARY
+SELECT unique_constraint_name FROM mysql.foreign_keys
+WHERE referenced_table_name LIKE 'parent';
+unique_constraint_name
+NULL
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
+UNIQUE KEY my_key(j)) AS SELECT * FROM source;
+SELECT * FROM child;
+pk	fk
+SET @@foreign_key_checks= 1;
+## After creating the parent, the unique constraint name is updated.
+SELECT unique_constraint_name FROM mysql.foreign_keys
+WHERE referenced_table_name LIKE 'parent';
+unique_constraint_name
+my_key
+DROP TABLES source, child, parent;
+#
+# RENAME will update FK information in both children and parents.
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
+UNIQUE KEY parent_key(j));
+CREATE TABLE child(pk INTEGER PRIMARY KEY, k INTEGER, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES parent(j), UNIQUE KEY child_key(k));
+# Constraint is enforced.
+INSERT INTO child VALUES (1, 2, 3);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`j`))
+CREATE TABLE grandchild(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES child(k));
+# Constraint is enforced.
+INSERT INTO grandchild VALUES (1, 2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`grandchild`, CONSTRAINT `grandchild_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `child` (`k`))
+SET @@foreign_key_checks= 0;
+CREATE TABLE orphan_grandchild(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES siebling(k));
+SET @@foreign_key_checks= 1;
+# FK definitions before rename:
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	parent_key	test	parent
+grandchild_ibfk_1	child_key	test	child
+orphan_grandchild_ibfk_1	NULL	test	siebling
+RENAME TABLE child TO siebling;
+# After the rename, we see that:
+# 1. The name of the constraint is changed to 'siebling_ibfk...'.
+# 2. The referenced table name of the grandchild is changed to 'siebling'.
+# 3. The unique constraint name of the orphan_grandchild is corrected.
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+siebling_ibfk_1	parent_key	test	parent
+grandchild_ibfk_1	child_key	test	siebling
+orphan_grandchild_ibfk_1	child_key	test	siebling
+# Constraint is still enforced.
+INSERT INTO siebling VALUES (1, 2, 3);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`siebling`, CONSTRAINT `siebling_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`j`))
+# Constraint is still enforced.
+INSERT INTO grandchild VALUES (1, 2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`grandchild`, CONSTRAINT `grandchild_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `siebling` (`k`))
+# Constraint is enforced here too.
+INSERT INTO orphan_grandchild VALUES (1, 2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`orphan_grandchild`, CONSTRAINT `orphan_grandchild_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `siebling` (`k`))
+DROP TABLE grandchild;
+DROP TABLE orphan_grandchild;
+DROP TABLE siebling;
+DROP TABLE parent;
+#
+# RENAME will update FK information in both children and parents, also
+# when there are tables in the statement that belong in SEs without
+# support for atomic DDL. Basically the same test case as above with
+# an additional MyISAM table.
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
+UNIQUE KEY parent_key(j));
+CREATE TABLE child(pk INTEGER PRIMARY KEY, k INTEGER, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES parent(j), UNIQUE KEY child_key(k));
+CREATE TABLE grandchild(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES child(k));
+SET @@foreign_key_checks= 0;
+CREATE TABLE orphan_grandchild(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES siebling(k));
+SET @@foreign_key_checks= 1;
+CREATE TABLE non_atomic_t1(pk INTEGER) ENGINE= MyISAM;
+# FK definitions before rename:
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	parent_key	test	parent
+grandchild_ibfk_1	child_key	test	child
+orphan_grandchild_ibfk_1	NULL	test	siebling
+RENAME TABLE non_atomic_t1 TO non_atomic_t2, child TO siebling;
+# After the rename, we see that:
+# 1. The name of the constraint is changed to 'siebling_ibfk...'.
+# 2. The referenced table name of the grandchild is changed to 'siebling'.
+# 3. The unique constraint name of the orphan_grandchild is corrected.
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+siebling_ibfk_1	parent_key	test	parent
+grandchild_ibfk_1	child_key	test	siebling
+orphan_grandchild_ibfk_1	child_key	test	siebling
+DROP TABLE grandchild;
+DROP TABLE orphan_grandchild;
+DROP TABLE siebling;
+DROP TABLE parent;
+DROP TABLE non_atomic_t2;
+#
+# RENAME will rollback FK information in both children and parents, also
+# when there are tables in the statement that belong in SEs without
+# support for atomic DDL. Basically the same test case as above with
+# an additional MyISAM table, where renaming fails due to an existing table.
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
+UNIQUE KEY parent_key(j));
+CREATE TABLE child(pk INTEGER PRIMARY KEY, k INTEGER, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES parent(j), UNIQUE KEY child_key(k));
+CREATE TABLE grandchild(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES child(k));
+SET @@foreign_key_checks= 0;
+CREATE TABLE orphan_grandchild(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES siebling(k));
+SET @@foreign_key_checks= 1;
+CREATE TABLE non_atomic_t1(pk INTEGER) ENGINE= MyISAM;
+CREATE TABLE non_atomic_t2(pk INTEGER) ENGINE= MyISAM;
+# FK definitions before rename:
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	parent_key	test	parent
+grandchild_ibfk_1	child_key	test	child
+orphan_grandchild_ibfk_1	NULL	test	siebling
+RENAME TABLE child TO siebling,
+non_atomic_t1 TO non_atomic_t3,
+non_atomic_t3 TO non_atomic_t2;
+ERROR 42S01: Table 'non_atomic_t2' already exists
+# After the rename, we see that the FK information remain unchanged.
+# TODO: Note that the unique constraint name of orphan_grandchild is not reverted.
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	parent_key	test	parent
+grandchild_ibfk_1	child_key	test	child
+orphan_grandchild_ibfk_1	child_key	test	child
+DROP TABLE grandchild;
+DROP TABLE orphan_grandchild;
+DROP TABLE child;
+DROP TABLE parent;
+DROP TABLE non_atomic_t1;
+DROP TABLE non_atomic_t2;
+#
+# When processing LOCK TABLES, we will prelock even
+# when F_K_C = 0.
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
+UNIQUE KEY parent_key(j));
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES parent(j) ON DELETE CASCADE);
+SET @@foreign_key_checks= 0;
+LOCK TABLES parent WRITE;
+# There are two metadata locks because the child has
+# two different FK roles wrt. the parent. Note that
+# the locks are stronger for LOCK TABLES.
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME,
+LOCK_TYPE FROM performance_schema.metadata_locks
+WHERE OBJECT_NAME LIKE 'child'
+  ORDER BY OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME, LOCK_TYPE;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COLUMN_NAME	LOCK_TYPE
+COLUMN STATISTICS	test	child	fk	SHARED_READ
+COLUMN STATISTICS	test	child	pk	SHARED_READ
+TABLE	test	child	NULL	SHARED_NO_READ_WRITE
+TABLE	test	child	NULL	SHARED_READ_ONLY
+# From another connection, verify that child is locked.
+SET @@session.lock_wait_timeout= 1;
+INSERT INTO child VALUES (1, 1);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+SET @@foreign_key_checks= 1;
+# Now, the locks are gone.
+SELECT LOCK_TYPE FROM performance_schema.metadata_locks
+WHERE OBJECT_NAME LIKE 'child';
+LOCK_TYPE
+DROP TABLE child;
+DROP TABLE parent;
+#
+# A prepared statement will become invalid if a child table
+# is modified between executions of the prepared statement.
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
+UNIQUE KEY parent_key(j));
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES parent(j) ON DELETE CASCADE);
+PREPARE stmt FROM 'DELETE FROM parent WHERE pk = ?';
+SELECT COUNT_REPREPARE, COUNT_EXECUTE
+FROM performance_schema.prepared_statements_instances
+WHERE STATEMENT_NAME LIKE 'stmt';
+COUNT_REPREPARE	COUNT_EXECUTE
+0	0
+SET @a= 1;
+EXECUTE stmt USING @a;
+# No reprepare for first execution.
+SELECT COUNT_REPREPARE, COUNT_EXECUTE
+FROM performance_schema.prepared_statements_instances
+WHERE STATEMENT_NAME LIKE 'stmt';
+COUNT_REPREPARE	COUNT_EXECUTE
+0	1
+# Altering child will trigger reprepare on next execution.
+ALTER TABLE child ADD COLUMN (j INTEGER);
+EXECUTE stmt USING @a;
+# Statement has been reprepared for second execution.
+SELECT COUNT_REPREPARE, COUNT_EXECUTE
+FROM performance_schema.prepared_statements_instances
+WHERE STATEMENT_NAME LIKE 'stmt';
+COUNT_REPREPARE	COUNT_EXECUTE
+1	2
+EXECUTE stmt USING @a;
+# Cache version for the prelock entry is updated, so no
+# reprepare for third execution.
+SELECT COUNT_REPREPARE, COUNT_EXECUTE
+FROM performance_schema.prepared_statements_instances
+WHERE STATEMENT_NAME LIKE 'stmt';
+COUNT_REPREPARE	COUNT_EXECUTE
+1	3
+DROP TABLE child;
+DROP TABLE parent;
+#
+# Check situations where there are multiple foreign keys
+# referring the same table.
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, i INTEGER, j INTEGER,
+UNIQUE KEY parent_i_key(i), UNIQUE KEY parent_j_key(j));
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk_i INTEGER, fk_j INTEGER,
+FOREIGN KEY (fk_i) REFERENCES parent(i),
+FOREIGN KEY (fk_j) REFERENCES parent(j));
+ALTER TABLE child RENAME TO siebling;
+DROP TABLES siebling, parent;
+#
+# Rename a table multiple times in the same statement.
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, i INTEGER,
+UNIQUE KEY parent_key(i));
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk_i INTEGER,
+FOREIGN KEY (fk_i) REFERENCES parent(i));
+RENAME TABLE parent TO mother, mother TO father;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	parent_key	test	father
+RENAME TABLE child TO sister, sister TO brother;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+brother_ibfk_1	parent_key	test	father
+RENAME TABLE father TO mother, brother TO sister, mother TO parent, sister TO child;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	parent_key	test	parent
+DROP TABLES child, parent;
+#
+# Let a RENAME statement introduce a missing parent and rename
+# it further as well.
+#
+SET @@foreign_key_checks= 0;
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk_i INTEGER,
+FOREIGN KEY (fk_i) REFERENCES mother(i));
+SET @@foreign_key_checks= 1;
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, i INTEGER,
+UNIQUE KEY parent_key(i));
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	NULL	test	mother
+RENAME TABLE parent TO mother, mother TO father;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	parent_key	test	father
+DROP TABLES child, father;
+#
+# Rename a parent with a child having several FKs to it.
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, i INTEGER, j INTEGER,
+UNIQUE KEY parent_i_key(i),
+UNIQUE KEY parent_j_key(j));
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk_i INTEGER, fk_j INTEGER,
+FOREIGN KEY (fk_i) REFERENCES parent(i),
+FOREIGN KEY (fk_j) REFERENCES parent(j));
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	parent_i_key	test	parent
+child_ibfk_2	parent_j_key	test	parent
+RENAME TABLE parent TO mother;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	parent_i_key	test	mother
+child_ibfk_2	parent_j_key	test	mother
+DROP TABLES child, mother;
+#
+# ALTER TABLE RENAME and complex ALTER TABLE RENAME involving
+# self-referncing foreign key.
+#
+CREATE TABLE self (pk INT PRIMARY KEY, fk INT, FOREIGN KEY(fk) REFERENCES self(pk));
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+self_ibfk_1	PRIMARY	test	self
+ALTER TABLE self RENAME TO self2;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+self2_ibfk_1	PRIMARY	test	self2
+ALTER TABLE self2 RENAME TO self3, ADD COLUMN i INT;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+self3_ibfk_1	PRIMARY	test	self3
+DROP TABLE self3;
+#
+# Drop a schema with tables referencing/being referenced by tables
+# in a different schema.
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, i INTEGER,
+UNIQUE KEY parent_i_key(i));
+SET @@foreign_key_checks= 0;
+CREATE TABLE grandchild(pk INTEGER PRIMARY KEY, fk_i INTEGER,
+FOREIGN KEY (fk_i) REFERENCES s1.child(i));
+SET @@foreign_key_checks= 1;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 's1';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+grandchild_ibfk_1	NULL	s1	child
+CREATE SCHEMA s1;
+CREATE TABLE s1.child(pk INTEGER PRIMARY KEY, i INTEGER, fk_i INTEGER,
+UNIQUE KEY child_i_key(i),
+FOREIGN KEY (fk_i) REFERENCES test.parent(i));
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	parent_i_key	test	parent
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 's1';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+grandchild_ibfk_1	child_i_key	s1	child
+DROP SCHEMA s1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+SET @@foreign_key_checks= 0;
+DROP SCHEMA s1;
+SET @@foreign_key_checks= 1;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 's1';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+grandchild_ibfk_1	NULL	s1	child
+# Skip FK to parent.
+CREATE SCHEMA s1;
+CREATE TABLE s1.child(pk INTEGER PRIMARY KEY, i INTEGER,
+UNIQUE KEY child_i_key(i));
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 's1';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+grandchild_ibfk_1	child_i_key	s1	child
+DROP SCHEMA s1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+SET @@foreign_key_checks= 0;
+DROP SCHEMA s1;
+SET @@foreign_key_checks= 1;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 's1';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+grandchild_ibfk_1	NULL	s1	child
+DROP TABLE grandchild;
+# No FK from grandchild.
+CREATE SCHEMA s1;
+CREATE TABLE s1.child(pk INTEGER PRIMARY KEY, fk_i INTEGER);
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+# Introduce FK to parent.
+ALTER TABLE s1.child ADD FOREIGN KEY (fk_i) REFERENCES test.parent(i);
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	parent_i_key	test	parent
+DROP SCHEMA s1;
+DROP TABLE parent;
+#
+# Trigger an error in Foreign_key_parents_invalidator::invalidate().
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, i INTEGER,
+UNIQUE KEY parent_key(i));
+CREATE TABLE child(pk INTEGER PRIMARY KEY, fk_i INTEGER,
+FOREIGN KEY (fk_i) REFERENCES parent(i));
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	parent_key	test	parent
+SET @@session.debug= '+d,fail_while_invalidating_fk_parents';
+ALTER TABLE child RENAME TO siebling;
+SET @@session.debug= '-d,fail_while_invalidating_fk_parents';
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+siebling_ibfk_1	parent_key	test	parent
+DROP TABLE siebling, parent;
+#
+# Coverage for various corner cases when figuring out unique_constraint_name.
+#
+CREATE TABLE parent (i INT, j INT, PRIMARY KEY (i), UNIQUE u(i,j));
+CREATE TABLE child (i INT, j INT, FOREIGN KEY (i, j) REFERENCES parent (i, j));
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	u	test	parent
+ALTER TABLE parent RENAME KEY u TO u1;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	u1	test	parent
+DROP TABLE child, parent;
+CREATE TABLE parent (i INT, j INT, k INT, PRIMARY KEY (i), UNIQUE u(j), UNIQUE u1(i,j), UNIQUE u2(i,j,k));
+CREATE TABLE child (i INT, j INT, k INT, FOREIGN KEY (i, j, k) REFERENCES parent (i, j, k));
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	u2	test	parent
+ALTER TABLE parent RENAME KEY u2 TO u3;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	u3	test	parent
+DROP TABLE child, parent;
+CREATE TABLE parent (i INT, j INT,
+d INT GENERATED ALWAYS AS (i) VIRTUAL,
+e INT GENERATED ALWAYS AS (j) VIRTUAL,
+PRIMARY KEY (i), UNIQUE u(i,d), UNIQUE u1(i,j,e));
+CREATE TABLE child (i INT, j INT, FOREIGN KEY (i, j) REFERENCES parent (i, j));
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	u1	test	parent
+ALTER TABLE parent RENAME KEY u1 TO u2;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	u2	test	parent
+DROP TABLE child, parent;
+CREATE TABLE parent (i INT, a VARCHAR(10), b VARCHAR(10),
+PRIMARY KEY (i), UNIQUE u(i,a(5)), UNIQUE u1(i,a,b(5)));
+CREATE TABLE child (i INT, a VARCHAR(10), FOREIGN KEY (i, a) REFERENCES parent (i, a));
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	u1	test	parent
+ALTER TABLE parent RENAME KEY u1 TO u2;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	u2	test	parent
+DROP TABLE child, parent;
+CREATE TABLE self (i INT, j INT, i2 INT, j2 INT, PRIMARY KEY (i), UNIQUE u(i,j),
+FOREIGN KEY (i2, j2) REFERENCES self (i, j));
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+self_ibfk_1	u	test	self
+ALTER TABLE self RENAME KEY u TO u1;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+self_ibfk_1	u1	test	self
+DROP TABLE self;
+CREATE TABLE self (i INT, j INT, k INT, i2 INT, j2 INT, k2 INT,
+PRIMARY KEY (i), UNIQUE u(j), UNIQUE u1(i,j), UNIQUE u2(i,j,k),
+FOREIGN KEY (i2, j2, k2) REFERENCES self (i, j, k));
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+self_ibfk_1	u2	test	self
+ALTER TABLE self RENAME KEY u2 TO u3;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+self_ibfk_1	u3	test	self
+DROP TABLE self;
+CREATE TABLE self (i INT, j INT, i2 INT, j2 INT,
+d INT GENERATED ALWAYS AS (i) VIRTUAL,
+e INT GENERATED ALWAYS AS (j) VIRTUAL,
+PRIMARY KEY (i), UNIQUE u(i,d), UNIQUE u1(i,j,e),
+FOREIGN KEY (i2, j2) REFERENCES self (i, j));
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+self_ibfk_1	u1	test	self
+ALTER TABLE self RENAME KEY u1 TO u2;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+self_ibfk_1	u2	test	self
+DROP TABLE self;
+CREATE TABLE self (i INT, a VARCHAR(10), b VARCHAR(10), i2 INT, a2 VARCHAR(10),
+PRIMARY KEY (i), UNIQUE u(i,a(5)), UNIQUE u1(i,a,b(5)),
+FOREIGN KEY (i2, a2) REFERENCES self (i, a));
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+self_ibfk_1	u1	test	self
+ALTER TABLE self RENAME KEY u1 TO u2;
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+self_ibfk_1	u2	test	self
+DROP TABLE self;
+SET @@foreign_key_checks= DEFAULT;
+SET SESSION debug= '-d,skip_dd_table_access_check';
+#
+# Part of systemic test coverage for metadata locks related to foreign
+# keys acquired by various DDL statements which requires debug_sync.
+#
+# The main part of this coverage resides in foreign_key.test.
+#
+connect  con1, localhost, root,,;
+connection default;
+#
+# 7) ALTER TABLE ... INPLACE
+#
+# 7.1) ALTER TABLE ... ADD FOREIGN KEY ... INPLACE must start by
+#      acquiring SU lock on parent table.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT);
+SET DEBUG_SYNC="alter_table_inplace_after_lock_downgrade SIGNAL reached WAIT_FOR go";
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent (pk), ALGORITHM=INPLACE;;
+connection con1;
+SET DEBUG_SYNC="now WAIT_FOR reached";
+# DML on parent is still possible at this point.
+INSERT INTO parent VALUES (1);
+# But not DDL.
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent ADD COLUMN a INT;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+SET DEBUG_SYNC="now SIGNAL go";
+connection default;
+# Reap ALTER TABLE
+SET FOREIGN_KEY_CHECKS=1;
+ALTER TABLE child DROP FOREIGN KEY fk;
+#
+# 8) ALTER TABLE ... COPY
+#
+# 8.1) ALTER TABLE ... ADD FOREIGN KEY ... COPY must start by
+#      acquiring SU lock on parent table.
+SET DEBUG_SYNC="alter_table_copy_after_lock_upgrade SIGNAL reached WAIT_FOR go";
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent (pk), ALGORITHM=COPY;;
+connection con1;
+SET DEBUG_SYNC="now WAIT_FOR reached";
+# DML on parent is still possible at this point.
+INSERT INTO parent VALUES (2);
+# But not DDL.
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+SET @@lock_wait_timeout= 1;
+ALTER TABLE parent ADD COLUMN a INT;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+SET DEBUG_SYNC="now SIGNAL go";
+connection default;
+# Reap ALTER TABLE
+SET DEBUG_SYNC="RESET";
+ALTER TABLE child DROP FOREIGN KEY fk;
+# 8.1') ALTER TABLE ... ADD FOREIGN KEY ... COPY due to workaround
+#       must upgrade SU lock on parent table SRO lock.
+SET DEBUG_SYNC="alter_after_copy_table SIGNAL reached WAIT_FOR go";
+ALTER TABLE child ADD CONSTRAINT fk FOREIGN KEY (fk) REFERENCES parent (pk), ALGORITHM=COPY;;
+connection con1;
+SET DEBUG_SYNC="now WAIT_FOR reached";
+# SELECT on parent is still possible at this point.
+SELECT * FROM parent;
+pk
+1
+2
+# But not changes.
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+SET @@lock_wait_timeout= 1;
+DELETE FROM parent;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+SET DEBUG_SYNC="now SIGNAL go";
+connection default;
+# Reap ALTER TABLE
+SET DEBUG_SYNC="RESET";
+DROP TABLES child, parent;
+connection con1;
+disconnect con1;
+connection default;
+#
+# Additional test coverage for case when ALTER TABLE is non-atomic but
+# still adds foreign keys and fails at the late stage (after foreign
+# keys are added to the data-dictionary).
+#
+connect  con1, localhost, root,,;
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connection default;
+CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (fk INT) ENGINE=MyISAM;
+SET @@debug='+d,injecting_fault_writing';
+ALTER TABLE t2 ADD FOREIGN KEY (fk) REFERENCES t1(pk), ENGINE=InnoDB;
+ERROR HY000: Error writing file 'binlog' ((errno: #)
+SET @@debug='-d,injecting_fault_writing';
+# Even though the above ALTER TABLE has failed it has updated
+# data-dictionary. So cached object for parent table should
+# be updated to reflect this new foreign key.
+# The below LOCK TABLES should implicitly lock t2 too.
+LOCK TABLES t1 WRITE;
+connection con1;
+# So concurrent inserts into child are blocked.
+SET @@lock_wait_timeout= 1;
+INSERT INTO t1 VALUES (NULL);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection default;
+# And delete from parent table is possible and doesn't cause asserts.
+DELETE FROM t1;
+UNLOCK TABLES;
+DROP TABLES t2, t1;
+connection con1;
+disconnect con1;
+connection default;

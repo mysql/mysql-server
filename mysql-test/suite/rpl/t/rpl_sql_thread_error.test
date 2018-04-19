@@ -1,0 +1,54 @@
+###############################################################################
+#
+# Bug#21697821 RELAYLOG.LOG_LOCK IS NOT RELEASED IN
+#  AN ERROR CASE (IN NEXT_EVENT())
+#
+# Problem: In an error case, relaylog.log_lock acquired by SQL thread is not
+#          released which is causing all threads, which are looking to acquire
+#          the lock,  to hang forever.
+#
+# Steps to reproduce:
+#
+#  1) Inject sql thread error using a simulation point and start SQL thread.
+#
+#  2) Wait till SQL thread goes down (before fix, it wont release the log_lock).
+#
+#  3) start SQL thread (before fix, it will wait for log_lock)
+#
+#  4) After the fix, make sure the replication is working fine.
+#
+###############################################################################
+
+--source include/have_debug.inc
+--source include/have_binlog_format_statement.inc
+--let rpl_skip_start_slave=1
+--source include/master-slave.inc
+
+# Step 1) Set a simulation on Slave SQL thread so that it enters
+# into faulty code (before fix) path.
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression("Relay log read failure");
+SET @save_debug=@@GLOBAL.debug;
+SET GLOBAL debug="d,force_sql_thread_error";
+
+# Start SQL thread
+START SLAVE SQL_THREAD;
+
+# Step 2) Wait for SQL thread to go down with the injected error.
+# Before fix, SQL thread would not have released
+# relay_log.log_lock.
+--let $slave_sql_errno= convert_error(ER_SLAVE_RELAY_LOG_READ_FAILURE)
+--source include/wait_for_slave_sql_to_stop.inc
+
+# Step 3) Before fix, when SQL thread is trying to acquire
+# relay_log.log_lock which was not released will hang
+# forever.
+SET GLOBAL debug=@save_debug;
+--source include/start_slave.inc
+
+# Step 4) Execute dummy statements on master and see that it
+#         replication is working fine.
+--source include/rpl_connection_master.inc
+CREATE TABLE t1(i INT);
+DROP TABLE t1;
+--source include/rpl_end.inc

@@ -102,7 +102,7 @@ ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of 'ONN'
 SET @@session.keep_files_on_create = ONF;
 ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of 'ONF'
 SET @@session.keep_files_on_create = OF;
-ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SET @@session.keep_files_on_create = 'OFN';
 ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of 'OFN'
 SET @@session.keep_files_on_create = -2;
@@ -118,13 +118,13 @@ SELECT @@session.keep_files_on_create;
 0
 '#------------------FN_DYNVARS_054_06-----------------------#'
 SELECT IF(@@global.keep_files_on_create, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='keep_files_on_create';
 IF(@@global.keep_files_on_create, "ON", "OFF") = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_054_07-----------------------#'
 SELECT IF(@@session.keep_files_on_create, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='keep_files_on_create';
 IF(@@session.keep_files_on_create, "ON", "OFF") = VARIABLE_VALUE
 1

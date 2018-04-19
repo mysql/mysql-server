@@ -9,10 +9,7 @@
 #                   Create this script based on older scripts and new code.
 #
 
-if (`SELECT VERSION() LIKE '%embedded%'`)
-{
-   --skip Bug#37456 funcs_1: Several tests crash when used with embedded server
-}
+
 let $is_table = COLLATIONS;
 
 # The table INFORMATION_SCHEMA.COLLATIONS must exist

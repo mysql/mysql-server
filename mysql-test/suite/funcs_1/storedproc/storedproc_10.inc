@@ -1,8 +1,5 @@
 #### suite/funcs_1/storedproc/storedproc_10.inc
 
-# This test cannot be used for the embedded server because we check here
-# privilgeges.
---source include/not_embedded.inc
 
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 

@@ -1,0 +1,136 @@
+# ==== Purpose ====
+#
+# This test will create two channels and will schedule many parallel
+# replication administrative statements for each channel per second during
+# a period of 10 seconds.
+#
+# After the testing period, the slave should be able to run replication
+# administrative statements to stop and reset the two created channels
+# without any contention.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#20593028 MORE CONCURRENCY IN SHOW SLAVE STATUS: MAKE LOCK_MSR_MAP
+#              AN RWLOCK
+#
+
+--source include/not_group_replication_plugin.inc
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+
+CALL mtr.add_suppression('Slave failed to initialize master info structure from the repository');
+CALL mtr.add_suppression('This operation cannot be performed with a running slave');
+CALL mtr.add_suppression('Could not find target log file mentioned in relay log info in the index file');
+CALL mtr.add_suppression('A slave with the same server_uuid/server_id as this slave has connected to the master');
+
+# Save current event scheduler status
+SET @saved_event_scheduler= @@GLOBAL.event_scheduler;
+# relay_log_purge might be set to 0 by e_change_maste_sql_ch* below
+SET @saved_relay_log_purge= @@GLOBAL.relay_log_purge;
+SET @@GLOBAL.event_scheduler= OFF;
+
+# Define the amount of channels to create
+--let $num_channels= 2
+
+# Stop slave for the default channel
+--source include/stop_slave.inc
+
+--let $c= 0
+while ($c <= $num_channels)
+{
+  # The channel name
+  --let $cn= 'ch$c'
+  # The relay log suffix
+  --let $rls= -ch$c
+  if ($c == 0)
+  {
+    # For the default channel
+    --let $cn= ''
+    --let $rls=
+  }
+  --replace_result $MASTER_MYPORT MASTER_PORT
+  --eval CREATE EVENT e_change_master_io_ch$c  ON SCHEDULE EVERY 1 SECOND DO CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT FOR CHANNEL $cn
+  --eval CREATE EVENT e_change_master_sql_ch$c ON SCHEDULE EVERY 1 SECOND DO CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin$rls.000001', RELAY_LOG_POS=4 FOR CHANNEL $cn
+  --eval CREATE EVENT e_start_slave_io_ch$c    ON SCHEDULE EVERY 1 SECOND DO START SLAVE IO_THREAD FOR CHANNEL $cn
+  --eval CREATE EVENT e_stop_slave_io_ch$c     ON SCHEDULE EVERY 1 SECOND DO STOP SLAVE IO_THREAD FOR CHANNEL $cn
+  --eval CREATE EVENT e_reset_slave_ch$c       ON SCHEDULE EVERY 1 SECOND DO RESET SLAVE FOR CHANNEL $cn
+  --eval CREATE EVENT e_reset_slave_all_ch$c   ON SCHEDULE EVERY 1 SECOND DO RESET SLAVE ALL FOR CHANNEL $cn
+  --eval CREATE EVENT e_start_slave_sql_ch$c   ON SCHEDULE EVERY 1 SECOND DO START SLAVE SQL_THREAD FOR CHANNEL $cn
+  --eval CREATE EVENT e_stop_slave_sql_ch$c    ON SCHEDULE EVERY 1 SECOND DO STOP SLAVE SQL_THREAD FOR CHANNEL $cn
+  --eval CREATE EVENT e_sss_ch$c               ON SCHEDULE EVERY 1 SECOND DO SHOW SLAVE STATUS FOR CHANNEL $cn
+  if ($c == 0)
+  {
+    --eval CREATE EVENT e_reset_master ON SCHEDULE EVERY 1 SECOND DO RESET MASTER
+    --eval CREATE EVENT e_ils          ON SCHEDULE EVERY 1 SECOND DO SELECT * FROM performance_schema.log_status
+  }
+  --inc $c
+}
+
+# Let the game begin...
+SET @@GLOBAL.event_scheduler= ON;
+
+--echo Let the requests to run in parallel for 10 seconds
+sleep 10;
+
+#
+# Test case cleanup
+#
+--let $c= $num_channels
+while ($c >= 0)
+{
+  if ($c == 0)
+  {
+    --eval DROP EVENT e_ils
+    --eval DROP EVENT e_reset_master
+  }
+  --eval DROP EVENT e_sss_ch$c
+  --eval DROP EVENT e_stop_slave_sql_ch$c
+  --eval DROP EVENT e_start_slave_sql_ch$c
+  --eval DROP EVENT e_reset_slave_all_ch$c
+  --eval DROP EVENT e_reset_slave_ch$c
+  --eval DROP EVENT e_stop_slave_io_ch$c
+  --eval DROP EVENT e_start_slave_io_ch$c
+  --eval DROP EVENT e_change_master_sql_ch$c
+  --eval DROP EVENT e_change_master_io_ch$c
+  --dec $c
+}
+
+--let $scheduler_thread_id= `SELECT THREAD_ID FROM performance_schema.threads WHERE NAME = "thread/sql/event_scheduler"`
+# Stop the scheduler
+# If something bad happened, the test case should be stuck here
+SET @@GLOBAL.event_scheduler= OFF;
+
+--echo # Wait until all scheduler activity has finished
+--let $wait_condition= SELECT COUNT(*) = 0 FROM performance_schema.threads WHERE PARENT_THREAD_ID=$scheduler_thread_id
+--source include/wait_condition.inc
+
+# Stop and remove all created channels
+--disable_warnings
+--let $c= $num_channels
+while ($c > 0)
+{
+  --error 0, ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+  --eval STOP SLAVE FOR CHANNEL 'ch$c'
+  --dec $c
+}
+STOP SLAVE FOR CHANNEL '';
+RESET SLAVE ALL;
+# Reconfigure the default channel
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT
+--enable_warnings
+
+# Restore the scheduler and relay_log_purge
+SET @@GLOBAL.event_scheduler = @saved_event_scheduler;
+SET @@GLOBAL.relay_log_purge = @saved_relay_log_purge;
+
+# To avoid problems in start_slave.inc and rpl_end.inc
+--let $rpl_channel_name=
+--let $_for_channel_clause=
+--source include/start_slave.inc
+--source include/rpl_end.inc

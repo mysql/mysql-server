@@ -1,0 +1,2385 @@
+Testing NDB algorithm
+Setup connections for use in this file
+First we have Cluster A as Primary, Cluster B as Secondary
+SET GLOBAL ndb_slave_conflict_role="PRIMARY";
+SET GLOBAL ndb_slave_conflict_role="SECONDARY";
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+Setup circular replication
+Setup ndb_replication and t1 exceptions table
+Populate ndb_replication table as necessary
+replace into mysql.ndb_replication values
+("test", "t1", 3, 7, "NDB$EPOCH2_TRANS()"),
+("test", "t1", 1, 7, "NDB$EPOCH2_TRANS()");
+replace into mysql.ndb_replication values
+("test", "t2", 3, 7, "NDB$EPOCH2_TRANS()"),
+("test", "t2", 1, 7, "NDB$EPOCH2_TRANS()");
+create table test.t1 (
+a int primary key,
+b varchar(2000)) engine=ndb;
+create table test.t2 (
+a int primary key,
+b varchar(2000)) engine=ndb;
+Add some data
+insert into test.t1 values
+(1, "Initial data 1"),
+(2, "Initial data 2"),
+(3, "Initial data 3"),
+(4, "Initial data 4"),
+(5, "Initial data 5"),
+(6, "Initial data 6"),
+(7, "Initial data 7"),
+(8, "Initial data 8"),
+(9, "Initial data 9"),
+(10, "Initial data 10");
+Show basic row-level conflict detection
+---------------------------------------
+stop slave;
+update t1 set b="Primary first change 2" where a=2;
+select * from test.t1 order by a;
+a	b
+1	Initial data 1
+2	Primary first change 2
+3	Initial data 3
+4	Initial data 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+update t1 set b="Secondary first change 2" where a=2;
+select * from test.t1 order by a;
+a	b
+1	Initial data 1
+2	Secondary first change 2
+3	Initial data 3
+4	Initial data 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+Primary should have rejected change from Secondary, keeping its value
+select * from t1 order by a;
+a	b
+1	Initial data 1
+2	Primary first change 2
+3	Initial data 3
+4	Initial data 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+ndb_conflict_fn_epoch_trans
+0
+ndb_conflict_fn_epoch2_trans
+1
+ndb_conflict_trans_row_conflict_count
+1
+ndb_conflict_trans_row_reject_count
+1
+ndb_conflict_trans_reject_count
+1
+ndb_conflict_trans_detect_iter_count
+1
+ndb_conflict_trans_conflict_commit_count
+1
+ndb_epoch_delete_delete_count
+0
+start slave;
+Secondary should have been realigned to Primary
+select * from t1 order by a;
+a	b
+1	Initial data 1
+2	Primary first change 2
+3	Initial data 3
+4	Initial data 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+Show rollback of whole secondary transaction
+--------------------------------------------
+stop slave;
+update t1 set b="Primary second change 4" where a=4;
+select * from test.t1 order by a;
+a	b
+1	Initial data 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+begin;
+update t1 set b="Secondary second change 4" where a=4;
+update t1 set b="Secondary second change 5" where a=5;
+commit;
+select * from test.t1 order by a;
+a	b
+1	Initial data 1
+2	Primary first change 2
+3	Initial data 3
+4	Secondary second change 4
+5	Secondary second change 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+Primary should have rejected secondary changes on both rows
+select * from test.t1 order by a;
+a	b
+1	Initial data 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+ndb_conflict_fn_epoch_trans
+0
+ndb_conflict_fn_epoch2_trans
+1
+ndb_conflict_trans_row_conflict_count
+1
+ndb_conflict_trans_row_reject_count
+2
+ndb_conflict_trans_reject_count
+1
+ndb_conflict_trans_detect_iter_count
+1
+ndb_conflict_trans_conflict_commit_count
+1
+ndb_epoch_delete_delete_count
+0
+start slave;
+Secondary should have been realigned to Primary
+select * from test.t1 order by a;
+a	b
+1	Initial data 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+Show rollback of dependent transaction as well
+----------------------------------------------
+stop slave;
+update t1 set b="Primary third change 1" where a=1;
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+begin;
+update t1 set b="Secondary third change 3" where a=3;
+update t1 set b="Secondary third change 1" where a=1;
+commit;
+begin;
+update t1 set b="Secondary fourth change 3" where a=3;
+insert into t1 values (11,"Secondary fourth change 11");
+commit;
+select * from test.t1 order by a;
+a	b
+1	Secondary third change 1
+2	Primary first change 2
+3	Secondary fourth change 3
+4	Primary second change 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+11	Secondary fourth change 11
+Primary should have rejected all secondary changes
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+ndb_conflict_trans_row_reject_count
+4
+ndb_conflict_trans_reject_count
+2
+ndb_epoch_delete_delete_count
+0
+start slave;
+Secondary should have been realigned to Primary
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+Show rollback of dependent transaction across different tables
+--------------------------------------------------------------
+stop slave;
+update t1 set b="Primary fifth change 6" where a=6;
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+begin;
+update t1 set b="Secondary fifth change 6" where a=6;
+insert into t2 values (1, "Secondary fifth change 1");
+insert into t2 values (2, "Secondary fifth change 2");
+commit;
+begin;
+update t2 set b="Secondary sixth change 1" where a=2;
+insert into t2 values (3, "Secondary sixth change 2");
+commit;
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Secondary fifth change 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+select * from test.t2 order by a;
+a	b
+1	Secondary fifth change 1
+2	Secondary sixth change 1
+3	Secondary sixth change 2
+Primary should have rejected all secondary changes
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+select * from test.t2 order by a;
+a	b
+ndb_conflict_trans_row_reject_count
+5
+ndb_conflict_trans_reject_count
+2
+ndb_epoch_delete_delete_count
+0
+start slave;
+Secondary should have been realigned to primary
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+select * from test.t2 order by a;
+a	b
+Show that whole epoch is not rolled back
+----------------------------------------
+stop slave;
+update t1 set b="Primary is king" where a=10;
+begin;
+update t1 set b="Secondary is emperor" where a=10;
+insert into t1 values (11, "Secondary is pleni-potentiary");
+commit;
+begin;
+insert into t1 values (12, "Secondary ruled once");
+insert into t1 values (13, "This history will not be lost");
+insert into t1 values (14, "Look on my works ye mighty, and despair");
+commit;
+Primary should have rejected conflicting trans (emperor, pleni-potentiary)
+but accepted unrelated trans (history)
+select * from t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Primary is king
+12	Secondary ruled once
+13	This history will not be lost
+14	Look on my works ye mighty, and despair
+ndb_conflict_fn_epoch_trans
+0
+ndb_conflict_fn_epoch2_trans
+1
+ndb_conflict_trans_row_conflict_count
+1
+ndb_conflict_trans_row_reject_count
+2
+ndb_conflict_trans_reject_count
+1
+ndb_conflict_trans_detect_iter_count
+1
+ndb_conflict_trans_conflict_commit_count
+1
+ndb_epoch_delete_delete_count
+0
+start slave;
+Secondary should be aligned with Primary
+select * from t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Primary is king
+12	Secondary ruled once
+13	This history will not be lost
+14	Look on my works ye mighty, and despair
+Show that non-conflicting ancestors are not implicated
+------------------------------------------------------
+stop slave;
+update t1 set b="7 : Primary is king" where a=7;
+Primary state
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	7 : Primary is king
+8	Initial data 8
+9	Initial data 9
+10	Primary is king
+12	Secondary ruled once
+13	This history will not be lost
+14	Look on my works ye mighty, and despair
+begin;
+update t1 set b="8 : Secondary innocent" where a=8;
+update t1 set b="9 : Secondary innocent" where a=9;
+commit;
+Secondary with innocent
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	Initial data 7
+8	8 : Secondary innocent
+9	9 : Secondary innocent
+10	Primary is king
+12	Secondary ruled once
+13	This history will not be lost
+14	Look on my works ye mighty, and despair
+begin;
+update t1 set b="9 : Secondary guilty" where a=9;
+update t1 set b="7 : Secondary guilty" where a=7;
+commit;
+Secondary with guilty overlaid
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	7 : Secondary guilty
+8	8 : Secondary innocent
+9	9 : Secondary guilty
+10	Primary is king
+12	Secondary ruled once
+13	This history will not be lost
+14	Look on my works ye mighty, and despair
+Primary cluster should have rejected 'guilty' secondary transaction, but
+accepted 'innocent' secondary transaction.
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	7 : Primary is king
+8	8 : Secondary innocent
+9	9 : Secondary innocent
+10	Primary is king
+12	Secondary ruled once
+13	This history will not be lost
+14	Look on my works ye mighty, and despair
+ndb_conflict_fn_epoch_trans
+0
+ndb_conflict_fn_epoch2_trans
+1
+ndb_conflict_trans_row_conflict_count
+1
+ndb_conflict_trans_row_reject_count
+2
+ndb_conflict_trans_reject_count
+1
+ndb_conflict_trans_detect_iter_count
+1
+ndb_conflict_trans_conflict_commit_count
+1
+ndb_epoch_delete_delete_count
+0
+start slave;
+Secondary cluster should be realigned with Primary
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	7 : Primary is king
+8	8 : Secondary innocent
+9	9 : Secondary innocent
+10	Primary is king
+12	Secondary ruled once
+13	This history will not be lost
+14	Look on my works ye mighty, and despair
+Classic banking example
+-----------------------
+replace into mysql.ndb_replication values
+("test", "balances", 3, 7, "NDB$EPOCH2_TRANS()"),
+("test", "balances", 1, 7, "NDB$EPOCH2_TRANS()");
+replace into mysql.ndb_replication values
+("test", "transactions", 3, 7, "NDB$EPOCH2_TRANS()"),
+("test", "transactions", 1, 7, "NDB$EPOCH2_TRANS()");
+create table test.balances
+(name     varchar(100) primary key,
+balance  int) engine=ndb;
+create table test.transactions$EX
+(server_id             int unsigned,
+master_server_id      int unsigned,
+master_epoch          bigint unsigned,
+count                 int unsigned,
+auto_key              int not null,
+from_name             varchar(100) not null,
+to_name               varchar(100) not null,
+detail                varchar(100) not null,
+primary key(server_id, master_server_id, master_epoch, count))
+engine=ndb;
+create table test.transactions
+(auto_key      int auto_increment,
+from_name     varchar(100),
+to_name       varchar(100),
+detail        varchar(100),
+amount        int,
+primary key(auto_key, from_name, to_name, detail)) engine=ndb;
+Initialise balances across both bank sites
+insert into test.balances values
+("Larry", 100),
+("Employee-1", 0),
+("Employee-2", 0),
+("Yacht dealer", 0),
+("Newsagent", 0);
+FLUSH LOGS;
+Bank sites are disconnected
+stop slave;
+Larry buys a yacht using Primary bank site
+begin;
+insert into test.transactions (from_name, to_name, detail, amount)
+values ("Larry", "Yacht dealer", "Yacht purchase", 50);
+update test.balances set balance = balance - 50 where name = "Larry";
+update test.balances set balance = balance + 50 where name = "Yacht dealer";
+commit;
+Show yacht transaction records
+select * from test.transactions order by auto_key;
+auto_key	from_name	to_name	detail	amount
+1	Larry	Yacht dealer	Yacht purchase	50
+select * from test.balances order by name;
+name	balance
+Employee-1	0
+Employee-2	0
+Larry	50
+Newsagent	0
+Yacht dealer	50
+Larry pays employees using Secondary bank site
+begin;
+insert into test.transactions (from_name, to_name, detail, amount)
+values ("Larry", "Employee-1", "Payment to Employee-1", 1);
+update test.balances set balance = balance - 1 where name = "Larry";
+update test.balances set balance = balance + 1 where name = "Employee-1";
+commit;
+begin;
+insert into test.transactions (from_name, to_name, detail, amount)
+values ("Larry", "Employee-2", "Payment to Employee-2", 1);
+update test.balances set balance = balance - 1 where name = "Larry";
+update test.balances set balance = balance + 1 where name = "Employee-2";
+commit;
+Employee-2 buys yacht magazine using Secondary bank site
+begin;
+insert into test.transactions (from_name, to_name, detail, amount)
+values ("Employee-2", "Newsagent", "Buy yacht magazine", 1);
+update test.balances set balance = balance - 1 where name = "Employee-2";
+update test.balances set balance = balance + 1 where name = "Newsagent";
+commit;
+Show employee transactions
+select * from test.transactions order by auto_key;
+auto_key	from_name	to_name	detail	amount
+1	Larry	Employee-1	Payment to Employee-1	1
+2	Larry	Employee-2	Payment to Employee-2	1
+3	Employee-2	Newsagent	Buy yacht magazine	1
+select * from test.balances order by name;
+name	balance
+Employee-1	1
+Employee-2	0
+Larry	98
+Newsagent	1
+Yacht dealer	0
+Bank sites re-connected
+start slave;
+Records at Primary bank site
+select * from test.transactions order by auto_key;
+auto_key	from_name	to_name	detail	amount
+1	Larry	Yacht dealer	Yacht purchase	50
+select * from test.balances order by name;
+name	balance
+Employee-1	0
+Employee-2	0
+Larry	50
+Newsagent	0
+Yacht dealer	50
+Exceptions at Primary bank site
+select server_id, master_server_id, auto_key, from_name, to_name, detail
+from test.transactions$EX order by auto_key, from_name, to_name, detail;
+server_id	master_server_id	auto_key	from_name	to_name	detail
+1	3	1	Larry	Employee-1	Payment to Employee-1
+1	3	2	Larry	Employee-2	Payment to Employee-2
+1	3	3	Employee-2	Newsagent	Buy yacht magazine
+Conflict handling activity at Primary bank site
+Expect :
+1 conflict from slave T1 on Larry's balance
+1 conflict from slave T2 on Larry's balance
+=2 row conflicts
+
+3 (user) transactions rejected
+9 rows rejected (3 per transaction)
+Variability : # epoch transactions, # row conflicts detected
+1-3                   2-3
+# detect_iter_count
+1-3
+We only check stable values
+ndb_conflict_trans_row_reject_count
+9
+ndb_conflict_trans_reject_count
+3
+ndb_epoch_delete_delete_count
+0
+Records at Secondary bank site
+select * from test.transactions order by auto_key;
+auto_key	from_name	to_name	detail	amount
+1	Larry	Yacht dealer	Yacht purchase	50
+select * from test.balances order by name;
+name	balance
+Employee-1	0
+Employee-2	0
+Larry	50
+Newsagent	0
+Yacht dealer	50
+drop table test.balances;
+drop table test.transactions;
+drop table test.transactions$EX;
+Test mixing transactional and non transactional
+-----------------------------------------------
+Remove old data from t1
+delete from test.t1;
+Define table with row-based epoch detection
+replace into mysql.ndb_replication values
+("test", "t3", 3, 7, NULL),
+("test", "t3", 1, 7, 'NDB$EPOCH()');
+create table t3 (a int primary key, b int) engine=ndb;
+create table t4 (a int primary key, b int) engine=ndb;
+create table t5 (a int primary key, b longtext) engine=ndb;
+Insert some data
+insert into test.t1 values
+(1,1),
+(2,2),
+(3,3),
+(4,4),
+(5,5),
+(6,6);
+insert into test.t3 values
+(11,11),
+(12,12),
+(13,13),
+(14,14),
+(15,15),
+(16,16);
+insert into test.t4 values
+(21,21),
+(22,22),
+(23,23),
+(24,24),
+(25,25),
+(26,26);
+insert into test.t5 values
+(1, REPEAT("B", 10000)),
+(2, REPEAT("E", 10000)),
+(3, REPEAT("A", 10000));
+Allow to propagate
+FLUSH LOGS;
+Case 1 : Transactional detection affects row - based entries in same trans
+stop slave;
+update test.t1 set b=100 where a=1;
+begin;
+update test.t3 set b=1100 where a=11;
+update test.t4 set b=2100 where a=21;
+update test.t1 set b=1000 where a=1;
+commit;
+Show slave transaction effect
+select * from test.t1 order by a;
+a	b
+1	1000
+2	2
+3	3
+4	4
+5	5
+6	6
+select * from test.t3 order by a;
+a	b
+11	1100
+12	12
+13	13
+14	14
+15	15
+16	16
+select * from test.t4 order by a;
+a	b
+21	2100
+22	22
+23	23
+24	24
+25	25
+26	26
+Expect Primary to have rejected whole trans across 3 tables
+select * from test.t1 order by a;
+a	b
+1	100
+2	2
+3	3
+4	4
+5	5
+6	6
+select * from test.t3 order by a;
+a	b
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+select * from test.t4 order by a;
+a	b
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+Expect 1 transaction rejected, 3 rows rejected
+1 conflict row, 1 epoch, 1 iteration
+ndb_conflict_fn_epoch_trans
+0
+ndb_conflict_fn_epoch2_trans
+1
+ndb_conflict_trans_row_conflict_count
+1
+ndb_conflict_trans_row_reject_count
+3
+ndb_conflict_trans_reject_count
+1
+ndb_conflict_trans_detect_iter_count
+1
+ndb_conflict_trans_conflict_commit_count
+1
+ndb_epoch_delete_delete_count
+0
+Now restart rep to Secondary, and check realignment
+start slave;
+select * from test.t1 order by a;
+a	b
+1	100
+2	2
+3	3
+4	4
+5	5
+6	6
+select * from test.t3 order by a;
+a	b
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+select * from test.t4 order by a;
+a	b
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+Case 2 : Row based detection does not affect other transaction entries
+stop slave;
+update test.t3 set b=1200 where a=12;
+begin;
+update test.t3 set b=1201 where a=12;
+update test.t4 set b=2200 where a=22;
+update test.t1 set b=2000 where a=2;
+commit;
+Show effect of transaction on Secondary
+select * from test.t1 order by a;
+a	b
+1	100
+2	2000
+3	3
+4	4
+5	5
+6	6
+select * from test.t3 order by a;
+a	b
+11	11
+12	1201
+13	13
+14	14
+15	15
+16	16
+select * from test.t4 order by a;
+a	b
+21	21
+22	2200
+23	23
+24	24
+25	25
+26	26
+Show effect of transaction on Primary
+Only t3 should have been reverted
+select * from test.t1 order by a;
+a	b
+1	100
+2	2000
+3	3
+4	4
+5	5
+6	6
+select * from test.t3 order by a;
+a	b
+11	11
+12	1200
+13	13
+14	14
+15	15
+16	16
+select * from test.t4 order by a;
+a	b
+21	21
+22	2200
+23	23
+24	24
+25	25
+26	26
+Expect all counters to be zero
+ndb_conflict_fn_epoch_trans
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_row_conflict_count
+0
+ndb_conflict_trans_row_reject_count
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_trans_detect_iter_count
+0
+ndb_conflict_trans_conflict_commit_count
+0
+ndb_epoch_delete_delete_count
+0
+Show effect of transaction on Secondary
+start slave;
+select * from test.t1 order by a;
+a	b
+1	100
+2	2000
+3	3
+4	4
+5	5
+6	6
+select * from test.t3 order by a;
+a	b
+11	11
+12	1200
+13	13
+14	14
+15	15
+16	16
+select * from test.t4 order by a;
+a	b
+21	21
+22	2200
+23	23
+24	24
+25	25
+26	26
+flush logs;
+Case 3 : Check behaviour where table with Blob is implicated
+in transactional conflict.  Should result in Slave
+stopping with an error.
+STOP SLAVE;
+Setup warning suppression
+begin;
+update t1 set b= 11 where a=1;
+commit;
+begin;
+update t1 set b= 111 where a=1;
+update t1 set b= 222 where a=2;
+update t5 set b= REPEAT("T", 10000) where a=3;
+commit;
+Show effect of transaction on Secondary
+select * from test.t1 order by a;
+a	b
+1	111
+2	222
+3	3
+4	4
+5	5
+6	6
+select left(b,1), length(b) from test.t5 order by a;
+left(b,1)	length(b)
+B	10000
+E	10000
+T	10000
+Check that Primary Slave has stopped
+include/wait_for_slave_sql_error.inc [errno=1296]
+Restart Primary Slave
+set global sql_slave_skip_counter=1;
+START SLAVE;
+Restart Secondary Slave
+START SLAVE;
+flush logs;
+drop table test.t3;
+drop table test.t4;
+drop table test.t5;
+Fix misalignment caused above
+Makes following result sets look nicer
+update test.t1 set b=2 where a=2;
+Show a simple row-level delete-delete conflict
+PRIMARY:
+insert into test.t1 values (77, "A good year");
+select * from test.t1 order by a;
+a	b
+1	11
+2	2
+3	3
+4	4
+5	5
+6	6
+77	A good year
+SECONDARY:
+stop slave;
+PRIMARY:
+Primary Delete
+delete from test.t1 where a=77;
+Show Primary contents
+select * from test.t1 order by a;
+a	b
+1	11
+2	2
+3	3
+4	4
+5	5
+6	6
+SECONDARY:
+select * from test.t1 order by a;
+a	b
+1	11
+2	2
+3	3
+4	4
+5	5
+6	6
+77	A good year
+Secondary Delete->Insert in separate transactions
+and potentially different epochs
+Delete part with related transaction op
+begin;
+delete from test.t1 where a=77;
+insert into test.t1 values (73, "A superb year");
+commit;
+Unrelated transaction from Secondary
+begin;
+insert into test.t1 values (84, "A good vintage");
+commit;
+Optionally flush logs
+Following Insert from Secondary - potentially in different epoch
+begin;
+insert into test.t1 values (77, "Exceptional");
+insert into test.t1 values (80, "Poor");
+commit;
+Show Secondary contents
+select * from test.t1 order by a;
+a	b
+1	11
+2	2
+3	3
+4	4
+5	5
+6	6
+73	A superb year
+77	Exceptional
+80	Poor
+84	A good vintage
+Allow propagation to Primary
+PRIMARY:
+Expect:
+- NDB$EPOCH_TRANS :
+- Will not detect delete-delete conflict, so first
+Secondary transaction will apply row 73.
+- Unrelated transaction from Secondary (84) is present
+- Following insert on delete-delete conflict row (77) is not in conflict,
+so both it and the related row from the same transaction (80) are present
+This applies whether the following insert is in the same or a different
+epoch
+Divergence:
+- Primary will have 73,84,77,80
+- Secondary will have 73,84,80, no 77
+
+- NDB$EPOCH_TRANS2 :
+- Will detect delete-delete conflict, so first 
+Secondary transaction will not apply (no row 73)
+77 and 73 will be refreshed (DEL)
+- Unrelated transaction from Secondary (84) is present and applied
+84 will be reflected (INS)
+- Following insert on delete-delete conflict row (77) will be found in 
+conflict iff this transaction is in the same epoch as the first 
+conflicting transaction.  If it is in a different epoch then it will
+not be found in conflict, as there will be no state available to 
+use.
+- If it is in-conflict, then 77 and 80 will be refreshed (DEL)
+Result on both should be :
+84
+- If it is not in-conflict, then 77 and 80 will be reflected (INS)
+Result on both should be :
+84, 77, 80
+No divergence
+select @primary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch);
+@primary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch)
+1
+EPOCH2_TRANS results are dependent on epoch boundaries
+Now sync with Secondary to show outcomes
+start slave;
+SECONDARY:
+
+select @secondary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch);
+@secondary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch)
+1
+EPOCH2_TRANS results are dependent on epoch boundaries
+PRIMARY
+Cleanup
+delete from test.t1 where a != 6;
+PRIMARY
+Transactional Delete testcase
+STOP slave on SECONDARY
+stop slave;
+PRIMARY
+Primary updates row with pk 6
+update test.t1 set b="Pentland" where a=6;
+PRIMARY content
+Row 6 updated
+select * from test.t1 order by a;
+a	b
+6	Pentland
+SECONDARY
+Transaction deleting pk 6, inserting pk 7
+begin;
+delete from test.t1 where a = 6;
+insert into test.t1 values (7, "Mendip");
+commit;
+Optionally flush logs
+Transaction deleting pk 7, inserting pk 8
+begin;
+delete from test.t1 where a = 7;
+insert into test.t1 values (8, "Ochil");
+commit;
+SECONDARY content
+Rows 6 + 7 deleted.  Row 8 present.
+select * from test.t1 order by a;
+a	b
+8	Ochil
+Sync SECONDARY -> PRIMARY
+Expected Behaviour
+EPOCH_TRANS
+
+1.  Conflict between Primary update to 6 + Secondary
+[Delete of 6 + Insert of 7] is detected by Primary
+and transaction is not applied at the Primary.
+Rows 6 (INS) and 7 (DEL) are refreshed.  Row 6 has its 
+epoch updated.
+
+2.  Following Secondary transaction, [delete of 7
++ insert of 8] behaviour depends on whether it
+arrives in the same or a different epoch.
+Same epoch : 
+Will conflict with refreshed row 7, and so will
+not be applied.  Row 8 will be refreshed (DEL)
+Different epoch :
+Will not conflict with Not-present row 7, and so
+will be applied.
+
+3.  On the Secondary, the observed sequence will be :
+- Update 6 from PRIMARY : (Idempotent insert)
+- Refresh (INS) 6 from PRIMARY
+- Refresh (DEL) 7 from PRIMARY
+Same epoch :
+- Refresh (DEL) 8 from PRIMARY
+Different epoch :
+- Nothing
+
+Results (no divergence) :
+Same epoch :
+PRIMARY : 6
+SECONDARY : 6
+Diff epoch :
+PRIMARY : 6,8
+SECONDARY : 6,8
+
+
+EPOCH_TRANS2
+
+1.  Conflict between Primary update to 6 + Secondary
+[Delete of 6 + Insert of 7] is detected by Primary
+and transaction is not applied at the Primary.
+Rows 6 (INS) and 7 (DEL) are refreshed.  Row 6 has its 
+epoch updated.
+
+2.  Following Secondary transaction [delete of 7 + 
+insert of 8] will conflict with the first 
+transaction as EPOCH_TRANS2 does not allow
+a delete of an already deleted row.
+Row 7 will be refreshed (DEL) and row 8 will be 
+refreshed (DEL)
+
+3.  On the Secondary, the observed sequence will be :
+- Update 6 from PRIMARY : (Idempotent insert)
+- Refresh (INS) 6 from PRIMARY
+- Refresh (DEL) 7 from PRIMARY
+- [Refresh (DEL) 7 from PRIMARY] - diff epoch
+- Refresh (DEL) 8 from PRIMARY
+
+Results (no divergence) :
+PRIMARY : 6
+SECONDARY : 6
+
+PRIMARY content 
+select @primary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans);
+@primary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans)
+1
+select * from test.t1 order by a;
+a	b
+6	Pentland
+Restart SECONDARY Slave
+START SLAVE;
+Sync PRIMARY -> SECONDARY
+SECONDARY content
+select @secondary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans);
+@secondary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans)
+1
+select * from test.t1 order by a;
+a	b
+6	Pentland
+STABILISE
+drop table mysql.ndb_replication;
+drop table test.t1;
+drop table test.t2;
+flush logs;
+stop slave;
+reset slave;
+include/rpl_end.inc
+Next we have Cluster A as Secondary, Cluster B as Primary
+SET GLOBAL ndb_slave_conflict_role="NONE";
+SET GLOBAL ndb_slave_conflict_role="SECONDARY";
+SET GLOBAL ndb_slave_conflict_role="NONE";
+SET GLOBAL ndb_slave_conflict_role="PRIMARY";
+We set a special control var to allow the generic scripts
+to handle this topology
+Remove some connections which can't be setup twice (ugly)
+include/master-slave.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+Setup circular replication
+Setup ndb_replication and t1 exceptions table
+Populate ndb_replication table as necessary
+replace into mysql.ndb_replication values
+("test", "t1", 1, 7, "NDB$EPOCH2_TRANS()"),
+("test", "t1", 3, 7, "NDB$EPOCH2_TRANS()");
+replace into mysql.ndb_replication values
+("test", "t2", 1, 7, "NDB$EPOCH2_TRANS()"),
+("test", "t2", 3, 7, "NDB$EPOCH2_TRANS()");
+create table test.t1 (
+a int primary key,
+b varchar(2000)) engine=ndb;
+create table test.t2 (
+a int primary key,
+b varchar(2000)) engine=ndb;
+Add some data
+insert into test.t1 values
+(1, "Initial data 1"),
+(2, "Initial data 2"),
+(3, "Initial data 3"),
+(4, "Initial data 4"),
+(5, "Initial data 5"),
+(6, "Initial data 6"),
+(7, "Initial data 7"),
+(8, "Initial data 8"),
+(9, "Initial data 9"),
+(10, "Initial data 10");
+Show basic row-level conflict detection
+---------------------------------------
+stop slave;
+update t1 set b="Primary first change 2" where a=2;
+select * from test.t1 order by a;
+a	b
+1	Initial data 1
+2	Primary first change 2
+3	Initial data 3
+4	Initial data 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+update t1 set b="Secondary first change 2" where a=2;
+select * from test.t1 order by a;
+a	b
+1	Initial data 1
+2	Secondary first change 2
+3	Initial data 3
+4	Initial data 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+Primary should have rejected change from Secondary, keeping its value
+select * from t1 order by a;
+a	b
+1	Initial data 1
+2	Primary first change 2
+3	Initial data 3
+4	Initial data 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+ndb_conflict_fn_epoch_trans
+NULL
+ndb_conflict_fn_epoch2_trans
+NULL
+ndb_conflict_trans_row_conflict_count
+NULL
+ndb_conflict_trans_row_reject_count
+NULL
+ndb_conflict_trans_reject_count
+NULL
+ndb_conflict_trans_detect_iter_count
+NULL
+ndb_conflict_trans_conflict_commit_count
+NULL
+ndb_epoch_delete_delete_count
+NULL
+start slave;
+Secondary should have been realigned to Primary
+select * from t1 order by a;
+a	b
+1	Initial data 1
+2	Primary first change 2
+3	Initial data 3
+4	Initial data 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+Show rollback of whole secondary transaction
+--------------------------------------------
+stop slave;
+update t1 set b="Primary second change 4" where a=4;
+select * from test.t1 order by a;
+a	b
+1	Initial data 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+begin;
+update t1 set b="Secondary second change 4" where a=4;
+update t1 set b="Secondary second change 5" where a=5;
+commit;
+select * from test.t1 order by a;
+a	b
+1	Initial data 1
+2	Primary first change 2
+3	Initial data 3
+4	Secondary second change 4
+5	Secondary second change 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+Primary should have rejected secondary changes on both rows
+select * from test.t1 order by a;
+a	b
+1	Initial data 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+ndb_conflict_fn_epoch_trans
+0
+ndb_conflict_fn_epoch2_trans
+1
+ndb_conflict_trans_row_conflict_count
+1
+ndb_conflict_trans_row_reject_count
+2
+ndb_conflict_trans_reject_count
+1
+ndb_conflict_trans_detect_iter_count
+1
+ndb_conflict_trans_conflict_commit_count
+1
+ndb_epoch_delete_delete_count
+0
+start slave;
+Secondary should have been realigned to Primary
+select * from test.t1 order by a;
+a	b
+1	Initial data 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+Show rollback of dependent transaction as well
+----------------------------------------------
+stop slave;
+update t1 set b="Primary third change 1" where a=1;
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+begin;
+update t1 set b="Secondary third change 3" where a=3;
+update t1 set b="Secondary third change 1" where a=1;
+commit;
+begin;
+update t1 set b="Secondary fourth change 3" where a=3;
+insert into t1 values (11,"Secondary fourth change 11");
+commit;
+select * from test.t1 order by a;
+a	b
+1	Secondary third change 1
+2	Primary first change 2
+3	Secondary fourth change 3
+4	Primary second change 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+11	Secondary fourth change 11
+Primary should have rejected all secondary changes
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+ndb_conflict_trans_row_reject_count
+4
+ndb_conflict_trans_reject_count
+2
+ndb_epoch_delete_delete_count
+0
+start slave;
+Secondary should have been realigned to Primary
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Initial data 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+Show rollback of dependent transaction across different tables
+--------------------------------------------------------------
+stop slave;
+update t1 set b="Primary fifth change 6" where a=6;
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+begin;
+update t1 set b="Secondary fifth change 6" where a=6;
+insert into t2 values (1, "Secondary fifth change 1");
+insert into t2 values (2, "Secondary fifth change 2");
+commit;
+begin;
+update t2 set b="Secondary sixth change 1" where a=2;
+insert into t2 values (3, "Secondary sixth change 2");
+commit;
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Secondary fifth change 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+select * from test.t2 order by a;
+a	b
+1	Secondary fifth change 1
+2	Secondary sixth change 1
+3	Secondary sixth change 2
+Primary should have rejected all secondary changes
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+select * from test.t2 order by a;
+a	b
+ndb_conflict_trans_row_reject_count
+5
+ndb_conflict_trans_reject_count
+2
+ndb_epoch_delete_delete_count
+0
+start slave;
+Secondary should have been realigned to primary
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Initial data 10
+select * from test.t2 order by a;
+a	b
+Show that whole epoch is not rolled back
+----------------------------------------
+stop slave;
+update t1 set b="Primary is king" where a=10;
+begin;
+update t1 set b="Secondary is emperor" where a=10;
+insert into t1 values (11, "Secondary is pleni-potentiary");
+commit;
+begin;
+insert into t1 values (12, "Secondary ruled once");
+insert into t1 values (13, "This history will not be lost");
+insert into t1 values (14, "Look on my works ye mighty, and despair");
+commit;
+Primary should have rejected conflicting trans (emperor, pleni-potentiary)
+but accepted unrelated trans (history)
+select * from t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Primary is king
+12	Secondary ruled once
+13	This history will not be lost
+14	Look on my works ye mighty, and despair
+ndb_conflict_fn_epoch_trans
+0
+ndb_conflict_fn_epoch2_trans
+1
+ndb_conflict_trans_row_conflict_count
+1
+ndb_conflict_trans_row_reject_count
+2
+ndb_conflict_trans_reject_count
+1
+ndb_conflict_trans_detect_iter_count
+1
+ndb_conflict_trans_conflict_commit_count
+1
+ndb_epoch_delete_delete_count
+0
+start slave;
+Secondary should be aligned with Primary
+select * from t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	Initial data 7
+8	Initial data 8
+9	Initial data 9
+10	Primary is king
+12	Secondary ruled once
+13	This history will not be lost
+14	Look on my works ye mighty, and despair
+Show that non-conflicting ancestors are not implicated
+------------------------------------------------------
+stop slave;
+update t1 set b="7 : Primary is king" where a=7;
+Primary state
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	7 : Primary is king
+8	Initial data 8
+9	Initial data 9
+10	Primary is king
+12	Secondary ruled once
+13	This history will not be lost
+14	Look on my works ye mighty, and despair
+begin;
+update t1 set b="8 : Secondary innocent" where a=8;
+update t1 set b="9 : Secondary innocent" where a=9;
+commit;
+Secondary with innocent
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	Initial data 7
+8	8 : Secondary innocent
+9	9 : Secondary innocent
+10	Primary is king
+12	Secondary ruled once
+13	This history will not be lost
+14	Look on my works ye mighty, and despair
+begin;
+update t1 set b="9 : Secondary guilty" where a=9;
+update t1 set b="7 : Secondary guilty" where a=7;
+commit;
+Secondary with guilty overlaid
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	7 : Secondary guilty
+8	8 : Secondary innocent
+9	9 : Secondary guilty
+10	Primary is king
+12	Secondary ruled once
+13	This history will not be lost
+14	Look on my works ye mighty, and despair
+Primary cluster should have rejected 'guilty' secondary transaction, but
+accepted 'innocent' secondary transaction.
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	7 : Primary is king
+8	8 : Secondary innocent
+9	9 : Secondary innocent
+10	Primary is king
+12	Secondary ruled once
+13	This history will not be lost
+14	Look on my works ye mighty, and despair
+ndb_conflict_fn_epoch_trans
+0
+ndb_conflict_fn_epoch2_trans
+1
+ndb_conflict_trans_row_conflict_count
+1
+ndb_conflict_trans_row_reject_count
+2
+ndb_conflict_trans_reject_count
+1
+ndb_conflict_trans_detect_iter_count
+1
+ndb_conflict_trans_conflict_commit_count
+1
+ndb_epoch_delete_delete_count
+0
+start slave;
+Secondary cluster should be realigned with Primary
+select * from test.t1 order by a;
+a	b
+1	Primary third change 1
+2	Primary first change 2
+3	Initial data 3
+4	Primary second change 4
+5	Initial data 5
+6	Primary fifth change 6
+7	7 : Primary is king
+8	8 : Secondary innocent
+9	9 : Secondary innocent
+10	Primary is king
+12	Secondary ruled once
+13	This history will not be lost
+14	Look on my works ye mighty, and despair
+Classic banking example
+-----------------------
+replace into mysql.ndb_replication values
+("test", "balances", 1, 7, "NDB$EPOCH2_TRANS()"),
+("test", "balances", 3, 7, "NDB$EPOCH2_TRANS()");
+replace into mysql.ndb_replication values
+("test", "transactions", 1, 7, "NDB$EPOCH2_TRANS()"),
+("test", "transactions", 3, 7, "NDB$EPOCH2_TRANS()");
+create table test.balances
+(name     varchar(100) primary key,
+balance  int) engine=ndb;
+create table test.transactions$EX
+(server_id             int unsigned,
+master_server_id      int unsigned,
+master_epoch          bigint unsigned,
+count                 int unsigned,
+auto_key              int not null,
+from_name             varchar(100) not null,
+to_name               varchar(100) not null,
+detail                varchar(100) not null,
+primary key(server_id, master_server_id, master_epoch, count))
+engine=ndb;
+create table test.transactions
+(auto_key      int auto_increment,
+from_name     varchar(100),
+to_name       varchar(100),
+detail        varchar(100),
+amount        int,
+primary key(auto_key, from_name, to_name, detail)) engine=ndb;
+Initialise balances across both bank sites
+insert into test.balances values
+("Larry", 100),
+("Employee-1", 0),
+("Employee-2", 0),
+("Yacht dealer", 0),
+("Newsagent", 0);
+FLUSH LOGS;
+Bank sites are disconnected
+stop slave;
+Larry buys a yacht using Primary bank site
+begin;
+insert into test.transactions (from_name, to_name, detail, amount)
+values ("Larry", "Yacht dealer", "Yacht purchase", 50);
+update test.balances set balance = balance - 50 where name = "Larry";
+update test.balances set balance = balance + 50 where name = "Yacht dealer";
+commit;
+Show yacht transaction records
+select * from test.transactions order by auto_key;
+auto_key	from_name	to_name	detail	amount
+1	Larry	Yacht dealer	Yacht purchase	50
+select * from test.balances order by name;
+name	balance
+Employee-1	0
+Employee-2	0
+Larry	50
+Newsagent	0
+Yacht dealer	50
+Larry pays employees using Secondary bank site
+begin;
+insert into test.transactions (from_name, to_name, detail, amount)
+values ("Larry", "Employee-1", "Payment to Employee-1", 1);
+update test.balances set balance = balance - 1 where name = "Larry";
+update test.balances set balance = balance + 1 where name = "Employee-1";
+commit;
+begin;
+insert into test.transactions (from_name, to_name, detail, amount)
+values ("Larry", "Employee-2", "Payment to Employee-2", 1);
+update test.balances set balance = balance - 1 where name = "Larry";
+update test.balances set balance = balance + 1 where name = "Employee-2";
+commit;
+Employee-2 buys yacht magazine using Secondary bank site
+begin;
+insert into test.transactions (from_name, to_name, detail, amount)
+values ("Employee-2", "Newsagent", "Buy yacht magazine", 1);
+update test.balances set balance = balance - 1 where name = "Employee-2";
+update test.balances set balance = balance + 1 where name = "Newsagent";
+commit;
+Show employee transactions
+select * from test.transactions order by auto_key;
+auto_key	from_name	to_name	detail	amount
+1	Larry	Employee-1	Payment to Employee-1	1
+2	Larry	Employee-2	Payment to Employee-2	1
+3	Employee-2	Newsagent	Buy yacht magazine	1
+select * from test.balances order by name;
+name	balance
+Employee-1	1
+Employee-2	0
+Larry	98
+Newsagent	1
+Yacht dealer	0
+Bank sites re-connected
+start slave;
+Records at Primary bank site
+select * from test.transactions order by auto_key;
+auto_key	from_name	to_name	detail	amount
+1	Larry	Yacht dealer	Yacht purchase	50
+select * from test.balances order by name;
+name	balance
+Employee-1	0
+Employee-2	0
+Larry	50
+Newsagent	0
+Yacht dealer	50
+Exceptions at Primary bank site
+select server_id, master_server_id, auto_key, from_name, to_name, detail
+from test.transactions$EX order by auto_key, from_name, to_name, detail;
+server_id	master_server_id	auto_key	from_name	to_name	detail
+3	1	1	Larry	Employee-1	Payment to Employee-1
+3	1	2	Larry	Employee-2	Payment to Employee-2
+3	1	3	Employee-2	Newsagent	Buy yacht magazine
+Conflict handling activity at Primary bank site
+Expect :
+1 conflict from slave T1 on Larry's balance
+1 conflict from slave T2 on Larry's balance
+=2 row conflicts
+
+3 (user) transactions rejected
+9 rows rejected (3 per transaction)
+Variability : # epoch transactions, # row conflicts detected
+1-3                   2-3
+# detect_iter_count
+1-3
+We only check stable values
+ndb_conflict_trans_row_reject_count
+9
+ndb_conflict_trans_reject_count
+3
+ndb_epoch_delete_delete_count
+0
+Records at Secondary bank site
+select * from test.transactions order by auto_key;
+auto_key	from_name	to_name	detail	amount
+1	Larry	Yacht dealer	Yacht purchase	50
+select * from test.balances order by name;
+name	balance
+Employee-1	0
+Employee-2	0
+Larry	50
+Newsagent	0
+Yacht dealer	50
+drop table test.balances;
+drop table test.transactions;
+drop table test.transactions$EX;
+Test mixing transactional and non transactional
+-----------------------------------------------
+Remove old data from t1
+delete from test.t1;
+Define table with row-based epoch detection
+replace into mysql.ndb_replication values
+("test", "t3", 1, 7, NULL),
+("test", "t3", 3, 7, 'NDB$EPOCH()');
+create table t3 (a int primary key, b int) engine=ndb;
+create table t4 (a int primary key, b int) engine=ndb;
+create table t5 (a int primary key, b longtext) engine=ndb;
+Insert some data
+insert into test.t1 values
+(1,1),
+(2,2),
+(3,3),
+(4,4),
+(5,5),
+(6,6);
+insert into test.t3 values
+(11,11),
+(12,12),
+(13,13),
+(14,14),
+(15,15),
+(16,16);
+insert into test.t4 values
+(21,21),
+(22,22),
+(23,23),
+(24,24),
+(25,25),
+(26,26);
+insert into test.t5 values
+(1, REPEAT("B", 10000)),
+(2, REPEAT("E", 10000)),
+(3, REPEAT("A", 10000));
+Allow to propagate
+FLUSH LOGS;
+Case 1 : Transactional detection affects row - based entries in same trans
+stop slave;
+update test.t1 set b=100 where a=1;
+begin;
+update test.t3 set b=1100 where a=11;
+update test.t4 set b=2100 where a=21;
+update test.t1 set b=1000 where a=1;
+commit;
+Show slave transaction effect
+select * from test.t1 order by a;
+a	b
+1	1000
+2	2
+3	3
+4	4
+5	5
+6	6
+select * from test.t3 order by a;
+a	b
+11	1100
+12	12
+13	13
+14	14
+15	15
+16	16
+select * from test.t4 order by a;
+a	b
+21	2100
+22	22
+23	23
+24	24
+25	25
+26	26
+Expect Primary to have rejected whole trans across 3 tables
+select * from test.t1 order by a;
+a	b
+1	100
+2	2
+3	3
+4	4
+5	5
+6	6
+select * from test.t3 order by a;
+a	b
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+select * from test.t4 order by a;
+a	b
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+Expect 1 transaction rejected, 3 rows rejected
+1 conflict row, 1 epoch, 1 iteration
+ndb_conflict_fn_epoch_trans
+0
+ndb_conflict_fn_epoch2_trans
+1
+ndb_conflict_trans_row_conflict_count
+1
+ndb_conflict_trans_row_reject_count
+3
+ndb_conflict_trans_reject_count
+1
+ndb_conflict_trans_detect_iter_count
+1
+ndb_conflict_trans_conflict_commit_count
+1
+ndb_epoch_delete_delete_count
+0
+Now restart rep to Secondary, and check realignment
+start slave;
+select * from test.t1 order by a;
+a	b
+1	100
+2	2
+3	3
+4	4
+5	5
+6	6
+select * from test.t3 order by a;
+a	b
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+select * from test.t4 order by a;
+a	b
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+Case 2 : Row based detection does not affect other transaction entries
+stop slave;
+update test.t3 set b=1200 where a=12;
+begin;
+update test.t3 set b=1201 where a=12;
+update test.t4 set b=2200 where a=22;
+update test.t1 set b=2000 where a=2;
+commit;
+Show effect of transaction on Secondary
+select * from test.t1 order by a;
+a	b
+1	100
+2	2000
+3	3
+4	4
+5	5
+6	6
+select * from test.t3 order by a;
+a	b
+11	11
+12	1201
+13	13
+14	14
+15	15
+16	16
+select * from test.t4 order by a;
+a	b
+21	21
+22	2200
+23	23
+24	24
+25	25
+26	26
+Show effect of transaction on Primary
+Only t3 should have been reverted
+select * from test.t1 order by a;
+a	b
+1	100
+2	2000
+3	3
+4	4
+5	5
+6	6
+select * from test.t3 order by a;
+a	b
+11	11
+12	1200
+13	13
+14	14
+15	15
+16	16
+select * from test.t4 order by a;
+a	b
+21	21
+22	2200
+23	23
+24	24
+25	25
+26	26
+Expect all counters to be zero
+ndb_conflict_fn_epoch_trans
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_row_conflict_count
+0
+ndb_conflict_trans_row_reject_count
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_trans_detect_iter_count
+0
+ndb_conflict_trans_conflict_commit_count
+0
+ndb_epoch_delete_delete_count
+0
+Show effect of transaction on Secondary
+start slave;
+select * from test.t1 order by a;
+a	b
+1	100
+2	2000
+3	3
+4	4
+5	5
+6	6
+select * from test.t3 order by a;
+a	b
+11	11
+12	1200
+13	13
+14	14
+15	15
+16	16
+select * from test.t4 order by a;
+a	b
+21	21
+22	2200
+23	23
+24	24
+25	25
+26	26
+flush logs;
+Case 3 : Check behaviour where table with Blob is implicated
+in transactional conflict.  Should result in Slave
+stopping with an error.
+STOP SLAVE;
+Setup warning suppression
+begin;
+update t1 set b= 11 where a=1;
+commit;
+begin;
+update t1 set b= 111 where a=1;
+update t1 set b= 222 where a=2;
+update t5 set b= REPEAT("T", 10000) where a=3;
+commit;
+Show effect of transaction on Secondary
+select * from test.t1 order by a;
+a	b
+1	111
+2	222
+3	3
+4	4
+5	5
+6	6
+select left(b,1), length(b) from test.t5 order by a;
+left(b,1)	length(b)
+B	10000
+E	10000
+T	10000
+Check that Primary Slave has stopped
+include/wait_for_slave_sql_error.inc [errno=1296]
+Restart Primary Slave
+set global sql_slave_skip_counter=1;
+START SLAVE;
+Restart Secondary Slave
+START SLAVE;
+flush logs;
+drop table test.t3;
+drop table test.t4;
+drop table test.t5;
+Fix misalignment caused above
+Makes following result sets look nicer
+update test.t1 set b=2 where a=2;
+Show a simple row-level delete-delete conflict
+PRIMARY:
+insert into test.t1 values (77, "A good year");
+select * from test.t1 order by a;
+a	b
+1	11
+2	2
+3	3
+4	4
+5	5
+6	6
+77	A good year
+SECONDARY:
+stop slave;
+PRIMARY:
+Primary Delete
+delete from test.t1 where a=77;
+Show Primary contents
+select * from test.t1 order by a;
+a	b
+1	11
+2	2
+3	3
+4	4
+5	5
+6	6
+SECONDARY:
+select * from test.t1 order by a;
+a	b
+1	11
+2	2
+3	3
+4	4
+5	5
+6	6
+77	A good year
+Secondary Delete->Insert in separate transactions
+and potentially different epochs
+Delete part with related transaction op
+begin;
+delete from test.t1 where a=77;
+insert into test.t1 values (73, "A superb year");
+commit;
+Unrelated transaction from Secondary
+begin;
+insert into test.t1 values (84, "A good vintage");
+commit;
+Optionally flush logs
+Following Insert from Secondary - potentially in different epoch
+begin;
+insert into test.t1 values (77, "Exceptional");
+insert into test.t1 values (80, "Poor");
+commit;
+Show Secondary contents
+select * from test.t1 order by a;
+a	b
+1	11
+2	2
+3	3
+4	4
+5	5
+6	6
+73	A superb year
+77	Exceptional
+80	Poor
+84	A good vintage
+Allow propagation to Primary
+PRIMARY:
+Expect:
+- NDB$EPOCH_TRANS :
+- Will not detect delete-delete conflict, so first
+Secondary transaction will apply row 73.
+- Unrelated transaction from Secondary (84) is present
+- Following insert on delete-delete conflict row (77) is not in conflict,
+so both it and the related row from the same transaction (80) are present
+This applies whether the following insert is in the same or a different
+epoch
+Divergence:
+- Primary will have 73,84,77,80
+- Secondary will have 73,84,80, no 77
+
+- NDB$EPOCH_TRANS2 :
+- Will detect delete-delete conflict, so first 
+Secondary transaction will not apply (no row 73)
+77 and 73 will be refreshed (DEL)
+- Unrelated transaction from Secondary (84) is present and applied
+84 will be reflected (INS)
+- Following insert on delete-delete conflict row (77) will be found in 
+conflict iff this transaction is in the same epoch as the first 
+conflicting transaction.  If it is in a different epoch then it will
+not be found in conflict, as there will be no state available to 
+use.
+- If it is in-conflict, then 77 and 80 will be refreshed (DEL)
+Result on both should be :
+84
+- If it is not in-conflict, then 77 and 80 will be reflected (INS)
+Result on both should be :
+84, 77, 80
+No divergence
+select @primary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch);
+@primary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch)
+1
+EPOCH2_TRANS results are dependent on epoch boundaries
+Now sync with Secondary to show outcomes
+start slave;
+SECONDARY:
+
+select @secondary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch);
+@secondary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch)
+1
+EPOCH2_TRANS results are dependent on epoch boundaries
+PRIMARY
+Cleanup
+delete from test.t1 where a != 6;
+PRIMARY
+Transactional Delete testcase
+STOP slave on SECONDARY
+stop slave;
+PRIMARY
+Primary updates row with pk 6
+update test.t1 set b="Pentland" where a=6;
+PRIMARY content
+Row 6 updated
+select * from test.t1 order by a;
+a	b
+6	Pentland
+SECONDARY
+Transaction deleting pk 6, inserting pk 7
+begin;
+delete from test.t1 where a = 6;
+insert into test.t1 values (7, "Mendip");
+commit;
+Optionally flush logs
+Transaction deleting pk 7, inserting pk 8
+begin;
+delete from test.t1 where a = 7;
+insert into test.t1 values (8, "Ochil");
+commit;
+SECONDARY content
+Rows 6 + 7 deleted.  Row 8 present.
+select * from test.t1 order by a;
+a	b
+8	Ochil
+Sync SECONDARY -> PRIMARY
+Expected Behaviour
+EPOCH_TRANS
+
+1.  Conflict between Primary update to 6 + Secondary
+[Delete of 6 + Insert of 7] is detected by Primary
+and transaction is not applied at the Primary.
+Rows 6 (INS) and 7 (DEL) are refreshed.  Row 6 has its 
+epoch updated.
+
+2.  Following Secondary transaction, [delete of 7
++ insert of 8] behaviour depends on whether it
+arrives in the same or a different epoch.
+Same epoch : 
+Will conflict with refreshed row 7, and so will
+not be applied.  Row 8 will be refreshed (DEL)
+Different epoch :
+Will not conflict with Not-present row 7, and so
+will be applied.
+
+3.  On the Secondary, the observed sequence will be :
+- Update 6 from PRIMARY : (Idempotent insert)
+- Refresh (INS) 6 from PRIMARY
+- Refresh (DEL) 7 from PRIMARY
+Same epoch :
+- Refresh (DEL) 8 from PRIMARY
+Different epoch :
+- Nothing
+
+Results (no divergence) :
+Same epoch :
+PRIMARY : 6
+SECONDARY : 6
+Diff epoch :
+PRIMARY : 6,8
+SECONDARY : 6,8
+
+
+EPOCH_TRANS2
+
+1.  Conflict between Primary update to 6 + Secondary
+[Delete of 6 + Insert of 7] is detected by Primary
+and transaction is not applied at the Primary.
+Rows 6 (INS) and 7 (DEL) are refreshed.  Row 6 has its 
+epoch updated.
+
+2.  Following Secondary transaction [delete of 7 + 
+insert of 8] will conflict with the first 
+transaction as EPOCH_TRANS2 does not allow
+a delete of an already deleted row.
+Row 7 will be refreshed (DEL) and row 8 will be 
+refreshed (DEL)
+
+3.  On the Secondary, the observed sequence will be :
+- Update 6 from PRIMARY : (Idempotent insert)
+- Refresh (INS) 6 from PRIMARY
+- Refresh (DEL) 7 from PRIMARY
+- [Refresh (DEL) 7 from PRIMARY] - diff epoch
+- Refresh (DEL) 8 from PRIMARY
+
+Results (no divergence) :
+PRIMARY : 6
+SECONDARY : 6
+
+PRIMARY content 
+select @primary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans);
+@primary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans)
+1
+select * from test.t1 order by a;
+a	b
+6	Pentland
+Restart SECONDARY Slave
+START SLAVE;
+Sync PRIMARY -> SECONDARY
+SECONDARY content
+select @secondary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans);
+@secondary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans)
+1
+select * from test.t1 order by a;
+a	b
+6	Pentland
+STABILISE
+drop table mysql.ndb_replication;
+drop table test.t1;
+drop table test.t2;
+flush logs;
+stop slave;
+reset slave;
+include/rpl_end.inc
+SET GLOBAL ndb_slave_conflict_role="NONE";
+SET GLOBAL ndb_slave_conflict_role="NONE";

@@ -2,16 +2,9 @@ CREATE TABLE t (c1 INT PRIMARY KEY, c2 INT NOT NULL, c3 INT) ENGINE=InnoDB;
 INSERT INTO t VALUES (1,2,3),(4,5,6),(7,8,9);
 ALTER TABLE t CHANGE c1 c1 INT NULL FIRST, ALGORITHM=INPLACE;
 ERROR 42000: All parts of a PRIMARY KEY must be NOT NULL; if you need NULL in a key, use UNIQUE instead
-set @old_sql_mode = @@sql_mode;
-set @@sql_mode = 'STRICT_TRANS_TABLES';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 ALTER TABLE t MODIFY c3 INT NOT NULL, ALGORITHM=INPLACE;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-set @@sql_mode = @old_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 ALTER TABLE t CHANGE c2 c2 INT, CHANGE c2 c2 INT NOT NULL;
 ERROR 42S22: Unknown column 'c2' in 't'
 ALTER TABLE t MODIFY c2 INT, MODIFY c2 INT NOT NULL;
@@ -26,9 +19,6 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t MODIFY c2 INT NOT NULL;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-SET SQL_MODE='STRICT_ALL_TABLES';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 UPDATE t SET c2=NULL;
 ERROR 23000: Column 'c2' cannot be null
 SELECT * FROM t;
@@ -51,8 +41,12 @@ c1	c2	c3
 4	5	6
 7	8	9
 ALTER TABLE t MODIFY c2 INT NULL, ALGORITHM=INPLACE;
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES
 WHERE NAME='test/t';
-TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
-#	test/t	1	6	#	Antelope	Compact	0	Single
+TABLE_ID	NAME	FLAG	N_COLS	SPACE	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
+#	test/t	33	6	#	Dynamic	0	Single
 DROP TABLE t;
+CREATE TABLE t1(c1 INT);
+ALTER TABLE t1 ADD CONSTRAINT UNIQUE KEY i1(c1);
+ALTER TABLE t1 CHANGE c1 c1 INT SIGNED NOT NULL,ADD KEY(c1);
+DROP TABLE t1;

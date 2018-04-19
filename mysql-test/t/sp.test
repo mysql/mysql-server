@@ -1,8 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
 
+--source include/no_valgrind_without_big.inc
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
 #
 # Basic stored PROCEDURE tests
 #
@@ -14,8 +13,6 @@
 # Tests that require multiple connections, except security/privilege tests,
 #   go to sp-thread.
 # Tests that uses 'goto' to into sp-goto.test (currently disabled)
-# Tests that destroys system tables (e.g. mysql.proc) for error testing
-#   go to sp-destruct.
 # Tests that require --with-geometry go into sp_gis.test
 # Tests that require multibyte character sets, which are not always available,
 #   go into separate files (e.g. sp-ucs2.test)
@@ -27,6 +24,10 @@ use test;
 # t1 and t2 are reused throughout the file, and dropped at the end.
 # t3 and up are created and dropped when needed.
 #
+
+# Test needs MyISAM for disable warnings subtest which use engines other than innodb
+--source include/have_myisam.inc
+
 --disable_warnings
 drop table if exists t1,t2,t3,t4;
 drop view if exists v1;
@@ -38,12 +39,12 @@ drop function if exists f2;
 create table t1 (
 	id   char(16) not null default '',
         data int not null
-);
+) engine=myisam;
 create table t2 (
 	s   char(16),
         i   int,
 	d   double
-);
+) engine=myisam;
 
 
 # Single statement, no params.
@@ -75,13 +76,13 @@ delimiter |;
 
 # Empty statement
 --disable_warnings ONCE
-drop procedure if exists empty|
-create procedure empty()
+drop procedure if exists `empty`|
+create procedure `empty`()
 begin
 end|
 
-call empty()|
-drop procedure empty|
+call `empty`()|
+drop procedure `empty`|
 
 # Scope test. This is legal (warnings might be possible in the future,
 # but for the time being, we just accept it).
@@ -186,7 +187,7 @@ create procedure mixset(x char(16), y int)
 begin
   declare z int;
 
-  set @z = y, z = 666, max_join_size = 100;
+  set @z = y, z = 666;
   insert into test.t1 values (x, z);
 end|
 
@@ -415,7 +416,8 @@ drop procedure b|
 --disable_warnings ONCE
 drop procedure if exists b2|
 create procedure b2(x int)
-repeat(select 1 into outfile 'b2');
+repeat
+  select 1 into outfile 'b2';
   insert into test.t1 values (repeat("b2",3), x);
   set x = x-1;
 until x = 0 end repeat|
@@ -1068,8 +1070,7 @@ create procedure dummy(out x int)
 use test|
 drop database sp_db3|
 # Check that it's gone
-select type,db,name from mysql.proc where db = 'sp_db3'|
-
+select routine_type, routine_schema, routine_name from information_schema.routines where routine_schema = 'sp_db3'|
 
 # ROW_COUNT() function after a CALL
 # We test the other cases here too, although it's not strictly SP specific
@@ -1259,18 +1260,6 @@ select * from v0|
 select *, f0() from v0, (select 123) as d1|
 --error ER_TABLE_NOT_LOCKED
 select id, f3() from t1|
---error ER_TABLE_NOT_LOCKED
-select f4()|
-unlock tables|
-
-# Let us test how LOCK TABLES which implicitly depends on functions
-# works
-lock tables v2 read, mysql.proc read|
-select * from v2|
-select * from v1|
-# These should not work as we have too little instances of tables locked
---error ER_TABLE_NOT_LOCKED
-select * from v1, t1|
 --error ER_TABLE_NOT_LOCKED
 select f4()|
 unlock tables|
@@ -2736,6 +2725,9 @@ drop table t3|
 #
 --disable_warnings ONCE
 drop procedure if exists bug4902|
+# The below flag is set in order to allow larger results
+# from SELECT's from SHOW statements in procedure bug4902.
+set SQL_BIG_SELECTS=1|
 create procedure bug4902()
 begin
   show charset like 'foo';
@@ -2747,7 +2739,7 @@ begin
   show columns from t1;
   show keys from t1;
   show open tables like 'foo';
-  # Removed because result will differ in embedded mode.
+  #show privileges need to be commented as its output differs on different platform
   #show privileges;
   show status like 'foo';
   show tables like 'foo';
@@ -2850,12 +2842,12 @@ create procedure bug5251()
 begin
 end|
 
-select created into @c1 from mysql.proc
-  where db='test' and name='bug5251'|
+select created into @c1 from information_schema.routines
+  where routine_schema='test' and routine_name='bug5251'|
 --sleep 2
 alter procedure bug5251 comment 'foobar'|
-select count(*) from mysql.proc
-  where  db='test' and name='bug5251' and created = @c1|
+select count(*) from information_schema.routines
+  where routine_schema='test' and routine_name='bug5251' and created = @c1|
 
 drop procedure bug5251|
 
@@ -2919,7 +2911,7 @@ create procedure bug5258_aux()
 begin
   declare c, m char(19);
 
-  select created,modified into c,m from mysql.proc where name = 'bug5258';
+  select created,last_altered into c,m from information_schema.routines where routine_name = 'bug5258';
   if c = m then
     select 'Ok';
   else
@@ -3451,13 +3443,13 @@ drop procedure avg|
 --disable_warnings ONCE
 drop procedure if exists bug6129|
 set @old_mode= @@sql_mode;
-set @@sql_mode= "STRICT_ALL_TABLES";
+set @@sql_mode= "ERROR_FOR_DIVISION_BY_ZERO";
 create procedure bug6129()
   select @@sql_mode|
 call bug6129()|
-set @@sql_mode= "STRICT_ALL_TABLES"|
+set @@sql_mode= "STRICT_ALL_TABLES,NO_ZERO_DATE"|
 call bug6129()|
-set @@sql_mode= "STRICT_ALL_TABLES"|
+set @@sql_mode= "NO_ZERO_IN_DATE"|
 call bug6129()|
 set @@sql_mode=@old_mode;
 
@@ -3550,30 +3542,6 @@ select @tmp1, @tmp2|
 
 drop procedure bug9598_1|
 drop procedure bug9598_2|
-
-
-#
-# BUG#9902: Crash with simple stored function using user defined variables
-#
---disable_warnings ONCE
-drop procedure if exists bug9902|
-create function bug9902() returns int(11)
-begin
-  set @x = @x + 1;
-  return @x;
-end|
-
-set @qcs1 = @@query_cache_size|
-set global query_cache_size = 102400|
-set @x = 1|
-insert into t1 values ("qc", 42)|
-select bug9902() from t1|
-select bug9902() from t1|
-select @x|
-
-set global query_cache_size = @qcs1|
-delete from t1|
-drop function bug9902|
 
 
 #
@@ -3981,7 +3949,8 @@ create function bug10055(v char(255)) returns char(255) return lower(v)|
 # This select should not crash server and should return all fields in t1
 select t.column_name, bug10055(t.column_name)
 from information_schema.columns as t
-where t.table_schema = 'test' and t.table_name = 't1'|
+where t.table_schema = 'test' and t.table_name = 't1'
+order by t.column_name|
 drop function bug10055|
 
 #
@@ -4961,7 +4930,7 @@ drop procedure bug14376|
 drop procedure if exists bug5967|
 drop table if exists t3|
 --enable_warnings
-create table t3 (a varchar(255))|
+create table t3 (a varchar(255)) engine=myisam|
 insert into t3 (a) values ("a - table column")|
 create procedure bug5967(a varchar(255))
 begin
@@ -5001,8 +4970,6 @@ drop procedure bug5967|
 # Bug#13012 "SP: REPAIR/BACKUP/RESTORE TABLE crashes the server"
 #
 --let $backupdir = $MYSQLTEST_VARDIR/tmp/
---error 0,1
---remove_file $backupdir/t1.frm
 --error 0,1
 --remove_file $backupdir/t1.MYD
 
@@ -6051,7 +6018,7 @@ DROP FUNCTION IF EXISTS bug16899_f1|
 --enable_warnings
 
 --error ER_WRONG_STRING_LENGTH
-CREATE DEFINER=1234567890abcdefGHIKL@localhost PROCEDURE bug16899_p1()
+CREATE DEFINER=1234567890abcdefGHIKLsdafdsjakfhkshfkshsndvkjsddngjhasdkjghskahfdksjhcnsndkhjkghskjfjsdhfkhskfdhksjdhfkjshfksh@localhost PROCEDURE bug16899_p1()
 BEGIN
   SET @a = 1;
 END|
@@ -6091,20 +6058,6 @@ UNLOCK TABLES|
 
 --echo The following should succeed.
 DROP PROCEDURE bug21414|
-
-
-#
-# BUG#21311: Possible stack overrun if SP has non-latin1 name
-#
-set names utf8|
---disable_warnings ONCE
-drop database if exists това_е_дълго_име_за_база_данни_нали|
-create database това_е_дълго_име_за_база_данни_нали|
-INSERT INTO mysql.proc VALUES ('това_е_дълго_име_за_база_данни_нали','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','PROCEDURE','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','SQL','CONTAINS_SQL','NO','DEFINER','','','bad_body','root@localhost',now(), now(),'','', 'utf8', 'utf8_general_ci', 'utf8_general_ci', 'n/a')|
---error ER_SP_PROC_TABLE_CORRUPT
-call това_е_дълго_име_за_база_данни_нали.това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго()|
-drop database това_е_дълго_име_за_база_данни_нали|
-
 
 #
 # BUG#21493: Crash on the second call of a procedure containing
@@ -7192,7 +7145,9 @@ show create procedure proc_25411_a;
 call proc_25411_a();
 
 show create procedure proc_25411_b;
-select name, param_list, body from mysql.proc where name like "%25411%";
+# procedure - proc_25411_b
+select routine_name, routine_definition from information_schema.routines where routine_name like '%25411%';
+select parameter_name from information_schema.parameters where SPECIFIC_NAME= '%25411%';
 call proc_25411_b(10, 20);
 
 show create procedure proc_25411_c;
@@ -7234,6 +7189,7 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 
 CREATE VIEW v1 AS SELECT c1 FROM t1;
 
+analyze table t1;
 EXPLAIN SELECT * FROM t1 WHERE c1=1;
 EXPLAIN SELECT * FROM t1 WHERE c1=f1();
 
@@ -7276,7 +7232,7 @@ connection bug29408;
 
 show create view test.v1;      
 select column_name from information_schema.columns
-where table_name='v1' and table_schema='test';
+where table_name='v1' and table_schema='test' order by column_name;
 
 disconnect bug29408;
 --source include/wait_until_disconnected.inc
@@ -7992,14 +7948,14 @@ DROP FUNCTION f1;
 #
 # Bug#32633 Can not create any routine if SQL_MODE=no_engine_substitution
 #
-# Ensure that when new SQL modes are introduced, they are also added to
-# the mysql.proc table.
+# Ensure that when new SQL modes are introduced, they are also added to the
+# mysql.routines table.
 #
 
 --disable_warnings ONCE
 drop procedure if exists p;
 set @old_mode= @@sql_mode;
-set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
+set @@sql_mode= cast(pow(2,33)-1 as unsigned integer) & ~0x1003ff00;
 select @@sql_mode into @full_mode;
 create procedure p() begin end;
 call p();
@@ -8007,7 +7963,7 @@ set @@sql_mode= @old_mode;
 # Rename SQL modes that differ in name between the server and the table definition.
 select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
 select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
-select name from mysql.proc where name = 'p' and sql_mode = @full_mode;
+select routine_name from information_schema.routines where routine_name = 'p' and sql_mode = @full_mode;
 drop procedure p;
 
 #
@@ -8346,8 +8302,6 @@ COMMENT
 BEGIN
 END;
 
-SELECT comment FROM mysql.proc WHERE name = "p1";
-
 SELECT routine_comment FROM information_schema.routines WHERE routine_name = "p1";
 
 DROP PROCEDURE p1;
@@ -8372,13 +8326,13 @@ CALL p1(1);
 
 CREATE TEMPORARY TABLE t1 (f1 INT);
 
---echo # t1 still refers to the view since it was inlined
---error ER_NON_INSERTABLE_TABLE
+--echo # Since last call to p1 was unsuccessful, the query will be reparsed
+--echo # and the procedure will refer to the temporary table
 CALL p1(2);
 
 DROP VIEW t1;
 
---echo # t1 now refers to the temporary table
+--echo # t1 still refers to the temporary table
 CALL p1(3);
 
 --echo # Check which values were inserted into the temp table.
@@ -8803,7 +8757,7 @@ BEGIN
     SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
     ) AS t2
   WHERE t2.c2 = t1.c2
-  GROUP BY c1, c2
+  GROUP BY c1 ASC, c2 ASC
   ;
 END|
 
@@ -9064,3 +9018,764 @@ CALL p1();
 SET sql_mode= @org_mode;
 DROP PROCEDURE p1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#20583321: CRASH ON PS_THREAD_INFO / SYS USAGE
+--echo #
+SET sql_mode = 'only_full_group_by';
+CREATE TABLE t1 ( a INT, b INT );
+CREATE TABLE t2 ( a INT );
+
+DELIMITER $$;
+
+CREATE PROCEDURE p1 ()
+BEGIN
+  DECLARE output INT;
+  SET output = ( SELECT b FROM t1 LEFT JOIN t2 USING ( a ) GROUP BY t1.a );
+END $$
+
+DELIMITER ;$$
+
+--error ER_WRONG_FIELD_WITH_GROUP
+CALL p1();
+--error ER_WRONG_FIELD_WITH_GROUP
+CALL p1();
+
+DROP PROCEDURE p1;
+
+# Same, as prepared statement
+--error ER_WRONG_FIELD_WITH_GROUP
+PREPARE s FROM
+ 'SET @x = ( SELECT b FROM t1 LEFT JOIN t2 USING ( a ) GROUP BY t1.a )';
+
+DROP TABLE t1, t2;
+SET sql_mode = DEFAULT;
+
+--echo #
+--echo # ASSERTION FAILED: FALSE IN CREATE_TMP_FIELD WITH UNKNOWN OUTER FIELD
+--echo #
+CREATE TABLE t1 ( a INT );
+
+SET @v = 1;
+
+PREPARE stmt FROM 'SELECT 1 FROM ( SELECT ? FROM t1 GROUP BY a ) al;';
+EXECUTE stmt USING @v;
+
+PREPARE stmt FROM 'CREATE TABLE t2 AS SELECT ? FROM t1';
+EXECUTE stmt USING @v;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #18599181: CALLING A ROUTINE WITHOUT SPECIFYING DATABASE PREFIX
+--echo #                MAY RETURN ERROR 1370
+--echo #
+
+CREATE DATABASE db1;
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+CREATE FUNCTION db1.f2() RETURNS INT RETURN test.f1();
+CREATE USER myuser@'localhost';
+GRANT ALL ON db1.* TO myuser@'localhost';
+--disconnect default
+--source include/wait_until_disconnected.inc
+--connect(con1,localhost,myuser,,db1)
+SELECT f2();
+SELECT f2();
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connect(default,localhost,root)
+DROP DATABASE db1;
+DROP USER myuser@localhost;
+DROP FUNCTION f1;
+
+--echo #
+--echo # WL#7897 -- Use DD API for Stored Routines.
+--echo # Basic test to verify:
+--echo #   i) The table mysql.proc does not exists any more.
+--echo #  ii) Stored routine metadata is still available with the
+--echo #      information_schema tables "routines" and "parameters".
+--echo #      These tables are filled from the new DD tables mysql.routine
+--echo #      and mysql.parameter.
+--echo # iii) Basic test to cover "READS SQL DATA" in ALTER operation.
+--echo #
+
+CREATE FUNCTION f1(a INT) RETURNS INT return 1;
+CREATE PROCEDURE p1(IN a INT, INOUT b INT, OUT c INT) select 1;
+
+--echo # The table mysql.proc does not exists any more.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM mysql.proc;
+
+--echo # Metadata of stored function f1.
+--sorted_result
+--replace_column 24 <created> 25 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f1';
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f1';
+
+--echo # Metadata of stored procedure p1.
+--sorted_result
+--replace_column 24 <created> 25 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'p1';
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'p1';
+
+--echo # Basic test to cover "READS SQL DATA" in ALTER operation.
+ALTER FUNCTION f1 READS SQL DATA;
+
+# Cleanup
+DROP FUNCTION f1;
+DROP PROCEDURE p1;
+
+--echo #
+--echo # WL#9262: All system tables should support 32 character length user names
+--echo #
+
+--echo #This should just work with username + hostname of length 93 as DEFINER
+CREATE USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+--echo #For procedure
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
+--echo #and for function
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test() RETURNS INT RETURN 1;
+
+--replace_column 5 # 6 #
+SHOW PROCEDURE STATUS LIKE 'proc_test';
+DROP PROCEDURE test.proc_test;
+
+--replace_column 5 # 6 #
+SHOW FUNCTION STATUS LIKE 'f_test';
+DROP FUNCTION test.f_test;
+
+DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+
+# Disable concurrent inserts to avoid test failures
+set @old_concurrent_insert= @@global.concurrent_insert;
+set @@global.concurrent_insert= 0;
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--disable_warnings
+drop table if exists t1,t3;
+--enable_warnings
+delimiter |;
+
+
+#
+# Bug#4902 Stored procedure with SHOW WARNINGS leads to packet error
+#
+# Added tests for show grants command
+--disable_warnings
+drop procedure if exists bug4902|
+--enable_warnings
+create procedure bug4902()
+begin
+  show grants for 'root'@'localhost';
+end|
+--disable_parsing
+show binlog events|
+show storage engines|
+show master status|
+show slave hosts|
+show slave status|
+--enable_parsing
+
+call bug4902()|
+call bug4902()|
+
+drop procedure bug4902|
+
+# We need separate SP for SHOW PROCESSLIST  since we want use replace_column
+--disable_warnings
+drop procedure if exists bug4902_2|
+--enable_warnings
+create procedure bug4902_2()
+begin
+  show processlist;
+end|
+--disable_result_log
+call bug4902_2()|
+--enable_result_log
+show warnings|
+--disable_result_log
+call bug4902_2()|
+--enable_result_log
+show warnings|
+drop procedure bug4902_2|
+
+#
+# Bug#6807 Stored procedure crash if CREATE PROCEDURE ... KILL QUERY
+#
+--disable_warnings
+drop procedure if exists bug6807|
+--enable_warnings
+create procedure bug6807()
+begin
+  declare id int;
+
+  set id = connection_id();
+  kill query id;
+  select 'Not reached';
+end|
+
+--error ER_QUERY_INTERRUPTED
+call bug6807()|
+--error ER_QUERY_INTERRUPTED
+call bug6807()|
+
+drop procedure bug6807|
+
+
+#
+# Bug#10100 function (and stored procedure?) recursivity problem
+#
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION'|
+--disable_warnings
+drop function if exists bug10100f|
+drop procedure if exists bug10100p|
+drop procedure if exists bug10100t|
+drop procedure if exists bug10100pt|
+drop procedure if exists bug10100pv|
+drop procedure if exists bug10100pd|
+drop procedure if exists bug10100pc|
+--enable_warnings
+# routines with simple recursion
+create function bug10100f(prm int) returns int
+begin
+  if prm > 1 then
+    return prm * bug10100f(prm - 1);
+  end if;
+  return 1;
+end|
+create procedure bug10100p(prm int, inout res int)
+begin
+  set res = res * prm;
+  if prm > 1 then
+    call bug10100p(prm - 1, res);
+  end if;
+end|
+create procedure bug10100t(prm int)
+begin
+  declare res int;
+  set res = 1;
+  call bug10100p(prm, res);
+  select res;
+end|
+
+# a procedure which use tables and recursion
+create table t3 (a int)|
+insert into t3 values (0)|
+create view v1 as select a from t3;
+create procedure bug10100pt(level int, lim int)
+begin
+  if level < lim then
+    update t3 set a=level;
+    FLUSH TABLES;
+    call bug10100pt(level+1, lim);
+  else
+    select * from t3;
+  end if;
+end|
+# view & recursion
+create procedure bug10100pv(level int, lim int)
+begin
+  if level < lim then
+    update v1 set a=level;
+    FLUSH TABLES;
+    call bug10100pv(level+1, lim);
+  else
+    select * from v1;
+  end if;
+end|
+# dynamic sql & recursion
+prepare stmt2 from "select * from t3;";
+create procedure bug10100pd(level int, lim int)
+begin
+  if level < lim then
+    select level;
+    prepare stmt1 from "update t3 set a=a+2";
+    execute stmt1;
+    FLUSH TABLES;
+    execute stmt1;
+    FLUSH TABLES;
+    execute stmt1;
+    FLUSH TABLES;
+    deallocate prepare stmt1;
+    execute stmt2;
+    select * from t3;
+    call bug10100pd(level+1, lim);
+  else
+    execute stmt2;
+  end if;
+end|
+# cursor & recursion
+create procedure bug10100pc(level int, lim int)
+begin
+  declare lv int;
+  declare c cursor for select a from t3;
+  open c;
+  if level < lim then
+    select level;
+    fetch c into lv;
+    select lv;
+    update t3 set a=level+lv;
+    FLUSH TABLES;
+    call bug10100pc(level+1, lim);
+  else
+    select * from t3;
+  end if;
+  close c;
+end|
+
+# end of the stack checking
+set @@max_sp_recursion_depth=255|
+set @var=1|
+# disable log because error about stack overrun contains numbers which
+# depend on a system
+-- disable_result_log
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100p(255, @var)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pt(1,255)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pv(1,255)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pd(1,255)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pc(1,255)|
+-- enable_result_log
+set @@max_sp_recursion_depth=0|
+
+deallocate prepare stmt2|
+
+drop function bug10100f|
+drop procedure bug10100p|
+drop procedure bug10100t|
+drop procedure bug10100pt|
+drop procedure bug10100pv|
+drop procedure bug10100pd|
+drop procedure bug10100pc|
+drop view v1|
+drop table t3|
+
+delimiter ;|
+SET sql_mode = default;
+
+
+#
+# Bug#15298 SHOW GRANTS FOR CURRENT_USER: Incorrect output in DEFINER context
+#
+--disable_warnings
+drop procedure if exists bug15298_1;
+drop procedure if exists bug15298_2;
+--enable_warnings
+create user 'mysqltest_1'@'localhost';
+grant all privileges on test.* to 'mysqltest_1'@'localhost';
+create procedure 15298_1 () sql security definer show grants for current_user;
+create procedure 15298_2 () sql security definer show grants;
+
+connect (con1,localhost,mysqltest_1,,test);
+call 15298_1();
+call 15298_2();
+
+connection default;
+disconnect con1;
+drop user mysqltest_1@localhost;
+drop procedure 15298_1;
+drop procedure 15298_2;
+
+#
+# Bug#29936 Stored Procedure DML ignores low_priority_updates setting
+#
+
+--disable_warnings
+drop table if exists t1;
+drop procedure if exists p1;
+--enable_warnings
+
+# MyISAM acquires table level lock. The locking functionality is
+# different in InnoDB. Hence it is a Myisam specific testcase
+
+create table t1 (value varchar(15)) engine=Myisam;
+create procedure p1() update t1 set value='updated' where value='old';
+
+# load the procedure into sp cache and execute once
+call p1();
+
+insert into t1 (value) values ("old");
+
+connect (rl_holder, localhost, root,,);
+connect (rl_acquirer, localhost, root,,);
+connect (rl_contender, localhost, root,,);
+connect (rl_wait, localhost, root,,);
+
+connection rl_holder;
+select get_lock('b26162',120);
+
+connection rl_acquirer;
+--send select 'rl_acquirer', value from t1 where get_lock('b26162',120);
+
+# we must wait till this select opens and locks the tables
+connection rl_wait;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+  info = "select 'rl_acquirer', value from t1 where get_lock('b26162',120)";
+--source include/wait_condition.inc
+
+connection default;
+set session low_priority_updates=on;
+--send call p1();
+
+connection rl_wait;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table level lock" and
+  info = "update t1 set value='updated' where value='old'";
+--source include/wait_condition.inc
+
+connection rl_contender;
+select 'rl_contender', value from t1;
+
+connection rl_holder;
+select release_lock('b26162');
+
+connection rl_acquirer;
+--reap
+connection default;
+--reap
+
+disconnect rl_holder;
+disconnect rl_acquirer;
+disconnect rl_wait;
+disconnect rl_contender;
+drop procedure p1;
+drop table t1;
+set session low_priority_updates=default;
+
+#
+# Bug#44798 MySQL engine crashes when creating stored procedures with execute_priv=N
+#
+INSERT INTO mysql.user (Host, User, Select_priv, Insert_priv, Update_priv,
+Delete_priv, Create_priv, Drop_priv, Reload_priv, Shutdown_priv, Process_priv, File_priv,
+Grant_priv, References_priv, Index_priv, Alter_priv, Show_db_priv, Super_priv,
+Create_tmp_table_priv, Lock_tables_priv, Execute_priv, Repl_slave_priv, Repl_client_priv,
+Create_view_priv, Show_view_priv, Create_routine_priv, Alter_routine_priv,
+Create_user_priv, ssl_type, ssl_cipher, x509_issuer, x509_subject, max_questions,
+max_updates, max_connections, max_user_connections)
+VALUES('%', 'mysqltest_1', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'N', 'N', 'N',
+'N', 'N', 'N', 'Y', 'Y', 'N', 'N', 'Y', 'Y', 'N', 'N', 'N', 'N', 'N', 'Y', 'Y', 'N', '',
+'', '', '', '0', '0', '0', '0');
+FLUSH PRIVILEGES;
+
+connect (con1, localhost, mysqltest_1,,);
+connection con1;
+CREATE PROCEDURE p1(i INT) BEGIN END;
+disconnect con1;
+connection default;
+DROP PROCEDURE p1;
+
+DELETE FROM mysql.user WHERE User='mysqltest_1';
+FLUSH PRIVILEGES;
+
+
+--echo #
+--echo # Bug#44521 Prepared Statement: CALL p() - crashes: `! thd->main_da.is_sent' failed et.al.
+--echo #
+SELECT GET_LOCK('Bug44521', 0);
+--connect (con1,localhost,root,,)
+--echo ** Connection con1
+delimiter $;
+CREATE PROCEDURE p()
+BEGIN
+  SELECT 1;
+  SELECT GET_LOCK('Bug44521', 100);
+  SELECT 2;
+END$
+delimiter ;$
+--send CALL p();
+--connection default
+--echo ** Default connection
+let $wait_condition=
+  SELECT count(*) = 1 FROM information_schema.processlist
+  WHERE state = "User lock" AND info = "SELECT GET_LOCK('Bug44521', 100)";
+--source include/wait_condition.inc
+let $conid =
+  `SELECT id FROM information_schema.processlist
+   WHERE state = "User lock" AND info = "SELECT GET_LOCK('Bug44521', 100)"`;
+dirty_close con1;
+SELECT RELEASE_LOCK('Bug44521');
+let $wait_condition=
+  SELECT count(*) = 0 FROM information_schema.processlist
+  WHERE id = $conid;
+--source include/wait_condition.inc
+DROP PROCEDURE p;
+
+#
+# Bug#47736 killing a select from a view when the view is processing a function, asserts
+#
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (1);
+CREATE FUNCTION f1 (inp TEXT) RETURNS INT NO SQL RETURN GET_LOCK('Bug47736', 200);
+CREATE VIEW v1 AS SELECT f1('a') FROM t1;
+
+SELECT GET_LOCK('Bug47736', 0);
+
+--connect (con1, localhost, root,,)
+--let $ID_1= `SELECT connection_id()`
+--send SELECT * FROM v1;
+
+--connection default
+let $wait_condition=
+  SELECT count(*) = 1 FROM information_schema.processlist
+  WHERE state = "User lock" AND info = "SELECT * FROM v1";
+--source include/wait_condition.inc
+--replace_result $ID_1 ID
+--eval KILL QUERY $ID_1
+
+--connection con1
+--error ER_QUERY_INTERRUPTED
+--reap
+
+--connection default
+DROP VIEW v1;
+DROP TABLE t1;
+DROP FUNCTION f1;
+--disconnect con1
+
+--echo # ------------------------------------------------------------------
+--echo # -- End of 5.1 tests
+--echo # ------------------------------------------------------------------
+
+--echo #
+--echo # Test for bug#11763757 "56510: ERROR 42000: FUNCTION DOES NOT EXIST
+--echo # IF NOT-PRIV USER RECONNECTS ".
+--echo #
+--echo # The real problem was that server was unable handle properly stored
+--echo # functions in databases which names contained dot.
+--echo #
+
+connection default;
+
+--disable_warnings
+DROP DATABASE IF EXISTS `my.db`;
+--enable_warnings
+
+create database `my.db`;
+use `my.db`;
+
+CREATE FUNCTION f1(a int) RETURNS INT RETURN a;
+
+--echo # Create new connection.
+connect (addcon, localhost, root,,);
+connection addcon;
+USE `my.db`;
+SELECT f1(1);
+SELECT `my.db`.f1(2);
+
+--echo # Switching to default connection.
+connection default;
+disconnect addcon;
+DROP DATABASE `my.db`;
+USE test;
+
+
+--echo #
+--echo # Bug#11763507 - 56224: FUNCTION NAME IS CASE-SENSITIVE
+--echo #
+SET @@SQL_MODE = '';
+DELIMITER $;
+
+CREATE EVENT teste_bug11763507 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR
+DO SELECT 1 $
+
+DELIMITER ;$
+# EVENTS
+--replace_column 6 # 7 # 8 # 9 # 15 DATABASE_COLLATION
+SHOW EVENTS LIKE 'teste_bug11763507';
+--replace_column 6 # 7 # 8 # 9 # 15 DATABASE_COLLATION
+SHOW EVENTS LIKE 'TESTE_bug11763507';
+
+--replace_column 4 # 7 DATABASE_COLLATION
+SHOW CREATE EVENT teste_bug11763507;
+--replace_column 4 # 7 DATABASE_COLLATION
+SHOW CREATE EVENT TESTE_bug11763507;
+
+DROP EVENT teste_bug11763507;
+--echo #END OF BUG#11763507 test.
+
+--echo
+--echo # WL#4179: Stored programs: validation of stored program statements
+--echo #
+--echo # Test handle of metadata changes with events.
+--echo
+
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT, b INT);
+CREATE TABLE t3 (a INT);
+
+INSERT INTO t1 VALUES (1, 2);
+
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
+
+SELECT GET_LOCK('e1_lock', 60);
+
+delimiter |;
+
+CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND STARTS NOW() DO
+BEGIN
+  DECLARE EXIT HANDLER FOR 1136 BEGIN
+    INSERT INTO t3 VALUES (1);
+  END; -- ER_WRONG_VALUE_COUNT_ON_ROW
+
+  SELECT GET_LOCK('e1_lock', 60);
+  SELECT RELEASE_LOCK('e1_lock');
+
+  INSERT INTO t2 SELECT * FROM t1;
+END|
+
+delimiter ;|
+
+SELECT RELEASE_LOCK('e1_lock');
+
+let $wait_condition = SELECT COUNT(*) >= 3 FROM t2;
+--source include/wait_condition.inc
+
+SELECT GET_LOCK('e1_lock', 60);
+
+ALTER TABLE t1 ADD COLUMN (c INT);
+
+SELECT RELEASE_LOCK('e1_lock');
+
+--echo # Wait for new rows in t3. That means, the even has been executed,
+--echo # and INSERT INTO t2 failed because now t1 has 3 columns.
+let $wait_condition = SELECT COUNT(*) > 0 FROM t3;
+--source include/wait_condition.inc
+
+DROP EVENT e1;
+DROP TABLE t1, t2, t3;
+
+
+#
+# Restore global concurrent_insert value. Keep in the end of the test file.
+#
+
+set @@global.concurrent_insert= @old_concurrent_insert;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
+
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+CREATE DATABASE test1;
+CREATE TABLE test1.t1 (
+  int_field INTEGER UNSIGNED NOT NULL,
+  char_field CHAR(10),
+  INDEX(`int_field`)
+);
+
+CREATE USER user_name_len_16@localhost;
+CREATE USER user_name_len_22_01234@localhost;
+CREATE USER user_name_len_32_012345678901234@localhost;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_16@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_22_01234@localhost;
+
+--echo # Check that user_name_len16 has no SELECT permission ON t1
+connect (con_user_16,localhost,user_name_len_16,,test);
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM test1.t1;
+
+--echo # Check that user_name_len_22_01234 has no SELECT permission ON t1
+connect (con_user_22,localhost,user_name_len_22_01234,,test);
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM test1.t1;
+
+connection default;
+GRANT SELECT ON test1.t1 TO user_name_len_22_01234@localhost;
+
+--echo # Check that user_name_len_22_01234 has *now* SELECT permission ON t1
+connection con_user_22;
+SELECT * FROM test1.t1;
+
+connection default;
+
+CREATE DEFINER=user_name_len_22_01234@localhost PROCEDURE test1.p1_len22()
+  SELECT * FROM test1.t1;
+
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_22_01234@localhost;
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_16@localhost;
+
+--echo # Now user_name_len_16 should be able to SELECT FROM t1 by calling
+--echo # p1_len22 procedure
+
+connection con_user_16;
+CALL test1.p1_len22();
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=user_name_len_33_0123456789012345@localhost PROCEDURE test1.p1_len33()
+  SELECT * FROM test1.t1;
+
+connection default;
+
+--echo # REVOKE the SELECT permission from user_name_len_22_01234
+REVOKE SELECT ON test1.t1 FROM user_name_len_22_01234@localhost;
+
+--echo # and GRANT it to user_name_len_32_012345678901234
+GRANT SELECT ON test1.t1 TO user_name_len_32_012345678901234@localhost;
+
+CREATE DEFINER = user_name_len_32_012345678901234@localhost FUNCTION test1.f1_len32() RETURNS INT
+ RETURN (SELECT COUNT(*) FROM test1.t1);
+
+GRANT EXECUTE ON FUNCTION test1.f1_len32 TO user_name_len_32_012345678901234@localhost;
+GRANT EXECUTE ON FUNCTION test1.f1_len32 TO user_name_len_22_01234@localhost;
+
+GRANT SELECT ON test1.t1 TO user_name_len_22_01234@localhost;
+--echo # Now user_name_len_22_01234 should be able to SELECT COUNT(*) FROM t1
+--echo # by calling f1_len32 function
+connection con_user_22;
+SELECT test1.f1_len32();
+
+connection default;
+
+--echo # Recreate test1.p1_len22, this time with Security Context set to INVOKER
+DROP PROCEDURE test1.p1_len22;
+--echo # Make sure user_name_len_22_01234 has SELECT privileges on test.t1
+connection con_user_22;
+SELECT * FROM test1.t1;
+connection default;
+
+CREATE DEFINER=user_name_len_22_01234@localhost PROCEDURE test1.p1_len22()
+SQL SECURITY INVOKER
+  SELECT * FROM test1.t1;
+
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_22_01234@localhost;
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_16@localhost;
+
+--echo # Now user_name_len_16 should *NOT* be able to SELECT COUNT(*) FROM t1
+--echo # by calling f1_len22 function as this function is using the INVOKER
+--echo # security context
+
+connection con_user_16;
+--error ER_TABLEACCESS_DENIED_ERROR
+CALL test1.p1_len22();
+
+connection default;
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=user_name_len_33_0123456789012345@localhost FUNCTION test1.f1_len33() RETURNS INT
+  RETURN (SELECT COUNT(*) FROM test1.t1);
+
+# Cleanup
+disconnect con_user_16;
+disconnect con_user_22;
+
+DROP DATABASE test1;
+
+DROP USER user_name_len_16@localhost;
+DROP USER user_name_len_22_01234@localhost;
+DROP USER user_name_len_32_012345678901234@localhost;

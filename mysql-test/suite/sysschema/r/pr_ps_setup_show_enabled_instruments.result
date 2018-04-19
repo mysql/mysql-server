@@ -1,0 +1,132 @@
+UPDATE performance_schema.setup_instruments
+SET ENABLED = 'NO'
+ WHERE NAME NOT LIKE 'memory/performance_schema/%'
+       AND NAME NOT LIKE 'stage/innodb/%'
+       AND NAME NOT LIKE 'statement/com/%'
+       AND NAME <> 'idle';
+CALL sys.ps_setup_show_enabled_instruments();
+enabled_instruments	timed
+idle	YES
+memory/performance_schema/accounts	NULL
+memory/performance_schema/cond_class	NULL
+memory/performance_schema/cond_instances	NULL
+memory/performance_schema/events_errors_summary_by_account_by_error	NULL
+memory/performance_schema/events_errors_summary_by_host_by_error	NULL
+memory/performance_schema/events_errors_summary_by_thread_by_error	NULL
+memory/performance_schema/events_errors_summary_by_user_by_error	NULL
+memory/performance_schema/events_errors_summary_global_by_error	NULL
+memory/performance_schema/events_stages_history	NULL
+memory/performance_schema/events_stages_history_long	NULL
+memory/performance_schema/events_stages_summary_by_account_by_event_name	NULL
+memory/performance_schema/events_stages_summary_by_host_by_event_name	NULL
+memory/performance_schema/events_stages_summary_by_thread_by_event_name	NULL
+memory/performance_schema/events_stages_summary_by_user_by_event_name	NULL
+memory/performance_schema/events_stages_summary_global_by_event_name	NULL
+memory/performance_schema/events_statements_current	NULL
+memory/performance_schema/events_statements_current.digest_text	NULL
+memory/performance_schema/events_statements_current.sql_text	NULL
+memory/performance_schema/events_statements_history	NULL
+memory/performance_schema/events_statements_history_long	NULL
+memory/performance_schema/events_statements_history_long.digest_text	NULL
+memory/performance_schema/events_statements_history_long.sql_text	NULL
+memory/performance_schema/events_statements_history.digest_text	NULL
+memory/performance_schema/events_statements_history.sql_text	NULL
+memory/performance_schema/events_statements_summary_by_account_by_event_name	NULL
+memory/performance_schema/events_statements_summary_by_digest	NULL
+memory/performance_schema/events_statements_summary_by_digest.digest_text	NULL
+memory/performance_schema/events_statements_summary_by_host_by_event_name	NULL
+memory/performance_schema/events_statements_summary_by_program	NULL
+memory/performance_schema/events_statements_summary_by_thread_by_event_name	NULL
+memory/performance_schema/events_statements_summary_by_user_by_event_name	NULL
+memory/performance_schema/events_statements_summary_global_by_event_name	NULL
+memory/performance_schema/events_transactions_history	NULL
+memory/performance_schema/events_transactions_history_long	NULL
+memory/performance_schema/events_transactions_summary_by_account_by_event_name	NULL
+memory/performance_schema/events_transactions_summary_by_host_by_event_name	NULL
+memory/performance_schema/events_transactions_summary_by_thread_by_event_name	NULL
+memory/performance_schema/events_transactions_summary_by_user_by_event_name	NULL
+memory/performance_schema/events_waits_history	NULL
+memory/performance_schema/events_waits_history_long	NULL
+memory/performance_schema/events_waits_summary_by_account_by_event_name	NULL
+memory/performance_schema/events_waits_summary_by_host_by_event_name	NULL
+memory/performance_schema/events_waits_summary_by_thread_by_event_name	NULL
+memory/performance_schema/events_waits_summary_by_user_by_event_name	NULL
+memory/performance_schema/file_class	NULL
+memory/performance_schema/file_handle	NULL
+memory/performance_schema/file_instances	NULL
+memory/performance_schema/hosts	NULL
+memory/performance_schema/memory_class	NULL
+memory/performance_schema/memory_summary_by_account_by_event_name	NULL
+memory/performance_schema/memory_summary_by_host_by_event_name	NULL
+memory/performance_schema/memory_summary_by_thread_by_event_name	NULL
+memory/performance_schema/memory_summary_by_user_by_event_name	NULL
+memory/performance_schema/memory_summary_global_by_event_name	NULL
+memory/performance_schema/metadata_locks	NULL
+memory/performance_schema/mutex_class	NULL
+memory/performance_schema/mutex_instances	NULL
+memory/performance_schema/prepared_statements_instances	NULL
+memory/performance_schema/rwlock_class	NULL
+memory/performance_schema/rwlock_instances	NULL
+memory/performance_schema/scalable_buffer	NULL
+memory/performance_schema/session_connect_attrs	NULL
+memory/performance_schema/setup_actors	NULL
+memory/performance_schema/setup_objects	NULL
+memory/performance_schema/socket_class	NULL
+memory/performance_schema/socket_instances	NULL
+memory/performance_schema/stage_class	NULL
+memory/performance_schema/statement_class	NULL
+memory/performance_schema/table_handles	NULL
+memory/performance_schema/table_io_waits_summary_by_index_usage	NULL
+memory/performance_schema/table_lock_waits_summary_by_table	NULL
+memory/performance_schema/table_shares	NULL
+memory/performance_schema/thread_class	NULL
+memory/performance_schema/threads	NULL
+memory/performance_schema/users	NULL
+stage/innodb/alter table (end)	YES
+stage/innodb/alter table (flush)	YES
+stage/innodb/alter table (insert)	YES
+stage/innodb/alter table (log apply index)	YES
+stage/innodb/alter table (log apply table)	YES
+stage/innodb/alter table (merge sort)	YES
+stage/innodb/alter table (read PK and internal sort)	YES
+stage/innodb/buffer pool load	YES
+stage/innodb/clone (file copy)	YES
+stage/innodb/clone (page copy)	YES
+stage/innodb/clone (redo copy)	YES
+statement/com/Binlog Dump	YES
+statement/com/Binlog Dump GTID	YES
+statement/com/Change user	YES
+statement/com/Close stmt	YES
+statement/com/Connect	YES
+statement/com/Connect Out	YES
+statement/com/Create DB	YES
+statement/com/Daemon	YES
+statement/com/Debug	YES
+statement/com/Delayed insert	YES
+statement/com/Drop DB	YES
+statement/com/Error	YES
+statement/com/Execute	YES
+statement/com/Fetch	YES
+statement/com/Field List	YES
+statement/com/Init DB	YES
+statement/com/Kill	YES
+statement/com/Long Data	YES
+statement/com/Ping	YES
+statement/com/Prepare	YES
+statement/com/Processlist	YES
+statement/com/Quit	YES
+statement/com/Refresh	YES
+statement/com/Register Slave	YES
+statement/com/Reset Connection	YES
+statement/com/Reset stmt	YES
+statement/com/Set option	YES
+statement/com/Shutdown	YES
+statement/com/Sleep	YES
+statement/com/Statistics	YES
+statement/com/Table Dump	YES
+statement/com/Time	YES
+UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
+TRUNCATE TABLE performance_schema.setup_actors;
+INSERT INTO performance_schema.setup_actors VALUES ('%', '%', '%', 'YES', 'YES');
+UPDATE performance_schema.setup_consumers SET enabled = 'YES';
+UPDATE performance_schema.threads SET instrumented = 'YES';

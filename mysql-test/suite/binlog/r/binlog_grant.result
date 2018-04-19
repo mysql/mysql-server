@@ -3,35 +3,27 @@ set @saved_binlog_format = @@global.binlog_format;
 create user mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
+GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
 **** Variable SQL_LOG_BIN ****
 [root]
 set session sql_log_bin = 1;
 [plain]
 set session sql_log_bin = 1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 **** Variable BINLOG_FORMAT ****
 [root]
-set global binlog_format = row;
-set session binlog_format = row;
+set global binlog_format = 'row';
+set session binlog_format = 'row';
 [plain]
-set global binlog_format = row;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
-set session binlog_format = row;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+set global binlog_format = 'row';
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+set session binlog_format = 'row';
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 **** Clean up ****
 set global binlog_format = @saved_binlog_format;
 drop user mysqltest_1@localhost;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+CREATE USER 'mysqltest_1'@'localhost';
 GRANT REPLICATION CLIENT ON *.* TO 'mysqltest_1'@'localhost';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SHOW MASTER LOGS;
 SHOW BINARY LOGS;
 DROP USER 'mysqltest_1'@'localhost';

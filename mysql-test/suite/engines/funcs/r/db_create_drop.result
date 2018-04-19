@@ -2,8 +2,8 @@ DROP DATABASE IF EXISTS d1;
 CREATE DATABASE d1;
 SHOW DATABASES;
 Database
-information_schema
 d1
+information_schema
 mtr
 mysql
 performance_schema
@@ -14,8 +14,8 @@ Database (d%)
 d1
 SHOW DATABASES LIKE '%';
 Database (%)
-information_schema
 d1
+information_schema
 mtr
 mysql
 performance_schema
@@ -26,8 +26,8 @@ DROP DATABASE d1;
 CREATE SCHEMA d1;
 SHOW SCHEMAS;
 Database
-information_schema
 d1
+information_schema
 mtr
 mysql
 performance_schema
@@ -38,8 +38,8 @@ Database (d%)
 d1
 SHOW SCHEMAS LIKE '%';
 Database (%)
-information_schema
 d1
+information_schema
 mtr
 mysql
 performance_schema

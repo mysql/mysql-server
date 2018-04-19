@@ -1,0 +1,87 @@
+# Tests for PERFORMANCE_SCHEMA
+
+# Setup
+let $select_column = SUM_ERRORS;
+let $table = performance_schema.prepared_statements_instances;
+
+delimiter //;
+
+create procedure proc1(a int, b int)
+BEGIN
+  prepare st1 from 'SELECT SQRT(POW(?,2) + POW(?,2)) AS hypotenuse';
+  execute st1 using @a, @b;
+END //
+
+delimiter ;//
+
+SET @a = 3;
+SET @b = 4;
+call proc1(@a, @b);
+
+select OBJECT_INSTANCE_BEGIN, STATEMENT_ID, STATEMENT_NAME,
+       OWNER_THREAD_ID, OWNER_EVENT_ID,
+       OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA, OWNER_OBJECT_NAME
+  from performance_schema.prepared_statements_instances
+  limit 1
+  into @oib, @stmt_id, @stmt_name, @o_tid, @o_eid,
+       @o_otype, @o_oschema, @o_oname;
+
+###########################################################################
+# Test index on OBJECT_INSTANCE_BEGIN
+###########################################################################
+
+let $column_count = 1;
+let $col1 = OBJECT_INSTANCE_BEGIN;
+let $col1_act = @oib;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on STATEMENT_ID
+###########################################################################
+
+let $column_count = 1;
+let $col1 = STATEMENT_ID;
+let $col1_act = @stmt_id;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on STATEMENT_NAME
+###########################################################################
+
+let $column_count = 1;
+let $col1 = STATEMENT_NAME;
+let $col1_act = @stmt_name;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on OWNER_THREAD_ID, OWNER_EVENT_ID
+###########################################################################
+
+let $column_count = 2;
+let $col1 = OWNER_THREAD_ID;
+let $col2= OWNER_EVENT_ID;
+let $col1_act = @o_tid;
+let $col2_act = @o_eid;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on  OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA, OWNER_OBJECT_NAME
+###########################################################################
+
+let $column_count = 3;
+let $col1 = OWNER_OBJECT_TYPE;
+let $col2 = OWNER_OBJECT_SCHEMA;
+let $col3 = OWNER_OBJECT_NAME;
+let $col1_act = @o_otype;
+let $col2_act = @o_oschema;
+let $col3_act = @o_oname;
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+deallocate prepare st1;
+drop procedure proc1;

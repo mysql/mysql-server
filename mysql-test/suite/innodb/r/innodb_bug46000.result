@@ -6,7 +6,7 @@ show warnings;
 Level	Code	Message
 Warning	1280	Cannot Create Index with name 'GEN_CLUST_INDEX'. The name is reserved for the system default primary index.
 Error	1280	Incorrect index name 'GEN_CLUST_INDEX'
-Error	1030	Got error -1 from storage engine
+Error	1030	Got error 124 - 'Wrong index given to function' from storage engine
 create table bug46000(id int) engine=innodb;
 create index GEN_CLUST_INDEX on bug46000(id);
 ERROR 42000: Incorrect index name 'GEN_CLUST_INDEX'

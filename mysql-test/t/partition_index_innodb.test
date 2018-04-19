@@ -1,7 +1,3 @@
---source include/have_innodb.inc
---source include/have_partition.inc
---source include/have_innodb_16k.inc
-
 --echo #
 --echo # Bug#18167648: WRONG RESULTS WITH PARTITIONING, INDEX_MERGE AND NO PK
 --echo #
@@ -78,7 +74,7 @@ SELECT a,b,c FROM t1 WHERE b = 2 AND a = 2 AND  c > 0 AND c < 100;
 EXPLAIN SELECT a,b,c FROM t1 WHERE b = 2 AND a = 2 AND  c > 0 AND c < 100;
 
 --echo # Adding more fillers to get index_merge_union
-INSERT INTO t1 SELECT 1, 1, 97 FROM t2, t2 t3 LIMIT 27;
+INSERT INTO t1 SELECT 1, 1, 97 FROM t2, t2 t3 LIMIT 32;
 ANALYZE TABLE t1;
 SET SESSION optimizer_switch="index_merge_union=on";
 EXPLAIN SELECT a,b,c FROM t1 WHERE (b = 2 OR a = 2) AND  c > 0 AND c < 100;

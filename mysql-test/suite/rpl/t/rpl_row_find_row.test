@@ -125,4 +125,46 @@ UPDATE t1 SET c1=1000 WHERE c2=2;
 -- connection master
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#27244826: INVISIBLE INDEXES ARE NOT RESPECTED BY SLAVE UNDER ROW
+--echo # FORMAT
+--echo #
+
+CREATE TABLE t1 ( id INT, KEY idx_id(id) );
+
+INSERT INTO t1 VALUES (1), (2), (3);
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Alter idx_id index on slave to invisible.
+ALTER TABLE t1 ALTER INDEX idx_id INVISIBLE;
+
+--connection master
+DELETE FROM t1;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # check whether invisible attribute is respected
+SELECT table_name, index_name, is_visible
+FROM information_schema.statistics
+WHERE index_name = 'idx_id';
+
+# This prints warning 3719:
+#
+# 'utf8' is currently an alias for the character set UTF8MB3, which will be
+# replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in
+# order to be unambiguous.
+#
+# The number of warnings printed depends on the platform,
+# so use disable_warnings to get a stable result file.
+
+--disable_warnings
+SELECT * FROM sys.schema_unused_indexes WHERE index_name = 'idx_id';
+--enable_warnings
+
+SELECT rows_selected
+FROM sys.schema_index_statistics
+WHERE index_name = 'idx_id';
+
+--connection master
+DROP TABLE t1;
+
 --source include/rpl_end.inc

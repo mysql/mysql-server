@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -377,16 +384,10 @@ static int pause_lcp(int error)
 
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_INFO, 0 };
 
-  NDB_SOCKET_TYPE my_fd;
-#ifdef NDB_WIN
-  SOCKET fd= ndb_mgm_listen_event(g_restarter.handle, filter);
-  my_fd.s= fd;
-#else
-  int fd = ndb_mgm_listen_event(g_restarter.handle, filter);
-  my_fd.fd= fd;
-#endif
+  ndb_native_socket_t fd= ndb_mgm_listen_event(g_restarter.handle, filter);
+  ndb_socket_t my_fd = ndb_socket_create_from_native(fd);
 
-  require(my_socket_valid(my_fd));
+  require(ndb_socket_valid(my_fd));
   require(!g_restarter.insertErrorInAllNodes(error));
   int dump[] = { DumpStateOrd::DihStartLcpImmediately };
   require(!g_restarter.dumpStateAllNodes(dump, 1));
@@ -402,13 +403,13 @@ static int pause_lcp(int error)
       int id;
       if(sscanf(tmp, "%*[^:]: LCP: %d ", &id) == 1 && id == error &&
 	 --nodes == 0){
-	my_socket_close(my_fd);
+	ndb_socket_close(my_fd);
 	return 0;
       }
     }
   } while(count++ < 30);
   
-  my_socket_close(my_fd);
+  ndb_socket_close(my_fd);
   return -1;
 }
 
@@ -476,22 +477,13 @@ static int do_op(int row)
 static int continue_lcp(int error)
 {
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_INFO, 0 };
-  NDB_SOCKET_TYPE my_fd;
-  my_socket_invalidate(&my_fd);
-#ifdef NDB_WIN
-  SOCKET fd;
-#else
-  int fd;
-#endif
+  ndb_socket_t my_fd;
+  ndb_socket_invalidate(&my_fd);
 
   if(error){
-    fd = ndb_mgm_listen_event(g_restarter.handle, filter);
-#ifdef NDB_WIN
-    my_fd.s= fd;
-#else
-    my_fd.fd= fd;
-#endif
-    require(my_socket_valid(my_fd));
+    ndb_native_socket_t fd = ndb_mgm_listen_event(g_restarter.handle, filter);
+    my_fd = ndb_socket_create_from_native(fd);
+    require(ndb_socket_valid(my_fd));
   }
 
   int args[] = { DumpStateOrd::LCPContinue };
@@ -511,13 +503,13 @@ static int continue_lcp(int error)
 	int id;
 	if(sscanf(tmp, "%*[^:]: LCP: %d ", &id) == 1 && id == error &&
 	   --nodes == 0){
-	  my_socket_close(my_fd);
+	  ndb_socket_close(my_fd);
 	  return 0;
 	}
       }
     } while(count++ < 30);
     
-    my_socket_close(my_fd);
+    ndb_socket_close(my_fd);
   }
   return 0;
 }

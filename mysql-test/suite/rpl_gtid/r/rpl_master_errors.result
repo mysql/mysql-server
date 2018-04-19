@@ -1,0 +1,73 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression(".* You need to use --log-bin to make .* work.");
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+include/start_slave.inc
+[connection master]
+#
+# Error: binlog file doesn't exist
+#
+#
+# Error: master doesn't set server_id
+#
+SET GLOBAL debug= 'd,simulate_no_server_id';
+#
+# Error: Error while sending faked rotate event
+#
+SET GLOBAL debug= 'd,simulate_send_error';
+SET GLOBAL debug= '';
+#
+# Error: Fail to open binlog file
+#
+FLUSH BINARY LOGS;
+#
+# Error: Could not find Format_Description_Event
+#
+#
+# Error: Fail on reading Previous_gtid_log_event
+#
+#
+# Error: Fail on reading event
+#
+#
+# Error: Client requests from a position less than 4
+#
+[connection slave]
+include/stop_slave.inc
+SET GLOBAL debug= 'd,request_master_log_pos_3';
+START SLAVE IO_THREAD;
+call mtr.add_suppression(".* Got fatal error 1236 from master when reading data from binary log");
+include/wait_for_slave_io_error.inc [errno=13114]
+SET GLOBAL debug= '$slave_debug';
+#
+# Error: Binary log is not open on master
+#
+include/rpl_restart_server.inc [server_number=1 parameters: --disable-log-bin --gtid-mode=off]
+#
+# Error: master's gtid_mode is not on
+#
+include/rpl_restart_server.inc [server_number=1 parameters: --gtid-mode=off]
+include/rpl_restart_server.inc [server_number=1]
+#
+# Error: Dump thread is killed
+#
+[connection master]
+RESET MASTER;
+CREATE TABLE t1(c1 INT);
+SET GLOBAL debug= 'd,simulate_kill_dump';
+#
+# Error: Fail to send heartbeat with an net error
+#
+INSERT INTO t1 VALUES(1);
+SET GLOBAL debug= 'd,simulate_flush_error';
+SET GLOBAL debug= '';
+DROP TABLE t1;
+[connection slave]
+RESET MASTER;
+RESET SLAVE;
+include/start_slave.inc
+include/rpl_end.inc

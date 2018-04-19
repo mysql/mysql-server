@@ -775,7 +775,7 @@ eval create table t1 (id int unsigned not null auto_increment, code tinyint unsi
 
 BEGIN;
 SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-SELECT @@tx_isolation,@@global.tx_isolation;
+SELECT @@transaction_isolation, @@global.transaction_isolation;
 insert into t1 (code, name) values (1, 'Tim'), (1, 'Monty'), (2, 'David');
 select id, code, name from t1 order by id;
 COMMIT;
@@ -1219,9 +1219,6 @@ drop table t2;
 
 # Test error handling
 
-# Clean up filename -- embedded server reports whole path without .frm,
-# regular server reports relative path with .frm (argh!)
---replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t2.frm t2
 --error 1005
 eval create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = $engine_type;
 
@@ -1469,10 +1466,7 @@ source include/varchar.inc;
 # Some errors/warnings on create
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-# Clean up filename -- embedded server reports whole path without .frm,
-# regular server reports relative path with .frm (argh!)
---replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t1.frm t1
-create table t1 (v varchar(65530), key(v));
+create table t1 (v varchar(65530), key(v)) charset latin1;
 drop table t1;
 create table t1 (v varchar(65536));
 show create table t1;
@@ -1484,7 +1478,7 @@ SET sql_mode = default;
 eval set default_storage_engine=$default;
 
 # InnoDB specific varchar tests
-eval create table t1 (v varchar(16384)) engine=$engine_type;
+eval create table t1 (v varchar(16384)) charset latin1 engine=$engine_type;
 drop table t1;
 
 #

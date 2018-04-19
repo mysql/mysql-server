@@ -220,7 +220,7 @@ CREATE TABLE t1 (
   info text NOT NULL default '',
   ipnr varchar(30) NOT NULL default '',
   PRIMARY KEY  (member_id)
-) ENGINE=MyISAM PACK_KEYS=1;
+) charset utf8mb4 ENGINE=MyISAM PACK_KEYS=1;
 
 insert into t1 (member_id) values (1),(2),(3);
 select member_id, nickname, voornaam FROM t1
@@ -231,12 +231,13 @@ drop table t1;
 # Test optimization of ORDER BY DESC
 #
 
-create table t1 (a int not null, b int, c varchar(10), key (a, b, c));
+create table t1 (a int not null, b int, c varchar(10), key (a, b, c)) charset utf8mb4;
 insert into t1 values (1, NULL, NULL), (1, NULL, 'b'), (1, 1, NULL), (1, 1, 'b'), (1, 1, 'b'), (2, 1, 'a'), (2, 1, 'b'), (2, 2, 'a'), (2, 2, 'b'), (2, 3, 'c'),(1,3,'b');
 
 explain select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
 select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
 explain select * from t1 where a >= 1 and a < 3 order by a desc;
+explain format=json select * from t1 where a >= 1 and a < 3 order by a desc;
 select * from t1 where a >= 1 and a < 3 order by a desc;
 explain select * from t1 where a = 1 order by a desc, b desc;
 select * from t1 where a = 1 order by a desc, b desc;
@@ -396,7 +397,7 @@ CREATE TABLE t1 (
   KEY FieldKey (FieldKey),
   KEY LongField (FieldKey,LongVal),
   KEY StringField (FieldKey,StringVal(32))
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1'),('0',1,'2'),('1',2,'1'),('1',1,'3'), ('1',0,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('3',2,'1'),('3',1,'2'),('3','3','3');
 EXPLAIN SELECT * FROM t1 WHERE FieldKey = '1' ORDER BY LongVal;
 SELECT * FROM t1 WHERE FieldKey = '1' ORDER BY LongVal;
@@ -505,7 +506,8 @@ drop table t1, t2;
 # Bug #5428: a problem with small max_sort_length value
 #
 
-create table t1 (a char(25));
+# max_sort_length is in number of bytes, use latin1 to avoid strnxfrm.
+create table t1 (a char(25)) charset latin1;
 insert into t1 set a = repeat('x', 20);
 insert into t1 set a = concat(repeat('x', 19), 'z');
 insert into t1 set a = concat(repeat('x', 19), 'ab');
@@ -583,10 +585,10 @@ SELECT CONCAT('test', a) AS str FROM t1 ORDER BY UPPER(str);
 SELECT a + 1 AS num FROM t1 GROUP BY 30 - num;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 SELECT a + 1 AS num FROM t1 HAVING 30 - num;
---error 1054
+--error ER_BAD_FIELD_ERROR
 SELECT a + 1 AS num, num + 1 FROM t1;
 SELECT a + 1 AS num, (select num + 2 FROM t1 LIMIT 1) FROM t1;
---error 1054
+--error ER_BAD_FIELD_ERROR
 SELECT a.a + 1 AS num FROM t1 a JOIN t1 b ON num = b.a;
 DROP TABLE t1;
 
@@ -798,44 +800,33 @@ INSERT INTO t1 SELECT a +16, b +16 FROM t1;
 INSERT INTO t1 SELECT a +32, b +32 FROM t1;
 INSERT INTO t1 SELECT a +64, b +64 FROM t1;
 
-EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (a, ab) GROUP BY a;
+let $query=
+SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (PRIMARY, ab) GROUP BY a;
 
---disable_query_log
---let $q = `show status like 'Created_tmp_tables';`
-eval set @tmp_tables_before = 
-  CAST(REPLACE('$q', 'Created_tmp_tables', '') AS UNSIGNED);
---enable_query_log
+eval EXPLAIN $query;
+flush status;
+eval $query;
+show status like 'Created_tmp_tables';
 
-SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (a, ab) GROUP BY a;
+let $query=
+SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY, ab) ORDER BY a;
 
-# this query creates one temporary table in itself, which we are not
-# interested in.
+eval EXPLAIN $query;
+flush status;
+eval $query;
+show status like 'Created_tmp_tables';
 
---disable_query_log
---let $q = `show status like 'Created_tmp_tables';`
-eval set @tmp_tables_after = 
-  CAST(REPLACE('$q', 'Created_tmp_tables', '') AS UNSIGNED);
---enable_query_log
+flush status;
+let $query=
+SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) GROUP BY a;
+eval EXPLAIN $query;
+eval $query;
 
-SELECT @tmp_tables_after = @tmp_tables_before ;
-
-EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (a, ab) ORDER BY a;
-
---disable_query_log
---let $q = `show status like 'Created_tmp_tables';`
-eval set @tmp_tables_before = 
-  CAST(REPLACE('$q', 'Created_tmp_tables', '') AS UNSIGNED);
---enable_query_log
-
-SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (a, ab) ORDER BY a;
-
---disable_query_log
---let $q = `show status like 'Created_tmp_tables';`
-eval set @tmp_tables_after = 
-  CAST(REPLACE('$q', 'Created_tmp_tables', '') AS UNSIGNED);
---enable_query_log
-
-SELECT @tmp_tables_after = @tmp_tables_before;
+let $query=
+SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) ORDER BY a;
+eval EXPLAIN $query;
+eval $query;
+show status like 'Created_tmp_tables';
 
 DROP TABLE t1;
 --echo #
@@ -908,10 +899,12 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t2 (a varchar(32), b int(11), c float, d double, 
-  UNIQUE KEY a (a,b,c), KEY b (b), KEY c (c));
+  UNIQUE KEY a (a,b,c), KEY b (b), KEY c (c)) charset utf8mb4;
 
-CREATE TABLE t1 (a varchar(32), b char(3), UNIQUE KEY a (a,b), KEY b (b));
-CREATE TABLE t3 (a varchar(32), b char(3), UNIQUE KEY a (a,b));
+CREATE TABLE t1 (a varchar(32), b char(3), UNIQUE KEY a (a,b), KEY b (b))
+charset utf8mb4;
+CREATE TABLE t3 (a varchar(32), b char(3), UNIQUE KEY a (a,b))
+charset utf8mb4;
 
 --disable_query_log
 INSERT INTO t1 (a, b) VALUES
@@ -1370,7 +1363,7 @@ DROP TABLE t1,t2,t3;
 --echo # WL#1393 - Optimizing filesort with small limit
 --echo #
 
-CREATE TABLE t1(f0 int auto_increment primary key, f1 int, f2 varchar(200));
+CREATE TABLE t1(f0 int auto_increment primary key, f1 int, f2 varchar(200)) charset latin1;
 INSERT INTO t1(f1, f2) VALUES 
 (0,"0"),(1,"1"),(2,"2"),(3,"3"),(4,"4"),(5,"5"),
 (6,"6"),(7,"7"),(8,"8"),(9,"9"),(10,"10"),
@@ -1617,14 +1610,14 @@ INSERT INTO t1 VALUES
 (8,  8, 8),
 (9,  9, 9);
 
-INSERT INTO t1 SELECT a + 10,  b, c FROM t1;
-INSERT INTO t1 SELECT a + 20,  b, c FROM t1;
-INSERT INTO t1 SELECT a + 40,  b, c FROM t1;
-INSERT INTO t1 SELECT a + 80,  b, c FROM t1;
-INSERT INTO t1 SELECT a + 160, b, c FROM t1;
-INSERT INTO t1 SELECT a + 320, b, c FROM t1;
-INSERT INTO t1 SELECT a + 640, b, c FROM t1;
-INSERT INTO t1 SELECT a + 1280, b, c FROM t1 LIMIT 80;
+INSERT INTO t1 SELECT a + 10,  b, c  + 10   FROM t1;
+INSERT INTO t1 SELECT a + 20,  b, c  + 20   FROM t1;
+INSERT INTO t1 SELECT a + 40,  b, c  + 40   FROM t1;
+INSERT INTO t1 SELECT a + 80,  b, c  + 80   FROM t1;
+INSERT INTO t1 SELECT a + 160, b, c  + 160  FROM t1;
+INSERT INTO t1 SELECT a + 320, b, c  + 320  FROM t1;
+INSERT INTO t1 SELECT a + 640, b, c  + 640  FROM t1;
+INSERT INTO t1 SELECT a + 1280, b, c + 1280 FROM t1 LIMIT 80;
 
 EXPLAIN
 SELECT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 9;
@@ -1732,7 +1725,7 @@ CREATE TABLE t3 (i3 integer);
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11), (12);
 INSERT INTO t2 SELECT * FROM t1;
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT t1.*, t2.* FROM t1 JOIN t2 ON t1.i1 = t2.i2 
                      LEFT JOIN t3 ON t2.i2 = t3.i3
   ORDER BY t1.i1 LIMIT 5;
@@ -1860,3 +1853,33 @@ DROP VIEW view_t1;
 DROP TABLE t1, t2;
 
 SET sql_mode = default;
+
+--echo #
+--echo # Bug#20455386 INVALID WRITE IN COPY_FIELD::SET CAUSE CRASH WITH TMP TABLES
+--echo #
+
+CREATE TABLE t1(a INT) ENGINE=INNODB;
+CREATE TABLE t2(c INT) ENGINE=INNODB;
+CREATE TABLE t3(b BLOB NOT NULL) ENGINE=INNODB;
+SELECT
+ (SELECT 1 FROM t1
+  WHERE (SELECT c FROM t2 ORDER BY COUNT(t3.b ))
+ )
+FROM t3;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug#16833464: Presence of ORDER BY changes data type of column in
+--echo #               CREATE TABLE SELECT
+
+CREATE TABLE z1 (c05 TIME);
+(SELECT * FROM z1 ORDER BY '1') ORDER BY '1';
+
+CREATE TABLE z2 (SELECT * FROM z1 ORDER BY '1') ORDER BY '1';
+CREATE TABLE z3 (SELECT * FROM z1) ORDER BY '1';
+
+#Column in z2 and z3 should be of same type.
+SHOW CREATE TABLE z2;
+SHOW CREATE TABLE z3;
+
+DROP TABLE z1, z2, z3;

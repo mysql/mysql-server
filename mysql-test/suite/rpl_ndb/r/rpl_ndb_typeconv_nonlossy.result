@@ -40,7 +40,6 @@ SELECT @@global.slave_type_conversions;
 ALL_LOSSY,ALL_NON_LOSSY
 SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
 **** Running tests with @@SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY' ****
-include/rpl_reset.inc
 **** Checking result of conversions ****
 DROP TABLE type_conversions;
 DROP TABLE t1;

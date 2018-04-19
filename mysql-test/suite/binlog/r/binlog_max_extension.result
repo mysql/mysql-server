@@ -1,10 +1,9 @@
 call mtr.add_suppression("Next log extension: 2147483647. Remaining log filename extensions: 0.");
 call mtr.add_suppression("Log filename extension number exhausted:");
 call mtr.add_suppression("Can't generate a unique log-filename");
-call mtr.add_suppression("The server was unable to create a new log file. "
-                         "An incident event has been written to the binary "
-                         "log which will stop the slaves.");
+call mtr.add_suppression("Could not open .*");
 RESET MASTER;
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 FLUSH LOGS;
-ERROR HY000: Can't generate a unique log-filename master-bin.(1-999)
+ERROR HY000: Can't generate a unique log-filename binlog.(1-999)
 

@@ -1,7 +1,4 @@
 SET @global_saved_tmp =  @@global.offline_mode;
-SELECT @user_count:=COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
-@user_count:=COUNT(USER)
-1
 CREATE USER 'user1'@'localhost';
 connect conu1,localhost,user1;
 use test;
@@ -18,10 +15,10 @@ connection default;
 SET GLOBAL offline_mode = ON;
 t2.MYD
 t2.MYI
-t2.frm
+t2_XXX.sdi
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-1
+2
 SET GLOBAL offline_mode = OFF;
 UNLOCK TABLES;
 disconnect conu1;
@@ -35,7 +32,7 @@ connection default;
 SET GLOBAL offline_mode = ON;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-1
+2
 disconnect conu1;
 DROP USER 'user1'@'localhost';
 # Restoring the original values.

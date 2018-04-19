@@ -1,0 +1,1164 @@
+--echo # Explain of SQL window functions.
+--echo # ----------------------------------------------------------------------
+
+SET NAMES utf8;
+
+--echo Single window function (plus ORDER BY).
+CREATE TABLE t(i INT, j INT);
+INSERT INTO t VALUES (1,1), (1,4), (1,2), (1,4);
+ANALYZE TABLE t;
+
+--echo Single partition, no sorting
+let $query=
+SELECT i, j, SUM(i+j) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t;
+eval EXPLAIN FORMAT=JSON $query;
+eval EXPLAIN FORMAT=TRADITIONAL $query;
+EXPLAIN FORMAT=JSON SELECT i, j, SUM(i+j) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) foo FROM t;
+EXPLAIN FORMAT=JSON SELECT i, j, SUM(i+j) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo;
+EXPLAIN FORMAT=JSON SELECT i, j, SUM(i+j) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo DESC;
+
+--echo With LIMIT
+EXPLAIN FORMAT=JSON SELECT i, j, SUM(i+j) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo DESC LIMIT 3;
+
+--echo Single ordered partition
+EXPLAIN FORMAT=JSON SELECT i, j, SUM(i+j) OVER (ORDER BY j ROWS UNBOUNDED PRECEDING) foo FROM t;
+EXPLAIN FORMAT=JSON SELECT i, j, SUM(i+j) OVER (ORDER BY j ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo;
+EXPLAIN FORMAT=JSON SELECT i, j, SUM(i+j) OVER (ORDER BY j ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo DESC;
+
+let $query=
+SELECT i, j, SUM(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) foo FROM t;
+eval EXPLAIN FORMAT=JSON $query;
+eval EXPLAIN FORMAT=TRADITIONAL $query;
+
+--echo View with window function
+CREATE VIEW v AS
+SELECT i, j, SUM(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) foo FROM t;
+SHOW CREATE VIEW v;
+EXPLAIN FORMAT=JSON SELECT * FROM v;
+DROP VIEW v;
+
+EXPLAIN FORMAT=JSON SELECT i, j, SUM(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo;
+EXPLAIN FORMAT=JSON SELECT i, j, SUM(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo DESC;
+
+TRUNCATE TABLE t;
+--echo Check my_decimal bug: no warning if c=a+b and c is one of a,b... just fails over 9 digits
+INSERT INTO t VALUES (999961560, DEFAULT), (44721, DEFAULT);
+ANALYZE TABLE t;
+EXPLAIN FORMAT=JSON SELECT SUM(i) OVER () FROM t;
+
+DROP TABLE t;
+
+CREATE TABLE t(i INT, j INT, k INT);
+INSERT INTO t VALUES (1,1,1), (1,4,1), (1,2,1), (1,4,1);
+INSERT INTO t VALUES (1,1,2), (1,4,2), (1,2,2), (1,4,2);
+INSERT INTO t VALUES (1,1,3), (1,4,3), (1,2,3), (1,4,3);
+INSERT INTO t VALUES (1,1,4), (1,4,4), (1,2,4), (1,4,4);
+ANALYZE TABLE t;
+
+--echo ----------------------------------------------------------------------
+--echo -    Combination with GROUP BY
+--echo ----------------------------------------------------------------------
+EXPLAIN FORMAT=JSON SELECT k, SUM(k) OVER (ROWS UNBOUNDED PRECEDING) wf FROM t; # simple
+EXPLAIN FORMAT=JSON SELECT k, MIN(i), SUM(j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) wf FROM t GROUP BY (k); # combined with single tmp file GROUP BY
+EXPLAIN FORMAT=JSON SELECT k, MIN(i), SUM(j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) wf FROM t GROUP BY (k) ORDER BY wf DESC; # combined final ORDER BY
+
+EXPLAIN FORMAT=JSON SELECT k, GROUP_CONCAT(j ORDER BY j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t GROUP BY (k); # combined with two tmp files GROUP BY
+EXPLAIN FORMAT=JSON SELECT k, AVG(DISTINCT j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t GROUP BY (k); #
+EXPLAIN FORMAT=JSON SELECT k, GROUP_CONCAT(j ORDER BY j), SUM(k+1) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t GROUP BY (k); # expression argument to SUM
+EXPLAIN FORMAT=JSON SELECT k, GROUP_CONCAT(j ORDER BY j), SUM(k+1) OVER (ORDER BY k DESC ROWS UNBOUNDED PRECEDING) foo FROM t GROUP BY (k);
+
+
+DROP TABLE t;
+
+--echo ----------------------------------------------------------------------
+--echo -    Some RANK, DENSE_RANK tests
+--echo ----------------------------------------------------------------------
+CREATE TABLE t1 (id INTEGER, sex CHAR(1));
+INSERT INTO t1 VALUES (1, 'M'),
+                      (2, 'F'),
+                      (3, 'F'),
+                      (4, 'F'),
+                      (5, 'M');
+ANALYZE TABLE t1;
+CREATE TABLE t2 (user_id INTEGER NOT NULL, date DATE);
+INSERT INTO t2 VALUES (1, '2002-06-09'),
+                      (2, '2002-06-09'),
+                      (1, '2002-06-09'),
+                      (3, '2002-06-09'),
+                      (4, '2002-06-09'),
+                      (4, '2002-06-09'),
+                      (5, '2002-06-09');
+ANALYZE TABLE t2;
+
+EXPLAIN FORMAT=JSON SELECT RANK() OVER (ORDER BY user_id) r FROM t2;
+EXPLAIN FORMAT=JSON SELECT DENSE_RANK() OVER (ORDER BY user_id) r FROM t2;
+
+EXPLAIN FORMAT=JSON SELECT sex, SUM(DISTINCT id) AS uids FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex ORDER BY uids;
+
+EXPLAIN FORMAT=JSON SELECT id, sex, RANK() OVER (ORDER BY sex) FROM t1 ORDER BY id;
+EXPLAIN FORMAT=JSON SELECT id, sex, DENSE_RANK() OVER (ORDER BY sex) FROM t1 ORDER BY id;
+
+EXPLAIN FORMAT=JSON SELECT sex, RANK() OVER (ORDER BY sex DESC) `rank`, AVG(DISTINCT id) AS uids FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex ORDER BY sex;
+
+--echo Explicit window definition, WINDOW DESC ordering from GROUP BY
+EXPLAIN FORMAT=JSON SELECT  sex, AVG(id) AS uids, RANK() OVER w `rank` FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex
+   WINDOW w AS (ORDER BY AVG(id));
+
+--echo Explicit window definition, window ordering from DISTINCT GROUP BY
+EXPLAIN FORMAT=JSON SELECT  sex, AVG(DISTINCT id) AS uids, RANK() OVER w `rank` FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex
+   WINDOW w AS (ORDER BY AVG(DISTINCT id) DESC) ORDER BY sex;
+
+--echo Explicit window definition, window ordering from GROUP BY, final ORDER BY
+let $query=
+SELECT  sex, AVG(id) AS uids, RANK() OVER w `rank` FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex
+   WINDOW w AS (ORDER BY AVG(id) DESC)
+   ORDER BY `rank` DESC;
+eval EXPLAIN FORMAT=JSON $query;
+eval EXPLAIN FORMAT=TRADITIONAL $query;
+
+--echo With NULLs
+INSERT INTO t1 VALUES (10, NULL), (11, NULL);
+ANALYZE TABLE t1;
+EXPLAIN FORMAT=JSON SELECT id, sex, RANK() OVER w, DENSE_RANK() OVER w FROM t1
+   WINDOW w AS (ORDER BY sex) ORDER BY id;
+EXPLAIN FORMAT=JSON SELECT id, sex, RANK() OVER (ORDER BY sex DESC) FROM t1 ORDER BY id;
+
+EXPLAIN FORMAT=JSON SELECT id value,
+       SUM(id) OVER (ROWS UNBOUNDED PRECEDING)
+       FROM t1 u, t2 WHERE t2.user_id = u.id;
+
+--echo Aggregate with GROUP BY arguments to window function
+EXPLAIN FORMAT=JSON SELECT AVG(id) average,
+       SUM(AVG(id)) OVER (ROWS UNBOUNDED PRECEDING)
+       FROM t1 u, t2 WHERE t2.user_id = u.id GROUP BY sex;
+
+--echo Aggregate with GROUP BY in window's ORDER BY clause, with aggregate present in
+--echo SELECT list or not.
+EXPLAIN FORMAT=JSON SELECT sex, AVG(id), RANK() OVER (ORDER BY AVG(id) DESC) FROM t1 GROUP BY sex ORDER BY sex;
+EXPLAIN FORMAT=JSON SELECT sex, RANK() OVER (ORDER BY AVG(id) DESC) FROM t1 GROUP BY sex ORDER BY sex;
+
+--echo Implicit group aggregate arguments to window function and in
+--echo window's ORDER BY clause
+EXPLAIN FORMAT=JSON SELECT          RANK() OVER (ORDER BY AVG(id)) FROM t1;
+EXPLAIN FORMAT=JSON SELECT AVG(id), RANK() OVER (ORDER BY AVG(id)) FROM t1;
+EXPLAIN FORMAT=JSON SELECT AVG(id), SUM(AVG(id)) OVER (ORDER BY AVG(id) ROWS UNBOUNDED PRECEDING) FROM t1;
+
+--echo Several partitions, several window functions over the same window
+EXPLAIN FORMAT=JSON SELECT sex, id, RANK() OVER (PARTITION BY sex ORDER BY id DESC) FROM t1;
+EXPLAIN FORMAT=JSON SELECT sex, id, RANK() OVER (PARTITION BY sex ORDER BY id ASC) FROM t1;
+
+EXPLAIN FORMAT=JSON SELECT sex, id, SUM(id) OVER w summ, RANK() OVER w `rank` FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id ASC ROWS UNBOUNDED PRECEDING);
+EXPLAIN FORMAT=JSON SELECT sex, id, SUM(id) OVER w summ, RANK() OVER w `rank` FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id ASC ROWS UNBOUNDED PRECEDING) ORDER BY summ;
+
+CREATE TABLE t(d decimal(10,2), date DATE);
+
+INSERT INTO t values  (10.4, '2002-06-09'),
+                      (20.5, '2002-06-09'),
+                      (10.4, '2002-06-10'),
+                      (3,    '2002-06-09'),
+                      (40.2, '2015-08-01'),
+                      (40.2, '2002-06-09'),
+                      (5,    '2015-08-01');
+ANALYZE TABLE t;
+
+EXPLAIN FORMAT=JSON SELECT * FROM (SELECT  RANK() OVER (ORDER BY d) AS `rank`, d, date FROM t) alias ORDER BY `rank`, d, date;
+EXPLAIN FORMAT=JSON SELECT * FROM (SELECT RANK() OVER (ORDER BY date) AS `rank`, date, d FROM t) alias ORDER BY `rank`, d DESC;
+DROP TABLE t;
+
+--echo Check that SUM stays that same when it sees NULL values
+
+CREATE TABLE t(i INT, j INT);
+INSERT INTO t VALUES (1,NULL),
+                     (1,NULL),
+                     (1,1),
+                     (1,NULL),
+                     (1,2),
+                     (2,1),
+                     (2,2),
+                     (2,NULL),
+                     (2,NULL);
+ANALYZE TABLE t;
+EXPLAIN FORMAT=JSON SELECT i, j, SUM(j) OVER (PARTITION BY i  ORDER BY j ROWS UNBOUNDED PRECEDING) FROM t;
+
+EXPLAIN FORMAT=JSON SELECT SUM(id), SUM(SUM(id)) OVER (ORDER BY sex ROWS UNBOUNDED PRECEDING) FROM t1,t2 WHERE t1.id=t2.user_id GROUP BY sex;
+
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w FROM t1,t2 WHERE t1.id=t2.user_id WINDOW w AS (PARTITION BY id ORDER BY sex);
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w FROM (SELECT * FROM t1,t2 WHERE t1.id=t2.user_id) t WINDOW w AS (PARTITION BY id ORDER BY sex);
+
+--echo Check that aggregate window functions that reference columns not in the SELECT list work
+EXPLAIN FORMAT=JSON SELECT  SUM(id) OVER (PARTITION BY sex ORDER BY id ROWS UNBOUNDED PRECEDING) summ, sex FROM t1;
+
+--echo ----------------------------------------------------------------------
+--echo -    Some ROW_NUMBER tests
+--echo ----------------------------------------------------------------------
+EXPLAIN FORMAT=JSON SELECT user_id, ROW_NUMBER() OVER (PARTITION BY user_id) FROM t2;
+
+EXPLAIN FORMAT=JSON SELECT * FROM t1,t2 WHERE t1.id=t2.user_id;
+
+EXPLAIN FORMAT=JSON SELECT sex, id, date, ROW_NUMBER() OVER w AS row_no, RANK() OVER w AS `rank` FROM t1,t2
+       WHERE t1.id=t2.user_id
+       WINDOW w AS (PARTITION BY id ORDER BY sex);
+
+EXPLAIN FORMAT=JSON SELECT sex, id, date, ROW_NUMBER() OVER w AS row_no, RANK() OVER w AS `rank` FROM t1,t2
+       WHERE t1.id=t2.user_id
+       WINDOW w AS (PARTITION BY date ORDER BY id);
+
+--echo ----------------------------------------------------------------------
+--echo -    Window function in subquery
+--echo ----------------------------------------------------------------------
+               EXPLAIN FORMAT=JSON SELECT  date,id, RANK() OVER w AS `rank` FROM t1,t2 WINDOW w AS (PARTITION BY date ORDER BY id);
+EXPLAIN FORMAT=JSON SELECT * from (SELECT  date,id, RANK() OVER w AS `rank` FROM t1,t2 WINDOW w AS (PARTITION BY date ORDER BY id)) t;
+
+--echo ----------------------------------------------------------------------
+--echo -    Window function in parent and subquery
+--echo ----------------------------------------------------------------------
+
+EXPLAIN FORMAT=JSON SELECT t.*, SUM(t.`rank`) OVER (ROWS UNBOUNDED PRECEDING) FROM
+   (SELECT sex, id, date, ROW_NUMBER() OVER w AS row_no, RANK() OVER w AS `rank` FROM t1,t2
+       WHERE t1.id=t2.user_id
+       WINDOW w AS (PARTITION BY date ORDER BY id)
+   ) AS t;
+
+--echo ----------------------------------------------------------------------
+--echo -    Multiple windows
+--echo ----------------------------------------------------------------------
+EXPLAIN FORMAT=JSON SELECT t1.*, RANK() OVER (ORDER BY sex), SUM(id) OVER (ORDER BY sex,id ROWS UNBOUNDED PRECEDING) FROM t1;
+EXPLAIN FORMAT=JSON SELECT * from (SELECT t1.*, SUM(id) OVER (ROWS UNBOUNDED PRECEDING), RANK() OVER (ORDER BY sex) FROM t1) alias ORDER BY id;
+
+EXPLAIN FORMAT=JSON SELECT t1.*, SUM(id) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING),
+             RANK() OVER (ORDER BY sex,id),
+             ROW_NUMBER() OVER (ORDER BY sex,id)
+             FROM t1;
+
+--echo a little more windows + subquery
+EXPLAIN FORMAT=JSON SELECT t.*, SUM(id + r00 + r01) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING) AS s FROM (
+   SELECT t1.*,
+       RANK() OVER (ORDER BY sex) AS r00,
+       RANK() OVER (ORDER BY sex DESC) AS r01,
+       RANK() OVER (ORDER BY sex, id DESC) AS r02,
+       RANK() OVER (PARTITION BY id ORDER BY sex) AS r03,
+       RANK() OVER (ORDER BY sex) AS r04,
+       RANK() OVER (ORDER BY sex) AS r05,
+       RANK() OVER (ORDER BY sex) AS r06,
+       RANK() OVER (ORDER BY sex) AS r07,
+       RANK() OVER (ORDER BY sex) AS r08,
+       RANK() OVER (ORDER BY sex) AS r09,
+       RANK() OVER (ORDER BY sex) AS r10,
+       RANK() OVER (ORDER BY sex) AS r11,
+       RANK() OVER (ORDER BY sex) AS r12,
+       RANK() OVER (ORDER BY sex) AS r13,
+       RANK() OVER (ORDER BY sex) AS r14
+       FROM t1) t;
+
+--echo With LIMIT
+EXPLAIN FORMAT=JSON SELECT t.*, SUM(id + r00 + r01) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING) AS s FROM (
+   SELECT t1.*,
+       RANK() OVER (ORDER BY sex) AS r00,
+       RANK() OVER (ORDER BY sex DESC) AS r01,
+       RANK() OVER (ORDER BY sex, id DESC) AS r02,
+       RANK() OVER (PARTITION BY id ORDER BY sex) AS r03,
+       RANK() OVER (ORDER BY sex) AS r04,
+       RANK() OVER (ORDER BY sex) AS r05,
+       RANK() OVER (ORDER BY sex) AS r06,
+       RANK() OVER (ORDER BY sex) AS r07,
+       RANK() OVER (ORDER BY sex) AS r08,
+       RANK() OVER (ORDER BY sex) AS r09,
+       RANK() OVER (ORDER BY sex) AS r10,
+       RANK() OVER (ORDER BY sex) AS r11,
+       RANK() OVER (ORDER BY sex) AS r12,
+       RANK() OVER (ORDER BY sex) AS r13,
+       RANK() OVER (ORDER BY sex) AS r14
+       FROM t1 LIMIT 4) t;
+
+--echo ----------------------------------------------------------------------
+--echo -    SUM, AVG, COUNT with frames
+--echo ----------------------------------------------------------------------
+
+EXPLAIN FORMAT=JSON SELECT SUM(id) OVER w * 2, AVG(id) OVER w, COUNT(id) OVER w FROM t1
+       WINDOW w AS (PARTITION BY sex);
+
+EXPLAIN FORMAT=JSON SELECT * FROM (
+SELECT id, SUM(id) OVER w, COUNT(*) OVER w, sex FROM t1
+       WINDOW w AS (PARTITION BY sex)
+       ) alias ORDER BY id;
+
+EXPLAIN FORMAT=JSON SELECT SUM(id) OVER w FROM t1 WINDOW w AS (PARTITION BY sex);
+
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w, sex FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id
+                    ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+
+--echo try the same as a view
+CREATE VIEW v AS
+SELECT id, SUM(id) OVER w, sex FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id
+                    ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+SHOW CREATE VIEW v;
+EXPLAIN FORMAT=JSON SELECT * FROM v;
+DROP VIEW v;
+
+EXPLAIN FORMAT=JSON SELECT SUM(id) OVER w FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id
+                    ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w, sex FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id
+                    ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+
+EXPLAIN FORMAT=JSON SELECT SUM(id) OVER w, COUNT(*) OVER w FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id
+                    ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+
+EXPLAIN FORMAT=JSON SELECT id, AVG(id) OVER (ROWS UNBOUNDED PRECEDING) FROM t1;
+
+EXPLAIN FORMAT=JSON SELECT id, AVG(id) OVER w, COUNT(id) OVER w FROM t1
+       WINDOW w AS (ORDER BY id ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+
+--echo AVG, SUM with double type
+CREATE TABLE td(d DOUBLE);
+INSERT INTO td VALUES (2),(2),(3),(1),(1.2),(NULL);
+ANALYZE TABLE td;
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER (ORDER BY d), AVG(d) OVER (ORDER BY d) FROM td;
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER (ORDER BY d), AVG(d) OVER () FROM td;
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER (ORDER BY d), AVG(d) OVER (ORDER BY d ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM td;
+
+--echo Check system variable "windowing_use_high_precision"
+TRUNCATE td;
+INSERT INTO td VALUES (1.7976931348623157E+307), (1);
+ANALYZE TABLE td;
+
+--echo should be default off:
+SHOW VARIABLES LIKE 'windowing_use_high_precision';
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
+
+--echo allow unsafe optimization: result changes
+SET SESSION windowing_use_high_precision=FALSE;
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
+SET SESSION windowing_use_high_precision=TRUE; # BACK TO DEFAULT
+
+--echo bugfix: AVG for moving range frame
+TRUNCATE td;
+INSERT INTO td VALUES (10),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+ANALYZE TABLE td;
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND CURRENT ROW);
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND 2 FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING);
+SET SESSION windowing_use_high_precision=FALSE;
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND CURRENT ROW);
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND 2 FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING);
+SET SESSION windowing_use_high_precision=TRUE; # back to default
+
+INSERT INTO td SELECT * FROM td; # get more duplicates and hence peer sets
+ANALYZE TABLE td;
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND CURRENT ROW);
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND 2 FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING);
+SET SESSION windowing_use_high_precision=FALSE;
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND CURRENT ROW);
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND 2 FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING);
+SET SESSION windowing_use_high_precision=TRUE; # back to default
+
+DROP TABLE td;
+
+--echo ----------------------------------------------------------------------
+--echo -    NTILE (requires two passes over partition).
+--echo -    Currently suboptimal in that it causes N*N reads of tmp buffer
+--echo ----------------------------------------------------------------------
+
+EXPLAIN FORMAT=JSON SELECT id, NTILE(NULL) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+EXPLAIN FORMAT=JSON SELECT id, NTILE(1) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+EXPLAIN FORMAT=JSON SELECT id, NTILE(2) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+EXPLAIN FORMAT=JSON SELECT id, NTILE(5) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+EXPLAIN FORMAT=JSON SELECT id, NTILE(11) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+--echo combo with frame
+EXPLAIN FORMAT=JSON SELECT id, ROW_NUMBER() OVER w, NTILE(4) OVER w, SUM(id) OVER w FROM t1
+    WINDOW w AS (ORDER BY id ROWS 1 PRECEDING);
+--echo Try one where there are no extras
+DELETE FROM t1 WHERE id=11;
+EXPLAIN FORMAT=JSON SELECT id, NTILE(3) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+INSERT INTO t1 VALUES (11, NULL);
+ANALYZE TABLE t1;
+
+--echo Simulated NTILE via other SQL window functions. Exercises an
+--echo an expression containing window functions defined on different
+--echo windows
+EXPLAIN FORMAT=JSON SELECT (ROW_NUMBER() OVER w1 * 5 - 1) DIV (COUNT(*) OVER w2) + 1 AS cnt
+    FROM t1 WINDOW w1 AS (ORDER BY id ASC),
+                   w2 AS ();
+
+EXPLAIN FORMAT=JSON SELECT  (ROW_NUMBER() OVER w1 * 5 - 1) DIV (COUNT(*) OVER w2) + 1 AS ntile_manually,
+        COUNT(*) OVER w3
+    FROM t1 WINDOW w1 AS (ORDER BY id ASC),
+                   w2 AS (), w3 AS ();
+
+--echo NTILE in combination with a frame that doesn't cover current row (was bug)
+EXPLAIN FORMAT=JSON SELECT id, ROW_NUMBER() OVER w, SUM(id) OVER w, NTILE(5) OVER w FROM t1
+    WINDOW w AS (ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND 2 PRECEDING);
+
+--echo ----------------------------------------------------------------------
+--echo -    SUM with frames in combination with non-framing window functions
+--echo -    ROW_NUMBER and RANK
+--echo ----------------------------------------------------------------------
+
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER w, id, SUM(id) OVER w, sex FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING);
+
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER w, SUM(id) OVER w FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id
+                    ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+
+INSERT INTO t1 VALUES (10, NULL);
+ANALYZE TABLE t1;
+
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w, id, SUM(id) OVER w, sex FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id);
+
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w, SUM(id) OVER w FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id
+                    ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+
+EXPLAIN FORMAT=JSON SELECT id, sex, SUM(id) OVER w,
+                ROW_NUMBER() OVER w,
+                RANK() OVER w  FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+
+--echo ----------------------------------------------------------------------
+--echo -    FIRST_VALUE
+--echo ----------------------------------------------------------------------
+INSERT INTO t1 VALUES (NULL, 'M');
+ANALYZE TABLE t1;
+
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS ();
+select id, FIRST_VALUE(id) OVER (ROWS UNBOUNDED PRECEDING) FROM t1;
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (PARTITION BY sex ORDER BY id);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id DESC);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id ROWS  2 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id RANGE 2 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 PRECEDING AND 1 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id ROWS  BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+
+CREATE VIEW v AS
+SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SHOW CREATE VIEW v;
+EXPLAIN FORMAT=JSON SELECT * FROM v;
+DROP VIEW v;
+
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id RANGE BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+
+CREATE TABLE td1 (id DOUBLE, sex CHAR(1));
+INSERT INTO td1 SELECT * FROM t1;
+ANALYZE TABLE td1;
+
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS ();
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (PARTITION BY sex ORDER BY id);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id DESC);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id ROWS  2 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id RANGE 2 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 PRECEDING AND 1 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id ROWS  BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id RANGE BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+
+DROP TABLE td1;
+
+CREATE TABLE td_dec (id DECIMAL(10,2), sex CHAR(1));
+INSERT INTO td_dec SELECT * FROM t1;
+ANALYZE TABLE td_dec;
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS ();
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (PARTITION BY sex ORDER BY id);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id DESC);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id ROWS  2 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id RANGE 2 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 PRECEDING AND 1 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id ROWS  BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id RANGE BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+DROP TABLE td_dec;
+
+CREATE TABLE td_str (id VARCHAR(20), sex CHAR(1));
+INSERT INTO td_str SELECT * FROM t1;
+ANALYZE TABLE td_str;
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS ();
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (PARTITION BY sex ORDER BY id);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id DESC);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id ROWS  2 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 PRECEDING AND 1 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id ROWS  BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+DROP TABLE td_str;
+
+CREATE TABLE t_date(id DATE);
+INSERT INTO t_date VALUES ('2002-06-09'),
+                          ('2002-06-09'),
+                          ('2002-06-10'),
+                          ('2002-06-09'),
+                          ('2015-08-01'),
+                          ('2002-06-09'),
+                          ('2015-08-01');
+ANALYZE TABLE t_date;
+
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS ();
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id DESC);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id ROWS  2 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE INTERVAL 2 DAY PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 PRECEDING AND 1 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE BETWEEN INTERVAL 2 DAY PRECEDING AND INTERVAL 1 DAY PRECEDING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id ROWS  BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+
+CREATE VIEW v AS
+SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SHOW CREATE VIEW v;
+EXPLAIN FORMAT=JSON SELECT * FROM v;
+DROP VIEW v;
+
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE BETWEEN INTERVAL 2 DAY FOLLOWING AND INTERVAL 3 DAY FOLLOWING);
+
+CREATE VIEW v AS
+SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE BETWEEN INTERVAL 2 DAY FOLLOWING AND INTERVAL 3 DAY FOLLOWING);
+SHOW CREATE VIEW v;
+EXPLAIN FORMAT=JSON SELECT * FROM v;
+DROP VIEW v;
+
+DROP TABLE t_date;
+
+CREATE TABLE t_time(t TIME, ts TIMESTAMP);
+INSERT INTO t_time VALUES ('12:30', '2016-07-05 08:30:42');
+INSERT INTO t_time VALUES ('22:30', '2015-07-05 08:30:43');
+INSERT INTO t_time VALUES ('13:30', '2014-07-05 08:30:44');
+INSERT INTO t_time VALUES ('01:30', '2013-07-05 08:30:45');
+INSERT INTO t_time VALUES ('15:30', '2016-08-05 08:31:42');
+INSERT INTO t_time VALUES ('20:30', '2016-09-05 08:32:42');
+INSERT INTO t_time VALUES ('04:30', '2016-10-05 08:33:42');
+INSERT INTO t_time VALUES ('06:30', '2016-11-05 08:34:42');
+INSERT INTO t_time VALUES ('18:30', '2016-07-05 09:30:42');
+INSERT INTO t_time VALUES ('21:30', '2016-07-06 10:30:42');
+INSERT INTO t_time VALUES ('00:30', '2016-07-07 11:30:42');
+INSERT INTO t_time VALUES ('00:31', '2016-07-08 12:30:42');
+ANALYZE TABLE t_time;
+
+CREATE TABLE t_time2(t TIME, ts TIMESTAMP, p INTEGER DEFAULT 1);
+INSERT INTO t_time2(t, ts) SELECT * FROM t_time;
+UPDATE t_time2 SET p=p+1;
+INSERT INTO t_time2(t, ts) SELECT * FROM t_time;
+ANALYZE TABLE t_time2;
+
+--sorted_result
+EXPLAIN FORMAT=JSON SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS ();
+--sorted_result
+EXPLAIN FORMAT=JSON SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t);
+EXPLAIN FORMAT=JSON SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t DESC);
+EXPLAIN FORMAT=JSON SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t ROWS  2 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t RANGE INTERVAL 2 HOUR PRECEDING);
+EXPLAIN FORMAT=JSON SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t ROWS  BETWEEN 2 PRECEDING AND 1 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t RANGE BETWEEN INTERVAL 2 HOUR PRECEDING AND INTERVAL 1 HOUR PRECEDING);
+EXPLAIN FORMAT=JSON SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t ROWS  BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t RANGE BETWEEN INTERVAL 2 HOUR FOLLOWING AND INTERVAL 3 HOUR FOLLOWING);
+
+# --sorted_result
+# SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p );   Unstable across platforms
+--sorted_result
+EXPLAIN FORMAT=JSON SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t);
+EXPLAIN FORMAT=JSON SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t DESC);
+EXPLAIN FORMAT=JSON SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t ROWS  2 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t RANGE INTERVAL 2 HOUR PRECEDING);
+EXPLAIN FORMAT=JSON SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t ROWS  BETWEEN 2 PRECEDING AND 1 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t RANGE BETWEEN INTERVAL 2 HOUR PRECEDING AND INTERVAL 1 HOUR PRECEDING);
+EXPLAIN FORMAT=JSON SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t ROWS  BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+EXPLAIN FORMAT=JSON SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t RANGE BETWEEN INTERVAL 2 HOUR FOLLOWING AND INTERVAL 3 HOUR FOLLOWING);
+
+DROP TABLE t_time, t_time2;
+
+
+--echo ----------------------------------------------------------------------
+--echo -    Aggregates with RANGE frame specification
+--echo ----------------------------------------------------------------------
+EXPLAIN FORMAT=JSON SELECT * FROM t1;
+
+--echo Make t11 a clone of t1 but with an extra partitioning column, but other values
+--echo repeated, so we can test it the same frames work on more than one partition
+CREATE TABLE t11 (id INTEGER, sex CHAR(1), p INTEGER DEFAULT 1);
+INSERT INTO t11(id, sex) SELECT * FROM t1;
+UPDATE t11 SET p=p+1;
+INSERT INTO t11(id, sex) SELECT * FROM t1;
+ANALYZE TABLE t11;
+--echo Make t22 a clone of t2 but with an extra partitioning column, but other values
+--echo repeated, so we can test it the same frames work on more than one partition
+CREATE TABLE t22 (user_id INTEGER NOT NULL, date DATE, p INTEGER DEFAULT 1);
+INSERT INTO t22(user_id, date) SELECT * FROM t2;
+UPDATE t22 SET p=p+1;
+INSERT INTO t22(user_id, date) SELECT * FROM t2;
+ANALYZE TABLE t22;
+
+
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER (ORDER BY id RANGE 2 PRECEDING) FROM t1 ORDER BY id;
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER (ORDER BY id RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM t1 ORDER BY id;
+EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER (ORDER BY id RANGE UNBOUNDED PRECEDING) FROM t1 ORDER BY id;
+
+EXPLAIN FORMAT=JSON SELECT p, id, SUM(id) OVER (PARTITION BY p ORDER BY id RANGE 2 PRECEDING) FROM t11 ORDER BY p,id;
+EXPLAIN FORMAT=JSON SELECT p, id, SUM(id) OVER (PARTITION BY p ORDER BY id RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM t11 ORDER BY p,id;
+EXPLAIN FORMAT=JSON SELECT p, id, SUM(id) OVER (PARTITION BY p ORDER BY id RANGE UNBOUNDED PRECEDING) FROM t11 ORDER BY p,id;
+
+--echo Implicit frame due to ORDER BY, with last in peer group as upper bound
+EXPLAIN FORMAT=JSON SELECT user_id, SUM(user_id) OVER w, AVG(user_id) OVER w FROM t2 WINDOW w AS (ORDER BY user_id);
+--sorted_result
+EXPLAIN FORMAT=JSON SELECT p, user_id, SUM(user_id) OVER w, AVG(user_id) OVER w FROM t22 WINDOW w AS (PARTITION BY p ORDER BY user_id) ORDER BY p;
+
+--echo Window function use of same field in different windows, both of which
+--echo need buffering. In this case we need subsequent rewrites of arg fields
+--echo Field pointer in tmp files for window 2..n The intervening internal
+--echo window buffering in each step used to mess that up.
+EXPLAIN FORMAT=JSON SELECT user_id, SUM(user_id) OVER w, AVG(user_id) OVER w1 FROM t2
+    WINDOW w AS (ORDER BY user_id), w1 AS (ORDER BY user_id);
+
+--echo Check descending order by with RANGE: 2 PRECEDING in this case means larger than
+--echo current row.
+EXPLAIN FORMAT=JSON SELECT NTILE(5) OVER w, ROW_NUMBER() OVER w, id, SUM(id) OVER w FROM t1
+    WINDOW w AS (ORDER BY id DESC RANGE 2 PRECEDING);
+EXPLAIN FORMAT=JSON SELECT p, NTILE(5) OVER w, ROW_NUMBER() OVER w, id, SUM(id) OVER w FROM t11
+    WINDOW w AS (PARTITION BY p ORDER BY id DESC RANGE 2 PRECEDING);
+
+update t2 set date=date + user_id;
+EXPLAIN FORMAT=JSON SELECT user_id, date, COUNT(*) OVER (ORDER BY date RANGE INTERVAL 1 DAY PRECEDING) FROM t2;
+
+CREATE TABLE t3(d DOUBLE);
+INSERT INTO t3
+  VALUES (1.1),(1.9),(4.0),(8.3),(16.0),(24.0),(20.1),(22.0),(23.0);
+ANALYZE TABLE t3;
+
+EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w, COUNT(*) OVER w FROM t3 WINDOW w AS (ORDER BY d RANGE BETWEEN 2.1 PRECEDING AND 1.1 FOLLOWING);
+
+
+--echo ----------------------------------------------------------------------
+--echo -    wf over JSON
+--echo ----------------------------------------------------------------------
+
+CREATE TABLE tj(j JSON, i INT DEFAULT 7);
+INSERT INTO tj(j) VALUES ('1'), ('2'), ('3'), ('4'), ('5'), (NULL);
+INSERT INTO tj(j) VALUES ('3.14');
+INSERT INTO tj(j) VALUES ('[1,2,3]');
+ANALYZE TABLE tj;
+EXPLAIN FORMAT=JSON SELECT CAST(SUM(j) OVER () AS JSON) FROM tj;
+
+--echo ----------------------------------------------------------------------
+--echo -    SELECT DISTINCT
+--echo ----------------------------------------------------------------------
+--echo One window
+EXPLAIN FORMAT=JSON SELECT DISTINCT i,COUNT(*) OVER () FROM tj;
+--echo Several windows with final ORDER BY also
+EXPLAIN FORMAT=JSON SELECT DISTINCT i,NTILE(3) OVER (ORDER BY i), SUM(i) OVER (), COUNT(*) OVER () FROM tj ORDER BY NTILE(3) OVER (ORDER BY i);
+
+UPDATE tj SET i=i+CASE WHEN JSON_TYPE(j) = 'ARRAY' THEN 1 ELSE j END;
+UPDATE tj SET i=7 where i=8 AND JSON_TYPE(j) != 'ARRAY';
+
+CREATE TABLE tj2 AS SELECT * FROM tj;
+UPDATE tj2 SET i=MOD(i,3);
+EXPLAIN FORMAT=JSON SELECT * FROM tj2;
+--echo With GROUP BY
+EXPLAIN FORMAT=JSON SELECT          COUNT(*) OVER (), MOD(SUM(i),2) FROM tj2 GROUP BY i;
+EXPLAIN FORMAT=JSON SELECT DISTINCT COUNT(*) OVER (), MOD(SUM(i),2) FROM tj2 GROUP BY i;
+
+--echo Bug fix GROUP BY with window function referring column used in grouping expression
+EXPLAIN FORMAT=JSON SELECT i, SUM(i) OVER (), MOD(SUM(i),2) FROM tj2 GROUP BY i;
+EXPLAIN FORMAT=JSON SELECT i, SUM(SUM(i)) OVER (), SUM(i) OVER (ORDER BY i), MOD(SUM(i),2), SUM(i) FROM tj2 GROUP BY i;
+
+DROP TABLE tj2;
+
+--echo ----------------------------------------------------------------------
+--echo -    Bug fixes
+--echo ----------------------------------------------------------------------
+
+--echo Bug fix for FIRST_VALUE, LAST_VALUE when not buffered processing
+EXPLAIN FORMAT=JSON SELECT LAST_VALUE(j) OVER w, FIRST_VALUE(j) OVER w FROM tj WINDOW w AS (PARTITION BY i ORDER BY j ROWS UNBOUNDED PRECEDING);
+--echo Bug missing hidden column (j) induction to select list: FIRST_VALUE/LAST_VALUE
+EXPLAIN FORMAT=JSON SELECT i, LAST_VALUE((CAST(j AS UNSIGNED))) OVER w, FIRST_VALUE(CAST(j AS UNSIGNED)) OVER w FROM tj
+    WINDOW w AS (PARTITION BY i ORDER BY CAST(j AS UNSIGNED) RANGE UNBOUNDED PRECEDING);
+--echo Fix for lineno in warnings buffered and unbuffered windows
+EXPLAIN FORMAT=JSON SELECT j,CAST(SUM(j) OVER (PARTITION BY i) AS JSON), CAST(SUM(j) OVER () AS JSON) FROM tj;
+EXPLAIN FORMAT=JSON SELECT j,CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON), CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON) FROM tj;
+
+--echo Bug fix for UNION
+EXPLAIN FORMAT=JSON SELECT i, ROW_NUMBER() OVER () FROM tj UNION ALL SELECT i, ROW_NUMBER() OVER () FROM tj;
+EXPLAIN FORMAT=JSON SELECT * FROM (SELECT i, j, ROW_NUMBER() OVER (ORDER BY j) FROM tj UNION SELECT i, j, ROW_NUMBER() OVER (ORDER BY j) FROM tj) alias;
+
+
+DROP TABLE tj;
+
+--echo ----------------------------------------------------------------------
+--echo -    More JSON
+--echo ----------------------------------------------------------------------
+CREATE TABLE tj(j JSON);
+INSERT INTO tj VALUES ('1'), ('2'), ('3'), ('4'), ('5'), (NULL);
+EXPLAIN FORMAT=JSON SELECT j, JSON_TYPE(j), SUM(j) OVER (ORDER BY j ROWS 3 PRECEDING) FROM tj;
+INSERT INTO tj VALUES ('3.14');
+EXPLAIN FORMAT=JSON SELECT j, JSON_TYPE(j), SUM(j) OVER (ORDER BY j ROWS 3 PRECEDING) FROM tj;
+INSERT INTO tj VALUES ('[1,2,3]');
+ANALYZE TABLE tj;
+EXPLAIN FORMAT=JSON SELECT j,
+       JSON_TYPE(j),
+       SUM(CASE WHEN JSON_TYPE(j) = 'ARRAY' THEN j->"$[0]" ELSE j END)
+         OVER (ORDER BY j ROWS 3 PRECEDING)
+  FROM tj;
+
+
+CREATE TABLE t5(b BIGINT UNSIGNED);
+INSERT INTO t5 VALUES (1), (2), (3), (4), (5), (6), (7);
+ANALYZE TABLE t5;
+--echo last row should have COUNT(*) == 0 , not 1 (bug fix)
+EXPLAIN FORMAT=JSON SELECT b, COUNT(*) OVER (ORDER BY b RANGE BETWEEN 1 FOLLOWING AND  100 FOLLOWING) bb FROM t5;
+
+CREATE TABLE t6(t TIME, ts TIMESTAMP);
+INSERT INTO t6 VALUES ('12:30', '2016-07-05 08:30:42');
+INSERT INTO t6 VALUES ('22:30', '2015-07-05 08:30:43');
+INSERT INTO t6 VALUES ('13:30', '2014-07-05 08:30:44');
+INSERT INTO t6 VALUES ('01:30', '2013-07-05 08:30:45');
+INSERT INTO t6 VALUES ('15:30', '2016-08-05 08:31:42');
+INSERT INTO t6 VALUES ('20:30', '2016-09-05 08:32:42');
+INSERT INTO t6 VALUES ('04:30', '2016-10-05 08:33:42');
+INSERT INTO t6 VALUES ('06:30', '2016-11-05 08:34:42');
+INSERT INTO t6 VALUES ('18:30', '2016-07-05 09:30:42');
+INSERT INTO t6 VALUES ('21:30', '2016-07-06 10:30:42');
+INSERT INTO t6 VALUES ('00:30', '2016-07-07 11:30:42');
+INSERT INTO t6 VALUES ('00:31', '2016-07-08 12:30:42');
+ANALYZE TABLE t6;
+
+--echo INTERVAL specified with string as below failed
+EXPLAIN FORMAT=JSON SELECT t, COUNT(*) OVER (ORDER BY t RANGE
+  BETWEEN INTERVAL 1 HOUR PRECEDING AND INTERVAL '2:2' MINUTE_SECOND FOLLOWING) AS cnt FROM t6;
+
+--echo ----------------------------------------------------------------------
+--echo -    Window spec inheritance
+--echo ----------------------------------------------------------------------
+
+EXPLAIN FORMAT=JSON SELECT COUNT(*) OVER w0,
+       COUNT(*) OVER w,
+       COUNT(*) OVER w1 FROM t6
+   WINDOW w0 AS (),
+   w AS (w0 ORDER BY t),
+   w1 AS (w RANGE BETWEEN INTERVAL 24 HOUR  PRECEDING AND INTERVAL '2:2' MINUTE_SECOND FOLLOWING);
+
+CREATE VIEW v AS
+SELECT COUNT(*) OVER w0,
+       COUNT(*) OVER w,
+       COUNT(*) OVER w1 FROM t6
+   WINDOW w0 AS (),
+   w AS (w0 ORDER BY t),
+   w1 AS (w RANGE BETWEEN INTERVAL 24 HOUR  PRECEDING AND INTERVAL '2:2' MINUTE_SECOND FOLLOWING);
+SHOW CREATE VIEW v;
+EXPLAIN FORMAT=JSON SELECT * FROM v;
+DROP VIEW v;
+
+--echo ----------------------------------------------------------------------
+--echo - Bugs with induction of hidden fields from window function also used
+--echo - in ORDER BY/PARTITION BY
+--echo ----------------------------------------------------------------------
+EXPLAIN FORMAT=JSON SELECT id, AVG(id) OVER (PARTITION BY id) summ FROM t1;
+EXPLAIN FORMAT=JSON SELECT     AVG(id) OVER (PARTITION BY id) summ FROM t1;
+
+EXPLAIN FORMAT=JSON SELECT id, AVG(id) OVER (PARTITION BY id) summ,
+           AVG(id) OVER (PARTITION BY id) summ2 FROM t1;
+
+EXPLAIN FORMAT=JSON SELECT     AVG(id) OVER (PARTITION BY id) summ,
+           AVG(id) OVER (PARTITION BY id) summ2 FROM t1;
+
+--echo Bug for AVG in presence of several NULLs
+INSERT INTO t1 VALUES (NULL, 'F');
+ANALYZE TABLE t1;
+EXPLAIN FORMAT=JSON SELECT COUNT(id) OVER w, id, AVG(id) OVER w, SUM(id) OVER w, FIRST_VALUE(id) OVER w FROM t1
+  WINDOW w AS (ORDER BY id RANGE 1 PRECEDING);
+
+
+--echo Check frame size, COUNT(*) vs COUNT(<column>) in frames with NULLs
+EXPLAIN FORMAT=JSON SELECT id, count(id) over w, count(*) over w, FIRST_VALUE(id) OVER w FROM t1
+  WINDOW w AS (ORDER BY id ASC  RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING);
+
+EXPLAIN FORMAT=JSON SELECT id, count(id) over w, count(*) over w, FIRST_VALUE(id) OVER w FROM t1
+  WINDOW w AS (ORDER BY id DESC RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING);
+
+CREATE TABLE ss(c CHAR(1));
+INSERT INTO ss VALUES ('M');
+ANALYZE TABLE ss;
+
+EXPLAIN FORMAT=JSON SELECT sex, NTILE(2) OVER w, SUM(ASCII(sex)) OVER w s FROM t1
+    HAVING sex=(SELECT c FROM ss LIMIT 1)
+    WINDOW w AS (ORDER BY id ROWS UNBOUNDED PRECEDING);
+
+EXPLAIN FORMAT=JSON SELECT sex, AVG(id), ROW_NUMBER() OVER w FROM t1
+   GROUP BY sex HAVING sex='M' OR sex IS NULL
+   WINDOW w AS (ORDER BY AVG(id)) ORDER BY sex DESC;
+
+
+
+DROP TABLE t, t1, t11, t2, t22, t3, t5, t6, tj, ss;
+
+--echo ----------------------------------------------------------------------
+--echo -    ORDER BY + RANK with more than one ordering expression
+--echo ----------------------------------------------------------------------
+
+CREATE TABLE t(i INT, j INT, k INT);
+INSERT INTO t VALUES (1,1,1),
+                     (1,1,2),
+                     (1,1,2),
+                     (1,2,1),
+                     (1,2,2),
+                     (2,1,1),
+                     (2,1,1),
+                     (2,1,2),
+                     (2,2,1),
+                     (2,2,2);
+ANALYZE TABLE t;
+EXPLAIN FORMAT=JSON SELECT *, RANK() OVER (ORDER BY i,j,k) AS O_IJK,
+          RANK() OVER (ORDER BY j) AS O_J,
+          RANK() OVER (ORDER BY k,j) AS O_KJ FROM t ORDER BY i,j,k;
+
+DROP TABLE t;
+
+--echo ----------------------------------------------------------------------
+--echo -    Gulutzan's sanity tests in
+--echo -    http://ocelot.ca/blog/blog/2016/04/18/mariadb-10-2-window-functions/
+--echo -    His comments are quoted.
+--echo ----------------------------------------------------------------------
+
+CREATE TABLE t1 (s1 INT, s2 CHAR(5));
+INSERT INTO t1 VALUES (1, 'a');
+INSERT INTO t1 VALUES (NULL, NULL);
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t1 VALUES (NULL, 'a');
+INSERT INTO t1 VALUES (2, 'b');
+INSERT INTO t1 VALUES (-1, '');
+ANALYZE TABLE t1;
+
+--echo  "The following statements all cause the MariaDB server to crash"
+--echo  MySQL doesn't crash
+
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER ();
+
+EXPLAIN FORMAT=JSON SELECT *, ABS(ROW_NUMBER() OVER (ORDER BY s1,s2))
+ - ROW_NUMBER() OVER (ORDER BY s1,s2) AS X FROM t1;
+EXPLAIN FORMAT=JSON SELECT RANK() OVER (ORDER BY AVG(s1)) FROM t1;
+
+--echo  "The following statements all give the wrong answers with MariaDB"
+--echo  Correct with MySQL.
+
+EXPLAIN FORMAT=JSON SELECT COUNT(*) OVER (ORDER BY s2) FROM t1 WHERE s2 IS NULL;
+
+EXPLAIN FORMAT=JSON SELECT * FROM (
+  SELECT *,DENSE_RANK() OVER (ORDER BY s2 DESC),
+           DENSE_RANK() OVER (ORDER BY s2) FROM t1
+           ) alias ORDER BY s1,s2;
+
+EXPLAIN FORMAT=JSON SELECT * FROM (
+  SELECT *, SUM(s1) OVER (ORDER BY s1) FROM t1 ORDER BY s1
+         ) alias ORDER BY s1,s2;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+EXPLAIN FORMAT=JSON SELECT AVG(s1), RANK() OVER (ORDER BY s1) FROM t1;
+
+--echo  "The following statement causes the client to hang (it loops in
+--echo  mysql_store_result, I think this is the first time I've seen this type of
+--echo  error)"
+--echo  No issue with MySQL
+
+EXPLAIN FORMAT=JSON SELECT *, AVG(s1) OVER () FROM t1;
+EXPLAIN FORMAT=JSON SELECT *, AVG(s1) OVER (ROWS UNBOUNDED PRECEDING) FROM t1;
+
+DROP TABLE t1;
+
+--echo Some negative tests (from Srikanth)
+CREATE TABLE t (a INT, b INT, c INT);
+INSERT INTO t VALUES (1,1,1), (1,1,2), (1,1,3),
+                     (1,2,1), (1,2,2), (1,2,3),
+                     (1,3,1), (1,3,2), (1,3,3),
+                     (2,1,1), (2,1,2), (2,1,3),
+                     (2,2,1), (2,2,2), (2,2,3),
+                     (2,3,1), (2,3,2), (2,3,3);
+
+ANALYZE TABLE t;
+
+--echo Wfs OK in ORDER BY, but not in WHERE or HAVING clauses
+EXPLAIN FORMAT=JSON SELECT * FROM t ORDER BY RANK() OVER (ORDER BY a DESC,b,c);
+EXPLAIN FORMAT=JSON SELECT *, RANK() OVER (ORDER BY a DESC,b,c) AS `rank` FROM t ORDER BY `rank`;
+
+
+--echo Windows should only be allowed in order by of a simple table query
+--echo This is legal, though:
+(select a from t) union (select a from t order by (row_number() over ()));
+
+--echo Non constants as frame bounds
+
+--echo Non-unique window name
+
+--echo Illegal legacy position indication in window's ORDER BY clause
+
+EXPLAIN FORMAT=JSON SELECT * FROM (
+  SELECT a,b,c, RANK() OVER (ORDER BY 1*1) FROM t
+  ) alias ORDER BY a,b,c;
+
+--echo Crashed: more than one window in subquery
+EXPLAIN FORMAT=JSON SELECT * FROM (SELECT count(*) OVER (), sum(c) OVER () AS sum1, a from t) as alias;
+
+--echo Crashed: expression containing window function(s) in subquery
+EXPLAIN FORMAT=JSON SELECT * FROM (SELECT count(*) OVER () + sum(c) OVER () AS sum1, a from t) as alias;
+
+--echo Wrong result if subquery window function referenced another column in the select list
+--echo This was OK, but:
+EXPLAIN FORMAT=JSON SELECT * FROM (SELECT SUM(b) OVER (), a FROM t) AS alias;
+--echo this one failed with NULL as sum
+EXPLAIN FORMAT=JSON SELECT * FROM (SELECT SUM(b) OVER (), b FROM t) AS alias;
+
+--echo Window function having subquery in argument:
+CREATE TABLE u(d INT);
+let $query=
+SELECT AVG(a * (SELECT a*d FROM u)) OVER
+ (PARTITION BY (SELECT a+d FROM u) ORDER BY (SELECT d FROM u)) FROM t;
+eval $query;
+eval EXPLAIN FORMAT=JSON $query;
+DROP TABLE u;
+
+--echo Crash due to unguarded access for window name string for an unnamed
+--echo window while producing the error message
+
+--echo Check that DISTINCT is not allowed in wfs
+
+--echo Check that GROUPS bounds unit is not supported yet
+
+
+--echo Check that EXCLUDE in frames is not supported yet
+
+--echo Check Nested wfs
+
+DROP TABLE t;
+
+--echo Crash report (Srikanth)
+CREATE TABLE t(a int, b int);
+INSERT INTO t VALUES (1,1),(2,1),(3,2),(4,2),(5,3),(6,3);
+ANALYZE TABLE t;
+EXPLAIN FORMAT=JSON SELECT SUM(a) OVER (ORDER BY b) FROM t;
+EXPLAIN FORMAT=JSON SELECT COUNT(*) OVER (ORDER BY b) FROM t;
+EXPLAIN FORMAT=JSON SELECT AVG(b) OVER (ORDER BY b) FROM t;
+EXPLAIN FORMAT=JSON SELECT a,b,LAST_VALUE(a) OVER (ORDER BY b,a) FROM t;
+EXPLAIN FORMAT=JSON SELECT NTILE(2) OVER (ORDER BY b) FROM t;
+DROP TABLE t;
+
+--echo Wrong result (Srikanth)
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1,2),
+                      (1,3);
+ANALYZE TABLE t1;
+
+EXPLAIN FORMAT=JSON SELECT a, b, COUNT(a) OVER w count,
+             SUM(a) OVER w sum,
+             AVG(a) over w average,
+             LAST_VALUE(a) OVER w lastval FROM t1
+   WINDOW w as (PARTITION BY a ORDER BY b ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+
+INSERT INTO t1 VALUES (1,3);
+ANALYZE TABLE t1;
+
+EXPLAIN FORMAT=JSON SELECT a, b, COUNT(a) OVER w count,
+             SUM(a) OVER w sum,
+             AVG(a) OVER w average,
+             LAST_VALUE(a) OVER w lastval FROM t1
+   WINDOW w as (PARTITION BY a ORDER BY b ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+
+EXPLAIN FORMAT=JSON SELECT a, b, COUNT(a) OVER w count,
+             SUM(a) OVER w sum,
+             AVG(a) OVER w average,
+             LAST_VALUE(a) OVER w lastval FROM t1
+   WINDOW w as (PARTITION BY a ORDER BY b ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING);
+
+DROP TABLE t1;
+
+--echo frame buffer navigation assert
+CREATE TABLE ta (a INT(11) DEFAULT NULL, b INT(11) DEFAULT NULL);
+INSERT INTO  ta VALUES (1,1), (1,2), (1,3), (2,1), (2,2), (2,3);
+ANALYZE TABLE ta;
+EXPLAIN FORMAT=JSON SELECT last_value(b) OVER (ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) FROM ta;
+DROP TABLE ta;
+
+--echo Nullability fix bug for COUNT OVER in non optimized eval strategy
+CREATE TABLE t(d DOUBLE); # use a DOUBLE to force un-optimizaed evaluation
+INSERT INTO t VALUES (1.0), (2.0), (3.0);
+ANALYZE TABLE t;
+EXPLAIN FORMAT=JSON SELECT SUM(d) OVER w, COUNT(*) OVER w FROM t WINDOW W AS (ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+DROP TABLE t;
+
+--echo Bug in inverse logic with initial NULL and RANGE BETWEEN N FOLLOWING AND M FOLLOWING
+CREATE TABLE t1 (d DOUBLE, id INT, sex CHAR(1), n INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(n));
+INSERT INTO t1(d, id, sex) VALUES (1.0, 1, 'M'),
+                                  (2.0, 2, 'F'),
+                                  (3.0, 3, 'F'),
+                                  (4.0, 4, 'F'),
+                                  (5.0, 5, 'M'),
+                                  (NULL, NULL, 'M'),
+                                  (10.0, 10, NULL),
+                                  (10.0, 10, NULL),
+                                  (11.0, 11, NULL);
+ANALYZE TABLE t1;
+
+EXPLAIN FORMAT=JSON SELECT id, AVG(id) over w `avg`, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt FROM t1 WINDOW w as (ORDER BY id RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+SET windowing_use_high_precision= OFF;
+EXPLAIN FORMAT=JSON SELECT d, AVG(d) over w `avg`, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt FROM t1 WINDOW w as (ORDER BY d RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+SET windowing_use_high_precision= ON;
+DROP TABLE t1;
+
+--echo Bug in inverse logic with e.g. ROWS BETWEEN UNBOUNDED PRECEDING AND 1
+--echo FOLLOWING: at end of partition, when no rows are removed or added we
+--echo lacked initialization of aggregates in optimized mode.
+CREATE TABLE t (i char(10), j int);
+INSERT INTO t VALUES('A', 1);
+INSERT INTO t VALUES('A', 3);
+INSERT INTO t VALUES('A', 5);
+INSERT INTO t VALUES('B', 1);
+INSERT INTO t VALUES('B', 7);
+ANALYZE TABLE t;
+EXPLAIN FORMAT=JSON SELECT i, j, SUM(j) OVER w FROM t
+       WINDOW w AS (PARTITION BY i ORDER BY j
+                    ROWS BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING);
+
+--echo Test definition_position: references don't count, only definitions,
+--echo thus we have an unnamed, then another unnamed (based on w but not
+--echo exactly w) then w then two unnamed.
+EXPLAIN FORMAT=JSON SELECT SUM(j) OVER w, COUNT(j) OVER (),
+AVG(j) OVER (w ORDER BY j), FIRST_VALUE(j) OVER w
+FROM t WINDOW w AS (PARTITION BY i)
+ORDER BY LAST_VALUE(j) OVER w, NTH_VALUE(j,1) OVER (),
+ROW_NUMBER() OVER (PARTITION BY j);
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#26114396 WL#9603: SIG11 AT OPT_EXPLAIN_JSON_NAMESPACE::WINDOW_CTX::FORMAT_BODY
+--echo #
+
+CREATE TABLE t1(a int,b int);
+CREATE TABLE t2(a int,b int);
+INSERT INTO t1 VALUES (0,1);
+ANALYZE TABLE t1;
+INSERT INTO t2 VALUES
+(2,8),(81,0),(6,7),(8,1),(4,0),(0,2),(6,5),(5,4),(0,6),(9,3),
+(5,0),(6,254),(6,0),(2,7),(8,73),(9,7),(3,5),(0,5),(7,75),(2,1);
+ANALYZE TABLE t2;
+# Because grouping is on a value which is always 3, MySQL eliminates it,
+# realizes the result is single-row, so window doesn't use any tmp table.
+EXPLAIN FORMAT=JSON
+   SELECT ROW_NUMBER() OVER () AS rn
+   FROM ( t1 LEFT JOIN t2 ON (t2.a <= t1 . a ) )
+   WHERE t1.a = 3
+   GROUP BY t1.a;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Printing the true number of "using temporary table"
+--echo #
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES(1, 1);
+# This query has a two-table join then windowing then ordering;
+# the two-table join is put into a tmp table (which EXPLAIN used to miss),
+# then windowing has two tmp tables (output and frame buffer).
+let $query=
+SELECT t1.a, SUM(t2.b) OVER(ORDER BY t1.a) FROM t1, t1 AS t2 ORDER BY t2.a;
+FLUSH STATUS;
+eval $query;
+SHOW STATUS LIKE 'Created_tmp_tables';
+eval EXPLAIN FORMAT=JSON $query;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26612356 WINDOW FUNCTIONS: FIX COST ESTIMATES
+--echo #
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES
+  (2), (3), (1), (5), (8), (4), (6), (2), (10), (16), (4), (6), (2),
+  (10), (16), (8), (12), (4), (20), (32), (19), (29), (9), (49), (79),
+  (39), (59), (19), (99), (159), (39), (59), (19), (99), (159), (79),
+  (119), (39), (199), (319);
+
+ANALYZE TABLE t;
+
+EXPLAIN FORMAT=JSON SELECT * FROM t;
+EXPLAIN FORMAT=JSON SELECT * FROM t ORDER BY i;
+EXPLAIN FORMAT=JSON SELECT * FROM t GROUP BY i;
+EXPLAIN FORMAT=JSON SELECT * FROM t GROUP BY i ASC;
+EXPLAIN FORMAT=JSON SELECT * FROM t GROUP BY i ASC ORDER BY i DESC;
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER () FROM t;
+EXPLAIN FORMAT=JSON SELECT DISTINCT i FROM t;
+EXPLAIN FORMAT=JSON SELECT DISTINCT ROW_NUMBER() OVER () FROM t;
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER () FROM t ORDER BY i;
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER () FROM t GROUP BY i;
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i) FROM t;
+EXPLAIN FORMAT=JSON SELECT DISTINCT ROW_NUMBER() OVER (PARTITION BY i) FROM t;
+--echo Final ORDER BY i could be eliminated
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i) FROM t ORDER BY i;
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i) FROM t ORDER BY i DESC;
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER () FROM t;
+--echo Sorting for 2nd window redundant and skipped
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i) FROM t;
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t;
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i;
+--error ER_WINDOW_NO_GROUP_ORDER
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i ASC;
+--echo Could be optimized further to drop final ordering
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i ORDER BY i DESC;
+--echo Reordering of windows could have made it possible to eliminate final ORDER BY
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i ORDER BY i;
+--echo Implicit grouping should eliminate windowing ordering costs: only one row
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (ORDER BY AVG(i)) AS rn FROM t;
+
+--echo Used to miss printing the sorting key
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i) FROM t;
+
+--echo Test optimizer trace with window costs
+SET optimizer_trace="enabled=on";
+SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i ORDER BY i;
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET optimizer_trace="enabled=off";
+
+DROP TABLE t;
+
+# Local Variables:
+# mode: sql
+# sql-product: mysql
+# comment-column: 48
+# comment-start: "# "
+# fill-column: 80
+# End:

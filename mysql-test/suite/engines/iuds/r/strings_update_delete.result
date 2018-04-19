@@ -1,7 +1,5 @@
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 CHAR(255), c2 TEXT);
 INSERT INTO t1 VALUES(REPEAT('abcdef',40), REPEAT('1',65535));
 INSERT INTO t1 VALUES(REPEAT('abc',80), REPEAT('2',65533));
@@ -70467,7 +70465,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t18	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t18`.`c1` AS `c1`,`test`.`t18`.`c2` AS `c2` from `test`.`t18` where (`test`.`t18`.`c2` = 0)
-SET sql_mode= 'STRICT_ALL_TABLES';
+SET sql_mode= default;
 INSERT INTO t18 VALUES('SIZE','SMALL2');
 ERROR 01000: Data truncated for column 'c2' at row 1
 SELECT * FROM t18 WHERE c2=0;
@@ -70490,4 +70488,3 @@ Note	1051	Unknown table 'test.t14'
 Note	1051	Unknown table 'test.t15'
 Note	1051	Unknown table 'test.t17'
 Note	1051	Unknown table 'test.t18'
-SET sql_mode=default;

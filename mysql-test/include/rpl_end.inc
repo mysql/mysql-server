@@ -18,6 +18,7 @@
 # [--let $rpl_debug= 1]
 # [--let $rpl_group_replication= 1]
 # [--let $rpl_gtid_utils= 1]
+# [--let $rpl_assert_transaction_length= 1]
 # --source include/rpl_end.inc
 #
 # Parameters:
@@ -48,6 +49,9 @@
 #
 #   $rpl_gtid_utils
 #     Source include/gtid_utils_end.inc on every server.
+#
+#   $rpl_assert_transaction_length
+#     Source include/assert_transaction_length_all_logs.inc on every server.
 #
 # Note:
 #   This script will fail if Last_SQL_Error or Last_IO_Error is
@@ -106,6 +110,19 @@ while ($_rpl_server)
 if (!$rpl_skip_sync)
 {
   --source include/rpl_sync.inc
+}
+
+if ($rpl_assert_transaction_length)
+{
+  --let $skip_output= 1
+  --let $_rpl_server= $rpl_server_count
+  while ($_rpl_server)
+  {
+    --let $rpl_connection_name= server_$_rpl_server
+    --source include/rpl_connection.inc
+    --source include/assert_transaction_length_all_logs.inc
+    --dec $_rpl_server
+  }
 }
 
 if ($rpl_group_replication)
@@ -174,6 +191,9 @@ while ($_rpl_server)
   --disconnect server_$_rpl_server$_rpl_one
   --dec $_rpl_server
 }
+
+# reset as next test can be any of rpl or group_replication
+--let $using_rpl_group_replication_default_connections= 0
 
 --let $rpl_inited= 0
 --let $_rpl_server_count=

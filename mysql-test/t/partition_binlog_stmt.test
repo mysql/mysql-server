@@ -1,6 +1,3 @@
-# The test needs MyISAM as it has a MyISAM specific sub test for Bug#51851
---source include/have_myisam.inc
---source include/have_partition.inc
 --source include/force_binlog_format_statement.inc
 
 --disable_warnings
@@ -10,6 +7,8 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --echo #
 --echo # Bug#51851: Server with SBR locks mutex twice on LOAD DATA into
 --echo #            partitioned MyISAM table
+--echo # The test was rewritten to use InnoDB after WL#8971.
+
 --write_file $MYSQLTEST_VARDIR/tmp/init_file.txt
 abcd
 EOF
@@ -18,7 +17,7 @@ CREATE TABLE t1
 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
  name TINYBLOB NOT NULL,
  modified TIMESTAMP DEFAULT '0000-00-00 00:00:00',
- INDEX namelocs (name(255))) ENGINE = MyISAM
+ INDEX namelocs (name(255))) ENGINE = InnoDB
 PARTITION BY HASH(id) PARTITIONS 2;
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR

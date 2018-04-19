@@ -1,0 +1,7 @@
+#
+# Bug #51639
+# This test verifies that 'ignore table' filter will follow
+# the setting of lower_case_table_name to be case insensitive
+# but accent sensitive when setting lower_case_table_name>0
+#
+--source extra/rpl_tests/rpl_ignore_table_filter_insensitive.inc

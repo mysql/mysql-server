@@ -1,0 +1,31 @@
+--source include/have_ndb.inc
+
+#
+# Test TRUNCATE TABLE
+# - the table should have no rows after the truncate
+#
+CREATE TABLE t1 (
+  a int PRIMARY KEY,
+  b varchar(255)
+) ENGINE = NDB;
+
+INSERT INTO t1 (a, b) VALUES
+  (1, "Row 1"),
+  (11, "Row 2"),
+  (12, "The third row"),
+  (37, "And of course number 37");
+SELECT COUNT(*) FROM t1;
+
+TRUNCATE TABLE t1;
+
+# Check that truncated table contains no rows
+if (`SELECT count(*) from t1`)
+{
+  die The truncated table contained rows;
+}
+SELECT COUNT(*) FROM t1;
+DROP TABLE t1;
+
+#
+# NOTE! Don't add any more tests here, this is the basic test
+#

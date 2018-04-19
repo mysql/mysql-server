@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_mixed.inc
 
@@ -15,9 +14,9 @@ call mtr.add_suppression(".*Invalid .* username when attempting to connect to th
 --replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= '', MASTER_PASSWORD= '';
 START SLAVE;
---let $slave_io_errno= 1045, 1593
+--let $slave_io_errno= 1045, 13117
 --source include/wait_for_slave_io_error.inc
---source include/stop_slave.inc
+--source include/stop_slave_sql.inc
 
 --replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'root', MASTER_PASSWORD= '';

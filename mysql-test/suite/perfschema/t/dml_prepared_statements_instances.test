@@ -3,9 +3,6 @@
 
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 #--disable_result_log 
 select * from performance_schema.prepared_statements_instances
   where owner_object_name like 'XXYYZZ%' limit 1;

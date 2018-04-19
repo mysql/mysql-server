@@ -1,0 +1,354 @@
+# Verifying the CTE-specific output of EXPLAIN
+create table t1(a int);
+insert into t1 values(1),(2);
+# In JSON "materialized_from_subquery" for the 2 last references
+# points to 1st reference: no duplication. In TRADITIONAL,
+# The 2 last references are 1) not expanded (underlying tables
+# are not shown) 2) shown as <derivedN> where N is ID of 1st
+# reference. So users understand we have single materialization.
+explain format=json with qn(a) as (select 1 from t1 limit 2)
+select * from qn where qn.a=(select * from qn qn1 limit 1) ;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.35"
+    },
+    "table": {
+      "table_name": "qn",
+      "access_type": "ref",
+      "possible_keys": [
+        "<auto_key0>"
+      ],
+      "key": "<auto_key0>",
+      "used_key_parts": [
+        "a"
+      ],
+      "key_length": "4",
+      "ref": [
+        "const"
+      ],
+      "rows_examined_per_scan": 1,
+      "rows_produced_per_join": 1,
+      "filtered": "100.00",
+      "using_index": true,
+      "cost_info": {
+        "read_cost": "0.25",
+        "eval_cost": "0.10",
+        "prefix_cost": "0.35",
+        "data_read_per_join": "16"
+      },
+      "used_columns": [
+        "a"
+      ],
+      "attached_condition": "(`qn`.`a` = (/* select#3 */ select `qn1`.`a` from `qn` `qn1` limit 1))",
+      "attached_subqueries": [
+        {
+          "dependent": false,
+          "cacheable": true,
+          "query_block": {
+            "select_id": 3,
+            "cost_info": {
+              "query_cost": "2.72"
+            },
+            "table": {
+              "table_name": "qn1",
+              "access_type": "ALL",
+              "rows_examined_per_scan": 2,
+              "rows_produced_per_join": 2,
+              "filtered": "100.00",
+              "cost_info": {
+                "read_cost": "2.52",
+                "eval_cost": "0.20",
+                "prefix_cost": "2.73",
+                "data_read_per_join": "32"
+              },
+              "used_columns": [
+                "a"
+              ],
+              "materialized_from_subquery": {
+                "sharing_temporary_table_with": {
+                  "select_id": 2
+                }
+              }
+            }
+          }
+        }
+      ],
+      "materialized_from_subquery": {
+        "using_temporary_table": true,
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 2,
+          "cost_info": {
+            "query_cost": "0.45"
+          },
+          "table": {
+            "table_name": "t1",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 2,
+            "rows_produced_per_join": 2,
+            "filtered": "100.00",
+            "cost_info": {
+              "read_cost": "0.25",
+              "eval_cost": "0.20",
+              "prefix_cost": "0.45",
+              "data_read_per_join": "16"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	with `qn` (`a`) as (/* select#2 */ select 1 AS `1` from `test`.`t1` limit 2) /* select#1 */ select `qn`.`a` AS `a` from `qn` where (`qn`.`a` = (/* select#3 */ select `qn1`.`a` from `qn` `qn1` limit 1))
+explain format=traditional with qn(a) as (select 1 from t1 limit 2)
+select * from qn where qn.a=(select * from qn qn1 limit 1) ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	const	1	100.00	Using where; Using index
+3	SUBQUERY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `qn` (`a`) as (/* select#2 */ select 1 AS `1` from `test`.`t1` limit 2) /* select#1 */ select `qn`.`a` AS `a` from `qn` where (`qn`.`a` = (/* select#3 */ select `qn1`.`a` from `qn` `qn1` limit 1))
+explain format=json with qn as (select cast("x" as char(100)) as a from t1 limit 2)
+select (select * from qn) from qn, qn qn1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "5.66"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "qn",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "2.52",
+            "eval_cost": "0.20",
+            "prefix_cost": "2.73",
+            "data_read_per_join": "816"
+          },
+          "used_columns": [
+            "a"
+          ],
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "dependent": false,
+            "cacheable": true,
+            "query_block": {
+              "select_id": 4,
+              "cost_info": {
+                "query_cost": "0.45"
+              },
+              "table": {
+                "table_name": "t1",
+                "access_type": "ALL",
+                "rows_examined_per_scan": 2,
+                "rows_produced_per_join": 2,
+                "filtered": "100.00",
+                "cost_info": {
+                  "read_cost": "0.25",
+                  "eval_cost": "0.20",
+                  "prefix_cost": "0.45",
+                  "data_read_per_join": "16"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "table": {
+          "table_name": "qn1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 4,
+          "filtered": "100.00",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.53",
+            "eval_cost": "0.40",
+            "prefix_cost": "5.66",
+            "data_read_per_join": "1K"
+          },
+          "used_columns": [
+            "a"
+          ],
+          "materialized_from_subquery": {
+            "sharing_temporary_table_with": {
+              "select_id": 4
+            }
+          }
+        }
+      }
+    ],
+    "select_list_subqueries": [
+      {
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 2,
+          "cost_info": {
+            "query_cost": "2.72"
+          },
+          "table": {
+            "table_name": "qn",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 2,
+            "rows_produced_per_join": 2,
+            "filtered": "100.00",
+            "cost_info": {
+              "read_cost": "2.52",
+              "eval_cost": "0.20",
+              "prefix_cost": "2.73",
+              "data_read_per_join": "816"
+            },
+            "used_columns": [
+              "a"
+            ],
+            "materialized_from_subquery": {
+              "sharing_temporary_table_with": {
+                "select_id": 4
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Note	1003	with `qn` as (/* select#4 */ select cast('x' as char(100) charset utf8mb4) AS `a` from `test`.`t1` limit 2) /* select#1 */ select (/* select#2 */ select `qn`.`a` from `qn`) AS `(select * from qn)` from `qn` join `qn` `qn1`
+explain format=traditional with qn as (select cast("x" as char(100)) as a from t1 limit 2)
+select (select * from qn) from qn, qn qn1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+4	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	SUBQUERY	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `qn` as (/* select#4 */ select cast('x' as char(100) charset utf8mb4) AS `a` from `test`.`t1` limit 2) /* select#1 */ select (/* select#2 */ select `qn`.`a` from `qn`) AS `(select * from qn)` from `qn` join `qn` `qn1`
+# Recursive query block has a mark:
+# "recursive":true in JSON, "Recursive" on its first table in
+# TRADITIONAL.
+explain format=json with recursive qn as (select cast("x" as char(100)) as a from dual
+union all
+select concat("x",qn.a) from qn,t1 where
+length(qn.a)<10)
+select * from qn;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "3.06"
+    },
+    "table": {
+      "table_name": "qn",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 5,
+      "rows_produced_per_join": 5,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "2.56",
+        "eval_cost": "0.50",
+        "prefix_cost": "3.06",
+        "data_read_per_join": "1K"
+      },
+      "used_columns": [
+        "a"
+      ],
+      "materialized_from_subquery": {
+        "using_temporary_table": true,
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "union_result": {
+            "using_temporary_table": false,
+            "query_specifications": [
+              {
+                "dependent": false,
+                "cacheable": true,
+                "query_block": {
+                  "select_id": 2,
+                  "message": "No tables used"
+                }
+              },
+              {
+                "dependent": false,
+                "cacheable": true,
+                "query_block": {
+                  "select_id": 3,
+                  "recursive": true,
+                  "cost_info": {
+                    "query_cost": "3.37"
+                  },
+                  "nested_loop": [
+                    {
+                      "table": {
+                        "table_name": "qn",
+                        "access_type": "ALL",
+                        "rows_examined_per_scan": 2,
+                        "rows_produced_per_join": 2,
+                        "filtered": "100.00",
+                        "cost_info": {
+                          "read_cost": "2.52",
+                          "eval_cost": "0.20",
+                          "prefix_cost": "2.73",
+                          "data_read_per_join": "816"
+                        },
+                        "used_columns": [
+                          "a"
+                        ],
+                        "attached_condition": "(length(`qn`.`a`) < 10)"
+                      }
+                    },
+                    {
+                      "table": {
+                        "table_name": "t1",
+                        "access_type": "ALL",
+                        "rows_examined_per_scan": 2,
+                        "rows_produced_per_join": 4,
+                        "filtered": "100.00",
+                        "using_join_buffer": "Block Nested Loop",
+                        "cost_info": {
+                          "read_cost": "0.25",
+                          "eval_cost": "0.40",
+                          "prefix_cost": "3.38",
+                          "data_read_per_join": "32"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	with recursive `qn` as (/* select#2 */ select cast('x' as char(100) charset utf8mb4) AS `a` union all /* select#3 */ select concat('x',`qn`.`a`) AS `concat("x",qn.a)` from `qn` join `test`.`t1` where (length(`qn`.`a`) < 10)) /* select#1 */ select `qn`.`a` AS `a` from `qn`
+explain format=traditional with recursive qn as (select cast("x" as char(100)) as a from dual
+union all
+select concat("x",qn.a) from qn,t1 where
+length(qn.a)<10)
+select * from qn;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	UNION	qn	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Recursive; Using where
+3	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	with recursive `qn` as (/* select#2 */ select cast('x' as char(100) charset utf8mb4) AS `a` union all /* select#3 */ select concat('x',`qn`.`a`) AS `concat("x",qn.a)` from `qn` join `test`.`t1` where (length(`qn`.`a`) < 10)) /* select#1 */ select `qn`.`a` AS `a` from `qn`
+drop table t1;

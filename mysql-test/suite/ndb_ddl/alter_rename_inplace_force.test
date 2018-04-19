@@ -1,0 +1,21 @@
+--source setup.inc
+
+# Test ALTER TABLE with force of inplace rename
+# - will try to perform the rename using inplace API
+# - NOTE! caveat is that inplace API will only be used if there are
+#   other changes to the table - else "simple rename" will be used
+#   thus the test will add a column and rename table at same time
+#
+# Query will fail since ndbcluster returns HA_ALTER_INPLACE_NOT_SUPPORTED
+# when mysqld asks if it supports inplace ALTER RENAME. Since user requested
+# inplace, the query will be rejected by mysqld.
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1
+  algorithm=inplace,
+  ADD COLUMN c INT,
+  RENAME TO t1_renamed;
+
+--source verify_mysql_dd.inc
+
+--source cleanup.inc

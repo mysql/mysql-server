@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ################################################################################
 #
 # NOTICE:
@@ -14,9 +9,14 @@
 #
 ################################################################################
 
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
 
-# Uses GRANT commands that usually disabled in embedded server
--- source include/not_embedded.inc
+# Test need MyISAM to execute repair
+--source include/have_myisam.inc
 
 #
 # Test of some show commands
@@ -32,6 +32,7 @@ delete from mysql.user where user='mysqltest_1' || user='mysqltest_2' || user='m
 delete from mysql.db where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
 flush privileges;
 --enable_warnings
+--character_set latin1
 
 create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
 insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
@@ -48,6 +49,8 @@ insert into t1 values (5,5,5);
 check table t1 changed;
 check table t1 medium;
 check table t1 extended;
+analyze table t1;
+--replace_result 4225 # 4097 #
 show index from t1;
 --disable_metadata
 --error ER_DUP_ENTRY
@@ -73,15 +76,18 @@ drop table t1;
 show variables like "wait_timeout%";
 show variables like "WAIT_timeout%";
 show variables like "this_doesn't_exists%";
+--replace_result 4225 # 4097 #
 show table status from test like "this_doesn't_exists%";
+--replace_result 4225 # 4097 #
 show databases;
+--replace_result 4225 # 4097 #
 show databases like "test%";
 --disable_metadata
 
 #
 # Check of show index
-#
-create table t1 (f1 int not null, f2 int not null, f3 int not null, f4 int not null, primary key(f1,f2,f3,f4));
+# Added engine=myisam for table t1, as repair is supported by MyISAM only
+create table t1 (f1 int not null, f2 int not null, f3 int not null, f4 int not null, primary key(f1,f2,f3,f4)) engine=myisam;
 insert into t1 values (1,1,1,0),(1,1,2,0),(1,1,3,0),(1,2,1,0),(1,2,2,0),(1,2,3,0),(1,3,1,0),(1,3,2,0),(1,3,3,0),(1,1,1,1),(1,1,2,1),(1,1,3,1),(1,2,1,1),(1,2,2,1),(1,2,3,1),(1,3,1,1),(1,3,2,1),(1,3,3,1);
 
 --echo -- Here we enable metadata just to check that the collation of the
@@ -136,9 +142,16 @@ show create table t1;
 drop table t1;
 
 flush tables;
+#
+# We will see some of new DD tables being opened
+# after flush tables. These tables were open when we write to
+# mysql.general_log.
+#
+--sorted_result
 show open tables;
 create table t1(n int);
 insert into t1 values (1);
+--sorted_result
 show open tables;
 drop table t1;
 
@@ -280,36 +293,43 @@ CREATE TABLE t3 (
 insert into t1 values (1),(2);
 insert into t2 values (1),(2);
 insert into t3 values (1,1),(2,2);
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 insert into t1 values (3),(4);
 insert into t2 values (3),(4);
 insert into t3 values (3,3),(4,4);
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 delete from t1 where a=3;
 delete from t2 where b=3;
 delete from t3 where a=3;
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 10 # 12 #
 show table status;
 truncate table t1;
 truncate table t2;
 truncate table t3;
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 show table status;
 delete from t1 where a=5;
 delete from t2 where b=5;
 delete from t3 where a=5;
+analyze table t1, t2, t3;
 --replace_column 6 # 7 # 8 # 9 # 10 # 12 #
 show table status;
 
@@ -323,12 +343,10 @@ create database mysqltest;
 show create database mysqltest;
 create table mysqltest.t1(a int);
 insert into mysqltest.t1 values(1);
-set @orig_sql_mode = @@sql_mode;
-set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user mysqltest_1@localhost, mysqltest_2@localhost, mysqltest_3@localhost;
 grant select on `mysqltest`.* to mysqltest_1@localhost;
 grant usage  on `mysqltest`.* to mysqltest_2@localhost;
 grant drop   on `mysqltest`.* to mysqltest_3@localhost;
-set sql_mode= @orig_sql_mode;
 
 connect (con1,localhost,mysqltest_1,,mysqltest);
 connection con1;
@@ -407,9 +425,10 @@ DROP TABLE t1;
 # Test for Bug#9439 Reporting wrong datatype for sub_part on show index
 CREATE TABLE t1(
   field1 text NOT NULL,
-  PRIMARY KEY(field1(1000))
+  PRIMARY KEY(field1(750))
 );
 --enable_metadata
+--replace_result 4225 # 4097 #
 show index from t1;
 --disable_metadata
 drop table t1;
@@ -423,21 +442,6 @@ create table t1 (
 );
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
-
-# Test for Bug#93 4.1 protocl crash on corupted frm and SHOW TABLE STATUS
-
-flush tables;
-
-# Create a junk frm file on disk
-let $MYSQLD_DATADIR= `select @@datadir`;
-exec echo "this is a junk file for test" >> $MYSQLD_DATADIR/test/t1.frm ;
---replace_column 6 # 7 # 8 # 9 # 12 #
-SHOW TABLE STATUS like 't1';
---error ER_NOT_FORM_FILE
-show create table t1;
-drop table if exists t1;
---error 1,0
---remove_file $MYSQLD_DATADIR/test/t1.frm
 
 #
 # Bug#12183 SHOW OPEN TABLES behavior doesn't match grammar
@@ -477,6 +481,7 @@ SELECT 1 FROM t2;
 
 --echo
 
+--sorted_result
 SHOW OPEN TABLES FROM mysqltest1;
 
 --echo
@@ -512,72 +517,6 @@ SHOW TABLES FROM non_existing_database;
 --echo End of 4.1 tests
 
 #
-# Bug#17203 "sql_no_cache sql_cache" in views created from prepared
-# statement
-#
-# The problem was that initial user setting was forgotten, and current
-# runtime-determined values of the flags were shown instead.
-#
---disable_warnings
-DROP VIEW IF EXISTS v1;
-DROP PROCEDURE IF EXISTS p1;
---enable_warnings
-
-# Check that SHOW CREATE VIEW shows SQL_CACHE flag exaclty as
-# specified by the user.
-CREATE VIEW v1 AS SELECT 1;
-SHOW CREATE VIEW v1;
-DROP VIEW v1;
-
-CREATE VIEW v1 AS SELECT SQL_CACHE 1;
-SHOW CREATE VIEW v1;
-DROP VIEW v1;
-
-CREATE VIEW v1 AS SELECT SQL_NO_CACHE 1;
-SHOW CREATE VIEW v1;
-DROP VIEW v1;
-
-# Usage of NOW() disables caching, but we still have show what the
-# user have specified.
-CREATE VIEW v1 AS SELECT NOW();
-SHOW CREATE VIEW v1;
-DROP VIEW v1;
-
-CREATE VIEW v1 AS SELECT SQL_CACHE NOW();
-SHOW CREATE VIEW v1;
-DROP VIEW v1;
-
-CREATE VIEW v1 AS SELECT SQL_NO_CACHE NOW();
-SHOW CREATE VIEW v1;
-DROP VIEW v1;
-
---error ER_WRONG_USAGE
-CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE NOW();
-
---error ER_WRONG_USAGE
-CREATE VIEW v1 AS SELECT SQL_NO_CACHE SQL_CACHE NOW();
-
---error ER_WRONG_USAGE
-CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE SQL_CACHE NOW();
-
-# Check CREATE VIEW in a prepared statement in a procedure.
-delimiter |;
-CREATE PROCEDURE p1()
-BEGIN
-  SET @s= 'CREATE VIEW v1 AS SELECT SQL_CACHE 1';
-  PREPARE stmt FROM @s;
-  EXECUTE stmt;
-  DROP PREPARE stmt;
-END |
-delimiter ;|
-CALL p1();
-SHOW CREATE VIEW v1;
-
-DROP PROCEDURE p1;
-DROP VIEW v1;
-
-
-#
 # Check that SHOW TABLES and SHOW COLUMNS give a error if there is no
 # referenced database and table respectively.
 #
@@ -590,14 +529,19 @@ SHOW COLUMNS FROM no_such_table;
 #
 # Bug#19764 SHOW commands end up in the slow log as table scans
 #
+SET GLOBAL EVENT_SCHEDULER = OFF;
+--source include/no_running_event_scheduler.inc
+CREATE TABLE t1 (f1 INT, f2 INT);
+INSERT INTO t1 VALUES(10, 20);
 flush status;
 show status like 'slow_queries';
 show tables;
 show status like 'slow_queries';
 # Table scan query, to ensure that slow_queries does still get incremented
 # (mysqld is started with --log-queries-not-using-indexes)
-select 1 from information_schema.tables limit 1;
+select 1 from t1 limit 1;
 show status like 'slow_queries';
+DROP TABLE t1;
 
 create table t1 (a int);
 create trigger tr1 before insert on t1 for each row
@@ -621,6 +565,7 @@ show databases;
 show tables;
 show events;
 show table status;
+--sorted_result
 show open tables;
 show plugins;
 show columns in t1;
@@ -656,6 +601,8 @@ drop table t1;
 drop procedure p1;
 drop function f1;
 drop event e1;
+SET GLOBAL EVENT_SCHEDULER = ON;
+--source include/running_event_scheduler.inc
 
 #
 # Bug#10491 Server returns data as charset binary SHOW CREATE TABLE or SELECT
@@ -715,6 +662,7 @@ SHOW CREATE DATABASE mysqltest1;
 
 --echo ----------------------------------------------------------------
 
+--replace_result 4225 # 4097 #
 SHOW DATABASES LIKE 'mysqltest1';
 
 --echo ----------------------------------------------------------------
@@ -723,10 +671,12 @@ SHOW CREATE TABLE t1;
 
 --echo ----------------------------------------------------------------
 
+--replace_result 4225 # 4097 #
 SHOW INDEX FROM t1;
 
 --echo ----------------------------------------------------------------
 
+--replace_result 20613 # 20609 # 20485 # 20481 #
 SELECT
   TABLE_CATALOG,
   TABLE_SCHEMA,
@@ -742,6 +692,7 @@ WHERE table_name = 't1';
 
 --echo ----------------------------------------------------------------
 
+--replace_result 20613 # 20609 # 20485 # 20481 #
 SELECT
   TABLE_CATALOG,
   TABLE_SCHEMA,
@@ -762,6 +713,7 @@ WHERE table_name = 't1';
 
 --echo ----------------------------------------------------------------
 
+--replace_result 4225 # 4097 #
 SHOW TABLES LIKE 't1';
 
 --echo ----------------------------------------------------------------
@@ -802,6 +754,7 @@ SHOW CREATE VIEW v1;
 
 --echo ----------------------------------------------------------------
 
+--replace_result 20613 # 20485 # 20609 # 20481 #
 SELECT *
 FROM INFORMATION_SCHEMA.VIEWS
 WHERE table_name = 'v1';
@@ -940,16 +893,29 @@ use test;
 #
 flush status;
 show variables like "log_queries_not_using_indexes";
-select 1 from information_schema.tables limit 1;
+
+CREATE TABLE `tab1` (
+  `c1` int(11) default NULL,
+  `c2` char(20) default NULL,
+  `c3` char(20) default NULL,
+  KEY `k1` (`c2`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO tab1 values(1, "hello", "world");
+INSERT INTO tab1 values(2, "hello2", "world2");
+INSERT INTO tab1 values(3, "hello3", "world3");
+
+select SQL_NO_CACHE * from tab1;
 show status like 'slow_queries';
 set global log_queries_not_using_indexes=OFF;
 show variables like "log_queries_not_using_indexes";
-select 1 from information_schema.tables limit 1;
+select SQL_NO_CACHE * from tab1;
 show status like 'slow_queries';
 set global log_queries_not_using_indexes=ON;
 show variables like "log_queries_not_using_indexes";
-select 1 from information_schema.tables limit 1;
+select SQL_NO_CACHE * from tab1;
 show status like 'slow_queries';
+
+drop table tab1;
 
 #
 # Bug#30088 Can't disable myisam-recover by a value of ""
@@ -987,10 +953,8 @@ create database mysqltest;
 show create database mysqltest;
 create table mysqltest.t1(a int);
 insert into mysqltest.t1 values(1);
-set @orig_sql_mode = @@sql_mode;
-set sql_mode='';
+create user mysqltest_4@localhost;
 grant select on `mysqltest`.`t1` to mysqltest_4@localhost;
-set sql_mode= @orig_sql_mode;
 connect (con4,localhost,mysqltest_4,,mysqltest);
 connection con4;
 show create database mysqltest;
@@ -1060,6 +1024,7 @@ set names latin1;
 SET NAMES latin1;
 CREATE DATABASE `ä`;
 CREATE TABLE `ä`.`ä` (a int) ENGINE=Memory;
+ANALYZE TABLE `ä`.`ä`;
 --replace_column 6 # 7 # 8 # 9 # 12 #
 SHOW TABLE STATUS FROM `ä` LIKE 'ä';
 DROP DATABASE `ä`;
@@ -1444,6 +1409,137 @@ SHOW AUTHORS;
 --error ER_PARSE_ERROR
 SHOW CONTRIBUTORS;
 
+
+--echo #
+--echo # Bug#20709462: GENERATED COLUMNS NOT PRINTED CORRECTLY IN
+--echo #               SHOW CREATE TABLE
+--echo #
+
+CREATE TABLE t1 (i CHAR(3),
+                 n CHAR(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)));
+
+--echo # Use SHOW CREATE TABLE output below unmodified to re-create table
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+CREATE TABLE `t1` (
+  `i` char(3) DEFAULT NULL,
+  `n` char(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#24800048 - SHOW TABLES FROM DATABASE HANGS ON WINDOWS PLATFORM
+--echo #
+
+CREATE DATABASE unknown;
+
+--echo # On case sensitive file system following statement fails as DB name
+--echo # is in different case. Following statement works fine on case insensitive
+--echo # file systems.
+--error 0,ER_BAD_DB_ERROR
+SHOW TABLES FROM UNKNOWN;
+
+--echo # On case sensitive file system following statement fails as DB name
+--echo # is in different case. Following statement works fine on case insensitive
+--echo # file systems.
+--echo # Without fix following SHOW TABLES statements hangs in Windows (with
+--echo # lower_case_table_names=1).
+--error 0,ER_BAD_DB_ERROR
+SHOW TABLES FROM UNKNOWN;
+
+DROP DATABASE unknown;
+
+--echo #
+--echo # WL#9570 -  Extend SHOW statements to list hidden columns and index
+--echo #            information.
+--echo #
+--echo #            Test case to verify hidden columns, index and index elements
+--echo #            display in INFORMATION_SCHEMA queries and SHOW statements.
+--echo #            EXPECTATION: INFORMATION_SCHEMA.COLUMNS/STATISTICS*/KEY_COLUMN_USAGE
+--echo #                         SHOW [FULL] COLUMNS and SHOW INDEX should not display
+--echo #                         hidden columns, indexes and index elements.
+--echo #                         SHOW EXTENED [FULL] COLUMNS and SHOW EXTENDED INDEX
+--echo #                         should display hidden columns, index and index elements
+--echo #                         too.
+--echo #
+--echo #
+CREATE TABLE t1 (c1 int(11) NOT NULL,
+                 c2 int(11) DEFAULT NULL,
+                 c3 text,
+                 PRIMARY KEY (c1));
+CREATE INDEX c2d ON t1(c2); 
+
+--echo # With fix, following statements should not show the hidden columns.
+--replace_column 3 # 4 # 5 # 6 #
+SHOW COLUMNS FROM t1;
+--replace_column 3 # 4 # 5 # 6 # 7 # 8 # 9 #
+SHOW FULL COLUMNS FROM t1;
+SELECT table_name, column_name, column_type FROM
+       INFORMATION_SCHEMA.COLUMNS WHERE table_name='t1';
+--echo # EXTENDED keyword is introduced to list the hidden columns.
+--replace_column 3 # 4 # 5 # 6 #
+SHOW EXTENDED COLUMNS FROM t1;
+--replace_column 3 # 4 # 5 # 6 # 7 # 8 # 9 #
+SHOW EXTENDED FULL COLUMNS FROM t1;
+
+--echo # With fix, following statements should not show the hidden index and
+--echo # index columns.
+SHOW INDEX FROM t1;
+SELECT table_schema, table_name, index_name, column_name FROM
+       INFORMATION_SCHEMA.STATISTICS WHERE table_name='t1';
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE table_name='t1';
+SELECT constraint_schema, constraint_name, table_name, column_name FROM
+       INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name='t1';
+
+--echo # EXTENDED keyword is introduced to list the hidden index and index
+--echo # columns.
+SHOW EXTENDED INDEX FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#27387773 COLUMN OPTION FOR DESCRIBE IS IGNORED
+--echo #
+
+CREATE TEMPORARY TABLE t1 (f1 INT, f2 INT);
+--echo # These DESCRIBEs would show just single column after the fix.
+DESCRIBE t1 f1;
+DESCRIBE t1 f2;
+SHOW COLUMNS FROM t1 LIKE 'f1';
+SHOW COLUMNS FROM t1 LIKE 'f2';
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#11754608 MYSQL DOESN'T SHOW WHAT COLLATION WAS USED IF THAT
+--echo # COLLATION IS THE DEFAU
+--echo #
+
+CREATE TABLE t1 (f1 CHAR(1),
+                 f2 CHAR(1) COLLATE UTF8_BIN,
+                 f3 CHAR(1) CHARSET UTF8MB3,
+                 f4 CHAR(1) CHARSET UTF8MB4);
+
+--echo # The SHOW command should show the utf8mb4 charset for f4 after ALTER.
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD COLUMN f5 CHAR(1);
+ALTER TABLE t1 ADD COLUMN f6 CHAR(1) CHARSET UTF8MB4;
+
+--echo # The SHOW command should show the utf8mb4 charset for f6 after ALTER.
+SHOW CREATE TABLE t1;
+
+--echo # Check if we retain the property after CREATE SELECT.
+CREATE TABLE t2 AS SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+
+--echo # Check if we retain the property after CREATE LIKE.
+CREATE TABLE t3 LIKE t1;
+SHOW CREATE TABLE t3;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

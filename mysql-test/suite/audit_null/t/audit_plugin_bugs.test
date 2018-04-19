@@ -1,0 +1,193 @@
+--source include/have_null_audit_plugin.inc
+--source include/have_debug.inc
+
+call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_ERROR' cannot be aborted.");
+
+let $expected_extension= so;
+if(`SELECT CONVERT(@@version_compile_os USING latin1)
+           IN ("Win32","Win64","Windows")`)
+{
+   let $expected_extension= dll;
+}
+
+--echo #
+--echo # Bug #22142209: MY_MESSAGE FAILS TO ABORT MYSQL_AUDIT_SERVER_STARTUP_CLASS EVENT
+--echo #
+
+let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
+
+--error 0,1
+--remove_file $error_log
+
+--echo # Shutdown the server
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Load the plugin at startup and abort on STARTUP with default message
+--replace_regex /\.dll/.so/
+--error 1
+--exec $MYSQLD_CMD --loose-console $AUDIT_NULL_OPT --plugin-load=null_audit=adt_null.$expected_extension --null_audit_event_order_check="MYSQL_AUDIT_SERVER_STARTUP_STARTUP;;ABORT_RET" > $error_log 2>&1
+
+--echo # Search for default abort message
+let SEARCH_FILE= $error_log;
+let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Aborted by Audit API \(\'MYSQL_AUDIT_SERVER_STARTUP_STARTUP\'.1\)\.;
+--source include/search_pattern.inc
+
+--error 0,1
+--remove_file $error_log
+
+--echo # Load the plugin at startup and abort on STARTUP event with custom message
+--replace_regex /\.dll/.so/
+--error 1
+--exec $MYSQLD_CMD --loose-console $AUDIT_NULL_OPT --plugin-load=null_audit=adt_null.$expected_extension --null_audit_event_order_check="MYSQL_AUDIT_SERVER_STARTUP_STARTUP;;ABORT_RET" --null_audit_abort_message="Abort message custom" > $error_log 2>&1
+
+--echo # Search for custom abort message
+let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Abort message custom;
+--source include/search_pattern.inc
+
+--error 0,1
+--remove_file $error_log
+
+--echo # Startup the server
+--exec echo "restart" > $restart_file
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo #
+--echo # Bug #22136709: INFINITE RECURSION BY CALLING MY_MESSAGE FROM
+--echo #   MYSQL_AUDIT_GENERAL_CLASS HANDLER
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN null_audit SONAME '$AUDIT_NULL';
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+SET @@GLOBAL.null_audit_event_order_check= "MYSQL_AUDIT_GENERAL_ERROR;;ABORT_RET";
+SET @@GLOBAL.null_audit_abort_message= "Abort message.";
+
+--echo # Try to enter error state recursively 2 times.
+SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 2;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(user1_con,localhost,wrong_root,);
+SELECT @@null_audit_event_order_check_consume_ignore_count;
+
+--echo # Try to enter error state infinitely. my_message calls cause stack overrun.
+SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 10000;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--disable_result_log
+--error ER_ACCESS_DENIED_ERROR
+connect(user1_con,localhost,wrong_root,);
+--enable_result_log
+SELECT @@null_audit_event_order_check_consume_ignore_count;
+
+# Clean up global variables
+SET @@GLOBAL.null_audit_event_order_check= NULL;
+SET @@GLOBAL.null_audit_abort_message= NULL;
+# Let's hope 10000 calls will overrun the stack frame
+SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 0;
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
+
+--echo End of 5.7 tests
+
+--echo #
+--echo # Bug#24961932 - create function at bootstrap attempts to evaluate
+--echo #                non-resolved expressions
+--echo #
+
+--echo # Initial value of the status variable "Audit_null_global_variable_get".
+SELECT variable_value FROM performance_schema.global_status
+                      WHERE variable_name = 'Audit_null_global_variable_get'
+                      INTO @initial_global_var_get_count;
+
+DELIMITER $;
+# Procedure to check value of the status variable
+# "Audit_null_global_variable_get".
+CREATE PROCEDURE check_global_var_count()
+BEGIN
+  SELECT variable_value FROM performance_schema.global_status
+                        WHERE variable_name = 'Audit_null_global_variable_get'
+                        INTO @cur_global_var_get_count;
+  SELECT @cur_global_var_get_count - @initial_global_var_get_count AS
+         global_var_count;
+END
+$
+
+--echo # Procedure p1 using global system variables.
+CREATE PROCEDURE p1()
+BEGIN
+  SET @a=@@global.max_execution_time;
+  CREATE TABLE t1 AS SELECT @@global.max_execution_time;
+  DROP TABLE t1;
+  SELECT @@global.optimizer_trace, @@session.max_execution_time;
+END
+$
+DELIMITER ;$
+
+--echo # Without fix, non-resolved expression is evaluated to audit the global
+--echo # system variable get event while creating the stored routines.
+--echo # The audit for the system variable get event should be done while
+--echo # executing the stored routine but not while creating it. With the fix,
+--echo # global system variable get event is audited while executing the stored
+--echo # routine. At this time, expression is resolved. Hence status variable
+--echo # "Audit_null_global_variable_get" remains unchanged while creating the
+--echo # stored routine.
+CALL check_global_var_count();
+
+--echo # The same issue exits with the prepared statement too. With the fix,
+--echo # system variable get event is not audited while preparing the statement.
+--echo # Instead it is done while executing the statement. Hence status variable
+--echo # "Audit_null_global_variable_get" remains same here too.
+PREPARE stmt FROM 'SELECT @@global.max_execution_time,@@global.optimizer_trace';
+CALL check_global_var_count();
+
+--echo # With the fix, system variable get event is audited on each execution of
+--echo # the routine. Hence status variable "Audit_null_global_variable_get" is
+--echo # incremented by value three by p1() here.
+CALL p1();
+CALL check_global_var_count();
+
+--echo # With the fix, system variable get event is audited on each execution of
+--echo # the routine. Hence status variable "Audit_null_global_variable_get" is
+--echo # incremented by value three by p1() here.
+CALL p1();
+CALL check_global_var_count();
+
+--echo # System variable get event is audited for global variables only. Hence
+--echo # status variable "Audit_null_global_variable_get" remain same here.
+SELECT @@session.max_execution_time, @@session.optimizer_trace;
+CALL check_global_var_count();
+
+--echo # With the fix, system variable get event is audited on each execution of
+--echo # the prepared statement. Hence status "Audit_null_global_variable_get"
+--echo # variable is incremented by value two here.
+EXECUTE stmt;
+CALL check_global_var_count();
+
+--echo # With the fix, system variable get event is audited on each execution of
+--echo # the prepared statement. Hence status "Audit_null_global_variable_get"
+--echo # variable is incremented by value two here.
+EXECUTE stmt;
+CALL check_global_var_count();
+
+--echo # Verify if system variable get event is audited in the simple select.
+--echo # Status variable "Audit_null_global_variable_get" is incremented by
+--echo # value two here.
+SELECT @@global.max_execution_time, @@global.optimizer_trace;
+CALL check_global_var_count();
+
+# Cleanup
+DROP PROCEDURE p1;
+DROP PROCEDURE check_global_var_count;
+DROP PREPARE stmt;
+
+--echo End of 8.0 tests
+
+--echo # cleanup
+UNINSTALL PLUGIN null_audit;

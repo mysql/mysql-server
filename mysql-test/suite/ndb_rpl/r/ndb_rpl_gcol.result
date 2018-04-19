@@ -1,0 +1,122 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+--- Doing pre test setup and CREATE TABLE ---
+CREATE TABLE test_gcol_stored
+(id MEDIUMINT NOT NULL PRIMARY KEY,
+gcol_int int GENERATED ALWAYS AS (100 + id) STORED,
+misc int,
+gcol_str varchar(20) GENERATED ALWAYS AS (concat("User ", id)) STORED
+) engine = ndb;
+CREATE TABLE test_gcol_virtual
+(id MEDIUMINT NOT NULL PRIMARY KEY,
+gcol_int int GENERATED ALWAYS AS (100 + id),
+misc int,
+gcol_str varchar(20) GENERATED ALWAYS AS (concat("User ", id))
+) engine = ndb;
+--- Show table on slave ---
+SHOW CREATE TABLE test_gcol_stored;
+Table	Create Table
+test_gcol_stored	CREATE TABLE `test_gcol_stored` (
+  `id` mediumint(9) NOT NULL,
+  `gcol_int` int(11) GENERATED ALWAYS AS ((100 + `id`)) STORED,
+  `misc` int(11) DEFAULT NULL,
+  `gcol_str` varchar(20) GENERATED ALWAYS AS (concat(_utf8mb4'User ',`id`)) STORED,
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+--- Insert on master
+insert into test_gcol_stored (id) values (1), (2), (3), (4), (5);
+insert into test_gcol_virtual (id) values (1), (2), (3), (4), (5);
+select * from test_gcol_stored order by id;
+id	gcol_int	misc	gcol_str
+1	101	NULL	User 1
+2	102	NULL	User 2
+3	103	NULL	User 3
+4	104	NULL	User 4
+5	105	NULL	User 5
+select * from test_gcol_virtual order by id;
+id	gcol_int	misc	gcol_str
+1	101	NULL	User 1
+2	102	NULL	User 2
+3	103	NULL	User 3
+4	104	NULL	User 4
+5	105	NULL	User 5
+--- Update by pk on master
+update test_gcol_stored set misc = 44 where id = 4;
+update test_gcol_virtual set misc = 44 where id = 4;
+select * from test_gcol_stored order by id;
+id	gcol_int	misc	gcol_str
+1	101	NULL	User 1
+2	102	NULL	User 2
+3	103	NULL	User 3
+4	104	44	User 4
+5	105	NULL	User 5
+select * from test_gcol_virtual order by id;
+id	gcol_int	misc	gcol_str
+1	101	NULL	User 1
+2	102	NULL	User 2
+3	103	NULL	User 3
+4	104	44	User 4
+5	105	NULL	User 5
+--- Update by gcol on master
+update test_gcol_stored set misc = 45 where gcol_int = 105;
+update test_gcol_virtual set misc = 45 where gcol_int = 105;
+select * from test_gcol_stored order by id;
+id	gcol_int	misc	gcol_str
+1	101	NULL	User 1
+2	102	NULL	User 2
+3	103	NULL	User 3
+4	104	44	User 4
+5	105	45	User 5
+select * from test_gcol_virtual order by id;
+id	gcol_int	misc	gcol_str
+1	101	NULL	User 1
+2	102	NULL	User 2
+3	103	NULL	User 3
+4	104	44	User 4
+5	105	45	User 5
+--- Delete by key on master
+delete from test_gcol_stored where id = 1;
+delete from test_gcol_virtual where id = 1;
+select * from test_gcol_stored order by id;
+id	gcol_int	misc	gcol_str
+2	102	NULL	User 2
+3	103	NULL	User 3
+4	104	44	User 4
+5	105	45	User 5
+select * from test_gcol_virtual order by id;
+id	gcol_int	misc	gcol_str
+2	102	NULL	User 2
+3	103	NULL	User 3
+4	104	44	User 4
+5	105	45	User 5
+-- Delete by gcol on master
+delete from test_gcol_stored where gcol_int = 102;
+delete from test_gcol_virtual where gcol_int = 102;
+select * from test_gcol_stored order by id;
+id	gcol_int	misc	gcol_str
+3	103	NULL	User 3
+4	104	44	User 4
+5	105	45	User 5
+select * from test_gcol_virtual order by id;
+id	gcol_int	misc	gcol_str
+3	103	NULL	User 3
+4	104	44	User 4
+5	105	45	User 5
+-- Delete by non-key stored column on master
+delete from test_gcol_stored where misc is null;
+delete from test_gcol_virtual where misc is null;
+select * from test_gcol_stored order by id;
+id	gcol_int	misc	gcol_str
+4	104	44	User 4
+5	105	45	User 5
+select * from test_gcol_virtual order by id;
+id	gcol_int	misc	gcol_str
+4	104	44	User 4
+5	105	45	User 5
+-- Drop test table and clean up
+drop table test_gcol_stored;
+drop table test_gcol_virtual;
+include/rpl_end.inc

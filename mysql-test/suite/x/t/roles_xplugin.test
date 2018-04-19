@@ -1,0 +1,28 @@
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/roles_test.tmp
+## Test data
+-->sql
+
+DROP ROLE IF EXISTS r1, r2, u1@localhost, u2;
+CREATE USER u1@localhost IDENTIFIED BY 'foo', u2;
+CREATE ROLE r1,r2;
+GRANT r1, r2 TO u1@localhost, u2;
+GRANT ALL ON test.* TO r2;
+ALTER USER u1@localhost DEFAULT ROLE r1,r2;
+SELECT CURRENT_ROLE();
+SET ROLE ALL;
+SET ROLE DEFAULT;
+SET ROLE NONE;
+DROP ROLE r1,r2;
+DROP USER u1@localhost, u2;
+
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/roles_test.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/roles_test.tmp
+--source include/xplugin_drop_user.inc

@@ -1,5 +1,3 @@
-#Want to skip this test from daily Valgrind execution
---source include/no_valgrind_without_big.inc
 #
 # Test for the functionality of InnoDB Buffer Pool dump/load
 #
@@ -8,9 +6,12 @@
 # with innodb_buffer_pool_load_at_startup=ON
 # and innodb_buffer_pool_dump_at_shutdown=ON
 
---source include/have_innodb.inc
-# include/restart_mysqld.inc does not work in embedded mode
---source include/not_embedded.inc
+# Skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+
+# Skip this test if page size is too big since buffer pool may not be
+# large enough, especially if using multiple undo tablespaces.
+--source include/have_innodb_max_16k.inc
 
 --let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
 
@@ -30,7 +31,7 @@ let $check_cnt =
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page_lru
 WHERE table_name LIKE '%ib_bp_test%';
 
---let SPACE = `SELECT space FROM information_schema.innodb_sys_tables WHERE name LIKE '%ib_bp_test%'`
+--let SPACE = `SELECT space FROM information_schema.innodb_tables WHERE name LIKE '%ib_bp_test%'`
 
 # See that we have a small number of pages in the LRU
 --eval $check_cnt
@@ -75,16 +76,16 @@ EOF
 --disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 --source include/wait_condition.inc
 
 # Show the status, interesting if the above timed out
 --disable_warnings
---replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
+--replace_regex /^Buffer pool\(s\) load completed.*|^Loading buffer pool\(s\) from.*|^Loaded .* pages.*/Buffer pool load completed or still running/
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 
@@ -93,7 +94,7 @@ WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --replace_result 83 {checked_valid} 163 {checked_valid} 329 {checked_valid} 662 {checked_valid} 1392 {checked_valid}
 --eval $check_cnt
 
-call mtr.add_suppression("InnoDB: Error parsing");
+call mtr.add_suppression("Error parsing");
 --source include/shutdown_mysqld.inc
 
 # Add some total garbage to the dump file
@@ -111,7 +112,7 @@ EOF
 --disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 13) = 'Error parsing'
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 --source include/wait_condition.inc
@@ -137,18 +138,97 @@ EOF
 --disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 --source include/wait_condition.inc
 
 # Show the status, interesting if the above timed out
 --disable_warnings
---replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
+--replace_regex /^Buffer pool\(s\) load completed.*|^Loading buffer pool\(s\) from.*|^Loaded .* pages.*/Buffer pool load completed or still running/
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 
 DROP TABLE ib_bp_test;
 SET GLOBAL innodb_buffer_pool_dump_pct=default;
+
+--echo #
+--echo # Bug#22016556 INNODB LOOKS FOR BUFFER POOL FILE NAME IN '/' IF
+--echo # INNODB_DATA_HOME_DIR IS EMPTY
+--echo #
+
+# Set different paths for --datadir
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
+
+let $MYSQLD_BASEDIR= `select @@basedir`;
+
+# Create custom datadir path
+--mkdir $MYSQL_TMP_DIR/datadir1
+
+let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
+let $start_page_size=`SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size'`;
+# Create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb-data-home-dir= --innodb_data_file_path=$MYSQL_TMP_DIR/datadir1/ibdata:16M:autoextend --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1 --innodb-page-size=$start_page_size;
+
+# Run the bootstrap command
+--exec $NEW_CMD
+
+# Start the DB server
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters="restart: --innodb-data-home-dir= --innodb_data_file_path=$MYSQL_TMP_DIR/datadir1/ibdata:16M:autoextend --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2"
+--source include/restart_mysqld.inc
+
+CREATE TABLE t1 (a int) ENGINE=innodb;
+INSERT INTO t1 VALUES (1), (2), (3);
+
+SET GLOBAL innodb_buffer_pool_dump_now=ON;
+
+# Wait for the dump to complete
+--disable_warnings
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
+--enable_warnings
+--source include/wait_condition.inc
+
+--disable_warnings
+--replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
+SELECT variable_value
+FROM performance_schema.global_status
+WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
+--enable_warnings
+
+SET GLOBAL innodb_buffer_pool_load_now = ON;
+
+# Wait for the load to complete
+--disable_warnings
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
+--enable_warnings
+--source include/wait_condition.inc
+
+--disable_warnings
+--replace_regex /^Buffer pool\(s\) load completed.*|^Loading buffer pool\(s\) from.*|^Loaded .* pages.*/Buffer pool load completed or still running/
+SELECT variable_value
+FROM performance_schema.global_status
+WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
+--enable_warnings
+
+DROP TABLE t1;
+DROP DATABASE test;
+
+let $restart_parameters=;
+--source include/restart_mysqld.inc
+
+# Remove residue files and data folder
+--force-rmdir $MYSQL_TMP_DIR/datadir1/
+--remove_file $BOOTSTRAP_SQL

@@ -1,7 +1,7 @@
---source include/have_innodb.inc
+--source include/count_sessions.inc
 
 CREATE TABLE worklog5743 (col_1_CHAR CHAR(255) , col_2_CHAR CHAR(255) ,
-PRIMARY KEY (col_1_CHAR)) engine = innodb;
+PRIMARY KEY (col_1_CHAR)) engine = innodb STATS_PERSISTENT=0 charset latin1;
 INSERT INTO worklog5743 VALUES(repeat("a", 200) , repeat("o", 200));
 SELECT col_1_CHAR = repeat("a", 200) , col_2_CHAR  = repeat("o", 200) FROM
 worklog5743;
@@ -12,7 +12,6 @@ SELECT col_1_CHAR = repeat("a", 200) , col_2_CHAR = repeat("o", 200) FROM
 worklog5743;
 SELECT COUNT(*) FROM worklog5743;
 
-
 --echo "In connection 2"
 --connect (con2,localhost,root,,)
 START TRANSACTION;
@@ -21,7 +20,6 @@ UPDATE worklog5743 SET col_1_CHAR = repeat("d", 200) WHERE col_1_CHAR =
 repeat("a", 200) AND col_2_CHAR = repeat("o", 200);
 SELECT col_1_CHAR = repeat("a", 200) , col_2_CHAR  = repeat("o", 200) FROM
 worklog5743;
-
 
 --echo "In connection 1"
 --connection con1
@@ -37,7 +35,7 @@ SELECT COUNT(*) FROM worklog5743;
 --echo "In connection 2"
 --connection con2
 COMMIT;
-SELECT sleep(5);
+--source include/wait_innodb_all_purged.inc
 
 --echo "In connection 1"
 --connection con1
@@ -48,5 +46,10 @@ worklog5743;
 SELECT COUNT(*) FROM worklog5743;
 COMMIT;
 
+disconnect con1;
+disconnect con2;
+
 --connection default
-DROP TABLE worklog5743; 
+DROP TABLE worklog5743;
+
+--source include/wait_until_count_sessions.inc

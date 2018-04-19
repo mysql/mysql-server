@@ -3,13 +3,6 @@
 # http://bugs.mysql.com/38231
 #
 
--- source include/have_innodb.inc
-
-# skip this test in embedded mode because "TRUNCATE TABLE bug38231_1"
-# hangs in that mode waiting for "lock_wait_timeout" although it is
-# preceded by --send
--- source include/not_embedded.inc
-
 SET default_storage_engine=InnoDB;
 
 # we care only that the following SQL commands do not crash the server

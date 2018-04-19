@@ -1,14 +1,21 @@
 /*
- *  Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
+ *  it under the terms of the GNU General Public License, version 2.0,
+ *  as published by the Free Software Foundation.
+ *
+ *  This program is also distributed with certain software (including
+ *  but not limited to OpenSSL) that is licensed under separate terms,
+ *  as designated in a particular file or component or in included license
+ *  documentation.  The authors of MySQL hereby grant you an additional
+ *  permission to link the program and your derivative works with the
+ *  separately licensed software that they have included with MySQL.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  GNU General Public License, version 2.0, for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
@@ -28,7 +35,6 @@ import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.Constants;
 import com.mysql.clusterj.Session;
 import com.mysql.clusterj.SessionFactory;
-import com.mysql.clusterj.core.SessionFactoryImpl;
 
 @org.junit.Ignore("test requires specific connection pooling setup")
 public class ConnectionPoolTest extends AbstractClusterJTest {
@@ -124,7 +130,7 @@ public class ConnectionPoolTest extends AbstractClusterJTest {
         modifiedProperties.putAll(props);
         modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_SIZE, 2);
         modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_NODEIDS, "4");
-        checkConnectionPoolSize2("testConnectionNodeIds", modifiedProperties);        
+        checkConnectionPoolSize2("testConnectionSingleNodeIdAndConnectionPoolSize", modifiedProperties);
         failOnError();
     }
 
@@ -146,7 +152,7 @@ public class ConnectionPoolTest extends AbstractClusterJTest {
         Employee e2 = session2.find(Employee.class, 0);
         checkSessions(where + " after get session2", sessionFactory1, new Integer[] {1, 1});
         Session session3 = sessionFactory1.getSession();
-        checkSessions(where + " nafter get session3", sessionFactory1, new Integer[] {2, 1});
+        checkSessions(where + " after get session3", sessionFactory1, new Integer[] {2, 1});
         Session session4 = sessionFactory1.getSession();
         checkSessions(where + " after get session4", sessionFactory1, new Integer[] {2, 2});
         Session session5 = sessionFactory1.getSession();
@@ -206,6 +212,7 @@ public class ConnectionPoolTest extends AbstractClusterJTest {
         failOnError();
     }
 
+    @org.junit.Ignore("testNegativeConnectionPoolIllegalNodeids takes too long")
     public void testNegativeConnectionPoolIllegalNodeids() {
         Properties modifiedProperties = new Properties();
         modifiedProperties.putAll(props);
@@ -243,9 +250,9 @@ public class ConnectionPoolTest extends AbstractClusterJTest {
         failOnError();
     }
 
-    private void checkSessions(String where, SessionFactory sessionFactory1, Integer[] expected) {
-        SessionFactoryImpl sessionFactoryImpl = (SessionFactoryImpl)sessionFactory1;
-        List<Integer> connectionCounts = sessionFactoryImpl.getConnectionPoolSessionCounts();
+    private void checkSessions(String where, SessionFactory sessionFactory, Integer[] expected) {
+        List<Integer> connectionCounts = sessionFactory.getConnectionPoolSessionCounts();
+        if (getDebug()) System.out.println("connection counts: " + connectionCounts.toString());
         if (expected.length != connectionCounts.size()) {
             error(where + " wrong number of connections in pool\n"
                     + "Expected: " + Arrays.toString(expected)

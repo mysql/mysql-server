@@ -1,18 +1,18 @@
 SET @start_value = @@global.local_infile;
 SELECT @start_value;
 @start_value
-1
+0
 '#--------------------FN_DYNVARS_018_01------------------------#'
 SET @@global.local_infile = 0;
 SET @@global.local_infile = DEFAULT;
 SELECT @@global.local_infile;
 @@global.local_infile
-1
+0
 '#---------------------FN_DYNVARS_018_02-------------------------#'
 SET @@global.local_infile = DEFAULT;
 SELECT @@global.local_infile = 1;
 @@global.local_infile = 1
-1
+0
 '#--------------------FN_DYNVARS_018_03------------------------#'
 SET @@global.local_infile = 0;
 SELECT @@global.local_infile;
@@ -54,7 +54,7 @@ SELECT @@session.local_infile = 1;
 ERROR HY000: Variable 'local_infile' is a GLOBAL variable
 '#----------------------FN_DYNVARS_018_06------------------------#'
 SELECT IF(@@global.local_infile, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='local_infile';
 IF(@@global.local_infile, "ON", "OFF") = VARIABLE_VALUE
 1
@@ -96,4 +96,4 @@ ERROR 42S22: Unknown column 'local_infile' in 'field list'
 SET @@global.local_infile = @start_value;
 SELECT @@global.local_infile;
 @@global.local_infile
-1
+0

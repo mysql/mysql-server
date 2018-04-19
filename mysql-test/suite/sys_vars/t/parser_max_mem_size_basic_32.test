@@ -1,0 +1,2 @@
+--source include/have_32bit.inc
+--source suite/sys_vars/inc/parser_max_mem_size_basic.inc

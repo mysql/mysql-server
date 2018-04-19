@@ -1,8 +1,5 @@
---source include/have_innodb.inc
 # This restarts the server and waits a long time for output.
 --source include/big_test.inc
-# Embedded server does not support restarting.
---source include/not_embedded.inc
 
 # Test the deprecation messages and connection to the flags.
 CREATE TABLE innodb_monitor(a SERIAL) ENGINE=InnoDB;
@@ -45,12 +42,12 @@ COMMIT;
 --source include/shutdown_mysqld.inc
 
 let SEARCH_PATTERN= INNODB MONITOR OUTPUT;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN= SELECT SLEEP.*\nTABLE LOCK.*\nRECORD LOCKS space id;
---source include/search_pattern_in_file.inc
+--source include/search_pattern_multiline.inc
 --remove_file $SEARCH_FILE
 
---exec echo "restart: --no-console --log-error=$SEARCH_FILE">$_expect_file_name
+--exec echo "restart: --no-console --log-error=$SEARCH_FILE --log-error-verbosity=3 ">$_expect_file_name
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -65,8 +62,13 @@ COMMIT;
 --source include/shutdown_mysqld.inc
 
 # We should not see any extra output.
-let SEARCH_PATTERN= ready for connections.*\nVersion:.*\n.*(a chance to die gracefully|Shutting down|Normal shutdown);
---source include/search_pattern_in_file.inc
+
+let SEARCH_PATTERN= ready for connections. Version:;
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN= .*(a chance to die gracefully|Shutting down|Normal shutdown);
+--source include/search_pattern_multiline.inc
+
 --remove_file $SEARCH_FILE
 
 --exec echo "restart: --no-console --log-error=$SEARCH_FILE">$_expect_file_name
@@ -85,10 +87,10 @@ COMMIT;
 
 # We should have some extra output.
 let SEARCH_PATTERN= INNODB MONITOR OUTPUT;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 # No RECORD LOCKS output expected
 let SEARCH_PATTERN= SELECT SLEEP.*\n------;
---source include/search_pattern_in_file.inc
+--source include/search_pattern_multiline.inc
 --remove_file $SEARCH_FILE
 
 # Clean up.

@@ -1,0 +1,26 @@
+call mtr.add_suppression("This is a warning from test plugin");
+call mtr.add_suppression("This is an error from test plugin");
+SET @orig_log_error_verbosity= @@global.log_error_verbosity;
+SET @@global.log_error_verbosity= 3;
+------ Run plugin ------------------------------------------------
+INSTALL PLUGIN test_services_threaded SONAME 'TESTSERVICESTHREADED';
+------ Wait until test execution in plugin is ready --------------
+let wait_timeout= 60
+let wait_condition=SELECT variable_value= 1 FROM performance_schema.global_status
+WHERE variable_name LIKE 'test_services_status';
+source include/wait_condition.inc;
+------ Stop plugin -----------------------------------------------
+UNINSTALL PLUGIN test_services_threaded;
+SET @@global.log_error_verbosity= @orig_log_error_verbosity;
+------ Service: LogPluginErr ----------------------------
+CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT, c4 TEXT);
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/mysqld.1.err' INTO TABLE t1 
+FIELDS TERMINATED BY ' [';
+SELECT replace(concat('[',c2,' [',c3,' [',c4),'\r','') AS msg FROM t1 WHERE c4 LIKE '%test_services_threaded%';
+msg
+[Note] [MY-011071] [Server] Plugin test_services_threaded reported: 'Test_services_threaded with_log_message_val: 1'
+[Note] [MY-011071] [Server] Plugin test_services_threaded reported: 'This is the test plugin for services'
+[Warning] [MY-011071] [Server] Plugin test_services_threaded reported: 'This is a warning from test plugin for services'
+[ERROR] [MY-011071] [Server] Plugin test_services_threaded reported: 'This is an error from test plugin for services'
+[Note] [MY-010733] [Server] Shutting down plugin 'test_services_threaded'
+DROP TABLE IF EXISTS t1;

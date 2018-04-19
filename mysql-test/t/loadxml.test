@@ -3,9 +3,6 @@
 # Tests for "LOAD XML" - a contributed patch from Erik Wetterberg.
 #
 
-# Running the $MYSQL_DUMP tool against an embedded server does not work.
---source include/not_embedded.inc
-
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
@@ -117,3 +114,50 @@ LOAD XML INFILE '../../std_data/loadxml.dat' INTO TABLE t1
 ROWS IDENTIFIED BY '<row>' (a,@b) SET b=concat('!',@b);
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#16171518 LOAD XML DOES NOT HANDLE EMPTY ELEMENTS
+--echo #
+CREATE TABLE t1 (col1 VARCHAR(3), col2 VARCHAR(3), col3 VARCHAR(3), col4 VARCHAR(4));
+LOAD XML INFILE '../../std_data/bug16171518_1.dat' INTO TABLE t1;
+SELECT * FROM t1 ORDER BY col1, col2, col3, col4;
+DROP TABLE t1;
+
+CREATE TABLE t1 (col1 VARCHAR(3), col2 VARCHAR(3), col3 INTEGER);
+LOAD XML INFILE '../../std_data/bug16171518_2.dat' INTO TABLE t1;
+SELECT * FROM t1 ORDER BY col1, col2, col3;
+DROP TABLE t1;
+
+--echo #
+--echo # Regression test added in WL#8063
+--echo #
+
+CREATE TABLE t1 (col1 VARCHAR(3), col2 VARCHAR(3), col3 INTEGER);
+CREATE TABLE t2(i INT NOT NULL);
+CREATE TRIGGER t1_ai AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t2 VALUES (NULL);
+
+--error ER_BAD_NULL_ERROR
+LOAD XML INFILE '../../std_data/bug16171518_2.dat' INTO TABLE t1;
+
+DROP TABLE t1, t2;
+
+
+CREATE TABLE t3 (col1 VARCHAR(3), col2 VARCHAR(3), col3 INTEGER);
+CREATE VIEW v3 AS SELECT * FROM t3 WHERE col3 < 0 WITH CHECK OPTION;
+
+--error ER_VIEW_CHECK_FAILED
+LOAD XML INFILE '../../std_data/bug16171518_2.dat' INTO TABLE v3;
+
+DROP VIEW v3;
+DROP TABLE t3;
+
+
+CREATE TABLE t4 (col1 VARCHAR(3), col2 VARCHAR(3), col3 INTEGER, col4 INT NOT NULL);
+
+--error ER_BAD_NULL_ERROR
+LOAD XML INFILE '../../std_data/bug16171518_2.dat' INTO TABLE t4 (col1, col2, col3) SET col4 = NULL;
+
+DROP TABLE t4;
+
+--echo #

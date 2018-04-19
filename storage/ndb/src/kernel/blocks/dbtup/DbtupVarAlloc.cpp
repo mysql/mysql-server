@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -125,7 +132,7 @@ Dbtup::alloc_var_part(Uint32 * err,
     ((Var_page*)pagePtr.p)->init();
     fragPtr->m_varWordsFree += ((Var_page*)pagePtr.p)->free_space;
     pagePtr.p->list_index = MAX_FREE_LIST - 1;
-    LocalDLList<Page> list(c_page_pool, 
+    Local_Page_list list(c_page_pool,
 			   fragPtr->free_var_page_array[MAX_FREE_LIST-1]);
     list.addFirst(pagePtr);
   } else {
@@ -175,7 +182,7 @@ void Dbtup::free_var_part(Fragrecord* fragPtr,
     {
       jam();
       Uint32 idx = pagePtr.p->list_index;
-      LocalDLList<Page> list(c_page_pool, fragPtr->free_var_page_array[idx]);
+      Local_Page_list list(c_page_pool, fragPtr->free_var_page_array[idx]);
       list.remove(pagePtr);
       returnCommonArea(pagePtr.i, 1);
       fragPtr->noOfVarPages --;
@@ -245,7 +252,7 @@ Dbtup::free_var_part(Fragrecord* fragPtr, PagePtr pagePtr, Uint32 page_idx)
   {
     jam();
     Uint32 idx = pagePtr.p->list_index;
-    LocalDLList<Page> list(c_page_pool, fragPtr->free_var_page_array[idx]);
+    Local_Page_list list(c_page_pool, fragPtr->free_var_page_array[idx]);
     list.remove(pagePtr);
     returnCommonArea(pagePtr.i, 1);
     fragPtr->noOfVarPages --;
@@ -442,7 +449,7 @@ Dbtup::get_alloc_page(Fragrecord* fragPtr, Uint32 alloc_size)
   }
   ndbrequire(start_index > 0);
   i= start_index - 1;
-  LocalDLList<Page> list(c_page_pool, fragPtr->free_var_page_array[i]);
+  Local_Page_list list(c_page_pool, fragPtr->free_var_page_array[i]);
   for(list.first(pagePtr); !pagePtr.isNull() && loop < 16; )
   {
     jam();
@@ -498,7 +505,7 @@ void Dbtup::update_free_page_list(Fragrecord* fragPtr,
       /**
        * Remove from free list
        */
-      LocalDLList<Page> 
+      Local_Page_list
         list(c_page_pool, fragPtr->free_var_page_array[list_index]);
       list.remove(pagePtr);
     }
@@ -518,7 +525,7 @@ void Dbtup::update_free_page_list(Fragrecord* fragPtr,
     }
 
     {
-      LocalDLList<Page> list(c_page_pool, 
+      Local_Page_list list(c_page_pool,
                              fragPtr->free_var_page_array[new_list_index]);
       list.addFirst(pagePtr);
       pagePtr.p->list_index = new_list_index;
@@ -551,7 +558,7 @@ Uint64 Dbtup::calculate_used_var_words(Fragrecord* fragPtr)
   Uint64 totalUsed= 0;
   for (Uint32 freeList= 0; freeList <= MAX_FREE_LIST; freeList++)
   {
-    LocalDLList<Page> list(c_page_pool, 
+    Local_Page_list list(c_page_pool,
                            fragPtr->free_var_page_array[freeList]);
     Ptr<Page> pagePtr;
 

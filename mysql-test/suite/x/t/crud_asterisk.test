@@ -1,0 +1,95 @@
+## Asterisk operator vs. literal 
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test data
+DROP SCHEMA IF EXISTS xtest;
+CREATE SCHEMA xtest;
+USE xtest;
+CREATE TABLE xtable (phrase VARCHAR(30));
+INSERT INTO xtable (phrase) VALUES ('Alice has a cat');
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/crud_asterisk.tmp
+
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "count"
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {value: "*"}
+          }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "count"
+        }
+        param {
+          type: OPERATOR operator {
+            name: "*"
+          }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    source {
+      type: LITERAL literal {
+        type: V_OCTETS
+        v_octets {value:"*"}
+      }
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    source {
+      type: OPERATOR operator {
+        name: "*"
+      }
+    }
+  }
+}
+-->recvresult
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_asterisk.tmp 2>&1
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $MYSQL_TMP_DIR/crud_asterisk.tmp
+--source include/xplugin_drop_user.inc

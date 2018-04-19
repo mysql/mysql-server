@@ -15,7 +15,7 @@ SELECT 'The_original_query';
 The_rewritten_query
 The_rewritten_query
 Warnings:
-Note	1105	Query 'SELECT 'The_original_query'' rewritten to 'SELECT"The_rewritten_query"' by plugin: Rewriter.
+Note	1105	Query 'SELECT 'The_original_query'' rewritten to 'SELECT"The_rewritten_query"' by a query rewrite plugin
 CREATE TABLE test_log ( line TEXT );
 LOAD DATA LOCAL INFILE '.../log/rewrite_general.log'
      INTO TABLE test_log FIELDS TERMINATED BY '\n'
@@ -30,4 +30,6 @@ SET GLOBAL general_log = DEFAULT;
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

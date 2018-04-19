@@ -1,0 +1,41 @@
+--source include/have_ndb.inc
+
+USE ndbinfo;
+
+#
+# Bug#20031425 NDBINFO NAMESPACE FREE CHECK FAILURE
+# - The SQL commands in scripts/mysql_system_tables.sql
+#   mistakenly detects that someone uses the ndbinfo namespace
+#   and skip to upgrade the schema of ndbinfo
+#
+
+# Supress the warning which occurs on second mysqld when it
+# tries to create the performance_schema database although
+# it already exists(since the DROP DATABASE was not allowed
+# due to local tables)
+connect (mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1,);
+connection mysqld2;
+call mtr.add_suppression("Can\'t create database \'performance_schema\'; database exists");
+connection default;
+
+SELECT COUNT(*) FROM nodes;
+
+# Drop table ndbinfo.ndb$nodes to be able to detect if
+# upgrade has been run or not
+DROP TABLE ndbinfo.ndb$nodes;
+
+# Now it should not be possible to read from the nodes view
+--error ER_VIEW_INVALID
+SELECT COUNT(*) FROM nodes;
+
+let $log_file = $MYSQLTEST_VARDIR/tmp/ndbinfo_upgrade_check.log;
+--exec $MYSQL_UPGRADE --skip-verbose > $log_file 2>&1
+
+# The underlying table should have been created and nodes view be readable
+SELECT COUNT(*) FROM nodes;
+
+# Remove the upgrade info file created by mysql_upgrade(in mysqld datadir)
+# to avoid affecting other tests running mysql_upgrade
+let $MYSQLD_DATADIR= `select @@datadir`;
+--remove_file $MYSQLD_DATADIR/mysql_upgrade_info
+

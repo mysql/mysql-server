@@ -19,17 +19,16 @@
 #       THE SOURCED FILES ONLY.
 #
 
-# The server must support partitioning.
---source include/have_partition.inc
-
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
 let $engine= 'InnoDB';
---source include/have_innodb.inc
 
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines
 --source suite/parts/inc/partition_auto_increment.inc
 
+#------------------------------------------------------------------------------#
+# Test export/import of tablespace with partitioned table for InnoDB
+--source suite/parts/inc/partition_auto_increment_import.inc

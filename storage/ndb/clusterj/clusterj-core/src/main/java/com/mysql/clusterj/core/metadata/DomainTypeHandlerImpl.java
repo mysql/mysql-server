@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -29,6 +36,7 @@ import com.mysql.clusterj.ColumnMetadata;
 import com.mysql.clusterj.DynamicObjectDelegate;
 
 import com.mysql.clusterj.annotation.PersistenceCapable;
+import com.mysql.clusterj.annotation.Projection;
 
 import com.mysql.clusterj.core.CacheManager;
 
@@ -58,6 +66,10 @@ import java.util.Map;
  * @param T the class of the persistence-capable type
  */
 public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
+
+    protected interface Finalizable {
+        void finalize() throws Throwable;
+    }
 
     /** The domain class. */
     Class<T> cls;
@@ -117,8 +129,9 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
             this.tableName = getTableNameForDynamicObject((Class<DynamicObject>)cls);
         } else {
             // Create a proxy class for the domain class
+            // Invoke the handler's finalizer method when the proxy is finalized
             proxyClass = (Class<T>)Proxy.getProxyClass(
-                    cls.getClassLoader(), new Class[]{cls});
+                    cls.getClassLoader(), new Class[]{cls, Finalizable.class});
             ctor = getConstructorForInvocationHandler (proxyClass);
             persistenceCapable = cls.getAnnotation(PersistenceCapable.class);
             if (persistenceCapable == null) {
@@ -126,7 +139,12 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
                         "ERR_No_Persistence_Capable_Annotation", name));
             }
             this.tableName = persistenceCapable.table();
+            if (tableName.length() == 0) {
+                throw new ClusterJUserException(local.message(
+                        "ERR_No_TableAnnotation", name));
+            }
         }
+        List<String> columnNamesUsed = new ArrayList<String>();
         this.table = getTable(dictionary);
         if (table == null) {
             throw new ClusterJUserException(local.message("ERR_Get_NdbTable", name, tableName));
@@ -272,7 +290,7 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         // If not, this table has no primary key or there is no primary key field
         if (!indexHandlerImpls.get(0).isUsable()) {
             String reason = local.message("ERR_Primary_Field_Missing", name);
-            logger.info(reason);
+            logger.warn(reason);
             throw new ClusterJUserException(reason);
         }
 
@@ -300,6 +318,7 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
                 if (columnNames[columnNumber].equals(columnName)) {
                     fieldNumberToColumnNumberMap[fieldNumber] = columnNumber;
                     found = true;
+                    columnNamesUsed.add(columnNames[columnNumber]);
                     break;
                 }
             }
@@ -308,6 +327,12 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
                 fieldNumberToColumnNumberMap[fieldNumber] = --transientFieldNumber;
                 transientFieldHandlerList.add((DomainFieldHandlerImpl) fieldHandler);
             }
+        }
+        // if projection, get list of projected fields and give them to the Table instance
+        if (cls.getAnnotation(Projection.class) != null) {
+            String[] projectedColumnNames = new String[columnNamesUsed.size()];
+            columnNamesUsed.toArray(projectedColumnNames);
+            table.setProjectedColumnNames(projectedColumnNames);
         }
         numberOfTransientFields = 0 - transientFieldNumber;
         transientFieldHandlers = 
@@ -367,15 +392,20 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
 
     public ValueHandler getValueHandler(Object instance)
             throws IllegalArgumentException {
+        ValueHandler handler = null;
         if (instance instanceof ValueHandler) {
-            return (ValueHandler)instance;
+            handler = (ValueHandler)instance;
         } else if (instance instanceof DynamicObject) {
-            return (ValueHandler)((DynamicObject)instance).delegate();
+            DynamicObject dynamicObject = (DynamicObject)instance;
+            handler = (ValueHandler)dynamicObject.delegate();
         } else {
-            ValueHandler handler = (ValueHandler)
-                    Proxy.getInvocationHandler(instance);
-            return handler;
+            handler = (ValueHandler)Proxy.getInvocationHandler(instance);
         }
+        // make sure the value handler has not been released
+        if (handler.wasReleased()) {
+            throw new ClusterJUserException(local.message("ERR_Cannot_Access_Object_After_Release"));
+        }
+        return handler;
     }
 
     public void objectMarkModified(ValueHandler handler, String fieldName) {

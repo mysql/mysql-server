@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -49,6 +56,9 @@ Dbtux::allocNode(TuxCtx& ctx, NodeHandle& node)
     switch (errorCode) {
     case 827:
       errorCode = TuxMaintReq::NoMemError;
+      break;
+    case 921:
+      errorCode = TuxMaintReq::NoTransMemError;
       break;
     }
   }
@@ -206,7 +216,7 @@ Dbtux::nodePushUp(TuxCtx & ctx, NodeHandle& node, unsigned pos, const TreeEnt& e
   // fix node
   TreeEnt* const entList = tree.getEntList(node.m_node);
   for (unsigned i = occup; i > pos; i--) {
-    thrjam(ctx.jamBuffer);
+    thrjamDebug(ctx.jamBuffer);
     entList[i] = entList[i - 1];
   }
   entList[pos] = ent;
@@ -342,7 +352,7 @@ Dbtux::nodePushDown(TuxCtx& ctx, NodeHandle& node, unsigned pos, TreeEnt& ent, U
   TreeEnt* const entList = tree.getEntList(node.m_node);
   TreeEnt oldMin = entList[0];
   for (unsigned i = 0; i < pos; i++) {
-    thrjam(ctx.jamBuffer);
+    thrjamDebug(ctx.jamBuffer);
     entList[i] = entList[i + 1];
   }
   entList[pos] = ent;
@@ -595,15 +605,15 @@ Dbtux::unlinkScan(NodeHandle& node, ScanOpPtr scanPtr)
   ScanOpPtr prevPtr;
   prevPtr.i = RNIL;
   while (true) {
-    jam();
+    jamDebug();
     c_scanOpPool.getPtr(currPtr);
     Uint32 nextPtrI = currPtr.p->m_nodeScan;
     if (currPtr.i == scanPtr.i) {
-      jam();
+      jamDebug();
       if (prevPtr.i == RNIL) {
         node.setNodeScan(nextPtrI);
       } else {
-        jam();
+        jamDebug();
         prevPtr.p->m_nodeScan = nextPtrI;
       }
       scanPtr.p->m_nodeScan = RNIL;
@@ -625,10 +635,10 @@ Dbtux::islinkScan(NodeHandle& node, ScanOpPtr scanPtr)
   ScanOpPtr currPtr;
   currPtr.i = node.getNodeScan();
   while (currPtr.i != RNIL) {
-    jam();
+    jamDebug();
     c_scanOpPool.getPtr(currPtr);
     if (currPtr.i == scanPtr.i) {
-      jam();
+      jamDebug();
       return true;
     }
     currPtr.i = currPtr.p->m_nodeScan;
@@ -637,7 +647,19 @@ Dbtux::islinkScan(NodeHandle& node, ScanOpPtr scanPtr)
 }
 
 void
-Dbtux::NodeHandle::progError(int line, int cause, const char* file)
+Dbtux::NodeHandle::progError(int line, int cause, const char* file,
+                             const char* check)
 {
-  ErrorReporter::handleAssert("Dbtux::NodeHandle: assert failed", file, line);
+  char buf[500];
+  /*Add the check to the log message only if default value of ""
+    is over-written. */
+  if(native_strcasecmp(check,"") == 0)
+    BaseString::snprintf(buf, sizeof(buf),
+                         "Dbtux::NodeHandle: assert failed");
+  else
+    BaseString::snprintf(buf, sizeof(buf),
+                         "Dbtux::NodeHandle: assert %.400s failed",
+                         check);
+
+  ErrorReporter::handleAssert(buf, file, line);
 }

@@ -12,17 +12,23 @@ drop table t1;
 create table t1(id int PRIMARY KEY, st varchar(10), KEY st_key(st));
 insert into t1 values(1, "One");
 alter table t1 disable keys;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	id	A	1	NULL	NULL		BTREE		
-t1	1	st_key	1	st	A	NULL	NULL	NULL	YES	BTREE	disabled	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	id	A	1	NULL	NULL		BTREE			YES
+t1	1	st_key	1	st	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
 repair table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	id	A	1	NULL	NULL		BTREE		
-t1	1	st_key	1	st	A	NULL	NULL	NULL	YES	BTREE	disabled	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	id	A	1	NULL	NULL		BTREE			YES
+t1	1	st_key	1	st	A	NULL	NULL	NULL	YES	BTREE	disabled		YES
 drop table t1;
 repair table t1 use_frm;
 Table	Op	Msg_type	Msg_text
@@ -45,9 +51,12 @@ SET myisam_repair_threads=2;
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE			YES
 SET myisam_repair_threads=@@global.myisam_repair_threads;
 DROP TABLE t1;
 CREATE TABLE t1(a INT);
@@ -57,7 +66,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 USE test;
 DROP TABLE t1;
-CREATE TABLE t1(a CHAR(255), KEY(a));
+CREATE TABLE t1(a CHAR(255), KEY(a)) charset latin1;
 SET myisam_sort_buffer_size=4096;
 INSERT INTO t1 VALUES
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
@@ -88,7 +97,7 @@ test.t1	repair	status	OK
 SET myisam_repair_threads=@@global.myisam_repair_threads;
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 DROP TABLE t1;
-CREATE TABLE t1(a CHAR(255), KEY(a));
+CREATE TABLE t1(a CHAR(255), KEY(a)) charset latin1;
 SET myisam_sort_buffer_size=4496;
 INSERT INTO t1 VALUES
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
@@ -115,42 +124,6 @@ SET myisam_repair_threads=@@global.myisam_repair_threads;
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 DROP TABLE t1;
 End of 4.1 tests
-# Test with a saved table from 4.1
-SHOW TABLE STATUS LIKE 't1';
-Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	9	Fixed	2	5	10	21474836479	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
-SELECT * FROM t1;
-id
-1
-2
-# Run CHECK TABLE, it should indicate table need a REPAIR TABLE
-CHECK TABLE t1 FOR UPGRADE;
-Table	Op	Msg_type	Msg_text
-test.t1	check	error	Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
-# REPAIR old table USE_FRM should fail
-REPAIR TABLE t1 USE_FRM;
-Table	Op	Msg_type	Msg_text
-t1	repair	error	Failed repairing incompatible .frm file
-# Run REPAIR TABLE to upgrade .frm file
-REPAIR TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
-SHOW TABLE STATUS LIKE 't1';
-Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Fixed	2	7	14	1970324836974591	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
-SELECT * FROM t1;
-id
-1
-2
-REPAIR TABLE t1 USE_FRM;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	warning	Number of rows changed from 0 to 2
-test.t1	repair	status	OK
-SELECT * FROM t1;
-id
-1
-2
-DROP TABLE t1;
 DROP TABLE IF EXISTS tt1;
 CREATE TEMPORARY TABLE tt1 (c1 INT);
 REPAIR TABLE tt1 USE_FRM;

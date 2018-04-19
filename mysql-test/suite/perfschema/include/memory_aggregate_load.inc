@@ -51,7 +51,6 @@ execute dump_hosts;
 
 --connection con1
 
-set GLOBAL query_cache_size=1000*1024;
 select get_lock("marker_1", 10);
 select release_lock("marker_1");
 set @v1 = repeat("a", 1000);
@@ -110,7 +109,6 @@ execute dump_hosts;
 
 --connection con2
 
-set GLOBAL query_cache_size=2000*1024;
 select get_lock("marker_2", 10);
 select release_lock("marker_2");
 set @v1 = repeat("a", 1000);
@@ -181,7 +179,6 @@ execute dump_hosts;
 
 --connection con3
 
-set GLOBAL query_cache_size=500*1024;
 select get_lock("marker_3", 10);
 select release_lock("marker_3");
 set @v1 = repeat("a", 1000);
@@ -237,7 +234,6 @@ execute dump_hosts;
 
 --connection con4
 
-set GLOBAL query_cache_size=4000*1024;
 select get_lock("marker_4", 10);
 select release_lock("marker_4");
 set @v1 = repeat("a", 1000);

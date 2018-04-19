@@ -11,7 +11,7 @@ INSERT INTO tab5(col2,col3) VALUES('Test for wl6504','Test for dump pct');
 SET GLOBAL innodb_buffer_pool_filename=ib_buffer_pool100;
 SET GLOBAL innodb_buffer_pool_dump_pct=100;
 SELECT variable_value INTO @IBPDS
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
 # Take the dump file
 SET GLOBAL innodb_buffer_pool_dump_now=ON;
@@ -26,7 +26,7 @@ SELECT @@global.innodb_buffer_pool_dump_pct;
 @@global.innodb_buffer_pool_dump_pct
 50
 SELECT variable_value INTO @IBPDS
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
 # Take the dump file
 SET GLOBAL innodb_buffer_pool_dump_now=ON;

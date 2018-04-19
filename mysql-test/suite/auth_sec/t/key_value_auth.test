@@ -13,9 +13,8 @@
 #                                                                             #
 ###############################################################################
 
---source include/not_embedded.inc
 --source include/have_ssl.inc
---source include/have_sha256_rsa_auth.inc
+--source include/have_openssl.inc
 --source include/mysql_upgrade_preparation.inc
 
 # This test will intentionally generate errors in the server error log
@@ -28,41 +27,31 @@ call mtr.add_suppression(".*Password salt for user.*");
 --echo
 --echo 
 --echo =======================================================================
---echo Checking the password authentication with mysql_native_password plugin
+--echo Checking the password authentication with @default_plugin plugin
 --echo =======================================================================
 --echo 
 
-# Checking the password authentication with mysql_native_password plugin
-# Creating 2 users and encrypting the server side password with the default mysql_native_password plugin
+# Checking the password authentication with @default_plugin plugin
+# Creating 2 users and encrypting the server side password with the default @default_plugin plugin
+
+set @default_plugin= @@global.default_authentication_plugin;
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
 
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED BY 'abc';
 
-# Verifying the default server side plugin used to be  mysql_native_password
+# Verifying the default server side plugin used to be  @default_plugin
 
-select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password';
+select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')=@default_plugin;
 --echo 1 Expected
 
-select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='mysql_native_password';
+select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=@default_plugin;
 --echo 1 Expected
 
-# Verifying the encrypted password string using the password function
+# Verifying the client connection using the same @default_plugin
 
-SET @@global.old_passwords=0;
-
-SET @@session.old_passwords=0;
-
-select (select authentication_string from mysql.user where User='Tanjotuser1' and Host='localhost')=password('abc');
---echo 1 Expected
-
-select (select authentication_string from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=password('abc');
---echo 1 Expected
-
-# Verifying the client connection using the same mysql_native_password
-
-connect(con1,localhost,Tanjotuser1,abc,,);
-connect(con2,127.0.0.1,Tanjotuser2,abc,,);
+connect(con1,localhost,Tanjotuser1,abc,,,,SSL);
+connect(con2,127.0.0.1,Tanjotuser2,abc,,,,SSL);
 
 
 # Verifying the client access denied passing null password
@@ -147,10 +136,6 @@ connect(con22,127.0.0.1,Tanjotuser2," ",,);
 
 connection default;
 
-SET @@global.old_passwords=2;
-
-SET @@session.old_passwords=2;
-
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
 
@@ -223,22 +208,22 @@ disconnect con28;
 --echo
 --echo 
 --echo ====================================================================================================
---echo checking the integrity of long password (more than 40 chars) using mysql_native_password plugin
+--echo checking the integrity of long password (more than 40 chars) using @default_plugin plugin
 --echo ====================================================================================================
 --echo
 
-# Checking the password authentication with mysql_native_password plugin
-# Creating 2 users and encrypting the server side password with the default mysql_native_password plugin
+# Checking the password authentication with @default_plugin plugin
+# Creating 2 users and encrypting the server side password with the default @default_plugin plugin
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
 
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED BY 'aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
 
-# Verifying the client connection using the same mysql_native_password
+# Verifying the client connection using the same @default_plugin
 
 --disable_warnings
-connect(con29,localhost,Tanjotuser1,aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222,,);
-connect(con30,127.0.0.1,Tanjotuser2,aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222,,);
+connect(con29,localhost,Tanjotuser1,aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222,,,,SSL);
+connect(con30,127.0.0.1,Tanjotuser2,aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222,,,,SSL);
 --enable_warnings
 
 # Verifying the client access denied passing null password
@@ -281,10 +266,6 @@ CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
 
 # setting the password for the 2 users using the sha256_password plugin
 
-SET @@global.old_passwords=2;
-
-SET @@session.old_passwords=2;
-
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
 
@@ -321,12 +302,12 @@ DROP USER 'Tanjotuser2'@'127.0.0.1';
 --echo
 --echo 
 --echo ====================================================================================================
---echo checking the integrity of NULL password using mysql_native_password plugin
+--echo checking the integrity of NULL password using @default_plugin plugin
 --echo ====================================================================================================
 --echo
 
-# Checking the password authentication with mysql_native_password plugin
-# Creating 2 users and encrypting the server side password with the default mysql_native_password plugin
+# Checking the password authentication with @default_plugin plugin
+# Creating 2 users and encrypting the server side password with the default @default_plugin plugin
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY '';
 
@@ -342,28 +323,13 @@ connect(con42,127.0.0.1,Tanjotuser2,,,);
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
-connect(con43,localhost,Tanjotuser1," ",,);
+connect(con43,localhost,Tanjotuser1," ",,,,SSL);
 --enable_query_log
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
-connect(con44,127.0.0.1,Tanjotuser2," ",,);
---enable_query_log
-
-
-# Verifying the client access denied passing not null password
-
---replace_result $MASTER_MYSOCK MASTER_MYSOCK
---disable_query_log
---error ER_ACCESS_DENIED_ERROR
-connect(con45,localhost,Tanjotuser1,NULL,,);
---enable_query_log
-
---replace_result $MASTER_MYSOCK MASTER_MYSOCK
---disable_query_log
---error ER_ACCESS_DENIED_ERROR
-connect(con46,127.0.0.1,Tanjotuser2,NULL,,);
+connect(con44,127.0.0.1,Tanjotuser2," ",,,,SSL);
 --enable_query_log
 
 
@@ -372,13 +338,28 @@ connect(con46,127.0.0.1,Tanjotuser2,NULL,,);
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
-connect(con47,localhost,Tanjotuser1,0,,);
+connect(con45,localhost,Tanjotuser1,NULL,,,,SSL);
 --enable_query_log
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
-connect(con48,127.0.0.1,Tanjotuser2,0,,);
+connect(con46,127.0.0.1,Tanjotuser2,NULL,,,,SSL);
+--enable_query_log
+
+
+# Verifying the client access denied passing not null password
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con47,localhost,Tanjotuser1,0,,,,SSL);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con48,127.0.0.1,Tanjotuser2,0,,,,SSL);
 --enable_query_log
 
 
@@ -407,10 +388,6 @@ CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
 
 # setting the NULL password for the 2 users using the sha256_password plugin
 
-
-SET @@global.old_passwords=2;
-
-SET @@session.old_passwords=2;
 
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='';
@@ -488,31 +465,6 @@ disconnect con58;
 
 --enable_query_log
 
-##The below section is hashed out until the bug#16022007  is fixed
-
-#--echo
-#--echo 
-#--echo ====================================================================================================
-#--echo checking the combination of Client default_auth=mysql_native_password and server default_auth=native
-#--echo ====================================================================================================
-#--echo 
-
-#CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
-#CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED BY 'abc';
-
-#GRANT ALL ON *.* TO 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
-#GRANT ALL ON *.* TO 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_native_password';
-
-#--echo **** Client default_auth=mysql_native_password and server default_auth=native
-
-#--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select user(), current_user()"
-#--exec $MYSQL -uTanjotuser2 -h127.0.0.1 -pabc --default_auth=mysql_native_password -e "select user(), current_user()"
-
-# Dropping the created users
-
-#DROP USER 'Tanjotuser1'@'localhost';
-#DROP USER 'Tanjotuser2'@'127.0.0.1';
-
 --echo
 --echo 
 --echo =================================================================================================
@@ -522,9 +474,6 @@ disconnect con58;
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
-
-SET @@global.old_passwords=2;
-SET @@session.old_passwords=2;
 
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
@@ -573,8 +522,6 @@ Grant all on *.* to 'Tanjotuser1'@'localhost';
 --echo Creating a user with SHA256_password plugin
 CREATE USER 'Tanjotuser3'@'localhost' IDENTIFIED WITH 'sha256_password';
 
-set @@session.old_passwords=2;
-
 set password for 'Tanjotuser3'@'localhost' ='abc';
 
 Grant all on *.* to 'Tanjotuser3'@'localhost';
@@ -586,31 +533,6 @@ select (select plugin from mysql.user where User='Tanjotuser1' and Host='localho
 
 select (select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password';
 --echo 1 Expected
-
-# Verifying the old_passwords variable Global value
-
-select @@global.old_passwords;
---echo 0 Expected
-
-# Verifying the old_passwords variable session value
-
---echo **** connecting Tanjotuser1 with Client default_auth=mysql_native_password 
---exec $MYSQL -uTanjotuser1 -pabc --default_auth=mysql_native_password -e "select @@session.old_passwords"
---echo 0 Expected
-
---echo **** connecting Tanjotuser1 with Client default_auth=sha256_password 
---exec $MYSQL -uTanjotuser1 -pabc --default_auth=sha256_password -e "select @@session.old_passwords"
---echo 0 Expected
-
-
---echo **** connecting Tanjotuser3 with Client default_auth=mysql_native_password 
---exec $MYSQL -uTanjotuser3 -pabc --default_auth=mysql_native_password -e "select @@session.old_passwords"
---echo 2 Expected
-
---echo **** connecting Tanjotuser3 with Client default_auth=sha256_password 
---exec $MYSQL -uTanjotuser3 -pabc --default_auth=sha256_password -e "select @@session.old_passwords"
---echo 2 Expected
-
 
 # Dropping the created users
 
@@ -640,8 +562,6 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --echo Creating a user with mysql_native_password plugin
 CREATE USER 'Tanjotuser2'@'localhost' IDENTIFIED WITH 'mysql_native_password';
 
-set @@session.old_passwords=0;
-
 set password for 'Tanjotuser2'@'localhost' ='abc';
 
 Grant all on *.* to 'Tanjotuser2'@'localhost';
@@ -659,35 +579,8 @@ select (select plugin from mysql.user where User='Tanjotuser2' and Host='localho
 select (select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password';
 --echo 1 Expected
 
-# Verifying the old_passwords variable Global value
-
-select @@global.old_passwords;
---echo 2 Expected
-
-# Verifying the old_passwords variable session value
-
---echo **** connecting Tanjotuser2 with Client default_auth=mysql_native_password 
---exec $MYSQL -uTanjotuser2 -pabc --default_auth=mysql_native_password -e "select @@session.old_passwords"
---echo 0 Expected
-
---echo **** connecting Tanjotuser2 with Client default_auth=sha256_password 
---exec $MYSQL -uTanjotuser2 -pabc --default_auth=sha256_password -e "select @@session.old_passwords"
---echo 0 Expected
-
---echo **** connecting Tanjotuser3 with Client default_auth=mysql_native_password 
---exec $MYSQL -uTanjotuser3 -pabc --default_auth=mysql_native_password -e "select @@session.old_passwords"
---echo 2 Expected
-
---echo **** connecting Tanjotuser3 with Client default_auth=sha256_password 
---exec $MYSQL -uTanjotuser3 -pabc --default_auth=sha256_password -e "select @@session.old_passwords"
---echo 2 Expected
-
-
 # Dropping the created users
 
 DROP USER 'Tanjotuser2'@'localhost';
 DROP USER 'Tanjotuser3'@'localhost';
-
-# Restore default value for old_passwords
-SET GLOBAL old_passwords= default;
 

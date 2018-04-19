@@ -1,17 +1,10 @@
 use performance_schema;
 set @start_read_only= @@global.read_only;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+set @start_super_read_only= @@global.super_read_only;
+create user pfsuser@localhost;
 grant SELECT, UPDATE on performance_schema.* to pfsuser@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 flush privileges;
-connect (con1, localhost, pfsuser, , test);
+connect  con1, localhost, pfsuser, , test;
 connection default;
 set global read_only=0;
 connection con1;
@@ -20,8 +13,8 @@ select @@global.read_only;
 0
 show grants;
 Grants for pfsuser@localhost
-GRANT USAGE ON *.* TO 'pfsuser'@'localhost'
-GRANT SELECT, UPDATE ON `performance_schema`.* TO 'pfsuser'@'localhost'
+GRANT USAGE ON *.* TO `pfsuser`@`localhost`
+GRANT SELECT, UPDATE ON `performance_schema`.* TO `pfsuser`@`localhost`
 select * from performance_schema.setup_instruments;
 update performance_schema.setup_instruments set enabled='NO';
 update performance_schema.setup_instruments set enabled='YES';
@@ -33,26 +26,47 @@ select @@global.read_only;
 1
 show grants;
 Grants for pfsuser@localhost
-GRANT USAGE ON *.* TO 'pfsuser'@'localhost'
-GRANT SELECT, UPDATE ON `performance_schema`.* TO 'pfsuser'@'localhost'
+GRANT USAGE ON *.* TO `pfsuser`@`localhost`
+GRANT SELECT, UPDATE ON `performance_schema`.* TO `pfsuser`@`localhost`
+# Update on perf_schema is allowed in read_only mode.
 select * from performance_schema.setup_instruments;
 update performance_schema.setup_instruments set enabled='NO';
 update performance_schema.setup_instruments set enabled='YES';
 connection default;
 grant super on *.* to pfsuser@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 flush privileges;
-connect (con1, localhost, pfsuser, , test);
+disconnect con1;
+connect  con1, localhost, pfsuser, , test;
 select @@global.read_only;
 @@global.read_only
 1
 show grants;
 Grants for pfsuser@localhost
-GRANT SUPER ON *.* TO 'pfsuser'@'localhost'
-GRANT SELECT, UPDATE ON `performance_schema`.* TO 'pfsuser'@'localhost'
+GRANT SUPER ON *.* TO `pfsuser`@`localhost`
+GRANT SELECT, UPDATE ON `performance_schema`.* TO `pfsuser`@`localhost`
 select * from performance_schema.setup_instruments;
 update performance_schema.setup_instruments set enabled='NO';
 update performance_schema.setup_instruments set enabled='YES';
 connection default;
+set global super_read_only=1;
+connection con1;
+select @@global.super_read_only;
+@@global.super_read_only
+1
+show grants;
+Grants for pfsuser@localhost
+GRANT SUPER ON *.* TO `pfsuser`@`localhost`
+GRANT SELECT, UPDATE ON `performance_schema`.* TO `pfsuser`@`localhost`
+select * from performance_schema.setup_instruments;
+# Update is allowed in super_read_only on perf schema for
+# super user.
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES';
+disconnect con1;
+connection default;
 set global read_only= @start_read_only;
+set global super_read_only= @start_super_read_only;
 drop user pfsuser@localhost;
 flush privileges;

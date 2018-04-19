@@ -4,7 +4,7 @@
 # Scope: GLOBAL | SESSION                                                     #
 # Access Type: Dynamic                                                        #
 # Data Type: numeric                                                          #
-# Default Value:4194304                                                       #
+# Default Value:67108864                                                      #
 # Range:1024-1073741824                                                       #
 #                                                                             #
 #                                                                             #
@@ -67,7 +67,7 @@ SELECT @@session.max_allowed_packet;
 ##################################################################
 
 SET @@global.max_allowed_packet = DEFAULT;
-SELECT @@global.max_allowed_packet = 4194304;
+SELECT @@global.max_allowed_packet = 67108864;
 
 
 --echo '#--------------------FN_DYNVARS_070_03-------------------------#'
@@ -162,7 +162,7 @@ SELECT @@session.max_allowed_packet;
 
 --disable_warnings
 SELECT @@global.max_allowed_packet = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_allowed_packet';
 --enable_warnings
 
@@ -173,7 +173,7 @@ WHERE VARIABLE_NAME='max_allowed_packet';
 
 --disable_warnings
 SELECT @@session.max_allowed_packet = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_allowed_packet';
 --enable_warnings
 

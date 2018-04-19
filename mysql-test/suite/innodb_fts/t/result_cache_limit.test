@@ -1,6 +1,5 @@
 # This is a basic test for innodb fts result cache limit.
 
--- source include/have_innodb.inc
 
 # Must have debug code to use SET SESSION debug
 --source include/have_debug.inc

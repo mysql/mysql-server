@@ -5,7 +5,7 @@
 # Access Type: Dynamic                                                        #
 # Data Type: numeric                                                          #
 # Default Value: 8192                                                         #
-# Range: 1024-134217728                                                       #
+# Range: 1024-131072                                                          #
 #                                                                             #
 #                                                                             #
 # Creation Date: 2008-02-14                                                   #
@@ -84,7 +84,7 @@ SELECT @@global.transaction_alloc_block_size;
 ###################################################################
 # Change the value of variable to a valid value for SESSION Scope #
 ###################################################################
- 
+
 SET @@session.transaction_alloc_block_size = 1024;
 SELECT @@session.transaction_alloc_block_size;
 
@@ -159,8 +159,8 @@ SET @@session.transaction_alloc_block_size = 'test';
 ####################################################################
 
 --disable_warnings
-SELECT @@global.transaction_alloc_block_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+SELECT @@global.transaction_alloc_block_size = VARIABLE_VALUE
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='transaction_alloc_block_size';
 --enable_warnings
 
@@ -170,8 +170,8 @@ WHERE VARIABLE_NAME='transaction_alloc_block_size';
 ####################################################################
 
 --disable_warnings
-SELECT @@session.transaction_alloc_block_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+SELECT @@session.transaction_alloc_block_size = VARIABLE_VALUE
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='transaction_alloc_block_size';
 --enable_warnings
 
@@ -183,7 +183,7 @@ WHERE VARIABLE_NAME='transaction_alloc_block_size';
 SET @@transaction_alloc_block_size = 1024;
 SET @@global.transaction_alloc_block_size = 134217728;
 SELECT @@transaction_alloc_block_size = @@global.transaction_alloc_block_size;
- 
+
 
 --echo '#---------------------FN_DYNVARS_001_09----------------------#'
 ########################################################################

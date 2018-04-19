@@ -1,0 +1,606 @@
+# Tests for WL#8131
+# The test includes show_binlog_events.inc, which requires that
+# binlog is endabled. So we just run it when binlog is enabled.
+--source include/have_log_bin.inc
+
+call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+call mtr.add_suppression("ACL table mysql.global_grants missing. Some operations may fail.");
+
+--echo #
+--echo # Bug25303916 WL8131:FLUSH DOES NOT UPDATE THE GRANT STATUS IN
+--echo # mysql.global_grants
+--echo #
+CREATE USER 'u1'@'localhost' IDENTIFIED BY '123';
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+SHOW GRANTS FOR u1@localhost;
+SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
+--echo -------------------------------------------------------------------------
+--echo
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost WITH GRANT OPTION;
+SHOW GRANTS FOR u1@localhost;
+SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
+--echo
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR u1@localhost;
+SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
+--echo
+--echo ** Try granting multiple times.This shouldn't result in duplicate entries
+--echo ** in either table.
+--echo
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost WITH GRANT OPTION;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+--echo ** Make sure GRANT OPTION is cumulative
+SHOW GRANTS FOR u1@localhost;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost WITH GRANT OPTION;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost WITH GRANT OPTION;
+--echo ** Only one entry
+SHOW GRANTS FOR u1@localhost;
+--echo ** Only one dynamic entry
+SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
+--echo ** Only one dynamic entry
+SELECT * FROM information_schema.user_privileges WHERE GRANTEE LIKE '%u1%'
+ORDER BY GRANTEE, PRIVILEGE_TYPE, IS_GRANTABLE;
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR u1@localhost;
+SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
+--echo
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+SHOW GRANTS FOR u1@localhost;
+SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
+--echo
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM u1@localhost;
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM u1@localhost;
+SHOW GRANTS FOR u1@localhost;
+REVOKE ALL ON *.* FROM u1@localhost;
+SHOW GRANTS FOR u1@localhost;
+SELECT * FROM information_schema.user_privileges WHERE GRANTEE
+LIKE '%u1%' ORDER BY GRANTEE, PRIVILEGE_TYPE, IS_GRANTABLE;
+
+INSERT INTO mysql.global_grants VALUES ('u1','localhost','RUBBISH','N');
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR u1@localhost;
+--error ER_DUP_ENTRY
+INSERT INTO mysql.global_grants VALUES ('u1','localhost','RUBBISH','Y');
+INSERT INTO mysql.global_grants VALUES ('u1','localhoster','RUBBISH','N');
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR u1@localhost;
+DROP USER u1@localhost;
+SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
+SELECT * FROM information_schema.user_privileges WHERE GRANTEE LIKE '%u1%'
+ORDER BY GRANTEE, PRIVILEGE_TYPE, IS_GRANTABLE;
+
+--echo #
+--echo # Rename user
+--echo #
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT SYSTEM_VARIABLES_ADMIN, ROLE_ADMIN, BINLOG_ADMIN ON *.* TO u1@localhost;
+GRANT GROUP_REPLICATION_ADMIN ON *.* TO u1@localhost WITH GRANT OPTION;
+RENAME USER u1@localhost TO u2@localhost;
+SHOW GRANTS FOR u2@localhost;
+--error ER_NONEXISTING_GRANT
+SHOW GRANTS FOR u1@localhost;
+--echo ** IMPORTANT: u1@localhost entries for RUBBISH privilege identifiers
+--echo ** should still exist in the table after a rename. Only registered
+--echo ** privileges are affected by RENAME
+SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
+--echo ** There shouldn't be any RUBBISH in the user_privileges
+SELECT * FROM information_schema.user_privileges WHERE GRANTEE LIKE '%u1%'
+ORDER BY GRANTEE, PRIVILEGE_TYPE, IS_GRANTABLE;
+SELECT * FROM information_schema.user_privileges WHERE GRANTEE LIKE '%u2%'
+ORDER BY GRANTEE, PRIVILEGE_TYPE, IS_GRANTABLE;
+DROP USER u2@localhost;
+
+--echo #
+--echo # Granting both static and dynamic privilege with GRANT OPTION
+--echo # will set both the GRANT OPTION attribut for dynamic privilege grants
+--echo # and the global privilege level GRANT_ACL.
+--echo #
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT SYSTEM_VARIABLES_ADMIN, SELECT ON *.* TO u1@localhost WITH GRANT OPTION;
+SHOW GRANTS FOR u1@localhost;
+SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
+SELECT * FROM information_schema.user_privileges WHERE GRANTEE LIKE '%u1%'
+ORDER BY GRANTEE, PRIVILEGE_TYPE, IS_GRANTABLE;
+
+--echo #
+--echo # Granting global privileges on a lower privilege level is illegal
+--echo #
+CREATE TABLE t1 (c1 int);
+--error ER_ILLEGAL_PRIVILEGE_LEVEL
+GRANT SYSTEM_VARIABLES_ADMIN ON t1.* TO u1@localhost;
+
+DROP USER u1@localhost;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug25548133 MYSQL.GLOBAL_GRANTS ACCEPT INVALID PRIVILEGES
+--echo #
+--echo # Insert valid privilege ID with an unknown user ID
+INSERT INTO mysql.global_grants VALUES('u1', '%', 'ROUTINE_GRANT', 'Y');
+FLUSH PRIVILEGES;
+--error ER_NONEXISTING_GRANT
+SHOW GRANTS FOR `u1`@`%`;
+
+--echo # Insert invalid privilege ID with an unknown user ID
+INSERT INTO mysql.global_grants VALUES('u1_non', '%', 'HELLOWORLD', 'Y');
+FLUSH PRIVILEGES;
+--error ER_NONEXISTING_GRANT
+SHOW GRANTS FOR `u1`@`%`;
+
+--echo # Insert invalid privilege ID with an known user ID
+CREATE USER u1@localhost;
+INSERT INTO mysql.global_grants VALUES('u1', 'localhost', 'HelloWorld', 'Y');
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR `u1`@`localhost`;
+DROP USER u1@localhost;
+--error ER_NONEXISTING_GRANT
+SHOW GRANTS FOR `u1`@`localhost`;
+DELETE FROM mysql.global_grants;
+FLUSH PRIVILEGES;
+
+--echo #
+--echo # Additional tests for SET_USER_ID privilege
+--echo #
+SET GLOBAL event_scheduler = 1;
+CREATE DATABASE restricted;
+CREATE TABLE restricted.t1 (c1 int, restricted int);
+INSERT INTO restricted.t1 VALUES (1,2);
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT SET_USER_ID, CREATE VIEW, CREATE ROUTINE, EXECUTE, EVENT ON *.* TO u1@localhost;
+connect(con1,localhost,u1,foo,,,,);
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * from restricted.t1;
+USE test;
+CREATE DEFINER=root@localhost PROCEDURE p1() SELECT * FROM restricted.t1;
+--echo # With the SET_USER_ID privilege we can escalate the authorization
+CALL p1();
+CREATE TABLE test.t1 (c1 INT);
+CREATE DEFINER=root@localhost TRIGGER test.tr1 BEFORE INSERT ON test.t1
+FOR EACH ROW INSERT INTO restricted.t1 VALUES (1,1);
+--echo # Use trigger to escalate privileges
+INSERT INTO test.t1 VALUES (1);
+connection default;
+SELECT * FROM restricted.t1;
+DROP TRIGGER test.tr1;
+connection con1;
+--error ER_TABLEACCESS_DENIED_ERROR
+CREATE DEFINER=root@localhost SQL SECURITY DEFINER VIEW v1 AS
+SELECT a.restricted FROM restricted.t1 as a;
+connection default;
+--echo # We need some privilege on the column for CREATE VIEW to work
+GRANT INSERT(restricted) ON restricted.t1 TO u1@localhost;
+connection con1;
+SHOW GRANTS FOR CURRENT_USER();
+CREATE DEFINER=root@localhost SQL SECURITY DEFINER VIEW v1 AS
+SELECT a.restricted FROM restricted.t1 as a;
+--echo # Use escalated privileges to read restricted column.
+SELECT * FROM v1;
+connection con1;
+--echo # Creating events with SET_USER_ID should work too.
+delimiter //;
+CREATE DEFINER=root@localhost EVENT test.eve1 ON SCHEDULE AT
+CURRENT_TIMESTAMP + INTERVAL 2 SECOND
+DO BEGIN
+  INSERT INTO restricted.t1 VALUES (5,5);
+END;//
+delimiter ;//
+--let $wait_timeout= 120
+--let $wait_condition= SELECT count(*) > 2 FROM v1
+--source include/wait_condition_or_abort.inc
+SELECT * FROM v1;
+connection default;
+disconnect con1;
+DROP PROCEDURE p1;
+DROP DATABASE restricted;
+DROP USER u1@localhost;
+DROP VIEW test.v1;
+DROP TABLE test.t1;
+SET GLOBAL event_scheduler = 0;
+
+--echo #
+--echo # Bug25555019 DYNAMIC PRIVILEGES CAN BE GRANTED AT TABLE LEVEL
+--echo #
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+--error ER_ILLEGAL_PRIVILEGE_LEVEL
+GRANT ROLE_ADMIN ON mysql.user TO u1@localhost;
+--echo # * := <current_db>.*
+--error ER_ILLEGAL_PRIVILEGE_LEVEL
+GRANT ROLE_ADMIN ON * TO u1@localhost;
+DROP USER u1@localhost;
+
+--echo #
+--echo # Bug25573809 MANUALLY INSERTED DYNAMIC PRIVILEGE ON
+--echo # MYSQL.GLOBAL_GRANTS DOES NOT TAKE AFFECT
+--echo #
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+CREATE USER u2@localhost IDENTIFIED BY 'foo';
+INSERT INTO mysql.global_grants VALUES('u1', 'localhost', 'ROLE_ADMIN', 'Y');
+INSERT INTO mysql.global_grants
+VALUES('u1', 'localhost', 'SYSTEM_VARIABLES_ADMIN', 'N');
+FLUSH PRIVILEGES;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u2@localhost;
+connect(con1,localhost,u1,foo,,,,);
+connection con1;
+SHOW GRANTS FOR CURRENT_USER();
+GRANT ROLE_ADMIN ON *.* TO u2@localhost;
+REVOKE ROLE_ADMIN ON *.* FROM u2@localhost;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u2@localhost;
+connection default;
+DROP USER u1@localhost;
+DROP USER u2@localhost;
+disconnect con1;
+
+--echo #
+--echo # Bug25583949 GRANTING DYNAMIC PRIVILEGE TO SELF
+--echo # DOWNGRADES THE "WITH GRANT" OPTION
+--echo #
+DROP USER IF EXISTS u1, r1;
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+CREATE ROLE r1;
+GRANT ROLE_ADMIN ON *.* to r1 WITH GRANT OPTION;
+GRANT r1 to u1@localhost;
+connect(con1,localhost,u1,foo,,,,);
+connection con1;
+SET ROLE r1;
+GRANT ROLE_ADMIN ON *.* to u1@localhost;
+GRANT ROLE_ADMIN ON *.* to u1@localhost;
+SHOW GRANTS FOR CURRENT_USER();
+connection default;
+DROP USER u1@localhost;
+DROP ROLE r1;
+disconnect con1;
+
+--echo #
+--echo # Bug25583949 GRANTING DYNAMIC PRIVILEGE TO SELF
+--echo # DOWNGRADES THE "WITH GRANT" OPTION
+--echo #
+DROP USER IF EXISTS u1;
+CREATE USER u1, u1@localhost;
+GRANT ROLE_ADMIN ON *.* TO u1;
+INSERT INTO mysql.global_grants VALUES('u1', '%', 'non_documented_privilege',
+'Y');
+INSERT INTO mysql.global_grants VALUES('u1', 'localhost',
+'non_documented_privilege', 'Y');
+FLUSH PRIVILEGES;
+--echo # This will show "non_documented_privilege" as granted privilege to u1:
+SHOW GRANTS FOR u1;
+SHOW GRANTS FOR u1@localhost;
+--echo #
+REVOKE ALL ON *.* FROM u1;
+REVOKE ALL ON *.* FROM u1@localhost;
+SELECT * FROM mysql.global_grants;
+--echo # All privileges are revoked, only usage is seen as granted.
+--echo # This is expected.
+SHOW GRANTS FOR u1;
+FLUSH PRIVILEGES;
+--echo # "non_documented_privilege" should not be seen again
+SHOW GRANTS FOR u1;
+SELECT * FROM mysql.global_grants;
+
+--echo # Test for CONNECTON_ADMIN
+--echo #
+DROP USER IF EXISTS 'u1'@'localhost';
+DROP TABLE IF EXISTS test.t1;
+CREATE TABLE test.t1(a int);
+CREATE USER 'u1'@'localhost' IDENTIFIED BY 'pwd';
+GRANT ALL ON test.t1 TO 'u1'@'localhost';
+GRANT CONNECTION_ADMIN, SYSTEM_VARIABLES_ADMIN, SELECT ON *.* TO u1@localhost;
+
+--echo # Test of user when it has the privilege CONNECTION_ADMIN
+SET GLOBAL init_connect = 'INSERT INTO test.t1 values(555)';
+connect(con_admin_test,localhost,u1,pwd,,,,);
+--echo # sql statement in the variable init_connect will not be executed
+SELECT * FROM test.t1;
+disconnect con_admin_test;
+
+CONNECTION default;
+SET GLOBAL init_connect = '';
+SET GLOBAL offline_mode = 'ON';
+--echo # Connection will be successful
+connect(con_admin_test,localhost,u1,pwd,,,,);
+disconnect con_admin_test;
+
+CONNECTION default;
+SET GLOBAL offline_mode = 'OFF';
+SET GLOBAL read_only = 'ON';
+--echo # User can do write operation in database
+connect(con_admin_test,localhost,u1,pwd,,,,);
+INSERT INTO test.t1 VALUES(1);
+disconnect con_admin_test;
+
+CONNECTION default;
+SET GLOBAL read_only = 'OFF';
+SET @old_log_output=          @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+SET @old_general_log_file=    @@global.general_log_file;
+TRUNCATE TABLE mysql.general_log;
+SET GLOBAL log_output =       'TABLE';
+SET GLOBAL general_log=       'ON';
+TRUNCATE TABLE mysql.general_log;
+
+--echo # log should go in general log as user has the privilege CONNECTION_ADMIN
+connect(con_admin_test,localhost,u1,pwd,,,,);
+SET sql_log_off = ON;
+SELECT 'helloworld';
+--echo # Should be 0 because log_off= ON and we have CONNECTION_ADMIN
+SELECT COUNT(*) FROM mysql.general_log WHERE ARGUMENT like '%helloworld%';
+SET sql_log_off = OFF;
+SELECT 'helloworld';
+--echo # Should be 2 because log_off= OFF and we have CONNECTION_ADMIN
+SELECT COUNT(*)>=2 FROM mysql.general_log WHERE ARGUMENT like '%helloworld%';
+DISCONNECT con_admin_test;
+--echo # Test of user when it does not have the privilege CONNECTION_ADMIN
+CONNECTION default;
+TRUNCATE TABLE mysql.general_log;
+REVOKE CONNECTION_ADMIN ON *.* from u1@localhost;
+SHOW GRANTS FOR u1@localhost;
+
+SET GLOBAL init_connect = 'INSERT INTO test.t1 values(555)';
+connect(con_admin_test,localhost,u1,pwd,,,,);
+--echo # sql statement in the variable init_connect will be executed
+SELECT * FROM test.t1;
+disconnect con_admin_test;
+
+CONNECTION default;
+SET GLOBAL init_connect = '';
+SET GLOBAL offline_mode = 'ON';
+--echo # Connection will fail
+--disable_query_log
+--error 3032
+connect(con_admin_test_test,localhost,u1,pwd,,,,);
+--enable_query_log
+
+CONNECTION default;
+SET GLOBAL offline_mode = 'OFF';
+SET GLOBAL read_only = 'ON';
+--echo # User can't do write operation in database
+connect(con_admin_test,localhost,u1,pwd,,,,);
+--error 1290
+INSERT INTO test.t1 VALUES(1);
+DISCONNECT con_admin_test;
+
+--echo # sql_log_off test of user when it lack the privilege CONNECTION_ADMIN
+CONNECTION default;
+REVOKE CONNECTION_ADMIN ON *.* from u1@localhost;
+SET GLOBAL read_only = 'OFF';
+--echo # Entry will go to general_log
+SHOW GRANTS FOR u1@localhost;
+TRUNCATE TABLE mysql.general_log;
+connect(con_admin_test,localhost,u1,pwd,,,,);
+SET sql_log_off = OFF;
+SELECT 'helloworld';
+--echo # Count should be 1 because sql_log_off = OFF
+SELECT COUNT(*)>0 FROM mysql.general_log WHERE ARGUMENT like '%helloworld%';
+CONNECTION default;
+TRUNCATE TABLE mysql.general_log;
+CONNECTION con_admin_test;
+SET sql_log_off = ON;
+--echo # Entry will go to general_log because user doesn't have CONNECTION_ADMIN
+SELECT 'helloworld';
+SELECT COUNT(*)>0 FROM mysql.general_log WHERE ARGUMENT like '%helloworld%';
+DISCONNECT con_admin_test;
+
+--echo # Reset the value of general-log variables to original
+CONNECTION default;
+TRUNCATE TABLE mysql.general_log;
+SET sql_log_off = OFF;
+SET GLOBAL general_log_file=  @old_general_log_file;
+SET GLOBAL general_log=       @old_general_log;
+SET GLOBAL log_output=        @old_log_output;
+TRUNCATE TABLE mysql.general_log;
+
+--echo # Tests for mixed grant of static and dynamc privileges through auth ids
+DROP USER IF EXISTS u1, r1, r2;
+CREATE USER u1, r1, r2;
+GRANT ROLE_ADMIN, BINLOG_ADMIN, SET_USER_ID, CREATE on *.* to r1;
+GRANT ROLE_ADMIN, GROUP_REPLICATION_ADMIN, ENCRYPTION_KEY_ADMIN, ALTER,
+RELOAD on *.* to r2;
+GRANT SYSTEM_VARIABLES_ADMIN, REPLICATION_SLAVE_ADMIN, SELECT ON *.* to u1;
+GRANT r1, r2 TO u1;
+SHOW GRANTS FOR u1 using r1;
+SHOW GRANTS FOR u1 using r2;
+DROP ROLE r1;
+--error 3530
+SHOW GRANTS FOR u1 using r1;
+SHOW GRANTS FOR u1;
+GRANT ALL ON *.* to u1;
+SHOW GRANTS FOR u1;
+--echo # Boundary value test for privilege_id
+INSERT INTO mysql.global_grants VALUES('u1', '%',
+'length_32_abcdefghijklmnopqrstux', 'Y');
+FLUSH PRIVILEGES;
+--error 1406
+INSERT INTO mysql.global_grants VALUES('u1', '%',
+'length_33_abcdefghijklmnopqrstuvw', 'Y');
+--sorted_result
+SHOW PRIVILEGES;
+TRUNCATE TABLE mysql.global_grants;
+FLUSH PRIVILEGES;
+--echo # restore root privileges
+GRANT ALL ON *.* to root@localhost WITH GRANT OPTION;
+
+--echo # REPLICATION_SLAVE_ADMIN test
+DROP USER u1@localhost;
+CREATE USER u1@localhost IDENTIFIED BY 'pwd';
+connect(con_rep_slave_test,localhost,u1,pwd,,,,);
+--error 1227
+START SLAVE;
+--error 1227
+STOP SLAVE;
+DISCONNECT con_rep_slave_test;
+CONNECTION default;
+GRANT REPLICATION_SLAVE_ADMIN ON *.* to u1@localhost;
+connect(con_rep_slave_test,localhost,u1,pwd,,,,);
+--error 1200
+START SLAVE;
+--error 1200
+START SLAVE;
+DISCONNECT con_rep_slave_test;
+--echo #
+--echo # Bad privilege- or auth identifiers shouldn't crash the server
+--echo #
+CONNECTION default;
+--error ER_PARSE_ERROR
+REVOKE 'C' @c06 ON c02.`z1` FROM 'C' @c03;
+--error ER_PARSE_ERROR
+GRANT '' @c05 ON TABLE *.* TO ''@'' IDENTIFIED WITH c06 BY '' REQUIRE X509;
+--error ER_PARSE_ERROR
+GRANT '' @c05 ON TABLE * TO CURRENT_USER()IDENTIFIED WITH c07 REQUIRE X509 WITH  MAX_QUERIES_PER_HOUR 0x2e3;
+--error ER_PARSE_ERROR
+GRANT WRAPPER @c04 ON FUNCTION c02.* TO CURRENT_USER IDENTIFIED WITH '' BY '?'  REQUIRE SSL;
+--error ER_PARSE_ERROR
+GRANT '' @c03 ON c05.* TO '' @ '';
+
+--echo # Cleanup
+CONNECTION default;
+DROP USER u1@localhost, u1, r2;
+DROP TABLE test.t1;
+
+--echo # SKIP-GRANT-TABLES IS ENABLED BY DEFAULT DURING LIVE UPGRADE
+CREATE USER u1@localhost IDENTIFIED BY 'pwd';
+CREATE DATABASE db1_protected;
+CREATE DATABASE db1;
+GRANT ALL ON db1.* TO u1@localhost;
+DROP TABLE mysql.global_grants;
+--source include/restart_mysqld.inc
+connect(con1,localhost,u1,pwd,,,,);
+--error ER_DBACCESS_DENIED_ERROR
+DROP DATABASE db1_protected;
+DROP DATABASE db1;
+connection default;
+disconnect con1;
+DROP DATABASE db1_protected;
+--echo # Restore missing system table and restart the erver.
+CREATE TABLE IF NOT EXISTS mysql.global_grants
+(
+ USER CHAR(32) BINARY DEFAULT '' NOT NULL,
+ HOST CHAR(60) BINARY DEFAULT '' NOT NULL,
+ PRIV CHAR(32) COLLATE UTF8_GENERAL_CI DEFAULT '' NOT NULL, 
+ WITH_GRANT_OPTION ENUM('N','Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
+PRIMARY KEY (USER,HOST,PRIV)
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin TABLESPACE=mysql;
+--source include/restart_mysqld.inc
+DROP USER u1@localhost;
+--echo # restore root privileges
+GRANT ALL ON *.* TO root@localhost WITH GRANT OPTION;
+--echo #
+--echo # Test for WL#7194
+--echo # This test checks that a user who granted XA_RECOVER_ADMIN with
+--echo # WITH GRANT OPTION can grant it to other user and a user who is granted
+--echo # XA_RECOVER_ADMIN without WITH GRANT OPTION can not.
+--echo #
+CREATE USER u1;
+CREATE USER u2;
+CREATE USER u3;
+GRANT SYSTEM_VARIABLES_ADMIN, SELECT ON *.* TO u1;
+GRANT SYSTEM_VARIABLES_ADMIN, SELECT ON *.* TO u2;
+--echo # Grant the privilege XA_RECOVER_ADMIN to user u1 with GRANT OPTION
+GRANT XA_RECOVER_ADMIN ON *.* TO u1 WITH GRANT OPTION;
+--connect (con1, localhost, u1,,)
+--echo # And check that the user u1 can grant the privilege XA_RECOVER_ADMIN
+--echo # to the user u2
+GRANT XA_RECOVER_ADMIN ON *.* TO u2;
+SHOW GRANTS FOR u1;
+SHOW GRANTS FOR u2;
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--echo # Connect as user u2 who was granted the privilege XA_RECOVER_ADMIN
+--echo # without WITH GRANT OPTION and try to grant the privilege
+--echo # XA_RECOVER_ADMIN to user u3.
+
+--connect (con1, localhost, u2,,)
+
+--echo # Since the the privilege XA_RECOVER_ADMIN was granted to the user u2
+--echo # without the clause WITH GRANT OPTION it is expected that attempt
+--echo # to grant the privilege XA_RECOVER_ADMIN to the user u3 be failed.
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT XA_RECOVER_ADMIN ON *.* TO u3;
+
+--connection default
+DROP USER u1;
+DROP USER u2;
+DROP USER u3;
+--echo # End of test for WL#7194
+
+--echo # REVOKE ALL IS NOT REVOKING ALL PRIVILEGE WHEN CURRENT_USER() IS USED
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT ALL ON *.* TO u1@localhost;
+connect (con2,localhost,u1,foo,,);
+connection con2;
+SHOW GRANTS;
+REVOKE ALL ON *.* FROM CURRENT_USER();
+SHOW GRANTS;
+connection default;
+disconnect con2;
+DROP USER u1@localhost;
+
+--echo #
+--echo # Bug#26191109: GRANT GRANT OPTION ON *.* APPLIES TO A USER'S STATIC PRIVS BUT
+--echo #               NOT DYNAMIC ONES
+--echo #
+CREATE USER u1;
+GRANT BINLOG_ADMIN ON *.* TO u1;
+GRANT INSERT ON *.* TO u1;
+SHOW GRANTS FOR u1;
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+# grant grant option with existing dynamic privileges
+GRANT GRANT OPTION ON *.* TO u1;
+SHOW GRANTS FOR u1;
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+GRANT SYSTEM_VARIABLES_ADMIN, RESOURCE_GROUP_ADMIN ON *.* TO u1;
+SHOW GRANTS FOR u1;
+# check grant option is not apploied for future dynamic privileges
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+GRANT GRANT OPTION ON *.* TO u1;
+SHOW GRANTS FOR u1;
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+GRANT XA_RECOVER_ADMIN ON *.* TO u1;
+GRANT CONNECTION_ADMIN ON *.* TO u1 WITH GRANT OPTION;
+SHOW GRANTS FOR u1;
+# check XA_RECOVER_ADMIN "WITH_GRANT_OPTION" set to NO
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+# combination of static privilege and WITH GRANT OPTION
+GRANT SELECT ON *.* TO u1 WITH GRANT OPTION;
+SHOW GRANTS FOR u1;
+# should not affect dynamic privileges
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+# combination of static privilege and GRANT OPTION
+GRANT DELETE, GRANT OPTION ON *.* TO u1;
+SHOW GRANTS FOR u1;
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO u1;
+SHOW GRANTS FOR u1;
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+GRANT REPLICATION_SLAVE_ADMIN ON *.* TO u1 WITH GRANT OPTION;
+SHOW GRANTS FOR u1;
+# only PERSIST_RO_VARIABLES_ADMIN privilege should have "WITH_GRANT_OPTION" set to NO
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+GRANT GRANT OPTION ON *.* TO u1 WITH GRANT OPTION;
+SHOW GRANTS FOR u1;
+# all dynamic privilege should have "WITH_GRANT_OPTION" set to YES
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM u1;
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR u1;
+# there should be no RESOURCE_GROUP_ADMIN privilege
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+REVOKE PERSIST_RO_VARIABLES_ADMIN, GRANT OPTION ON *.* FROM u1;
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR u1;
+# all dynamic privilege should have "WITH_GRANT_OPTION" set to NO
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+# check for binlog events
+RESET MASTER;
+--source include/show_binlog_events.inc
+GRANT SELECT ON *.* TO u1;
+--source include/show_binlog_events.inc
+GRANT PERSIST_RO_VARIABLES_ADMIN, DELETE ON *.* TO u1 WITH GRANT OPTION;
+--source include/show_binlog_events.inc
+GRANT GRANT OPTION ON *.* TO u1;
+--source include/show_binlog_events.inc
+RESET MASTER;
+DROP USER u1;

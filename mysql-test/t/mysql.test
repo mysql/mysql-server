@@ -1,10 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
-# This test should work in embedded server after we fix mysqltest
--- source include/not_embedded.inc
 #
 # Testing the MySQL command line client(mysql)
 #
@@ -80,8 +73,8 @@ drop table t1;
 #
 # Bug#21618: NULL shown as empty string in client
 #
---exec $MYSQL test -e "select unhex('zz');" 
---exec $MYSQL -t test -e "select unhex('zz');" 
+--exec $MYSQL test -e "select concat(null);"
+--exec $MYSQL -t test -e "select concat(null);"
 
 # Bug#19265 describe command does not work from mysql prompt
 #
@@ -366,13 +359,6 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 --echo End of 5.0 tests
 
 #
-# Bug #29903: The CMake build method does not produce the embedded library.
-#
---disable_query_log
---exec $MYSQL --server-arg=no-defaults test -e "quit"
---enable_query_log
-
-#
 # Bug#26780: patch to add auto vertical output option to the cli.
 #
 # Make this wide enough that it will wrap almost everywhere.
@@ -644,6 +630,19 @@ EOF
 --error 5
 --exec $MYSQL -P "" -e "SELECT 1" 2>&1
 
+--echo #
+--echo # Bug #21464621: MYSQL CLI SHOULD SUGGEST CONNECT-EXPIRED-PASSWORD WHEN ERROR 1862 OCCURS
+--echo #
+
+CREATE USER bug21464621 IDENTIFIED BY 'password' PASSWORD EXPIRE;
+--error 1
+--exec $MYSQL -u bug21464621 --password="password" -e "SET PASSWORD='123';" 2>&1
+# change the password using set password
+--exec $MYSQL -u bug21464621 --password="password" -e "SET PASSWORD='123';" --connect-expired-password 2>&1
+--exec $MYSQL -u bug21464621 --password="123" -e "SELECT user();" 2>&1
+
+#cleanup
+DROP USER bug21464621;
 
 --echo
 --echo End of tests

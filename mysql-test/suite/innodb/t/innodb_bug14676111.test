@@ -1,21 +1,13 @@
 # Test for bug #14676111: WRONG PAGE_LEVEL WRITTEN FOR UPPER THAN FATHER PAGE AT BTR_LIFT_PAGE_UP()
 
--- source include/have_innodb.inc
 -- source include/have_debug.inc
-
---disable_warnings
-if (`select count(*)=0 from information_schema.global_variables where variable_name = 'INNODB_LIMIT_OPTIMISTIC_INSERT_DEBUG'`)
-{
-  --skip Test requires InnoDB built with UNIV_DEBUG definition.
-}
---enable_warnings
 
 --disable_query_log
 set @old_innodb_limit_optimistic_insert_debug = @@innodb_limit_optimistic_insert_debug;
 set @old_innodb_stats_persistent = @@innodb_stats_persistent;
-set @old_innodb_undo_logs = @@innodb_undo_logs;
+set @old_innodb_rollback_segments = @@innodb_rollback_segments;
 # Limit undo segments for stable progress of purge.
-set global innodb_undo_logs = 1;
+set global innodb_rollback_segments = 1;
 --enable_query_log
 --disable_warnings
 drop table if exists t1;
@@ -53,7 +45,7 @@ insert into t1 values (2);
 #(1, 2) (3) (4) (5)
 
 analyze table t1;
-select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+select CLUST_INDEX_SIZE from information_schema.INNODB_TABLESTATS where NAME = 'test/t1';
 
 delete from t1 where a=4;
 set global innodb_purge_stop_now=ON;
@@ -67,7 +59,7 @@ set global innodb_purge_run_now=ON;
 #(1, 2) (3)     (5)
 
 analyze table t1;
-select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+select CLUST_INDEX_SIZE from information_schema.INNODB_TABLESTATS where NAME = 'test/t1';
 
 delete from t1 where a=5;
 set global innodb_purge_stop_now=ON;
@@ -81,7 +73,7 @@ set global innodb_purge_run_now=ON;
 #(1, 2) (3) <- merged next
 
 analyze table t1;
-select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+select CLUST_INDEX_SIZE from information_schema.INNODB_TABLESTATS where NAME = 'test/t1';
 
 #
 # cause merge at level 0
@@ -100,7 +92,7 @@ set global innodb_purge_run_now=ON;
 #  (1, 3)
 
 analyze table t1;
-select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+select CLUST_INDEX_SIZE from information_schema.INNODB_TABLESTATS where NAME = 'test/t1';
 
 insert into t1 values (2);
 #current tree form
@@ -117,7 +109,7 @@ set global innodb_purge_run_now=ON;
 #    (1, 3)
 
 analyze table t1;
-select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+select CLUST_INDEX_SIZE from information_schema.INNODB_TABLESTATS where NAME = 'test/t1';
 
 insert into t1 values (2);
 #current tree form
@@ -132,12 +124,12 @@ set global innodb_purge_run_now=ON;
 #      (1, 3)
 
 analyze table t1;
-select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+select CLUST_INDEX_SIZE from information_schema.INNODB_TABLESTATS where NAME = 'test/t1';
 
 drop table t1;
 
 --disable_query_log
 set global innodb_limit_optimistic_insert_debug = @old_innodb_limit_optimistic_insert_debug;
 set global innodb_stats_persistent = @old_innodb_stats_persistent;
-set global innodb_undo_logs = @old_innodb_undo_logs;
+set global innodb_rollback_segments = @old_innodb_rollback_segments;
 --enable_query_log

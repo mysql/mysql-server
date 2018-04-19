@@ -1,0 +1,13 @@
+call mtr.add_suppression("Foreign Key referenced table test.t1 not found for foreign table test.t2");
+SET @saved_foreign_key_checks= @@session.foreign_key_checks;
+SET @@session.foreign_key_checks= 1;
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+CREATE TABLE t2 (c1 INT PRIMARY KEY, FOREIGN KEY (c1) REFERENCES t1(c1));
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+SET @@session.foreign_key_checks= 0;
+DROP TABLE t1;
+SET @@session.foreign_key_checks= 1;
+DELETE FROM t2 WHERE c1=1;
+DROP TABLE t2;
+SET @@session.foreign_key_checks= @saved_foreign_key_checks;

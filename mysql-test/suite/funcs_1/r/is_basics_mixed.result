@@ -75,9 +75,9 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 CREATE TABLE t1 (f1 INT, f2 INT, f3 INT);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 CREATE VIEW tables AS SELECT 'garbage';
-ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ERROR 42S01: Table 'tables' already exists
 CREATE VIEW tables AS SELECT * FROM information_schema.tables;
-ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ERROR 42S02: Table 'information_schema.TABLES' doesn't exist
 CREATE VIEW v1 AS SELECT 'garbage';
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 USE test;
@@ -116,10 +116,10 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 CREATE TABLE information_schema.t1 (f1 INT, f2 INT, f3 INT);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 CREATE VIEW information_schema.tables AS SELECT 'garbage';
-ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ERROR 42S01: Table 'tables' already exists
 CREATE VIEW information_schema.tables AS
 SELECT * FROM information_schema.tables;
-ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ERROR 42S02: Table 'information_schema.TABLES' doesn't exist
 CREATE VIEW information_schema.v1 AS SELECT 'garbage';
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 DROP   USER 'testuser1'@'localhost';
@@ -127,7 +127,8 @@ CREATE USER 'testuser1'@'localhost';
 GRANT ALL ON *.* TO testuser1@localhost;
 SHOW GRANTS FOR testuser1@localhost;
 Grants for testuser1@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'testuser1'@'localhost'
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `testuser1`@`localhost`
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `testuser1`@`localhost`
 # Establish connection testuser1 (user=testuser1)
 USE information_schema;
 CREATE TABLE schemata                              ( c1 INT );
@@ -165,9 +166,9 @@ ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'informa
 CREATE TABLE t1 (f1 INT, f2 INT, f3 INT);
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 CREATE VIEW tables AS SELECT 'garbage';
-ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
+ERROR 42S01: Table 'tables' already exists
 CREATE VIEW tables AS SELECT * FROM information_schema.tables;
-ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
+ERROR 42S02: Table 'information_schema.TABLES' doesn't exist
 CREATE VIEW v1 AS SELECT 'garbage';
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 USE test;
@@ -206,10 +207,10 @@ ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'informa
 CREATE TABLE information_schema.t1 (f1 INT, f2 INT, f3 INT);
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 CREATE VIEW information_schema.tables AS SELECT 'garbage';
-ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
+ERROR 42S01: Table 'tables' already exists
 CREATE VIEW information_schema.tables AS
 SELECT * FROM information_schema.tables;
-ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
+ERROR 42S02: Table 'information_schema.TABLES' doesn't exist
 CREATE VIEW information_schema.v1 AS SELECT 'garbage';
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 # Switch to connection default (user=root) and close connection testuser1
@@ -227,7 +228,7 @@ ENGINE = <some_engine>;
 SELECT * FROM information_schema.tables;
 SELECT table_name FROM information_schema.tables
 WHERE table_schema = 'db_datadict';
-table_name
+TABLE_NAME
 t1_first
 t1_second
 SELECT LENGTH(table_name) FROM information_schema.tables
@@ -247,15 +248,15 @@ CAST((LENGTH(table_schema) + LENGTH(table_name)) AS DECIMAL(15,1))
 20.0
 SELECT table_name FROM information_schema.tables
 WHERE table_name IN ('t1_first','t1_second') ORDER BY table_name LIMIT 1;
-table_name
+TABLE_NAME
 t1_first
 SELECT table_name FROM information_schema.tables
 WHERE table_name IN ('t1_first','t1_second') ORDER BY table_name LIMIT 1,1;
-table_name
+TABLE_NAME
 t1_second
 SELECT table_name,table_schema AS my_col FROM information_schema.tables
 WHERE table_name = 't1_first' AND table_schema = 'db_datadict';
-table_name	my_col
+TABLE_NAME	my_col
 t1_first	db_datadict
 SELECT HIGH_PRIORITY table_name AS my_col FROM information_schema.tables
 WHERE table_name = 't1_first' OR table_name = 't1_second';
@@ -284,20 +285,20 @@ WHERE table_name = 't1_first'
 UNION ALL
 SELECT table_name FROM information_schema.tables
 WHERE table_name = 't1_second';
-table_name
+TABLE_NAME
 t1_first
 t1_second
 SELECT DISTINCT table_schema FROM information_schema.tables
 WHERE table_name IN (SELECT table_name FROM information_schema.tables
 WHERE table_schema = 'db_datadict')
 ORDER BY table_name;
-table_schema
+TABLE_SCHEMA
 db_datadict
 SELECT table_name FROM information_schema.tables t1
 LEFT JOIN information_schema.tables t2 USING(table_name,table_schema)
 WHERE t2.table_schema = 'db_datadict'
 ORDER BY table_name;
-table_name
+TABLE_NAME
 t1_first
 t1_second
 USE test;
@@ -326,8 +327,8 @@ GRANT CREATE VIEW ON information_schema.* TO 'u_6_401018'@'localhost';
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 # Establish connection testuser1 (user=testuser1)
 SELECT table_schema,table_name FROM information_schema.tables
-WHERE table_schema = 'information_schema' AND table_name = 'tables';
-table_schema	table_name
+WHERE table_schema = 'information_schema' AND table_name = 'TABLES';
+TABLE_SCHEMA	TABLE_NAME
 information_schema	TABLES
 SELECT * FROM information_schema.table_privileges
 WHERE table_schema = 'information_schema';
@@ -433,7 +434,7 @@ DROP USER 'testuser1'@'localhost';
 #########################################################################
 SELECT DISTINCT table_schema FROM information_schema.columns
 WHERE table_schema LIKE 'db_data%';
-table_schema
+TABLE_SCHEMA
 SELECT DISTINCT table_schema FROM information_schema.column_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
@@ -441,35 +442,41 @@ SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.key_column_usage
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT routine_schema FROM information_schema.routines
 WHERE routine_schema LIKE 'db_data%';
-routine_schema
+ROUTINE_SCHEMA
 SELECT DISTINCT schema_name FROM information_schema.schemata
 WHERE schema_name LIKE 'db_data%';
-schema_name
+SCHEMA_NAME
 SELECT DISTINCT table_schema FROM information_schema.schema_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
 SELECT DISTINCT table_schema,index_schema FROM information_schema.statistics
 WHERE table_schema LIKE 'db_data%' OR index_schema LIKE 'db_data%';
-table_schema	index_schema
+TABLE_SCHEMA	INDEX_SCHEMA
 SELECT DISTINCT table_schema FROM information_schema.tables
 WHERE table_schema LIKE 'db_data%';
-table_schema
+TABLE_SCHEMA
 SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.table_constraints
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT table_schema FROM information_schema.table_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
 SELECT DISTINCT trigger_schema,event_object_schema
 FROM information_schema.triggers
 WHERE trigger_schema LIKE 'db_data%' OR event_object_schema LIKE 'db_data%';
-trigger_schema	event_object_schema
+TRIGGER_SCHEMA	EVENT_OBJECT_SCHEMA
 SELECT DISTINCT table_schema FROM information_schema.views
 WHERE table_schema LIKE 'db_data%';
-table_schema
+TABLE_SCHEMA
 DROP DATABASE IF EXISTS db_datadict;
 CREATE DATABASE db_datadict;
 CREATE TABLE db_datadict.t1 (f1 BIGINT, f2 BIGINT NOT NULL, f3 BIGINT,
@@ -484,7 +491,7 @@ CREATE VIEW db_datadict.v1 AS SELECT * FROM db_datadict.t1;
 CREATE VIEW db_datadict.v2 AS SELECT * FROM information_schema.tables;
 SELECT DISTINCT table_schema FROM information_schema.columns
 WHERE table_schema LIKE 'db_data%';
-table_schema
+TABLE_SCHEMA
 db_datadict
 SELECT DISTINCT table_schema FROM information_schema.column_privileges
 WHERE table_schema LIKE 'db_data%';
@@ -494,41 +501,47 @@ FROM information_schema.key_column_usage
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
 db_datadict	db_datadict
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT routine_schema FROM information_schema.routines
 WHERE routine_schema LIKE 'db_data%';
-routine_schema
+ROUTINE_SCHEMA
 db_datadict
 SELECT DISTINCT schema_name FROM information_schema.schemata
 WHERE schema_name LIKE 'db_data%';
-schema_name
+SCHEMA_NAME
 db_datadict
 SELECT DISTINCT table_schema FROM information_schema.schema_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
 SELECT DISTINCT table_schema,index_schema FROM information_schema.statistics
 WHERE table_schema LIKE 'db_data%' OR index_schema LIKE 'db_data%';
-table_schema	index_schema
+TABLE_SCHEMA	INDEX_SCHEMA
 db_datadict	db_datadict
 SELECT DISTINCT table_schema FROM information_schema.tables
 WHERE table_schema LIKE 'db_data%';
-table_schema
+TABLE_SCHEMA
 db_datadict
 SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.table_constraints
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
 db_datadict	db_datadict
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT table_schema FROM information_schema.table_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
 SELECT DISTINCT trigger_schema,event_object_schema
 FROM information_schema.triggers
 WHERE trigger_schema LIKE 'db_data%' OR event_object_schema LIKE 'db_data%';
-trigger_schema	event_object_schema
+TRIGGER_SCHEMA	EVENT_OBJECT_SCHEMA
 db_datadict	db_datadict
 SELECT DISTINCT table_schema FROM information_schema.views
 WHERE table_schema LIKE 'db_data%';
-table_schema
+TABLE_SCHEMA
 db_datadict
 DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
@@ -536,7 +549,7 @@ GRANT ALL ON test.* TO 'testuser1'@'localhost';
 # Establish connection testuser1 (user=testuser1)
 SELECT DISTINCT table_schema FROM information_schema.columns
 WHERE table_schema LIKE 'db_data%';
-table_schema
+TABLE_SCHEMA
 SELECT DISTINCT table_schema FROM information_schema.column_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
@@ -544,35 +557,41 @@ SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.key_column_usage
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT routine_schema FROM information_schema.routines
 WHERE routine_schema LIKE 'db_data%';
-routine_schema
+ROUTINE_SCHEMA
 SELECT DISTINCT schema_name FROM information_schema.schemata
 WHERE schema_name LIKE 'db_data%';
-schema_name
+SCHEMA_NAME
 SELECT DISTINCT table_schema FROM information_schema.schema_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
 SELECT DISTINCT table_schema,index_schema FROM information_schema.statistics
 WHERE table_schema LIKE 'db_data%' OR index_schema LIKE 'db_data%';
-table_schema	index_schema
+TABLE_SCHEMA	INDEX_SCHEMA
 SELECT DISTINCT table_schema FROM information_schema.tables
 WHERE table_schema LIKE 'db_data%';
-table_schema
+TABLE_SCHEMA
 SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.table_constraints
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT table_schema FROM information_schema.table_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
 SELECT DISTINCT trigger_schema,event_object_schema
 FROM information_schema.triggers
 WHERE trigger_schema LIKE 'db_data%' OR event_object_schema LIKE 'db_data%';
-trigger_schema	event_object_schema
+TRIGGER_SCHEMA	EVENT_OBJECT_SCHEMA
 SELECT DISTINCT table_schema FROM information_schema.views
 WHERE table_schema LIKE 'db_data%';
-table_schema
+TABLE_SCHEMA
 # Switch to connection default and close connections testuser1 and testuser2
 DROP   USER 'testuser1'@'localhost';
 DROP DATABASE db_datadict;

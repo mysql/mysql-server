@@ -1,0 +1,6 @@
+--no-console --log_error=$MYSQLTEST_VARDIR/tmp/group_replication_recovery_ssl_and_ssl_mode.2.err --log-error-verbosity=3
+--loose-group_replication_ssl_mode=REQUIRED
+--loose-group_replication_recovery_use_ssl=1
+--loose-group_replication_recovery_ssl_key=$MYSQL_TEST_DIR/std_data/client-key.pem
+--loose-group_replication_recovery_ssl_cert=$MYSQL_TEST_DIR/std_data/client-cert.pem
+--loose-group_replication_recovery_ssl_ca=$MYSQL_TEST_DIR/std_data/cacert.pem

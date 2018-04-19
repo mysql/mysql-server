@@ -1,0 +1,71 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+####################################################################
+# Test Case1: Improved error message with charset information
+####################################################################
+[connection master]
+SET SQL_LOG_BIN=0;
+CREATE TABLE t1 (c1 VARCHAR(1) CHARACTER SET 'utf8mb3');
+SET SQL_LOG_BIN=1;
+[connection slave]
+CREATE TABLE t1 (c1 VARCHAR(1) CHARACTER SET 'utf8mb4');
+[connection master]
+INSERT INTO t1 VALUES ('a');
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=13146]
+Matching lines are:
+DATE_TIME [ERROR] [MY-013146] [Repl] Slave SQL for channel '': Column 0 of table 'test.t1' cannot be converted from type 'varchar(3(bytes))' to type 'varchar(4(bytes) utf8mb4)', Error_code: MY-013146
+Occurrences of '\'varchar\(3\(bytes\)\)\' to type \'varchar\(4\(bytes\) utf8mb4\)\'' in the input file: 1
+[connection master]
+DROP TABLE t1;
+[connection slave]
+DROP TABLE t1;
+include/rpl_reset.inc
+####################################################################
+# Test Case2: Improved error message with charset information for CHAR
+# type
+####################################################################
+[connection master]
+SET SQL_LOG_BIN=0;
+CREATE TABLE t1 (c1 CHAR(1) CHARACTER SET 'utf8mb3');
+SET SQL_LOG_BIN=1;
+[connection slave]
+CREATE TABLE t1 (c1 CHAR(1) CHARACTER SET 'utf8mb4');
+[connection master]
+INSERT INTO t1 VALUES ('a');
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=13146]
+Matching lines are:
+DATE_TIME [ERROR] [MY-013146] [Repl] Slave SQL for channel '': Column 0 of table 'test.t1' cannot be converted from type 'char(3(bytes))' to type 'char(4(bytes) utf8mb4)', Error_code: MY-013146
+Occurrences of '\'char\(3\(bytes\)\)\' to type \'char\(4\(bytes\) utf8mb4\)\'' in the input file: 1
+[connection master]
+DROP TABLE t1;
+[connection slave]
+DROP TABLE t1;
+include/rpl_reset.inc
+####################################################################
+# Test Case3: For BLOB type fileds, when type conversion failed on
+# slave, the errormessage had incorrect type names.
+####################################################################
+[connection master]
+SET SQL_LOG_BIN=0;
+CREATE TABLE t1 (c1 LONGBLOB);
+SET SQL_LOG_BIN=1;
+[connection slave]
+CREATE TABLE t1 (c1 TINYBLOB);
+[connection master]
+INSERT INTO t1 VALUES ('a');
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=13146]
+Matching lines are:
+DATE_TIME [ERROR] [MY-013146] [Repl] Slave SQL for channel '': Column 0 of table 'test.t1' cannot be converted from type 'longblob' to type 'tinyblob', Error_code: MY-013146
+Occurrences of '\'longblob\' to type \'tinyblob\'' in the input file: 1
+[connection master]
+DROP TABLE t1;
+[connection slave]
+DROP TABLE t1;
+include/rpl_reset.inc
+include/rpl_end.inc

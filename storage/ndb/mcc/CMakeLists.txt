@@ -1,80 +1,61 @@
-# Copyright (c) 2012, 2013 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# Check if we are running cmake standalone, or as part of Cluster
-if(NOT DEFAULT_MYSQL_HOME)
-  PROJECT(mcc)
-  cmake_minimum_required(VERSION 2.6)
-  enable_testing()
-endif()
-
-option(WITH_MCC "Include MySQL Cluster Configurator" ON)
+IF(WITHOUT_SERVER)
+  option(WITH_MCC "Include MySQL Cluster Configurator" OFF)
+ELSE()
+  option(WITH_MCC "Include MySQL Cluster Configurator" ON)
+ENDIF()
 
 if(NOT WITH_MCC)
-  message(STATUS "Skipping mcc")
+  message(STATUS "Skipping MySQL Cluster Configurator")
   return()
-endif(NOT WITH_MCC)
+endif()
+MESSAGE(STATUS "Building MySQL Cluster Configurator")
 
-# PB2 on win?
+INCLUDE(ndb_require_variable)
+
 set(PB2DRIVE $ENV{PB2DRIVE})
-if(WIN32 AND PB2DRIVE AND NOT MCC_PYTHON_TO_BUNDLE)
-	message(FATAL_ERROR "MCC_PYTHON_TO_BUNDLE not set when building in PB2 on Windows")
+if(WIN32 AND PB2DRIVE)
+  # Make sure that config variable pointing out the location of
+  # python is properly provided by release build system
+  # when building on Windows
+  ndb_require_variable(MCC_PYTHON_TO_BUNDLE)
 endif() 
-
-function(SETIFUNDEF_ var val)
-  if(NOT DEFINED ${var})
-    set(${var} "${val}")
-  endif(NOT DEFINED ${var})
-endfunction(SETIFUNDEF_)
 
 set(MCC_SCRIPT_BASE "ndb_setup")
 set(MCC_SCRIPT_NAME "${MCC_SCRIPT_BASE}.py")
-set(MCC_SCRIPT_IN "${MCC_SCRIPT_BASE}.py.in")
 
 set(MCC_LAUNCH_BASE "setup")
-
-macro(SHOW_VAR_ var)
-  message("${var}=${${var}}")
-endmacro(SHOW_VAR_)
-
 set(MCC_BROWSER_START_PAGE "welcome.html")
 
-# Write setup script for running out of the source tree so that
-# make install is not required when testing mcc only.
-set(MCC_INSTALL_BINDIR "${CMAKE_CURRENT_SOURCE_DIR}")
-set(MCC_INSTALL_FRONTENDDIR "frontend")
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_NAME}" "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_NAME}" COPYONLY)
-if(NOT WIN32)
-  execute_process(COMMAND "chmod" "u+x" "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_NAME}")
-endif(NOT WIN32)
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/mcc_config.py.in" "${CMAKE_CURRENT_BINARY_DIR}/mcc_config.py")
-
-if(NOT DEFAULT_MYSQL_HOME)
-  # Don't have the MYSQL variables in this case
-  set(MCC_INSTALL_BINDIR "bin")
-  set(MCC_INSTALL_SUBDIR "share/mcc")
-else(NOT DEFAULT_MYSQL_HOME)
-  set(MCC_INSTALL_BINDIR "${INSTALL_BINDIR}")
-  set(MCC_INSTALL_SUBDIR "${INSTALL_MYSQLSHAREDIR}/mcc")
-endif(NOT DEFAULT_MYSQL_HOME)
+set(MCC_INSTALL_BINDIR "${INSTALL_BINDIR}")
+set(MCC_INSTALL_SUBDIR "${INSTALL_MYSQLSHAREDIR}/mcc")
 set(MCC_INSTALL_FRONTENDDIR "${MCC_INSTALL_SUBDIR}/frontend")
 
-add_subdirectory("host_info")
-add_subdirectory("frontend")
+ADD_SUBDIRECTORY(host_info)
+ADD_SUBDIRECTORY(frontend)
 
-if(WIN32 AND MCC_PYTHON_TO_BUNDLE AND NOT (MCC_LIGHT_INSTALL AND EXISTS "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_SUBDIR}/Python"))
+if(WIN32 AND MCC_PYTHON_TO_BUNDLE)
   file(TO_CMAKE_PATH "${MCC_PYTHON_TO_BUNDLE}" MCC_PYTHON_TO_BUNDLE_CMP)
   set(MCC_PYTHON_TO_BUNDLE "${MCC_PYTHON_TO_BUNDLE_CMP}")
   message(STATUS "Checking ${MCC_PYTHON_TO_BUNDLE}...")
@@ -104,7 +85,7 @@ if(WIN32 AND MCC_PYTHON_TO_BUNDLE AND NOT (MCC_LIGHT_INSTALL AND EXISTS "${CMAKE
       endif(NOT BUNDLEPY_VER VERSION_LESS "2.6" AND 
         BUNDLEPY_VER VERSION_LESS "3.0")
     else(NOT BUNDLEPY_RES)
-      message("${BUNDLEPY_EXE} does not appear to ba a valid executable")
+      message("${BUNDLEPY_EXE} does not appear to be a valid executable")
     endif(NOT BUNDLEPY_RES)
 
   else(BUNDLEPY_EXE)
@@ -128,7 +109,7 @@ if(WIN32 AND MCC_PYTHON_TO_BUNDLE AND NOT (MCC_LIGHT_INSTALL AND EXISTS "${CMAKE
 	DESTINATION "." 
     COMPONENT ClusterTools)
 
-endif(WIN32 AND MCC_PYTHON_TO_BUNDLE AND NOT (MCC_LIGHT_INSTALL AND EXISTS "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_SUBDIR}/Python"))
+endif()
 
 CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/post-install.py.in"
         "${CMAKE_CURRENT_BINARY_DIR}/post-install.py")
@@ -150,37 +131,31 @@ install(FILES clusterhost.py remote_clusterhost.py request_handler.py
 install(DIRECTORY tst DESTINATION "${MCC_INSTALL_SUBDIR}"  
   COMPONENT ClusterTools)
 
-if(WIN32 AND NOT CMAKE_INSTALL_CONFIG_NAME)
-	set(CMAKE_INSTALL_CONFIG_NAME $(Configuration))
-endif()
 
-# Convenience target for mcc development which installs only the mcc files,
-# this is much faster than installing everything
-add_custom_target(install_mcc 
+# Additional utility targets for MCC development
+option(WITH_MCC_DEV "Include MySQL Cluster Configurator dev targets" OFF)
+MARK_AS_ADVANCED(WITH_MCC_DEV)
+IF (WITH_MCC_DEV)
+  MESSAGE(STATUS "Adding MCC dev targets")
+
+  if(WIN32 AND NOT CMAKE_INSTALL_CONFIG_NAME)
+    set(CMAKE_INSTALL_CONFIG_NAME $(Configuration))
+  endif()
+
+  # Convenience target for mcc development which installs only the mcc files,
+  # this is much faster than installing everything
+  add_custom_target(mcc_install
 	${CMAKE_COMMAND} "-DCMAKE_INSTALL_CONFIG_NAME=${CMAKE_INSTALL_CONFIG_NAME}" "-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}" 
 	-P "${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake" 
 	VERBATIM)
+  ADD_DEPENDENCIES(mcc_install host_info)
 
-# Convenience target for mcc development which runs the mcc tests on installed files 
-add_custom_target(run_mcc	
+  # Convenience target for mcc development which runs the mcc tests on installed files
+  add_custom_target(mcc_run
 	COMMAND ${CMAKE_COMMAND} -E remove mcc_log.txt
         COMMAND python "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_BINDIR}/${MCC_SCRIPT_NAME}" -N "" -d DEBUG -o mcc_log.txt VERBATIM)
-add_dependencies(run_mcc install_mcc)
+  add_dependencies(mcc_run mcc_install)
 
-add_custom_target(run_mcc_in_source python "${MCC_SCRIPT_BASE}_in_source.py" -d DEBUG -o mcc_in_source_log.txt VERBATIM)
-add_custom_target(punit python "${CMAKE_CURRENT_SOURCE_DIR}/tst/tst_main.py" VERBATIM)
-
-if(NOT DEFAULT_MYSQL_HOME)
-  if(WIN32)
-    SETIFUNDEF_(MCC_CPACK_CMAKE_GENERATOR "Visual Studio 9 2008")
-    set(CPACK_CMAKE_GENERATOR "${MCC_CPACK_CMAKE_GENERATOR}")
-    SETIFUNDEF_(MCC_CPACK_GENERATOR "ZIP")
-  elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    SETIFUNDEF_(MCC_CPACK_GENERATOR "TGZ;RPM")
-  else(WIN32)
-    SETIFUNDEF_(MCC_CPACK_GENERATOR "TGZ;ZIP")
-  endif(WIN32)
-  set(CPACK_GENERATOR "${MCC_CPACK_GENERATOR}")
-
-include(CPack)
-endif(NOT DEFAULT_MYSQL_HOME)
+  add_custom_target(mcc_run_in_source python "${MCC_SCRIPT_BASE}_in_source.py" -d DEBUG -o mcc_in_source_log.txt VERBATIM)
+  add_custom_target(mcc_punit python "${CMAKE_CURRENT_SOURCE_DIR}/tst/tst_main.py" VERBATIM)
+ENDIF()

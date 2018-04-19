@@ -1,0 +1,22 @@
+USE test;
+SET GTID_NEXT= '#';
+CREATE TABLE t1 (c1 INT);
+/*!99999 SET @@SESSION.non_supported_session_variable = 1*/;
+SET GTID_NEXT= '#';
+INSERT INTO t1 VALUES (1);
+/*!99999 SET @@SESSION.non_supported_session_variable = 1*/;
+SET GTID_NEXT= '#';
+DROP TABLE t1;
+include/rpl_set_gtid_mode.inc [ON on servers 1]
+SET GTID_NEXT='AUTOMATIC';
+RESET MASTER;
+SET GTID_NEXT= '#';
+CREATE TABLE t2 (c1 INT);
+/*!99999 SET @@SESSION.non_supported_session_variable = 1*/;
+SET GTID_NEXT= '#';
+INSERT INTO t2 VALUES (1);
+/*!99999 SET @@SESSION.non_supported_session_variable = 1*/;
+SET GTID_NEXT= '#';
+DROP TABLE t2;
+SET GTID_NEXT='AUTOMATIC';
+include/rpl_set_gtid_mode.inc [OFF on servers 1]

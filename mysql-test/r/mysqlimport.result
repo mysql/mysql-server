@@ -14,5 +14,14 @@ c1
 DROP TABLE b12688860_db.b12688860_tab;
 DROP DATABASE b12688860_db;
 # Dropping the temp file
+#
+# WL#2284: Increase the length of a user name
+#
+CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
+GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
+mysql.test: Records: 1  Deleted: 0  Skipped: 0  Warnings: 1
+# cleanup
+DROP TABLE mysql.test;
+DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
 
 End of tests

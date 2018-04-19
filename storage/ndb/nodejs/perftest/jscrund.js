@@ -1,21 +1,25 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- as published by the Free Software Foundation; version 2 of
- the License.
- 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU General Public License for more details.
- 
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License, version 2.0, for more details.
+
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 'use strict';
@@ -23,18 +27,21 @@
 /*global JSCRUND */
 global.JSCRUND = {};
 
-JSCRUND.mynode = require("..");
-JSCRUND.unified_debug = require("../Adapter/api/unified_debug");
+// Modules:
+JSCRUND.mynode = require("database-jones");
+JSCRUND.unified_debug = require("unified_debug");
 JSCRUND.udebug = JSCRUND.unified_debug.getLogger("jscrund.js");
-JSCRUND.stats  = require("../Adapter/api/stats");
-JSCRUND.lib    = require("./lib");
+JSCRUND.stats  = require(JSCRUND.mynode.api.stats);
+
 // Backends:
 JSCRUND.mysqljs = require('./jscrund_mysqljs');
-JSCRUND.sqlAdapter = require('./jscrund_sql');
-JSCRUND.spiAdapter = require('./jscrund_dbspi');
-JSCRUND.nullAdapter = require('./jscrund_null');
 
 JSCRUND.errors  = [];
+
+var DEBUG, DETAIL;
+var path = require("path"),
+    fs = require("fs");
+
 
 // webkit-devtools-agent allows you to profile the process from a Chrome browser
 try {
@@ -46,6 +53,10 @@ function usage() {
   "Usage:  node jscrund [options]\n" +
   "   --help:\n" +
   "   -h      :  Print help (this message)\n" +
+  "   -A      :  Run \"A\" tests (default)\n" +
+  "   -B      :  Run \"B\" tests\n" +
+  "   --varchar=size\n" +
+  "           :  Specify varchar size in B tests (default 10)\n" +
   "   --adapter=ndb\n" +
   "   -n      :  Use ndb adapter (default)\n" +
   "   --adapter=mysql\n" +
@@ -61,6 +72,8 @@ function usage() {
   "   -d      :  Enable debug output\n" +
   "   -df=file:  Enable debug output only from source file <file>\n" +
   "   -i <n>  :  Specify number of iterations per test (default 4000)\n" +
+  "   --delay=<m>,<n>\n" +
+  "           :  Delay <m> seconds after first iteration and <n> seconds before exiting\n" + 
   "   --modes :\n" +
   "   --mode  :  Specify modes to run (default indy,each,bulk)\n" +
   "   --tests :\n" +
@@ -68,7 +81,9 @@ function usage() {
   "   -r <n>  :  Repeat tests #n times (default 1, n<0: forever)\n" +
   "   --trace :\n" +
   "   -t      :  Enable trace output\n" +
-  "   --set prop=value: set connection property prop to value"
+  "   --set prop=value: set connection property prop to value\n" +
+  "   -E <name> \n" +
+  "   --deployment=<name>\n: use deplyment <name> from jones_deployments.js\n"
   ;
   console.log(msg);
   process.exit(1);
@@ -83,6 +98,12 @@ function parse_command_line(options) {
     case '--help':
     case '-h':
       options.exit = true;
+      break;
+    case '-A':
+      options.doClass = "A";
+      break;
+    case '-B':
+      options.doClass = "B";
       break;
     case '-n':
       options.adapter = "ndb";
@@ -110,6 +131,9 @@ function parse_command_line(options) {
         console.log('runs value is not allowed:', process.argv[i]);
         options.exit = true;
       }
+      break;
+    case '-E':
+      options.deployment = process.argv[++i];
       break;
     case '--stats':
       options.stats = true;
@@ -142,7 +166,7 @@ function parse_command_line(options) {
         if(isFinite(parseInt(pair[1]))) {
           pair[1] = parseInt(pair[1])
         }
-        JSCRUND.udebug.log("Setting global:", pair[0], "=", pair[1]);
+        if(DEBUG) JSCRUND.udebug.log("Setting global:", pair[0], "=", pair[1]);
         options.setProp[pair[0]] = pair[1];
       }
       else {
@@ -187,6 +211,8 @@ function parse_command_line(options) {
             case 'persist':
             case 'find':
             case 'remove':
+            case 'setVarchar':
+            case 'clearVarchar':
               break;
             default:
               console.log('Invalid test ' + options.testNames[t]);
@@ -196,11 +222,19 @@ function parse_command_line(options) {
           break;
         case '-df':
           unified_debug.on();
-          var client = require(path.join(build_dir,"ndb_adapter")).debug;
-          unified_debug.register_client(client);
           unified_debug.set_file_level(values[1], 5);
           break;
-
+        case '--delay':
+          var delays = values[1].split(',');
+          options.delay_pre = delays[0];
+          options.delay_post = delays[1];
+          break;
+        case '--varchar':
+          options.B_varchar_size = values[1];
+          break;
+        case '--deployment':
+          options.deployment = values[1];
+          break;
         default:
           console.log('Invalid option ' + val);
           options.exit = true;
@@ -213,16 +247,107 @@ function parse_command_line(options) {
   }
 }
 
+/** Timer functions for crund. Multiple timers can be used simultaneously,
+ * as long as each timer is created via new Timer().
+ * start() starts the timer.
+ * stop() stops the timer and writes results.
+ * mode is the mode of operation (indy, each, or bulk)
+ * operation is the operation (e.g. persist, find, delete)
+ * numberOfIterations is the number of iterations of each operation
+ */
+function Timer() {
+}
+
+Timer.prototype.start = function(mode, operation, numberOfIterations) {
+  //console.log('lib.Timer.start', mode, operation, 'iterations:', numberOfIterations);
+  this.mode = mode;
+  this.operation = operation;
+  this.numberOfIterations = numberOfIterations;
+  this.current = Date.now();
+};
+
+Timer.prototype.stop = function() {
+  function pad(str, count, onRight) {
+    while (str.length < count)
+      str = (onRight ? str + ' ' : ' ' + str);
+    return str;
+  }
+  function rpad(num, str) {
+    return pad(str, num, true);
+  }
+  function lpad(num, str) {
+    return pad(str, num, false);
+  }
+  this.interval = Date.now() - this.current;
+  this.average = this.interval / this.numberOfIterations;
+  var ops = Math.round(this.numberOfIterations * 1000 / this.interval);
+  console.log(rpad(18, this.mode + ' ' + this.operation),
+              '    time: ' + lpad(4, this.interval.toString()) + 'ms',
+              '    avg latency: ' + lpad(4, this.average.toFixed(3)) + 'ms',
+              '    ops/s: ' + lpad(4, ops.toString()));
+};
+
+/** Error reporter 
+ */
+function appendError(error) {
+  JSCRUND.errors.push(error);
+  if ((options.printStackTraces) && typeof(error.stack) !== 'undefined') {
+    JSCRUND.errors.push(error.stack);
+  }
+};
+
+function verifyObject(that) {
+  for (var prop in this) {
+    // only verify immediate properties, not inherited ones
+    if (this.hasOwnProperty(prop)) {
+      // only compare value, not type, since long numbers mapped to string
+      //if (this[prop] !== that[prop])
+      if (this[prop] != that[prop])
+          appendError('Error: data mismatch for property '
+                      + this.constructor.name + '.' + prop
+                      + ' expected: ' + JSON.stringify(this[prop])
+                      + ' actual: ' + JSON.stringify(that[prop]));
+    }
+  }
+};
+
 /** Constructor for domain object for A mapped to table a.
  */
 function A() {
 }
+
+A.prototype.init = function(i) {
+  this.id = i;
+  this.cint = -i;
+  this.clong = -i;
+  this.cfloat = -i;
+  this.cdouble = -i;
+};
+
+A.prototype.verify = verifyObject;
 
 /** Constructor for domain object for B mapped to table b.
  */
 function B() {
 }
 
+B.prototype.init = function(i) {
+  this.id = i;
+  this.cint = -i;
+  this.clong = -i;
+  this.cfloat = -i;
+  this.cdouble = -i;
+};
+
+B.prototype.setVarchar = function(len) {
+  this.cvarchar_def = ___;
+};
+
+B.prototype.verify = verifyObject;
+
+
+/** Result Logging
+ */
 function currentDateString() {
   function zpad(s) {
     return (s.length == 1) ? "0" + s : s;
@@ -270,20 +395,24 @@ ResultLog.prototype.close = function() {
  */
 function main() {
   var config_file_exists = false;
-  var fs = require('fs');
 
   /* Default options: */
   var options = {
+    'doClass' : 'A',
     'adapter' : 'ndb',
     'database': 'jscrund',
     'modes': 'indy,each,bulk',
-    'tests': 'persist,find,remove',
+    'tests': null,
     'iterations': [4000],
     'stats': false,
     'spi': false,
     'log': false,
     'nRuns': 1,
-    'setProp' : {}
+    'setProp' : {},
+    'delay_pre' : 0,
+    'delay_post' : 0,
+    'B_varchar_size' : 10,
+    'deployment' : 'test'
   };
 
   /* Options from config file */
@@ -312,27 +441,38 @@ function main() {
     process.exit(0);
   }
 
+  /* Global udebug level; may have been set by options */
+  DEBUG  = JSCRUND.udebug.is_debug();
+  DETAIL = JSCRUND.udebug.is_detail();
+
+  /* Create the string value for varchar tests */
+  if(options.B_varchar_size > 0) {
+    options.B_varchar_value = "";
+    for(var i = 0 ; i < options.B_varchar_size ; i++) {
+      options.B_varchar_value += String.fromCharCode(48 + (i % 64));
+    }
+  }
+
   /* Fetch the backend implementation */
   if(options.spi) {
+    JSCRUND.spiAdapter = require('./jscrund_dbspi');
     JSCRUND.implementation = new JSCRUND.spiAdapter.implementation();
   } else if(options.adapter == 'sql') {
+    JSCRUND.sqlAdapter = require('./jscrund_sql');
     JSCRUND.implementation = new JSCRUND.sqlAdapter.implementation();
   } else if(options.adapter == 'null') {
+    JSCRUND.nullAdapter = require('./jscrund_null');
     JSCRUND.implementation = new JSCRUND.nullAdapter.implementation();
   } else {
     JSCRUND.implementation = new JSCRUND.mysqljs.implementation();
   }
 
-  /* Get default connection properties */
-  var properties = JSCRUND.implementation.getDefaultProperties(options.adapter);
-
-  /* Then mix in connection properties from jscrund.config */
-  if(config_file_exists) {
-    for(var i in config_file.connection_properties) {
-      if(config_file.connection_properties.hasOwnProperty(i)) {
-        properties[i] = config_file.connection_properties[i];
-      }
-    }
+  /* Get connection properties */
+  var properties;
+  if(typeof JSCRUND.implementation.getConnectionProperties === 'function') {
+    properties = JSCRUND.implementation.getConnectionProperties();
+  } else {
+    properties = new JSCRUND.mynode.ConnectionProperties(options.adapter, options.deployment);
   }
 
   /* Then mix in properties from the command line */
@@ -372,46 +512,18 @@ function main() {
   };
 
   var generateObject = function(i) {
-    var result = new A();
-    //var result = new B();
+    var result;
+    if(options.doClass == "A") {
+      result = new A();
+    } else if(options.doClass == "B") {
+      result = new B();
+    } else {
+      assert(false);
+    }
     result.init(i);
     return result;
   };
 
-  var initAB = function(i) {
-    this.id = i;
-    this.cint = i;
-    this.clong = i;
-    this.cfloat = i;
-    this.cdouble = i;
-  }
-
-  var verifyObject = function(that) {
-    for (var prop in this) {
-      // only verify immediate properties, not inherited ones
-      if (this.hasOwnProperty(prop)) {
-        // only compare value, not type, since long numbers mapped to string
-        //if (this[prop] !== that[prop])
-        if (this[prop] != that[prop])
-            appendError('Error: data mismatch for property '
-                        + this.constructor.name + '.' + prop
-                        + ' expected: ' + JSON.stringify(this[prop])
-                        + ' actual: ' + JSON.stringify(that[prop]));
-      }
-    }
-  };
-
-  A.prototype.init = initAB;
-  B.prototype.init = initAB;
-  A.prototype.verify = verifyObject;
-  B.prototype.verify = verifyObject;
-
-  var appendError = function(error) {
-    JSCRUND.errors.push(error);
-    if ((options.printStackTraces) && typeof(error.stack) !== 'undefined') {
-      JSCRUND.errors.push(error.stack);
-    }
-  };
 
   // mainTestLoop (-r 10)
   //   batchSizeLoop (-i 1,10,100)
@@ -420,14 +532,14 @@ function main() {
 
   var runTests = function(options) {
 
-    var timer = new JSCRUND.lib.Timer();
+    var timer = new Timer();
 
     var modeNames = options.modes.split('\,');    
     var modeNumber = 0;
     var mode;
     var modeName;
 
-    var testNames = options.tests.split('\,');
+    var testNames;
     var testNumber = 0;
     var operation;
     var testName;
@@ -450,11 +562,26 @@ function main() {
 
     var parameters;
 
+    /* Which tests to run */
+    if(options.tests) {  // Explicit test names
+      testNames = options.tests.split('\,');
+    } else {
+      switch(options.doClass) {
+        case 'B':
+          testNames = [ 'persist', 'setVarchar', 'find', 'clearVarchar', 'remove' ];
+          break;
+        case 'A':
+        default:
+          testNames = [ 'persist', 'find', 'remove' ];
+          break;
+      };
+    }
+
     /** Recursively call the operation numberOfIterations times in autocommit mode
      * and then call the operationsDoneCallback
      */
     var indyOperationsLoop = function(err) {
-      JSCRUND.udebug.log_detail('jscrund.indyOperationsLoop iteration:', iteration, 'err:', err);
+      if(DETAIL) JSCRUND.udebug.log_detail('jscrund.indyOperationsLoop iteration:', iteration, 'err:', err);
       // check result
       if (err) {
         appendError(err);
@@ -464,7 +591,7 @@ function main() {
         operation.apply(JSCRUND.implementation, [parameters[iteration], indyOperationsLoop]);
         iteration++;
       } else {
-        JSCRUND.udebug.log_detail('jscrund.indyOperationsLoop iteration:', iteration, 'complete.');
+        if(DETAIL) JSCRUND.udebug.log_detail('jscrund.indyOperationsLoop iteration:', iteration, 'complete.');
         timer.stop();
         resultStats.push({
           name: testName + "," + modeName,
@@ -483,7 +610,7 @@ function main() {
       if (testNumber < testNames.length) {
         if(options.use_gc) global.gc();  // Full GC between tests
         testNumber++;
-        JSCRUND.udebug.log_detail('jscrund.indyTestsLoop', testNumber, 'of', testNames.length, ':', testName);
+        if(DETAIL) JSCRUND.udebug.log_detail('jscrund.indyTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         iteration = 0;
         timer.start(modeName, testName, numberOfIterations);
         setImmediate(indyOperationsLoop, null);
@@ -513,7 +640,7 @@ function main() {
      * and then call the operationsDoneCallback
      */
     var eachOperationsLoop = function(err) {
-      JSCRUND.udebug.log_detail('jscrund.eachOperationsLoop iteration:', iteration, 'err:', err);
+      if(DETAIL) JSCRUND.udebug.log_detail('jscrund.eachOperationsLoop iteration:', iteration, 'err:', err);
       // check result
       if (err) {
         appendError(err);
@@ -523,7 +650,7 @@ function main() {
         operation.apply(JSCRUND.implementation, [parameters[iteration], eachOperationsLoop]);
         iteration++;
       } else {
-        JSCRUND.udebug.log_detail('jscrund.eachOperationLoop iteration:', iteration, 'complete.');
+        if(DETAIL) JSCRUND.udebug.log_detail('jscrund.eachOperationLoop iteration:', iteration, 'complete.');
         JSCRUND.implementation.commit(eachCommitDoneCallback);
       }
     };
@@ -537,7 +664,7 @@ function main() {
       if (testNumber < testNames.length) {
         if(options.use_gc) global.gc();  // Full GC between tests
         testNumber++;
-        JSCRUND.udebug.log_detail('jscrund.eachTestsLoop', testNumber, 'of', testNames.length, ':', testName);
+        if(DETAIL) JSCRUND.udebug.log_detail('jscrund.eachTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         iteration = 0;
         timer.start(modeName, testName, numberOfIterations);
         JSCRUND.implementation.begin(function(err) {
@@ -553,7 +680,7 @@ function main() {
     /** Check the results of a bulk execute.
      */
     var bulkCheckBatchCallback = function(err) {
-      JSCRUND.udebug.log_detail('jscrund.bulkCheckBatchCallback', err);
+      if(DETAIL) JSCRUND.udebug.log_detail('jscrund.bulkCheckBatchCallback', err);
       // check result
       if (err) {
         appendError(err);
@@ -570,7 +697,7 @@ function main() {
      * numberOfIterations times per test.
      */
     var bulkCheckOperationCallback = function(err) {
-      JSCRUND.udebug.log_detail('jscrund.bulkCheckOperationCallback', err);
+      if(DETAIL) JSCRUND.udebug.log_detail('jscrund.bulkCheckOperationCallback', err);
       if (err) {
         appendError(err);
       }
@@ -585,7 +712,7 @@ function main() {
       if (testNumber < testNames.length) {
         if(options.use_gc) global.gc();  // Full GC between tests
         testNumber++;
-        JSCRUND.udebug.log_detail('jscrund.bulkTestsLoop', testNumber, 'of', testNames.length, ':', testName);
+        if(DETAIL) JSCRUND.udebug.log_detail('jscrund.bulkTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         timer.start(modeName, testName, numberOfIterations);
         JSCRUND.implementation.createBatch(function(err) {
           for (iteration = 0; iteration < numberOfIterations; ++iteration) {
@@ -663,12 +790,23 @@ function main() {
           JSCRUND.stats.peek();
         }
         JSCRUND.implementation.close(function(err) {
-          process.exit(err ? 1 : 0);
+          if(options.delay_post > 0) {
+            console.log("Delaying", options.delay_post, "seconds");
+            setTimeout(process.exit, 1000 * options.delay_post);
+          } else { 
+            process.exit(err ? 1 : 0);
+          }
         });
       } else {
         console.log('\nRun #' + nRun + ' of ' + nRuns);
         batchLoopNumber = 0;
-        batchSizeLoop();
+        if(nRun === 2 && (options.delay_pre > 0)) { 
+          console.log("Waiting", options.delay_pre, "seconds...");
+          setTimeout(batchSizeLoop, 1000 * options.delay_pre);
+          options.delay_pre = 0;
+        } else {
+          batchSizeLoop();
+        }
       }
     };
 
@@ -697,7 +835,9 @@ function main() {
   };
 
   // create database
-  JSCRUND.lib.SQL.create('./', properties, function(err) {
+  JSCRUND.metadataManager = require("jones-ndb").getDBMetadataManager(properties);
+
+  JSCRUND.metadataManager.runSQL(path.join(__dirname, "./create.sql"), function(err) {
     if (err) {
       console.log('Error creating tables.', err);
       process.exit(1);

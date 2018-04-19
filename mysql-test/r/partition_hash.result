@@ -46,23 +46,20 @@ a	b
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = 9223372036854775808;
+EXPLAIN SELECT * FROM t1 WHERE b = 9223372036854775808;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1_p1sp2,p2_p2sp2,p3_p3sp2,p4_p4sp2,p5_p5sp2	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 9223372036854775808)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = 18446744073709551612;
+EXPLAIN SELECT * FROM t1 WHERE b = 18446744073709551612;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1_p1sp1,p2_p2sp1,p3_p3sp1,p4_p4sp1,p5_p5sp1	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 18446744073709551612)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = 18446744073709551615;
+EXPLAIN SELECT * FROM t1 WHERE b = 18446744073709551615;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1_p1sp1,p2_p2sp1,p3_p3sp1,p4_p4sp1,p5_p5sp1	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 18446744073709551615)
 DROP TABLE t1;
 CREATE TABLE t1 (c1 INT)
@@ -76,6 +73,38 @@ PARTITION BY LINEAR HASH (c1)
 PARTITIONS 5;
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 ALTER TABLE t1 COALESCE PARTITION 3;
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT)
+PARTITION BY LINEAR HASH (c1)
+PARTITIONS 3;
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7);
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+6
+7
+ALTER TABLE t1 ADD PARTITION PARTITIONS 10;
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+6
+7
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LINEAR HASH (`c1`)
+PARTITIONS 15 */
 DROP TABLE t1;
 create table t1 (a int unsigned)
 partition by hash(a div 2)
@@ -133,67 +162,60 @@ a
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-explain partitions select * from t1 where a < 0;
+explain select * from t1 where a < 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	9	33.33	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 0)
-explain partitions select * from t1 where a is null or (a >= 5 and a <= 7);
+explain select * from t1 where a is null or (a >= 5 and a <= 7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p2,p3	ALL	NULL	NULL	NULL	NULL	7	23.81	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (isnull(`test`.`t1`.`a`) or ((`test`.`t1`.`a` >= 5) and (`test`.`t1`.`a` <= 7)))
-explain partitions select * from t1 where a is null;
+explain select * from t1 where a is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where isnull(`test`.`t1`.`a`)
-explain partitions select * from t1 where a is not null;
+explain select * from t1 where a is not null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	9	88.89	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` is not null)
-explain partitions select * from t1 where a >= 1 and a < 3;
+explain select * from t1 where a >= 1 and a < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	5	11.11	Using where
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` >= 1) and (`test`.`t1`.`a` < 3))
-explain partitions select * from t1 where a >= 3 and a <= 5;
+explain select * from t1 where a >= 3 and a <= 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p1,p2	ALL	NULL	NULL	NULL	NULL	4	11.11	Using where
+1	SIMPLE	t1	p1,p2	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` >= 3) and (`test`.`t1`.`a` <= 5))
-explain partitions select * from t1 where a > 2 and a < 4;
+explain select * from t1 where a > 2 and a < 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	25.00	Using where
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` > 2) and (`test`.`t1`.`a` < 4))
-explain partitions select * from t1 where a > 3 and a <= 6;
+explain select * from t1 where a > 3 and a <= 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p2,p3	ALL	NULL	NULL	NULL	NULL	4	11.11	Using where
+1	SIMPLE	t1	p2,p3	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` > 3) and (`test`.`t1`.`a` <= 6))
-explain partitions select * from t1 where a > 5;
+explain select * from t1 where a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	9	33.33	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 5)
-explain partitions select * from t1 where a >= 1 and a <= 5;
+explain select * from t1 where a >= 1 and a <= 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2	ALL	NULL	NULL	NULL	NULL	7	11.11	Using where
+1	SIMPLE	t1	p0,p1,p2	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` >= 1) and (`test`.`t1`.`a` <= 5))
 drop table t1;
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
+CREATE TABLESPACE ts3 ADD DATAFILE 'ts3.ibd';
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -205,6 +227,18 @@ partitions 3
 partition x2 tablespace ts2,
 partition x3 tablespace ts3);
 insert into t1 values (1,1,1);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH ((`a` + 2))
+(PARTITION x1 TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION x2 TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION x3 TABLESPACE = `ts3` ENGINE = InnoDB) */
 insert into t1 values (2,1,1);
 insert into t1 values (3,1,1);
 insert into t1 values (4,1,1);
@@ -242,7 +276,22 @@ partition x2 tablespace ts2,
 partition x3 tablespace ts3);
 select * from t1;
 a	b	c
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH ((`a` + 3))
+(PARTITION x1 TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION x2 TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION x3 TABLESPACE = `ts3` ENGINE = InnoDB) */
 drop table t1;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+DROP TABLESPACE ts3;
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -290,3 +339,1267 @@ c1	c2	c3
 182	abc	2002-11-09
 184	abc	2002-11-22
 drop table t1;
+#
+#
+#  BUG#22152229 - ASSERTION FAILED: RC == TYPE_OK, FILE .\DD\IMPL\RAW\RAW_RECORD.CC
+#
+#
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE T (a INT) PARTITION BY HASH('È') PARTITIONS 1;
+ERROR HY000: Invalid utf8 character string: 'C827'
+CREATE TABLE T (a INT) ENGINE=InnoDB;
+ALTER TABLE T PARTITION BY HASH('È') PARTITIONS 1;
+ERROR HY000: Invalid utf8 character string: 'C827'
+DROP TABLE T;
+SET NAMES default;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 TINYINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 1;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 1 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 1;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 1 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 1;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 1 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 1;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 1 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 1;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 1 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 1;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 1 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 1;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 1 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 1;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 1 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 1;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 1 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 1;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 1 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 1;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 1 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 1;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 1 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 2;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 2 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 2;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 2 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 2;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 2 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 2;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 2 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 2;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 2 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 2;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 2 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 2;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 2 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 2;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 2 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 2;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 2 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 2;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 2 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 2;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 2 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 2;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 2 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 3;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 3 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 3;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 3 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 3;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 3 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 3;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 3 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 3;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 3 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 3;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 3 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 3;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 3 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 3;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 3 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 3;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 3 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 3;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 3 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 3;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 3 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 3;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 3 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 4;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 4 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 4;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 4 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 4;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 4 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 4;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 4 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 4;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 4 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 4;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 4 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 4;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 4 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 4;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 4 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 4;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 4 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 4;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 4 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 4;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 4 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 4;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 4 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 5;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 5 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 5;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 5 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 5;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 5 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 5;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 5 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 5;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 5 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 5;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 5 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 5;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 5 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 5;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 5 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 5;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 5 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 5;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 5 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 5;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 5 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 5;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 5 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 10;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 10 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 10;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 10 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 10;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 10 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 10;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 10 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 10;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 10 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 10;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 10 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 10;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 10 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 10;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 10 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 10;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 10 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 10;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 10 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 10;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 10 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 10;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 10 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 50;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 50 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 50;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 50 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 50;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 50 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 50;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 50 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 50;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 50 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 50;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 50 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 50;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 50 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 50;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 50 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 50;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 50 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 50;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 50 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 50;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 50 */
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test

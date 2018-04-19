@@ -1,6 +1,5 @@
---source include/have_partition.inc
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
+
+--source include/have_innodb_max_16k.inc
 
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 
@@ -31,7 +30,7 @@ SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
 
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table `test`.`t1` .* Partition.* InnoDB internal");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Table `test`.`t1` .* Partition.* InnoDB internal");
 --echo #
 --echo # Bug#55091: Server crashes on ADD PARTITION after a failed attempt
 --echo #

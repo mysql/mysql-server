@@ -1,0 +1,1 @@
+$KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=../bad_dir/../../bad_keyring

@@ -1,0 +1,1836 @@
+drop table if exists t1,t2;
+drop table if exists t1aa,t2aa;
+drop database if exists mysqltest;
+drop database if exists mysqltest1;
+delete from mysql.user where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
+delete from mysql.db where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
+flush privileges;
+create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
+insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
+-- Here we enable metadata just to check that the collation of the
+-- resultset is non-binary for string type. This should be changed
+-- after Bug#29394 is implemented.
+check table t1 fast;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	5	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+check table t1 fast;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	5	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+check table t1 changed;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	5	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+insert into t1 values (5,5,5);
+check table t1 changed;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	5	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+check table t1 medium;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	5	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+check table t1 extended;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	5	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+analyze table t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	7	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+show index from t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			SHOW_STATISTICS	Table	Table	253	256	2	Y	0	0	255
+def			SHOW_STATISTICS	Non_unique	Non_unique	3	1	1	N	32769	0	63
+def			SHOW_STATISTICS	Key_name	Key_name	253	256	7	Y	0	0	255
+def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
+def			SHOW_STATISTICS	Column_name	Column_name	253	256	1	Y	0	0	255
+def			SHOW_STATISTICS	Collation	Collation	253	4	1	Y	0	0	255
+def			SHOW_STATISTICS	Cardinality	Cardinality	8	21	1	Y	32768	0	63
+def			SHOW_STATISTICS	Sub_part	Sub_part	8	21	0	Y	32768	0	63
+def					Packed	6	0	0	Y	32896	0	63
+def			SHOW_STATISTICS	Null	Null	253	12	0	N	1	0	255
+def			SHOW_STATISTICS	Index_type	Index_type	253	44	5	N	129	0	255
+def			SHOW_STATISTICS	Comment	Comment	253	32	0	N	1	0	255
+def	mysql	indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	8192	0	N	#	0	255
+def			SHOW_STATISTICS	Visible	Visible	253	12	3	N	1	0	255
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE			YES
+t1	1	b	1	b	A	2	NULL	NULL		BTREE			YES
+t1	1	b	2	c	A	4	NULL	NULL		BTREE			YES
+insert into t1 values (5,5,5);
+ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+-- Here we enable metadata just to check that the collation of the
+-- resultset is non-binary for string type. This should be changed
+-- after Bug#29394 is implemented.
+optimize table t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	8	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	65	Y	0	31	255
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+drop table t1;
+-- Here we enable metadata just to check that the collation of the
+-- resultset is non-binary for string type. This should be changed
+-- after Bug#29394 is implemented.
+show variables like "wait_timeout%";
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def		session_variables	session_variables	Variable_name	Variable_name	253	256	12	N	4097	0	255
+def		session_variables	session_variables	Value	Value	253	4096	5	Y	0	0	255
+Variable_name	Value
+wait_timeout	28800
+show variables like "WAIT_timeout%";
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def		session_variables	session_variables	Variable_name	Variable_name	253	256	12	N	4097	0	255
+def		session_variables	session_variables	Value	Value	253	4096	5	Y	0	0	255
+Variable_name	Value
+wait_timeout	28800
+show variables like "this_doesn't_exists%";
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def		session_variables	session_variables	Variable_name	Variable_name	253	256	0	N	4097	0	255
+def		session_variables	session_variables	Value	Value	253	4096	0	Y	0	0	255
+Variable_name	Value
+show table status from test like "this_doesn't_exists%";
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			TABLES	Name	Name	253	256	0	Y	0	0	255
+def			TABLES	Engine	Engine	253	256	0	Y	0	0	255
+def			TABLES	Version	Version	3	2	0	Y	32768	0	63
+def	mysql	tables	TABLES	Row_format	Row_format	254	40	0	Y	384	0	255
+def			TABLES	Rows	Rows	8	21	0	Y	32800	0	63
+def			TABLES	Avg_row_length	Avg_row_length	8	21	0	Y	32800	0	63
+def			TABLES	Data_length	Data_length	8	21	0	Y	32800	0	63
+def			TABLES	Max_data_length	Max_data_length	8	21	0	Y	32800	0	63
+def			TABLES	Index_length	Index_length	8	21	0	Y	32800	0	63
+def			TABLES	Data_free	Data_free	8	21	0	Y	32800	0	63
+def			TABLES	Auto_increment	Auto_increment	8	21	0	Y	32800	0	63
+def	mysql	tables	TABLES	Create_time	Create_time	7	19	0	N	129	0	63
+def			TABLES	Update_time	Update_time	12	19	0	Y	128	0	63
+def			TABLES	Check_time	Check_time	12	19	0	Y	128	0	63
+def	mysql	collations	TABLES	Collation	Collation	253	256	0	Y	4096	0	255
+def			TABLES	Checksum	Checksum	8	21	0	Y	32768	0	63
+def			TABLES	Create_options	Create_options	253	1024	0	Y	0	0	255
+def			TABLES	Comment	Comment	253	1024	0	Y	0	0	255
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+show databases;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			SCHEMATA	Database	Database	253	256	18	Y	0	0	255
+Database
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+show databases like "test%";
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			SCHEMATA	Database (test%)	Database (test%)	253	256	4	Y	0	0	255
+Database (test%)
+test
+create table t1 (f1 int not null, f2 int not null, f3 int not null, f4 int not null, primary key(f1,f2,f3,f4)) engine=myisam;
+insert into t1 values (1,1,1,0),(1,1,2,0),(1,1,3,0),(1,2,1,0),(1,2,2,0),(1,2,3,0),(1,3,1,0),(1,3,2,0),(1,3,3,0),(1,1,1,1),(1,1,2,1),(1,1,3,1),(1,2,1,1),(1,2,2,1),(1,2,3,1),(1,3,1,1),(1,3,2,1),(1,3,3,1);
+-- Here we enable metadata just to check that the collation of the
+-- resultset is non-binary for string type. This should be changed
+-- after Bug#29394 is implemented.
+analyze table t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	7	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	f1	A	1	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	2	f2	A	3	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	3	f3	A	9	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	4	f4	A	18	NULL	NULL		BTREE			YES
+-- Here we enable metadata just to check that the collation of the
+-- resultset is non-binary for string type. This should be changed
+-- after Bug#29394 is implemented.
+repair table t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	6	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	f1	A	1	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	2	f2	A	3	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	3	f3	A	9	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	4	f4	A	18	NULL	NULL		BTREE			YES
+drop table t1;
+create temporary table t1 (a int not null);
+show create table t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+alter table t1 rename t2;
+show create table t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `a` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t2;
+create table t1 (
+test_set set( 'val1', 'val2', 'val3' ) not null default '',
+name char(20) default 'O''Brien' comment 'O''Brien as default',
+c int not null comment 'int column',
+`c-b` int comment 'name with a minus',
+`space 2` int comment 'name with a space'
+  ) comment = 'it\'s a table' ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `test_set` set('val1','val2','val3') NOT NULL DEFAULT '',
+  `name` char(20) DEFAULT 'O''Brien' COMMENT 'O''Brien as default',
+  `c` int(11) NOT NULL COMMENT 'int column',
+  `c-b` int(11) DEFAULT NULL COMMENT 'name with a minus',
+  `space 2` int(11) DEFAULT NULL COMMENT 'name with a space'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='it''s a table'
+set sql_quote_show_create=0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE t1 (
+  test_set set('val1','val2','val3') NOT NULL DEFAULT '',
+  `name` char(20) DEFAULT 'O''Brien' COMMENT 'O''Brien as default',
+  c int(11) NOT NULL COMMENT 'int column',
+  `c-b` int(11) DEFAULT NULL COMMENT 'name with a minus',
+  `space 2` int(11) DEFAULT NULL COMMENT 'name with a space'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='it''s a table'
+set sql_quote_show_create=1;
+show full columns from t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+test_set	set('val1','val2','val3')	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
+name	char(20)	utf8mb4_0900_ai_ci	YES		O'Brien		select,insert,update,references	O'Brien as default
+c	int(11)	NULL	NO		NULL		select,insert,update,references	int column
+c-b	int(11)	NULL	YES		NULL		select,insert,update,references	name with a minus
+space 2	int(11)	NULL	YES		NULL		select,insert,update,references	name with a space
+drop table t1;
+create table t1 (a int not null, unique aa (a));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  UNIQUE KEY `aa` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+create table t1 (a int not null, primary key (a));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+flush tables;
+show open tables;
+Database	Table	In_use	Name_locked
+mysql	general_log	0	0
+create table t1(n int);
+insert into t1 values (1);
+show open tables;
+Database	Table	In_use	Name_locked
+mysql	column_statistics	0	0
+mysql	column_type_elements	0	0
+mysql	columns	0	0
+mysql	foreign_key_column_usage	0	0
+mysql	foreign_keys	0	0
+mysql	general_log	0	0
+mysql	index_column_usage	0	0
+mysql	index_partitions	0	0
+mysql	indexes	0	0
+mysql	schemata	0	0
+mysql	table_partition_values	0	0
+mysql	table_partitions	0	0
+mysql	tables	0	0
+mysql	tablespace_files	0	0
+mysql	tablespaces	0	0
+mysql	triggers	0	0
+mysql	view_routine_usage	0	0
+mysql	view_table_usage	0	0
+test	t1	0	0
+drop table t1;
+create table t1 (a int not null, b VARCHAR(10), INDEX (b) ) AVG_ROW_LENGTH=10 CHECKSUM=1 COMMENT="test" ENGINE=MYISAM MIN_ROWS=10 MAX_ROWS=100 PACK_KEYS=1 DELAY_KEY_WRITE=1 ROW_FORMAT=fixed;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(10) DEFAULT NULL,
+  KEY `b` (`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MIN_ROWS=10 MAX_ROWS=100 AVG_ROW_LENGTH=10 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED COMMENT='test'
+alter table t1 MAX_ROWS=200 ROW_FORMAT=dynamic PACK_KEYS=0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(10) DEFAULT NULL,
+  KEY `b` (`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MIN_ROWS=10 MAX_ROWS=200 AVG_ROW_LENGTH=10 PACK_KEYS=0 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=DYNAMIC COMMENT='test'
+ALTER TABLE t1 AVG_ROW_LENGTH=0 CHECKSUM=0 COMMENT="" MIN_ROWS=0 MAX_ROWS=0 PACK_KEYS=DEFAULT DELAY_KEY_WRITE=0 ROW_FORMAT=default;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(10) DEFAULT NULL,
+  KEY `b` (`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+create table t1 (a decimal(9,2), b decimal (9,0), e double(9,2), f double(5,0), h float(3,2), i float(3,0));
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	decimal(9,2)	YES		NULL	
+b	decimal(9,0)	YES		NULL	
+e	double(9,2)	YES		NULL	
+f	double(5,0)	YES		NULL	
+h	float(3,2)	YES		NULL	
+i	float(3,0)	YES		NULL	
+show full columns from t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+a	decimal(9,2)	NULL	YES		NULL		select,insert,update,references	
+b	decimal(9,0)	NULL	YES		NULL		select,insert,update,references	
+e	double(9,2)	NULL	YES		NULL		select,insert,update,references	
+f	double(5,0)	NULL	YES		NULL		select,insert,update,references	
+h	float(3,2)	NULL	YES		NULL		select,insert,update,references	
+i	float(3,0)	NULL	YES		NULL		select,insert,update,references	
+drop table t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+create table t1 (
+type_bool bool not null default 0,
+type_tiny tinyint not null auto_increment primary key,
+type_short smallint(3),
+type_mediumint mediumint,
+type_bigint bigint,
+type_decimal decimal(5,2),
+type_numeric numeric(5,2),
+empty_char char(0),
+type_char char(2),
+type_varchar varchar(10),
+type_timestamp timestamp not null default current_timestamp on update current_timestamp,
+type_date date not null default '0000-00-00',
+type_time time not null default '00:00:00',
+type_datetime datetime not null default '0000-00-00 00:00:00',
+type_year year,
+type_enum enum ('red', 'green', 'blue'),
+type_set enum ('red', 'green', 'blue'),
+type_tinyblob tinyblob,
+type_blob blob,
+type_medium_blob mediumblob,
+type_long_blob longblob,
+index(type_short)
+) AVG_ROW_LENGTH=10 CHECKSUM=1 COMMENT="test" ENGINE=MYISAM MIN_ROWS=10 MAX_ROWS=100 PACK_KEYS=1 DELAY_KEY_WRITE=1 ROW_FORMAT=fixed CHARSET=latin1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `type_bool` tinyint(1) NOT NULL DEFAULT '0',
+  `type_tiny` tinyint(4) NOT NULL AUTO_INCREMENT,
+  `type_short` smallint(3) DEFAULT NULL,
+  `type_mediumint` mediumint(9) DEFAULT NULL,
+  `type_bigint` bigint(20) DEFAULT NULL,
+  `type_decimal` decimal(5,2) DEFAULT NULL,
+  `type_numeric` decimal(5,2) DEFAULT NULL,
+  `empty_char` char(0) DEFAULT NULL,
+  `type_char` char(2) DEFAULT NULL,
+  `type_varchar` varchar(10) DEFAULT NULL,
+  `type_timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `type_date` date NOT NULL DEFAULT '0000-00-00',
+  `type_time` time NOT NULL DEFAULT '00:00:00',
+  `type_datetime` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `type_year` year(4) DEFAULT NULL,
+  `type_enum` enum('red','green','blue') DEFAULT NULL,
+  `type_set` enum('red','green','blue') DEFAULT NULL,
+  `type_tinyblob` tinyblob,
+  `type_blob` blob,
+  `type_medium_blob` mediumblob,
+  `type_long_blob` longblob,
+  PRIMARY KEY (`type_tiny`),
+  KEY `type_short` (`type_short`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 MIN_ROWS=10 MAX_ROWS=100 AVG_ROW_LENGTH=10 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED COMMENT='test'
+insert into t1 (type_timestamp) values ("2003-02-07 10:00:01");
+select * from t1;
+type_bool	type_tiny	type_short	type_mediumint	type_bigint	type_decimal	type_numeric	empty_char	type_char	type_varchar	type_timestamp	type_date	type_time	type_datetime	type_year	type_enum	type_set	type_tinyblob	type_blob	type_medium_blob	type_long_blob
+0	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	2003-02-07 10:00:01	0000-00-00	00:00:00	0000-00-00 00:00:00	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+drop table t1;
+SET sql_mode = default;
+create table t1 (a int not null);
+create table t2 select max(a) from t1;
+show columns from t2;
+Field	Type	Null	Key	Default	Extra
+max(a)	int(11)	YES		NULL	
+drop table t1,t2;
+create table t1 (c decimal, d double, f float, r real);
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+c	decimal(10,0)	YES		NULL	
+d	double	YES		NULL	
+f	float	YES		NULL	
+r	double	YES		NULL	
+drop table t1;
+create table t1 (c decimal(3,3), d double(3,3), f float(3,3));
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+c	decimal(3,3)	YES		NULL	
+d	double(3,3)	YES		NULL	
+f	float(3,3)	YES		NULL	
+drop table t1;
+SET @old_sql_mode= @@sql_mode, sql_mode= '';
+SET @old_sql_quote_show_create= @@sql_quote_show_create, sql_quote_show_create= OFF;
+CREATE TABLE ```ab``cd``` (i INT);
+SHOW CREATE TABLE ```ab``cd```;
+Table	Create Table
+`ab`cd`	CREATE TABLE ```ab``cd``` (
+  i int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE ```ab``cd```;
+CREATE TABLE ```ab````cd``` (i INT);
+SHOW CREATE TABLE ```ab````cd```;
+Table	Create Table
+`ab``cd`	CREATE TABLE ```ab````cd``` (
+  i int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE ```ab````cd```;
+CREATE TABLE ```a` (i INT);
+SHOW CREATE TABLE ```a`;
+Table	Create Table
+`a	CREATE TABLE ```a` (
+  i int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE ```a`;
+CREATE TABLE `a.1` (i INT);
+SHOW CREATE TABLE `a.1`;
+Table	Create Table
+a.1	CREATE TABLE `a.1` (
+  i int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE `a.1`;
+SET sql_mode= 'ANSI_QUOTES';
+CREATE TABLE """a" (i INT);
+SHOW CREATE TABLE """a";
+Table	Create Table
+"a	CREATE TABLE """a" (
+  i int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE """a";
+SET sql_mode= '';
+SET sql_quote_show_create= OFF;
+CREATE TABLE t1 (i INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE t1 (
+  i int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE `table` (i INT);
+SHOW CREATE TABLE `table`;
+Table	Create Table
+table	CREATE TABLE `table` (
+  i int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE `table`;
+SET sql_quote_show_create= @old_sql_quote_show_create;
+SET sql_mode= @old_sql_mode;
+select @@max_heap_table_size;
+@@max_heap_table_size
+16777216
+CREATE TABLE t1 (
+a int(11) default NULL,
+KEY a USING BTREE (a)
+) ENGINE=HEAP;
+CREATE TABLE t2 (
+b int(11) default NULL,
+index(b)
+) ENGINE=HEAP;
+CREATE TABLE t3 (
+a int(11) default NULL,
+b int(11) default NULL,
+KEY a USING BTREE (a),
+index(b)
+) ENGINE=HEAP;
+insert into t1 values (1),(2);
+insert into t2 values (1),(2);
+insert into t3 values (1,1),(2,2);
+analyze table t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t2	analyze	note	The storage engine for the table doesn't support analyze
+test.t3	analyze	note	The storage engine for the table doesn't support analyze
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+insert into t1 values (3),(4);
+insert into t2 values (3),(4);
+insert into t3 values (3,3),(4,4);
+analyze table t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t2	analyze	note	The storage engine for the table doesn't support analyze
+test.t3	analyze	note	The storage engine for the table doesn't support analyze
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+insert into t1 values (5);
+insert into t2 values (5);
+insert into t3 values (5,5);
+analyze table t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t2	analyze	note	The storage engine for the table doesn't support analyze
+test.t3	analyze	note	The storage engine for the table doesn't support analyze
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+delete from t1 where a=3;
+delete from t2 where b=3;
+delete from t3 where a=3;
+analyze table t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t2	analyze	note	The storage engine for the table doesn't support analyze
+test.t3	analyze	note	The storage engine for the table doesn't support analyze
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+truncate table t1;
+truncate table t2;
+truncate table t3;
+analyze table t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t2	analyze	note	The storage engine for the table doesn't support analyze
+test.t3	analyze	note	The storage engine for the table doesn't support analyze
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+insert into t1 values (5);
+insert into t2 values (5);
+insert into t3 values (5,5);
+analyze table t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t2	analyze	note	The storage engine for the table doesn't support analyze
+test.t3	analyze	note	The storage engine for the table doesn't support analyze
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+delete from t1 where a=5;
+delete from t2 where b=5;
+delete from t3 where a=5;
+analyze table t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t2	analyze	note	The storage engine for the table doesn't support analyze
+test.t3	analyze	note	The storage engine for the table doesn't support analyze
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+drop table t1, t2, t3;
+create database mysqltest;
+show create database mysqltest;
+Database	Create Database
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+create table mysqltest.t1(a int);
+insert into mysqltest.t1 values(1);
+create user mysqltest_1@localhost, mysqltest_2@localhost, mysqltest_3@localhost;
+grant select on `mysqltest`.* to mysqltest_1@localhost;
+grant usage  on `mysqltest`.* to mysqltest_2@localhost;
+grant drop   on `mysqltest`.* to mysqltest_3@localhost;
+select * from t1;
+a
+1
+show create database mysqltest;
+Database	Create Database
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+drop table t1;
+ERROR 42000: DROP command denied to user 'mysqltest_1'@'localhost' for table 't1'
+drop database mysqltest;
+ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysqltest'
+select * from mysqltest.t1;
+ERROR 42000: SELECT command denied to user 'mysqltest_2'@'localhost' for table 't1'
+show create database mysqltest;
+ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'mysqltest'
+drop table mysqltest.t1;
+ERROR 42000: DROP command denied to user 'mysqltest_2'@'localhost' for table 't1'
+drop database mysqltest;
+ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'mysqltest'
+select * from mysqltest.t1;
+ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for table 't1'
+show create database mysqltest;
+Database	Create Database
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+drop table mysqltest.t1;
+drop database mysqltest;
+set names binary;
+delete from mysql.user
+where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
+delete from mysql.db
+where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
+flush privileges;
+CREATE TABLE t1 (i int, KEY (i)) ENGINE=MEMORY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  KEY `i` (`i`)
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY USING HASH (i)) ENGINE=MEMORY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  KEY `i` (`i`) USING HASH
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MEMORY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  KEY `i` (`i`) USING BTREE
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY (i)) ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  KEY `i` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  KEY `i` (`i`) USING BTREE
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY (i)) ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  KEY `i` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ENGINE=MEMORY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  KEY `i` (`i`)
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  KEY `i` (`i`) USING BTREE
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ENGINE=MEMORY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  KEY `i` (`i`) USING BTREE
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1(
+field1 text NOT NULL,
+PRIMARY KEY(field1(750))
+);
+show index from t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			SHOW_STATISTICS	Table	Table	253	64	2	Y	0	0	63
+def			SHOW_STATISTICS	Non_unique	Non_unique	3	1	1	N	32769	0	63
+def			SHOW_STATISTICS	Key_name	Key_name	253	64	7	Y	0	0	63
+def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
+def			SHOW_STATISTICS	Column_name	Column_name	253	64	6	Y	0	0	63
+def			SHOW_STATISTICS	Collation	Collation	253	1	1	Y	0	0	63
+def			SHOW_STATISTICS	Cardinality	Cardinality	8	21	1	Y	32768	0	63
+def			SHOW_STATISTICS	Sub_part	Sub_part	8	21	3	Y	32768	0	63
+def					Packed	6	0	0	Y	32896	0	63
+def			SHOW_STATISTICS	Null	Null	253	3	0	N	1	0	63
+def			SHOW_STATISTICS	Index_type	Index_type	253	11	5	N	129	0	63
+def			SHOW_STATISTICS	Comment	Comment	253	8	0	N	1	0	63
+def	mysql	indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	2048	0	N	#	0	63
+def			SHOW_STATISTICS	Visible	Visible	253	3	3	N	1	0	63
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	field1	A	0	750	NULL		BTREE			YES
+drop table t1;
+create table t1 (
+c1 int NOT NULL,
+c2 int NOT NULL,
+PRIMARY KEY USING HASH (c1),
+INDEX USING BTREE(c2)
+);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `c2` (`c2`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+
+# Bug#12183 SHOW OPEN TABLES behavior doesn't match grammar.
+
+DROP DATABASE IF EXISTS mysqltest1;
+CREATE DATABASE mysqltest1;
+use mysqltest1;
+
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+
+FLUSH TABLES;
+
+SELECT 1 FROM t1;
+1
+SELECT 1 FROM t2;
+1
+
+SHOW OPEN TABLES FROM mysqltest1;
+Database	Table	In_use	Name_locked
+mysqltest1	t1	0	0
+mysqltest1	t2	0	0
+
+SHOW OPEN TABLES FROM mysqltest1 LIKE 'z%';
+Database	Table	In_use	Name_locked
+
+SHOW OPEN TABLES FROM mysqltest1 LIKE 't1%';
+Database	Table	In_use	Name_locked
+mysqltest1	t1	0	0
+
+SHOW OPEN TABLES FROM mysqltest1 LIKE '%1%';
+Database	Table	In_use	Name_locked
+mysqltest1	t1	0	0
+
+FLUSH TABLES;
+
+DROP DATABASE mysqltest1;
+use test;
+
+SHOW TABLES FROM non_existing_database;
+ERROR 42000: Unknown database 'non_existing_database'
+End of 4.1 tests
+SHOW TABLES FROM no_such_database;
+ERROR 42000: Unknown database 'no_such_database'
+SHOW COLUMNS FROM no_such_table;
+ERROR 42S02: Table 'test.no_such_table' doesn't exist
+SET GLOBAL EVENT_SCHEDULER = OFF;
+CREATE TABLE t1 (f1 INT, f2 INT);
+INSERT INTO t1 VALUES(10, 20);
+flush status;
+show status like 'slow_queries';
+Variable_name	Value
+Slow_queries	0
+show tables;
+Tables_in_test
+t1
+show status like 'slow_queries';
+Variable_name	Value
+Slow_queries	0
+select 1 from t1 limit 1;
+1
+1
+show status like 'slow_queries';
+Variable_name	Value
+Slow_queries	1
+DROP TABLE t1;
+create table t1 (a int);
+create trigger tr1 before insert on t1 for each row
+begin
+end;
+create view v1 as select a from t1;
+create procedure p1()
+begin
+end;
+create function f1()
+returns int
+return 0;
+create event e1 on schedule every 1 year starts now()
+ends date_add(now(), interval 5 hour) do
+begin
+end;
+flush status;
+show databases;
+show tables;
+show events;
+show table status;
+show open tables;
+show plugins;
+show columns in t1;
+show slave hosts;
+show keys in t1;
+show storage engines;
+show privileges;
+show count(*) warnings;
+show count(*) errors;
+show warnings;
+show status;
+show processlist;
+show variables;
+show charset;
+show collation;
+show grants;
+show create database test;
+show create table t1;
+show create view v1;
+show master status;
+show slave status;
+show create procedure p1;
+show create function f1;
+show create trigger tr1;
+show procedure status;
+show create event e1;
+show status like 'slow_queries';
+Variable_name	Value
+Slow_queries	0
+drop view v1;
+drop table t1;
+drop procedure p1;
+drop function f1;
+drop event e1;
+SET GLOBAL EVENT_SCHEDULER = ON;
+DROP DATABASE IF EXISTS mysqltest1;
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+CREATE DATABASE mysqltest1;
+CREATE TABLE t1(c INT NOT NULL PRIMARY KEY);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1;
+CREATE VIEW v1 AS SELECT 1;
+CREATE PROCEDURE p1() SELECT 1;
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+-- Here we enable metadata just to check that the collation of the
+-- resultset is non-binary for string type. This should be changed
+-- after Bug#29394 is implemented.
+----------------------------------------------------------------
+SHOW CHARACTER SET LIKE 'utf8';
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	mysql	cs	CHARACTER_SETS	Charset	Charset	253	192	4	N	20485	0	33
+def	mysql	cs	CHARACTER_SETS	Description	Description	253	6144	13	N	4097	0	33
+def	mysql	col	CHARACTER_SETS	Default collation	Default collation	253	192	15	N	20485	0	33
+def	mysql	cs	CHARACTER_SETS	Maxlen	Maxlen	3	10	1	N	36897	0	63
+Charset	Description	Default collation	Maxlen
+utf8	UTF-8 Unicode	utf8_general_ci	3
+----------------------------------------------------------------
+SHOW COLLATION LIKE 'latin1_bin';
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def		COLLATIONS	COLLATIONS	Collation	Collation	253	192	10	N	4097	0	33
+def		COLLATIONS	COLLATIONS	Charset	Charset	253	192	6	N	4097	0	33
+def		COLLATIONS	COLLATIONS	Id	Id	8	20	2	N	32801	0	63
+def		COLLATIONS	COLLATIONS	Default	Default	253	9	0	N	1	0	33
+def		COLLATIONS	COLLATIONS	Compiled	Compiled	253	9	3	N	1	0	33
+def		COLLATIONS	COLLATIONS	Sortlen	Sortlen	3	10	1	N	36897	0	63
+def		COLLATIONS	COLLATIONS	Pad_attribute	Pad_attribute	253	27	9	N	4225	0	33
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+latin1_bin	latin1	47		Yes	1	PAD SPACE
+----------------------------------------------------------------
+SHOW CREATE DATABASE mysqltest1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Database	253	192	10	N	1	31	33
+def					Create Database	253	3072	97	N	1	31	33
+Database	Create Database
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+----------------------------------------------------------------
+SHOW DATABASES LIKE 'mysqltest1';
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			SCHEMATA	Database (mysqltest1)	Database (mysqltest1)	253	192	10	Y	0	0	33
+Database (mysqltest1)
+mysqltest1
+----------------------------------------------------------------
+SHOW CREATE TABLE t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	192	2	N	1	31	33
+def					Create Table	253	3072	130	N	1	31	33
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+----------------------------------------------------------------
+SHOW INDEX FROM t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			SHOW_STATISTICS	Table	Table	253	192	2	Y	0	0	33
+def			SHOW_STATISTICS	Non_unique	Non_unique	3	1	1	N	32769	0	63
+def			SHOW_STATISTICS	Key_name	Key_name	253	192	7	Y	0	0	33
+def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
+def			SHOW_STATISTICS	Column_name	Column_name	253	192	1	Y	0	0	33
+def			SHOW_STATISTICS	Collation	Collation	253	3	1	Y	0	0	33
+def			SHOW_STATISTICS	Cardinality	Cardinality	8	21	1	Y	32768	0	63
+def			SHOW_STATISTICS	Sub_part	Sub_part	8	21	0	Y	32768	0	63
+def					Packed	6	0	0	Y	32896	0	63
+def			SHOW_STATISTICS	Null	Null	253	9	0	N	1	0	33
+def			SHOW_STATISTICS	Index_type	Index_type	253	33	5	N	129	0	33
+def			SHOW_STATISTICS	Comment	Comment	253	24	0	N	1	0	33
+def	mysql	indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	6144	0	N	#	0	33
+def			SHOW_STATISTICS	Visible	Visible	253	9	3	N	1	0	33
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	c	A	0	NULL	NULL		BTREE			YES
+----------------------------------------------------------------
+SELECT
+TABLE_CATALOG,
+TABLE_SCHEMA,
+TABLE_NAME,
+TABLE_TYPE,
+ENGINE,
+ROW_FORMAT,
+TABLE_COLLATION,
+CREATE_OPTIONS,
+TABLE_COMMENT
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name = 't1';
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def		TABLES	TABLES	TABLE_CATALOG	TABLE_CATALOG	253	192	3	Y	0	31	33
+def		TABLES	TABLES	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	Y	0	31	33
+def		TABLES	TABLES	TABLE_NAME	TABLE_NAME	253	192	2	Y	0	31	33
+def	mysql	TABLES	TABLES	TABLE_TYPE	TABLE_TYPE	254	33	10	N	4481	0	33
+def		TABLES	TABLES	ENGINE	ENGINE	253	192	6	Y	0	31	33
+def	mysql	TABLES	TABLES	ROW_FORMAT	ROW_FORMAT	254	30	7	Y	384	0	33
+def	mysql	TABLES	TABLES	TABLE_COLLATION	TABLE_COLLATION	253	192	18	Y	20484	0	33
+def		TABLES	TABLES	CREATE_OPTIONS	CREATE_OPTIONS	253	768	0	Y	0	31	33
+def		TABLES	TABLES	TABLE_COMMENT	TABLE_COMMENT	253	768	0	Y	0	31	33
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	ROW_FORMAT	TABLE_COLLATION	CREATE_OPTIONS	TABLE_COMMENT
+def	test	t1	BASE TABLE	InnoDB	Dynamic	utf8mb4_0900_ai_ci		
+----------------------------------------------------------------
+SELECT
+TABLE_CATALOG,
+TABLE_SCHEMA,
+TABLE_NAME,
+COLUMN_NAME,
+COLUMN_DEFAULT,
+IS_NULLABLE,
+DATA_TYPE,
+CHARACTER_SET_NAME,
+COLLATION_NAME,
+COLUMN_TYPE,
+COLUMN_KEY,
+EXTRA,
+PRIVILEGES,
+COLUMN_COMMENT
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE table_name = 't1';
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def		COLUMNS	COLUMNS	TABLE_CATALOG	TABLE_CATALOG	253	192	3	Y	0	31	33
+def		COLUMNS	COLUMNS	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	Y	0	31	33
+def		COLUMNS	COLUMNS	TABLE_NAME	TABLE_NAME	253	192	2	Y	0	31	33
+def		COLUMNS	COLUMNS	COLUMN_NAME	COLUMN_NAME	253	192	1	Y	0	31	33
+def	mysql	COLUMNS	COLUMNS	COLUMN_DEFAULT	COLUMN_DEFAULT	252	196605	0	Y	144	0	33
+def		COLUMNS	COLUMNS	IS_NULLABLE	IS_NULLABLE	253	9	2	N	1	31	33
+def		COLUMNS	COLUMNS	DATA_TYPE	DATA_TYPE	251	150994935	3	Y	128	31	33
+def		COLUMNS	COLUMNS	CHARACTER_SET_NAME	CHARACTER_SET_NAME	253	192	0	Y	0	31	33
+def		COLUMNS	COLUMNS	COLLATION_NAME	COLLATION_NAME	253	192	0	Y	0	31	33
+def	mysql	COLUMNS	COLUMNS	COLUMN_TYPE	COLUMN_TYPE	252	50331645	7	N	4241	0	33
+def	mysql	COLUMNS	COLUMNS	COLUMN_KEY	COLUMN_KEY	254	9	3	N	4481	0	33
+def		COLUMNS	COLUMNS	EXTRA	EXTRA	253	171	0	Y	128	31	33
+def		COLUMNS	COLUMNS	PRIVILEGES	PRIVILEGES	253	462	31	Y	0	31	33
+def		COLUMNS	COLUMNS	COLUMN_COMMENT	COLUMN_COMMENT	253	6144	0	N	129	31	33
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+def	test	t1	c	NULL	NO	int	NULL	NULL	int(11)	PRI		select,insert,update,references	
+----------------------------------------------------------------
+SHOW TABLES LIKE 't1';
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			TABLES	Tables_in_test (t1)	Tables_in_test (t1)	253	192	2	Y	0	0	33
+Tables_in_test (t1)
+t1
+----------------------------------------------------------------
+SHOW COLUMNS FROM t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			COLUMNS	Field	Field	253	192	1	Y	0	0	33
+def	mysql	columns	COLUMNS	Type	Type	252	50331645	7	N	4241	0	33
+def			COLUMNS	Null	Null	253	9	2	N	1	0	33
+def	mysql	columns	COLUMNS	Key	Key	254	9	3	N	4481	0	33
+def	mysql	columns	COLUMNS	Default	Default	252	196605	0	Y	144	0	33
+def			COLUMNS	Extra	Extra	253	171	0	Y	128	0	33
+Field	Type	Null	Key	Default	Extra
+c	int(11)	NO	PRI	NULL	
+----------------------------------------------------------------
+SHOW TRIGGERS LIKE 't1';
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	mysql	triggers	TRIGGERS	Trigger	Trigger	253	192	5	N	4097	0	33
+def	mysql	triggers	TRIGGERS	Event	Event	254	18	6	N	4481	0	33
+def	mysql	tables	TRIGGERS	Table	Table	253	192	2	N	4097	0	33
+def	mysql	triggers	TRIGGERS	Statement	Statement	252	4294967295	10	N	4241	0	33
+def	mysql	triggers	TRIGGERS	Timing	Timing	254	18	6	N	4481	0	33
+def	mysql	triggers	TRIGGERS	Created	Created	7	22	22	N	129	2	63
+def	mysql	triggers	TRIGGERS	sql_mode	sql_mode	254	1467	117	N	6273	0	33
+def	mysql	triggers	TRIGGERS	Definer	Definer	253	279	14	N	4225	0	33
+def	mysql	character_sets	TRIGGERS	character_set_client	character_set_client	253	192	6	N	4097	0	33
+def	mysql	collations	TRIGGERS	collation_connection	collation_connection	253	192	6	N	4097	0	33
+def	mysql	collations	TRIGGERS	Database Collation	Database Collation	253	192	18	N	4097	0	33
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+t1_bi	INSERT	t1	SET @a = 1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	binary	binary	utf8mb4_0900_ai_ci
+----------------------------------------------------------------
+SELECT
+TRIGGER_CATALOG,
+TRIGGER_SCHEMA,
+TRIGGER_NAME,
+EVENT_MANIPULATION,
+EVENT_OBJECT_CATALOG,
+EVENT_OBJECT_SCHEMA,
+EVENT_OBJECT_TABLE,
+ACTION_CONDITION,
+ACTION_STATEMENT,
+ACTION_ORIENTATION,
+ACTION_TIMING,
+ACTION_REFERENCE_OLD_TABLE,
+ACTION_REFERENCE_NEW_TABLE,
+ACTION_REFERENCE_OLD_ROW,
+ACTION_REFERENCE_NEW_ROW,
+SQL_MODE,
+DEFINER
+FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE trigger_name = 't1_bi';
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	mysql	TRIGGERS	TRIGGERS	TRIGGER_CATALOG	TRIGGER_CATALOG	253	192	3	N	20485	0	33
+def	mysql	TRIGGERS	TRIGGERS	TRIGGER_SCHEMA	TRIGGER_SCHEMA	253	192	4	N	20481	0	33
+def	mysql	TRIGGERS	TRIGGERS	TRIGGER_NAME	TRIGGER_NAME	253	192	5	N	20481	0	33
+def	mysql	TRIGGERS	TRIGGERS	EVENT_MANIPULATION	EVENT_MANIPULATION	254	18	6	N	20865	0	33
+def	mysql	TRIGGERS	TRIGGERS	EVENT_OBJECT_CATALOG	EVENT_OBJECT_CATALOG	253	192	3	N	20485	0	33
+def	mysql	TRIGGERS	TRIGGERS	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_SCHEMA	253	192	4	N	20481	0	33
+def	mysql	TRIGGERS	TRIGGERS	EVENT_OBJECT_TABLE	EVENT_OBJECT_TABLE	253	192	2	N	20481	0	33
+def		TRIGGERS	TRIGGERS	ACTION_CONDITION	ACTION_CONDITION	6	0	0	Y	32896	0	63
+def	mysql	TRIGGERS	TRIGGERS	ACTION_STATEMENT	ACTION_STATEMENT	252	4294967295	10	N	4241	0	33
+def		TRIGGERS	TRIGGERS	ACTION_ORIENTATION	ACTION_ORIENTATION	253	9	3	N	1	31	33
+def	mysql	TRIGGERS	TRIGGERS	ACTION_TIMING	ACTION_TIMING	254	18	6	N	20865	0	33
+def		TRIGGERS	TRIGGERS	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_OLD_TABLE	6	0	0	Y	32896	0	63
+def		TRIGGERS	TRIGGERS	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_NEW_TABLE	6	0	0	Y	32896	0	63
+def		TRIGGERS	TRIGGERS	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_OLD_ROW	253	9	3	N	1	31	33
+def		TRIGGERS	TRIGGERS	ACTION_REFERENCE_NEW_ROW	ACTION_REFERENCE_NEW_ROW	253	9	3	N	1	31	33
+def	mysql	TRIGGERS	TRIGGERS	SQL_MODE	SQL_MODE	254	1467	117	N	6273	0	33
+def	mysql	TRIGGERS	TRIGGERS	DEFINER	DEFINER	253	279	14	N	4225	0	33
+TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	SQL_MODE	DEFINER
+def	test	t1_bi	INSERT	def	test	t1	NULL	SET @a = 1	ROW	BEFORE	NULL	NULL	OLD	NEW	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost
+----------------------------------------------------------------
+SHOW CREATE VIEW v1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					View	253	192	2	N	1	31	33
+def					Create View	253	3072	103	N	1	31	33
+def					character_set_client	253	96	6	N	1	31	33
+def					collation_connection	253	96	6	N	1	31	33
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`	binary	binary
+----------------------------------------------------------------
+SELECT *
+FROM INFORMATION_SCHEMA.VIEWS
+WHERE table_name = 'v1';
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def		VIEWS	VIEWS	TABLE_CATALOG	TABLE_CATALOG	253	192	3	Y	0	31	33
+def		VIEWS	VIEWS	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	Y	0	31	33
+def		VIEWS	VIEWS	TABLE_NAME	TABLE_NAME	253	192	2	Y	0	31	33
+def		VIEWS	VIEWS	VIEW_DEFINITION	VIEW_DEFINITION	252	4294967295	15	Y	128	31	33
+def	mysql	VIEWS	VIEWS	CHECK_OPTION	CHECK_OPTION	254	24	4	Y	384	0	33
+def	mysql	VIEWS	VIEWS	IS_UPDATABLE	IS_UPDATABLE	254	9	2	Y	384	0	33
+def	mysql	VIEWS	VIEWS	DEFINER	DEFINER	253	279	14	Y	128	0	33
+def		VIEWS	VIEWS	SECURITY_TYPE	SECURITY_TYPE	253	21	7	Y	128	31	33
+def	mysql	VIEWS	VIEWS	CHARACTER_SET_CLIENT	CHARACTER_SET_CLIENT	253	192	6	N	#	0	33
+def	mysql	VIEWS	VIEWS	COLLATION_CONNECTION	COLLATION_CONNECTION	253	192	6	N	#	0	33
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
+def	test	v1	select 1 AS `1`	NONE	NO	root@localhost	DEFINER	binary	binary
+----------------------------------------------------------------
+SHOW CREATE PROCEDURE p1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Procedure	253	192	2	N	1	31	33
+def					sql_mode	253	351	117	N	1	31	33
+def					Create Procedure	253	3072	59	Y	0	31	33
+def					character_set_client	253	96	6	N	1	31	33
+def					collation_connection	253	96	6	N	1	31	33
+def					Database Collation	253	96	18	N	1	31	33
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+SELECT 1	binary	binary	utf8mb4_0900_ai_ci
+----------------------------------------------------------------
+SELECT
+SPECIFIC_NAME,
+ROUTINE_CATALOG,
+ROUTINE_SCHEMA,
+ROUTINE_NAME,
+ROUTINE_TYPE,
+DTD_IDENTIFIER,
+ROUTINE_BODY,
+ROUTINE_DEFINITION,
+EXTERNAL_NAME,
+EXTERNAL_LANGUAGE,
+PARAMETER_STYLE,
+IS_DETERMINISTIC,
+SQL_DATA_ACCESS,
+SQL_PATH,
+SECURITY_TYPE,
+SQL_MODE,
+ROUTINE_COMMENT,
+DEFINER
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE routine_name = 'p1';
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	mysql	ROUTINES	ROUTINES	SPECIFIC_NAME	SPECIFIC_NAME	253	192	2	N	20481	0	33
+def	mysql	ROUTINES	ROUTINES	ROUTINE_CATALOG	ROUTINE_CATALOG	253	192	3	N	20485	0	33
+def	mysql	ROUTINES	ROUTINES	ROUTINE_SCHEMA	ROUTINE_SCHEMA	253	192	4	N	20481	0	33
+def	mysql	ROUTINES	ROUTINES	ROUTINE_NAME	ROUTINE_NAME	253	192	2	N	20481	0	33
+def	mysql	ROUTINES	ROUTINES	ROUTINE_TYPE	ROUTINE_TYPE	254	27	9	N	20865	0	33
+def		ROUTINES	ROUTINES	DTD_IDENTIFIER	DTD_IDENTIFIER	252	150994935	0	Y	128	31	33
+def		ROUTINES	ROUTINES	ROUTINE_BODY	ROUTINE_BODY	253	9	3	N	1	31	33
+def		ROUTINES	ROUTINES	ROUTINE_DEFINITION	ROUTINE_DEFINITION	252	4294967295	8	Y	128	31	33
+def		ROUTINES	ROUTINES	EXTERNAL_NAME	EXTERNAL_NAME	6	0	0	Y	32896	0	63
+def	mysql	ROUTINES	ROUTINES	EXTERNAL_LANGUAGE	EXTERNAL_LANGUAGE	253	192	3	N	129	0	33
+def		ROUTINES	ROUTINES	PARAMETER_STYLE	PARAMETER_STYLE	253	9	3	N	1	31	33
+def		ROUTINES	ROUTINES	IS_DETERMINISTIC	IS_DETERMINISTIC	253	9	2	N	1	31	33
+def	mysql	ROUTINES	ROUTINES	SQL_DATA_ACCESS	SQL_DATA_ACCESS	254	51	12	N	4481	0	33
+def		ROUTINES	ROUTINES	SQL_PATH	SQL_PATH	6	0	0	Y	32896	0	63
+def	mysql	ROUTINES	ROUTINES	SECURITY_TYPE	SECURITY_TYPE	254	21	7	N	4481	0	33
+def	mysql	ROUTINES	ROUTINES	SQL_MODE	SQL_MODE	254	1542	117	N	6273	0	33
+def	mysql	ROUTINES	ROUTINES	ROUTINE_COMMENT	ROUTINE_COMMENT	252	196605	0	N	4241	0	33
+def	mysql	ROUTINES	ROUTINES	DEFINER	DEFINER	253	279	14	N	4225	0	33
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	SQL_MODE	ROUTINE_COMMENT	DEFINER
+p1	def	test	p1	PROCEDURE	NULL	SQL	SELECT 1	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost
+----------------------------------------------------------------
+SHOW CREATE FUNCTION f1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Function	253	192	2	N	1	31	33
+def					sql_mode	253	351	117	N	1	31	33
+def					Create Function	253	3072	74	Y	0	31	33
+def					character_set_client	253	96	6	N	1	31	33
+def					collation_connection	253	96	6	N	1	31	33
+def					Database Collation	253	96	18	N	1	31	33
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+RETURN 1	binary	binary	utf8mb4_0900_ai_ci
+----------------------------------------------------------------
+SELECT
+SPECIFIC_NAME,
+ROUTINE_CATALOG,
+ROUTINE_SCHEMA,
+ROUTINE_NAME,
+ROUTINE_TYPE,
+DTD_IDENTIFIER,
+ROUTINE_BODY,
+ROUTINE_DEFINITION,
+EXTERNAL_NAME,
+EXTERNAL_LANGUAGE,
+PARAMETER_STYLE,
+IS_DETERMINISTIC,
+SQL_DATA_ACCESS,
+SQL_PATH,
+SECURITY_TYPE,
+SQL_MODE,
+ROUTINE_COMMENT,
+DEFINER
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE routine_name = 'f1';
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	mysql	ROUTINES	ROUTINES	SPECIFIC_NAME	SPECIFIC_NAME	253	192	2	N	20481	0	33
+def	mysql	ROUTINES	ROUTINES	ROUTINE_CATALOG	ROUTINE_CATALOG	253	192	3	N	20485	0	33
+def	mysql	ROUTINES	ROUTINES	ROUTINE_SCHEMA	ROUTINE_SCHEMA	253	192	4	N	20481	0	33
+def	mysql	ROUTINES	ROUTINES	ROUTINE_NAME	ROUTINE_NAME	253	192	2	N	20481	0	33
+def	mysql	ROUTINES	ROUTINES	ROUTINE_TYPE	ROUTINE_TYPE	254	27	8	N	20865	0	33
+def		ROUTINES	ROUTINES	DTD_IDENTIFIER	DTD_IDENTIFIER	252	150994935	7	Y	128	31	33
+def		ROUTINES	ROUTINES	ROUTINE_BODY	ROUTINE_BODY	253	9	3	N	1	31	33
+def		ROUTINES	ROUTINES	ROUTINE_DEFINITION	ROUTINE_DEFINITION	252	4294967295	8	Y	128	31	33
+def		ROUTINES	ROUTINES	EXTERNAL_NAME	EXTERNAL_NAME	6	0	0	Y	32896	0	63
+def	mysql	ROUTINES	ROUTINES	EXTERNAL_LANGUAGE	EXTERNAL_LANGUAGE	253	192	3	N	129	0	33
+def		ROUTINES	ROUTINES	PARAMETER_STYLE	PARAMETER_STYLE	253	9	3	N	1	31	33
+def		ROUTINES	ROUTINES	IS_DETERMINISTIC	IS_DETERMINISTIC	253	9	2	N	1	31	33
+def	mysql	ROUTINES	ROUTINES	SQL_DATA_ACCESS	SQL_DATA_ACCESS	254	51	12	N	4481	0	33
+def		ROUTINES	ROUTINES	SQL_PATH	SQL_PATH	6	0	0	Y	32896	0	63
+def	mysql	ROUTINES	ROUTINES	SECURITY_TYPE	SECURITY_TYPE	254	21	7	N	4481	0	33
+def	mysql	ROUTINES	ROUTINES	SQL_MODE	SQL_MODE	254	1542	117	N	6273	0	33
+def	mysql	ROUTINES	ROUTINES	ROUTINE_COMMENT	ROUTINE_COMMENT	252	196605	0	N	4241	0	33
+def	mysql	ROUTINES	ROUTINES	DEFINER	DEFINER	253	279	14	N	4225	0	33
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	SQL_MODE	ROUTINE_COMMENT	DEFINER
+f1	def	test	f1	FUNCTION	int(11)	SQL	RETURN 1	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost
+----------------------------------------------------------------
+DROP DATABASE mysqltest1;
+DROP TABLE t1;
+DROP VIEW v1;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+set names koi8r;
+DROP DATABASE IF EXISTS mysqltest1;
+CREATE DATABASE mysqltest1;
+use mysqltest1;
+CREATE TABLE t1(ÀœÃœŒÀ¡1 INT);
+
+---> Dumping mysqltest1 to outfile1
+
+
+DROP DATABASE mysqltest1;
+
+
+---> Restoring mysqltest1...
+SHOW CREATE TABLE mysqltest1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ÀœÃœŒÀ¡1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP DATABASE mysqltest1;
+use test;
+flush status;
+show variables like "log_queries_not_using_indexes";
+Variable_name	Value
+log_queries_not_using_indexes	ON
+CREATE TABLE `tab1` (
+`c1` int(11) default NULL,
+`c2` char(20) default NULL,
+`c3` char(20) default NULL,
+KEY `k1` (`c2`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO tab1 values(1, "hello", "world");
+INSERT INTO tab1 values(2, "hello2", "world2");
+INSERT INTO tab1 values(3, "hello3", "world3");
+select SQL_NO_CACHE * from tab1;
+c1	c2	c3
+1	hello	world
+2	hello2	world2
+3	hello3	world3
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
+show status like 'slow_queries';
+Variable_name	Value
+Slow_queries	1
+set global log_queries_not_using_indexes=OFF;
+show variables like "log_queries_not_using_indexes";
+Variable_name	Value
+log_queries_not_using_indexes	OFF
+select SQL_NO_CACHE * from tab1;
+c1	c2	c3
+1	hello	world
+2	hello2	world2
+3	hello3	world3
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
+show status like 'slow_queries';
+Variable_name	Value
+Slow_queries	1
+set global log_queries_not_using_indexes=ON;
+show variables like "log_queries_not_using_indexes";
+Variable_name	Value
+log_queries_not_using_indexes	ON
+select SQL_NO_CACHE * from tab1;
+c1	c2	c3
+1	hello	world
+2	hello2	world2
+3	hello3	world3
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
+show status like 'slow_queries';
+Variable_name	Value
+Slow_queries	2
+drop table tab1;
+show variables like 'myisam_recover_options';
+Variable_name	Value
+myisam_recover_options	OFF
+CREATE TABLE t1 (
+Codigo int(10) unsigned NOT NULL auto_increment,
+Nombre varchar(255) default NULL,
+Telefono varchar(255) default NULL,
+Observaciones longtext,
+Direccion varchar(255) default NULL,
+Dni varchar(255) default NULL,
+CP int(11) default NULL,
+Provincia varchar(255) default NULL,
+Poblacion varchar(255) default NULL,
+PRIMARY KEY  (Codigo)
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+show create table t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	64	2	N	1	31	7
+def					Create Table	253	1024	445	N	1	31	7
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `Codigo` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `Nombre` varchar(255) DEFAULT NULL,
+  `Telefono` varchar(255) DEFAULT NULL,
+  `Observaciones` longtext,
+  `Direccion` varchar(255) DEFAULT NULL,
+  `Dni` varchar(255) DEFAULT NULL,
+  `CP` int(11) DEFAULT NULL,
+  `Provincia` varchar(255) DEFAULT NULL,
+  `Poblacion` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`Codigo`)
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8
+drop table t1;
+End of 5.0 tests
+create database mysqltest;
+show create database mysqltest;
+Database	Create Database
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+create table mysqltest.t1(a int);
+insert into mysqltest.t1 values(1);
+create user mysqltest_4@localhost;
+grant select on `mysqltest`.`t1` to mysqltest_4@localhost;
+show create database mysqltest;
+Database	Create Database
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+delete from mysql.user where user='mysqltest_4';
+delete from mysql.db where user='mysqltest_4';
+delete from mysql.tables_priv where user='mysqltest_4';
+flush privileges;
+drop database mysqltest;
+show plugins;
+create database `mysqlttest\1`;
+create table `mysqlttest\1`.`a\b` (a int);
+show tables from `mysqlttest\1`;
+Tables_in_mysqlttest\1
+a\b
+show fields from `mysqlttest\1`.`a\b`;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+show columns from `a\b` from `mysqlttest\1`;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+show keys from `mysqlttest\1`.`a\b`;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+drop table `mysqlttest\1`.`a\b`;
+drop database `mysqlttest\1`;
+show engine foobar status;
+ERROR 42000: Unknown storage engine 'foobar'
+show engine foobar logs;
+ERROR 42000: Unknown storage engine 'foobar'
+show engine foobar mutex;
+ERROR 42000: Unknown storage engine 'foobar'
+show engine mutex status;
+ERROR 42000: Unknown storage engine 'mutex'
+show engine csv status;
+Type	Name	Status
+show engine csv logs;
+Type	Name	Status
+show engine csv mutex;
+Type	Name	Status
+set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+drop table if exists `√©t√©`;
+create table `√©t√©` (field1 int);
+show full tables;
+Tables_in_test	Table_type
+√©t√©	BASE TABLE
+drop table `√©t√©`;
+set names latin1;
+#
+# Bug#4374 SHOW TABLE STATUS FROM ignores collation_connection
+# Character set: Latin-1 (ISO-8859-1)
+#
+SET NAMES latin1;
+CREATE DATABASE `‰`;
+CREATE TABLE `‰`.`‰` (a int) ENGINE=Memory;
+ANALYZE TABLE `‰`.`‰`;
+Table	Op	Msg_type	Msg_text
+‰.‰	analyze	note	The storage engine for the table doesn't support analyze
+SHOW TABLE STATUS FROM `‰` LIKE '‰';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+‰	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+DROP DATABASE `‰`;
+show columns from `#mysql50#????????`;
+Got one of the listed errors
+call mtr.add_suppression("Can.t find file: '.\\\\test\\\\\\?{8}.frm'");
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+CREATE TABLE t1(c1 INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1;
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+CREATE PROCEDURE p1() SHOW CREATE TRIGGER t1_bi;
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+PREPARE stmt1 FROM 'SHOW CREATE TRIGGER t1_bi';
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+DROP TABLE t1;
+DROP PROCEDURE p1;
+DEALLOCATE PREPARE stmt1;
+set names koi8r;
+DROP VIEW IF EXISTS v1;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP TABLE IF EXISTS t1;
+DROP EVENT IF EXISTS ev1;
+CREATE VIEW v1 AS SELECT '‘≈”‘' AS test;
+CREATE PROCEDURE p1() SELECT '‘≈”‘' AS test;
+CREATE FUNCTION f1() RETURNS CHAR(10) RETURN '‘≈”‘';
+CREATE TABLE t1(c1 CHAR(10));
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.c1 = '‘≈”‘';
+CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT '‘≈”‘' AS test;
+set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select '—Ç–µ—Å—Ç' AS `test`	koi8r	koi8r_general_ci
+SHOW CREATE PROCEDURE p1;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+SELECT '—Ç–µ—Å—Ç' AS test	koi8r	koi8r_general_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION f1;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS char(10) CHARSET utf8mb4
+RETURN '—Ç–µ—Å—Ç'	koi8r	koi8r_general_ci	utf8mb4_0900_ai_ci
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET NEW.c1 = '—Ç–µ—Å—Ç'	koi8r	koi8r_general_ci	utf8mb4_0900_ai_ci	#
+SHOW CREATE EVENT ev1;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+ev1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev1` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT '—Ç–µ—Å—Ç' AS test	koi8r	koi8r_general_ci	utf8mb4_0900_ai_ci
+DROP VIEW v1;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP TABLE t1;
+DROP EVENT ev1;
+SHOW STORAGE ENGINES;
+CREATE USER test_u@localhost;
+GRANT PROCESS ON *.* TO test_u@localhost;
+SHOW ENGINE MYISAM MUTEX;
+SHOW ENGINE MYISAM STATUS;
+DROP USER test_u@localhost;
+#
+# Bug #48985: show create table crashes if previous access to the table
+#    was killed
+#
+SHOW CREATE TABLE non_existent;
+ERROR 42S02: Table 'test.non_existent' doesn't exist
+End of 5.1 tests
+#
+# Bug#52593 SHOW CREATE TABLE is blocked if table is locked
+#           for write by another connection
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (i INT PRIMARY KEY);
+LOCK TABLE t1 WRITE;
+# Switching to connection 'con1'.
+# This statement used to be blocked.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  PRIMARY KEY (`i`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Switching to connection 'default'.
+UNLOCK TABLES;
+DROP TABLE t1;
+#
+# Bug#54905 Connection with WRITE lock cannot ALTER table due to
+#           concurrent SHOW CREATE
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT);
+# Connection con1
+LOCK TABLE t1 WRITE;
+# Connection default
+START TRANSACTION;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Connection con1
+ALTER TABLE t1 CHARACTER SET = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+UNLOCK TABLES;
+# Connection default
+COMMIT;
+DROP TABLE t1;
+#
+# Bug#55498 SHOW CREATE TRIGGER takes wrong type of metadata lock.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET new.a = 1;
+# Test 1: SHOW CREATE TRIGGER with WRITE locked table.
+# Connection con1
+LOCK TABLE t1 WRITE;
+# Connection default
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET new.a = 1	utf8	utf8_general_ci	utf8mb4_0900_ai_ci	#
+# Connection con1
+UNLOCK TABLES;
+# Test 2: ALTER TABLE with SHOW CREATE TRIGGER in transaction
+# Connection default
+START TRANSACTION;
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET new.a = 1	utf8	utf8_general_ci	utf8mb4_0900_ai_ci	#
+# Connection con1
+ALTER TABLE t1 CHARACTER SET = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# Connection default
+COMMIT;
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+#
+# Bug#57306 SHOW PROCESSLIST does not display string literals well.
+#
+SET NAMES latin1;
+SELECT GET_LOCK('t', 1000);
+GET_LOCK('t', 1000)
+1
+SET NAMES latin1;
+SELECT GET_LOCK('t',1000) AS '√≥√≥√≥√≥';;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+###	event_scheduler	###	NULL	Daemon	###	###	NULL
+###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS '√≥√≥√≥√≥'
+###	root	###	test	Query	###	###	SHOW PROCESSLIST
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+###	event_scheduler	###	NULL	Daemon	###	###	NULL
+###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS '√É¬≥√É¬≥√É¬≥√É¬≥'
+###	root	###	test	Query	###	###	SHOW PROCESSLIST
+SELECT RELEASE_LOCK('t');
+RELEASE_LOCK('t')
+1
+√≥√≥√≥√≥
+1
+SET NAMES latin1;
+#
+# Bug#58996 SHOW CREATE TRIGGER fails when subject table is shadowed by
+#           a temporary table.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+CREATE TEMPORARY TABLE t1 (b INT);
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+DROP TEMPORARY TABLE t1;
+DROP TABLE t1;
+#
+# WL#6454: Deprecate SHOW AUTHORS and SHOW CONTRIBUTORS
+#
+# These statements were deprecated in 5.5 and removed in 5.6.
+# They should therefore give ER_PARSE_ERROR here.
+SHOW AUTHORS;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AUTHORS' at line 1
+SHOW CONTRIBUTORS;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CONTRIBUTORS' at line 1
+#
+# Bug#20709462: GENERATED COLUMNS NOT PRINTED CORRECTLY IN
+#               SHOW CREATE TABLE
+#
+CREATE TABLE t1 (i CHAR(3),
+n CHAR(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)));
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# Use SHOW CREATE TABLE output below unmodified to re-create table
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` char(3) DEFAULT NULL,
+  `n` char(20) CHARACTER SET utf8 COLLATE utf8_general_ci GENERATED ALWAYS AS (md5(`i`)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE `t1` (
+`i` char(3) DEFAULT NULL,
+`n` char(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+DROP TABLE t1;
+#
+# Bug#24800048 - SHOW TABLES FROM DATABASE HANGS ON WINDOWS PLATFORM
+#
+CREATE DATABASE unknown;
+# On case sensitive file system following statement fails as DB name
+# is in different case. Following statement works fine on case insensitive
+# file systems.
+SHOW TABLES FROM UNKNOWN;
+Tables_in_unknown
+# On case sensitive file system following statement fails as DB name
+# is in different case. Following statement works fine on case insensitive
+# file systems.
+# Without fix following SHOW TABLES statements hangs in Windows (with
+# lower_case_table_names=1).
+SHOW TABLES FROM UNKNOWN;
+Tables_in_unknown
+DROP DATABASE unknown;
+#
+# WL#9570 -  Extend SHOW statements to list hidden columns and index
+#            information.
+#
+#            Test case to verify hidden columns, index and index elements
+#            display in INFORMATION_SCHEMA queries and SHOW statements.
+#            EXPECTATION: INFORMATION_SCHEMA.COLUMNS/STATISTICS*/KEY_COLUMN_USAGE
+#                         SHOW [FULL] COLUMNS and SHOW INDEX should not display
+#                         hidden columns, indexes and index elements.
+#                         SHOW EXTENED [FULL] COLUMNS and SHOW EXTENDED INDEX
+#                         should display hidden columns, index and index elements
+#                         too.
+#
+#
+CREATE TABLE t1 (c1 int(11) NOT NULL,
+c2 int(11) DEFAULT NULL,
+c3 text,
+PRIMARY KEY (c1));
+CREATE INDEX c2d ON t1(c2);
+# With fix, following statements should not show the hidden columns.
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+c1	int(11)	#	#	#	#
+c2	int(11)	#	#	#	#
+c3	text	#	#	#	#
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+c1	int(11)	#	#	#	#	#	#	#
+c2	int(11)	#	#	#	#	#	#	#
+c3	text	#	#	#	#	#	#	#
+SELECT table_name, column_name, column_type FROM
+INFORMATION_SCHEMA.COLUMNS WHERE table_name='t1';
+TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
+t1	c1	int(11)
+t1	c2	int(11)
+t1	c3	text
+# EXTENDED keyword is introduced to list the hidden columns.
+SHOW EXTENDED COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+c1	int(11)	#	#	#	#
+c2	int(11)	#	#	#	#
+c3	text	#	#	#	#
+DB_TRX_ID		#	#	#	#
+DB_ROLL_PTR		#	#	#	#
+SHOW EXTENDED FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+c1	int(11)	#	#	#	#	#	#	#
+c2	int(11)	#	#	#	#	#	#	#
+c3	text	#	#	#	#	#	#	#
+DB_TRX_ID		#	#	#	#	#	#	#
+DB_ROLL_PTR		#	#	#	#	#	#	#
+# With fix, following statements should not show the hidden index and
+# index columns.
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	c1	A	0	NULL	NULL		BTREE			YES
+t1	1	c2d	1	c2	A	0	NULL	NULL	YES	BTREE			YES
+SELECT table_schema, table_name, index_name, column_name FROM
+INFORMATION_SCHEMA.STATISTICS WHERE table_name='t1';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	COLUMN_NAME
+test	t1	c2d	c2
+test	t1	PRIMARY	c1
+SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE table_name='t1';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+def	test	PRIMARY	test	t1	PRIMARY KEY
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT constraint_schema, constraint_name, table_name, column_name FROM
+INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name='t1';
+constraint_schema	constraint_name	table_name	column_name
+test	PRIMARY	t1	c1
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# EXTENDED keyword is introduced to list the hidden index and index
+# columns.
+SHOW EXTENDED INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	c1	A	0	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	2	DB_TRX_ID	A	NULL	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	3	DB_ROLL_PTR	A	NULL	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	4	c2	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	0	PRIMARY	5	c3	A	NULL	NULL	NULL	YES	BTREE			YES
+t1	1	c2d	1	c2	A	0	NULL	NULL	YES	BTREE			YES
+t1	1	c2d	2	c1	A	NULL	NULL	NULL		BTREE			YES
+DROP TABLE t1;
+#
+# Bug#27387773 COLUMN OPTION FOR DESCRIBE IS IGNORED
+#
+CREATE TEMPORARY TABLE t1 (f1 INT, f2 INT);
+# These DESCRIBEs would show just single column after the fix.
+DESCRIBE t1 f1;
+Field	Type	Null	Key	Default	Extra
+f1	int(11)	YES		NULL	NULL
+DESCRIBE t1 f2;
+Field	Type	Null	Key	Default	Extra
+f2	int(11)	YES		NULL	NULL
+SHOW COLUMNS FROM t1 LIKE 'f1';
+Field	Type	Null	Key	Default	Extra
+f1	int(11)	YES		NULL	NULL
+SHOW COLUMNS FROM t1 LIKE 'f2';
+Field	Type	Null	Key	Default	Extra
+f2	int(11)	YES		NULL	NULL
+DROP TABLE t1;
+#
+# Bug#11754608 MYSQL DOESN'T SHOW WHAT COLLATION WAS USED IF THAT
+# COLLATION IS THE DEFAU
+#
+CREATE TABLE t1 (f1 CHAR(1),
+f2 CHAR(1) COLLATE UTF8_BIN,
+f3 CHAR(1) CHARSET UTF8MB3,
+f4 CHAR(1) CHARSET UTF8MB4);
+# The SHOW command should show the utf8mb4 charset for f4 after ALTER.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` char(1) DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ADD COLUMN f5 CHAR(1);
+ALTER TABLE t1 ADD COLUMN f6 CHAR(1) CHARSET UTF8MB4;
+# The SHOW command should show the utf8mb4 charset for f6 after ALTER.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` char(1) DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `f5` char(1) DEFAULT NULL,
+  `f6` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Check if we retain the property after CREATE SELECT.
+CREATE TABLE t2 AS SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` char(1) DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `f5` char(1) DEFAULT NULL,
+  `f6` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Check if we retain the property after CREATE LIKE.
+CREATE TABLE t3 LIKE t1;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` char(1) DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `f5` char(1) DEFAULT NULL,
+  `f6` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;

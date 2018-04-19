@@ -1,10 +1,9 @@
-SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-SELECT @@global.tx_isolation;
-@@global.tx_isolation
-REPEATABLE-READ
-SELECT @@global.innodb_locks_unsafe_for_binlog;
-@@global.innodb_locks_unsafe_for_binlog
-1
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SET @old_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
+SET GLOBAL innodb_lock_wait_timeout=1;
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+READ-COMMITTED
 # keep_locks == 0
 CREATE USER mysqltest@localhost;
 drop table if exists t1;
@@ -41,10 +40,10 @@ update t1 set eta=1+get_lock("hello",10)*0 where tipo=11;
 ** Start new transaction for thread 1
 begin;
 ** Update on t1 will cause a table scan which will be blocked because
-** the previously initiated table scan applied exclusive key locks on 
+** the previously initiated table scan applied exclusive key locks on
 ** all primary keys.
-** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
-** do not match the WHERE condition are released.
+** Not so if isolation level is READ COMMITTED or READ UNCOMMITTED.
+** The locks that do not match the WHERE condition are released.
 update t1 set eta=2 where tipo=22;
 ** Release user level name lock from thread 1. This will cause the ULL
 ** on thread 2 to end its wait.
@@ -97,7 +96,7 @@ eta	tipo	c
 60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 2	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
-90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+1	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
 ** And send final commit on thread 1.
 commit;
 ** Table should now be updated by both updates in the order of
@@ -180,10 +179,10 @@ update t1 set eta=1+get_lock("hello",10)*0 where tipo=1;
 ** Start transaction on thread 1
 begin;
 ** Update on t1 will cause a table scan which will be blocked because
-** the previously initiated table scan applied exclusive key locks on 
+** the previously initiated table scan applied exclusive key locks on
 ** all primary keys.
-** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
-** do not match the WHERE condition are released.
+** Not so if isolation level is READ COMMITTED or READ UNCOMMITTED.
+** The locks that do not match the WHERE condition are released.
 update t1 set tipo=1 where tipo=2;
 ** Release ULL. This will release the next waiting ULL on thread 2.
 DO release_lock("hello");
@@ -227,17 +226,17 @@ select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-10	1	ccccccccccccccccccccccccccccccccccccccccccc
+1	1	ccccccccccccccccccccccccccccccccccccccccccc
 20	1	ddddddddddddddddddddddddddddddddddddddddddd
-30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+1	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
 40	1	fffffffffffffffffffffffffffffffffffffffffff
-50	1	ggggggggggggggggggggggggggggggggggggggggggg
+1	1	ggggggggggggggggggggggggggggggggggggggggggg
 60	1	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+1	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
 commit;
-** After a commit the table should be merged with the previous 
+** After a commit the table should be merged with the previous
 ** commit.
 ** This select should show both updates:
 select * from t1;
@@ -361,7 +360,7 @@ eta	tipo	c
 40	2	fffffffffffffffffffffffffffffffffffffffffff
 60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 ** connection thread1
-** Begin a new transaction on thread 1 
+** Begin a new transaction on thread 1
 begin;
 ** Update the same range which is marked for update on thread 2; this
 ** will hang because of row locks.
@@ -470,8 +469,8 @@ begin;
 ** Updating single row using a table scan. This will time out
 ** because of ongoing transaction on thread 1 holding lock on
 ** all primary keys in the scan.
-** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
-** do not match the WHERE condition are released.
+** Not so if isolation level is READ COMMITTED or READ UNCOMMITTED.
+** The locks that do not match the WHERE condition are released.
 update t1 set tipo=11 where tipo=22;
 ** After the time out the transaction is aborted; no rows should
 ** have changed.
@@ -727,10 +726,10 @@ delete from t1 where tipo=2;
 ** connection thread1
 begin;
 ** Update on t1 will cause a table scan which will be blocked because
-** the previously initiated table scan applied exclusive key locks on 
+** the previously initiated table scan applied exclusive key locks on
 ** all primary keys.
-** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
-** do not match the WHERE condition are released.
+** Not so if isolation level is READ COMMITTED or READ UNCOMMITTED.
+** The locks that do not match the WHERE condition are released.
 update t1 set tipo=1 where tipo=22;
 select * from t1;
 eta	tipo	c
@@ -786,3 +785,5 @@ eta	tipo	c
 ** connection default
 drop table t1;
 drop user mysqltest@localhost;
+SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SET GLOBAL innodb_lock_wait_timeout= @old_lock_wait_timeout;

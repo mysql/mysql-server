@@ -51,7 +51,7 @@ include/assert.inc [service state of coordinator shall be ON]
 #
 #  Stop the slave on channel_1 and verify that rows are still instact
 #
-include/stop_slave.inc
+include/stop_slave.inc [FOR CHANNEL 'channel_1']
 #
 # Test case 5: Verify that selects work on named channels even
 #              after a channel is stopped. test that service state is OFF
@@ -59,55 +59,54 @@ include/stop_slave.inc
 include/assert.inc [After stop slave for channel, replication_connection_configuration is intact]
 include/assert.inc [After stop slave for channel, service state is OFF for connection_status table.]
 include/assert.inc [After stop slave for channel, service state is OFF for applier_status table.]
-include/assert.inc [After stop slave for channel, service state is OFF by replication_applier_status_by_coordinator table.]
+include/assert.inc [After stop slave for channel, service state is OFF by replication_applier_status_by_worker table.]
 #
 #  Test case 6): Do a sanity check that joins can be performed as replication tables
 #                 contain multiple rows now.
-(select * from replication_connection_status, replication_applier_status_by_coordinator where replication_connection_status.channel_name= replication_applier_status_by_coordinator.channel_name);
 CHANNEL_NAME	channel_1
 GROUP_NAME	
 SOURCE_UUID	#
 THREAD_ID	#
 SERVICE_STATE	OFF
-COUNT_RECEIVED_HEARTBEATS	0
-LAST_HEARTBEAT_TIMESTAMP	0000-00-00 00:00:00
+COUNT_RECEIVED_HEARTBEATS	#
+LAST_HEARTBEAT_TIMESTAMP	#
 RECEIVED_TRANSACTION_SET	
 LAST_ERROR_NUMBER	0
 LAST_ERROR_MESSAGE	
-LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
 CHANNEL_NAME	channel_1
 THREAD_ID	#
 SERVICE_STATE	OFF
 LAST_ERROR_NUMBER	0
 LAST_ERROR_MESSAGE	
-LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
 CHANNEL_NAME	channel_3
 GROUP_NAME	
 SOURCE_UUID	#
 THREAD_ID	#
 SERVICE_STATE	ON
-COUNT_RECEIVED_HEARTBEATS	0
-LAST_HEARTBEAT_TIMESTAMP	0000-00-00 00:00:00
+COUNT_RECEIVED_HEARTBEATS	#
+LAST_HEARTBEAT_TIMESTAMP	#
 RECEIVED_TRANSACTION_SET	
 LAST_ERROR_NUMBER	0
 LAST_ERROR_MESSAGE	
-LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
 CHANNEL_NAME	channel_3
 THREAD_ID	#
 SERVICE_STATE	ON
 LAST_ERROR_NUMBER	0
 LAST_ERROR_MESSAGE	
-LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
 #
 # Test case 7: Delete channel_3 and count the number of rows in each table.
 #
-include/stop_slave.inc
+include/stop_slave.inc [FOR CHANNEL 'channel_3']
 RESET SLAVE ALL FOR CHANNEL 'channel_3';
 include/assert.inc [there shall be 1 in replication connection_configuration table after a channel is deleted.]
 include/assert.inc [there shall be 1 in replication connection_status table after a channel is deleted.]
 include/assert.inc [there shall be 1 in replication applier_config table after a channel is deleted.]
 include/assert.inc [there shall be 1 in replication applier_status table after a channel is deleted.]
-include/assert.inc [there shall be 1 in replication applier_status_by_coordinator table after a channel is deleted.]
+include/assert.inc [there shall be 1 applier after a channel is deleted.]
 include/assert.inc [there shall be global.slave_parallel_workers rows after a channel is deleted.]
 #
 #  Test case 8: Do a complete delete and see if the number of rows are zero

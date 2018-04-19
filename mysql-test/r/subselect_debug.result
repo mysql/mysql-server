@@ -11,3 +11,66 @@ REVERSE(EXISTS(SELECT RAND() FROM t1))
 0
 SET SESSION debug=@orig_debug;
 DROP TABLE t1;
+#
+# Bug#21383882 ASSERTION FAILED: 0 IN SELECT_LEX::PRINT()
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1),(1);
+SELECT ((SELECT 1 FROM t1) IN (SELECT 1 FROM t1)) - (11111111111111111111);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t1;
+#
+# Bug#26679495: SIG 11 IN SUBSELECT_HASH_SJ_ENGINE::CLEANUP
+#
+CREATE TABLE t (x INT);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+# The subquery should be materialized so that we
+# use subselect_hash_sj_engine.
+EXPLAIN SELECT * FROM t WHERE x IN (SELECT COUNT(*) FROM t GROUP BY x);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	SUBQUERY	t	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` where <in_optimizer>(`test`.`t`.`x`,`test`.`t`.`x` in ( <materialize> (/* select#2 */ select count(0) from `test`.`t` group by `test`.`t`.`x` having 1 ), <primary_index_lookup>(`test`.`t`.`x` in <temporary table> on <auto_key> where ((`test`.`t`.`x` = `materialized-subquery`.`COUNT(*)`)))))
+SELECT * FROM t WHERE x IN (SELECT COUNT(*) FROM t GROUP BY x);
+x
+1
+# Execute the query with a simulated error in
+# subselect_hash_sj_engine::setup().
+SET DEBUG='+d,hash_semijoin_fail_in_setup';
+SELECT * FROM t WHERE x IN (SELECT COUNT(*) FROM t GROUP BY x);
+ERROR HY000: Unknown error
+SET DEBUG='-d,hash_semijoin_fail_in_setup';
+DROP TABLE t;
+#
+# Bug#26679983: SIG 11 IN MAKE_JOIN_READINFO|SQL/SQL_SELECT.CC
+#
+CREATE TABLE t (x INT);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+# We want nested loop with duplicate weedout to reproduce the bug.
+SET optimizer_switch = 'firstmatch=off,materialization=off';
+EXPLAIN SELECT * FROM t WHERE x IN (SELECT x FROM t);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` semi join (`test`.`t`) where (`test`.`t`.`x` = `test`.`t`.`x`)
+SELECT * FROM t WHERE x IN (SELECT x FROM t);
+x
+1
+2
+3
+# Execute the query with a simulated error in
+# create_duplicate_weedout_tmp_table().
+SET DEBUG='+d,create_duplicate_weedout_tmp_table_error';
+SELECT * FROM t WHERE x IN (SELECT x FROM t);
+ERROR HY000: Unknown error
+SET DEBUG='-d,create_duplicate_weedout_tmp_table_error';
+DROP TABLE t;
+SET optimizer_switch = DEFAULT;

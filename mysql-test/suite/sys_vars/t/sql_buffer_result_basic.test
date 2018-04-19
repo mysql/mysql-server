@@ -96,15 +96,15 @@ SET @@session.sql_buffer_result = "TRU";
 SET @@session.sql_buffer_result = 0.4;
 
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_buffer_result = TRÜE;
+SET @@session.sql_buffer_result = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_buffer_result = ÕN;
---Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_buffer_result = Ã•N;
+--error ER_PARSE_ERROR
 SET @@session.sql_buffer_result = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_buffer_result = ÓFF;
+SET @@session.sql_buffer_result = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_buffer_result = '¹';
+SET @@session.sql_buffer_result = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_buffer_result = NO;
 
@@ -126,7 +126,7 @@ SELECT @@global.sql_buffer_result;
 
 --disable_warnings
 SELECT count(VARIABLE_VALUE) 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='sql_buffer_result';
 --enable_warnings
 
@@ -137,13 +137,13 @@ WHERE VARIABLE_NAME='sql_buffer_result';
 
 --disable_warnings
 SELECT IF(@@session.sql_buffer_result, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_buffer_result';
 --enable_warnings
 SELECT @@session.sql_buffer_result;
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_buffer_result';
 --enable_warnings
 

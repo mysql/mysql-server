@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 connect (con1,localhost,root,,);
 
@@ -34,23 +33,23 @@ COMMIT;
 
 #
 # Verify consistent output from 
-# SELECT @@tx_isolation  (Bug#20837)
+# SELECT @@transaction_isolation  (Bug#20837)
 #
 # The transaction will be in READ UNCOMMITTED mode,
-# but SELECT @@tx_isolation should report the session
+# but SELECT @@transaction_isolation should report the session
 # value, which is REPEATABLE READ
 #
 SET @@autocommit=0;
 COMMIT;
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 START TRANSACTION;
-SELECT @@tx_isolation;
+SELECT @@transaction_isolation;
 --echo Should be REPEATABLE READ
 SELECT * FROM t1;
-SELECT @@tx_isolation;
+SELECT @@transaction_isolation;
 --echo Should be REPEATABLE READ
 INSERT INTO t1 VALUES (-1);
-SELECT @@tx_isolation;
+SELECT @@transaction_isolation;
 --echo Should be REPEATABLE READ
 COMMIT;
 
@@ -398,16 +397,16 @@ COMMIT;
 --echo # Test 2: Check setting of variable.
 
 SET SESSION TRANSACTION READ WRITE;
-SELECT @@tx_read_only;
+SELECT @@transaction_read_only;
 
 SET SESSION TRANSACTION READ ONLY;
-SELECT @@tx_read_only;
+SELECT @@transaction_read_only;
 
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ WRITE;
-SELECT @@tx_read_only;
+SELECT @@transaction_read_only;
 
 SET SESSION TRANSACTION READ ONLY, ISOLATION LEVEL REPEATABLE READ;
-SELECT @@tx_read_only;
+SELECT @@transaction_read_only;
 
 START TRANSACTION;
 --echo # Not allowed inside a transaction
@@ -656,14 +655,14 @@ DROP TABLE t1;
 
 CREATE PROCEDURE p1() SET SESSION TRANSACTION READ ONLY;
 CALL p1();
-SELECT @@tx_read_only;
+SELECT @@transaction_read_only;
 SET SESSION TRANSACTION READ WRITE;
 DROP PROCEDURE p1;
 
 CREATE PROCEDURE p1() SET SESSION TRANSACTION READ ONLY,
                                               ISOLATION LEVEL SERIALIZABLE;
 CALL p1();
-SELECT @@tx_read_only;
+SELECT @@transaction_read_only;
 SET SESSION TRANSACTION READ WRITE, ISOLATION LEVEL REPEATABLE READ;
 DROP PROCEDURE p1;
 
@@ -676,7 +675,7 @@ END|
 delimiter ;|
 
 SELECT f1();
-SELECT @@tx_read_only;
+SELECT @@transaction_read_only;
 SET SESSION TRANSACTION READ WRITE;
 DROP FUNCTION f1;
 
@@ -689,7 +688,7 @@ END|
 delimiter ;|
 
 SELECT f1();
-SELECT @@tx_read_only;
+SELECT @@transaction_read_only;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ WRITE;
 DROP FUNCTION f1;
 

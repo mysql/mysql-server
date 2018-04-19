@@ -1,0 +1,34 @@
+CREATE DATABASE federated;
+CREATE DATABASE federated;
+#
+# Bug#47525: MySQL crashed (Federated)
+#
+# Switch to slave
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+# Switch to master
+CREATE TABLE t1(a INT) ENGINE=FEDERATED
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
+SELECT * FROM t1;
+a
+1
+# Start a asynchronous reload
+mysqladmin: [Warning] Using a password on the command line interface can be insecure.
+# Wait for tables to be closed
+# Timeout in include/wait_show_condition.inc for = '0'
+#         show_statement : SHOW STATUS LIKE 'Open_tables'
+#         field          : Value
+#         condition      : = '0'
+#         max_run_time   : 31
+# Ensure that the server didn't crash
+SELECT * FROM t1;
+a
+1
+# Drop tables on master and slave
+DROP TABLE t1;
+DROP TABLE t1;
+# Federated cleanup
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE federated;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE federated;

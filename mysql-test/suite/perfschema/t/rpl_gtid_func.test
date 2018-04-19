@@ -1,6 +1,5 @@
---source include/not_embedded.inc
---source include/have_perfschema.inc
---source ../include/no_protocol.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
 -- source include/master-slave.inc
 
@@ -34,7 +33,7 @@ connection master;
 --echo **** On Master ****
 
 select * from performance_schema.setup_instruments
-  where timed='NO';
+  where timed='NO' and name not like "memory/%";
 
 select "This better be in the master" as in_master_digest;
 

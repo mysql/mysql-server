@@ -1,0 +1,1467 @@
+###########         ../t/insert_crud_o.test                  ###########
+###                                                                    #
+### This test runs aims to run INSERT operation statements             #
+### variant with mysqlxtest client for Table and Document data models. #
+### Test covers                                                        #
+###  - insert with different operators                                 #
+###  - insert multiple rows                                            #
+###  - insert with rollback transaction                                #
+###  - status variable Mysqlx_crud_insert for number of Insert         # 
+###    requests received                                               #
+###                                                                    #
+########################################################################
+#
+
+--echo ==============================================
+--echo     CRUD INSERT SCENARIOS
+--echo ==============================================
+--echo 
+
+## Preamble
+--echo ================================================================================
+--echo PREAMBLE
+--echo ================================================================================
+--source include/xplugin_preamble.inc
+create user insertcruduser@localhost identified by 'insertcruduser';
+grant all on *.* to insertcruduser@localhost;
+
+## TEST STARTS HERE
+--echo ================================================================================
+--echo TEST START
+--echo ================================================================================
+
+--write_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD.tmp
+-->sql
+ DROP SCHEMA if EXISTS mysqlxplugin;
+ CREATE SCHEMA mysqlxplugin DEFAULT CHARSET='utf8';
+ USE mysqlxplugin;
+ CREATE TABLE categories (
+   CategoryID int NOT NULL AUTO_INCREMENT,
+   CategoryName varchar(100),
+	CategoryDescription varchar(200),
+	CategoryIMEI tinyint,	  
+	CategoryDecimal decimal(5,2),
+   CategoryBool bit(1),
+   PRIMARY key (CategoryID)
+   );
+   
+   SHOW STATUS like 'Mysqlx_crud_insert';
+-->endsql
+
+-->echo Insert multiple rows
+Mysqlx.Crud.Insert {
+  collection {
+		name: "categories"
+    		schema: "mysqlxplugin"
+  	     }
+  data_model: TABLE
+  	projection {
+    	name: "CategoryID"
+	}
+	projection {
+	name: "CategoryName"
+	}
+	projection {
+	name: "CategoryDescription"
+	}
+	projection {
+	name: "CategoryIMEI"
+	}
+	projection {
+	name: "CategoryDecimal"
+	}
+	projection {
+	name: "CategoryBool"
+	}
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 1
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Sports"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Sports related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 1
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 235.15
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 2
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Entertaiment"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Entertaiment related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 2
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 156.17
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: true
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 18
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Cooking"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Cooking related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 18
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 116.17
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: true
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+select * from categories;
+SHOW STATUS like 'Mysqlx_crud_insert';
+-->endsql
+
+## Corner Values 
+-->echo Insert Quotes with scape character
+Mysqlx.Crud.Insert {
+  collection {
+		name: "categories"
+    		schema: "mysqlxplugin"
+  	     }
+  data_model: TABLE
+  	projection {
+    	name: "CategoryID"
+	}
+	projection {
+	name: "CategoryName"
+	}
+	projection {
+	name: "CategoryDescription"
+	}
+	projection {
+	name: "CategoryIMEI"
+	}
+	projection {
+	name: "CategoryDecimal"
+	}
+  	projection {
+	name: "CategoryBool"
+	}
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 3
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\"Quotes\""
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Quote related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 3
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 184.25
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+select * from categories;
+SHOW STATUS like 'Mysqlx_crud_insert';
+-->endsql
+
+-->echo Insert NULL values
+Mysqlx.Crud.Insert {
+  collection {
+		name: "categories"
+    		schema: "mysqlxplugin"
+  	     }
+  data_model: TABLE
+  	projection {
+    	name: "CategoryID"
+	}
+	projection {
+	name: "CategoryName"
+	}
+	projection {
+	name: "CategoryDescription"
+	}
+	projection {
+	name: "CategoryIMEI"
+	}
+	projection {
+	name: "CategoryDecimal"
+	}
+	projection {
+	name: "CategoryBool"
+	}
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_NULL
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_NULL
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_NULL
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_NULL
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_NULL
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_NULL
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+select * from categories;
+SHOW STATUS like 'Mysqlx_crud_insert';
+-->endsql
+
+-->echo Insert Corner decimal value
+Mysqlx.Crud.Insert {
+  collection {
+		name: "categories"
+    		schema: "mysqlxplugin"
+  	     }
+  data_model: TABLE
+  	projection {
+    	name: "CategoryID"
+	}
+	projection {
+	name: "CategoryName"
+	}
+	projection {
+	name: "CategoryDescription"
+	}
+	projection {
+	name: "CategoryIMEI"
+	}
+	projection {
+	name: "CategoryDecimal"
+	}
+	projection {
+	name: "CategoryBool"
+	}
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 6
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen2"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen2 related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 6
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 999.99
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: true
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 12
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 12
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: -999.99
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+select * from categories;
+SHOW STATUS like 'Mysqlx_crud_insert';
+-->endsql
+
+-->echo Insert Corner tiny int value
+Mysqlx.Crud.Insert {
+  collection {
+		name: "categories"
+    		schema: "mysqlxplugin"
+  	     }
+  data_model: TABLE
+  	projection {
+    	name: "CategoryID"
+	}
+	projection {
+	name: "CategoryName"
+	}
+	projection {
+	name: "CategoryDescription"
+	}
+	projection {
+	name: "CategoryIMEI"
+	}
+	projection {
+	name: "CategoryDecimal"
+	}
+	projection {
+	name: "CategoryBool"
+	}
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 13
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 127
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 156.99
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 14
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: -128
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 156.99
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+select * from categories;
+SHOW STATUS like 'Mysqlx_crud_insert';
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u insertcruduser --password='insertcruduser' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD.tmp
+
+--echo .
+--echo #---------- START NEGATIVE TABLE TESTING----------#
+--echo .
+
+--write_file $MYSQL_TMP_DIR/mysqlx-insert_Negative_CRUD.tmp
+-->sql
+ USE mysqlxplugin;
+-->endsql
+
+## ******************************************
+## 2. Negative Table Test starts here        |
+##                                           |
+## ******************************************
+
+-->echo Repeat key column ID
+##Error Code: 1062
+Mysqlx.Crud.Insert {
+  collection {
+		name: "categories"
+        schema: "mysqlxplugin"
+  }
+  data_model: TABLE
+  	projection {
+    	name: "CategoryID"
+	}
+	projection {
+	name: "CategoryName"
+	}
+	projection {
+	name: "CategoryDescription"
+	}
+	projection {
+	name: "CategoryIMEI"
+	}
+	projection {
+	name: "CategoryDecimal"
+	}
+	projection {
+	name: "CategoryBool"
+	}
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 1
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Home"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Home related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 1
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_FLOAT
+        v_float: 235.15
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+}
+-->expecterror 1062
+-->recvresult
+
+-->echo Data types corner value plus 1
+## Error Code: 1264
+Mysqlx.Crud.Insert {
+  collection {
+		name: "categories"
+    		schema: "mysqlxplugin"
+  	     }
+  data_model: TABLE
+  	projection {
+    	name: "CategoryID"
+	}
+	projection {
+	name: "CategoryName"
+	}
+	projection {
+	name: "CategoryDescription"
+	}
+	projection {
+	name: "CategoryIMEI"
+	}
+	projection {
+	name: "CategoryDecimal"
+	}
+	projection {
+	name: "CategoryBool"
+	}
+  row {
+    field {
+      type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 5
+        }
+      }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 4
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+          type: V_DOUBLE
+          v_double: 1000.00
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 5
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 128
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 125.35
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+}
+-->expecterror 1264
+-->recvresult
+
+## Correspondence between data and field types
+-->echo String value in tiny int data type column 
+## Error Code: 1366
+Mysqlx.Crud.Insert {
+  collection {
+		name: "categories"
+    		schema: "mysqlxplugin"
+  	     }
+  data_model: TABLE
+  	projection {
+    	name: "CategoryID"
+	}
+	projection {
+	name: "CategoryName"
+	}
+	projection {
+	name: "CategoryDescription"
+	}
+	projection {
+	name: "CategoryIMEI"
+	}
+	projection {
+	name: "CategoryDecimal"
+	}
+	projection {
+	name: "CategoryBool"
+	}
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 5
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "TinyInt"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 235.15
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+}
+-->expecterror 1366
+-->recvresult
+
+-->echo String value in decimal data type column
+Mysqlx.Crud.Insert {
+  collection {
+		name: "categories"
+    		schema: "mysqlxplugin"
+  	     }
+  data_model: TABLE
+  	projection {
+    	name: "CategoryID"
+	}
+	projection {
+	name: "CategoryName"
+	}
+	projection {
+	name: "CategoryDescription"
+	}
+	projection {
+	name: "CategoryIMEI"
+	}
+	projection {
+	name: "CategoryDecimal"
+	}
+	projection {
+	name: "CategoryBool"
+	}
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 5
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 4
+      }
+    }
+    field {
+      type: LITERAL
+       literal {
+         type: V_STRING
+         v_string {
+           value: "Decimal"
+        }
+      }
+   }
+   field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+}
+-->expecterror 1366
+-->recvresult
+
+-->echo Invalid Schema name
+Mysqlx.Crud.Insert {
+  collection {
+        name: "categories"
+        schema: "schema_no_exist"
+  }
+  data_model: TABLE
+    projection {
+        name: "CategoryID"
+    }
+    projection {
+        name: "CategoryName"
+    }
+    projection {
+        name: "CategoryDescription"
+    }
+    projection {
+        name: "CategoryIMEI"
+    }
+    projection {
+        name: "CategoryDecimal"
+    }
+    projection {
+        name: "CategoryBool"
+    }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 5
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 4
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 256.54
+      }
+   }
+   field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+}
+-->expecterror 1049
+-->recvresult
+
+-->echo Invalid Table name
+Mysqlx.Crud.Insert {
+  collection {
+		name: "table_no_exist"
+    		schema: "mysqlxplugin"
+  	     }
+  data_model: TABLE
+  	projection {
+    	name: "CategoryID"
+	}
+	projection {
+	name: "CategoryName"
+	}
+	projection {
+	name: "CategoryDescription"
+	}
+	projection {
+	name: "CategoryIMEI"
+	}
+	projection {
+	name: "CategoryDecimal"
+	}
+	projection {
+	name: "CategoryBool"
+	}
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "NoIntValue"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 4
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 256.54
+      }
+   }
+   field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+}
+-->expecterror 1146
+-->recvresult
+
+-->echo Invalid Column name
+Mysqlx.Crud.Insert {
+  collection {
+		name: "categories_no_exist"
+    		schema: "mysqlxplugin"
+  	     }
+  data_model: TABLE
+  	projection {
+    	name: "CategoryID"
+	}
+	projection {
+	name: "ColumnNoExist"
+	}
+	projection {
+	name: "CategoryDescription"
+	}
+	projection {
+	name: "CategoryIMEI"
+	}
+	projection {
+	name: "CategoryDecimal"
+	}
+	projection {
+	name: "CategoryBool"
+	}
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 5
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 4
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "NotADouble"
+        }
+      }
+   }
+   field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+}
+-->expecterror 1146
+-->recvresult
+
+## string value different from true or false in V_BOOL data type
+Mysqlx.Crud.Insert {
+  collection {
+		name: "categories"
+    		schema: "mysqlxplugin"
+  	     }
+  data_model: TABLE
+  	projection {
+    	name: "CategoryID"
+	}
+	projection {
+	name: "CategoryName"
+	}
+	projection {
+	name: "CategoryDescription"
+	}
+	projection {
+	name: "CategoryIMEI"
+	}
+	projection {
+	name: "CategoryDecimal"
+	}
+	projection {
+	name: "CategoryBool"
+	}
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 16
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Kitchen related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 4
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 235.65
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "NotAboolValue"
+        }
+      }
+    }
+  }
+}
+-->expecterror 1406
+-->recvresult
+
+-->sql
+select * from categories order by CategoryID asc;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u insertcruduser --password='insertcruduser' --file=$MYSQL_TMP_DIR/mysqlx-insert_Negative_CRUD.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-insert_Negative_CRUD.tmp
+
+## ******************************************
+## 3. Collection test based starts here      |
+##                                           |
+## ******************************************
+
+--echo .
+--echo #---------- START COLLECTION TESTING----------#
+--echo .
+
+--write_file $MYSQL_TMP_DIR/mysqlx-insert_collection_CRUD.tmp
+-->sql
+DROP SCHEMA if EXISTS mysqlxplugin_coll;
+CREATE SCHEMA mysqlxplugin_coll;
+USE mysqlxplugin_coll;
+CREATE TABLE mysqlxplugin_coll.main_collection (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY);
+-->endsql
+
+-->echo Insert a row into a Document column
+Mysqlx.Crud.Insert {
+  collection {
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"1\",\n         \"name\": \"Omar Port\", \"id\": \"1\"\n}"
+        }
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+select * from main_collection;
+-->endsql
+
+-->echo Insert multiple rows into a Document column
+Mysqlx.Crud.Insert {
+  collection {
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"2\",\n         \"name\": \"Omar Bras\", \"id\": \"2\"\n}"
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+          type: V_STRING
+          v_string {
+            value: "\n{\n         \"_id\": \"3\",\n         \"name\": \"Omar Mex\", \"id\": \"3\"\n}"
+          }
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+select * from main_collection;
+-->endsql
+
+-->echo Insert malformed JSON into Document column
+Mysqlx.Crud.Insert {
+  collection {
+    name: "main_collection"
+    schema: "mysqlxplugin_coll"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+        value: "\n{\n         \"_id\": \"1\",\n         \"from\": {\n            \"name\": \"Omar Alf\", \"id\": \"10\"\n         }\n {\n            \"name\": \"Omar Mend\", \"id\": \"11\"\n         }\n}"
+        }
+      }
+    }
+  }
+}
+-->expecterror 3140
+-->recvresult
+
+## Cleanup
+-->echo ================================================================================
+-->echo CLEAN UP
+-->echo ================================================================================
+-->sql
+ SELECT * FROM main_collection;
+ DROP SCHEMA if EXISTS mysqlxplugin;
+ DROP SCHEMA if EXISTS mysqlxplugin_coll;
+ DROP USER insertcruduser@localhost;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u insertcruduser --password='insertcruduser' --file=$MYSQL_TMP_DIR/mysqlx-insert_collection_CRUD.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/mysqlx-insert_collection_CRUD.tmp
+
+

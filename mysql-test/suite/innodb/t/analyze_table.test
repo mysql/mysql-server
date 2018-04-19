@@ -1,0 +1,43 @@
+#
+# BUG#22385442 - INNODB: DIFFICULT TO FIND FREE BLOCKS IN THE BUFFER POOL
+#
+
+--source include/big_test.inc
+# Disable in valgrind because of timeout, cf. Bug#22755816
+--source include/not_valgrind.inc
+
+DELIMITER |;
+CREATE PROCEDURE populate_t1()
+BEGIN
+        DECLARE i int DEFAULT 1;
+
+        START TRANSACTION;
+        WHILE (i <= 1000000) DO
+                INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+                SET i = i + 1;
+        END WHILE;
+        COMMIT;
+END|
+DELIMITER ;|
+
+CREATE TABLE t1(
+        class   INT,
+        id      INT,
+        title   VARCHAR(100)
+) ENGINE=InnoDB;
+
+-- disable_query_log
+CALL populate_t1();
+-- enable_query_log
+
+SELECT COUNT(*) FROM t1;
+
+SET GLOBAL innodb_stats_persistent_sample_pages=2000;
+
+ANALYZE TABLE t1;
+
+DROP TABLE t1;
+
+DROP PROCEDURE populate_t1;
+
+SET GLOBAL innodb_stats_persistent_sample_pages=default;

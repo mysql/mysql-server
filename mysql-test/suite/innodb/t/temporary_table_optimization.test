@@ -1,0 +1,273 @@
+#
+# WL#6469: Optimizing CREATE/DROP performance for temporary tables
+#
+--source include/no_valgrind_without_big.inc
+
+#########################################################################
+#									#
+# Will test following scenarios:					#
+# 1. Create/Drop of temp-table. (with and w/o explicit pk)		#
+# 2. Truncate temp-table (result in table drop and recreate).		#
+# 3. Alter of temp-table.						#
+# 4. Import/Discard of temp-table (to check blocked action)		#
+# 5. Renaming of temp-table						#
+# 6. Creating temp-table with large prefix.				#
+# 7. Check Temp table info not stored in I_S datafile and tables	#
+#########################################################################
+
+
+#-------------------------------------------------------------
+#
+# 1. Create/Drop of temp-table. (with and w/o explicit pk)		#
+#
+create temporary table t1 (i int) engine = innodb;
+show create table information_schema.innodb_temp_table_info;
+select count(*) from information_schema.innodb_temp_table_info;
+insert into t1 values (1), (2), (3), (4);
+select * from t1;
+select * from t1 where i = 4;
+drop table t1;
+#
+# recreate table wih same name to ensure entries are removed.
+create temporary table t1 (i int) engine = innodb;
+select count(*) from information_schema.innodb_temp_table_info;
+insert into t1 values (1), (2), (3), (4);
+select * from t1;
+select * from t1 where i = 4;
+drop table t1;
+#
+create temporary table t2 (i int) engine = innodb;
+insert into t2 values (1), (2), (3), (4);
+select * from t2;
+select * from t2 where i = 4;
+select count(*) from information_schema.innodb_temp_table_info;
+drop table t2;
+#
+create temporary table t1 (i int, primary key pk(i)) engine = innodb;
+create temporary table t2 (i int, primary key pk(i)) engine = innodb;
+create temporary table t3 (i int, primary key pk(i)) engine = innodb;
+insert into t1 values (1), (2), (3), (4);
+insert into t2 values (1), (2), (3), (4);
+insert into t3 values (1), (2), (3), (4);
+select * from t1;
+select * from t1 where i = 4;
+select count(*) from information_schema.innodb_temp_table_info;
+drop table t1;
+select count(*) from information_schema.innodb_temp_table_info;
+drop table t2;
+select count(*) from information_schema.innodb_temp_table_info;
+drop table t3;
+
+#-------------------------------------------------------------
+#
+# 2. Truncate temp-table (result in table drop and recreate).		#
+#
+create temporary table t1
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc)) engine = innodb;
+delimiter |;
+create procedure populate_t1()
+begin
+	declare i int default 1;
+	while (i <= 200) DO
+		insert into t1 values (i, 'a', 'b');
+		set i = i + 1;
+	end while;
+end|
+delimiter ;|
+set autocommit=0;
+select * from t1;
+call populate_t1();
+select count(*) from t1;
+select * from t1 limit 10;
+set autocommit=1;
+truncate table t1;
+select * from t1;
+drop table t1;
+#
+# recreate table wih same name to ensure entries are removed.
+create temporary table t1 (i int) engine = innodb;
+insert into t1 values (1), (2), (3), (4);
+select * from t1;
+select * from t1 where i = 4;
+drop table t1;
+#
+create temporary table t1
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc))
+	engine = innodb;
+begin;
+select * from t1;
+call populate_t1();
+select count(*) from t1;
+rollback;
+select * from t1;
+begin;
+call populate_t1();
+commit;
+select count(*) from t1;
+truncate table t1;
+select * from t1;
+drop table t1;
+#
+drop procedure populate_t1;
+
+
+#-------------------------------------------------------------
+#
+# 3. Alter of temp-table.
+#
+create temporary table t1 (t1_i int, t1_f float) engine = innodb;
+insert into t1 values (1, 1.1), (2, 2.2), (3, 2.2), (4, 4.4);
+#
+explain select * from t1 where t1_i = 1;
+alter table t1 add unique index pri_index(t1_i);
+explain select * from t1 where t1_i = 1;
+select * from t1 where t1_i = 1;
+#
+--error ER_DUP_ENTRY
+alter table t1 add unique index sec_index(t1_f);
+alter table t1 add index sec_index(t1_f);
+explain select * from t1 where t1_f > 2.2;
+select * from t1 where t1_f > 2.2;
+#
+alter table t1 add column (t1_c char(10));
+select * from t1;
+insert into t1 values (5, 5.5, 'krunal');
+#
+alter table t1 drop column t1_f;
+show create table t1;
+--error ER_BAD_FIELD_ERROR
+select * from t1 where t1_f > 2.2;
+#
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+alter table t1 add index sec_index2(t1_c), algorithm=inplace;
+select count(*) from information_schema.innodb_temp_table_info;
+#
+drop table t1;
+
+#-------------------------------------------------------------
+#
+# 4. Import/Discard of temp-table (to check blocked action)
+#
+create temporary table t1 (i int, f float) engine = innodb;
+insert into t1 values (10, 1.1), (20, 2.2);
+select * from t1;
+#
+--error ER_CANNOT_DISCARD_TEMPORARY_TABLE
+alter table t1 discard tablespace;
+--error ER_CANNOT_DISCARD_TEMPORARY_TABLE
+alter table t1 import tablespace;
+drop table t1;
+
+#-------------------------------------------------------------
+#
+# 5. Renaming of temp-table						#
+#
+create temporary table t1 (i int) engine=innodb;
+insert into t1 values (1), (2), (3);
+select * from t1;
+#
+alter table t1 rename t2;
+--error ER_NO_SUCH_TABLE
+select * from t1;
+select * from t2;
+insert into t2 values (1), (2), (6), (7);
+select * from t2;
+drop table t2;
+
+
+#-------------------------------------------------------------
+#
+# 6. Creating temp-table with large prefix.				#
+#
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+# This will lead to warnings on innodb_page_size=8k or 4k:
+# 8k: Specified key was too long; max key length is 1536 bytes
+# 4k: Specified key was too long; max key length is 768 bytes
+--disable_warnings
+#
+create temporary table t (
+	a int not null,
+	b blob not null,
+	index sk (b(3021))
+	) row_format = dynamic engine=innodb;
+drop table t;
+#
+create temporary table t (
+	a int not null,
+	b blob not null,
+	index sk (b(3021))
+	) row_format = dynamic engine=innodb;
+drop table t;
+#
+create temporary table t (
+	a int not null,
+	b blob not null,
+	index sk (b(3021))
+	) row_format = dynamic engine=innodb;
+drop table t;
+#
+SET innodb_strict_mode=OFF;
+--error ER_INDEX_COLUMN_TOO_LONG
+create temporary table t (
+	a int not null,
+	b blob not null,
+	index sk (b(3021))
+	) row_format = compact engine=innodb;
+#
+create temporary table t (
+	a int not null,
+	b blob not null,
+	index sk (b(3021))
+	) row_format = dynamic engine=innodb;
+drop table t;
+#
+create temporary table t (
+	a int not null,
+	b blob not null,
+	index sk (b(3021))
+	) row_format = compressed engine=innodb;
+drop table t;
+#
+--error ER_INDEX_COLUMN_TOO_LONG
+create temporary table t (
+	a int not null,
+	b blob not null,
+	index sk (b(3021))
+	) row_format = compact engine=innodb;
+#
+create temporary table t (
+	a int not null,
+	b blob not null,
+	index sk (b(3021))
+	) row_format = dynamic engine=innodb;
+drop table t;
+--enable_warnings
+#
+
+#-------------------------------------------------------------
+#
+# 7. Temp table info not stored in I_S
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3;
+--enable_warnings
+
+CREATE TABLE t6469_1 ( i INT ) ENGINE = Innodb;
+CREATE TEMPORARY TABLE t6469_2 ( i INT ) ENGINE = Innodb;
+CREATE TEMPORARY table t6469_3 ( i INT ) ENGINE = Innodb ROW_FORMAT=compressed;
+SELECT count(*) FROM information_schema.files WHERE file_name LIKE '%t6469%';
+SELECT count(*) FROM information_schema.INNODB_DATAFILES WHERE PATH LIKE '%t6469%';
+SELECT count(*) FROM information_schema.INNODB_TABLES WHERE NAME LIKE '%t6469%';
+
+DROP TABLE t6469_1,t6469_2,t6469_3;
+SELECT * FROM information_schema.files WHERE file_name LIKE '%t6469%';
+SELECT * FROM information_schema.INNODB_DATAFILES WHERE PATH LIKE '%t6469%';
+SELECT * FROM information_schema.INNODB_TABLES WHERE NAME LIKE '%t6469%';
+
+#-------------------------------------------------------------
+#
+# remove test-bed.
+#
+SET sql_mode=default;

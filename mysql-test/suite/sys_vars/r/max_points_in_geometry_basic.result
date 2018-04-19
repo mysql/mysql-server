@@ -1,0 +1,96 @@
+SET @session_start_value = @@session.max_points_in_geometry;
+SET @global_start_value = @@global.max_points_in_geometry;
+'#--------------------FN_DYNVARS_001_01------------------------#'
+SET @@max_points_in_geometry = DEFAULT;
+SELECT @@max_points_in_geometry = 65536;
+@@max_points_in_geometry = 65536
+1
+'#---------------------FN_DYNVARS_001_02-------------------------#'
+SET @@global.max_points_in_geometry = 1000;
+select @@global.max_points_in_geometry = @@session.max_points_in_geometry;
+@@global.max_points_in_geometry = @@session.max_points_in_geometry
+0
+SET @@session.max_points_in_geometry = 1000;
+select @@global.max_points_in_geometry = @@session.max_points_in_geometry;
+@@global.max_points_in_geometry = @@session.max_points_in_geometry
+1
+'#--------------------FN_DYNVARS_001_03------------------------#'
+SET @@max_points_in_geometry = 10;
+SELECT @@max_points_in_geometry, @@session.max_points_in_geometry,
+@@max_points_in_geometry=@@session.max_points_in_geometry;
+@@max_points_in_geometry	@@session.max_points_in_geometry	@@max_points_in_geometry=@@session.max_points_in_geometry
+10	10	1
+SELECT @@max_points_in_geometry, @@global.max_points_in_geometry,
+@@max_points_in_geometry=@@global.max_points_in_geometry;
+@@max_points_in_geometry	@@global.max_points_in_geometry	@@max_points_in_geometry=@@global.max_points_in_geometry
+10	1000	0
+'#--------------------FN_DYNVARS_001_04-------------------------#'
+SET @@max_points_in_geometry = "1";
+ERROR 42000: Incorrect argument type to variable 'max_points_in_geometry'
+SET @@max_points_in_geometry = " ";
+ERROR 42000: Incorrect argument type to variable 'max_points_in_geometry'
+SET @@max_points_in_geometry = 'abc';
+ERROR 42000: Incorrect argument type to variable 'max_points_in_geometry'
+SET @@max_points_in_geometry = NULL;
+ERROR 42000: Incorrect argument type to variable 'max_points_in_geometry'
+SET @@max_points_in_geometry = 1;
+Warnings:
+Warning	1292	Truncated incorrect max_points_in_geometry value: '1'
+SELECT @@max_points_in_geometry;
+@@max_points_in_geometry
+3
+SET @@max_points_in_geometry = 67108865;
+Warnings:
+Warning	1292	Truncated incorrect max_points_in_geometry value: '67108865'
+SELECT @@max_points_in_geometry;
+@@max_points_in_geometry
+1048576
+'#----------------------FN_DYNVARS_001_06------------------------#'
+SELECT @@max_points_in_geometry = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='max_points_in_geometry';
+@@max_points_in_geometry = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_001_08-------------------------#'
+SET @@max_points_in_geometry = OFF;
+ERROR 42000: Incorrect argument type to variable 'max_points_in_geometry'
+SET @@max_points_in_geometry = ON;
+ERROR 42000: Incorrect argument type to variable 'max_points_in_geometry'
+SET @@max_points_in_geometry = TRUE;
+Warnings:
+Warning	1292	Truncated incorrect max_points_in_geometry value: '1'
+SELECT @@max_points_in_geometry;
+@@max_points_in_geometry
+3
+SET @@max_points_in_geometry = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect max_points_in_geometry value: '0'
+SELECT @@max_points_in_geometry;
+@@max_points_in_geometry
+3
+'#---------------------FN_DYNVARS_001_10----------------------#'
+SET @@max_points_in_geometry = 123456;
+SELECT @@max_points_in_geometry = @@local.max_points_in_geometry and
+@@max_points_in_geometry = @@session.max_points_in_geometry;
+@@max_points_in_geometry = @@local.max_points_in_geometry and
+@@max_points_in_geometry = @@session.max_points_in_geometry
+1
+SET @@max_points_in_geometry = 654321;
+SELECT @@max_points_in_geometry = @@local.max_points_in_geometry and
+@@max_points_in_geometry = @@session.max_points_in_geometry;
+@@max_points_in_geometry = @@local.max_points_in_geometry and
+@@max_points_in_geometry = @@session.max_points_in_geometry
+1
+'#---------------------FN_DYNVARS_001_11----------------------#'
+SET max_points_in_geometry = 100;
+SELECT @@max_points_in_geometry=100;
+@@max_points_in_geometry=100
+1
+SELECT local.max_points_in_geometry;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.max_points_in_geometry;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT max_points_in_geometry = @@session.max_points_in_geometry;
+ERROR 42S22: Unknown column 'max_points_in_geometry' in 'field list'
+SET @@max_points_in_geometry = @session_start_value;
+SET @@global.max_points_in_geometry = @global_start_value;

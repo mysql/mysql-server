@@ -18,8 +18,8 @@ my $r = $mc->connect("localhost",$port);
 
 # Store binary value in VARCHAR column using ascii protocol
 my $binvar = pack("ccccc", 0,1,2,3,4);
-$mc->set("tcb:b1", $binvar)            || Carp::confess("FAILED #14 (SET)");
-($mc->get("tcb:b1") == $binvar)        || Carp::confess("FAILED #15 (GET)");
+$mc->set("tcb:b1", $binvar)            || $mc->fail("FAILED (SET)");
+($mc->get("tcb:b1") == $binvar)        || $mc->fail("FAILED (GET)");
 
 EOF
 

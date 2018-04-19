@@ -1,0 +1,37 @@
+#
+# BUG#21340268 INNODB: BOGUS CHECK FOR MAXIMUM RECORD LENGTH WITH SPATIAL KEY
+# BUG#21508582 UNDO LOG DOES NOT CONTAIN ENOUGH INFORMATION ON SPATIAL COLUMNS
+#
+
+--source include/count_sessions.inc
+
+connect (con1,localhost,root,,);
+connection default;
+
+let $row_format = DYNAMIC;
+let $prefix_size = 767;
+
+let $index = spatial_none;
+--source include/innodb_gis_undo.inc
+
+let $index = spatial_only;
+--source include/innodb_gis_undo.inc
+
+let $index = spatial_mixed;
+--source include/innodb_gis_undo.inc
+
+
+let $row_format = COMPACT;
+let $prefix_size = 767;
+
+let $index = spatial_none;
+--source include/innodb_gis_undo.inc
+
+let $index = spatial_only;
+--source include/innodb_gis_undo.inc
+
+let $index = spatial_mixed;
+--source include/innodb_gis_undo.inc
+
+disconnect con1;
+--source include/wait_until_count_sessions.inc

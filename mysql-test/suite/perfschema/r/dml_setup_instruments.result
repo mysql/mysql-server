@@ -3,32 +3,32 @@ select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Mutex/sql/%'
   and name not in ('wait/synch/mutex/sql/DEBUG_SYNC::mutex')
 order by name limit 10;
-NAME	ENABLED	TIMED
-wait/synch/mutex/sql/Commit_order_manager::m_mutex	YES	YES
-wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state	YES	YES
-wait/synch/mutex/sql/Gtid_state	YES	YES
-wait/synch/mutex/sql/Gtid_state::gtid_executed::free_intervals_mutex	YES	YES
-wait/synch/mutex/sql/hash_filo::lock	YES	YES
-wait/synch/mutex/sql/key_mts_gaq_LOCK	YES	YES
-wait/synch/mutex/sql/key_mts_temp_table_LOCK	YES	YES
-wait/synch/mutex/sql/LOCK_audit_mask	YES	YES
-wait/synch/mutex/sql/LOCK_compress_gtid_table	YES	YES
-wait/synch/mutex/sql/LOCK_connection_count	YES	YES
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/sql/Commit_order_manager::m_mutex	YES	YES		0	NULL
+wait/synch/mutex/sql/Cost_constant_cache::LOCK_cost_const	YES	YES	singleton	0	NULL
+wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state	YES	YES	singleton	0	NULL
+wait/synch/mutex/sql/Gtid_set::gtid_executed::free_intervals_mutex	YES	YES		0	NULL
+wait/synch/mutex/sql/Gtid_state	YES	YES	singleton	0	NULL
+wait/synch/mutex/sql/hash_filo::lock	YES	YES		0	NULL
+wait/synch/mutex/sql/key_mts_gaq_LOCK	YES	YES		0	NULL
+wait/synch/mutex/sql/key_mts_temp_table_LOCK	YES	YES		0	NULL
+wait/synch/mutex/sql/LOCK_acl_cache_flush	YES	YES	singleton	0	NULL
+wait/synch/mutex/sql/LOCK_audit_mask	YES	YES	singleton	0	NULL
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Rwlock/sql/%'
   and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')
 order by name limit 10;
-NAME	ENABLED	TIMED
-wait/synch/rwlock/sql/Binlog_relay_IO_delegate::lock	YES	YES
-wait/synch/rwlock/sql/Binlog_storage_delegate::lock	YES	YES
-wait/synch/rwlock/sql/Binlog_transmit_delegate::lock	YES	YES
-wait/synch/rwlock/sql/gtid_commit_rollback	YES	YES
-wait/synch/rwlock/sql/gtid_mode_lock	YES	YES
-wait/synch/rwlock/sql/LOCK_dboptions	YES	YES
-wait/synch/rwlock/sql/LOCK_grant	YES	YES
-wait/synch/rwlock/sql/LOCK_system_variables_hash	YES	YES
-wait/synch/rwlock/sql/LOCK_sys_init_connect	YES	YES
-wait/synch/rwlock/sql/LOCK_sys_init_slave	YES	YES
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/rwlock/sql/Binlog_relay_IO_delegate::lock	YES	YES	singleton	0	NULL
+wait/synch/rwlock/sql/Binlog_storage_delegate::lock	YES	YES	singleton	0	NULL
+wait/synch/rwlock/sql/Binlog_transmit_delegate::lock	YES	YES	singleton	0	NULL
+wait/synch/rwlock/sql/channel_lock	YES	YES		0	NULL
+wait/synch/rwlock/sql/channel_map_lock	YES	YES		0	NULL
+wait/synch/rwlock/sql/channel_to_filter_lock	YES	YES		0	NULL
+wait/synch/rwlock/sql/gtid_commit_rollback	YES	YES	singleton	0	NULL
+wait/synch/rwlock/sql/gtid_mode_lock	YES	YES	singleton	0	NULL
+wait/synch/rwlock/sql/gtid_retrieved	YES	YES	singleton	0	NULL
+wait/synch/rwlock/sql/LOCK_sys_init_connect	YES	YES	singleton	0	NULL
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Cond/sql/%'
   and name not in (
@@ -38,17 +38,17 @@ where name like 'Wait/Synch/Cond/sql/%'
 'wait/synch/cond/sql/COND_socket_listener_active',
 'wait/synch/cond/sql/COND_start_signal_handler')
 order by name limit 10;
-NAME	ENABLED	TIMED
-wait/synch/cond/sql/Commit_order_manager::m_workers.cond	YES	YES
-wait/synch/cond/sql/COND_compress_gtid_table	YES	YES
-wait/synch/cond/sql/COND_flush_thread_cache	YES	YES
-wait/synch/cond/sql/COND_manager	YES	YES
-wait/synch/cond/sql/COND_queue_state	YES	YES
-wait/synch/cond/sql/COND_server_started	YES	YES
-wait/synch/cond/sql/COND_thd_list	YES	YES
-wait/synch/cond/sql/COND_thread_cache	YES	YES
-wait/synch/cond/sql/Event_scheduler::COND_state	YES	YES
-wait/synch/cond/sql/Gtid_state	YES	YES
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/cond/sql/Commit_order_manager::m_workers.cond	YES	YES		0	NULL
+wait/synch/cond/sql/COND_compress_gtid_table	YES	YES	singleton	0	NULL
+wait/synch/cond/sql/COND_connection_count	YES	YES	singleton	0	NULL
+wait/synch/cond/sql/COND_flush_thread_cache	YES	YES	singleton	0	NULL
+wait/synch/cond/sql/COND_manager	YES	YES	singleton	0	NULL
+wait/synch/cond/sql/COND_queue_state	YES	YES	singleton	0	NULL
+wait/synch/cond/sql/COND_server_started	YES	YES	singleton	0	NULL
+wait/synch/cond/sql/COND_thd_list	YES	YES		0	NULL
+wait/synch/cond/sql/COND_thr_lock	YES	YES		0	NULL
+wait/synch/cond/sql/COND_thread_cache	YES	YES	singleton	0	NULL
 select * from performance_schema.setup_instruments
 where name='Wait';
 select * from performance_schema.setup_instruments

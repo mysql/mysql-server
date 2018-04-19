@@ -1,14 +1,21 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -71,14 +78,15 @@ NdbOut& NdbOut::endline()
 {
   isHex = 0; // Reset hex to normal, if user forgot this
   m_out->println("%s", "");
-  if (m_autoflush)
-    m_out->flush();
-  return *this;
+  return flushline(false);
 }
 
-NdbOut& NdbOut::flushline()
+NdbOut& NdbOut::flushline(bool force)
 {
-  m_out->flush();
+  if (force || m_autoflush)
+  {
+    m_out->flush();
+  }
   return *this;
 }
 
@@ -90,41 +98,8 @@ NdbOut& NdbOut::setHexFormat(int _format)
 
 NdbOut& NdbOut::hexdump(const Uint32* words, size_t count)
 {
-  /**
-   * Write at most about 1000 characters.
-   * If not all words are printed end with "...\n".
-   * Words are written as "H'11223344 ", 11 character each.
-   */
   char buf[90 * 11 + 4 + 1];
-  size_t offset = 0;
-  size_t words_to_dump = count;
-  if (words_to_dump > 90)
-  {
-    words_to_dump = 90;
-  }
-  for(size_t i = 0 ; i < words_to_dump ; i ++ )
-  {
-    // Write at most 6 words per line
-    char sep = (i % 6 == 5) ? '\n' : ' ';
-    assert(offset + 11 < sizeof(buf));
-    int n = BaseString::snprintf(buf + offset, sizeof(buf) - offset, "H'%08x%c", words[i], sep);
-    assert(n == 11);
-    offset += n;
-  }
-  if (words_to_dump < count)
-  {
-    assert(offset + 4 < sizeof(buf));
-    int n = BaseString::snprintf(buf + offset, sizeof(buf) - offset, "...\n");
-    assert(n == 4);
-    offset += n;
-  }
-  else
-  {
-    assert(offset + 1 < sizeof(buf));
-    int n = BaseString::snprintf(buf + offset, sizeof(buf) - offset, "\n");
-    assert(n == 1);
-    offset += n;
-  }
+  size_t offset = BaseString::hexdump(buf, sizeof(buf), words, count);
   m_out->write(buf, offset);  
   return *this;
 }
@@ -196,13 +171,20 @@ NdbOut::println(const char * fmt, ...)
   char buf[1000];
   
   va_start(ap, fmt);
-  BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
-  *this << buf << endl;
+  size_t len = BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+  if (len > sizeof(buf) - 2) len = sizeof(buf) - 2;
+  memcpy(&buf[len], "\n", 2);
+  *this << buf;
+  flushline(false);
   va_end(ap);
 }
 
 static
-void 
+void
+vndbout_c(const char * fmt, va_list ap) ATTRIBUTE_FORMAT(printf, 1, 0);
+
+static
+void
 vndbout_c(const char * fmt, va_list ap)
 {
   if (fmt == NULL)
@@ -220,8 +202,11 @@ vndbout_c(const char * fmt, va_list ap)
   }
 
   char buf[1000];
-  BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
-  ndbout << buf << endl;
+  size_t len = BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+  if (len > sizeof(buf) - 2) len = sizeof(buf) - 2;
+  memcpy(&buf[len], "\n", 2);
+  ndbout << buf;
+  ndbout.flushline(false);
 }
 
 extern "C"
@@ -234,7 +219,7 @@ ndbout_c(const char * fmt, ...){
   va_end(ap);
 }
 
-extern "C" int ndbout_printer(const char * fmt, ...)
+int ndbout_printer(const char * fmt, ...)
 {
   va_list ap;
 
@@ -295,4 +280,24 @@ NdbOut_Init()
 
   new (&ndberrs_fileoutputstream) FileOutputStream(stderr);
   new (&ndberr) NdbOut(ndberrs_fileoutputstream);
+}
+
+void
+NdbOut_ReInit(OutputStream* stdout_ostream,
+              OutputStream* stderr_ostream)
+{
+  /**
+   * Re-initialise ndbout and ndberr globals with different OutputStreams
+   * Not thread safe, should be done at process start
+   */
+
+  /**
+   * Following probably can be removed as destructors(same file) are empty,
+   * but are present to handle any future changes
+   */
+    ndbout.~NdbOut();
+    //ndberr.~NdbErr();
+
+   new (&ndbout) NdbOut(*stdout_ostream);
+   new (&ndberr) NdbOut(*stderr_ostream);
 }

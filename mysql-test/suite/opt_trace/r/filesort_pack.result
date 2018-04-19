@@ -1,4 +1,4 @@
-call mtr.add_suppression("InnoDB: Cannot add field");
+call mtr.add_suppression("Cannot add field");
 SET optimizer_trace_max_mem_size=1048576;
 SET end_markers_in_json=off;
 SET optimizer_trace="enabled=on,one_line=off";
@@ -67,7 +67,7 @@ c61 VARCHAR(1022) NOT NULL DEFAULT '',
 c62 VARCHAR(1022) NOT NULL DEFAULT '',
 c63 VARCHAR(1022) NOT NULL DEFAULT '',
 c64 VARCHAR(1021) NOT NULL DEFAULT ''
-) ENGINE = INNODB;
+) ENGINE = INNODB, charset latin1;
 SET @save_max_length_for_sort_data = @@max_length_for_sort_data;
 SET @save_sort_buffer_size= @@sort_buffer_size;
 SET @@max_length_for_sort_data = 65535 + 1021;
@@ -92,6 +92,10 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -108,7 +112,7 @@ select * from t1 order by c1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 }
               }
             ]
@@ -125,7 +129,7 @@ select * from t1 order by c1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -133,9 +137,9 @@ select * from t1 order by c1	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "sort_cost": 1,
-                "new_cost_for_plan": 2.2,
+                "new_cost_for_plan": 1.35,
                 "chosen": true
               }
             ]
@@ -154,22 +158,30 @@ select * from t1 order by c1	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`c1`",
-              "items": [
-                {
-                  "item": "`t1`.`c1`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`c1`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`c1`",
+                "items": [
+                  {
+                    "item": "`t1`.`c1`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`c1`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -181,6 +193,7 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -195,11 +208,18 @@ select * from t1 order by c1	{
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 0,
-              "examined_rows": 0,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 1028,
+              "row_size": 1028,
+              "max_rows_per_buffer": 215,
+              "num_rows_estimate": 215,
+              "num_rows_found": 0,
+              "num_examined_rows": 0,
+              "num_initial_chunks_spilled_to_disk": 0,
               "sort_buffer_size": 222744,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_algorithm": "none",
+              "unpacked_addon_fields": "max_length_for_sort_data",
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -230,6 +250,10 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -246,7 +270,7 @@ select * from t1 order by c1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 }
               }
             ]
@@ -263,7 +287,7 @@ select * from t1 order by c1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -271,9 +295,9 @@ select * from t1 order by c1	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "sort_cost": 1,
-                "new_cost_for_plan": 2.2,
+                "new_cost_for_plan": 1.35,
                 "chosen": true
               }
             ]
@@ -292,22 +316,30 @@ select * from t1 order by c1	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`c1`",
-              "items": [
-                {
-                  "item": "`t1`.`c1`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`c1`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`c1`",
+                "items": [
+                  {
+                    "item": "`t1`.`c1`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`c1`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -319,6 +351,7 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -333,11 +366,18 @@ select * from t1 order by c1	{
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 0,
-              "examined_rows": 0,
-              "number_of_tmp_files": 0,
+              "memory_available": 998483,
+              "key_size": 1022,
+              "row_size": 66557,
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 215,
+              "num_rows_found": 0,
+              "num_examined_rows": 0,
+              "num_initial_chunks_spilled_to_disk": 0,
               "sort_buffer_size": 998480,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "none",
+              "unpacked_addon_fields": "row_too_large",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -368,6 +408,10 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -384,7 +428,7 @@ select * from t1 order by c1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 }
               }
             ]
@@ -401,7 +445,7 @@ select * from t1 order by c1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -409,9 +453,9 @@ select * from t1 order by c1	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "sort_cost": 1,
-                "new_cost_for_plan": 2.2,
+                "new_cost_for_plan": 1.35,
                 "chosen": true
               }
             ]
@@ -430,22 +474,30 @@ select * from t1 order by c1	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`c1`",
-              "items": [
-                {
-                  "item": "`t1`.`c1`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`c1`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`c1`",
+                "items": [
+                  {
+                    "item": "`t1`.`c1`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`c1`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -457,6 +509,7 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -471,11 +524,18 @@ select * from t1 order by c1	{
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 0,
-              "examined_rows": 0,
-              "number_of_tmp_files": 0,
+              "memory_available": 998498,
+              "key_size": 1022,
+              "row_size": 66557,
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 215,
+              "num_rows_found": 0,
+              "num_examined_rows": 0,
+              "num_initial_chunks_spilled_to_disk": 0,
               "sort_buffer_size": 998480,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "none",
+              "unpacked_addon_fields": "row_too_large",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -506,6 +566,10 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -522,7 +586,7 @@ select * from t1 order by c1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 }
               }
             ]
@@ -539,7 +603,7 @@ select * from t1 order by c1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -547,9 +611,9 @@ select * from t1 order by c1	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "sort_cost": 1,
-                "new_cost_for_plan": 2.2,
+                "new_cost_for_plan": 1.35,
                 "chosen": true
               }
             ]
@@ -568,22 +632,30 @@ select * from t1 order by c1	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`c1`",
-              "items": [
-                {
-                  "item": "`t1`.`c1`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`c1`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`c1`",
+                "items": [
+                  {
+                    "item": "`t1`.`c1`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`c1`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -595,6 +667,7 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -609,11 +682,17 @@ select * from t1 order by c1	{
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 0,
-              "examined_rows": 0,
-              "number_of_tmp_files": 0,
+              "memory_available": 998513,
+              "key_size": 1022,
+              "row_size": 66559,
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 215,
+              "num_rows_found": 0,
+              "num_examined_rows": 0,
+              "num_initial_chunks_spilled_to_disk": 0,
               "sort_buffer_size": 998512,
-              "sort_mode": "<sort_key, packed_additional_fields>"
+              "sort_algorithm": "none",
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
         ]
@@ -883,7 +962,7 @@ c254 CHAR(255) NOT NULL DEFAULT '',
 c255 CHAR(255) NOT NULL DEFAULT '',
 c256 CHAR(255) NOT NULL DEFAULT '',
 c257 CHAR(254) NOT NULL DEFAULT ''
-) ENGINE = INNODB;
+) ENGINE = INNODB ROW_FORMAT=COMPACT charset latin1;
 Warnings:
 Warning	139	Row size too large (> 8126). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 SELECT * FROM t1 ORDER BY c1;
@@ -907,6 +986,10 @@ SELECT * FROM t1 ORDER BY c1	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -923,7 +1006,7 @@ SELECT * FROM t1 ORDER BY c1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 1,
-                  "cost": 1
+                  "cost": 0.25
                 }
               }
             ]
@@ -940,7 +1023,7 @@ SELECT * FROM t1 ORDER BY c1	{
                       "rows_to_scan": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 1.2,
+                      "cost": 0.35,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -948,9 +1031,9 @@ SELECT * FROM t1 ORDER BY c1	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 1.2,
+                "cost_for_plan": 0.35,
                 "sort_cost": 1,
-                "new_cost_for_plan": 2.2,
+                "new_cost_for_plan": 1.35,
                 "chosen": true
               }
             ]
@@ -969,22 +1052,30 @@ SELECT * FROM t1 ORDER BY c1	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`c1`",
-              "items": [
-                {
-                  "item": "`t1`.`c1`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`c1`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`c1`",
+                "items": [
+                  {
+                    "item": "`t1`.`c1`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`c1`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -996,6 +1087,7 @@ SELECT * FROM t1 ORDER BY c1	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1010,11 +1102,18 @@ SELECT * FROM t1 ORDER BY c1	{
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 0,
-              "examined_rows": 0,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 261,
+              "row_size": 261,
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 15,
+              "num_rows_found": 0,
+              "num_examined_rows": 0,
+              "num_initial_chunks_spilled_to_disk": 0,
               "sort_buffer_size": 4040,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_algorithm": "none",
+              "unpacked_addon_fields": "max_length_for_sort_data",
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]

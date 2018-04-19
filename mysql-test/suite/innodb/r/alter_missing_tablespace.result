@@ -18,9 +18,16 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 SHOW WARNINGS;
 Level	Code	Message
 Error	1146	Table 'test.t1' doesn't exist
-ALTER TABLE t DISCARD TABLESPACE;
+ALTER TABLE t ALGORITHM=INPLACE, DISCARD TABLESPACE;
+ERROR 0A000: ALGORITHM=COPY/INPLACE is not supported for this operation. Try ALGORITHM=DEFAULT.
+ALTER TABLE t ALGORITHM=COPY, DISCARD TABLESPACE;
+ERROR 0A000: ALGORITHM=COPY/INPLACE is not supported for this operation. Try ALGORITHM=DEFAULT.
+ALTER TABLE t ALGORITHM=DEFAULT, DISCARD TABLESPACE;
 Warnings:
 Warning	1812	InnoDB: Tablespace is missing for table test/t.
+Warning	1812	InnoDB: Tablespace is missing for table test/t.
+ALTER TABLE t DISCARD TABLESPACE;
+Warnings:
 Warning	1812	InnoDB: Tablespace is missing for table test/t.
 DROP TABLE t;
 CREATE TABLE `x..d` (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;

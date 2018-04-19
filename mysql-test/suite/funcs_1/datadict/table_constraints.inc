@@ -28,8 +28,8 @@ CREATE USER testuser1@localhost;
 GRANT SELECT ON db_datadict.* TO testuser1@localhost;
 
 let $my_select = SELECT * FROM information_schema.table_constraints
-WHERE table_schema = '$table_schema'
-ORDER BY table_schema,table_name,constraint_name;
+WHERE table_schema = '$table_schema' AND table_name != 'ndb_binlog_index'
+ORDER BY table_schema,table_name,constraint_name COLLATE utf8_general_ci;
 eval $my_select;
 
 --echo # Establish connection testuser1 (user=testuser1)

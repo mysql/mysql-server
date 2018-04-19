@@ -1,14 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ######################################################################
 # Test restoring backups with blob columns
 ######################################################################
 
 -- source include/have_ndb.inc
--- source include/ndb_default_cluster.inc
 
 --disable_warnings
 use test;
@@ -134,6 +128,6 @@ select sha1(a), sha1(c), e from t2 order by b, d, f;
 
 drop table t1,t2;
 
-alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
-drop tablespace ts1 engine=ndb;
+alter tablespace ts1 drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1 engine=ndb;

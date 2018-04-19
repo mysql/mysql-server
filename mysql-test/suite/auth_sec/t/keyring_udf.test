@@ -1,0 +1,129 @@
+
+call mtr.add_suppression("Error while fetching key: key_id cannot be empty");
+call mtr.add_suppression("Error while removing key: key_id cannot be empty");
+call mtr.add_suppression("Error while generating key: invalid key_type");
+call mtr.add_suppression("Error while generating key: key_id cannot be empty");
+call mtr.add_suppression("Error while storing key: invalid key_type");
+call mtr.add_suppression("Error while storing key: key_id cannot be empty");
+
+--echo # Check what happens when we have not yet loaded keyring_udf or keyring_file
+--source include/keyring_udf_missing_plugin.inc
+
+#We need both plugins - keyring_file and keyring_udf in one place - to be able to load both plugins
+if ($KEYRING_UDF_DIR != $KEYRING_PLUGIN_DIR)
+{
+  --replace_regex /\.dll/.so/
+  --error 0,1
+  --remove_file $KEYRING_UDF_DIR/$KEYRING_PLUGIN
+  --replace_regex /\.dll/.so/
+  --copy_file $KEYRING_PLUGIN_DIR/$KEYRING_PLUGIN $KEYRING_UDF_DIR/$KEYRING_PLUGIN
+}
+--echo # Re-starting mysql server with keyring_file plugin.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- send_shutdown
+-- source include/wait_until_disconnected.inc
+--exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/keyring/keyring" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo # Check what happens when we have not yet loaded keyring_udf
+--source include/keyring_udf_missing_plugin.inc
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN keyring_udf SONAME '$KEYRING_UDF';
+
+--echo # Check if keys are available after server restart
+--replace_regex /\.dll/.so/
+eval create function keyring_key_store returns integer soname '$KEYRING_UDF';
+--replace_regex /\.dll/.so/
+eval create function keyring_key_generate returns integer soname '$KEYRING_UDF';
+
+select keyring_key_generate('Rob_AES_128','AES',16);
+select keyring_key_store('Rob_AES_128_store','AES',"0123456789012345");
+
+drop function keyring_key_generate;
+drop function keyring_key_store;
+
+--echo # Re-starting mysql server with keyring_file plugin.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- send_shutdown
+-- source include/wait_until_disconnected.inc
+--exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/keyring/keyring" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--replace_regex /\.dll/.so/
+eval create function keyring_key_fetch returns string soname '$KEYRING_UDF';
+--replace_regex /\.dll/.so/
+eval create function keyring_key_type_fetch returns string soname '$KEYRING_UDF';
+--replace_regex /\.dll/.so/
+eval create function keyring_key_length_fetch returns integer soname '$KEYRING_UDF';
+--replace_regex /\.dll/.so/
+eval create function keyring_key_remove returns integer soname '$KEYRING_UDF';
+
+select keyring_key_fetch('Rob_AES_128') into @x;
+select LENGTH(@x);
+select keyring_key_length_fetch('Rob_AES_128');
+select keyring_key_type_fetch('Rob_AES_128');
+select keyring_key_remove('Rob_AES_128');
+
+select keyring_key_fetch('Rob_AES_128_store') into @x;
+select LENGTH(@x);
+select keyring_key_length_fetch('Rob_AES_128_store');
+select keyring_key_type_fetch('Rob_AES_128_store');
+select keyring_key_remove('Rob_AES_128_store');
+
+drop function keyring_key_fetch;
+drop function keyring_key_type_fetch;
+drop function keyring_key_length_fetch;
+drop function keyring_key_remove;
+
+--echo # Test cases for keyring_udf and keyring_file plugins loaded
+--source include/keyring_udf_keyring_plugin_loaded.inc
+--source include/keyring_udf_keyring_plugin_loaded_store_operations.inc
+
+# Cases only possible for keyring_file
+# Generate AES_512
+select keyring_key_generate('Rob_AES_512','AES',64);
+set @x= keyring_key_fetch('Rob_AES_512');
+select LENGTH(@x);
+select keyring_key_type_fetch('Rob_AES_512');
+select keyring_key_length_fetch('Rob_AES_512');
+select keyring_key_remove('Rob_AES_512');
+# Store AES_512
+select keyring_key_store('Rob_AES_512','AES',"0123456789012345678901234567890123456789012345678901234567890123");
+set @x= keyring_key_fetch('Rob_AES_512');
+select LENGTH(@x);
+select keyring_key_type_fetch('Rob_AES_512');
+select keyring_key_length_fetch('Rob_AES_512');
+select keyring_key_remove('Rob_AES_512');
+# Case only possible for keyring_file
+# Generate DES 512
+select keyring_key_generate('Rob_DSA_4096','DSA',512);
+set @x= keyring_key_fetch('Rob_DSA_4096');
+select LENGTH(@x);
+select keyring_key_type_fetch('Rob_DSA_4096');
+select keyring_key_length_fetch('Rob_DSA_4096');
+select keyring_key_remove('Rob_DSA_4096');
+
+UNINSTALL PLUGIN keyring_file;
+--echo # Test cases for keyring_udf loaded and keyring_file plugin not loaded
+--source include/keyring_udf_keyring_plugin_not_loaded.inc
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
+
+UNINSTALL PLUGIN keyring_udf;
+--echo # Test cases for keyring_udf not loaded and keyring_file plugin loaded
+--source include/keyring_udf_keyring_udf_plugin_not_loaded.inc
+
+drop function keyring_key_store;
+drop function keyring_key_fetch;
+drop function keyring_key_remove;
+drop function keyring_key_generate;
+drop function keyring_key_type_fetch;
+drop function keyring_key_length_fetch;
+
+--source include/force_restart.inc

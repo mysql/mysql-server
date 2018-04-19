@@ -1,0 +1,23 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = VARIABLE_VALUE;
+let $table = performance_schema.status_by_thread;
+
+select connection_id() into @conid;
+
+select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = @conid
+  into @tid;
+
+###########################################################################
+# Test index on THREAD_ID, VARIABLE_NAME
+###########################################################################
+
+let $column_count = 2;
+let $col1 = THREAD_ID;
+let $col2 = VARIABLE_NAME;
+let $col1_act = @tid;
+let $col2_act = "Max_execution_time_exceeded";
+
+--source ../include/idx_explain_test.inc

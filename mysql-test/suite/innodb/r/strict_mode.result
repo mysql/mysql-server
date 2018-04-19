@@ -2,7 +2,7 @@
 # Bug #17852083 PRINT A WARNING WHEN DDL HAS AN ERROR IN
 # INNODB_STRICT_MODE = 1
 #
-call mtr.add_suppression("InnoDB: Cannot add field");
+call mtr.add_suppression("Cannot add field");
 set innodb_strict_mode = 0;
 create table t1 (id int auto_increment primary key,
 v varchar(32),
@@ -50,7 +50,7 @@ col41 text,
 col42 text,
 col43 text,
 col44 text,
-col45 text ,
+col45 text,
 col46 text,
 col47 text,
 col48 text,
@@ -73,7 +73,7 @@ col64 text,
 col65 text,
 col66 text,
 col67 text,
-col68 text ,
+col68 text,
 col69 text,
 col70 text,
 col71 text,
@@ -131,7 +131,7 @@ col122 text,
 col123 text,
 col124 text,
 col125 text,
-col126 text ,
+col126 text,
 col127 text,
 col128 text,
 col129 text,
@@ -152,7 +152,7 @@ col143 text,
 col144 text,
 col145 text,
 col146 text,
-col147 text ,
+col147 text,
 col148 text,
 col149 text,
 col150 text,
@@ -177,7 +177,7 @@ col168 text,
 col169 text,
 col170 text,
 col171 text,
-col172 text ,
+col172 text,
 col173 text,
 col174 text,
 col175 text,
@@ -234,7 +234,7 @@ col225 text,
 col226 text,
 col227 text,
 col228 text
-) ENGINE=InnoDB;
+) ENGINE=InnoDB ROW_FORMAT=COMPACT;
 Warnings:
 Warning	139	Row size too large (> NNNN). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 set innodb_strict_mode = 1;

@@ -12,19 +12,15 @@
 --disable_query_log
 --connection slave
 RESET MASTER;
-select @slave_server_id:=(variable_value+0)
-       from information_schema.global_variables
-       where variable_name like 'server_id';
-let $SLAVE_SERVER_ID= query_get_value('select @slave_server_id as v',v,1);
+let $SLAVE_SERVER_ID= `select @@server_id`;
+echo SLAVE_SERVER_ID: $SLAVE_SERVER_ID;
 
 --connection master
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 --eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SLAVE_MYPORT,master_user="root"
 START SLAVE;
-select @master_server_id:=(variable_value+0)
-       from information_schema.global_variables
-       where variable_name like 'server_id';
-let $MASTER_SERVER_ID= query_get_value('select @master_server_id as v',v,1);
+let $MASTER_SERVER_ID= `select @@server_id`;
+echo MASTER_SERVER_ID: $MASTER_SERVER_ID;
 
 --echo Setup ndb_replication and t1$EX exceptions table
 
@@ -79,13 +75,13 @@ commit;
 --connection master
 --echo Capturing session epoch from Master
 select @master_session_epoch:=Variable_value
-from information_schema.global_status
+from performance_schema.global_status
 where Variable_name="Ndb_last_commit_epoch_session";
 
 --enable_result_log
 
 --echo Show that last_conflict_epoch is 0
-show status like 'ndb_slave_last_conflict_epoch';
+show status like 'ndb_conflict_last_conflict_epoch';
 
 --echo Restart Secondary->Primary replication
 start slave;
@@ -99,22 +95,25 @@ start slave;
 --disable_result_log
 
 select @max_replicated_epoch:=Variable_value
-from information_schema.global_status
+from performance_schema.global_status
 where Variable_name="Ndb_slave_max_replicated_epoch";
 
 --enable_result_log
 --echo Max replicated epoch should be < committed epoch
-select @max_replicated_epoch < @master_session_epoch;
+# select @max_replicated_epoch < @master_session_epoch;
+select @max_replicated_epoch+0 < @master_session_epoch+0 as '@max_replicated_epoch < @master_session_epoch';
 
 --disable_result_log
 select @conflict_detected_epoch:=Variable_value
-from information_schema.global_status
-where Variable_name="Ndb_slave_last_conflict_epoch";
+from performance_schema.global_status
+where Variable_name="ndb_conflict_last_conflict_epoch";
 --enable_result_log
 
 --echo Some invariants :
-select @conflict_detected_epoch != 0;
-select @conflict_detected_epoch > @max_replicated_epoch;
+# select @conflict_detected_epoch != 0;
+select @conflict_detected_epoch+0 != 0 as '@conflict_detected_epoch != 0';
+# select @conflict_detected_epoch > @max_replicated_epoch;
+select @conflict_detected_epoch+0 > @max_replicated_epoch+0 as '@conflict_detected_epoch > @max_replicated_epoch';
 
 --echo Primary has detected the problem, but Secondary
 --echo is unaware as the slave is offline.
@@ -134,15 +133,16 @@ start slave;
 --echo on the Primary is == the last_conflict_epoch
 --disable_result_log
 select @max_replicated_epoch:=Variable_value
-from information_schema.global_status
+from performance_schema.global_status
 where Variable_name="Ndb_slave_max_replicated_epoch";
 
 select @conflict_detected_epoch:=Variable_value
-from information_schema.global_status
-where Variable_name="Ndb_slave_last_conflict_epoch";
+from performance_schema.global_status
+where Variable_name="ndb_conflict_last_conflict_epoch";
 
 --enable_result_log
-select @max_replicated_epoch = @conflict_detected_epoch;
+# select @max_replicated_epoch = @conflict_detected_epoch;
+select @max_replicated_epoch+0 = @conflict_detected_epoch+0 as '@max_replicated_epoch = @conflict_detected_epoch';
 
 --echo Cleanup
 

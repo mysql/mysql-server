@@ -4,13 +4,9 @@
 # better code coverage.
 #
 
-# Not supported in embedded
---source include/not_embedded.inc
-
 # the DBUG_EXECUTE_IF() macro needs a debug server.
 --source include/have_debug.inc
 
--- source include/have_innodb.inc
 
 --disable_query_log
 # These values can change during the test

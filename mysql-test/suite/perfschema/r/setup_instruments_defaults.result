@@ -9,28 +9,42 @@ WHERE name IN (
 'stage/sql/creating table')
 AND enabled = 'yes' AND timed = 'no'
 ORDER BY name;
-NAME	ENABLED	TIMED
-stage/sql/creating table	YES	NO
-wait/synch/mutex/sql/LOCK_transaction_cache	YES	NO
-wait/synch/mutex/sql/LOCK_user_conn	YES	NO
-wait/synch/mutex/sql/LOCK_uuid_generator	YES	NO
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+stage/sql/creating table	YES	NO		0	NULL
+wait/synch/mutex/sql/LOCK_transaction_cache	YES	NO	singleton	0	NULL
+wait/synch/mutex/sql/LOCK_user_conn	YES	NO	singleton	0	NULL
+wait/synch/mutex/sql/LOCK_uuid_generator	YES	NO	singleton	0	NULL
 SELECT * FROM performance_schema.setup_instruments
 WHERE name = 'wait/synch/mutex/sql/LOCK_thd_list'
 AND enabled = 'no' AND timed = 'no';
-NAME	ENABLED	TIMED
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
 SELECT * FROM performance_schema.setup_instruments
 WHERE name IN (
 'wait/synch/mutex/sql/LOG_INFO::lock',
 'wait/synch/mutex/sql/THD::LOCK_thd_list')
 AND enabled = 'yes' AND timed = 'yes'
 ORDER BY name;
-NAME	ENABLED	TIMED
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
 SELECT * FROM performance_schema.setup_instruments
 WHERE name = 'wait/synch/mutex/sql/hash_filo::lock'
 AND enabled = 'no' AND timed = 'no'
 ORDER BY name;
-NAME	ENABLED	TIMED
-wait/synch/mutex/sql/hash_filo::lock	NO	NO
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/sql/hash_filo::lock	NO	NO		0	NULL
+#
+# Verify that the memory instruments are never timed
+#
+SELECT * FROM performance_schema.setup_instruments
+WHERE name like 'memory/%'
+AND timed = 'YES';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+#
+# Verify that the memory/performance_schema instruments are never disabled
+#
+SELECT * FROM performance_schema.setup_instruments
+WHERE name like 'memory/performance_schema/%'
+AND enabled = 'NO';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
 #
 # Verify that the instrument startup settings are not not visible.
 #
@@ -44,18 +58,5 @@ Variable_name	Value
 #
 SELECT * FROM performance_schema.setup_instruments
 WHERE name like "%wait/io/table/sql/handler%";
-NAME	ENABLED	TIMED
-wait/io/table/sql/handler	YES	YES
-#
-# Stop server
-# Restart server with wait/io/table/sql/handler disabled
-# Enable reconnect
-# Wait until connected again
-# Disable reconnect
-#
-# Verify that wait/io/table is disabled
-#
-SELECT * FROM performance_schema.setup_instruments
-WHERE name like "%wait/io/table/sql/handler%";
-NAME	ENABLED	TIMED
-wait/io/table/sql/handler	NO	NO
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/io/table/sql/handler	YES	YES		0	NULL

@@ -1,0 +1,44 @@
+
+# Add to users to the setup_actors table: one enabled, and one disabled
+INSERT INTO performance_schema.setup_actors
+VALUES ('localhost', 'foo', '%', 'YES', 'YES'),
+       ('localhost', 'bar', '%', 'NO', 'NO');
+
+# Disable all but a few instruments (reduces output as well)
+# It is not possible to disable memory/performance_schema/%
+# so don't even try.
+UPDATE performance_schema.setup_instruments
+   SET ENABLED = 'NO'
+ WHERE NAME NOT LIKE 'memory/performance_schema/%'
+       AND NAME NOT LIKE 'stage/innodb/%'
+       AND NAME NOT LIKE 'statement/com/%'
+       AND NAME <> 'idle';
+
+# Disable the history_long consumers:
+UPDATE performance_schema.setup_consumers
+   SET ENABLED = 'NO'
+ WHERE NAME LIKE '%\_history\_long';
+
+# Disable some of the background threads (including those that differ between unix like and Windows systems):
+UPDATE performance_schema.threads
+   SET INSTRUMENTED = 'NO'
+ WHERE NAME LIKE 'thread/innodb/srv\_%'
+    OR NAME LIKE 'thread/innodb/trx\_%'
+    OR NAME LIKE '%con\_%'
+    OR NAME LIKE '%signal_handler%'
+    OR NAME LIKE '%thread_timer_notifier';
+
+# Show limited info (no thread or instrument info)
+CALL sys.ps_setup_show_enabled(FALSE, FALSE);
+
+# Should show instrument data, but not thread info
+CALL sys.ps_setup_show_enabled(TRUE, FALSE);
+
+# Should show thread info, but no instrument data
+CALL sys.ps_setup_show_enabled(FALSE, TRUE);
+
+# Should show all info
+CALL sys.ps_setup_show_enabled(TRUE, TRUE);
+
+# Clean up
+-- source ../include/ps_setup_reset_to_default_cleanup.inc

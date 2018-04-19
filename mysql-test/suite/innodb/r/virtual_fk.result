@@ -1,0 +1,830 @@
+#
+# Bug#22469130: FOREIGN KEY ON DELETE CASCADE NOT ALLOWED
+#               WHEN A VIRTUAL INDEX EXISTS.
+# UPDATE CASCADE
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+2
+SELECT * FROM t2;
+fld1	fld2
+2	2
+DROP TABLE t2, t1;
+# UPDATE SET NULL
+CREATE TABLE t1(fld1 INT NOT NULL, fld2 INT NOT NULL PRIMARY KEY,
+KEY(fld1));
+CREATE TABLE t2(fld1 INT, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE SET NULL);
+INSERT INTO t1 VALUES(1, 2);
+INSERT INTO t2 VALUES(1, DEFAULT);
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+NULL
+SELECT * FROM t2;
+fld1	fld2
+NULL	NULL
+DROP TABLE t2, t1;
+# DELETE CASCADE
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+FOREIGN KEY(fld1) REFERENCES t1(fld1) ON DELETE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+INSERT INTO t2 VALUES(1, DEFAULT);
+INSERT INTO t2 VALUES(2, DEFAULT);
+DELETE FROM t1 WHERE fld1= 1;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+2
+SELECT * FROM t2;
+fld1	fld2
+2	2
+DROP TABLE t2, t1;
+# DELETE SET NULL
+CREATE TABLE t1(fld1 INT NOT NULL, fld2 INT NOT NULL PRIMARY KEY, KEY(fld1));
+CREATE TABLE t2(fld1 INT, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+FOREIGN KEY(fld1) REFERENCES t1(fld1) ON DELETE SET NULL);
+INSERT INTO t1 VALUES(1, 1);
+INSERT INTO t1 VALUES(2, 2);
+INSERT INTO t2 VALUES(1, DEFAULT);
+INSERT INTO t2 VALUES(2, DEFAULT);
+DELETE FROM t1 WHERE fld1= 1;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+NULL
+2
+SELECT * FROM t2;
+fld1	fld2
+NULL	NULL
+2	2
+DROP TABLE t2, t1;
+# VIRTUAL INDEX CONTAINS FK CONSTRAINT COLUMN
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT, fld3 INT AS (fld2) VIRTUAL,
+KEY(fld3, fld1),
+FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1, fld2) VALUES(1, 3);
+UPDATE t1 SET fld1= 2;
+SELECT fld3, fld1 FROM t2;
+fld3	fld1
+3	2
+EXPLAIN SELECT fld3, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld3	x	x	x	x	x
+SELECT * FROM t2;
+fld1	fld2	fld3
+2	3	3
+DROP TABLE t2, t1;
+# Multiple level of VIRTUAL columns.
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
+fld3 INT AS (fld2) VIRTUAL, KEY(fld3), KEY(fld2),
+FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1) VALUES(1);
+UPDATE t1 SET fld1= 2;
+SELECT fld2 FROM t2;
+fld2
+2
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld3 FROM t2;
+fld3
+2
+EXPLAIN SELECT fld3 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld3	x	x	x	x	x
+SELECT * FROM t2;
+fld1	fld2	fld3
+2	2	2
+DROP TABLE t2, t1;
+# Drop the VIRTUAL INDEX using alter copy ALGORITHM
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL, KEY vk(fld2),
+KEY(fld1), FOREIGN KEY(fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1) VALUES(1);
+UPDATE t1 SET fld1= 2;
+SELECT fld2, fld1 FROM t2;
+fld2	fld1
+2	2
+EXPLAIN SELECT fld2, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	ALL	x	NULL	x	x	x	x	x
+ALTER TABLE t2 DROP INDEX vk, ALGORITHM= COPY;
+UPDATE t1 SET fld1= 3;
+SELECT fld2, fld1 FROM t2;
+fld2	fld1
+3	3
+EXPLAIN SELECT fld2, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	ALL	x	NULL	x	x	x	x	x
+DROP TABLE t2, t1;
+# Drop the VIRTUAL INDEX using INPLACE alter ALGORITHM
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
+KEY vk(fld2), KEY(fld1), FOREIGN KEY(fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1) VALUES(1);
+UPDATE t1 SET fld1= 2;
+SELECT fld2, fld1 FROM t2;
+fld2	fld1
+2	2
+EXPLAIN SELECT fld2, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	ALL	x	NULL	x	x	x	x	x
+ALTER TABLE t2 DROP INDEX vk, ALGORITHM= COPY;
+UPDATE t1 SET fld1= 3;
+SELECT fld2, fld1 FROM t2;
+fld2	fld1
+3	3
+EXPLAIN SELECT fld2, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	ALL	x	NULL	x	x	x	x	x
+DROP TABLE t2, t1;
+# Add the VIRTUAL INDEX using COPY alter ALGORITHM
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
+KEY(fld1), FOREIGN KEY(fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1) VALUES(1);
+UPDATE t1 SET fld1= 2;
+SELECT fld2, fld1 FROM t2;
+fld2	fld1
+2	2
+ALTER TABLE t2 ADD INDEX vk(fld2), ALGORITHM= COPY;
+UPDATE t1 SET fld1= 3;
+SELECT fld2, fld1 FROM t2;
+fld2	fld1
+3	3
+EXPLAIN SELECT fld2, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	ALL	x	NULL	x	x	x	x	x
+DROP TABLE t2, t1;
+# Add the VIRTUAL INDEX using INPLACE alter ALGORITHM
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,fld2 INT AS (fld1) VIRTUAL,
+KEY(fld1), FOREIGN KEY(fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1) VALUES(1);
+UPDATE t1 SET fld1= 2;
+SELECT fld2, fld1 FROM t2;
+fld2	fld1
+2	2
+ALTER TABLE t2 ADD INDEX vk(fld2), ALGORITHM= INPLACE;
+UPDATE t1 SET fld1= 3;
+SELECT fld2, fld1 FROM t2;
+fld2	fld1
+3	3
+EXPLAIN SELECT fld2, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	ALL	x	NULL	x	x	x	x	x
+DROP TABLE t2, t1;
+# Drop the VIRTUAL INDEX contains fk constraint column
+# using alter copy ALGORITHM
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT NOT NULL,
+fld3 INT AS (fld2) VIRTUAL, KEY vk(fld3, fld1),
+KEY(fld1), FOREIGN KEY(fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1, fld2) VALUES(1, 2);
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld3, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	vk	x	x	x	x	x
+SELECT fld3, fld1 FROM t2;
+fld3	fld1
+2	2
+ALTER TABLE t2 DROP INDEX vk, ALGORITHM= COPY;
+UPDATE t1 SET fld1= 3;
+SELECT fld3, fld1 FROM t2;
+fld3	fld1
+2	3
+EXPLAIN SELECT fld3, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	ALL	x	NULL	x	x	x	x	x
+DROP TABLE t2, t1;
+# Drop the VIRTUAL INDEX which contains fk constraint column
+# using INPLACE alter operation
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT NOT NULL,
+fld3 INT AS (fld2) VIRTUAL, KEY vk(fld3, fld1),
+KEY(fld1), FOREIGN KEY(fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1, fld2) VALUES(1, 2);
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld3, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	vk	x	x	x	x	x
+SELECT fld3, fld1 FROM t2;
+fld3	fld1
+2	2
+alter TABLE t2 DROP INDEX vk, ALGORITHM= INPLACE;
+UPDATE t1 SET fld1= 3;
+SELECT fld3, fld1 FROM t2;
+fld3	fld1
+2	3
+EXPLAIN SELECT fld3, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	ALL	x	NULL	x	x	x	x	x
+DROP TABLE t2, t1;
+# Add the VIRTUAL INDEX contains fk constraint column
+# using copy alter operatiON
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT NOT NULL,
+fld3 INT AS (fld2) VIRTUAL, KEY(fld1),
+FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+INSERT INTO t1(fld1) VALUES(1);
+INSERT INTO t2(fld1, fld2) VALUES(1, 2);
+UPDATE t1 SET fld1= 2;
+SELECT fld3, fld1 FROM t2;
+fld3	fld1
+2	2
+alter TABLE t2 ADD INDEX vk(fld3, fld1), ALGORITHM= COPY;
+UPDATE t1 SET fld1= 3;
+SELECT fld3, fld1 FROM t2;
+fld3	fld1
+2	3
+EXPLAIN SELECT fld3, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	vk	x	x	x	x	x
+DROP TABLE t2, t1;
+# Cascading UPDATEs and DELETEs for the multiple
+# fk dependent TABLEs
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
+KEY(fld1), KEY(fld2, fld1),
+FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+CREATE TABLE t3(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
+KEY(fld2, fld1),
+FOREIGN KEY(fld1) REFERENCES t2(fld1) ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2(fld1) VALUES(1), (2);
+INSERT INTO t3(fld1) VALUES(1), (2);
+UPDATE t1 SET fld1= 4 WHERE fld1= 1;
+EXPLAIN SELECT fld2, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2, fld1 FROM t2;
+fld2	fld1
+2	2
+4	4
+EXPLAIN SELECT fld2, fld1 FROM t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t3	x	index	x	fld2	x	x	x	x	x
+SELECT fld2, fld1 FROM t3;
+fld2	fld1
+2	2
+4	4
+DROP TABLE t3, t2, t1;
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT NOT NULL,
+fld3 INT AS (fld2) VIRTUAL, KEY(fld3, fld1), KEY(fld1),
+FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+CREATE TABLE t3(fld1 INT NOT NULL, fld2 INT NOT NULL,
+fld3 INT AS (fld2) VIRTUAL, KEY(fld3, fld1),
+FOREIGN KEY(fld1) REFERENCES t2(fld1) ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2 VALUES(1, 1, DEFAULT), (2, 2, default);
+INSERT INTO t3 VALUES(1, 1, DEFAULT), (2, 2, default);
+UPDATE t1 SET fld1= 4 WHERE fld1= 1;
+EXPLAIN SELECT fld3, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld3	x	x	x	x	x
+SELECT fld3, fld1 FROM t2;
+fld3	fld1
+1	4
+2	2
+EXPLAIN SELECT fld3, fld1 FROM t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t3	x	index	x	fld3	x	x	x	x	x
+SELECT fld3, fld1 FROM t3;
+fld3	fld1
+1	4
+2	2
+DROP TABLE t3, t2, t1;
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
+KEY(fld1), KEY(fld2, fld1),
+FOREIGN KEY(fld1) REFERENCES t1(fld1) ON DELETE CASCADE);
+CREATE TABLE t3(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
+KEY(fld2, fld1), FOREIGN KEY(fld1) REFERENCES t2(fld1)
+ON DELETE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2(fld1) VALUES(1), (2);
+INSERT INTO t3(fld1) VALUES(1), (2);
+DELETE FROM t1 WHERE fld1= 1;
+EXPLAIN SELECT fld2, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2, fld1 FROM t2;
+fld2	fld1
+2	2
+EXPLAIN SELECT fld2, fld1 FROM t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t3	x	index	x	fld2	x	x	x	x	x
+SELECT fld2, fld1 FROM t3;
+fld2	fld1
+2	2
+DROP TABLE t3, t2, t1;
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT NOT NULL,
+fld3 INT AS (fld2) VIRTUAL,
+KEY(fld3, fld1), KEY(fld1),
+FOREIGN KEY(fld1) REFERENCES t1(fld1)
+ON DELETE CASCADE);
+CREATE TABLE t3(fld1 INT NOT NULL, fld2 INT NOT NULL,
+fld3 INT AS (fld2) VIRTUAL, KEY(fld3, fld1),
+FOREIGN KEY(fld1) REFERENCES t2(fld1)
+ON DELETE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2 VALUES(1, 1, DEFAULT), (2, 2, default);
+INSERT INTO t3 VALUES(1, 1, DEFAULT), (2, 2, default);
+DELETE FROM t1 WHERE fld1= 1;
+EXPLAIN SELECT fld3, fld1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld3	x	x	x	x	x
+SELECT fld3, fld1 FROM t2;
+fld3	fld1
+2	2
+EXPLAIN SELECT fld3, fld1 FROM t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t3	x	index	x	fld3	x	x	x	x	x
+SELECT fld3, fld1 FROM t3;
+fld3	fld1
+2	2
+DROP TABLE t3, t2, t1;
+# RENAME TABLE
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (fld1) VIRTUAL,
+KEY(fld2, fld1),
+FOREIGN KEY(fld1) REFERENCES t1(fld1)
+ON DELETE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2 VALUES(1, DEFAULT), (2, default);
+RENAME TABLE t2 to t3;
+DELETE FROM t1 WHERE fld1= 1;
+EXPLAIN SELECT fld2, fld1 FROM t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t3	x	index	x	fld2	x	x	x	x	x
+SELECT fld2, fld1 FROM t3;
+fld2	fld1
+2	2
+DROP TABLE t3, t1;
+# FOREIGN_KEY_CHECKS disabled DURING INPLACE ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (fld1) VIRTUAL,
+FOREIGN KEY(fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2 VALUES(1, DEFAULT), (2, default);
+SET foreign_key_checks = 0;
+ALTER TABLE t2 ADD INDEX vk(fld2), ALGORITHM=INPLACE;
+SET foreign_key_checks = 1;
+UPDATE t1 SET fld1= 3 WHERE fld1= 2;
+SELECT fld2 FROM t2;
+fld2
+1
+3
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	vk	x	x	x	x	x
+DROP TABLE t2, t1;
+# GENERATED COLUMN COMPUTATION FAILS when SQL_MODE
+# is set to ERROR_FOR_DIVISION_BY_ZERO
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (100/fld1) VIRTUAL,
+KEY(fld2),
+FOREIGN KEY(fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2 VALUES(1, DEFAULT), (2, default);
+UPDATE t1 SET fld1= 0 WHERE fld1= 2;
+ERROR 22012: Division by 0
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+50
+100
+DROP TABLE t2, t1;
+# CHANGE SQL_MODE and try the ERROR_FOR_DIVISION_BY_ZERO
+SET sql_mode = STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (100/fld1) VIRTUAL,
+KEY(fld2),
+FOREIGN KEY(fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2 VALUES(1, DEFAULT), (2, default);
+UPDATE t1 SET fld1= 0 WHERE fld1= 2;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+NULL
+100
+SELECT * FROM t2;
+fld1	fld2
+1	100
+0	NULL
+DROP TABLE t2, t1;
+SET sql_mode = default;
+# ADD FOREIGN CONSTRAINT USING COPY
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (fld1) VIRTUAL, KEY(fld2));
+ALTER TABLE t2 ADD FOREIGN KEY (fld1)
+REFERENCES t1(fld1) ON UPDATE CASCADE,
+ALGORITHM=copy;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+2
+SELECT * FROM t2;
+fld1	fld2
+2	2
+DROP TABLE t2, t1;
+# ADD FOREIGN CONSTRAINT USING INPLACE
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (fld1) VIRTUAL, KEY(fld2));
+SET foreign_key_checks = 0;
+ALTER TABLE t2 ADD FOREIGN KEY (fld1)
+REFERENCES t1(fld1) ON UPDATE CASCADE,
+ALGORITHM=inplace;
+SET foreign_key_checks = 1;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+2
+SELECT * FROM t2;
+fld1	fld2
+2	2
+DROP TABLE t2, t1;
+# DROP FOREIGN CONSTRAINT USING COPY
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+CONSTRAINT fidx FOREIGN KEY (fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+ALTER TABLE t2 DROP FOREIGN KEY fidx, ALGORITHM=COPY;
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+1
+SELECT * FROM t2;
+fld1	fld2
+1	1
+DROP TABLE t2, t1;
+# DROP FOREIGN CONSTRAINT USING INPLACE
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+CONSTRAINT fidx FOREIGN KEY (fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE);
+SET foreign_key_checks = 0;
+ALTER TABLE t2 DROP FOREIGN KEY fidx, ALGORITHM=INPLACE;
+SET foreign_key_checks = 1;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+1
+SELECT * FROM t2;
+fld1	fld2
+1	1
+DROP TABLE t2, t1;
+# ADD VC INDEX and ADD FK IN SAME COPY ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (fld1) VIRTUAL);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+ALTER TABLE t2 ADD INDEX(fld2), ADD FOREIGN KEY (fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE, ALGORITHM=copy;
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+2
+SELECT * FROM t2;
+fld1	fld2
+2	2
+DROP TABLE t2, t1;
+# ADD VC INDEX and ADD FK IN SAME INPLACE ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (fld1) VIRTUAL);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+SET foreign_key_checks = 0;
+ALTER TABLE t2 ADD INDEX(fld2), ADD FOREIGN KEY (fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE, ALGORITHM=inplace;
+SET foreign_key_checks = 1;
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+2
+SELECT * FROM t2;
+fld1	fld2
+2	2
+DROP TABLE t2, t1;
+# ADD VC INDEX and DROP FK IN SAME COPY ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (fld1) VIRTUAL,
+CONSTRAINT fidx FOREIGN KEY(fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+ALTER TABLE t2 ADD INDEX(fld2), DROP FOREIGN KEY fidx, ALGORITHM=copy;
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+1
+SELECT * FROM t2;
+fld1	fld2
+1	1
+DROP TABLE t2, t1;
+# ADD VC INDEX and DROP FK IN SAME INPLACE ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (fld1) VIRTUAL,
+CONSTRAINT fidx FOREIGN KEY(fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+SET foreign_key_checks = 0;
+ALTER TABLE t2 ADD INDEX(fld2), DROP FOREIGN KEY fidx, ALGORITHM=inplace;
+SET foreign_key_checks = 1;
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	index	x	fld2	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+1
+SELECT * FROM t2;
+fld1	fld2
+1	1
+DROP TABLE t2, t1;
+# DROP VC INDEX and ADD FK IN SAME COPY ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (fld1) VIRTUAL,
+KEY idx(fld2));
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+ALTER TABLE t2 DROP INDEX idx, ADD FOREIGN KEY (fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE, ALGORITHM=COPY;
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	ALL	x	NULL	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+2
+SELECT * FROM t2;
+fld1	fld2
+2	2
+DROP TABLE t2, t1;
+# DROP VC INDEX and ADD FK IN SAME INPLACE ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (fld1) VIRTUAL,
+KEY idx(fld2));
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+SET foreign_key_checks = 0;
+ALTER TABLE t2 DROP INDEX idx, ADD FOREIGN KEY (fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE, ALGORITHM=INPLACE;
+SET foreign_key_checks = 1;
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	ALL	x	NULL	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+2
+SELECT * FROM t2;
+fld1	fld2
+2	2
+DROP TABLE t2, t1;
+# DROP VC INDEX and DROP FK IN SAME COPY ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (fld1) VIRTUAL,
+KEY idx(fld2),
+CONSTRAINT fidx FOREIGN KEY(fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+ALTER TABLE t2 DROP KEY idx, DROP FOREIGN KEY fidx, ALGORITHM=COPY;
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	ALL	x	NULL	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+1
+SELECT * FROM t2;
+fld1	fld2
+1	1
+DROP TABLE t2, t1;
+# DROP VC INDEX and DROP FK IN SAME INPLACE ALTER
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2(fld1 INT NOT NULL,
+fld2 INT AS (fld1) VIRTUAL,
+KEY idx(fld2),
+CONSTRAINT fidx FOREIGN KEY(fld1) REFERENCES t1(fld1)
+ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+SET foreign_key_checks = 0;
+ALTER TABLE t2 DROP KEY idx, DROP FOREIGN KEY fidx, ALGORITHM=INPLACE;
+SET foreign_key_checks = 1;
+UPDATE t1 SET fld1= 2;
+EXPLAIN SELECT fld2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	t2	x	ALL	x	NULL	x	x	x	x	x
+SELECT fld2 FROM t2;
+fld2
+1
+SELECT * FROM t2;
+fld1	fld2
+1	1
+DROP TABLE t2, t1;
+CREATE TABLE t1 (f1 INT NOT NULL PRIMARY KEY)ENGINE=INNODB;
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT AS (f1) VIRTUAL,
+KEY (f1, f2), FOREIGN KEY(f1) REFERENCES t1(f1))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+EXPLAIN SELECT f1, f2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f1	9	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2`
+SELECT f1, f2 FROM t2;
+f1	f2
+1	1
+INSERT INTO t2(f1) VALUES(2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f1`) REFERENCES `t1` (`f1`))
+DROP TABLE t2, t1;
+CREATE TABLE t1 (f1 INT NOT NULL PRIMARY KEY)ENGINE=INNODB;
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT AS (f1) VIRTUAL,
+KEY (f1, f2), FOREIGN KEY(f1) REFERENCES t1(f1)
+ON UPDATE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+EXPLAIN SELECT f1, f2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f1	9	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2`
+SELECT f1, f2 FROM t2;
+f1	f2
+1	1
+UPDATE t1 SET f1 = 2 WHERE f1 = 1;
+EXPLAIN SELECT f1, f2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f1	9	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2`
+SELECT f1, f2 FROM t2;
+f1	f2
+2	2
+DROP TABLE t2, t1;
+CREATE TABLE t1 (f1 INT NOT NULL PRIMARY KEY)ENGINE=INNODB;
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT AS (f1) VIRTUAL,
+KEY (f1, f2))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE t2 ADD FOREIGN KEY (f1) REFERENCES t1(f1)
+ON UPDATE CASCADE, ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 1;
+UPDATE t1 SET f1 = 3;
+EXPLAIN SELECT f1, f2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f1	9	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2`
+SELECT f1, f2 FROM t2;
+f1	f2
+3	3
+DROP TABLE t2, t1;
+CREATE TABLE t1 (f1 INT NOT NULL PRIMARY KEY)ENGINE=INNODB;
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT AS (f1) VIRTUAL,
+KEY (f1, f2))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+ALTER TABLE t2 ADD FOREIGN KEY (f1) REFERENCES t1(f1)
+ON UPDATE CASCADE, ALGORITHM=COPY;
+UPDATE t1 SET f1 = 3;
+EXPLAIN SELECT f1, f2 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	f1	9	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2`
+SELECT f1, f2 FROM t2;
+f1	f2
+3	3
+DROP TABLE t2, t1;
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1))ENGINE=INNODB;
+CREATE TABLE t2(f1 INT NOT NULL, f2 INT AS (1) VIRTUAL,
+f3 INT AS (2) VIRTUAL,
+FOREIGN KEY idx (f1) REFERENCES t1(f1) ON UPDATE CASCADE,
+KEY idx1 (f2, f1, f3))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+ALTER TABLE t2 DROP COLUMN f2, ALGORITHM=INPLACE;
+UPDATE t1 SET f1 = 3;
+EXPLAIN SELECT f1, f3 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	idx1	9	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f3` AS `f3` from `test`.`t2`
+SELECT f1, f3 FROM t2;
+f1	f3
+3	2
+DROP TABLE t2, t1;
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1))ENGINE=INNODB;
+CREATE TABLE t2(f1 INT NOT NULL, f2 INT AS (1) VIRTUAL,
+f3 INT AS (2) VIRTUAL,
+FOREIGN KEY idx (f1) REFERENCES t1(f1) ON UPDATE CASCADE,
+KEY idx1 (f2, f1, f3))ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2(f1) VALUES(1);
+ALTER TABLE t2 DROP COLUMN f2, ALGORITHM=COPY;
+UPDATE t1 SET f1 = 3;
+EXPLAIN SELECT f1, f3 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	idx1	9	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f3` AS `f3` from `test`.`t2`
+SELECT f1, f3 FROM t2;
+f1	f3
+3	2
+DROP TABLE t2, t1;

@@ -10,7 +10,7 @@ ERROR 42000: Query was empty
 select 1 /*!32301 +1 */;
 1  +1
 2
-select 1 /*!52301 +1 */;
+select 1 /*!999999 +1 */;
 1
 1
 select 1--1;

@@ -2,11 +2,8 @@
 --echo # Bug#69122 - INNODB DOESN'T REDO-LOG INSERT BUFFER MERGE
 --echo #             OPERATION IF IT IS DONE IN-PLACE
 --echo #
---source include/have_innodb.inc
 # innodb_change_buffering_debug option is debug only
 --source include/have_debug.inc
-# Embedded server does not support crashing
---source include/not_embedded.inc
 # DBUG_SUICIDE() hangs under valgrind
 --source include/not_valgrind.inc
 
@@ -52,14 +49,14 @@ DELETE FROM t1 WHERE a=1;
 # This should be buffered, if innodb_change_buffering_debug = 1 is in effect.
 INSERT INTO t1 VALUES(1,'X',1);
 
-SET DEBUG='+d,crash_after_log_ibuf_upd_inplace';
+SET GLOBAL DEBUG='+d,crash_after_log_ibuf_upd_inplace';
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 # This should force a change buffer merge
 SELECT b FROM t1 LIMIT 3;
 
 let SEARCH_PATTERN=Wrote log record for ibuf update in place operation;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

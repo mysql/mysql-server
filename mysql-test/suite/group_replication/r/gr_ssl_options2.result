@@ -1,0 +1,49 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Setup the first member with a recovery user that requires SSL
+#
+server1
+set session sql_log_bin=0;
+CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
+GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+set session sql_log_bin=1;
+#
+# Add some data and start the first member
+#
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/start_and_bootstrap_group_replication.inc
+server2
+SET GLOBAL group_replication_recovery_use_ssl=1;
+SET GLOBAL group_replication_recovery_ssl_ca= 'TMPDIR/certs/cacerts/crl-ca-cert.pem';
+SET GLOBAL group_replication_recovery_ssl_capath= '';
+SET GLOBAL group_replication_recovery_ssl_cert= 'TMPDIR/certs/crl-client-cert.pem';
+SET GLOBAL group_replication_recovery_ssl_key= 'TMPDIR/certs/crl-client-key.pem';
+SET GLOBAL group_replication_recovery_ssl_crl= 'TMPDIR/certs/crldir/crl-client-revoked.crl';
+SET GLOBAL group_replication_recovery_ssl_crlpath= 'TMPDIR/certs/crldir';
+include/start_group_replication.inc
+#
+# Check the data is there
+#
+include/rpl_sync.inc
+include/assert.inc [On the recovered member, the table should exist and have 1 elements;]
+#
+# Clean up
+#
+SET @@GLOBAL.group_replication_recovery_use_ssl= 0;
+SET @@GLOBAL.group_replication_recovery_ssl_ca= "";
+SET @@GLOBAL.group_replication_recovery_ssl_capath= "";
+SET @@GLOBAL.group_replication_recovery_ssl_cert= "";
+SET @@GLOBAL.group_replication_recovery_ssl_key= "";
+SET @@GLOBAL.group_replication_recovery_ssl_crl= "";
+SET @@GLOBAL.group_replication_recovery_ssl_crlpath= "";
+server1
+set session sql_log_bin=0;
+DROP USER 'rec_ssl_user';
+set session sql_log_bin=1;
+DROP TABLE t1;
+include/group_replication_end.inc

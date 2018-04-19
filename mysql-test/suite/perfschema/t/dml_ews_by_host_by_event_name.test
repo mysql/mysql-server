@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 #
 select * from performance_schema.events_waits_summary_by_host_by_event_name
   where event_name like 'Wait/Synch/%' limit 1;

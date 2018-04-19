@@ -234,22 +234,22 @@ Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1`
 explain SELECT distinct t1.a from t1 order by a desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` desc
 explain SELECT t1.a from t1 group by a order by a desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` desc order by `test`.`t1`.`a` desc
 explain SELECT distinct t1.a from t1 order by a desc limit 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` desc limit 1
 explain SELECT distinct a from t3 order by a desc limit 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	a	a	5	NULL	204	100.00	Using index
+1	SIMPLE	t3	NULL	index	a	a	5	NULL	204	100.00	Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t3`.`a` AS `a` from `test`.`t3` order by `test`.`t3`.`a` desc limit 2
 explain SELECT distinct a,b from t3 order by a+1;
@@ -487,8 +487,6 @@ test2@testdomain.com	R002
 test3@testdomain.com	Z001
 drop table t1,t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (privatemessageid int(10) unsigned NOT NULL auto_increment,  folderid smallint(6) NOT NULL default '0',  userid int(10) unsigned NOT NULL default '0',  touserid int(10) unsigned NOT NULL default '0',  fromuserid int(10) unsigned NOT NULL default '0',  title varchar(250) NOT NULL default '',  message mediumtext NOT NULL,  dateline int(10) unsigned NOT NULL default '0',  showsignature smallint(6) NOT NULL default '0',  iconid smallint(5) unsigned NOT NULL default '0',  messageread smallint(6) NOT NULL default '0',  readtime int(10) unsigned NOT NULL default '0',  receipt smallint(6) unsigned NOT NULL default '0',  deleteprompt smallint(6) unsigned NOT NULL default '0',  multiplerecipients smallint(6) unsigned NOT NULL default '0',  PRIMARY KEY  (privatemessageid),  KEY userid (userid)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (128,0,33,33,8,':D','',996121863,1,0,2,996122850,2,0,0);
 CREATE TABLE t2 (userid int(10) unsigned NOT NULL auto_increment,  usergroupid smallint(5) unsigned NOT NULL default '0',  username varchar(50) NOT NULL default '',  password varchar(50) NOT NULL default '',  email varchar(50) NOT NULL default '',  styleid smallint(5) unsigned NOT NULL default '0',  parentemail varchar(50) NOT NULL default '',  coppauser smallint(6) NOT NULL default '0',  homepage varchar(100) NOT NULL default '',  icq varchar(20) NOT NULL default '',  aim varchar(20) NOT NULL default '',  yahoo varchar(20) NOT NULL default '',  signature mediumtext NOT NULL,  adminemail smallint(6) NOT NULL default '0',  showemail smallint(6) NOT NULL default '0',  invisible smallint(6) NOT NULL default '0',  usertitle varchar(250) NOT NULL default '',  customtitle smallint(6) NOT NULL default '0',  joindate int(10) unsigned NOT NULL default '0',  cookieuser smallint(6) NOT NULL default '0',  daysprune smallint(6) NOT NULL default '0',  lastvisit int(10) unsigned NOT NULL default '0',  lastactivity int(10) unsigned NOT NULL default '0',  lastpost int(10) unsigned NOT NULL default '0',  posts smallint(5) unsigned NOT NULL default '0',  timezoneoffset varchar(4) NOT NULL default '',  emailnotification smallint(6) NOT NULL default '0',  buddylist mediumtext NOT NULL,  ignorelist mediumtext NOT NULL,  pmfolders mediumtext NOT NULL,  receivepm smallint(6) NOT NULL default '0',  emailonpm smallint(6) NOT NULL default '0',  pmpopup smallint(6) NOT NULL default '0',  avatarid smallint(6) NOT NULL default '0',  avatarrevision int(6) unsigned NOT NULL default '0',  options smallint(6) NOT NULL default '15',  birthday date NOT NULL default '0000-00-00',  maxposts smallint(6) NOT NULL default '-1',  startofweek smallint(6) NOT NULL default '1',  ipaddress varchar(20) NOT NULL default '',  referrerid int(10) unsigned NOT NULL default '0',  nosessionhash smallint(6) NOT NULL default '0',  autorefresh smallint(6) NOT NULL default '-1',  messagepopup tinyint(2) NOT NULL default '0',  inforum smallint(5) unsigned NOT NULL default '0',  ratenum smallint(5) unsigned NOT NULL default '0',  ratetotal smallint(5) unsigned NOT NULL default '0',  allowrate smallint(5) unsigned NOT NULL default '1',  PRIMARY KEY  (userid),  KEY usergroupid (usergroupid),  KEY username (username),  KEY inforum (inforum)) ENGINE=MyISAM;
@@ -624,12 +622,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a`
 EXPLAIN SELECT a,b FROM t1 GROUP BY a,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`b`
 EXPLAIN SELECT DISTINCT a,b FROM t1 GROUP BY a,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`b`
 CREATE TABLE t2(a INT, b INT NOT NULL, c INT NOT NULL, d INT, 
@@ -662,13 +660,13 @@ Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t2`.`c` AS `c`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 EXPLAIN SELECT DISTINCT a,b,d FROM t2 GROUP BY c,b,d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`d` AS `d` from `test`.`t2` group by `test`.`t2`.`c`,`test`.`t2`.`b`,`test`.`t2`.`d`
 CREATE UNIQUE INDEX c_b_unq ON t2 (c,b);
 EXPLAIN SELECT DISTINCT a,b,d FROM t2 GROUP BY c,b,d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`d` AS `d` from `test`.`t2` group by `test`.`t2`.`c`,`test`.`t2`.`b`,`test`.`t2`.`d`
 DROP TABLE t1,t2;
@@ -824,10 +822,12 @@ INSERT INTO t2 VALUES ('oe');
 SELECT COUNT(*) FROM (SELECT DISTINCT a FROM t2) dt;
 COUNT(*)
 2
+set names latin1;
 SELECT COUNT(*) FROM 
 (SELECT DISTINCT a FROM t2 WHERE a='oe' COLLATE latin1_german2_ci) dt;
 COUNT(*)
 2
+set names utf8mb4;
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT, UNIQUE (a));
 INSERT INTO t1 VALUES (4),(null),(2),(1),(null),(3);
@@ -1023,7 +1023,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	it_a	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	it_b	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select distinct `subselect`.`b` AS `b` from `test`.`t1` left join (/* select#2 */ select `test`.`it_b`.`a` AS `a`,`test`.`it_b`.`b` AS `b` from `test`.`t1` `it_a` left join `test`.`t1` `it_b` on(1) where 1) `subselect` on((`test`.`t1`.`a` = `subselect`.`b`)) where 1
+Note	1003	/* select#1 */ select distinct `subselect`.`b` AS `b` from `test`.`t1` left join (/* select#2 */ select `test`.`it_b`.`a` AS `a`,`test`.`it_b`.`b` AS `b` from `test`.`t1` `it_a` left join `test`.`t1` `it_b` on(TRUE) where 1) `subselect` on((`subselect`.`b` = `test`.`t1`.`a`)) where 1
 SELECT DISTINCT subselect.b
 FROM t1 LEFT JOIN 
 (SELECT it_b.* FROM t1 as it_a LEFT JOIN t1 as it_b ON true) AS subselect 
@@ -1057,7 +1057,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	const	PRIMARY	NULL	NULL	NULL	1	100.00	Impossible ON condition
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Distinct
 Warnings:
-Note	1003	/* select#1 */ select distinct `test`.`t3`.`a` AS `t3_date` from `test`.`t1` left join `test`.`t3` on((NULL = `test`.`t3`.`b`)) where 1 limit 1
+Note	1003	/* select#1 */ select distinct `test`.`t3`.`a` AS `t3_date` from `test`.`t1` left join `test`.`t3` on(multiple equal(NULL, `test`.`t3`.`b`)) where 1 limit 1
 SELECT DISTINCT t3.a AS t3_date
 FROM t1
 LEFT JOIN t2 ON false
@@ -2004,3 +2004,45 @@ from t1 t1_outer;
 group by t1_inner.a order by max(t1_outer.b))
 NULL
 drop table t1, t2;
+#
+# Bug#22686994 REGRESSION FOR A GROUPING QUERY WITH DISTINCT
+#
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
+(1,3), (2,1), (1,5), (1,7), (3,1),
+(3,2), (3,1), (2,4);
+SELECT DISTINCT (COUNT(DISTINCT b) + 1) AS c FROM t1 GROUP BY a;
+c
+4
+3
+DROP TABLE t1;
+# End of test for Bug#22686994
+#
+# Bug #25740550: DISTINCT OPERATIONS ON TEMP TABLES ALLOCATE TOO LITTLE
+#                MEMORY FOR SORT KEYS
+#
+# A test for remove_dup_with_hash_index() where sort keys are significantly
+# longer than the row itself.
+#
+CREATE TABLE t1(c1 int, c2 VARCHAR(1) COLLATE utf8mb4_0900_as_cs);
+INSERT INTO t1 VALUES (1, 'a');
+INSERT INTO t1 VALUES (2, 'A');
+SELECT DISTINCT c2 FROM t1 GROUP BY c1;
+c2
+a
+A
+DROP TABLE t1;
+#
+# Bug#20692219 INCORRECT RESULT FOR DISTINCT SELECT
+#
+CREATE TABLE t(a INT, b INT);
+INSERT INTO t VALUES(1,2);
+INSERT INTO t VALUES(2,4);
+SELECT  LEAST(1,COUNT(DISTINCT a)) FROM t GROUP BY a;
+LEAST(1,COUNT(DISTINCT a))
+1
+1
+SELECT DISTINCT LEAST(1,COUNT(DISTINCT a)) FROM t GROUP BY a;
+LEAST(1,COUNT(DISTINCT a))
+1
+DROP TABLE t;

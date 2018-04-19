@@ -13,12 +13,12 @@ slave_checkpoint_group	512
 show session variables like 'slave_checkpoint_group';
 Variable_name	Value
 slave_checkpoint_group	512
-select * from information_schema.global_variables where variable_name='slave_checkpoint_group';
+select * from performance_schema.global_variables where variable_name='slave_checkpoint_group';
 VARIABLE_NAME	VARIABLE_VALUE
-SLAVE_CHECKPOINT_GROUP	512
-select * from information_schema.session_variables where variable_name='slave_checkpoint_group';
+slave_checkpoint_group	512
+select * from performance_schema.session_variables where variable_name='slave_checkpoint_group';
 VARIABLE_NAME	VARIABLE_VALUE
-SLAVE_CHECKPOINT_GROUP	512
+slave_checkpoint_group	512
 set global slave_checkpoint_group=1024;
 select @@global.slave_checkpoint_group;
 @@global.slave_checkpoint_group

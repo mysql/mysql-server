@@ -12,22 +12,26 @@
 --perl
 print "\nChecking 'INFO_SRC' and 'INFO_BIN'\n";
 $dir_bin = $ENV{'MYSQL_BINDIR'};
-if ($dir_bin =~ m|/usr/|) {
+if ($dir_bin =~ m|^/usr/|) {
   # RPM package
   $dir_docs = $dir_bin;
   $dir_docs =~ s|/lib|/share/doc|;
   if(-d "$dir_docs/packages") {
     # SuSE: "packages/" in the documentation path
-    $dir_docs = glob "$dir_docs/packages/mysql-*-server*";
+    # Skip the management-server directory in the documentation path for cluster release
+    @dir_docs = grep { (! /management/) } glob "$dir_docs/packages/mysql-*-server*";
+    $dir_docs = $dir_docs[0];
   } else {
     # RedHat: version number in directory name
     $dir_docs = glob "$dir_docs/MySQL-server*";
     if (! -d "$dir_docs") {
       # If not it might be ULN so try that
-      $dir_docs = glob "$dir_bin/share/doc/mysql-*-server*";
+      # Skip the management-server directory in the documentation path for cluster release
+      @dir_docs = grep { (! /management/) } glob "$dir_bin/share/doc/mysql-*-server*";
+      $dir_docs = $dir_docs[0];
       if (! -f "$dir_docs/INFO_BIN") {
         # Debian/ Ubuntu
-        $dir_docs = glob "$dir_bin/share/mysql/docs";
+        $dir_docs = glob "$dir_bin/share/mysql-*/docs";
       }
     }
   }
@@ -36,23 +40,25 @@ if ($dir_bin =~ m|/usr/|) {
   $dir_docs = "$dir_bin/share/doc";
   if(-d "$dir_docs/packages") {
     # SuSE: "packages/" in the documentation path
-    $dir_docs = glob "$dir_docs/packages/mysql-*-server*";
+    # Skip the management-server directory in the documentation path for cluster release
+    @dir_docs = grep { (! /management/) } glob "$dir_docs/packages/mysql-*-server*";
+    $dir_docs = $dir_docs[0];
   } else {
     # RedHat: version number in directory name
     $dir_docs = glob "$dir_docs/MySQL-server*";
     if (! -d "$dir_docs") {
       # If not it might be ULN so try that
-      $dir_docs = glob "$dir_bin/share/doc/mysql-*-server*";
+      @dir_docs = grep { (! /management/) } glob "$dir_bin/share/doc/mysql-*-server*";
+      $dir_docs = $dir_docs[0];
       if (! -f "$dir_docs/INFO_BIN") {
         # Debian/ Ubuntu
-        $dir_docs = glob "$dir_bin/share/mysql/docs";
+        $dir_docs = glob "$dir_bin/share/mysql-*/docs";
       }
     }
   }
 } else {
   # tar.gz package, Windows, or developer work (in git)
   $dir_docs = $dir_bin;
-  $dir_docs =~ s|/lib||;
   if(-d "$dir_docs/docs") {
     $dir_docs = "$dir_docs/docs"; # package
   } else {
@@ -74,7 +80,7 @@ open(I_BIN,"<","$dir_docs/INFO_BIN") or print "Cannot open 'INFO_BIN' in '$dir_d
 while(defined ($line = <I_BIN>)) {
   # "generator" on Windows, "flags" on Unix:
   if (($line =~ m| Compiler / generator used: |) ||
-      ($line =~ m| Compiler flags used |))   {$found_compiler = "Found 'Compiler ... used' line";}
+      ($line =~ m| Compiler flags used:|))   {$found_compiler = "Found 'Compiler ... used' line";}
   if  ($line =~ m| Feature flags used:|)     {$found_features = "Found 'Feature flags' line";}
 }
 close I_BIN;

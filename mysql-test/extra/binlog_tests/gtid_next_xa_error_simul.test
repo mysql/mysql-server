@@ -1,0 +1,284 @@
+# ==== Purpose ====
+#
+# Auxiliary test file included by 'binlog_gtid_next_xa.inc'.
+# It differs from 'gtid_next_xa.test' to require to specify mandatory
+# prepare or commit simulated error actions.
+# Also it provides an optional server restart so the error action
+# will unfold after the restart.
+#
+# This executes an XA PREPARE transaction, followed by an XA COMMIT or
+# XA ROLLBACK transaction.  It sets specified values of GTID_NEXT
+# before each of the two transactions.  After each transaction it
+# verifies that GTID ownership is as expected.
+#
+# ==== Usage ====
+#
+# --let $gtid1= [<GTID> | ANONYMOUS | AUTOMATIC]
+# --let $gtid2= [<GTID> | ANONYMOUS | AUTOMATIC | none]
+# --let $commit= [COMMIT | ROLLBACK]
+# --let $error_simul = ["at_prepare" | "at_commit"]
+# --let $do_shutdown_after_prepare = [0 | 1]
+# --let $one_phase = [one phase]
+# --source extra/binlog/gtid_next_xa_error_simul.test
+#
+# Parameters:
+#
+#   $commit
+#     If this is COMMIT, the second transaction will be an XA COMMIT
+#     transaction. If this is ROLLBACK, the second transaction will be
+#     an XA ROLLBACK transaction.
+#
+#   $gtid1
+#     The value to use for GTID_NEXT for the first transaction
+#     (XA PREPARE).
+#
+#   $gtid2
+#     The value to use for GTID_NEXT for the second transaction
+#     (XA COMMIT/ROLLBACK).  If this is 'none', no SET GTID_NEXT
+#     statement is used and the previous value is reused.
+#
+#   $one_phase
+#     Option to commit XA in one phase
+#
+#   $error_simul
+#     This is an error in applying the prepare or the commit.
+#     The script accepts one of 'at_prepare' or 'at_commit' values.
+#     The caller must reset $error_simul=0 after the current invokation.
+#
+
+#  Local vars:
+#
+#  Error code's precise value is computed when $error_simul is set 'at_prepare'
+--let $errno_at_prepare = 0
+--let $errno_at_commit  = 0
+#  Status of --log-bin of the server
+--let $log_bin=`SELECT @@GLOBAL.log_bin`
+# A copy of the main session var value,  the var is used by $error_simul
+--let $save_innodb_lock_wait_timeout = @@SESSION.innodb_lock_wait_timeout
+SET @@SESSION.innodb_lock_wait_timeout = 1;
+
+--echo ---- XID $xid, $commit: $gtid1 + $gtid2 ----
+--source include/rpl_connection_master.inc
+
+if ($error_simul != "at_prepare")
+{
+  if ($error_simul != "at_commit")
+  {
+    --echo Incorrect 'error_simul' parameter value of $error_simul.
+    --die
+  }
+}
+
+if ($gtid1 != none)
+{
+  if (!$one_phase)
+  {
+    eval SET GTID_NEXT= '$gtid1';
+  }
+  if ($one_phase)
+  {
+    # In the One-phase commit case the commit gtid2 is only used in the test
+    eval SET GTID_NEXT= '$gtid2';
+  }
+}
+
+# Prepare error pre-simulation block is place here,  before even XA START
+# to satisfy both the log-bin OFF and ON case. In the latter one SET @@debug
+# cannot be done after XA END.
+# ONE PHASE option skips the pre- and the post- prepare error simulation
+# handling.
+if (!$one_phase)
+{
+  if ($error_simul == "at_prepare")
+  {
+    if (!$log_bin)
+    {
+      --connection conn_err_simul
+        BEGIN;
+          --eval INSERT INTO mysql.gtid_executed VALUES ('$uuida',$xid,$xid)
+
+      --source include/rpl_connection_master.inc
+        # The "head" reported error won't be ER_XA_RBROLLBACK
+        --let $errno_at_prepare=ER_LOCK_WAIT_TIMEOUT
+    }
+    if ($log_bin)
+    {
+       --let $errno_at_prepare=ER_XA_RBROLLBACK
+       SET @@SESSION.debug = "+d,simulate_xa_failure_prepare";
+    }
+  }
+}
+
+eval XA START '$xid';
+eval INSERT INTO t1 VALUES($xid);
+eval XA END '$xid';
+
+if (!$one_phase)
+{
+  --error $errno_at_prepare
+  eval XA PREPARE '$xid';
+
+  # Prepare error post-simulation block
+  if ($error_simul == "at_prepare")
+  {
+    if (!$log_bin)
+    {
+     --connection conn_err_simul
+       ROLLBACK;
+      --echo *** The failed at XA PREPARE trx is rolled back, so XA RECOVER ***
+      --echo *** results in empty list: ***
+      XA RECOVER;
+     }
+    --source include/rpl_connection_master.inc
+    # Display XA specific error among other reported ones incl the "head" one
+    SHOW WARNINGS;
+    # Prepare simulation error indudes  the following error at commit
+    --let $errno_at_commit= ER_XAER_NOTA
+    if ($log_bin)
+    {
+       SET @@SESSION.debug = "-d,simulate_xa_failure_prepare";
+    }
+    #
+    # Prove that the simulated error in saving GTID does not update
+    # neither 'mysql.gtid_executed' table nor @@global.gtid_executed.
+    #
+    if (`SELECT GTID_SUBSET('$uuida:$xid', @@GLOBAL.gtid_executed)`)
+    {
+      --echo Unexpected committed gtid item $uuida:$xid  in @@global.gtid_executed
+      --die
+    }
+    if (`SELECT count(*) > 0 FROM mysql.gtid_executed WHERE source_uuid = '$uuida' AND interval_start = $xid AND interval_end = $xid`)
+    {
+       --echo Unexpected committed gtid record $uuida:$xid  in 'mysql.gtid_executed'
+       --die
+    }
+ }
+
+  --let $assert_text= Thread should not own any GTID.
+  --let $assert_cond= @@SESSION.GTID_OWNED = ""
+  --source include/assert.inc
+
+  --source include/rpl_connection_master1.inc
+
+  --let $assert_text= No thread should own any GTID.
+  --let $assert_cond= @@GLOBAL.GTID_OWNED = ""
+  --source include/assert.inc
+
+  --let $assert_text= No thread should hold anonymous ownership.
+  --let $assert_cond= [SHOW STATUS LIKE "ONGOING_ANONYMOUS_TRANSACTION_COUNT", Value, 1] = 0
+  --source include/assert.inc
+
+  if ($do_shutdown_after_prepare)
+  {
+    if (!$log_bin)
+    {
+      --disconnect conn_err_simul
+    }
+    --let $rpl_server_number= 1
+    --source include/rpl_restart_server.inc
+    --source include/rpl_set_gtid_mode.inc
+    if (!$log_bin)
+    {
+        --connect(conn_err_simul,localhost,root,,)
+    }
+     --source include/rpl_connection_master.inc
+     SET @@SESSION.innodb_lock_wait_timeout = 1;
+
+    # Prove that the prepared XA did not enroll 'mysql.gtid_executed', so
+    # its gtid record has been already committed:
+    --eval SELECT count(*) as one FROM mysql.gtid_executed WHERE source_uuid = '$uuida' AND interval_start = $xid AND interval_end = $xid
+    # No rows of the table is being locked by any other (XA) transaction
+    SELECT count(*) FROM mysql.gtid_executed FOR UPDATE;
+  }
+
+  --source include/rpl_connection_master.inc
+
+  --echo error=$error_commit
+  if ($gtid2 != none)
+  {
+    eval SET GTID_NEXT= '$gtid2';
+  }
+}
+
+if ($commit == ROLLBACK)
+{
+   # Reset $one_phase to empty in this case to satisfy syntax
+   --let $one_phase=
+}
+
+# Commit error pre-simulation block
+if ($error_simul == "at_commit")
+{
+  if (!$log_bin)
+  {
+     # simulate prepare error
+     --connection conn_err_simul
+     BEGIN;
+       --eval INSERT INTO mysql.gtid_executed VALUES ('$uuidb',$xid,$xid)
+
+     --source include/rpl_connection_master.inc
+    # The "head" reported error won't be ER_XA_RBROLLBACK
+    --let $errno_at_commit=ER_LOCK_WAIT_TIMEOUT
+   }
+   if ($log_bin)
+   {
+     SET @@SESSION.debug = "+d,simulate_xa_rm_error";
+     --let $errno_at_commit=ER_XA_RBROLLBACK
+   }
+}
+
+--error $errno_at_commit
+eval XA $commit '$xid' $one_phase;
+
+# Prepare error post-simulation block
+if ($error_simul == "at_commit")
+{
+  if (!$log_bin)
+  {
+   --connection conn_err_simul
+     ROLLBACK;
+    --echo *** The failed at XA COMMIT trx is rolled back, so XA RECOVER ***
+    --echo *** results in empty list: ***
+    XA RECOVER;
+
+    --source include/rpl_connection_master.inc
+    # Display XA specific error among other reported ones incl the "head" one
+    SHOW WARNINGS;
+    #
+    # Prove that the simulated error in saving GTID does not update
+    # neither 'mysql.gtid_executed' table nor @@global.gtid_executed.
+    #
+    if (`SELECT GTID_SUBSET('$uuidb:$xid', @@GLOBAL.gtid_executed)`)
+    {
+      --echo Unexpected committed gtid item $uuidb:$xid  in @@global.gtid_executed
+      --die
+    }
+    if (`SELECT count(*) > 0 FROM mysql.gtid_executed WHERE source_uuid = '$uuidb' AND interval_start = $xid AND interval_end = $xid`)
+    {
+       --echo Unexpected committed gtid record $uuidb:$xid  in 'mysql.gtid_executed'
+       --die
+    }
+  }
+  if ($log_bin)
+  {
+    SET @@SESSION.debug = "-d,simulate_xa_rm_error";
+  }
+}
+
+--let $assert_text= Thread should not own any GTID.
+--let $assert_cond= @@SESSION.GTID_OWNED = ""
+--source include/assert.inc
+
+--let $assert_text= No thread should own any GTID.
+--let $assert_cond= @@GLOBAL.GTID_OWNED = ""
+--source include/assert.inc
+
+--let $assert_text= No thread should hold anonymous ownership.
+--let $assert_cond= [SHOW STATUS LIKE "ONGOING_ANONYMOUS_TRANSACTION_COUNT", Value, 1] = 0
+--source include/assert.inc
+
+ROLLBACK;
+# Restore orig wait timeout
+--eval SET @@SESSION.innodb_lock_wait_timeout = $save_innodb_lock_wait_timeout
+--inc $xid
+SET GTID_NEXT = 'AUTOMATIC';

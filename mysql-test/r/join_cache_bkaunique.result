@@ -3,6 +3,8 @@ set optimizer_switch='batched_key_access=on,mrr_cost_based=off';
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
 DROP DATABASE IF EXISTS world;
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE DATABASE world;
 use world;
 CREATE TABLE country (
@@ -48,7 +50,6 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.Country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -63,6 +64,7 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 EXPLAIN
 SELECT city.Name, country.Name, countrylanguage.Language
 FROM city,country,countrylanguage
@@ -217,7 +219,7 @@ Luzhou	China	Chinese
 Luziânia	Brazil	Portuguese
 Lviv	Ukraine	Ukrainian
 Lyon	France	French
-Lysyt?ansk	Ukraine	Ukrainian
+Lysytšansk	Ukraine	Ukrainian
 L´Hospitalet de Llobregat	Spain	Spanish
 Lázaro Cárdenas	Mexico	Spanish
 Lódz	Poland	Polish
@@ -240,7 +242,6 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.Country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -255,6 +256,7 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 EXPLAIN
 SELECT city.Name, country.Name, countrylanguage.Language
 FROM city,country,countrylanguage
@@ -409,7 +411,7 @@ Luzhou	China	Chinese
 Luziânia	Brazil	Portuguese
 Lviv	Ukraine	Ukrainian
 Lyon	France	French
-Lysyt?ansk	Ukraine	Ukrainian
+Lysytšansk	Ukraine	Ukrainian
 L´Hospitalet de Llobregat	Spain	Spanish
 Lázaro Cárdenas	Mexico	Spanish
 Lódz	Poland	Polish
@@ -455,15 +457,14 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	52	NULL	10	100.00	Using index condition; Using MRR
-1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	87.57	Using where; Using join buffer (Batched Key Access (unique))
+1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	208	NULL	9	100.00	Using index condition; Using MRR
+1	SIMPLE	city	NULL	ref	Population,Country	Country	12	world.country.Code	18	87.57	Using where; Using join buffer (Batched Key Access (unique))
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name` from `world`.`city` join `world`.`country` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`country`.`Name` like 'L%') and (`world`.`city`.`Population` > 100000))
 SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -478,6 +479,7 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 EXPLAIN
 SELECT city.Name, country.Name, countrylanguage.Language
 FROM city,country,countrylanguage
@@ -487,8 +489,8 @@ city.Name LIKE 'L%' AND country.Population > 3000000 AND
 countrylanguage.Percentage > 50;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	countrylanguage	NULL	range	PRIMARY,Percentage	Percentage	4	NULL	#	100.00	Using index condition; Using MRR
-1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	3	world.countrylanguage.Country	1	33.33	Using where; Using join buffer (Batched Key Access (unique))
-1	SIMPLE	city	NULL	ref	Country	Country	3	world.countrylanguage.Country	18	11.11	Using where; Using join buffer (Batched Key Access (unique))
+1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	12	world.countrylanguage.Country	1	33.33	Using where; Using join buffer (Batched Key Access (unique))
+1	SIMPLE	city	NULL	ref	Country	Country	12	world.countrylanguage.Country	18	11.11	Using where; Using join buffer (Batched Key Access (unique))
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name`,`world`.`countrylanguage`.`Language` AS `Language` from `world`.`city` join `world`.`country` join `world`.`countrylanguage` where ((`world`.`country`.`Code` = `world`.`countrylanguage`.`Country`) and (`world`.`city`.`Country` = `world`.`countrylanguage`.`Country`) and (`world`.`city`.`Name` like 'L%') and (`world`.`country`.`Population` > 3000000) and (`world`.`countrylanguage`.`Percentage` > 50))
 SELECT city.Name, country.Name, countrylanguage.Language
@@ -632,7 +634,7 @@ Luzhou	China	Chinese
 Luziânia	Brazil	Portuguese
 Lviv	Ukraine	Ukrainian
 Lyon	France	French
-Lysyt?ansk	Ukraine	Ukrainian
+Lysytšansk	Ukraine	Ukrainian
 L´Hospitalet de Llobregat	Spain	Spanish
 Lázaro Cárdenas	Mexico	Spanish
 Lódz	Poland	Polish
@@ -643,15 +645,14 @@ SELECT Name FROM city
 WHERE city.country IN (SELECT Code FROM country WHERE country.Name LIKE 'L%') AND
 city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	52	NULL	10	100.00	Using index condition; Using MRR
-1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	87.57	Using where; Using join buffer (Batched Key Access (unique))
+1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	208	NULL	9	100.00	Using index condition; Using MRR
+1	SIMPLE	city	NULL	ref	Population,Country	Country	12	world.country.Code	18	87.57	Using where; Using join buffer (Batched Key Access (unique))
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name` from `world`.`country` join `world`.`city` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Population` > 100000) and (`world`.`country`.`Name` like 'L%'))
 SELECT Name FROM city
 WHERE city.country IN (SELECT Code FROM country WHERE country.Name LIKE 'L%') AND
 city.Population > 100000;
 Name
-?iauliai
 Beirut
 Bengasi
 Daugavpils
@@ -666,6 +667,7 @@ Tripoli
 Tripoli
 Vientiane
 Vilnius
+Šiauliai
 EXPLAIN
 SELECT country.Name, IF(ISNULL(countrylanguage.country), NULL, countrylanguage.Percentage)
 FROM country LEFT JOIN countrylanguage ON
@@ -674,7 +676,7 @@ WHERE
 country.Population > 10000000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	33.33	Using where
-1	SIMPLE	countrylanguage	NULL	eq_ref	PRIMARY	PRIMARY	33	world.country.Code,const	1	100.00	Using join buffer (Batched Key Access (unique))
+1	SIMPLE	countrylanguage	NULL	eq_ref	PRIMARY	PRIMARY	132	world.country.Code,const	1	100.00	Using join buffer (Batched Key Access (unique))
 Warnings:
 Note	1003	/* select#1 */ select `world`.`country`.`Name` AS `Name`,if(isnull(`world`.`countrylanguage`.`Country`),NULL,`world`.`countrylanguage`.`Percentage`) AS `IF(ISNULL(countrylanguage.country), NULL, countrylanguage.Percentage)` from `world`.`country` left join `world`.`countrylanguage` on(((`world`.`countrylanguage`.`Language` = 'English') and (`world`.`countrylanguage`.`Country` = `world`.`country`.`Code`))) where (`world`.`country`.`Population` > 10000000)
 SELECT country.Name, IF(ISNULL(countrylanguage.country), NULL, countrylanguage.Percentage)
@@ -702,7 +704,7 @@ Colombia	NULL
 Congo, The Democratic Republic of the	NULL
 Cuba	NULL
 Czech Republic	NULL
-Côte d?Ivoire	NULL
+Côte d’Ivoire	NULL
 Ecuador	NULL
 Egypt	NULL
 Ethiopia	NULL
@@ -770,15 +772,14 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	52	NULL	10	100.00	Using index condition; Using MRR
-1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	87.57	Using where; Using join buffer (Batched Key Access (unique))
+1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	208	NULL	9	100.00	Using index condition; Using MRR
+1	SIMPLE	city	NULL	ref	Population,Country	Country	12	world.country.Code	18	87.57	Using where; Using join buffer (Batched Key Access (unique))
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name` from `world`.`city` join `world`.`country` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`country`.`Name` like 'L%') and (`world`.`city`.`Population` > 100000))
 SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -793,6 +794,7 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 EXPLAIN
 SELECT city.Name, country.Name, countrylanguage.Language
 FROM city,country,countrylanguage
@@ -802,8 +804,8 @@ city.Name LIKE 'L%' AND country.Population > 3000000 AND
 countrylanguage.Percentage > 50;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	countrylanguage	NULL	range	PRIMARY,Percentage	Percentage	4	NULL	#	100.00	Using index condition; Using MRR
-1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	3	world.countrylanguage.Country	1	33.33	Using where; Using join buffer (Batched Key Access (unique))
-1	SIMPLE	city	NULL	ref	Country	Country	3	world.countrylanguage.Country	18	11.11	Using where; Using join buffer (Batched Key Access (unique))
+1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	12	world.countrylanguage.Country	1	33.33	Using where; Using join buffer (Batched Key Access (unique))
+1	SIMPLE	city	NULL	ref	Country	Country	12	world.countrylanguage.Country	18	11.11	Using where; Using join buffer (Batched Key Access (unique))
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name`,`world`.`countrylanguage`.`Language` AS `Language` from `world`.`city` join `world`.`country` join `world`.`countrylanguage` where ((`world`.`country`.`Code` = `world`.`countrylanguage`.`Country`) and (`world`.`city`.`Country` = `world`.`countrylanguage`.`Country`) and (`world`.`city`.`Name` like 'L%') and (`world`.`country`.`Population` > 3000000) and (`world`.`countrylanguage`.`Percentage` > 50))
 SELECT city.Name, country.Name, countrylanguage.Language
@@ -947,7 +949,7 @@ Luzhou	China	Chinese
 Luziânia	Brazil	Portuguese
 Lviv	Ukraine	Ukrainian
 Lyon	France	French
-Lysyt?ansk	Ukraine	Ukrainian
+Lysytšansk	Ukraine	Ukrainian
 L´Hospitalet de Llobregat	Spain	Spanish
 Lázaro Cárdenas	Mexico	Spanish
 Lódz	Poland	Polish
@@ -958,15 +960,14 @@ SELECT Name FROM city
 WHERE city.country IN (SELECT Code FROM country WHERE country.Name LIKE 'L%') AND
 city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	52	NULL	10	100.00	Using index condition; Using MRR
-1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	87.57	Using where; Using join buffer (Batched Key Access (unique))
+1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	208	NULL	9	100.00	Using index condition; Using MRR
+1	SIMPLE	city	NULL	ref	Population,Country	Country	12	world.country.Code	18	87.57	Using where; Using join buffer (Batched Key Access (unique))
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name` from `world`.`country` join `world`.`city` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Population` > 100000) and (`world`.`country`.`Name` like 'L%'))
 SELECT Name FROM city
 WHERE city.country IN (SELECT Code FROM country WHERE country.Name LIKE 'L%') AND
 city.Population > 100000;
 Name
-?iauliai
 Beirut
 Bengasi
 Daugavpils
@@ -981,6 +982,7 @@ Tripoli
 Tripoli
 Vientiane
 Vilnius
+Šiauliai
 set join_buffer_size=default;
 show variables like 'join_buffer_size';
 Variable_name	Value
@@ -1040,7 +1042,7 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND city.Population > 3000000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	city	NULL	range	Population,Country	Population	4	NULL	#	100.00	Using index condition; Using MRR
-1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	3	world.city.Country	#	100.00	Using join buffer (Batched Key Access (unique))
+1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	12	world.city.Country	#	100.00	Using join buffer (Batched Key Access (unique))
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name` from `world`.`city` join `world`.`country` where ((`world`.`country`.`Code` = `world`.`city`.`Country`) and (`world`.`city`.`Population` > 3000000))
 SELECT city.Name, country.Name FROM city,country
@@ -1098,7 +1100,6 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -1113,12 +1114,12 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
-ALTER TABLE country MODIFY Name varchar(300) NOT NULL default '';
+Šiauliai	Lithuania
+ALTER TABLE country MODIFY Name varchar(250) NOT NULL default '';
 SELECT city.Name, country.Name FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name
-?iauliai	Lithuania
 Beirut	Lebanon
 Bengasi	Libyan Arab Jamahiriya
 Daugavpils	Latvia
@@ -1133,6 +1134,7 @@ Tripoli	Lebanon
 Tripoli	Libyan Arab Jamahiriya
 Vientiane	Laos
 Vilnius	Lithuania
+Šiauliai	Lithuania
 ALTER TABLE country ADD COLUMN PopulationBar text;
 UPDATE country 
 SET PopulationBar=REPEAT('x', CAST(Population/100000 AS unsigned int));
@@ -1140,7 +1142,6 @@ SELECT city.Name, country.Name, country.PopulationBar FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name	PopulationBar
-?iauliai	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Beirut	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Bengasi	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Daugavpils	Latvia	xxxxxxxxxxxxxxxxxxxxxxxx
@@ -1155,12 +1156,12 @@ Tripoli	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Tripoli	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Vientiane	Laos	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Vilnius	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Šiauliai	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 set join_buffer_size=256;
 SELECT city.Name, country.Name, country.PopulationBar FROM city,country
 WHERE city.country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 Name	Name	PopulationBar
-?iauliai	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Beirut	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Bengasi	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Daugavpils	Latvia	xxxxxxxxxxxxxxxxxxxxxxxx
@@ -1175,6 +1176,7 @@ Tripoli	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Tripoli	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Vientiane	Laos	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Vilnius	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Šiauliai	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 set join_buffer_size=default;
 DROP DATABASE world;
 use test;
@@ -1331,7 +1333,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	100.00	Using join buffer (Batched Key Access (unique))
 1	SIMPLE	t7	NULL	ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	100.00	Using index
 1	SIMPLE	t8	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t7.artistid	1	100.00	Using join buffer (Batched Key Access (unique))
-1	SIMPLE	t4	NULL	ref	PRIMARY,t4_formatclassid,t4_formats_idx	t4_formats_idx	1	const	1	100.00	Using where; Using join buffer (Batched Key Access (unique))
+1	SIMPLE	t4	NULL	ref	PRIMARY,t4_formatclassid,t4_formats_idx	t4_formats_idx	4	const	1	100.00	Using where; Using join buffer (Batched Key Access (unique))
 1	SIMPLE	t5	NULL	eq_ref	PRIMARY,t5_formattypeid	PRIMARY	4	test.t4.formatclassid	1	50.00	Using where; Using join buffer (Batched Key Access (unique))
 1	SIMPLE	t9	NULL	ref	PRIMARY,t9_subgenreid,t9_metaid	t9_metaid	4	test.t1.metaid	2	100.00	Using join buffer (Batched Key Access (unique))
 1	SIMPLE	t10	NULL	eq_ref	PRIMARY,t10_genreid	PRIMARY	4	test.t9.subgenreid	1	100.00	Using join buffer (Batched Key Access (unique))
@@ -1477,12 +1479,12 @@ explain
 select t1.a, count(t2.p) as count
 from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using index; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	i_a	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using index; Using temporary
+1	SIMPLE	t2	NULL	ref	i_a	i_a	5	test.t1.a	2	100.00	Using where; Using join buffer (Batched Key Access (unique))
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,count(`test`.`t2`.`p`) AS `count` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` = `test`.`t2`.`a`) and ((`test`.`t2`.`p` % 2) = 1))) where 1 group by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,count(`test`.`t2`.`p`) AS `count` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and ((`test`.`t2`.`p` % 2) = 1))) where 1 group by `test`.`t1`.`a`
 select t1.a, count(t2.p) as count
-from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
+from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a asc;
 a	count
 1	1
 2	0
@@ -1806,22 +1808,22 @@ explain
 select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 group by t1.id1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx1	idx1	5	const	4	100.00	Using where; Using index; Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ref	idx1	idx1	5	const	4	100.00	Using where; Using index; Using temporary
 1	SIMPLE	t2	NULL	ref	idx2	idx2	5	test.t1.id1	2	100.00	Using join buffer (Batched Key Access (unique))
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,sum(`test`.`t2`.`id2`) AS `sum(t2.id2)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`id1` = `test`.`t1`.`id1`) and (`test`.`t1`.`d` = 3)) group by `test`.`t1`.`id1`
 select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 group by t1.id1;
 id1	sum(t2.id2)
-10	900
 20	2000
 30	900
+10	900
 explain
 select t1.id1  from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 and t2.id2 > 200 order by t1.id1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx1	idx1	5	const	4	100.00	Using index; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	idx2	NULL	NULL	NULL	12	3.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ref	idx1	idx1	5	const	4	100.00	Using where; Using index; Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ref	idx2	idx2	5	test.t1.id1	2	33.33	Using where; Using join buffer (Batched Key Access (unique))
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`id1` = `test`.`t1`.`id1`) and (`test`.`t1`.`d` = 3) and (`test`.`t2`.`id2` > 200)) order by `test`.`t1`.`id1`
 select t1.id1  from t1 join t2 on t1.id1=t2.id1 
@@ -1916,8 +1918,8 @@ WHERE t1.id1=t5.id1 AND t1.id2=t5.id2 and  t4.id2=t1.id2 AND
 t5.enum2='Active' AND t3.id4=t2.id4 AND t2.id3=t1.id3 AND t3.text1<'D';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	349	100.00	Using where
-1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t1.id3	1	100.00	Using join buffer (Batched Key Access (unique))
-1	SIMPLE	t3	NULL	ALL	PRIMARY	NULL	NULL	NULL	13	2.56	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t1.id3	1	100.00	Using where; Using join buffer (Batched Key Access (unique))
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t2.id4	1	33.33	Using where; Using join buffer (Batched Key Access (unique))
 1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t1.id2	1	100.00	Using join buffer (Batched Key Access (unique))
 1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	16	test.t1.id1,test.t1.id2	1	33.33	Using where; Using join buffer (Batched Key Access (unique))
 Warnings:
@@ -2111,7 +2113,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Using index
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` left join (`test`.`t1` join `test`.`t3` left join `test`.`t4` on(1)) on((1 and (`test`.`t1`.`a` = `test`.`t3`.`pk`))) where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` left join (`test`.`t1` join `test`.`t3` left join `test`.`t4` on(1)) on(((`test`.`t3`.`pk` = `test`.`t1`.`a`) and 1)) where 1
 SELECT 1
 FROM t2 LEFT JOIN
 ((t1 JOIN t3 ON t1.a = t3.pk)
@@ -2162,7 +2164,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	PRIMARY	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	index	carrier_id	carrier_id	5	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t3`.`carrier` = `test`.`t1`.`carrier`) and (`test`.`t3`.`id` = `test`.`t4`.`carrier_id`))) where 1
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`carrier_id` = `test`.`t3`.`id`) and (`test`.`t3`.`carrier` = `test`.`t1`.`carrier`))) where 1
 
 DROP TABLE t1,t2,t3,t4;
 #
@@ -2255,7 +2257,7 @@ where table3 .`pk` and table3 .`col_int_key`  >= table2 .`pk`
 and table3 .`col_varchar_key`  = table2 .`col_varchar_nokey`;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table3	NULL	ALL	col_varchar_key	NULL	NULL	NULL	2	50.00	Using where
-1	SIMPLE	table2	NULL	ALL	NULL	NULL	NULL	NULL	2	25.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	table2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`table2`.`col_int_key` AS `col_int_key` from `test`.`t1` `table2` join `test`.`t1` `table3` FORCE INDEX (`col_varchar_key`) where ((`test`.`table2`.`col_varchar_nokey` = `test`.`table3`.`col_varchar_key`) and `test`.`table3`.`pk` and (`test`.`table3`.`col_int_key` >= `test`.`table2`.`pk`))
 SELECT table2 .`col_int_key` FROM t1 table2,
@@ -2278,6 +2280,7 @@ KEY `col_int_key` (`col_int_key`)
 INSERT INTO t1 VALUES (2,'2003-02-11 21:19:41');
 INSERT INTO t1 VALUES (3,'2009-10-18 02:27:49');
 INSERT INTO t1 VALUES (0,'2000-09-26 07:45:57');
+INSERT INTO t1 VALUES (4,'2000-09-26 07:45:57');
 CREATE TABLE t2 (
 `col_int` int,
 `col_int_key` int,
@@ -2292,8 +2295,8 @@ GROUP BY t1.col_int_key
 ORDER BY t1.col_int_key, t1.col_datetime
 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	col_int_key	col_int_key	5	const	1	50.00	Using where; Using temporary; Using filesort
-1	SIMPLE	t1	NULL	ALL	col_int_key	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	col_int_key	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ref	col_int_key	col_int_key	5	const	1	50.00	Using where; Using join buffer (Batched Key Access (unique))
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_datetime` AS `col_datetime` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`col_int_key` = 1) and (`test`.`t2`.`col_int` >= 3)) group by `test`.`t1`.`col_int_key` order by `test`.`t1`.`col_int_key`,`test`.`t1`.`col_datetime` limit 2
 SELECT t1.col_int_key, t1.col_datetime 
@@ -2312,8 +2315,8 @@ GROUP BY t1.col_int_key
 ORDER BY t1.col_int_key, t1.col_datetime
 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	col_int_key	col_int_key	5	NULL	3	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	25.00	Using where
+1	SIMPLE	t1	NULL	index	col_int_key	col_int_key	5	NULL	4	100.00	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_datetime` AS `col_datetime` from `test`.`t1` FORCE INDEX (`col_int_key`) join `test`.`t2` IGNORE INDEX (`col_int_key`) where ((`test`.`t2`.`col_int_key` = 1) and (`test`.`t2`.`col_int` >= 3)) group by `test`.`t1`.`col_int_key` order by `test`.`t1`.`col_int_key`,`test`.`t1`.`col_datetime` limit 2
 SELECT t1.col_int_key, t1.col_datetime 
@@ -2350,6 +2353,8 @@ insert into t7 values("2000-01-01"),("2000-01-02");
 CREATE TABLE t3 (
 col582 char(230) CHARACTER SET utf8 DEFAULT NULL
 )  ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t3 VALUES ('cymej'),('spb');
 CREATE TABLE t5 (
 col712 time
@@ -2479,7 +2484,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t1	NULL	ref	col_int_key	col_int_key	4	func	1	100.00	Using where; Full scan on NULL key
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	1	100.00	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`c1` AS `c1` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`c1`,<exists>(/* select#2 */ select 1 from `test`.`t2` join `test`.`t1` where (<if>(outer_field_is_not_null, (<cache>(`test`.`t3`.`c1`) = `test`.`t1`.`c2_key`), true) and (`test`.`t2`.`pk` < `test`.`t1`.`c1`)))) xor 1)
+Note	1003	/* select#1 */ select `test`.`t3`.`c1` AS `c1` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`c1`,<exists>(/* select#2 */ select 1 from `test`.`t2` join `test`.`t1` where (<if>(outer_field_is_not_null, (<cache>(`test`.`t3`.`c1`) = `test`.`t1`.`c2_key`), true) and (`test`.`t2`.`pk` < `test`.`t1`.`c1`)))) xor TRUE)
 explain SELECT t3.c1 FROM t3
 WHERE t3.c1 = ANY (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
 XOR TRUE;
@@ -2488,7 +2493,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t1	NULL	ref	col_int_key	col_int_key	4	func	1	100.00	Using where; Full scan on NULL key
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	1	100.00	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`c1` AS `c1` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`c1`,<exists>(/* select#2 */ select 1 from `test`.`t2` join `test`.`t1` where (<if>(outer_field_is_not_null, (<cache>(`test`.`t3`.`c1`) = `test`.`t1`.`c2_key`), true) and (`test`.`t2`.`pk` < `test`.`t1`.`c1`)))) xor 1)
+Note	1003	/* select#1 */ select `test`.`t3`.`c1` AS `c1` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`c1`,<exists>(/* select#2 */ select 1 from `test`.`t2` join `test`.`t1` where (<if>(outer_field_is_not_null, (<cache>(`test`.`t3`.`c1`) = `test`.`t1`.`c2_key`), true) and (`test`.`t2`.`pk` < `test`.`t1`.`c1`)))) xor TRUE)
 explain SELECT t3.c1 FROM t3
 WHERE t3.c1 IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
 XOR TRUE;
@@ -2497,7 +2502,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t1	NULL	ref	col_int_key	col_int_key	4	func	1	100.00	Using where; Full scan on NULL key
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	1	100.00	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`c1` AS `c1` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`c1`,<exists>(/* select#2 */ select 1 from `test`.`t2` join `test`.`t1` where (<if>(outer_field_is_not_null, (<cache>(`test`.`t3`.`c1`) = `test`.`t1`.`c2_key`), true) and (`test`.`t2`.`pk` < `test`.`t1`.`c1`)))) xor 1)
+Note	1003	/* select#1 */ select `test`.`t3`.`c1` AS `c1` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`c1`,<exists>(/* select#2 */ select 1 from `test`.`t2` join `test`.`t1` where (<if>(outer_field_is_not_null, (<cache>(`test`.`t3`.`c1`) = `test`.`t1`.`c2_key`), true) and (`test`.`t2`.`pk` < `test`.`t1`.`c1`)))) xor TRUE)
 explain SELECT t3.c1 FROM t3
 WHERE t3.c1 NOT IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2560,10 +2565,10 @@ ON t1.col_varchar_key = t2.col_varchar_key
 GROUP BY field2
 ORDER BY field1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	col_int_key,col_varchar_key	col_varchar_key	7	NULL	3	100.00	Using index; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ref	col_varchar_key	col_varchar_key	3	test.t1.col_varchar_key	1	100.00	Using join buffer (Batched Key Access (unique))
+1	SIMPLE	t1	NULL	index	col_int_key,col_varchar_key	col_varchar_key	10	NULL	3	100.00	Using index; Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ref	col_varchar_key	col_varchar_key	6	test.t1.col_varchar_key	1	100.00	Using join buffer (Batched Key Access (unique))
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t2`.`col_datetime_key`) AS `field1`,`test`.`t1`.`col_int_key` AS `field2` from `test`.`t1` left join `test`.`t2` FORCE INDEX (`col_varchar_key`) on((`test`.`t1`.`col_varchar_key` = `test`.`t2`.`col_varchar_key`)) where 1 group by `field2` order by `field1`
+Note	1003	/* select#1 */ select min(`test`.`t2`.`col_datetime_key`) AS `field1`,`test`.`t1`.`col_int_key` AS `field2` from `test`.`t1` left join `test`.`t2` FORCE INDEX (`col_varchar_key`) on((`test`.`t2`.`col_varchar_key` = `test`.`t1`.`col_varchar_key`)) where 1 group by `field2` order by `field1`
 SELECT MIN(t2.col_datetime_key) AS field1,
 t1.col_int_key AS field2  
 FROM t1
@@ -2623,7 +2628,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using temporary; Using filesort
 1	SIMPLE	t1	NULL	ref	col_int_key	col_int_key	4	test.t2.pk	2	100.00	Using join buffer (Batched Key Access (unique))
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`col_varchar_key` AS `field1`,count(distinct `test`.`t1`.`col_varchar_nokey`) AS `COUNT(DISTINCT t1.col_varchar_nokey)`,`test`.`t2`.`pk` AS `field4` from `test`.`t2` left join `test`.`t1` on((`test`.`t2`.`pk` = `test`.`t1`.`col_int_key`)) where 1 group by `field1`,`field4` order by `test`.`t1`.`col_datetime_key`
+Note	1003	/* select#1 */ select `test`.`t2`.`col_varchar_key` AS `field1`,count(distinct `test`.`t1`.`col_varchar_nokey`) AS `COUNT(DISTINCT t1.col_varchar_nokey)`,`test`.`t2`.`pk` AS `field4` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`col_int_key` = `test`.`t2`.`pk`)) where 1 group by `field1`,`field4` order by `test`.`t1`.`col_datetime_key`
 SELECT t2.col_varchar_key AS field1 , COUNT(DISTINCT t1.col_varchar_nokey), t2.pk AS field4
 FROM t1
 RIGHT JOIN t2 ON t2.pk = t1.col_int_key 
@@ -2687,7 +2692,7 @@ GROUP BY field1, field4
 LIMIT 15;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	16	100.00	Using temporary; Using filesort
+1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	16	100.00	Using temporary
 1	SIMPLE	alias3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias2.col_int_nokey	1	100.00	Using join buffer (Batched Key Access (unique))
 Warnings:
 Note	1003	/* select#1 */ select NULL AS `field1`,`test`.`alias2`.`col_int_key` AS `field4` from `test`.`t2` `alias2` straight_join `test`.`t2` `alias3` where (`test`.`alias3`.`pk` = `test`.`alias2`.`col_int_nokey`) group by `field1`,`field4` limit 15
@@ -2729,7 +2734,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using join buffer (Batched Key Access (unique))
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `t2_pk`,`test`.`t4`.`pk` AS `t4_pk`,`test`.`t4`.`k` AS `t4_k`,`test`.`t4`.`i` AS `t4_i` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`k` = `test`.`t2`.`pk`)) left join `test`.`t3` on(`test`.`t3`.`i`) left join `test`.`t4` on((`test`.`t4`.`pk` = `test`.`t2`.`pk`)) where 1
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `t2_pk`,`test`.`t4`.`pk` AS `t4_pk`,`test`.`t4`.`k` AS `t4_k`,`test`.`t4`.`i` AS `t4_i` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`pk` = `test`.`t1`.`k`)) left join `test`.`t3` on(`test`.`t3`.`i`) left join `test`.`t4` on((`test`.`t4`.`pk` = `test`.`t2`.`pk`)) where 1
 SELECT t2.pk as t2_pk, t4.pk as t4_pk, t4.k as t4_k, t4.i
 as t4_i FROM t1
 LEFT JOIN t2 ON t1.k = t2.pk
@@ -2786,9 +2791,9 @@ LEFT JOIN t3 ON t2.pk = t3.pk
 LEFT JOIN t4 ON t4.pk = t2.pk
 WHERE t1.col_int OR t3.col_int;
 col_int
-2
 3
 1
+2
 NULL
 NULL
 DROP TABLE t1, t2, t3, t4;
@@ -2838,7 +2843,7 @@ AND t1.col_int_nokey IS NULL )
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	parent1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	child1	NULL	index_subquery	col_varchar_key	col_varchar_key	4	func	2	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	child1	NULL	index_subquery	col_varchar_key	col_varchar_key	7	func	2	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'test.parent1.col_datetime_nokey' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.col_int_nokey' of SELECT #2 was resolved in SELECT #1

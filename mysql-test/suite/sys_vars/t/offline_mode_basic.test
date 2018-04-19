@@ -4,7 +4,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/not_embedded.inc
 
 --echo #
 --echo # Variable name : offline_mode
@@ -29,9 +28,9 @@ SET @@global.offline_mode= 100;
 SET @@global.offline_mode= WRONGVALUE;
 --echo
 
---echo # via INFORMATION_SCHEMA.GLOBAL_VARIABLES
+--echo # via performance_schema.global_variables
 --disable_warnings
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME LIKE 'offline_mode';
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'offline_mode';
 --enable_warnings
 
 # Save the global value to be used to restore the original value.

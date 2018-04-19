@@ -1,0 +1,117 @@
+--echo #
+--echo # Bug#26136509 ADD A MAX_RECURSION VARIABLE TO LIMIT RECURSION IN CTES
+--echo #
+
+SELECT @@cte_max_recursion_depth;
+
+# UNION ALL then UNION DISTINCT
+
+let $c=2;
+while ($c)
+{
+if ($c == 2)
+{
+  let $union=ALL;
+}
+if ($c == 1)
+{
+  let $union=DISTINCT;
+}
+dec $c;
+
+# One recursive query block which generates 1 row per input row.
+# With the @m variable, we control how many iterations this query will
+# want to do. By varying @m we can thus make it hit the cap or not.
+
+let $q=
+WITH RECURSIVE qn AS (
+SELECT 1 AS a UNION $union
+SELECT 1+a FROM qn WHERE a<@m)
+SELECT COUNT(*) FROM qn;
+
+SET @m = 1001;
+--error ER_CTE_MAX_RECURSION_DEPTH
+eval $q;
+
+SET @m = 1000;
+eval $q;
+
+SET cte_max_recursion_depth=10;
+
+SET @m = 11;
+--error ER_CTE_MAX_RECURSION_DEPTH
+eval $q;
+
+SET @m = 10;
+eval $q;
+
+set cte_max_recursion_depth=default;
+
+# 3 recursive query blocks. Each of them operates on its own data only.
+
+let $q=
+WITH RECURSIVE qn AS
+(SELECT 1 AS a, 0 AS b UNION $union
+SELECT 1+a, 1 FROM qn WHERE b IN (0,1) AND a<@m UNION $union
+SELECT 1+a, 2 FROM qn WHERE b IN (0,2) AND a<@m UNION $union
+SELECT 1+a, 3 FROM qn WHERE b IN (0,3) AND a<@m
+) SELECT COUNT(*) FROM qn;
+
+SET @m = 1001;
+--error ER_CTE_MAX_RECURSION_DEPTH
+eval $q;
+
+SET @m = 999;
+eval $q;
+
+# You may wonder why there is a difference of 2, instead of 1, in the
+# above values of @m. It is because with @m=1000, UNION ALL will throw
+# error, while DISTINCT will not; which is because in UNION ALL, the
+# first recursive query blocks need an extra pass over what the last
+# one has produced, whereas in UNION DISTINCT, the three blocks walk
+# in lock-step. So the count of iterations is higher for ALL. This
+# difference is bounded by the number of query blocks, which is small
+# enough. cte_max_recursion_depth does not intend to be 100% exact.
+
+SET cte_max_recursion_depth=10;
+
+SET @m = 11;
+--error ER_CTE_MAX_RECURSION_DEPTH
+eval $q;
+
+SET @m = 9;
+eval $q;
+
+SET cte_max_recursion_depth=DEFAULT;
+
+# One recursive query block which generates 2 rows per input row.
+# Each iteration thus generates twice more rows than the previous.
+
+let $q=
+WITH RECURSIVE
+onetwo(b) AS (SELECT 1 UNION SELECT 2),
+qn AS (
+SELECT 1 AS a, 0 AS b UNION $union
+SELECT 1+a, onetwo.b FROM onetwo, qn WHERE a<@m)
+SELECT COUNT(*) FROM qn;
+
+SET cte_max_recursion_depth=10;
+
+SET @m = 11;
+--error ER_CTE_MAX_RECURSION_DEPTH
+eval $q;
+
+SET @m = 10;
+eval $q;
+
+SET cte_max_recursion_depth=default;
+
+}
+
+# Test that we can block any recursive query
+SET cte_max_recursion_depth=0;
+--error ER_CTE_MAX_RECURSION_DEPTH
+WITH RECURSIVE qn AS (
+SELECT 1 AS a UNION ALL
+SELECT 1+a FROM qn WHERE a<0)
+SELECT COUNT(*) FROM qn;

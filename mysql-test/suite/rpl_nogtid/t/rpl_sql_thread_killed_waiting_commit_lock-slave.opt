@@ -1,0 +1,2 @@
+--sync-relay-log-info=1
+--local-infile=true

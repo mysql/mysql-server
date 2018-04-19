@@ -1,29 +1,39 @@
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(a VARCHAR(255) CHARACTER SET gbk, FULLTEXT(a)) ENGINE = InnoDB;
-SET NAMES utf8;
+SET NAMES utf8mb4;
 DELETE FROM t1 LIMIT 1;
 SET NAMES latin1;
 DROP TABLE t1;
 CREATE TABLE t1(a VARCHAR(2) CHARACTER SET big5 COLLATE big5_chinese_ci,
 FULLTEXT(a)) ENGINE=<default_engine>;
 DROP TABLE t1;
-SET NAMES utf8;
+SET NAMES utf8mb4;
 CREATE TABLE t1(a VARCHAR(255) CHARACTER SET gb18030, FULLTEXT(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES(0xF043616161),(0xBEF361616197C22061616161);
 SELECT CONVERT(a USING utf8) FROM t1;
 CONVERT(a USING utf8)
 餋aaa
 倔aaa椔 aaaa
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT CONVERT(_gb18030 0x97C22061616161 USING utf8);
 CONVERT(_gb18030 0x97C22061616161 USING utf8)
 椔 aaaa
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT HEX(a), CONVERT(a USING utf8) FROM t1 WHERE MATCH(a) AGAINST(0x97C220616161 IN BOOLEAN MODE);
 HEX(a)	CONVERT(a USING utf8)
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT HEX(a), CONVERT(a USING utf8) FROM t1 WHERE MATCH(a) AGAINST(0x97C22061616161 IN BOOLEAN MODE);
 HEX(a)	CONVERT(a USING utf8)
 BEF361616197C22061616161	倔aaa椔 aaaa
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT HEX(a), CONVERT(a USING utf8) FROM t1 WHERE MATCH(a) AGAINST(0x97C2206161616161 IN BOOLEAN MODE);
 HEX(a)	CONVERT(a USING utf8)
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET NAMES latin1;
 DROP TABLE t1;
 CREATE TABLE t1 (a TEXT, FULLTEXT(a)) ENGINE=InnoDB DEFAULT CHARSET=gb18030 COLLATE=gb18030_bin;
@@ -42,3 +52,40 @@ a
 SELECT * FROM t3 WHERE MATCH(a) AGAINST(0xfe00feff8320218400010203);
 a
 DROP TABLE t1, t2, t3;
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE TABLE t1(a VARCHAR(255) CHARACTER SET utf8mb4, FULLTEXT(a)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0xC4B4616161),(0xE1B48C616161E292A92061616161);
+SELECT HEX(a), a FROM t1;
+HEX(a)	a
+C4B4616161	Ĵaaa
+E1B48C616161E292A92061616161	ᴌaaa⒩ aaaa
+SELECT HEX(a), a FROM t1 WHERE MATCH(a) AGAINST(0xE292A920616161 IN BOOLEAN MODE);
+HEX(a)	a
+SELECT HEX(a), a FROM t1 WHERE MATCH(a) AGAINST(0xE292A92061616161 IN BOOLEAN MODE);
+HEX(a)	a
+E1B48C616161E292A92061616161	ᴌaaa⒩ aaaa
+SELECT HEX(a), a FROM t1 WHERE MATCH(a) AGAINST(0xE292A9206161616161 IN BOOLEAN MODE);
+HEX(a)	a
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES("abcd");
+INSERT INTO t1 VALUES("áƀcd");
+INSERT INTO t1 VALUES("áƀde");
+INSERT INTO t1 VALUES("áƀテストde");
+SELECT HEX(a), a FROM t1;
+HEX(a)	a
+61626364	abcd
+C3A1C6806364	áƀcd
+C3A1C6806465	áƀde
+C3A1C680E38386E382B9E383886465	áƀテストde
+SELECT HEX(a), a FROM t1 WHERE MATCH(a) AGAINST("ab" IN BOOLEAN MODE);
+HEX(a)	a
+SELECT HEX(a), a FROM t1 WHERE MATCH(a) AGAINST("abcd" IN BOOLEAN MODE);
+HEX(a)	a
+61626364	abcd
+SELECT HEX(a), a FROM t1 WHERE MATCH(a) AGAINST("áƀ*" IN BOOLEAN MODE);
+HEX(a)	a
+C3A1C6806364	áƀcd
+C3A1C6806465	áƀde
+C3A1C680E38386E382B9E383886465	áƀテストde
+SET NAMES latin1;
+DROP TABLE t1;

@@ -1,0 +1,81 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. verify that performance schema keys are available in instrument
+#    table immediately after plugin installation
+#    (before starting the GR).
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE '%group_rpl%' AND NAME NOT LIKE 'wait/synch/%/group_rpl/GCS_%';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/group_rpl/LOCK_applier_module_run	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_applier_module_suspend	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_certifier_broadcast_run	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_certifier_broadcast_dispatcher_run	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_certification_info	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_certification_members	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_channel_observation_list	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_delayed_init_run	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_delayed_init_server_ready	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/key_GR_LOCK_group_part_handler_run	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/key_GR_LOCK_group_part_handler_abort	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_view_modification_wait	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_group_info_manager	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_pipeline_continuation	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_synchronized_queue	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_count_down_latch	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_wait_ticket	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_recovery_module_run	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_recovery	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_recovery_donor_selection	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_session_thread_method_exec	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_session_thread_run	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_plugin_running	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_force_members_running	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_write_lock_protection	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_pipeline_stats_flow_control	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_pipeline_stats_transactions_waiting_apply	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_transaction_unblocking	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_plugin_online	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_channel_observation_removal	YES	YES	singleton	0	NULL
+wait/synch/rwlock/group_rpl/RWLOCK_certifier_stable_gtid_set	YES	YES	singleton	0	NULL
+wait/synch/rwlock/group_rpl/RWLOCK_io_cache_unused_list	YES	YES	singleton	0	NULL
+wait/synch/rwlock/group_rpl/RWLOCK_plugin_stop	YES	YES	singleton	0	NULL
+wait/synch/rwlock/group_rpl/RWLOCK_gcs_operations	YES	YES	singleton	0	NULL
+wait/synch/rwlock/group_rpl/RWLOCK_gcs_operations_finalize_ongoing	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_applier_module_run	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_applier_module_suspend	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_applier_module_wait	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_certifier_broadcast_run	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_certifier_broadcast_dispatcher_run	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_delayed_init_run	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_delayed_init_server_ready	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_group_part_handler_run	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_group_part_handler_abort	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_view_modification_wait	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_pipeline_continuation	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_synchronized_queue	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_count_down_latch	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_wait_ticket	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_recovery_module_run	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_recovery	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_session_thread_method_exec	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_session_thread_run	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_pipeline_stats_flow_control	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_write_lock_protection	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_plugin_online	YES	YES	singleton	0	NULL
+
+############################################################
+# 2. Start the GR
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 3. Verify that there are no extra psi keys that were added
+#   after starting the GR
+include/assert.inc ['There should be no extra psi keys added after starting the GR']
+
+############################################################
+# 4. Test end.
+include/group_replication_end.inc

@@ -19,7 +19,7 @@ Table	Create Table
 no_index_tab	CREATE TABLE `no_index_tab` (
   `a` varchar(255) NOT NULL,
   `b` int(11) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into marker set a = 1;
 create view test.v1 as select * from test.no_index_tab;
 insert into marker set a = 1;
@@ -52,7 +52,7 @@ insert into marker set a = 1;
 optimize table test.v1;
 Table	Op	Msg_type	Msg_text
 test.v1	optimize	Error	'test.v1' is not BASE TABLE
-test.v1	optimize	error	Corrupt
+test.v1	optimize	status	Operation failed
 insert into marker set a = 1;
 select * from test.v1;
 a	b
@@ -112,7 +112,7 @@ wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	2
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
-show global status like 'performance_schema_%';
+show global status like 'performance_schema_%_lost';
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0

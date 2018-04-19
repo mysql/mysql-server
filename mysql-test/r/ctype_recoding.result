@@ -3,11 +3,13 @@ DROP TABLE IF EXISTS ‘¡¬Ã…√¡, t1, t2;
 SET CHARACTER SET koi8r;
 CREATE TABLE t1 (a CHAR(10) CHARACTER SET cp1251) SELECT _koi8r'–“œ¬¡' AS a;
 CREATE TABLE t2 (a CHAR(10) CHARACTER SET utf8);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT a FROM t1;
 a
 –“œ¬¡
@@ -27,11 +29,13 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaasssssssssssaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 DROP TABLE t1;
 CREATE TABLE t1 (a TEXT CHARACTER SET cp1251) SELECT _koi8r'–“œ¬¡' AS a;
 CREATE TABLE t2 (a TEXT CHARACTER SET utf8);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text CHARACTER SET cp1251
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT HEX(a) FROM t1;
 HEX(a)
 EFF0EEE1E0
@@ -50,8 +54,8 @@ Tables_in_test
 SHOW CREATE TABLE ‘¡¬Ã…√¡;
 Table	Create Table
 ‘¡¬Ã…√¡	CREATE TABLE `‘¡¬Ã…√¡` (
-  `–œÃ≈` char(32) CHARACTER SET koi8r NOT NULL COMMENT 'ÀœÕÕ≈Œ‘¡“…  –œÃ—'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='ÀœÕÕ≈Œ‘¡“…  ‘¡¬Ã…√Ÿ'
+  `–œÃ≈` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL COMMENT 'ÀœÕÕ≈Œ‘¡“…  –œÃ—'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='ÀœÕÕ≈Œ‘¡“…  ‘¡¬Ã…√Ÿ'
 SHOW FIELDS FROM ‘¡¬Ã…√¡;
 Field	Type	Null	Key	Default	Extra
 –œÃ≈	char(32)	NO		NULL	
@@ -62,8 +66,8 @@ Tables_in_test
 SHOW CREATE TABLE Ú‡·ÎËˆ‡;
 Table	Create Table
 Ú‡·ÎËˆ‡	CREATE TABLE `Ú‡·ÎËˆ‡` (
-  `ÔÓÎÂ` char(32) CHARACTER SET koi8r NOT NULL COMMENT 'ÍÓÏÏÂÌÚ‡ËÈ ÔÓÎˇ'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='ÍÓÏÏÂÌÚ‡ËÈ Ú‡·ÎËˆ˚'
+  `ÔÓÎÂ` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL COMMENT 'ÍÓÏÏÂÌÚ‡ËÈ ÔÓÎˇ'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='ÍÓÏÏÂÌÚ‡ËÈ Ú‡·ÎËˆ˚'
 SHOW FIELDS FROM Ú‡·ÎËˆ‡;
 Field	Type	Null	Key	Default	Extra
 ÔÓÎÂ	char(32)	NO		NULL	
@@ -74,8 +78,8 @@ Tables_in_test
 SHOW CREATE TABLE —Ç–∞–±–ª–∏—Ü–∞;
 Table	Create Table
 —Ç–∞–±–ª–∏—Ü–∞	CREATE TABLE `—Ç–∞–±–ª–∏—Ü–∞` (
-  `–ø–æ–ª–µ` char(32) CHARACTER SET koi8r NOT NULL COMMENT '–∫–æ–º–º–µ–Ω—Ç–∞—Ä–∏–π –ø–æ–ª—è'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='–∫–æ–º–º–µ–Ω—Ç–∞—Ä–∏–π —Ç–∞–±–ª–∏—Ü—ã'
+  `–ø–æ–ª–µ` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL COMMENT '–∫–æ–º–º–µ–Ω—Ç–∞—Ä–∏–π –ø–æ–ª—è'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='–∫–æ–º–º–µ–Ω—Ç–∞—Ä–∏–π —Ç–∞–±–ª–∏—Ü—ã'
 SHOW FIELDS FROM —Ç–∞–±–ª–∏—Ü–∞;
 Field	Type	Null	Key	Default	Extra
 –ø–æ–ª–µ	char(32)	NO		NULL	
@@ -83,7 +87,11 @@ SET CHARACTER SET koi8r;
 DROP TABLE ‘¡¬Ã…√¡;
 SET CHARACTER SET default;
 SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (t text) DEFAULT CHARSET UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (t) VALUES ('x');
 SELECT 1 FROM t1 WHERE CONCAT(_latin1'x') = t;
 1
@@ -118,13 +126,15 @@ SHOW CREATE TABLE `—Ç–µ—Å—Ç`;
 Table	Create Table
 —Ç–µ—Å—Ç	CREATE TABLE `—Ç–µ—Å—Ç` (
   `—Ç–µ—Å—Ç` int(11) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE TABLE `—Ç–µ—Å—Ç`;
 Table	Create Table
 —Ç–µ—Å—Ç	CREATE TABLE `—Ç–µ—Å—Ç` (
   `—Ç–µ—Å—Ç` int(11) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `—Ç–µ—Å—Ç`;
 SET NAMES binary;
 SET character_set_connection=utf8;
@@ -132,6 +142,8 @@ SELECT '—Ç–µ—Å—Ç' as s;
 s
 —Ç–µ—Å—Ç
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET character_set_connection=binary;
 SELECT '—Ç–µ—Å—Ç' as s;
 s
@@ -143,7 +155,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `‰` char(128) DEFAULT '‰',
   `‰1` enum('‰1','‰2') DEFAULT '‰2'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 ‰	char(128)	YES		‰	
@@ -154,7 +166,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `√§` char(128) DEFAULT '√§',
   `√§1` enum('√§1','√§2') DEFAULT '√§2'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 √§	char(128)	YES		√§	
@@ -164,6 +176,8 @@ SET NAMES binary;
 CREATE TABLE `good–Ãœ»œ` (a int);
 ERROR HY000: Invalid utf8 character string: 'good\xD0\xCC\xCF\xC8\xCF'
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `good–Ãœ»œ` (a int);
 ERROR HY000: Invalid utf8 character string: 'good\xD0\xCC\xCF\xC8\xCF'
 set names latin1;
@@ -196,6 +210,8 @@ a
 drop table t1;
 set names latin1;
 create table t1 (a char(10) character set utf8 collate utf8_bin);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('       xxx');
 select * from t1 where a=lpad('xxx',10,' ');
 a
@@ -261,8 +277,8 @@ create table t1(a char character set cp1251 default _koi8r 0xFF);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(1) CHARACTER SET cp1251 DEFAULT 'ˇ'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `a` char(1) CHARACTER SET cp1251 COLLATE cp1251_general_ci DEFAULT 'ˇ'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1(a char character set latin1 default _cp1251 0xFF);
 ERROR 42000: Invalid default value for 'a'

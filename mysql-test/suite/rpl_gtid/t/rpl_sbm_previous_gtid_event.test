@@ -1,0 +1,110 @@
+###############################################################################
+# Bug #18622657 SECONDS_BEHIND_MASTER DISTORTED BECAUSE OF
+# PREVIOUS_GTID EVENT
+# Problem: Previous gtid log event in relay log should not be contributed to
+#  seconds behind master calculation.
+# Steps to reproduce:
+#  1) Try all 6 different possible rotations (new relay log files)
+#  2) Execute SBM after every previous_gtid_log_event execution from each
+#     log file and make sure that timestamp is not considered for SBM
+#     calculation.
+###############################################################################
+--source include/have_debug_sync.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+--source include/have_binlog_format_statement.inc
+
+# Set sync debug point to calculate sbm exactly after every
+#  previous_gtid_log_event.
+--connection slave
+SET @save_global_debug=@@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,dbug.calculate_sbm_after_previous_gtid_log_event';
+
+# To avoid warning MTS
+SET @saved_slave_transaction_retries=@@global.slave_transaction_retries;
+SET @@global.slave_transaction_retries=0;
+# Previous gtid log events are generated at the time of
+#  relay log is rotated and will be written at the top
+#  of the relay log. There are few ways in which
+#  relay log gets rotated. Lets find out SBM after
+#  Previous_gtid_log_event execution in all those
+#  of relay logs
+
+# Case-1 :At the time of server started, a new relaylog
+#  slave-relay-bin.000001
+--connection slave
+--let $slave_datadir=`select @@datadir`
+
+# Case-2 : Start IO thread , relay log will be rotated to
+#  slave-relay-bin.000002
+--source include/start_slave_io.inc
+
+# Case-3 : Restart IO thread, relay log will be rotated to
+#  slave-relay-bin.000003
+--source include/stop_slave_io.inc
+--source include/start_slave_io.inc
+
+# Case-4 Lets put (more than) 4096 data in binary log and when it
+#  reaches slave, relaylog will be rotated (please relay-log-file-size
+#  is set to in .opt file) to slave-relay-bin.000004/
+--connection master
+CREATE TABLE t1(i INT);
+--let $i=20
+while ($i > 1)
+{
+eval INSERT INTO t1 VALUES ($i);
+dec $i;
+}
+DROP TABLE t1;
+
+# Case-5 (FLUSH LOGS on slave will rotate to relaylog
+#  slave-relay-bin.000005)
+--connection slave
+FLUSH LOGS;
+
+# Case-6 (FLUSH LOGS on master will reach slave and relaylog will be rotated
+# at slave, generating two new slave bins slave-relay-bin.000006,
+# slave-relay-bin.000007)
+--connection master
+FLUSH LOGS;
+--source include/sync_slave_io_with_master.inc
+
+#####################################
+#                                   #
+#    Actual testing starts here.    #
+#                                   #
+#####################################
+
+# Let SQL thread read and execute all 7 slave-relay-bin's
+#  previous_gtid_log_events and SBM cannot be greater or equal to
+#  $idle seconds.
+--source include/start_slave_sql.inc
+
+# Just to fake that I/O thread started 3 mints ago,
+#  the server changes the I/O thread start time to
+#  now() - 180 seconds (3 mints ago) instead of now()
+#  using debug point 'calculate_sbm_after_previous_gtid_log_event'.
+#  But that 3 mints delay should not be seen when
+#  some one asks for SBM after Previous_gtid_log_event and
+#  this test script try to test that below.
+--let $idle=180
+
+--let $i=0
+while ($i < 7)
+{
+SET DEBUG_SYNC="now wait_for signal.reached";
+
+# Calcualte SBM
+let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
+--let $assert_text= Seconds Behind Master should be less than $idle seconds.
+--let $assert_cond= $sbm < $idle
+--source include/assert.inc
+
+SET DEBUG_SYNC="now signal signal.done_sbm_calculation";
+--inc $i
+}
+
+# Cleanup
+SET @@GLOBAL.DEBUG=@save_global_debug;
+SET @@global.slave_transaction_retries=@saved_slave_transaction_retries;
+--source include/rpl_end.inc

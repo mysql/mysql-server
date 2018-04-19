@@ -73,10 +73,10 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          "filtered": "100.00",
            "range_checked_for_each_record": "index map: 0x1",
 @@ -108,5 +113,5 @@
-             "read_cost": "2.02",
--            "eval_cost": "1.60",
-+            "eval_cost": "5.60",
-             "prefix_cost": "20.02",
+             "read_cost": "0.50",
+-            "eval_cost": "0.80",
++            "eval_cost": "2.80",
+             "prefix_cost": "7.01",
 -            "data_read_per_join": "128"
 +            "data_read_per_join": "448"
            },
@@ -113,7 +113,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -        "query_block": {
 -          "select_id": 2,
 -          "cost_info": {
--            "query_cost": "6.50"
+-            "query_cost": "3.00"
 -          },
 -          "grouping_operation": {
 -            "using_filesort": false,
@@ -133,9 +133,9 @@ Diff: EXPLAIN NORMAL vs OTHER
 -              "filtered": "100.00",
 -              "using_index_for_group_by": true,
 -              "cost_info": {
--                "read_cost": "4.30",
--                "eval_cost": "2.20",
--                "prefix_cost": "6.50",
+-                "read_cost": "1.90",
+-                "eval_cost": "1.10",
+-                "prefix_cost": "3.00",
 -                "data_read_per_join": "176"
 -              },
 -              "used_columns": [
@@ -163,10 +163,10 @@ Diff: EXPLAIN NORMAL vs OTHER
 +        "index_condition": true,
 +        "using_where": true,
          "cost_info": {
-           "read_cost": "2.00",
--          "eval_cost": "0.16",
-+          "eval_cost": "0.80",
-           "prefix_cost": "2.80",
+           "read_cost": "0.50",
+-          "eval_cost": "0.08",
++          "eval_cost": "0.40",
+           "prefix_cost": "0.90",
 -          "data_read_per_join": "38"
 +          "data_read_per_join": "192"
          },
@@ -215,17 +215,17 @@ Diff: EXPLAIN NORMAL vs OTHER
 +            "using_where": true,
              "using_index": true,
 @@ -52,5 +53,5 @@
-               "read_cost": "1.00",
--              "eval_cost": "0.10",
-+              "eval_cost": "0.20",
-               "prefix_cost": "1.20",
+               "read_cost": "0.25",
+-              "eval_cost": "0.05",
++              "eval_cost": "0.10",
+               "prefix_cost": "0.35",
 -              "data_read_per_join": "8"
 +              "data_read_per_join": "16"
              },
 @@ -59,4 +60,3 @@
                "f2"
 -            ],
--            "attached_condition": "((`test`.`t2`.`f1` <=> 4) and (`test`.`t2`.`f2` is not null))"
+-            "attached_condition": "(`test`.`t2`.`f2` is not null)"
 +            ]
            }
 QUERY: SELECT * FROM t3 AS a INNER JOIN t3 AS b USING (id) WHERE a.ref < b.ref 
@@ -240,10 +240,10 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          "filtered": "100.00",
 +          "using_where": true,
            "cost_info": {
-             "read_cost": "10.00",
--            "eval_cost": "0.67",
-+            "eval_cost": "2.00",
-             "prefix_cost": "15.02",
+             "read_cost": "2.50",
+-            "eval_cost": "0.33",
++            "eval_cost": "1.00",
+             "prefix_cost": "4.76",
 -            "data_read_per_join": "53"
 +            "data_read_per_join": "160"
            },
@@ -265,10 +265,10 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          "filtered": "100.00",
 +          "using_where": true,
            "cost_info": {
-             "read_cost": "10.00",
--            "eval_cost": "0.67",
-+            "eval_cost": "2.00",
-             "prefix_cost": "15.02",
+             "read_cost": "2.50",
+-            "eval_cost": "0.33",
++            "eval_cost": "1.00",
+             "prefix_cost": "4.76",
 -            "data_read_per_join": "53"
 +            "data_read_per_join": "160"
            },
@@ -307,7 +307,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -49,4 +50,3 @@
              "s1"
 -          ],
--          "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t1`.`id` = `test`.`t2`.`id`), true)"
+-          "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t2`.`id` = `test`.`t1`.`id`), true)"
 +          ]
          }
 QUERY: SELECT * from t1 where a = 1 and b is null order by a desc, b desc 
@@ -347,10 +347,10 @@ Diff: EXPLAIN NORMAL vs OTHER
 +        "index_condition": true,
 +        "using_where": true,
          "cost_info": {
-           "read_cost": "1.00",
--          "eval_cost": "0.15",
-+          "eval_cost": "0.20",
-           "prefix_cost": "1.20",
+           "read_cost": "0.25",
+-          "eval_cost": "0.08",
++          "eval_cost": "0.10",
+           "prefix_cost": "0.35",
 -          "data_read_per_join": "12"
 +          "data_read_per_join": "16"
          },
@@ -374,10 +374,10 @@ Diff: EXPLAIN NORMAL vs OTHER
 +        "index_condition": true,
 +        "using_where": true,
          "cost_info": {
-           "read_cost": "1.00",
--          "eval_cost": "0.15",
-+          "eval_cost": "0.20",
-           "prefix_cost": "1.20",
+           "read_cost": "0.25",
+-          "eval_cost": "0.08",
++          "eval_cost": "0.10",
+           "prefix_cost": "0.35",
 -          "data_read_per_join": "12"
 +          "data_read_per_join": "16"
          },
@@ -407,26 +407,25 @@ QUERY: SELECT s.oxid FROM t1 v, t1 s  WHERE s.oxrootid = 'd8c4177d09f8b11f5.5272
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -50,4 +50,5 @@
-           "rows_examined_per_scan": 6,
--          "rows_produced_per_join": 2,
--          "filtered": "9.26",
+@@ -58,9 +58,10 @@
+           "rows_examined_per_scan": 5,
+-          "rows_produced_per_join": 4,
+-          "filtered": "16.67",
 +          "rows_produced_per_join": 25,
-+          "filtered": "83.33",
++          "filtered": "100.00",
 +          "using_where": true,
-           "using_join_buffer": "Block Nested Loop",
-@@ -55,5 +56,5 @@
-             "read_cost": "2.34",
--            "eval_cost": "0.56",
-+            "eval_cost": "5.00",
-             "prefix_cost": "10.34",
--            "data_read_per_join": "311"
+           "cost_info": {
+             "read_cost": "2.50",
+-            "eval_cost": "0.42",
++            "eval_cost": "2.50",
+             "prefix_cost": "6.00",
+-            "data_read_per_join": "466"
 +            "data_read_per_join": "2K"
            },
-@@ -63,4 +64,3 @@
+@@ -70,4 +71,3 @@
              "OXROOTID"
 -          ],
--          "attached_condition": "((`test`.`s`.`OXROOTID` = 'd8c4177d09f8b11f5.52725521') and (`test`.`s`.`OXLEFT` > `test`.`v`.`OXLEFT`) and (`test`.`s`.`OXLEFT` < `test`.`v`.`OXRIGHT`))"
+-          "attached_condition": "((`test`.`s`.`OXLEFT` > `test`.`v`.`OXLEFT`) and (`test`.`s`.`OXLEFT` < `test`.`v`.`OXRIGHT`))"
 +          ]
          }
 QUERY: SELECT * from t1 where b = (select b from t2 where t1.a = t2.a) 
@@ -458,7 +457,7 @@ Diff: EXPLAIN NORMAL vs OTHER
            "query_block": {
              "select_id": 2,
 -            "cost_info": {
--              "query_cost": "1.20"
+-              "query_cost": "0.35"
 -            },
 -            "table": {
 -              "table_name": "t2",
@@ -478,9 +477,9 @@ Diff: EXPLAIN NORMAL vs OTHER
 -              "rows_produced_per_join": 1,
 -              "filtered": "100.00",
 -              "cost_info": {
--                "read_cost": "1.00",
--                "eval_cost": "0.20",
--                "prefix_cost": "1.20",
+-                "read_cost": "0.25",
+-                "eval_cost": "0.10",
+-                "prefix_cost": "0.35",
 -                "data_read_per_join": "16"
 -              },
 -              "used_columns": [
@@ -519,7 +518,7 @@ Diff: EXPLAIN NORMAL vs OTHER
            "query_block": {
              "select_id": 2,
 -            "cost_info": {
--              "query_cost": "1.42"
+-              "query_cost": "0.45"
 -            },
 -            "table": {
 -              "table_name": "t2",
@@ -540,9 +539,9 @@ Diff: EXPLAIN NORMAL vs OTHER
 -              "filtered": "100.00",
 -              "using_index": true,
 -              "cost_info": {
--                "read_cost": "1.02",
--                "eval_cost": "0.40",
--                "prefix_cost": "1.42",
+-                "read_cost": "0.25",
+-                "eval_cost": "0.20",
+-                "prefix_cost": "0.45",
 -                "data_read_per_join": "160"
 -              },
 -              "used_columns": [
@@ -569,7 +568,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -                      "filtered": "100.00",
 -                      "cost_info": {
 -                        "read_cost": "0.00",
--                        "eval_cost": "0.20",
+-                        "eval_cost": "0.10",
 -                        "prefix_cost": "0.00",
 -                        "data_read_per_join": "16"
 -                      },
@@ -617,11 +616,33 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -61,4 +62,3 @@
                  "b"
 -              ],
--              "attached_condition": "((`test`.`t1`.`a` = `test`.`t2`.`a`))"
+-              "attached_condition": "((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = `test`.`t2`.`a`))"
 +              ]
              }
 QUERY: SELECT t1.pk FROM t1 WHERE t1.col_varchar_key < ALL ( SELECT * FROM v1 ) 
-STATUS: EQUAL
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -11,3 +11,3 @@
+           "select_id": 2,
+-          "message": "Not optimized, outer query is empty",
++          "message": "Plan isn't ready yet",
+           "table": {
+@@ -20,3 +20,3 @@
+                   "using_temporary_table": true,
+-                  "message": "Not optimized, outer query is empty",
++                  "message": "Plan isn't ready yet",
+                   "query_specifications": [
+@@ -27,3 +27,3 @@
+                         "select_id": 3,
+-                        "message": "Not optimized, outer query is empty"
++                        "message": "Plan isn't ready yet"
+                       }
+@@ -35,3 +35,3 @@
+                         "select_id": 4,
+-                        "message": "Not optimized, outer query is empty"
++                        "message": "Plan isn't ready yet"
+                       }
 QUERY: SELECT t1.a, (SELECT 1 FROM t2 WHERE t2.b=t3.c AND t2.c=t1.a ORDER BY t2.d LIMIT 1) AS incorrect FROM t1, t3 WHERE t3.b=t1.a 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
@@ -665,11 +686,11 @@ Diff: EXPLAIN NORMAL vs OTHER
 -            "filtered": "26.66",
 +            "filtered": "100.00",
              "range_checked_for_each_record": "index map: 0x4",
-@@ -95,2 +95,3 @@
+@@ -98,2 +98,3 @@
              "filtered": "100.00",
 +            "using_where": true,
              "using_index": true,
-@@ -105,4 +106,3 @@
+@@ -107,4 +108,3 @@
                "col_int_key"
 -            ],
 -            "attached_condition": "<if>(is_not_null_compl(sq2_alias2), (`test`.`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`), true)"
@@ -694,11 +715,11 @@ Diff: EXPLAIN NORMAL vs OTHER
 -            "filtered": "26.66",
 +            "filtered": "100.00",
              "range_checked_for_each_record": "index map: 0x4",
-@@ -95,2 +95,3 @@
+@@ -98,2 +98,3 @@
              "filtered": "100.00",
 +            "using_where": true,
              "using_index": true,
-@@ -105,4 +106,3 @@
+@@ -107,4 +108,3 @@
                "col_int_key"
 -            ],
 -            "attached_condition": "<if>(is_not_null_compl(sq2_alias2), (`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`), true)"
@@ -709,7 +730,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -38,2 +38,3 @@
-             "filtered": "25.00",
+             "filtered": "50.00",
 +            "using_where": true,
              "cost_info": {
 @@ -47,4 +48,3 @@
@@ -744,3 +765,68 @@ Diff: EXPLAIN NORMAL vs OTHER
 -          "attached_condition": "(`test`.`t2`.`a` is not null)"
 +          ]
          }
+QUERY: SELECT DISTINCT   alias2.col_int AS field1 , alias2.col_int AS field2 FROM  a1 AS alias1 LEFT  JOIN aa1 AS alias2 ON  alias1.pk =  alias2.pk WHERE ( alias1.col_int = 8 OR alias1 .pk <= alias1.col_int ) GROUP BY field1, field2  ORDER BY field1, field2 DESC
+STATUS: EQUAL
+QUERY: SELECT DISTINCT   alias1.pk AS field1 FROM  f1 AS alias1 LEFT  JOIN a2 AS alias2 ON  alias1.col_varchar_1024_latin1_key =  alias2 .col_varchar_10_utf8_key WHERE alias1.pk  IN (5, 5) GROUP BY field1 HAVING field1 <= 3
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -47,3 +47,3 @@
+             "filtered": "100.00",
+-            "index_condition": "(`test`.`alias1`.`pk` in (5,5))",
++            "index_condition": true,
+             "cost_info": {
+QUERY: SELECT alias1.pk AS field1 FROM  h2 AS alias1 LEFT  JOIN aa3 AS alias2 ON  alias1.pk =  alias2.col_int_key WHERE alias1.pk <> 9 GROUP BY field1 ORDER BY field1 LIMIT 1 OFFSET 3
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -27,2 +27,3 @@
+               "filtered": "100.00",
++              "using_where": true,
+               "using_index": true,
+@@ -36,4 +37,3 @@
+                 "pk"
+-              ],
+-              "attached_condition": "(`test`.`alias1`.`pk` <> 9)"
++              ]
+             }
+QUERY: SELECT    alias1.pk AS field1 FROM  e1 AS alias1 RIGHT  JOIN cc2 AS alias2 ON  alias1.col_int =  alias2.col_int WHERE alias1.col_int_key  IN (8) 
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -44,4 +44,5 @@
+           "rows_examined_per_scan": 2,
+-          "rows_produced_per_join": 1,
+-          "filtered": "50.00",
++          "rows_produced_per_join": 2,
++          "filtered": "100.00",
++          "using_where": true,
+           "using_join_buffer": "Block Nested Loop",
+@@ -49,5 +50,5 @@
+             "read_cost": "0.25",
+-            "eval_cost": "0.10",
++            "eval_cost": "0.20",
+             "prefix_cost": "0.80",
+-            "data_read_per_join": "8"
++            "data_read_per_join": "16"
+           },
+@@ -55,4 +56,3 @@
+             "col_int"
+-          ],
+-          "attached_condition": "(`test`.`alias2`.`col_int` = `test`.`alias1`.`col_int`)"
++          ]
+         }
+QUERY: SELECT DISTINCT alias2.pk AS field1, alias2.pk AS field2, alias2.pk AS field3 FROM t1 AS alias1 RIGHT JOIN t2 AS alias2  ON  alias1.col_varchar_key =  alias2.col_varchar_key WHERE alias1.col_int >alias1.col_int HAVING field3 = 7 ORDER BY field1, field2, field3 LIMIT 10 OFFSET 1
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -27,2 +27,3 @@
+               "filtered": "100.00",
++              "using_where": true,
+               "cost_info": {
+@@ -37,4 +38,3 @@
+                 "col_varchar_key"
+-              ],
+-              "attached_condition": "((`test`.`alias1`.`col_int` > `test`.`alias1`.`col_int`) and (`test`.`alias1`.`col_varchar_key` is not null))"
++              ]
+             }

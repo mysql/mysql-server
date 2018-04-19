@@ -1,0 +1,345 @@
+#
+# Tests for data-dictionary implementation requiring debug build of server.
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--source include/count_sessions.inc
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+###########################################################################
+
+--echo ###################################################################
+--echo #
+--echo # Bug#20290768 - server crash in table_share_utils::fill_partitioning_from_dd
+--echo #
+--echo ###################################################################
+
+SET GLOBAL DEBUG='+d,weak_object_impl_store_fail_before_store_children';
+--error ER_UNKNOWN_ERROR
+CREATE TABLE t1 (pk INT, col1 INT) ENGINE=InnoDB PARTITION BY KEY(pk) PARTITIONS 2;
+SET GLOBAL DEBUG='-d,weak_object_impl_store_fail_before_store_children';
+
+--echo # Without fix, following statement crashed.
+CREATE TABLE t1 (pk INT, col1 INT) ENGINE=InnoDB PARTITION BY KEY(pk) PARTITIONS 2;
+DROP TABLE t1;
+
+
+--enable_connect_log
+
+--echo ###################################################################
+--echo #
+--echo # WL#6378: New data dictionary.
+--echo #
+--echo # Provoke various error situations during DDL operations
+--echo # on the dictionary objects.
+--echo #
+--echo # Note: Some of the error situations result in an inconsistency
+--echo #       between the global data dictionary and the SE or the
+--echo #       file system. These are known issues that will be
+--echo #       addressed in WL#7743.
+--echo #
+--echo ###################################################################
+--echo #
+
+# These can be removed after WL#9536 is implemented
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means the system cannot find the path specified");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot delete tablespace .* because it is not found in the tablespace memory cache");
+
+--echo # 1. Schemata
+--echo # 1.1 Fail while storing dd object during create.
+
+SET DEBUG= '+d, fail_while_storing_dd_object';
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE SCHEMA s1;
+SET DEBUG= '-d, fail_while_storing_dd_object';
+--echo # Do it for real.
+CREATE SCHEMA s1;
+
+--echo # 1.2a Fail while acquiring dd object during alter.
+
+SET DEBUG= '+d, fail_while_acquiring_dd_object';
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER SCHEMA s1 DEFAULT COLLATE 'utf8_bin';
+SET DEBUG= '-d, fail_while_acquiring_dd_object';
+
+--echo # 1.2b Fail while storing  dd object during alter.
+
+SET DEBUG= '+d, fail_while_storing_dd_object';
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER SCHEMA s1 DEFAULT COLLATE 'utf8_bin';
+SET DEBUG= '-d, fail_while_acquiring_dd_object';
+
+--echo # 1.3a Fail while acquiring dd object during drop.
+
+--connect (con1, localhost, root,,)
+SET DEBUG_SYNC= 'before_acquire_in_drop_schema SIGNAL before_acquire WAIT_FOR cont';
+--send DROP SCHEMA s1
+
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR before_acquire';
+SET GLOBAL DEBUG= '+d, fail_while_acquiring_dd_object';
+SET DEBUG_SYNC= 'now SIGNAL cont';
+
+--connection con1
+--error ER_LOCK_WAIT_TIMEOUT
+--reap
+
+--echo # Disconnect and cleanup.
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connection default
+SET DEBUG_SYNC= 'RESET';
+SET GLOBAL DEBUG= '-d, fail_while_acquiring_dd_object';
+
+--echo # 1.3b No schema found during drop.
+
+SET DEBUG= '+d, pretend_no_schema_in_drop_schema';
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_UNKNOWN 
+DROP SCHEMA s1;
+SET DEBUG= '-d, pretend_no_schema_in_drop_schema';
+
+--echo # 1.3c Fail while dropping dd object during drop.
+
+SET DEBUG= '+d, fail_while_dropping_dd_object';
+--error ER_LOCK_WAIT_TIMEOUT
+DROP SCHEMA s1;
+SET DEBUG= '-d, fail_while_dropping_dd_object';
+--echo # Do it for real.
+DROP SCHEMA s1;
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT COUNT(*) FROM mysql.schemata WHERE name LIKE 's1';
+SET SESSION debug= '-d,skip_dd_table_access_check';
+
+--echo ###################################################################
+--echo #
+--echo # 2. Tables
+--echo # 2.1a Fail while storing dd object during create.
+
+SET DEBUG= '+d, fail_while_storing_dd_object';
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+SET DEBUG= '-d, fail_while_storing_dd_object';
+
+--echo # 2.1b No tablespace object during create.
+
+--error ER_TABLESPACE_MISSING_WITH_NAME
+CREATE TABLE t1 (pk INT PRIMARY KEY) TABLESPACE no_such_tablespace;
+
+--echo # 2.1c Fail while acquiring tablespace object during create.
+
+--connect (con1, localhost, root,,)
+SET DEBUG_SYNC= 'before_acquire_in_fill_dd_tablespace_id_or_name SIGNAL before_acquire WAIT_FOR cont';
+--send CREATE TABLE t1 (pk INT PRIMARY KEY) TABLESPACE no_such_tablespace;
+
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR before_acquire';
+SET GLOBAL DEBUG= '+d, fail_while_acquiring_dd_object';
+SET DEBUG_SYNC= 'now SIGNAL cont';
+
+--connection con1
+--error ER_LOCK_WAIT_TIMEOUT
+--reap
+
+--echo # Disconnect and cleanup.
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connection default
+SET DEBUG_SYNC= 'RESET';
+SET GLOBAL DEBUG= '-d, fail_while_acquiring_dd_object';
+
+--echo # Do it for real.
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+
+--echo # 2.2 Fail while acquiring dd object during alter.
+
+SET DEBUG= '+d, fail_while_acquiring_dd_object';
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 ADD COLUMN c1 INT;
+SET DEBUG= '-d, fail_while_acquiring_dd_object';
+
+--echo # 2.3 Fail while dropping dd object during drop.
+
+SET DEBUG= '+d, fail_while_dropping_dd_object';
+--error ER_LOCK_WAIT_TIMEOUT
+DROP TABLE t1;
+SET DEBUG= '-d, fail_while_dropping_dd_object';
+--echo # Do it for real.
+DROP TABLE IF EXISTS t1;
+
+--echo ###################################################################
+--echo #
+--echo # 3. Views
+--echo # 3.1 Fail while storing dd object during create.
+
+CREATE TABLE v1_base_table (pk INT PRIMARY KEY);
+SET DEBUG= '+d, fail_while_storing_dd_object';
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE VIEW v1 AS SELECT * from v1_base_table;
+SET DEBUG= '-d, fail_while_storing_dd_object';
+--echo # Do it for real.
+CREATE VIEW v1 AS SELECT pk from v1_base_table;
+
+--echo # 3.2 Fail while acquiring dd object during alter.
+
+SET DEBUG= '+d, fail_while_acquiring_dd_object';
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER VIEW v1 AS SELECT pk FROM t1;
+SET DEBUG= '-d, fail_while_acquiring_dd_object';
+
+--echo # 3.3 Fail while dropping dd object during drop.
+
+SET DEBUG= '+d, fail_while_dropping_dd_object';
+--error ER_LOCK_WAIT_TIMEOUT
+DROP VIEW v1;
+SET DEBUG= '-d, fail_while_dropping_dd_object';
+--echo # Do it for real.
+DROP VIEW v1;
+DROP TABLE v1_base_table;
+
+
+--echo ###################################################################
+--echo #
+--echo # 4. Tablespaces
+
+--echo # 4.1 Fail while storing dd object during create.
+
+SET DEBUG= '+d, fail_while_storing_dd_object';
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+SET DEBUG= '-d, fail_while_storing_dd_object';
+
+--echo # There should be no trace left in the data-dictionary
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
+SET SESSION debug= '-d,skip_dd_table_access_check';
+
+--error ER_TABLESPACE_MISSING_WITH_NAME
+DROP TABLESPACE ts1;
+
+--echo # Then, we can do it for real.
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+
+--echo # 4.2 Fail while acquiring dd object during alter:
+--echo #     Skipped, since InnoDB does not suppoer
+--echo #     ALTER TABLESPACE yet.
+
+--echo # 4.3 Fail while dropping dd object during drop.
+
+SET DEBUG= '+d, fail_while_dropping_dd_object';
+--error ER_LOCK_WAIT_TIMEOUT
+DROP TABLESPACE ts1;
+SET DEBUG= '-d, fail_while_dropping_dd_object';
+
+--echo # Tablespace is still in the data-dictionary.
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
+
+--echo # Here, the global DD and InnoDB are out of sync. To get
+--echo # out of this, we must do a drop, which fails since the
+--echo # object does not exist in the SE, but which still
+--echo # removes the tablespace from the DD.
+--echo # Note: The statement below fails, but removes entry for
+--echo #       ts1 from mysql.tablespaces.
+--echo # Do it for real.
+DROP TABLESPACE ts1;
+SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
+SET SESSION debug= '-d,skip_dd_table_access_check';
+
+--echo ###################################################################
+--echo #
+--echo # WL#8150: Dictionary cache.
+--echo #
+--echo # Verify that calls to Dictionary_client::drop() while executing
+--echo # ALTER TABLE will make the dropped object disappear, and that
+--echo # the shared cache will not be contaminated with the dropped
+--echo # object (which will make subsequent DDL operations fail due to
+--echo # the shared cache being out of sync with the persistent tables).
+--echo #
+--echo ###################################################################
+--echo #
+
+# Errors found during RQG testing of WL#7743 have been reduced to the
+# following statement sequences:
+
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE VIEW v1 AS SELECT * FROM t1;
+ALTER TABLE t1 RENAME TO t2, MODIFY COLUMN pk INTEGER;
+DROP TABLE IF EXISTS t1;
+DROP VIEW v1;
+DROP TABLE t2;
+
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (i INT);
+CREATE VIEW v1 AS SELECT * FROM t1, t2;
+DROP TABLE t2;
+ALTER TABLE t1 RENAME TO t2, MODIFY COLUMN pk INTEGER;
+DROP TABLE IF EXISTS t1;
+DROP VIEW v1;
+DROP TABLE t2;
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE VIEW v1 AS SELECT * FROM t1;
+ALTER TABLE t1 RENAME TO t2, ALGORITHM= COPY;
+DROP TABLE IF EXISTS t1;
+DROP TABLE t2;
+DROP VIEW v1;
+
+--echo #
+--echo # Bug#25587256 NEWDD: FK: NEED TO SET PROPER REFERENCED COLUMN CASE
+--echo #
+
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY (FK) REFERENCES t1 (PK));
+
+SHOW CREATE TABLE t2;
+SET SESSION debug= '+d,skip_dd_table_access_check';
+# Case should match SHOW CREATE TABLE output.
+SELECT foreign_key_column_usage.referenced_column_name
+FROM mysql.foreign_key_column_usage, mysql.foreign_keys, mysql.tables
+WHERE tables.name= 't2'
+AND tables.id = foreign_keys.table_id
+AND foreign_keys.id = foreign_key_column_usage.foreign_key_id;
+SET SESSION debug= '-d,skip_dd_table_access_check';
+
+DROP TABLE t2, t1;
+
+--echo #
+--echo # Bug#25887335 : TEST CASE INNODB_MYSQL_SYNC CRASH ON PB2 RUN.
+--echo #
+CREATE TABLE t1(a INT) Engine=InnoDB;
+INSERT INTO t1 VALUES (1), (2);
+
+connect (con1, localhost, root);
+let $con1_id= `select connection_id()`;
+SET DEBUG_SYNC= "open_and_process_table SIGNAL kill_truncate WAIT_FOR killed";
+--echo # Sending: (not reaped since connection is killed later)
+--echo # Default connection tries to kill con1 when it is in the kill immune mode
+--echo # In this mode, state of the kill operation state is stored and applied
+--echo # while exiting from the mode.
+--echo # Without fix socket of the con1 was not closed. So the error message
+--echo # was sent to client and cause the assertion.
+--send TRUNCATE t1
+
+connection default;
+SET DEBUG_SYNC= "now WAIT_FOR kill_truncate";
+--replace_result $con1_id con1_id
+eval KILL $con1_id;
+SET DEBUG_SYNC= "now SIGNAL killed";
+
+#Cleanup
+DROP TABLE t1;
+disconnect con1;
+SET DEBUG_SYNC= "RESET";
+
+--echo ###################################################################
+
+--disable_connect_log
+--source include/wait_until_count_sessions.inc
+
+###########################################################################

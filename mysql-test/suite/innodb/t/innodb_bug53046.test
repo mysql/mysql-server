@@ -4,11 +4,10 @@
 #
 # This is a symbolic test, it would not fail if the bug is present.
 # Rather those SQL commands have been used during manual testing under
-# UNIV_DEBUG & UNIV_SYNC_DEBUG to test all changed codepaths for locking
+# innodb_sync_debug to test all changed codepaths for locking
 # correctness.
 #
 
--- source include/have_innodb.inc
 
 CREATE TABLE bug53046_1 (c1 INT PRIMARY KEY) ENGINE=INNODB;
 CREATE TABLE bug53046_2 (c2 INT PRIMARY KEY,

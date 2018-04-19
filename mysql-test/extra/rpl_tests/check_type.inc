@@ -33,7 +33,7 @@ enable_warnings;
 eval CREATE TABLE t1(
   pk INT NOT NULL PRIMARY KEY,
   a $source_type
-) ENGINE=$engine_type;
+) ENGINE=$engine_type CHARACTER SET latin1;
 --source include/sync_slave_sql_with_master.inc
 eval ALTER TABLE t1 MODIFY a $target_type;
 

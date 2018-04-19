@@ -1,143 +1,522 @@
-SELECT * FROM mysql.server_cost;
-cost_name	cost_value	last_update	comment
-disk_temptable_create_cost	NULL	#	NULL
-disk_temptable_row_cost	NULL	#	NULL
-key_compare_cost	NULL	#	NULL
-memory_temptable_create_cost	NULL	#	NULL
-memory_temptable_row_cost	NULL	#	NULL
-row_evaluate_cost	NULL	#	NULL
-SHOW INDEX FROM mysql.server_cost;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-server_cost	0	PRIMARY	1	cost_name	A	#	NULL	NULL		BTREE		
-SELECT * FROM mysql.engine_cost;
-engine_name	device_type	cost_name	cost_value	last_update	comment
-default	0	io_block_read_cost	NULL	#	NULL
-SHOW INDEX FROM mysql.engine_cost;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-engine_cost	0	PRIMARY	1	cost_name	A	#	NULL	NULL		BTREE		
-engine_cost	0	PRIMARY	2	engine_name	A	#	NULL	NULL		BTREE		
-engine_cost	0	PRIMARY	3	device_type	A	#	NULL	NULL		BTREE		
+#
+# Bug#20443863 USE OF WORST_SEEKS IN FIND_BEST_REF() CAN LEAD TO
+#              WRONG QUERY PLAN
+#
+CREATE TABLE t1 (
+i1 INTEGER,
+i2 INTEGER,
+i3 INTEGER,
+KEY(i1,i2)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 1, 1), (1, 1, 1),(1, 1, 1),(1, 1, 1),
+(2, 2, 1), (2, 2, 1),(2, 2, 1),(2, 2, 1),
+(3, 3, 1), (3, 3, 1),(3, 3, 1),(3, 3, 1);
+EXPLAIN FORMAT=JSON SELECT i3 FROM t1 WHERE i1 = 1 AND i2 = 1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.90"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "ref",
+      "possible_keys": [
+        "i1"
+      ],
+      "key": "i1",
+      "used_key_parts": [
+        "i1",
+        "i2"
+      ],
+      "key_length": "10",
+      "ref": [
+        "const",
+        "const"
+      ],
+      "rows_examined_per_scan": 4,
+      "rows_produced_per_join": 4,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "0.50",
+        "eval_cost": "0.40",
+        "prefix_cost": "0.90",
+        "data_read_per_join": "64"
+      },
+      "used_columns": [
+        "i1",
+        "i2",
+        "i3"
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i3` AS `i3` from `test`.`t1` where ((`test`.`t1`.`i2` = 1) and (`test`.`t1`.`i1` = 1))
+EXPLAIN FORMAT=JSON SELECT i3 FROM t1 WHERE i1 = 1 AND i3 = 1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.90"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "ref",
+      "possible_keys": [
+        "i1"
+      ],
+      "key": "i1",
+      "used_key_parts": [
+        "i1"
+      ],
+      "key_length": "5",
+      "ref": [
+        "const"
+      ],
+      "rows_examined_per_scan": 4,
+      "rows_produced_per_join": 0,
+      "filtered": "10.00",
+      "cost_info": {
+        "read_cost": "0.50",
+        "eval_cost": "0.04",
+        "prefix_cost": "0.90",
+        "data_read_per_join": "6"
+      },
+      "used_columns": [
+        "i1",
+        "i3"
+      ],
+      "attached_condition": "(`test`.`t1`.`i3` = 1)"
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i3` AS `i3` from `test`.`t1` where ((`test`.`t1`.`i3` = 1) and (`test`.`t1`.`i1` = 1))
 UPDATE mysql.server_cost
 SET cost_value=0.1
 WHERE cost_name="row_evaluate_cost";
-SELECT *
-FROM mysql.server_cost
-WHERE cost_name="row_evaluate_cost";
-cost_name	cost_value	last_update	comment
-row_evaluate_cost	0.1	#	NULL
 UPDATE mysql.server_cost
-SET cost_value=DEFAULT
-WHERE cost_name="row_evaluate_cost";
-SELECT *
-FROM mysql.server_cost
-WHERE cost_name="row_evaluate_cost";
-cost_name	cost_value	last_update	comment
-row_evaluate_cost	NULL	#	NULL
-INSERT INTO mysql.server_cost
-VALUES ("lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch is important");
-SELECT * FROM mysql.server_cost;
-cost_name	cost_value	last_update	comment
-disk_temptable_create_cost	NULL	#	NULL
-disk_temptable_row_cost	NULL	#	NULL
-key_compare_cost	NULL	#	NULL
-lunch_cost	NULL	#	Lunch is important
-memory_temptable_create_cost	NULL	#	NULL
-memory_temptable_row_cost	NULL	#	NULL
-row_evaluate_cost	NULL	#	NULL
-DELETE FROM mysql.server_cost
-WHERE cost_name="lunch_cost";
-INSERT INTO mysql.server_cost
-VALUES ("row_evaluate_cost", DEFAULT, CURRENT_TIMESTAMP, "Faster CPU");
-ERROR 23000: Duplicate entry 'row_evaluate_cost' for key 'PRIMARY'
-INSERT INTO mysql.server_cost
-VALUES ("ROW_EVALUATE_COST", DEFAULT, CURRENT_TIMESTAMP, "Faster CPU");
-ERROR 23000: Duplicate entry 'ROW_EVALUATE_COST' for key 'PRIMARY'
-SELECT * FROM mysql.server_cost;
-cost_name	cost_value	last_update	comment
-disk_temptable_create_cost	NULL	#	NULL
-disk_temptable_row_cost	NULL	#	NULL
-key_compare_cost	NULL	#	NULL
-memory_temptable_create_cost	NULL	#	NULL
-memory_temptable_row_cost	NULL	#	NULL
-row_evaluate_cost	NULL	#	NULL
-UPDATE mysql.engine_cost
+SET cost_value=0.05
+WHERE cost_name="key_compare_cost";
+UPDATE mysql.server_cost
+SET cost_value=1.0
+WHERE cost_name="memory_temptable_create_cost";
+UPDATE mysql.server_cost
 SET cost_value=0.1
-WHERE cost_name="io_block_read_cost";
-SELECT *
-FROM mysql.engine_cost
-WHERE cost_name="io_block_read_cost";
-engine_name	device_type	cost_name	cost_value	last_update	comment
-default	0	io_block_read_cost	0.1	#	NULL
+WHERE cost_name="memory_temptable_row_cost";
+UPDATE mysql.server_cost
+SET cost_value=20
+WHERE cost_name="disk_temptable_create_cost";
+UPDATE mysql.server_cost
+SET cost_value=0.5
+WHERE cost_name="disk_temptable_row_cost";
 UPDATE mysql.engine_cost
-SET cost_value=DEFAULT
+SET cost_value=0.25
+WHERE cost_name="memory_block_read_cost";
+UPDATE mysql.engine_cost
+SET cost_value=1.0
 WHERE cost_name="io_block_read_cost";
-SELECT *
-FROM mysql.engine_cost
-WHERE cost_name="io_block_read_cost";
-engine_name	device_type	cost_name	cost_value	last_update	comment
-default	0	io_block_read_cost	NULL	#	NULL
-INSERT INTO mysql.engine_cost
-VALUES ("InnoDB", 2, "lunch_cost1", DEFAULT, CURRENT_TIMESTAMP, "Lunch 1"),
-("InnoDB", 2, "lunch_cost2", DEFAULT, CURRENT_TIMESTAMP, "Lunch 2");
-SELECT * FROM mysql.engine_cost;
-engine_name	device_type	cost_name	cost_value	last_update	comment
-default	0	io_block_read_cost	NULL	#	NULL
-InnoDB	2	lunch_cost1	NULL	#	Lunch 1
-InnoDB	2	lunch_cost2	NULL	#	Lunch 2
-DELETE FROM mysql.engine_cost
-WHERE cost_name LIKE "lunch_cost%";
-INSERT INTO mysql.engine_cost
-VALUES ("default", 0, "lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch");
-INSERT INTO mysql.engine_cost
-VALUES ("default", 0, "lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch");
-ERROR 23000: Duplicate entry 'lunch_cost-default-0' for key 'PRIMARY'
-SELECT * FROM mysql.engine_cost;
-engine_name	device_type	cost_name	cost_value	last_update	comment
-default	0	io_block_read_cost	NULL	#	NULL
-default	0	lunch_cost	NULL	#	Lunch
-DELETE FROM mysql.engine_cost
-WHERE cost_name="lunch_cost";
-INSERT INTO mysql.engine_cost
-VALUES ("default", 0, "IO_BLOCK_READ_COST", DEFAULT, CURRENT_TIMESTAMP,
-"Lunch");
-ERROR 23000: Duplicate entry 'IO_BLOCK_READ_COST-default-0' for key 'PRIMARY'
-SELECT * FROM mysql.engine_cost;
-engine_name	device_type	cost_name	cost_value	last_update	comment
-default	0	io_block_read_cost	NULL	#	NULL
-CREATE TABLE server_cost_tmp (
-cost_name VARCHAR(64) NOT NULL,
-last_update TIMESTAMP
+UPDATE mysql.server_cost
+SET cost_value = 2 * cost_value;
+UPDATE mysql.engine_cost
+SET cost_value = 2 * cost_value;
+SELECT cost_name, cost_value FROM mysql.server_cost;
+cost_name	cost_value
+disk_temptable_create_cost	40
+disk_temptable_row_cost	1
+key_compare_cost	0.1
+memory_temptable_create_cost	2
+memory_temptable_row_cost	0.2
+row_evaluate_cost	0.2
+SELECT cost_name, cost_value FROM mysql.engine_cost;
+cost_name	cost_value
+io_block_read_cost	2
+memory_block_read_cost	0.5
+FLUSH OPTIMIZER_COSTS;
+EXPLAIN FORMAT=JSON SELECT i3 FROM t1 WHERE i1 = 1 AND i2 = 1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.80"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "ref",
+      "possible_keys": [
+        "i1"
+      ],
+      "key": "i1",
+      "used_key_parts": [
+        "i1",
+        "i2"
+      ],
+      "key_length": "10",
+      "ref": [
+        "const",
+        "const"
+      ],
+      "rows_examined_per_scan": 4,
+      "rows_produced_per_join": 4,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "1.00",
+        "eval_cost": "0.80",
+        "prefix_cost": "1.80",
+        "data_read_per_join": "64"
+      },
+      "used_columns": [
+        "i1",
+        "i2",
+        "i3"
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i3` AS `i3` from `test`.`t1` where ((`test`.`t1`.`i2` = 1) and (`test`.`t1`.`i1` = 1))
+EXPLAIN FORMAT=JSON SELECT i3 FROM t1 WHERE i1 = 1 AND i3 = 1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.80"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "ref",
+      "possible_keys": [
+        "i1"
+      ],
+      "key": "i1",
+      "used_key_parts": [
+        "i1"
+      ],
+      "key_length": "5",
+      "ref": [
+        "const"
+      ],
+      "rows_examined_per_scan": 4,
+      "rows_produced_per_join": 0,
+      "filtered": "10.00",
+      "cost_info": {
+        "read_cost": "1.00",
+        "eval_cost": "0.08",
+        "prefix_cost": "1.80",
+        "data_read_per_join": "6"
+      },
+      "used_columns": [
+        "i1",
+        "i3"
+      ],
+      "attached_condition": "(`test`.`t1`.`i3` = 1)"
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i3` AS `i3` from `test`.`t1` where ((`test`.`t1`.`i3` = 1) and (`test`.`t1`.`i1` = 1))
+UPDATE mysql.server_cost
+SET cost_value=DEFAULT;
+UPDATE mysql.engine_cost
+SET cost_value=DEFAULT;
+FLUSH OPTIMIZER_COSTS;
+DROP TABLE t1;
+#
+# Bug#20947871 INDEX SCAN COST IN TEST_IF_CHEAPER_ORDERING() DOES
+#              NOT USE COST CONSTANTS
+#
+CREATE TABLE t1 (
+pk INTEGER PRIMARY KEY,
+a INTEGER,
+b INTEGER,
+c CHAR(255),
+UNIQUE KEY k1 (a)
 );
-CREATE TABLE engine_cost_tmp (
-cost_name VARCHAR(64) NOT NULL,
-last_update TIMESTAMP
+INSERT INTO t1 VALUES (1, 1, NULL, "Abc"), (2, 2, NULL, "Abc"),
+(3, 3, NULL, "Abc"), (4, 4, NULL, "Abc");
+INSERT INTO t1 SELECT a + 4, a + 4, b, c FROM t1;
+INSERT INTO t1 SELECT a + 8, a + 8, b, c FROM t1;
+INSERT INTO t1 SELECT a + 16, a + 16, b, c FROM t1;
+INSERT INTO t1 SELECT a + 32, a + 32, b, c FROM t1;
+INSERT INTO t1 SELECT a + 64, a + 64, b, c FROM t1;
+INSERT INTO t1 SELECT a + 128, a + 128, b, c FROM t1;
+CREATE TABLE t2 (
+d INTEGER PRIMARY KEY,
+e INTEGER
 );
-INSERT INTO server_cost_tmp
-SELECT cost_name, last_update FROM mysql.server_cost;
-INSERT INTO engine_cost_tmp
-SELECT cost_name, last_update FROM mysql.engine_cost;
-UPDATE mysql.server_cost 
+INSERT INTO t2 SELECT a, b FROM t1;
+# Query should be optimized for the LIMIT. Query plan should
+# use index without filesort
+EXPLAIN FORMAT=JSON SELECT * FROM t1 JOIN t2 ON b=d ORDER BY a LIMIT 4;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "116.95"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "nested_loop": [
+        {
+          "table": {
+            "table_name": "t1",
+            "access_type": "index",
+            "key": "k1",
+            "used_key_parts": [
+              "a"
+            ],
+            "key_length": "5",
+            "rows_examined_per_scan": 4,
+            "rows_produced_per_join": 256,
+            "filtered": "100.00",
+            "cost_info": {
+              "read_cost": "1.75",
+              "eval_cost": "25.60",
+              "prefix_cost": "27.35",
+              "data_read_per_join": "260K"
+            },
+            "used_columns": [
+              "pk",
+              "a",
+              "b",
+              "c"
+            ],
+            "attached_condition": "(`test`.`t1`.`b` is not null)"
+          }
+        },
+        {
+          "table": {
+            "table_name": "t2",
+            "access_type": "eq_ref",
+            "possible_keys": [
+              "PRIMARY"
+            ],
+            "key": "PRIMARY",
+            "used_key_parts": [
+              "d"
+            ],
+            "key_length": "4",
+            "ref": [
+              "test.t1.b"
+            ],
+            "rows_examined_per_scan": 1,
+            "rows_produced_per_join": 256,
+            "filtered": "100.00",
+            "cost_info": {
+              "read_cost": "64.00",
+              "eval_cost": "25.60",
+              "prefix_cost": "116.95",
+              "data_read_per_join": "4K"
+            },
+            "used_columns": [
+              "d",
+              "e"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t2`.`e` AS `e` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`d` = `test`.`t1`.`b`) order by `test`.`t1`.`a` limit 4
+UPDATE mysql.server_cost
 SET cost_value=0.1
 WHERE cost_name="row_evaluate_cost";
-SELECT mysql.server_cost.cost_name
-FROM mysql.server_cost JOIN server_cost_tmp 
-ON mysql.server_cost.cost_name = server_cost_tmp.cost_name
-WHERE mysql.server_cost.last_update > server_cost_tmp.last_update;
-cost_name
-row_evaluate_cost
-UPDATE mysql.server_cost 
-SET cost_value=DEFAULT
-WHERE cost_name="row_evaluate_cost";
-UPDATE mysql.engine_cost 
-SET cost_value=2.0
+UPDATE mysql.server_cost
+SET cost_value=0.05
+WHERE cost_name="key_compare_cost";
+UPDATE mysql.server_cost
+SET cost_value=1.0
+WHERE cost_name="memory_temptable_create_cost";
+UPDATE mysql.server_cost
+SET cost_value=0.1
+WHERE cost_name="memory_temptable_row_cost";
+UPDATE mysql.server_cost
+SET cost_value=20
+WHERE cost_name="disk_temptable_create_cost";
+UPDATE mysql.server_cost
+SET cost_value=0.5
+WHERE cost_name="disk_temptable_row_cost";
+UPDATE mysql.engine_cost
+SET cost_value=0.25
+WHERE cost_name="memory_block_read_cost";
+UPDATE mysql.engine_cost
+SET cost_value=1.0
 WHERE cost_name="io_block_read_cost";
-SELECT mysql.engine_cost.cost_name
-FROM mysql.engine_cost JOIN engine_cost_tmp 
-ON mysql.engine_cost.cost_name = engine_cost_tmp.cost_name
-WHERE mysql.engine_cost.last_update > engine_cost_tmp.last_update;
-cost_name
-io_block_read_cost
-UPDATE mysql.engine_cost 
-SET cost_value=DEFAULT
+UPDATE mysql.server_cost
+SET cost_value = 0.5 * cost_value;
+UPDATE mysql.engine_cost
+SET cost_value = 0.5 * cost_value;
+SELECT cost_name, cost_value FROM mysql.server_cost;
+cost_name	cost_value
+disk_temptable_create_cost	10
+disk_temptable_row_cost	0.25
+key_compare_cost	0.025
+memory_temptable_create_cost	0.5
+memory_temptable_row_cost	0.05
+row_evaluate_cost	0.05
+SELECT cost_name, cost_value FROM mysql.engine_cost;
+cost_name	cost_value
+io_block_read_cost	0.5
+memory_block_read_cost	0.125
+FLUSH OPTIMIZER_COSTS;
+# This should be optimized for the LIMIT. Query plan should
+# use index without filesort
+EXPLAIN FORMAT=JSON SELECT * FROM t1 JOIN t2 ON b=d ORDER BY a LIMIT 4;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "58.47"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "nested_loop": [
+        {
+          "table": {
+            "table_name": "t1",
+            "access_type": "index",
+            "key": "k1",
+            "used_key_parts": [
+              "a"
+            ],
+            "key_length": "5",
+            "rows_examined_per_scan": 4,
+            "rows_produced_per_join": 256,
+            "filtered": "100.00",
+            "cost_info": {
+              "read_cost": "0.88",
+              "eval_cost": "12.80",
+              "prefix_cost": "13.68",
+              "data_read_per_join": "260K"
+            },
+            "used_columns": [
+              "pk",
+              "a",
+              "b",
+              "c"
+            ],
+            "attached_condition": "(`test`.`t1`.`b` is not null)"
+          }
+        },
+        {
+          "table": {
+            "table_name": "t2",
+            "access_type": "eq_ref",
+            "possible_keys": [
+              "PRIMARY"
+            ],
+            "key": "PRIMARY",
+            "used_key_parts": [
+              "d"
+            ],
+            "key_length": "4",
+            "ref": [
+              "test.t1.b"
+            ],
+            "rows_examined_per_scan": 1,
+            "rows_produced_per_join": 256,
+            "filtered": "100.00",
+            "cost_info": {
+              "read_cost": "32.00",
+              "eval_cost": "12.80",
+              "prefix_cost": "58.48",
+              "data_read_per_join": "4K"
+            },
+            "used_columns": [
+              "d",
+              "e"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t2`.`e` AS `e` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`d` = `test`.`t1`.`b`) order by `test`.`t1`.`a` limit 4
+UPDATE mysql.server_cost
+SET cost_value=DEFAULT;
+UPDATE mysql.engine_cost
+SET cost_value=DEFAULT;
+FLUSH OPTIMIZER_COSTS;
+DROP TABLE t1, t2;
+#
+# Bug#23508576 FILL_INDEXES_FROM_DD() DOES NOT INITIALIZE
+#              ST_KEY::M_IN_MEMORY_ESTIMATE
+#
+UPDATE mysql.engine_cost
+SET cost_value=0.5
+WHERE cost_name="memory_block_read_cost";
+UPDATE mysql.engine_cost
+SET cost_value=2
 WHERE cost_name="io_block_read_cost";
-DROP TABLE server_cost_tmp, engine_cost_tmp;
+FLUSH OPTIMIZER_COSTS;
+SELECT engine_name, device_type, cost_name, cost_value
+FROM mysql.engine_cost
+WHERE cost_name="memory_block_read_cost"
+   OR cost_name="io_block_read_cost";
+engine_name	device_type	cost_name	cost_value
+default	0	io_block_read_cost	2
+default	0	memory_block_read_cost	0.5
+CREATE TABLE t1 (
+i1 INTEGER,
+c1 CHAR(200),
+INDEX idx (i1)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1, "Ullensvang"), (2, "Odda"), (3, "Jondal");
+# Pass criteria for the query plan:
+# 1. Should be executed as an index-only range scan
+# 2. Cost estimate: "read_cost" - "eval_cost" should be approximately
+#    the cost of reading one page from memory, ie. about 0.5.
+EXPLAIN FORMAT=JSON
+SELECT i1 FROM t1 WHERE i1 > 1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.92"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "range",
+      "possible_keys": [
+        "idx"
+      ],
+      "key": "idx",
+      "used_key_parts": [
+        "i1"
+      ],
+      "key_length": "5",
+      "rows_examined_per_scan": 2,
+      "rows_produced_per_join": 2,
+      "filtered": "100.00",
+      "using_index": true,
+      "cost_info": {
+        "read_cost": "0.72",
+        "eval_cost": "0.20",
+        "prefix_cost": "0.92",
+        "data_read_per_join": "1K"
+      },
+      "used_columns": [
+        "i1"
+      ],
+      "attached_condition": "(`test`.`t1`.`i1` > 1)"
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1` from `test`.`t1` where (`test`.`t1`.`i1` > 1)
+DROP TABLE t1;
+UPDATE mysql.engine_cost
+SET cost_value=DEFAULT;
+FLUSH OPTIMIZER_COSTS;

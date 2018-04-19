@@ -2,9 +2,6 @@
 # Tests for the performance schema stored program instrumentation.
 # -----------------------------------------------------------------------
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 
@@ -24,7 +21,7 @@ SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
        performance_schema.events_statements_history_long WHERE
        CURRENT_SCHEMA='stored_programs' AND 
        (SQL_TEXT not like '%count(*) = 1%' OR SQL_TEXT IS NULL)
-       ORDER BY OBJECT_NAME, NESTING_EVENT_LEVEL, SQL_TEXT;
+       ORDER BY OBJECT_NAME, NESTING_EVENT_LEVEL, SQL_TEXT, EVENT_NAME;
 
 
 --echo # clean -up

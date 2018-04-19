@@ -1,62 +1,65 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/trx0roll.ic
-Transaction rollback
+/** @file include/trx0roll.ic
+ Transaction rollback
 
-Created 3/26/1996 Heikki Tuuri
-*******************************************************/
+ Created 3/26/1996 Heikki Tuuri
+ *******************************************************/
 
 #ifdef UNIV_DEBUG
-/*******************************************************************//**
-Check if undo numbering is maintained while processing undo records
-for rollback.
-@return true if undo numbering is maintained. */
+/** Check if undo numbering is maintained while processing undo records
+ for rollback.
+ @return true if undo numbering is maintained. */
 UNIV_INLINE
-bool
-trx_roll_check_undo_rec_ordering(
-/*=============================*/
-	undo_no_t	curr_undo_rec_no,	/*!< in: record number of
-						undo record to process. */
-	ulint		curr_undo_space_id,	/*!< in: space-id of rollback
-						segment that contains the
-						undo record to process. */
-	const trx_t*	trx)			/*!< in: transaction */
+bool trx_roll_check_undo_rec_ordering(
+    undo_no_t curr_undo_rec_no,    /*!< in: record number of
+                                   undo record to process. */
+    space_id_t curr_undo_space_id, /*!< in: space-id of rollback
+                                   segment that contains the
+                                   undo record to process. */
+    const trx_t *trx)              /*!< in: transaction */
 {
-	/* Each transaction now can have multiple rollback segments.
-	If a transaction involves temp and non-temp tables, both the rollback
-	segments will be active. In this case undo records will be distrubuted
-	across the two rollback segments.
-	CASE-1: UNDO action will apply all undo records from one rollback
-	segment before moving to next. This means undo record numbers can't be
-	sequential but ordering is still enforced as next undo record number
-	should be < processed undo record number.
-	CASE-2: For normal rollback (not initiated by crash) all rollback
-	segments will be active (including non-redo).
-	Based on transaction operation pattern undo record number of first
-	undo record from this new rollback segment can be > last undo number
-	from previous rollback segment and so we ignore this check if
-	rollback segments are switching. Once switched new rollback segment
-	should re-follow undo record number pattern (as mentioned in CASE-1). */
+  /* Each transaction now can have multiple rollback segments.
+  If a transaction involves temp and non-temp tables, both the rollback
+  segments will be active. In this case undo records will be distrubuted
+  across the two rollback segments.
+  CASE-1: UNDO action will apply all undo records from one rollback
+  segment before moving to next. This means undo record numbers can't be
+  sequential but ordering is still enforced as next undo record number
+  should be < processed undo record number.
+  CASE-2: For normal rollback (not initiated by crash) all rollback
+  segments will be active (including non-redo).
+  Based on transaction operation pattern undo record number of first
+  undo record from this new rollback segment can be > last undo number
+  from previous rollback segment and so we ignore this check if
+  rollback segments are switching. Once switched new rollback segment
+  should re-follow undo record number pattern (as mentioned in CASE-1). */
 
-	return(curr_undo_space_id != trx->undo_rseg_space
-	       || curr_undo_rec_no + 1 <= trx->undo_no);
+  return (curr_undo_space_id != trx->undo_rseg_space ||
+          curr_undo_rec_no + 1 <= trx->undo_no);
 }
 #endif /* UNIV_DEBUG */
-

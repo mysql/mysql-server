@@ -1,10 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
-#--disable_abort_on_error
 #
 # Simple test for the partition storage engine
 # Focuses on range partitioning tests
@@ -12,12 +6,11 @@
 #-- source include/have_partition.inc
 
 --disable_query_log
+# This test uses "partition by range" which is a feature only available
+# when turning on MySQL's system variable "new", this functionality
+# is certainly not new but still only enabled when "new" is on.
 set new=on;
 --enable_query_log
-
---disable_warnings
-drop table if exists t1;
---enable_warnings
 
 #
 # Partition by range, basic
@@ -110,7 +103,9 @@ select * from t1 where a=6;
 # Test that explicit partition info _is_ shown in show create table
 # result _should_ contain (PARTITION x1 ... etc)
 #
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 drop table t1;
 
@@ -139,7 +134,7 @@ CREATE TABLE t1
 
 INSERT INTO t1 VALUES (0,NULL,NULL,NULL,NULL,NULL,NULL,NULL, '2009-05-15');
 SELECT * FROM t1;
-ALTER TABLE t1 ENGINE=MYISAM;
+ALTER TABLE t1 ENGINE=INNODB;
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -219,9 +214,8 @@ SELECT COUNT(*) FROM test.t1;
 DROP TABLE t1;
 
 ALTER TABLESPACE ts1 
-  DROP DATAFILE 'datafile.dat' 
-  ENGINE=NDB;
-DROP TABLESPACE ts1 ENGINE=NDB;
+  DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1 ENGINE=NDB;
 
 
@@ -257,7 +251,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 a int not null PRIMARY KEY,
 b int not null,
-c int not null)
+c int not null) engine=ndb
 partition by list(a)
 partitions 2
 (partition x123 values in (1,5,6),
@@ -325,3 +319,4 @@ select * from t1 where a in (0, 2) order by c;
 --source suite/ndb/include/ndb_scan_counts.inc
 
 drop table t1;
+

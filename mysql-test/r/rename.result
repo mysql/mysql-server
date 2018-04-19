@@ -67,3 +67,36 @@ ERROR HY000: 'test.v1' is not BASE TABLE
 drop view v1;
 drop table t1;
 End of 5.0 tests
+#
+# Bug#20197870: sql_table.cc: bool mysql_rename_table ...
+#               assertion `error==0\' failed.
+# The test crashes server without the fix.
+#
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 0;
+create table t1(f1 int) engine=innodb;
+rename table test.t1 to nonexistingdb.t2;
+ERROR 42000: Unknown database 'nonexistingdb'
+drop table t1;
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
+#
+# Bug#24807594 SDI FILE LOSTS AFTER ALTERING DATABASE
+# Verify that .sdi files are cleaned up correctly
+#
+CREATE TABLE t1(i INT) ENGINE MYISAM;
+RENAME TABLE t1 TO tt1;
+# Should only see tt1_XXX.sdi
+tt1_XXX.sdi
+RENAME TABLE tt1 TO tt1tt1;
+# Should only see tt1tt1_XXX.sdi
+tt1tt1_XXX.sdi
+RENAME TABLE tt1tt1 TO ttt1ttt1ttt1ttt1_xyz;
+# Should only see ttt1ttt1ttt1ttt1_XXX.sdi
+ttt1ttt1ttt1ttt1_XXX.sdi
+RENAME TABLE ttt1ttt1ttt1ttt1_xyz TO tttttttttttttttt1_abc;
+# Should only see tttttttttttttttt_XXX.sdi
+tttttttttttttttt_XXX.sdi
+RENAME TABLE tttttttttttttttt1_abc TO t1;
+# Should only see t1_XXX.sdi
+t1_XXX.sdi
+DROP TABLE t1;

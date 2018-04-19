@@ -1,0 +1,88 @@
+include/rpl_init.inc [topology=1->2->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/rpl_default_connections.inc
+#
+# First part
+#
+[connection master]
+CREATE TABLE trans_t1 (c1 INT) ENGINE=InnoDB;
+CREATE TABLE non_trans_t1 (c1 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE temp_trans_t1 (c1 INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE temp_non_trans_t1 (c1 INT) ENGINE=MyISAM;
+# Error cases ER_BAD_TABLE_ERROR.
+SET GTID_NEXT= '11111111-1111-1111-1111-111111111111:1';
+## Expecting error ER_BAD_TABLE_ERROR after the statement
+DROP TABLE trans_t1, non_trans_t1, non_existent;
+ERROR 42S02: Unknown table 'test.non_existent'
+ROLLBACK;
+SET GTID_NEXT= '11111111-1111-1111-1111-111111111111:2';
+## Expecting error ER_BAD_TABLE_ERROR after the statement
+DROP TABLE trans_t1, non_existent;
+ERROR 42S02: Unknown table 'test.non_existent'
+ROLLBACK;
+SET GTID_NEXT= '11111111-1111-1111-1111-111111111111:3';
+## Expecting error ER_BAD_TABLE_ERROR after the statement
+DROP TABLE non_trans_t1, non_existent;
+ERROR 42S02: Unknown table 'test.non_existent'
+ROLLBACK;
+# Non-error cases
+SET GTID_NEXT= '11111111-1111-1111-1111-111111111111:4';
+DROP TABLE trans_t1, non_trans_t1;
+SET GTID_NEXT= AUTOMATIC;
+CREATE TABLE trans_t1 (c1 INT) ENGINE=InnoDB;
+#
+# Second part
+#
+CREATE TEMPORARY TABLE temp_ignore (c1 INT) ENGINE=MyISAM;
+DROP TEMPORARY TABLE IF EXISTS temp_ignore, temp_non_trans_t1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TEMPORARY TABLE temp_ignore (c1 INT) ENGINE=InnoDB;
+DROP TEMPORARY TABLE IF EXISTS temp_ignore, temp_trans_t1;
+include/sync_slave_sql_with_master.inc
+#
+# Third part
+#
+[connection master]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Error: table .* does not exist in the InnoDB internal");
+SET SESSION sql_log_bin= 1;
+CREATE DATABASE test2;
+CREATE DATABASE test3;
+use test;
+CREATE TEMPORARY TABLE temp_trans_t1 (c1 INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE temp_non_trans_t1 (c1 INT) ENGINE=MyISAM;
+USE test2;
+CREATE TEMPORARY TABLE temp_trans_t1 (c1 INT) ENGINE=InnoDB;
+USE test3;
+CREATE TEMPORARY TABLE temp_trans_t1 (c1 INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE temp_trans_t2 (c1 INT) ENGINE=InnoDB;
+[connection master1]
+use test;
+CREATE TEMPORARY TABLE temp_trans_t1 (c1 INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE temp_non_trans_t1 (c1 INT) ENGINE=MyISAM;
+USE test2;
+CREATE TEMPORARY TABLE temp_non_trans_t1 (c1 INT) ENGINE=MyISAM;
+USE test3;
+CREATE TEMPORARY TABLE temp_non_trans_t1 (c1 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE temp_non_trans_t2 (c1 INT) ENGINE=MyISAM;
+include/sync_slave_sql_with_master.inc
+include/stop_slave_io.inc
+include/rpl_stop_server.inc [server_number=1]
+include/rpl_start_server.inc [server_number=1]
+[connection slave]
+include/start_slave_io.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+include/assert.inc [Slave_open_temp_tables should be 0]
+[connection master]
+USE test;
+DROP TABLE trans_t1;
+DROP DATABASE test2;
+DROP DATABASE test3;
+include/rpl_end.inc

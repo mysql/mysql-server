@@ -1,19 +1,46 @@
 #
 # show the global and session values;
 #
-select @@global.explicit_defaults_for_timestamp;
-select @@session.explicit_defaults_for_timestamp;
+
+select @@global.explicit_defaults_for_timestamp into @save_global_explicit_defaults_for_timestamp;
+select @@session.explicit_defaults_for_timestamp into @save_session_explicit_defaults_for_timestamp;
 show global variables like 'explicit_defaults_for_timestamp';
 show session variables like 'explicit_defaults_for_timestamp';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='explicit_defaults_for_timestamp';
-select * from information_schema.session_variables where variable_name='explicit_defaults_for_timestamp';
+select * from performance_schema.global_variables where variable_name='explicit_defaults_for_timestamp';
+select * from performance_schema.session_variables where variable_name='explicit_defaults_for_timestamp';
 --enable_warnings
 
 #
-# show that it's read-only
+# show that a SUPER privileged can write to the variables
 #
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-set global explicit_defaults_for_timestamp=true;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-set session explicit_defaults_for_timestamp=true;
+SET GLOBAL explicit_defaults_for_timestamp=TRUE;
+SET SESSION explicit_defaults_for_timestamp=TRUE;
+SET GLOBAL explicit_defaults_for_timestamp=@save_global_explicit_defaults_for_timestamp;
+SET SESSION explicit_defaults_for_timestamp=@save_session_explicit_defaults_for_timestamp;
+#
+# show that it's read-only to a NOT super privileged
+#
+--echo ** Creating new user without super privilege**
+CREATE USER damn;
+--echo ** Connecting connn using username 'sameea' **
+connect (conn_damn,localhost,damn,,);
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL explicit_defaults_for_timestamp=TRUE;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION explicit_defaults_for_timestamp=TRUE;
+
+--connection default
+DROP USER damn;
+
+--echo #
+--echo # WL#9687 : Change default for explicit_defaults_for_timestamp to ON
+--echo #
+
+SET GLOBAL explicit_defaults_for_timestamp = 0;
+SET explicit_defaults_for_timestamp = 0;
+SHOW VARIABLES LIKE 'explicit_defaults_for_timestamp';
+SET GLOBAL explicit_defaults_for_timestamp = default;
+SET explicit_defaults_for_timestamp = default;
+SHOW VARIABLES LIKE 'explicit_defaults_for_timestamp';

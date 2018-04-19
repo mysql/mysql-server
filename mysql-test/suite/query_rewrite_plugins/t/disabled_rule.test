@@ -1,5 +1,5 @@
 --echo #
---echo # Test of disabled rules ('N' in enabled column.)
+--echo # Test of disabled rules ('NO' in enabled column.)
 --echo #
 
 --source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
@@ -16,8 +16,10 @@ INSERT INTO t2 VALUES ( 'abc' ), ( 'klm' );
 
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement, enabled )
 VALUES ( 'SELECT * FROM test.t2',
-         'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1', 'N'
+         'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1', 'NO'
          );
+
+CALL query_rewrite.flush_rewrite_rules();
 
 --echo # Check that the rewrite rule is not executed.
 SELECT * FROM test.t2;
@@ -27,7 +29,7 @@ SELECT pattern, replacement, enabled FROM query_rewrite.rewrite_rules;
 
 --echo # Enable the previously disabled rule.
 UPDATE query_rewrite.rewrite_rules
-SET enabled = 'Y'
+SET enabled = 'YES'
 WHERE pattern = 'SELECT * FROM test.t2';
 
 CALL query_rewrite.flush_rewrite_rules();
@@ -37,7 +39,7 @@ SELECT * FROM test.t2;
 
 --echo # Disable via UPDATE...
 UPDATE query_rewrite.rewrite_rules
-SET enabled = 'N'
+SET enabled = 'NO'
 WHERE pattern = 'SELECT * FROM test.t2';
 
 CALL query_rewrite.flush_rewrite_rules();

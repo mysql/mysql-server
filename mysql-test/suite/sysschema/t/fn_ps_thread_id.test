@@ -1,9 +1,7 @@
--- source include/not_embedded.inc
 # Tests for sys schema
 # Verify the sys.ps_thread_id() function perfoms as expected
 
-# Passing NULL, or an unknown connection id, should return NULL
-SELECT sys.ps_thread_id(NULL);
+# Passing unknown connection id should return NULL
 SELECT sys.ps_thread_id(234623462376);
 
 # Grab the thread_id for this connection directly from Performance Schema
@@ -14,3 +12,6 @@ let $MY_THREAD_ID=`SELECT thread_id FROM performance_schema.threads
 eval SET @ps_thread_id = $MY_THREAD_ID;
 
 SELECT sys.ps_thread_id(CONNECTION_ID()) = @ps_thread_id;
+
+# Passing NULL should also return the current connection thread id
+SELECT sys.ps_thread_id(NULL) = @ps_thread_id;

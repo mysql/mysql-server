@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
 --source include/have_log_bin.inc
 --source include/have_debug.inc
@@ -19,13 +14,13 @@ use test;
 create table t1 (a int) engine=ndb;
 
 delimiter %;
-create procedure ins (rows int)
+create procedure ins (`rows` int)
 begin
   set @x = 0;
   repeat
     insert into t1 values (1);
     set @x = @x + 1;
-  until @x = rows
+  until @x = `rows`
   end repeat;
 end%
 
@@ -50,7 +45,7 @@ having count > 1;
 #
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
 create table raw_binlog_rows (txt varchar(1000));
 

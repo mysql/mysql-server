@@ -65,7 +65,10 @@ select count(*) as "5(not deleted)" from t1 where a in (2, 3, 4, 5, 6);
 5(not deleted)
 5
 drop table t1;
-create table t2 (a int primary key, b varchar(256)) engine ndb;
+create table t2 (
+a int primary key,
+b varchar(256) character set latin1)
+engine ndb;
 Has loaded 2000 rows
 2000
 Should be 1500 rows left now

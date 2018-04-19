@@ -538,12 +538,12 @@ count(*)
 8704
 explain select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	3,3	NULL	#	#	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	#	#	Using intersect(cola,colb); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	3,3	NULL	#	#	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	#	#	Using intersect(cola,colb); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` FORCE INDEX (`colb`) FORCE INDEX (`cola`) where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
 drop table t1;
@@ -697,7 +697,7 @@ drop table t0, t1, t2, t3;
 # BUG#44810: index merge and order by with low sort_buffer_size 
 # crashes server!
 #
-CREATE TABLE t1(a VARCHAR(128),b VARCHAR(128),KEY(A),KEY(B));
+CREATE TABLE t1(a VARCHAR(128),b VARCHAR(128),KEY(A),KEY(B)) charset latin1;
 INSERT INTO t1 VALUES (REPEAT('a',128),REPEAT('b',128));
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
@@ -793,7 +793,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "27.87"
+      "query_cost": "#"
     },
     "table": {
       "table_name": "t1",
@@ -810,10 +810,10 @@ EXPLAIN
       "rows_produced_per_join": 4,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "27.07",
-        "eval_cost": "0.80",
-        "prefix_cost": "27.87",
-        "data_read_per_join": "4K"
+        "read_cost": "#",
+        "eval_cost": "#",
+        "prefix_cost": "#",
+        "data_read_per_join": "18K"
       },
       "used_columns": [
         "key1",
@@ -981,12 +981,12 @@ key1	key2	key3	key4	filler1
 # Check that keys that don't improve selectivity are skipped.
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a	sta_swt21a	12	const,const,const	999	100.00	NULL
+1	SIMPLE	t1	NULL	ref	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a	sta_swt21a	12	const,const,const	1000	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where ((`test`.`t1`.`swt2a` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	stb_swt1a_2b,stb_swt1b,st_b	stb_swt1a_2b	8	const,const	3999	10.00	Using where
+1	SIMPLE	t1	NULL	range	stb_swt1a_2b,stb_swt1b,st_b	stb_swt1b	8	NULL	4000	10.00	Using index condition; Using where; Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where ((`test`.`t1`.`swt2b` = 1) and (`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1))
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
@@ -1055,7 +1055,7 @@ count(a)
 # BUG#1:
 expla_or_bin select count(a_or_b) from t2 where a_or_b='AAAAAAAA' a_or_bnd a_or_b='AAAAAAAA';
 id	select_type	ta_or_ba_or_ble	pa_or_brtitions	type	possia_or_ble_keys	key	key_len	ref	rows	filtered	Extra_or_b
-1	SIMPLE	t2	NULL	ref	a_or_b,a_or_b	a_or_b	6	const	4	12.50	Using where
+1	SIMPLE	t2	NULL	ref	a_or_b,a_or_b	a_or_b	21	const	4	12.50	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`t2`.`a_or_b`) AS `count(a_or_b)` from `test`.`t2` where ((`test`.`t2`.`a_or_b` = 'AAAAAAAA') a_or_bnd (`test`.`t2`.`a_or_b` = 'AAAAAAAA'))
 select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
@@ -1067,7 +1067,7 @@ count(a)
 insert into t2 values ('ab', 'ab', 'uh', 'oh');
 explain select a from t2 where a='ab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	a	a	6	const	1	100.00	Using where
+1	SIMPLE	t2	NULL	ref	a	a	21	const	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where (`test`.`t2`.`a` = 'ab')
 drop table t2;
@@ -1076,7 +1076,7 @@ drop table t2;
 #             try to repair it
 #
 CREATE TABLE t1(c1 INT, c2 INT DEFAULT 0, c3 CHAR(255) DEFAULT '',
-KEY(c1), KEY(c2), KEY(c3));
+KEY(c1), KEY(c2), KEY(c3)) charset latin1;
 INSERT INTO t1(c1) VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),
 (0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
 INSERT INTO t1 VALUES(0,0,0);
@@ -1096,7 +1096,7 @@ key1 int not null,
 key2 int not null,
 INDEX i1(key1),
 INDEX i2(key2)
-);
+) charset latin1;
 # No primary key
 explain select * from t1 where key1 < 5 or key2 > 197;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1163,7 +1163,7 @@ key2  integer not null,
 filler char  (200),
 index (key1),
 index (key2)
-);
+) charset latin1;
 show warnings;
 Level	Code	Message
 explain select pk from t1 where key1 = 1 and key2 = 1;
@@ -1325,7 +1325,7 @@ filler2 char(250) default NULL,
 PRIMARY KEY (t_cpac,t_vers,t_rele,t_cust),
 UNIQUE KEY IX_4 (t_cust,t_cpac,t_vers,t_rele),
 KEY IX_5 (t_vers,t_rele,t_cust)
-);
+) charset latin1;
 insert into t1 values
 ('tm','2.5 ','a ','    ','',''), ('tm','2.5U','a ','stnd','',''),
 ('da','3.3 ','b ','    ','',''), ('da','3.3U','b ','stnd','',''),
@@ -1516,7 +1516,7 @@ WHERE col_varchar_key >= 'l' OR
 (((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
 AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY,col_int_key,col_varchar_key	col_varchar_key	7	NULL	2	78.12	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY,col_int_key,col_varchar_key	col_varchar_key	10	NULL	2	78.12	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `col_int_key` from `test`.`t1` where ((`test`.`t1`.`col_varchar_key` >= 'l') or (((`test`.`t1`.`pk` between 141 and 141) or (`test`.`t1`.`col_varchar_key` <> 'l')) and ((`test`.`t1`.`pk` between 141 and 141) or (`test`.`t1`.`col_int_key` > 141))))
 SELECT col_int_key
@@ -1837,11 +1837,176 @@ EXPLAIN SELECT t1.f1 FROM t1
 WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_merge	f2,f3	f2,f3	5,2	NULL	1	100.00	Using intersect(f2,f3); Using where; Using index
+2	DEPENDENT SUBQUERY	t2	NULL	index_merge	f2,f3	f2,f3	5,5	NULL	1	100.00	Using intersect(f2,f3); Using where; Using index
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select '2' AS `f1` from `test`.`t1` where (((/* select#2 */ select count(0) from `test`.`t2` where ((`test`.`t2`.`f2` = '2') and (`test`.`t2`.`f3` = 'h'))) = 0))
 DROP TABLE t1,t2;
+#
+# Bug#19055268 ASSERT `!TABLE || (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET,...) FAILED
+#
+SET sql_mode = '';
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_nokey int(11) NOT NULL,
+col_int_key int(11) NOT NULL,
+col_date_key date NOT NULL,
+col_date_nokey date NOT NULL,
+col_time_key time NOT NULL,
+col_time_nokey time NOT NULL,
+col_datetime_key datetime NOT NULL,
+col_datetime_nokey datetime NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+col_varchar_nokey varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_date_key (col_date_key),
+KEY col_time_key (col_time_key),
+KEY col_datetime_key (col_datetime_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+INSERT INTO t1 VALUES
+(1,2,1,'0000-00-00','0000-00-00','00:00:07','00:00:25','0000-00-00 00:00:00','0000-00-00 00:00:00','2','2'),
+(109,25,1,'0000-00-00','0000-00-00','00:00:07','00:00:25','0000-00-00 00:00:00','0000-00-00 00:00:00','1','7');
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_nokey int(11) NOT NULL,
+col_int_key int(11) NOT NULL,
+col_date_key date NOT NULL,
+col_date_nokey date NOT NULL,
+col_time_key time NOT NULL,
+col_time_nokey time NOT NULL,
+col_datetime_key datetime NOT NULL,
+col_datetime_nokey datetime NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+col_varchar_nokey varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_date_key (col_date_key),
+KEY col_time_key (col_time_key),
+KEY col_datetime_key (col_datetime_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+INSERT INTO t2 VALUES
+(10,2,4,'2000-04-16','2000-04-16','17:02:34','17:02:34','2009-08-04 02:49:10','2009-08-04 02:49:10','u','u'),
+(11,6,5,'1900-01-01','1900-01-01','12:31:32','12:31:32','2004-05-24 22:22:06','2004-05-24 22:22:06','b','b'),
+(12,6,0,'2005-05-14','2005-05-14','16:49:31','16:49:31','1900-01-01 00:00:00','1900-01-01 00:00:00','c','c'),
+(13,94,140,'2001-05-23','2001-05-23','00:00:00','00:00:00','2003-07-28 07:31:49','2003-07-28 07:31:49','f','f'),
+(14,10,230,'2000-06-04','2000-06-04','20:23:27','20:23:27','2000-02-04 21:03:36','2000-02-04 21:03:36','g','g'),
+(15,8,2,'1900-01-01','1900-01-01','10:31:09','10:31:09','2005-05-22 11:48:12','2005-05-22 11:48:12','q','q'),
+(16,43,110,'2008-03-18','2008-03-18','09:58:35','09:58:35','1900-01-01 00:00:00','1900-01-01 00:00:00','n','n'),
+(17,1,8,'2007-02-25','2007-02-25','05:39:28','05:39:28','2005-05-06 00:53:37','2005-05-06 00:53:37','c','c'),
+(18,6,5,'2001-11-22','2001-11-22','00:00:00','00:00:00','2002-08-08 23:43:46','2002-08-08 23:43:46','x','x'),
+(19,5,8,'0000-00-00','0000-00-00','00:00:00','00:00:00','2009-10-26 04:07:22','2009-10-26 04:07:22','n','n'),
+(20,1,5,'2001-08-07','2001-08-07','14:06:09','14:06:09','2005-03-12 22:55:23','2005-03-12 22:55:23','r','r'),
+(21,195,70,'2000-08-03','2000-08-03','00:00:00','00:00:00','2008-05-03 22:34:19','2008-05-03 22:34:19','j','j'),
+(22,1,0,'2007-04-21','2007-04-21','17:43:27','17:43:27','2001-10-12 13:30:14','2001-10-12 13:30:14','l','l'),
+(23,0,9,'2000-06-13','2000-06-13','12:23:15','12:23:15','2007-10-07 03:53:06','2007-10-07 03:53:06','h','h'),
+(24,7,3,'0000-00-00','0000-00-00','19:35:06','19:35:06','2005-12-27 20:58:56','2005-12-27 20:58:56','z','z'),
+(25,1,9,'2004-07-08','2004-07-08','10:16:08','10:16:08','2009-05-16 18:44:21','2009-05-16 18:44:21','z','z'),
+(26,4,3,'2003-06-01','2003-06-01','00:00:00','00:00:00','2008-10-02 00:00:00','2008-10-02 00:00:00','d','d'),
+(27,76,22,'0000-00-00','0000-00-00','16:51:15','16:51:15','2001-03-20 00:00:00','2001-03-20 00:00:00','l','l'),
+(28,6,1,'1900-01-01','1900-01-01','00:00:00','00:00:00','1900-01-01 00:00:00','1900-01-01 00:00:00','s','s'),
+(29,7,3,'2007-01-22','2007-01-22','00:00:00','00:00:00','2000-01-10 23:19:37','2000-01-10 23:19:37','k','k'),
+(30,6,3,'2006-10-19','2006-10-19','21:46:20','21:46:20','2008-06-21 16:56:37','2008-06-21 16:56:37','l','l'),
+(31,6,8,'2005-02-27','2005-02-27','00:00:00','00:00:00','2002-03-01 00:34:37','2002-03-01 00:34:37','t','t'),
+(32,1,4,'2001-09-10','2001-09-10','03:34:16','03:34:16','2003-02-05 18:41:00','2003-02-05 18:41:00','n','n'),
+(33,5,1,'2002-09-06','2002-09-06','11:25:31','11:25:31','2004-01-18 13:28:24','2004-01-18 13:28:24','z','z'),
+(34,2,3,'2005-01-15','2005-01-15','17:00:53','17:00:53','2002-12-03 01:06:27','2002-12-03 01:06:27','f','f'),
+(35,1,3,'1900-01-01','1900-01-01','23:32:47','23:32:47','2006-03-03 02:58:59','2006-03-03 02:58:59','q','q'),
+(36,185,63,'2006-12-20','2006-12-20','00:00:00','00:00:00','2002-07-01 10:13:39','2002-07-01 10:13:39','l','l'),
+(37,3,4,'2002-04-17','2002-04-17','12:15:05','12:15:05','2009-01-13 20:47:01','2009-01-13 20:47:01','a','a'),
+(38,7,8,'2004-01-10','2004-01-10','22:26:38','22:26:38','2008-07-18 13:35:29','2008-07-18 13:35:29','c','c'),
+(39,8,6,'2008-03-24','2008-03-24','00:00:00','00:00:00','2001-03-15 02:44:57','2001-03-15 02:44:57','c','c'),
+(40,1,4,'2007-08-18','2007-08-18','00:00:00','00:00:00','2000-06-25 14:03:55','2000-06-25 14:03:55','i','i'),
+(41,3,9,'2005-07-22','2005-07-22','00:00:00','00:00:00','2005-12-13 21:32:03','2005-12-13 21:32:03','r','r'),
+(42,8,2,'2008-07-12','2008-07-12','08:59:37','08:59:37','2009-03-18 19:27:29','2009-03-18 19:27:29','g','g'),
+(43,159,118,'2003-08-18','2003-08-18','07:19:50','07:19:50','2004-04-10 02:50:59','2004-04-10 02:50:59','l','l'),
+(44,112,10,'2002-02-26','2002-02-26','03:51:46','03:51:46','2008-09-27 06:49:19','2008-09-27 06:49:19','w','w'),
+(45,0,9,'2007-07-26','2007-07-26','15:57:32','15:57:32','2006-02-04 15:10:41','2006-02-04 15:10:41','b','b'),
+(46,2,9,'1900-01-01','1900-01-01','02:57:08','02:57:08','2004-01-04 18:45:14','2004-01-04 18:45:14','i','i'),
+(47,1,1,'2000-07-26','2000-07-26','00:21:15','00:21:15','2009-04-04 02:52:09','2009-04-04 02:52:09','o','o'),
+(48,7,6,'2005-03-06','2005-03-06','23:35:02','23:35:02','2001-03-20 12:50:17','2001-03-20 12:50:17','f','f'),
+(49,5,2,'2005-04-16','2005-04-16','09:21:51','09:21:51','2001-11-15 10:51:46','2001-11-15 10:51:46','a','a'),
+(50,2,2,'2004-04-09','2004-04-09','19:21:02','19:21:02','2007-08-13 00:00:00','2007-08-13 00:00:00','j','j'),
+(51,5,3,'2003-05-13','2003-05-13','03:16:22','03:16:22','1900-01-01 00:00:00','1900-01-01 00:00:00','k','k'),
+(52,5,0,'0000-00-00','0000-00-00','00:00:00','00:00:00','2008-01-24 08:37:15','2008-01-24 08:37:15','x','x'),
+(53,2,8,'2000-05-27','2000-05-27','18:19:51','18:19:51','2003-03-02 10:18:02','2003-03-02 10:18:02','r','r'),
+(54,2,5,'2004-07-04','2004-07-04','01:42:17','01:42:17','2003-04-25 07:35:13','2003-04-25 07:35:13','t','t'),
+(55,9,0,'2006-03-07','2006-03-07','00:00:00','00:00:00','2006-07-11 23:31:13','2006-07-11 23:31:13','p','p'),
+(56,3,1,'2002-08-17','2002-08-17','20:32:51','20:32:51','2009-08-08 16:55:59','2009-08-08 16:55:59','g','g'),
+(57,2,9,'2003-06-08','2003-06-08','10:04:19','10:04:19','1900-01-01 00:00:00','1900-01-01 00:00:00','q','q'),
+(58,7,4,'1900-01-01','1900-01-01','06:39:26','06:39:26','2000-12-22 10:27:41','2000-12-22 10:27:41','m','m'),
+(59,4,7,'2003-10-09','2003-10-09','15:48:26','15:48:26','2002-07-20 00:00:00','2002-07-20 00:00:00','l','l'),
+(60,5,6,'2007-08-12','2007-08-12','02:17:23','02:17:23','2007-09-24 00:12:11','2007-09-24 00:12:11','d','d'),
+(61,3,3,'2008-12-13','2008-12-13','07:48:47','07:48:47','2009-01-05 06:13:21','2009-01-05 06:13:21','n','n'),
+(62,0,8,'0000-00-00','0000-00-00','09:09:14','09:09:14','2008-11-23 18:13:35','2008-11-23 18:13:35','l','l'),
+(63,1,2,'2003-07-27','2003-07-27','22:46:23','22:46:23','2002-12-19 00:00:00','2002-12-19 00:00:00','c','c'),
+(64,5,5,'2003-04-13','2003-04-13','19:42:42','19:42:42','2003-04-03 16:16:35','2003-04-03 16:16:35','v','v'),
+(65,0,3,'2007-04-25','2007-04-25','15:15:32','15:15:32','2009-04-13 13:44:41','2009-04-13 13:44:41','z','z'),
+(66,4,4,'2000-03-04','2000-03-04','02:50:26','02:50:26','2007-04-19 20:49:24','2007-04-19 20:49:24','h','h'),
+(67,0,9,'2001-08-03','2001-08-03','14:44:31','14:44:31','2002-11-15 23:36:04','2002-11-15 23:36:04','y','y'),
+(68,2,0,'2006-04-13','2006-04-13','00:00:00','00:00:00','2000-05-16 00:00:00','2000-05-16 00:00:00','o','o'),
+(69,2,1,'2006-04-22','2006-04-22','07:31:27','07:31:27','2002-06-08 06:51:27','2002-06-08 06:51:27','h','h'),
+(70,8,5,'2004-08-26','2004-08-26','10:48:57','10:48:57','2006-12-07 01:49:26','2006-12-07 01:49:26','h','h'),
+(71,8,6,'2002-11-26','2002-11-26','00:00:00','00:00:00','1900-01-01 00:00:00','1900-01-01 00:00:00','c','c'),
+(72,5,2,'2002-01-07','2002-01-07','23:06:00','23:06:00','2000-09-27 16:26:23','2000-09-27 16:26:23','m','m'),
+(73,1,0,'2005-05-07','2005-05-07','05:56:02','05:56:02','1900-01-01 00:00:00','1900-01-01 00:00:00','s','s'),
+(74,0,0,'2001-04-21','2001-04-21','10:44:22','10:44:22','2008-02-13 04:28:14','2008-02-13 04:28:14','t','t'),
+(75,7,9,'2000-09-01','2000-09-01','00:00:00','00:00:00','2000-03-10 06:17:52','2000-03-10 06:17:52','r','r'),
+(76,6,8,'2004-07-06','2004-07-06','01:44:26','01:44:26','2003-05-23 00:00:00','2003-05-23 00:00:00','u','u'),
+(77,0,6,'0000-00-00','0000-00-00','00:00:00','00:00:00','1900-01-01 00:00:00','1900-01-01 00:00:00','h','h'),
+(78,6,0,'2001-02-21','2001-02-21','17:01:49','17:01:49','2003-10-27 12:45:52','2003-10-27 12:45:52','p','p'),
+(79,9,0,'2004-01-28','2004-01-28','16:27:14','16:27:14','2004-08-06 00:00:00','2004-08-06 00:00:00','z','z'),
+(80,5,3,'2008-10-07','2008-10-07','00:00:00','00:00:00','2001-10-05 05:13:39','2001-10-05 05:13:39','h','h'),
+(81,5,5,'0000-00-00','0000-00-00','10:34:22','10:34:22','2001-03-25 04:24:51','2001-03-25 04:24:51','q','q'),
+(82,6,0,'2008-03-04','2008-03-04','10:48:51','10:48:51','2006-08-20 11:54:04','2006-08-20 11:54:04','l','l'),
+(83,1,0,'2009-05-08','2009-05-08','16:55:06','16:55:06','2003-05-16 18:14:52','2003-05-16 18:14:52','p','p'),
+(84,1,1,'2005-03-19','2005-03-19','14:46:32','14:46:32','2009-10-24 13:39:35','2009-10-24 13:39:35','t','t'),
+(85,9,8,'2007-09-14','2007-09-14','16:26:50','16:26:50','2001-08-10 00:00:00','2001-08-10 00:00:00','o','o'),
+(86,249,190,'2007-02-10','2007-02-10','06:35:32','06:35:32','2001-09-06 10:15:08','2001-09-06 10:15:08','o','o'),
+(87,3,0,'2000-06-12','2000-06-12','02:28:38','02:28:38','2006-09-27 00:00:00','2006-09-27 00:00:00','p','p'),
+(88,6,4,'2002-07-06','2002-07-06','00:00:00','00:00:00','2002-02-27 20:12:29','2002-02-27 20:12:29','e','e'),
+(89,7,2,'2001-02-25','2001-02-25','04:52:29','04:52:29','1900-01-01 00:00:00','1900-01-01 00:00:00','u','u'),
+(90,5,8,'2000-04-27','2000-04-27','00:00:00','00:00:00','2005-08-18 00:00:00','2005-08-18 00:00:00','z','z'),
+(91,4,0,'2005-08-23','2005-08-23','09:11:04','09:11:04','2000-10-15 15:52:54','2000-10-15 15:52:54','j','j'),
+(92,24,137,'2006-01-07','2006-01-07','22:38:18','22:38:18','2007-11-22 13:52:22','2007-11-22 13:52:22','e','e'),
+(93,3,7,'2007-07-08','2007-07-08','13:23:13','13:23:13','2005-09-20 09:09:48','2005-09-20 09:09:48','k','k'),
+(94,179,153,'2000-01-06','2000-01-06','15:33:10','15:33:10','2008-01-11 17:35:34','2008-01-11 17:35:34','d','d'),
+(95,5,7,'0000-00-00','0000-00-00','09:20:10','09:20:10','2002-11-01 00:00:00','2002-11-01 00:00:00','q','q'),
+(96,7,9,'2002-02-22','2002-02-22','11:19:10','11:19:10','2009-06-27 00:00:00','2009-06-27 00:00:00','j','j'),
+(97,7,2,'2001-04-17','2001-04-17','08:08:41','08:08:41','2000-09-25 14:11:58','2000-09-25 14:11:58','j','j'),
+(98,1,0,'2005-06-26','2005-06-26','10:17:36','10:17:36','2004-01-05 04:49:39','2004-01-05 04:49:39','e','e'),
+(99,5,6,'2008-09-14','2008-09-14','00:00:00','00:00:00','1900-01-01 00:00:00','1900-01-01 00:00:00','f','f'),
+(100,7,6,'0000-00-00','0000-00-00','01:05:02','01:05:02','2001-01-17 23:16:24','2001-01-17 23:16:24','a','a'),
+(101,9,2,'2001-12-20','2001-12-20','00:00:00','00:00:00','1900-01-01 00:00:00','1900-01-01 00:00:00','o','o'),
+(102,5,9,'2001-11-05','2001-11-05','00:00:00','00:00:00','2008-07-15 00:00:00','2008-07-15 00:00:00','y','y'),
+(103,4,4,'1900-01-01','1900-01-01','15:32:04','15:32:04','2001-03-06 10:00:37','2001-03-06 10:00:37','d','d'),
+(104,8,7,'2009-02-13','2009-02-13','20:25:36','20:25:36','2004-08-15 00:00:00','2004-08-15 00:00:00','z','z'),
+(105,8,6,'2008-03-25','2008-03-25','21:33:53','21:33:53','2006-10-12 06:13:06','2006-10-12 06:13:06','s','s');
+analyze table t1;
+analyze table t2;
+EXPLAIN UPDATE t1 SET col_time_nokey = 25
+WHERE (col_varchar_key, col_varchar_nokey) IN (
+SELECT col_int_key, col_int_key
+FROM t2
+WHERE (col_time_key, col_int_key, col_int_key) IN (
+(0, 'a', 'm'), (0, 'n', 7)
+)
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	index_merge	col_int_key,col_time_key	col_int_key,col_time_key	4,3	NULL	3	100.00	Using intersect(col_int_key,col_time_key); Using where; Using index
+UPDATE t1 SET col_time_nokey = 25
+WHERE (col_varchar_key, col_varchar_nokey) IN (
+SELECT col_int_key, col_int_key
+FROM t2
+WHERE (col_time_key, col_int_key, col_int_key) IN (
+(0, 'a', 'm'), (0, 'n', 7)
+)
+);
+DROP TABLE t1, t2;
+SET sql_mode = default;
 #
 # Bug#11747423 32254: INDEX MERGE USED UNNECESSARILY
 #
@@ -1856,9 +2021,36 @@ KEY covering_index (id2,id3)
 INSERT INTO t1 VALUES (0, 0, 0), (1, 1, 1), (2, 2, 2), (3, 3, 3), (4, 4, 4), (5, 5, 5), (6, 6, 6), (7, 7, 7);
 INSERT INTO t1 SELECT id + 8, id2 + 8, id3 +8 FROM t1;
 INSERT INTO t1 SELECT id + 16, 7, 0 FROM t1;
-EXPLAIN SELECT SQL_NO_CACHE count(*) FROM t1 WHERE id2=7 AND id3=0;
+EXPLAIN SELECT count(*) FROM t1 WHERE id2=7 AND id3=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	id2,id3,covering_index	covering_index	8	const,const	16	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select sql_no_cache count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`id3` = 0) and (`test`.`t1`.`id2` = 7))
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`id3` = 0) and (`test`.`t1`.`id2` = 7))
 DROP TABLE t1;
+#
+# Bug#21697002 ASSERTION `KEYS >= 0.0' FAILED
+#
+CREATE TABLE t1 (
+c1 VARCHAR(2),
+d1 DATETIME NOT NULL
+);
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+c1 VARCHAR(2),
+c2 VARCHAR(2),
+PRIMARY KEY (pk),
+KEY (c1),
+KEY (c2)
+) PARTITION BY KEY(pk) PARTITIONS 2;
+SELECT c1
+FROM t1
+WHERE c1 IN
+(
+SELECT t2.c1
+FROM t2
+WHERE t2.c1 = 'f'
+     OR t2.c2 < 'y'
+)
+AND t1.d1 IS NULL;
+c1
+DROP TABLE t1, t2;

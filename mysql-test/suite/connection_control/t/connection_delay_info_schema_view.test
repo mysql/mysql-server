@@ -1,0 +1,202 @@
+
+# Make sure that connection_control plugin can be loaded
+--source ../inc/have_connection_control_plugin.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # Connection delay tests for valid user accounts
+
+--echo
+--echo # ----------------------------------------------------------------------
+--echo
+
+--echo # Setup
+--echo # Install connection_control plugin
+--source ../inc/install_connection_control_plugin.inc
+
+--echo # Create user accounts for testing
+CREATE USER u1@localhost IDENTIFIED BY 'abcd';
+CREATE USER u2@localhost IDENTIFIED BY 'abcd';
+CREATE USER u3@localhost IDENTIFIED BY 'abcd';
+
+--echo # Save original values of connection_control variables
+SET @saved_connections_threshold = @@global.connection_control_failed_connections_threshold;
+
+-- echo # Avoid triggering delay
+SET @@global.connection_control_failed_connections_threshold = 100;
+
+# We don't need to use client side authentication plugin for this test.
+let $USE_AUTH_PLUGIN= 0;
+
+--echo
+--echo # ----------------------------------------------------------------------
+--echo
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u1,,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u1,haha,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u2, localhost, u2,efgh,,,,);
+
+-- echo # connection_control_failed_login_attempts should contain entries
+-- echo # for u1@localhost and u2@localhost
+
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts;
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u3, localhost, u3,,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u2, localhost, u2,haha,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u3, localhost, u3,efgh,,,,);
+
+-- echo # connection_control_failed_login_attempts should contain entries
+-- echo # for u1@localhost, u2@localhost and u3@localhost
+
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts;
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u2, localhost, u2,,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u1,haha,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u3, localhost, u3,efgh,,,,);
+
+-- echo # failed connection counts should have increased for all users
+
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts;
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u2, localhost, u2,,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u1,haha,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u3, localhost, u3,efgh,,,,);
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u1,haha,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u3, localhost, u3,efgh,,,,);
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u1,haha,,,,);
+
+-- echo # Try various queries
+
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts
+  WHERE USERHOST = '\'u1\'@\'localhost\'';
+  
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts
+  WHERE USERHOST LIKE '%u2%';
+
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts
+  WHERE FAILED_ATTEMPTS > 4;
+
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts
+  WHERE FAILED_ATTEMPTS > 5;
+
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts
+  WHERE FAILED_ATTEMPTS < 5;
+  
+connect(con_u1, localhost, u1,abcd,,,,);
+connect(con_u2, localhost, u2,abcd,,,,);
+connection default;
+--disconnect con_u1
+--disconnect con_u2
+
+CREATE USER viewer@localhost IDENTIFIED BY 'abcd';
+GRANT CONNECTION_ADMIN ON *.* TO viewer@localhost;
+connect(con_viewer, localhost, viewer,abcd,,,,);
+--echo # After successful login, corresponding entry should disappear
+--echo # from the view
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts;
+connection default;
+disconnect con_viewer;
+DROP USER viewer@localhost;
+
+connect(con_u3, localhost, u3,abcd,,,,);
+--echo # A user without privileges should not be able to any information
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts;
+
+connection default;
+--disconnect con_u3
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u1,,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u3, localhost, u3,haha,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u2, localhost, u2,efgh,,,,);
+
+-- echo # Subsequent failed attempts should put entries back in the view
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts;
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u4, localhost, u4,,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u5, localhost, u5,haha,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u6, localhost, u6,efgh,,,,);
+
+-- echo # Attempts by invalid accounts should be shown in the view
+--sorted_result
+SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts;
+
+--echo
+--echo # ----------------------------------------------------------------------
+--echo
+
+--echo # Cleanup
+
+connection default;
+
+--echo # Restore original values of conenction_control variables
+SET @@global.connection_control_failed_connections_threshold = @saved_connections_threshold;
+
+--echo # Remove user accounts created for the test
+DROP USER u1@localhost;
+DROP USER u2@localhost;
+DROP USER u3@localhost;
+
+--echo # Uninstall connection_control plugin
+--source ../inc/uninstall_connection_control_plugin.inc
+
+# Wait till all disconnects are completed.
+--source include/wait_until_count_sessions.inc
+
+--echo
+--echo # ----------------------------------------------------------------------

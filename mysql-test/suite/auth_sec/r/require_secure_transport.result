@@ -1,0 +1,43 @@
+CREATE USER 'user_tcp'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON *.* TO 'user_tcp'@'127.0.0.1';
+CREATE USER 'user_ssl'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON *.* TO 'user_ssl'@'127.0.0.1';
+CREATE USER 'user_requiressl'@'localhost' REQUIRE SSL;
+GRANT ALL PRIVILEGES ON *.* TO 'user_requiressl'@'localhost';
+# Socket connection is not possible for user
+# created with REQUIRE SSL unless we pass SSL explicitly
+ERROR 28000: Access denied for user 'user_requiressl'@'localhost' (using password: NO)
+
+# Connection type testing for TCP/IP  protocol
+
+1
+1
+# Testing TCP/IP connections over SSL/TLS
+2
+2
+
+# Testing TCP/IP connections over SSL/TLS having user with REQUIRE SSL clause
+2.5
+2.5
+
+SET @@global.require_secure_transport = ON;
+
+# Connection type testing for TCP/IP protocol, secure transport required.
+
+# Testing TCP/IP connections over SSL/TLS, secure transport required.
+4
+4
+
+# Testing TCP/IP connections over SSL/TLS with an user created with REQUIRE SSL
+4.5
+4.5
+
+# Rebooting to start without ssl and require-secure-transport=on
+# Insecure connection is not possible with TCP
+# Socket connection is possible as it is treated as secure
+# Even socket connection is not possible for users created with REQUIRE SSL clause
+ERROR 28000: Access denied for user 'user_requiressl'@'localhost' (using password: NO)
+ERROR HY000: SSL connection error: SSL is required but the server doesn't support it
+#Cleanup
+DROP USER 'user_tcp'@'127.0.0.1', 'user_ssl'@'127.0.0.1', 'user_requiressl'@'localhost';
+SET @@global.require_secure_transport = OFF;

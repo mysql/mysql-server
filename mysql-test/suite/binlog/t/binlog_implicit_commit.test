@@ -1,7 +1,0 @@
-# The purpose of this test is to test that setting autocommit does a
-# commit of outstanding transactions and nothing is left pending in
-# the transaction cache.
-
---source include/have_log_bin.inc
---source include/not_gtid_enabled.inc
---source extra/binlog_tests/binlog_implicit_commit.inc

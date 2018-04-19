@@ -1,9 +1,8 @@
--- source include/have_sjis.inc
--- source include/big_test.inc
-
 #
 # Tests with the sjis character set
 #
+--source include/no_valgrind_without_big.inc
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -143,7 +142,10 @@ ORDER BY head, tail;
 INSERT t1 (code) SELECT head FROM head WHERE (head BETWEEN 'A1' AND 'DF');
 DROP TEMPORARY TABLE head, tail;
 SHOW CREATE TABLE t1;
+# Set max_error_count to contain number of warnings in result file.
+SET @@session.max_error_count = 64;
 UPDATE IGNORE t1 SET a=unhex(code) ORDER BY code;
+SET @@session.max_error_count = DEFAULT;
 SELECT COUNT(*) FROM t1;
 SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=1;
 SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=2;
@@ -203,13 +205,11 @@ DROP TABLE t1;
 
 set names sjis;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_8140.inc
 
 
 set collation_connection=sjis_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_8140.inc
 
 --echo #

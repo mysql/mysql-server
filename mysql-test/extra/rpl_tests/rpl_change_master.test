@@ -4,6 +4,11 @@
 
 call mtr.add_suppression("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum");
 
+--connection default
+let $check_ipv6_just_check=1;
+source include/check_ipv6.inc;
+let $check_ipv6_just_check=0;
+
 connection slave;
 let $save_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 
@@ -282,10 +287,6 @@ CHANGE MASTER TO IGNORE_SERVER_IDS= ();
 # - CHANGE MASTER ... MASTER_BIND='interface'
 # - SHOW SLAVE STATUS has new column Master_Bind
 #
-
-let $check_ipv6_just_check=1;
-source include/check_ipv6.inc;
-let $check_ipv6_just_check=0;
 
 # Test valid IPv4 address
 let $master_bind='127.0.0.1';

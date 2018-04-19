@@ -19,61 +19,86 @@ DROP VIEW IF EXISTS v1, v2;
 #
 CREATE TABLE t1 (a INT);
 CREATE TABLE t1 (a INT);
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+ERROR HY000: Error writing file 'binlog' ((errno: #)
+# The above CREATE TABLE should be rolled back.
+# Now we check this fact and create table for real.
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3);
 INSERT INTO t1 VALUES (4),(5),(6);
 INSERT INTO t1 VALUES (4),(5),(6);
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+ERROR HY000: Error writing file 'binlog' ((errno: #)
 UPDATE t1 set a=a+1;
 UPDATE t1 set a=a+1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+ERROR HY000: Error writing file 'binlog' ((errno: #)
 DELETE FROM t1;
 DELETE FROM t1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+ERROR HY000: Error writing file 'binlog' ((errno: #)
+# Check that the above DML statements were rolled back and
+# had no effect on t1.
+SELECT * FROM t1;
+a
+1
+2
+3
 CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t1 VALUES (new.a + 100);
 CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t1 VALUES (new.a + 100);
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
-DROP TRIGGER tr1;
-DROP TRIGGER tr1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+ERROR HY000: Error writing file 'binlog' ((errno: #)
+SHOW CREATE TRIGGER tr1;
+ERROR HY000: Trigger does not exist
 ALTER TABLE t1 ADD (b INT);
 ALTER TABLE t1 ADD (b INT);
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+ERROR HY000: Error writing file 'binlog' ((errno: #)
+# The above ALTER TABLE was rolled back. Check this.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE VIEW v1 AS SELECT a FROM t1;
 CREATE VIEW v1 AS SELECT a FROM t1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
-DROP VIEW v1;
-DROP VIEW v1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
-CREATE PROCEDURE p1(OUT rows INT) SELECT count(*) INTO rows FROM t1;
-CREATE PROCEDURE p1(OUT rows INT) SELECT count(*) INTO rows FROM t1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
-DROP PROCEDURE p1;
-DROP PROCEDURE p1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+ERROR HY000: Error writing file 'binlog' ((errno: #)
+# The above CREATE VIEW was rolled back. Check this.
+SHOW CREATE VIEW v1;
+ERROR 42S02: Table 'test.v1' doesn't exist
+CREATE PROCEDURE p1(OUT `rows` INT) SELECT count(*) INTO `rows` FROM t1;
+CREATE PROCEDURE p1(OUT `rows` INT) SELECT count(*) INTO `rows` FROM t1;
+ERROR HY000: Error writing file 'binlog' ((errno: #)
+# The above CREATE Procedure was rolled back. Check this.
+SHOW CREATE PROCEDURE p1;
+ERROR 42000: PROCEDURE p1 does not exist
 DROP TABLE t1;
 DROP TABLE t1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+ERROR HY000: Error writing file 'binlog' ((errno: #)
+# The above DROP TABLE was rolled back. Delete it for real
+# this also checks that table was not deleted by the above
+# attempt.
+DROP TABLE t1;
 CREATE FUNCTION f1() RETURNS INT return 1;
 CREATE FUNCTION f1() RETURNS INT return 1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
-DROP FUNCTION f1;
-DROP FUNCTION f1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+ERROR HY000: Error writing file 'binlog' ((errno: #)
+# The above CREATE Procedure was rolled back. Check this.
+SHOW CREATE FUNCTION f1;
+ERROR 42000: FUNCTION f1 does not exist
 CREATE USER user1;
 CREATE USER user1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+ERROR HY000: Error writing file 'binlog' ((errno: #)
+# Since the previous CREATE USER is failed due to an error while writing
+# to binlog and changes made by the statement has been rolled back
+# we have to create user1 to be able to test REVOKE ALL and DROP USER.
+CREATE USER user1;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+ERROR HY000: Error writing file 'binlog' ((errno: #)
 DROP USER user1;
 DROP USER user1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+ERROR HY000: Error writing file 'binlog' ((errno: #)
+# Since the previous DROP USER is failed we have to do a clean up explicitly.
+DROP USER user1;
 #
 # Cleanup
 #
-DROP TABLE IF EXISTS t1, t2;
 DROP FUNCTION IF EXISTS f1;
 DROP PROCEDURE IF EXISTS p1;
-DROP TRIGGER IF EXISTS tr1;
 DROP VIEW IF EXISTS v1, v2;

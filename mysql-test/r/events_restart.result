@@ -1,4 +1,3 @@
-call mtr.add_suppression("Column count of mysql.event is wrong. Expected .*, found .*\. The table is probably corrupted");
 set global event_scheduler=off;
 drop database if exists events_test;
 create database events_test;
@@ -10,60 +9,7 @@ create event abc2 on schedule every 1 second do
 insert into execution_log value('abc2');
 create event abc3 on schedule every 1 second do 
 insert into execution_log value('abc3');
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
-create table event_like like mysql.event;
-insert into event_like select * from mysql.event;
-alter table mysql.event
-change column body  body longtext character set utf8 collate utf8_bin;
 "Now we restart the server"
-# restart
-SET sql_mode = default;
-use events_test;
-select @@event_scheduler;
-@@event_scheduler
-DISABLED
-show events;
-ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
-select event_name from information_schema.events;
-ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
-show create event intact_check;
-ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
-drop event no_such_event;
-ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
-create event intact_check_1 on schedule every 5 hour do select 5;
-ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
-alter event intact_check_1 on schedule every 8 hour do select 8;
-ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
-alter event intact_check_1 rename to intact_check_2;
-ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
-drop event intact_check_1;
-ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
-drop event intact_check_2;
-ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
-drop event intact_check;
-ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
-set global event_scheduler=on;
-ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
-set global event_scheduler=off;
-ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
-show variables like 'event_scheduler';
-Variable_name	Value
-event_scheduler	DISABLED
-Make sure that we still can create and drop databases,
-and no warnings are produced.
-drop database if exists mysqltest_database_not_exists;
-Warnings:
-Note	1008	Can't drop database 'mysqltest_database_not_exists'; database doesn't exist
-create database mysqltest_db1;
-drop database mysqltest_db1;
-Warnings:
-Error	1545	Failed to open mysql.event
-Restore the original mysql.event table
-drop table mysql.event;
-rename table event_like to mysql.event;
-Now let's restart the server again
 # restart
 use events_test;
 select @@event_scheduler;
@@ -83,7 +29,7 @@ DROP EVENT IF EXISTS e1;
 CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DISABLE DO SELECT 1;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test	e1	root@localhost	SYSTEM	RECURRING	#	1	SECOND	#	#	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+test	e1	root@localhost	SYSTEM	RECURRING	#	1	SECOND	#	#	DISABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 "Now we restart the server"
 # restart
 USE test;
@@ -92,6 +38,6 @@ SELECT @@event_scheduler;
 ON
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test	e1	root@localhost	SYSTEM	RECURRING	#	1	SECOND	#	#	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+test	e1	root@localhost	SYSTEM	RECURRING	#	1	SECOND	#	#	DISABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP EVENT e1;
 # end test for bug#11748899

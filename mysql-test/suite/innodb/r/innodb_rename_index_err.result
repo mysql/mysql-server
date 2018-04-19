@@ -32,15 +32,3 @@ x	c2,DB_ROW_ID
 y	c2
 y	c2,DB_ROW_ID
 DROP TABLE t;
-CREATE TABLE t (a INT, INDEX i1 (a)) ENGINE=INNODB;
-DROP TABLE t;
-CREATE TABLE t (a INT) ENGINE=INNODB;
-SHOW CREATE TABLE t;
-Table	Create Table
-t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  KEY `i1` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-ALTER TABLE t RENAME INDEX i1 TO i2;
-ERROR 42000: Key 'i1' doesn't exist in table 'test/t'
-DROP TABLE t;

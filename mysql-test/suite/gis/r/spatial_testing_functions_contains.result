@@ -1,6 +1,6 @@
 #Creating the spatial Geometry object
 USE test;
-CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
 SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
 SET @star_center= 'POINT(15 10)';
@@ -205,8 +205,7 @@ SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycoll
 MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_top_to_center))
 0
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'));
-MBRCONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'))
-1
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
 MBRCONTAINS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'))
 0
@@ -226,8 +225,7 @@ SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geomet
 MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
-MBRCONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'))
-1
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
 MBRCONTAINS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'))
 0
@@ -444,30 +442,27 @@ MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal))
 #====================================================================================
 # linestring,polygon
 #====================================================================================
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
-MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'))
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'));
+MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'))
 0
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
 MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal))
 0
 SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
-MBRCONTAINS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))'))
-1
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
-MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'))
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'));
+MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'))
 0
 #====================================================================================
 # linestring,multipolygon
 #====================================================================================
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
-MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems))
 0
 SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
-MBRCONTAINS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 #====================================================================================
 # linestring,geometrycollection
 #====================================================================================
@@ -672,8 +667,8 @@ MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_collection_elems))
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 MBRCONTAINS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr))
 0
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
-MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
 NULL
 #====================================================================================
 # multipolygon,point
@@ -789,11 +784,11 @@ MBRCONTAINS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POINT(30 30
 SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=115;
 MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_top))
 0
-Select MBRCONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('POINT(100 100)'));
-MBRCONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('POINT(100 100)'))
+Select MBRCONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0,0 0)))'),ST_GEOMFROMTEXT('POINT(100 100)'));
+MBRCONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0,0 0)))'),ST_GEOMFROMTEXT('POINT(100 100)'))
 0
-Select MBRCONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('POINT(100 100)'));
-MBRCONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('POINT(100 100)'))
+Select MBRCONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0,0 0)),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('POINT(100 100)'));
+MBRCONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0,0 0)),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('POINT(100 100)'))
 0
 #====================================================================================
 # geometrycollection,multipoint
@@ -931,8 +926,7 @@ SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycoll
 ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_top_to_center))
 0
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'));
-ST_CONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
 ST_CONTAINS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'))
 0
@@ -952,8 +946,7 @@ SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geomet
 ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
-ST_CONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
 ST_CONTAINS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'))
 0
@@ -1016,7 +1009,7 @@ ST_CONTAINS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_multilin
 NULL
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
 ST_CONTAINS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
-0
+NULL
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'));
 ST_CONTAINS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'))
 1
@@ -1167,30 +1160,27 @@ ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal))
 #====================================================================================
 # linestring,polygon
 #====================================================================================
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
-ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'))
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'));
+ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'))
 0
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal))
 0
 SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
-ST_CONTAINS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))'))
-0
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
-ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'))
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'));
+ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'))
 0
 #====================================================================================
 # linestring,multipolygon
 #====================================================================================
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
-ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems))
 0
 SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
-ST_CONTAINS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 #====================================================================================
 # linestring,geometrycollection
 #====================================================================================
@@ -1335,9 +1325,9 @@ ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_line_vertical))
 SELECT ST_CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=111;
 ST_CONTAINS(g,g2)
 1
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,5 5,0 0))'), ST_GEOMFROMTEXT('LINESTRING(3 7, 9 1)'));
-ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,5 5,0 0))'), ST_GEOMFROMTEXT('LINESTRING(3 7, 9 1)'))
-1
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,5 5,0 0))'), ST_GEOMFROMTEXT('LINESTRING(3 7, 9 1)'));
+ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,5 5,0 0))'), ST_GEOMFROMTEXT('LINESTRING(3 7, 9 1)'))
+0
 #====================================================================================
 # polygon,multilinestring
 #====================================================================================
@@ -1379,13 +1369,13 @@ ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_of_elems))
 #====================================================================================
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems))
 0
 SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
 ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr))
 0
@@ -1434,11 +1424,11 @@ ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((5 0,0 5,10 5,5 0)),((5 0,0 -5,10 -5,
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((5 0,0 5,10 5,5 0)),((5 0,0 -5,10 -5,5 0)))'), ST_GEOMFROMTEXT('LINESTRING(5 -2,5 5)'));
 ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((5 0,0 5,10 5,5 0)),((5 0,0 -5,10 -5,5 0)))'), ST_GEOMFROMTEXT('LINESTRING(5 -2,5 5)'))
 1
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'), ST_GEOMFROMTEXT('LINESTRING(5 5,0 0,10 0)'));
-ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'), ST_GEOMFROMTEXT('LINESTRING(5 5,0 0,10 0)'))
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'), ST_GEOMFROMTEXT('LINESTRING(5 5,0 0,10 0)'));
+ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'), ST_GEOMFROMTEXT('LINESTRING(5 5,0 0,10 0)'))
 1
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'), ST_GEOMFROMTEXT('LINESTRING(5 5,0 0,0 10)'));
-ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'), ST_GEOMFROMTEXT('LINESTRING(5 5,0 0,0 10)'))
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'), ST_GEOMFROMTEXT('LINESTRING(5 5,0 0,0 10)'));
+ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'), ST_GEOMFROMTEXT('LINESTRING(5 5,0 0,0 10)'))
 1
 #====================================================================================
 # multipolygon,multilinestring
@@ -1467,14 +1457,14 @@ ST_CONTAINS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,
 SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
 ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'),
-ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
-ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'),
-ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'))
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'),
+ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0))'));
+ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'),
+ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0))'))
 1
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'),
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'),
 ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5,5 0,0 0))'));
-ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'),
+ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'),
 ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5,5 0,0 0))'))
 1
 #====================================================================================
@@ -1525,8 +1515,8 @@ ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_top))
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,2 2),POINT(4 4))'),ST_GEOMFROMTEXT('POINT(4 4)'));
 ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,2 2),POINT(4 4))'),ST_GEOMFROMTEXT('POINT(4 4)'))
 1
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POINT(4 4))'),ST_GEOMFROMTEXT('POINT(5 5)'));
-ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POINT(4 4))'),ST_GEOMFROMTEXT('POINT(5 5)'))
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0,0 0)),POINT(4 4))'),ST_GEOMFROMTEXT('POINT(5 5)'));
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0,0 0)),POINT(4 4))'),ST_GEOMFROMTEXT('POINT(5 5)'))
 1
 #====================================================================================
 # geometrycollection,multipoint
@@ -1618,60 +1608,60 @@ ST_CONTAINS(g,g2)
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 0
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
-MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100))
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
 0
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
-MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000))
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
 0
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
-MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456))
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
 0
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
-MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575))
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
 0
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
-MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
+0
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
 0
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #====================================================================================
 # ST_CONTAINS(g1,g2)
 #====================================================================================
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 0
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
-ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100))
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
 0
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
-ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000))
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
 0
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
-ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456))
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
 0
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
-ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575))
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
 0
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
-ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
+0
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
 0
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################
@@ -1680,8 +1670,10 @@ ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_cente
 #====================================================================================
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function st_contains given two geometries of different srids: 0 and 4326, which should have been identical.
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
-ERROR HY000: Binary geometry function st_contains given two geometries of different srids: 1048576 and 4326, which should have been identical.
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function st_contains given two geometries of different srids: 4145 and 4326, which should have been identical.
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function st_contains given two geometries of different srids: 4145 and 4326, which should have been identical.
 SELECT ST_CONTAINS(NULL,ST_GEOMFROMTEXT(@star_top));
 ST_CONTAINS(NULL,ST_GEOMFROMTEXT(@star_top))
 NULL
@@ -1702,44 +1694,46 @@ ERROR 22023: Invalid GIS data provided to function st_contains.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ERROR 22023: Invalid GIS data provided to function st_contains.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_CONTAINS(,);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',)' at line 1
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_of_elems),);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT ST_CONTAINS(,ST_GEOMFROMTEXT(@star_top));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ST_GEOMFROMTEXT(@star_top))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',ST_GEOMFROMTEXT(@star_top))' at line 1
 #====================================================================================
 # MBRCONTAINS()
 #====================================================================================
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function mbrcontains given two geometries of different srids: 0 and 4326, which should have been identical.
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
-ERROR HY000: Binary geometry function mbrcontains given two geometries of different srids: 1048576 and 4326, which should have been identical.
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function mbrcontains given two geometries of different srids: 4145 and 4326, which should have been identical.
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function mbrcontains given two geometries of different srids: 4145 and 4326, which should have been identical.
 SELECT MBRCONTAINS(NULL,ST_GEOMFROMTEXT(@star_top));
 MBRCONTAINS(NULL,ST_GEOMFROMTEXT(@star_top))
 NULL
@@ -1760,37 +1754,37 @@ ERROR 22023: Invalid GIS data provided to function mbrcontains.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ERROR 22023: Invalid GIS data provided to function mbrcontains.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT MBRCONTAINS(,);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',)' at line 1
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_of_elems),);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT MBRCONTAINS(,ST_GEOMFROMTEXT(@star_top));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ST_GEOMFROMTEXT(@star_top))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',ST_GEOMFROMTEXT(@star_top))' at line 1
 CREATE TABLE t1 (g GEOMETRY NOT NULL);
 INSERT INTO t1 VALUES (ST_GEOMFROMTEXT('POINT(1 1)'));
 INSERT INTO t1 VALUES (ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)'));
@@ -1873,892 +1867,242 @@ GEOMETRYCOLLECTION(POLYGON(LINESTRING(POINT(1,1), POINT(10,1), POINT(10,10),
 POINT(1,10), POINT(1,1)), LINESTRING(POINT(4,4),POINT(6,4),POINT(6,6),
 POINT(4,6),POINT(4,4))))));
 SELECT ST_CONTAINS(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
-ST_CONTAINS(a.g, b.g)
-1
-0
-0
-1
-1
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-1
-1
-1
-1
-1
-0
-0
-1
-1
-1
-1
-1
-1
-1
-0
-0
-1
-0
-0
-1
-1
-0
-0
-0
-1
-0
-0
-0
-0
-1
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-1
-0
-0
-0
-0
-1
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-1
-1
-0
-0
-0
-1
-0
-0
-0
-1
-1
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-1
-0
-0
-0
-1
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-1
-1
-0
-1
-1
-0
-0
-1
-0
-1
-1
-0
-1
-1
-0
-0
-1
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-1
-1
-1
-1
-1
-0
-0
-1
-1
-1
-1
-1
-1
-1
-0
-0
-1
-0
-0
-1
-1
-0
-0
-0
-1
-0
-0
-0
-0
-1
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-1
-0
-0
-0
-0
-1
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-1
-1
-0
-0
-0
-1
-0
-0
-0
-1
-1
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-1
-0
-0
-0
-1
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-1
-1
-0
-1
-1
-0
-0
-1
-0
-1
-1
-0
-1
-1
-0
-0
-1
-0
-0
-0
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-0
-0
-1
-1
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-0
-0
-1
 SELECT MBRCONTAINS(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
-MBRCONTAINS(a.g, b.g)
-1
-0
-0
-1
-0
-0
-1
-1
-1
-1
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-1
-0
-1
-1
-1
-1
-1
-1
-0
-1
-0
-1
-1
-1
-1
-1
-1
-1
-1
-1
-0
-0
-1
-1
-0
-0
-1
-1
-1
-0
-0
-1
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-1
-0
-1
-1
-1
-1
-1
-1
-0
-1
-0
-1
-1
-1
-1
-1
-1
-1
-1
-1
-0
-0
-0
-1
-0
-1
-1
-1
-1
-0
-0
-0
-1
-0
-1
-1
-1
-1
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-1
-0
-0
-1
-0
-0
-1
-1
-1
-1
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-1
-0
-1
-1
-1
-1
-1
-1
-0
-1
-0
-1
-1
-1
-1
-1
-1
-1
-1
-1
-0
-0
-1
-1
-0
-0
-1
-1
-1
-0
-0
-1
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-1
-0
-1
-1
-1
-1
-1
-1
-0
-1
-0
-1
-1
-1
-1
-1
-1
-1
-1
-1
-0
-0
-0
-1
-0
-1
-1
-1
-1
-0
-0
-0
-1
-0
-1
-1
-1
-1
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-0
-0
-0
-0
-1
-0
-0
-1
-1
-1
-0
-0
-0
-1
-0
-0
-1
-1
-1
-1
-1
-1
+SELECT ST_CONTAINS(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
+SELECT MBRCONTAINS(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
 # clean up
 DROP TABLE t1;
 DROP TABLE gis_geometrycollection;
 DROP TABLE gis_geometrycollection_2;
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+SELECT ST_CONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+ST_CONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+)
+1
+SELECT MBRCONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+MBRCONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+)
+1
+# Projected SRS (should pass)
+SELECT ST_CONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+ST_CONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+)
+1
+SELECT MBRCONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+MBRCONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+)
+1
+# Geographic SRS (should pass)
+SELECT ST_CONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+ST_CONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+)
+1
+SELECT MBRCONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+MBRCONTAINS(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+)
+1
+#
+# WL#10827 Ellipsoidal R-tree support functions
+#
+SET @pt = ST_GeomFromText('POINT(0 0)', 4326);
+SELECT ST_Contains(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+ERROR 22S03: Latitude -91.000000 is out of range in function st_contains. It must be within [-90.000000, 90.000000].
+SELECT ST_Contains(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+ERROR 22S03: Latitude 91.000000 is out of range in function st_contains. It must be within [-90.000000, 90.000000].
+SELECT ST_Contains(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+ERROR 22S02: Longitude -181.000000 is out of range in function st_contains. It must be within (-180.000000, 180.000000].
+SELECT ST_Contains(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+ERROR 22S02: Longitude 181.000000 is out of range in function st_contains. It must be within (-180.000000, 180.000000].
+SELECT MBRContains(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+ERROR 22S03: Latitude -91.000000 is out of range in function mbrcontains. It must be within [-90.000000, 90.000000].
+SELECT MBRContains(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+ERROR 22S03: Latitude 91.000000 is out of range in function mbrcontains. It must be within [-90.000000, 90.000000].
+SELECT MBRContains(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+ERROR 22S02: Longitude -181.000000 is out of range in function mbrcontains. It must be within (-180.000000, 180.000000].
+SELECT MBRContains(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+ERROR 22S02: Longitude 181.000000 is out of range in function mbrcontains. It must be within (-180.000000, 180.000000].
+CREATE TABLE t1 (
+id INT,
+c GEOMETRY NOT NULL SRID 0,
+g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL SRID 4326,
+SPATIAL INDEX c_idx (c),
+SPATIAL INDEX g_idx (g)
+);
+INSERT INTO t1 (id, c) VALUES
+(0, ST_GeomFromText('POINT(0 0)')),
+(1, ST_GeomFromText('POINT(1 1)')),
+(2, ST_GeomFromText('POINT(2 2)')),
+(3, ST_GeomFromText('POINT(3 3)')),
+(4, ST_GeomFromText('POINT(4 4)')),
+(5, ST_GeomFromText('POINT(5 5.00001)')),
+(6, ST_GeomFromText('POINT(6 6)')),
+(7, ST_GeomFromText('POINT(7 7)'));
+SET @py = 'POLYGON((0 0, 10 0, 10 5, 0 5, 0 0))';
+SET @cart_py = ST_GeomFromText(@py);
+SET @geo_py = ST_GeomFromText(@py, 4326, 'axis-order=long-lat');
+SET @mpt = 'MULTIPOINT((0 0), (10 5))';
+SET @cart_mpt = ST_GeomFromText(@mpt);
+SET @geo_mpt = ST_GeomFromText(@mpt, 4326, 'axis-order=long-lat');
+# Cartesian ST_Contains
+SELECT id, ST_AsText(c)
+FROM t1 IGNORE INDEX(c_idx)
+WHERE ST_Contains(@cart_py, c)
+ORDER BY id;
+id	ST_AsText(c)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(c)
+FROM t1 FORCE INDEX(c_idx)
+WHERE ST_Contains(@cart_py, c)
+ORDER BY id;
+id	ST_AsText(c)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+# Geographic ST_Contains
+SELECT id, ST_AsText(g)
+FROM t1 IGNORE INDEX(g_idx)
+WHERE ST_Contains(@geo_py, g)
+ORDER BY id;
+id	ST_AsText(g)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+5	POINT(5.00001 5)
+SELECT id, ST_AsText(g)
+FROM t1 FORCE INDEX(g_idx)
+WHERE ST_Contains(@geo_py, g)
+ORDER BY id;
+id	ST_AsText(g)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+# Cartesian MBRContains
+SELECT id, ST_AsText(c)
+FROM t1 IGNORE INDEX(c_idx)
+WHERE MBRContains(@cart_py, c)
+ORDER BY id;
+id	ST_AsText(c)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(c)
+FROM t1 FORCE INDEX(c_idx)
+WHERE MBRContains(@cart_py, c)
+ORDER BY id;
+id	ST_AsText(c)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(c)
+FROM t1 IGNORE INDEX(c_idx)
+WHERE MBRContains(@cart_mpt, c)
+ORDER BY id;
+id	ST_AsText(c)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(c)
+FROM t1 FORCE INDEX(c_idx)
+WHERE MBRContains(@cart_mpt, c)
+ORDER BY id;
+id	ST_AsText(c)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+# Geographic MBRContains
+SELECT id, ST_AsText(g)
+FROM t1 IGNORE INDEX(g_idx)
+WHERE MBRContains(@geo_py, g)
+ORDER BY id;
+id	ST_AsText(g)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(g)
+FROM t1 FORCE INDEX(g_idx)
+WHERE MBRContains(@geo_py, g)
+ORDER BY id;
+id	ST_AsText(g)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(g)
+FROM t1 IGNORE INDEX(g_idx)
+WHERE MBRContains(@geo_mpt, g)
+ORDER BY id;
+id	ST_AsText(g)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(g)
+FROM t1 FORCE INDEX(g_idx)
+WHERE MBRContains(@geo_mpt, g)
+ORDER BY id;
+id	ST_AsText(g)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+DROP TABLE t1;
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO MBRCONTAINS(
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
+);
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_CONTAINS(
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
+);
+ERROR SR001: There's no spatial reference system with SRID 10.

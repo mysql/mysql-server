@@ -4,7 +4,6 @@
 # 2010-01-10 - Added check for I_S values aver variable value change
 #
 
---source include/not_embedded.inc
 
 #
 # exists as global only
@@ -15,8 +14,8 @@ select @@session.relay_log_recovery;
 show global variables like 'relay_log_recovery';
 show session variables like 'relay_log_recovery';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='relay_log_recovery';
-select * from information_schema.session_variables where variable_name='relay_log_recovery';
+select * from performance_schema.global_variables where variable_name='relay_log_recovery';
+select * from performance_schema.session_variables where variable_name='relay_log_recovery';
 --enable_warnings
 
 #
@@ -26,8 +25,8 @@ select * from information_schema.session_variables where variable_name='relay_lo
 set global relay_log_recovery=1;
 select @@global.relay_log_recovery;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='relay_log_recovery';
-select * from information_schema.session_variables where variable_name='relay_log_recovery';
+select * from performance_schema.global_variables where variable_name='relay_log_recovery';
+select * from performance_schema.session_variables where variable_name='relay_log_recovery';
 --enable_warnings
 
 

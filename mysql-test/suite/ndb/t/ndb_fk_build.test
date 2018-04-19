@@ -27,20 +27,26 @@ insert into child values (3,4,5);
 --let ukname=b\$unique
 --let oiname=c
 
---error 1452
+--error ER_CANNOT_ADD_FOREIGN
 alter table child algorithm=inplace, add constraint fkname foreign key (a) references parent(a);
+show warnings;
 
---error 1452
+--error ER_CANNOT_ADD_FOREIGN
 alter table child algorithm=inplace, add constraint fkname foreign key(b) references parent(a);
---error 1452
+show warnings;
+--error ER_CANNOT_ADD_FOREIGN
 alter table child algorithm=inplace, add constraint fkname foreign key(c) references parent(a);
+show warnings;
 
---error 1452
+--error ER_CANNOT_ADD_FOREIGN
 alter table child algorithm=inplace, add constraint fkname foreign key(a) references parent(b);
---error 1452
+show warnings;
+--error ER_CANNOT_ADD_FOREIGN
 alter table child algorithm=inplace, add constraint fkname foreign key(b) references parent(b);
---error 1452
+show warnings;
+--error ER_CANNOT_ADD_FOREIGN
 alter table child algorithm=inplace, add constraint fkname foreign key(c) references parent(b);
+show warnings;
 
 #
 # Now it should work...

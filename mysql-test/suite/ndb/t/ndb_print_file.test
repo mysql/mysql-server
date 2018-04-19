@@ -1,0 +1,58 @@
+--source include/have_ndb.inc
+
+#BUG17069285
+
+CREATE LOGFILE GROUP lg_1
+ADD UNDOFILE 'undo_1.log'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE NDBCLUSTER;
+
+CREATE TABLESPACE ts_1
+ADD DATAFILE 'data_1.dat'
+USE LOGFILE GROUP lg_1
+ENGINE NDBCLUSTER;
+
+CREATE DATABASE diskdb;
+
+USE diskdb;
+
+CREATE TABLE t1
+(id int unsigned NOT NULL auto_increment PRIMARY KEY,
+value varchar(10)) ENGINE NDBCLUSTER
+TABLESPACE ts_1 STORAGE DISK;
+
+INSERT INTO t1 (value) VALUES
+('abc'), ('def'), ('ghi'), ('jkl'),
+('mno'), ('pqr'), ('stu'), ('vwx'), ('yz');
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+--source suite/ndb/include/ndb_find_print_file_tool.inc
+
+--error 256,1
+--exec $NDB_PRINT_FILE
+--error 256,1
+--exec $NDB_PRINT_FILE -v
+--error 256,1
+--exec $NDB_PRINT_FILE -q
+--error 256,1
+--exec $NDB_PRINT_FILE -v -q
+--exec $NDB_PRINT_FILE $MYSQLD_DATADIR/../../ndbd.2/ndb_2_fs/data_1.dat > $NDB_TOOLS_OUTPUT 
+--exec $NDB_PRINT_FILE -v $MYSQLD_DATADIR/../../ndbd.2/ndb_2_fs/data_1.dat > $NDB_TOOLS_OUTPUT 
+--exec $NDB_PRINT_FILE -q $MYSQLD_DATADIR/../../ndbd.2/ndb_2_fs/data_1.dat > $NDB_TOOLS_OUTPUT
+--exec $NDB_PRINT_FILE -v -q $MYSQLD_DATADIR/../../ndbd.2/ndb_2_fs/data_1.dat > $NDB_TOOLS_OUTPUT
+--exec $NDB_PRINT_FILE --help > $NDB_TOOLS_OUTPUT
+
+
+DROP TABLE t1;
+
+DROP DATABASE diskdb;
+
+ALTER TABLESPACE ts_1
+DROP DATAFILE 'data_1.dat';
+
+DROP TABLESPACE ts_1;
+
+DROP LOGFILE GROUP lg_1
+ENGINE NDBCLUSTER;

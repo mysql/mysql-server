@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -23,6 +30,8 @@
 #include <ndb_limits.h>
 #include <dbtup/tuppage.hpp>
 
+static bool g_v2;
+
 static void print_usage(const char*);
 static int print_zero_page(int, void *, Uint32 sz);
 static int print_extent_page(int, void*, Uint32 sz);
@@ -33,15 +42,26 @@ static bool print_page(int page_no)
   return false;
 }
 
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
+}
+
 int g_verbosity = 1;
 unsigned g_page_size = File_formats::NDB_PAGE_SIZE;
 int (* g_print_page)(int count, void*, Uint32 sz) = print_zero_page;
 
+File_formats::Undofile::Zero_page_v2 g_uf_zero_v2;
 File_formats::Undofile::Zero_page g_uf_zero;
+
+File_formats::Datafile::Zero_page_v2 g_df_zero_v2;
 File_formats::Datafile::Zero_page g_df_zero;
 
 int main(int argc, char ** argv)
 {
+  ndb_init();
+  bool file_given_in_arg = false;
   for(int i = 1; i<argc; i++){
     if(!strncmp(argv[i], "-v", 2))
     {
@@ -62,9 +82,10 @@ int main(int argc, char ** argv)
 	    !strcmp(argv[i], "--help"))
     {
       print_usage(argv[0]);
-      exit(0);
+      ndb_end_and_exit(0);
     }
     
+    file_given_in_arg = true;
     const char * filename = argv[i];
     
     struct stat sbuf;
@@ -95,7 +116,11 @@ int main(int argc, char ** argv)
     fclose(f);
     continue;
   }
-  return 0;
+  if(!file_given_in_arg){
+    ndbout << "Filename not given" << endl;
+    ndb_end_and_exit(1);
+  }
+  ndb_end_and_exit(0);
 }
 
 void
@@ -119,22 +144,43 @@ print_zero_page(int i, void * ptr, Uint32 sz){
     return 1;
   }
 
+  g_v2 = page->m_ndb_version >= NDB_DISK_V2;
+  const char *v2_str = g_v2 ? "true" : "false";
+  ndbout << "Version v2 is " << v2_str << endl;
   switch(page->m_file_type)
   {
   case File_formats::FT_Datafile:
   {
-    g_df_zero = (* (File_formats::Datafile::Zero_page*)ptr);
-    ndbout << "-- Datafile -- " << endl;
-    ndbout << g_df_zero << endl;
+    if (g_v2)
+    {
+      g_df_zero_v2 = (* (File_formats::Datafile::Zero_page_v2*)ptr);
+      ndbout << "-- Datafile -- " << endl;
+      ndbout << g_df_zero_v2 << endl;
+    }
+    else
+    {
+      g_df_zero = (* (File_formats::Datafile::Zero_page*)ptr);
+      ndbout << "-- Datafile -- " << endl;
+      ndbout << g_df_zero << endl;
+    }
     g_print_page = print_extent_page;
     return 0;
   }
   break;
   case File_formats::FT_Undofile:
   {
-    g_uf_zero = (* (File_formats::Undofile::Zero_page*)ptr);
-    ndbout << "-- Undofile -- " << endl;
-    ndbout << g_uf_zero << endl;
+    if (g_v2)
+    {
+      g_uf_zero_v2 = (* (File_formats::Undofile::Zero_page_v2*)ptr);
+      ndbout << "-- Undofile -- " << endl;
+      ndbout << g_uf_zero_v2 << endl;
+    }
+    else
+    {
+      g_uf_zero = (* (File_formats::Undofile::Zero_page*)ptr);
+      ndbout << "-- Undofile -- " << endl;
+      ndbout << g_uf_zero << endl;
+    }
     g_print_page = print_undo_page;
     return 0;
   }
@@ -159,43 +205,42 @@ print_zero_page(int i, void * ptr, Uint32 sz){
 }
 
 NdbOut&
-operator<<(NdbOut& out, const File_formats::Datafile::Extent_header& obj)
+operator<<(NdbOut& out, const File_formats::Datafile::Extent_data& obj)
 {
-  if(obj.m_table == RNIL)
+  Uint32 extent_size = g_v2 ?
+                         g_df_zero_v2.m_extent_size :
+                         g_df_zero.m_extent_size;
+  for(Uint32 i = 0; i < extent_size; i++)
   {
-    if(obj.m_next_free_extent != RNIL)
-      out << " FREE, next free: " << obj.m_next_free_extent;
-    else
-      out << " FREE, next free: RNIL";
-  }
-  else 
-  {
-    out << "table: " << obj.m_table 
-	<< " fragment: " << obj.m_fragment_id << " ";
-    for(Uint32 i = 0; i<g_df_zero.m_extent_size; i++)
-    {
-      char t[2];
-      BaseString::snprintf(t, sizeof(t), "%x", obj.get_free_bits(i));
-      out << t;
-    }
+    char t[2];
+    BaseString::snprintf(t, sizeof(t), "%x", obj.get_free_bits(i));
+    out << t;
   }
   return out;
 }
 
 int
 print_extent_page(int count, void* ptr, Uint32 sz){
-  if((unsigned)count == g_df_zero.m_extent_pages)
+  Uint32 extent_pages = g_v2 ?
+                         g_df_zero_v2.m_extent_pages :
+                         g_df_zero.m_extent_pages;
+  int extent_count = g_v2 ?
+                       g_df_zero_v2.m_extent_count :
+                       g_df_zero.m_extent_count;
+  Uint32 extent_size = g_v2 ?
+                         g_df_zero_v2.m_extent_size :
+                         g_df_zero.m_extent_size;
+  if((unsigned)count == extent_pages)
   {
     g_print_page = print_data_page;
   }
   Uint32 header_words = 
-    File_formats::Datafile::extent_header_words(g_df_zero.m_extent_size);
-  Uint32 per_page = File_formats::Datafile::EXTENT_PAGE_WORDS / header_words;
+    File_formats::Datafile::extent_header_words(extent_size, g_v2);
+  Uint32 per_page = File_formats::Datafile::extent_page_words(g_v2) / header_words;
   
   int no = count * per_page;
-  
-  const int max = count < int(g_df_zero.m_extent_pages) ? 
-    per_page : g_df_zero.m_extent_count - (g_df_zero.m_extent_count - 1) * per_page;
+  const int max = count < int(extent_pages) ? 
+    per_page : extent_count - (extent_count - 1) * per_page;
 
   File_formats::Datafile::Extent_page * page = 
     (File_formats::Datafile::Extent_page*)ptr;
@@ -207,8 +252,40 @@ print_extent_page(int count, void* ptr, Uint32 sz){
 	 << endl;
   for(int i = 0; i<max; i++)
   {
-    ndbout << "  extent " << no+i << ": "
-	   << (* page->get_header(i, g_df_zero.m_extent_size)) << endl;
+    Uint32 size = g_v2 ?
+                    g_df_zero_v2.m_extent_size :
+                    g_df_zero.m_extent_size;
+    Uint32 *ext_table_id =
+      page->get_table_id(no+i, size, g_v2);
+    Uint32 *ext_fragment_id =
+      page->get_table_id(no+i, size, g_v2);
+    Uint32 *ext_next_free_extent =
+      page->get_next_free_extent(no+i, size, g_v2);
+
+    ndbout << "  extent " << no+i << ": ";
+    if ((*ext_table_id) == RNIL)
+    {
+      if((*ext_next_free_extent) != RNIL)
+      {
+        ndbout << " FREE, next free: " << (*ext_next_free_extent);
+      }
+      else
+      {
+        ndbout << " FREE, next free: RNIL";
+      }
+    }
+    else
+    {
+      ndbout << " table_id = " << *ext_table_id;
+      ndbout << " fragment_id = " << *ext_fragment_id;
+      if (g_v2)
+      {
+        Uint32 *ext_create_table_version =
+          page->get_create_table_version(no+i, size, g_v2);
+        ndbout << " create_table_version = " << *ext_create_table_version;
+      }
+      ndbout << (* page->get_extent_data(i, size, g_v2)) << endl;
+    }
   }
   return 0;
 }
@@ -254,8 +331,12 @@ print_data_page(int count, void* ptr, Uint32 sz){
 
 
 int
-print_undo_page(int count, void* ptr, Uint32 sz){
-  if(count > int(g_uf_zero.m_undo_pages + 1))
+print_undo_page(int count, void* ptr, Uint32 sz)
+{
+  Uint32 undo_pages = g_v2 ?
+                        g_uf_zero_v2.m_undo_pages :
+                        g_uf_zero.m_undo_pages;
+  if(count > int(undo_pages + 1))
   {
     ndbout_c(" ERROR to many pages in file!!");
     return 1;
@@ -263,7 +344,16 @@ print_undo_page(int count, void* ptr, Uint32 sz){
 
   File_formats::Undofile::Undo_page * page = 
     (File_formats::Undofile::Undo_page*)ptr;
-  
+ 
+  Uint32 *data = &page->m_data[0];
+  Uint32 words_used = page->m_words_used;
+  if (g_v2)
+  {
+    File_formats::Undofile::Undo_page_v2 *page_v2 =
+      (File_formats::Undofile::Undo_page_v2*)page;
+    words_used = page_v2->m_words_used;
+    data = &page_v2->m_data[0];
+  }
   if(page->m_page_header.m_page_lsn_hi != 0 || 
      page->m_page_header.m_page_lsn_lo != 0)
   {
@@ -271,7 +361,7 @@ print_undo_page(int count, void* ptr, Uint32 sz){
 	   << ", lsn = [ " 
 	   << page->m_page_header.m_page_lsn_hi << " " 
 	   << page->m_page_header.m_page_lsn_lo << "] " 
-	   << "words used: " << page->m_words_used << endl;
+	   << "words used: " << words_used << endl;
     
     Uint64 lsn= 0;
     lsn += page->m_page_header.m_page_lsn_hi;
@@ -281,12 +371,12 @@ print_undo_page(int count, void* ptr, Uint32 sz){
 
     if(g_verbosity >= 3)
     {
-      Uint32 pos= page->m_words_used - 1;
+      Uint32 pos= words_used - 1;
       while(pos + 1 != 0)
       {
-	Uint32 len= page->m_data[pos] & 0xFFFF;
-	Uint32 type= page->m_data[pos] >> 16;
-	const Uint32* src= page->m_data + pos - len + 1;
+	Uint32 len= data[pos] & 0xFFFF;
+	Uint32 type= data[pos] >> 16;
+	const Uint32* src= data + pos - len + 1;
 	Uint32 next_pos= pos - len;
 	if(type & File_formats::Undofile::UNDO_NEXT_LSN)
 	{
@@ -305,9 +395,40 @@ print_undo_page(int count, void* ptr, Uint32 sz){
 	  printf(" %.4d - %.4d : ", pos - len + 1, pos);
 	switch(type){
 	case File_formats::Undofile::UNDO_LCP_FIRST:
+	  printf("[ %lld LCP First %d tab: %d frag: %d ]",
+                 lsn, 
+		 src[0],
+                 src[1] >> 16,
+                 src[1] & 0xFFFF);
+	  if(g_verbosity <= 3)
+	    printf("\n");
+          break;
 	case File_formats::Undofile::UNDO_LCP:
-	  printf("[ %lld LCP %d tab: %d frag: %d ]", lsn, 
-		 src[0], src[1] >> 16, src[1] & 0xFFFF);
+	  printf("[ %lld LCP %d tab: %d frag: %d ]",
+                 lsn, 
+		 src[0],
+                 src[1] >> 16,
+                 src[1] & 0xFFFF);
+	  if(g_verbosity <= 3)
+	    printf("\n");
+	  break;
+	case File_formats::Undofile::UNDO_LOCAL_LCP_FIRST:
+	  printf("[ %lld Local LCP First %d,%d tab: %d frag: %d ]",
+                 lsn, 
+		 src[0],
+		 src[1],
+                 src[2] >> 16,
+                 src[2] & 0xFFFF);
+	  if(g_verbosity <= 3)
+	    printf("\n");
+	  break;
+	case File_formats::Undofile::UNDO_LOCAL_LCP:
+	  printf("[ %lld Local LCP %d,%d tab: %d frag: %d ]",
+                 lsn, 
+		 src[0],
+		 src[1],
+                 src[2] >> 16,
+                 src[2] & 0xFFFF);
 	  if(g_verbosity <= 3)
 	    printf("\n");
 	  break;
@@ -346,44 +467,10 @@ print_undo_page(int count, void* ptr, Uint32 sz){
 		   req->m_gci);
 	  }
 	  break;
-	case File_formats::Undofile::UNDO_TUP_CREATE:
-	{
-	  Dbtup::Disk_undo::Create *req = (Dbtup::Disk_undo::Create*)src;
-	  printf("[ %lld Create %d ]", lsn, req->m_table);
-	  if(g_verbosity <= 3)
-	    printf("\n");
-	  break;
-	}
 	case File_formats::Undofile::UNDO_TUP_DROP:
 	{
 	  Dbtup::Disk_undo::Drop *req = (Dbtup::Disk_undo::Drop*)src;
 	  printf("[ %lld Drop %d ]", lsn, req->m_table);
-	  if(g_verbosity <= 3)
-	    printf("\n");
-	  break;
-	}
-	case File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT:
-	{
-	  Dbtup::Disk_undo::AllocExtent *req = (Dbtup::Disk_undo::AllocExtent*)src;
-	  printf("[ %lld AllocExtent tab: %d frag: %d file: %d page: %d ]", 
-		 lsn, 
-		 req->m_table,
-		 req->m_fragment,
-		 req->m_file_no,
-		 req->m_page_no);
-	  if(g_verbosity <= 3)
-	    printf("\n");
-	  break;
-	}
-	case File_formats::Undofile::UNDO_TUP_FREE_EXTENT:
-	{
-	  Dbtup::Disk_undo::FreeExtent *req = (Dbtup::Disk_undo::FreeExtent*)src;
-	  printf("[ %lld FreeExtent tab: %d frag: %d file: %d page: %d ]", 
-		 lsn, 
-		 req->m_table,
-		 req->m_fragment,
-		 req->m_file_no,
-		 req->m_page_no);
 	  if(g_verbosity <= 3)
 	    printf("\n");
 	  break;
@@ -393,9 +480,9 @@ print_undo_page(int count, void* ptr, Uint32 sz){
 	  if(!(len && type))
 	  {
 	    pos= 0;
-	    while(pos < page->m_words_used)
+	    while(pos < words_used)
 	    {
-	      printf("%.8x ", page->m_data[pos]);
+	      printf("%.8x ", data[pos]);
 	      if((pos + 1) % 7 == 0)
 		ndbout_c("%s", "");
 	      pos++;
@@ -409,11 +496,6 @@ print_undo_page(int count, void* ptr, Uint32 sz){
       }
     }
   }
-  
-  if((unsigned)count == g_uf_zero.m_undo_pages + 1)
-  {
-  }
-  
   return 0;
 }
 

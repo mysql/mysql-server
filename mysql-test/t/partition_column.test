@@ -2,7 +2,6 @@
 # Tests for the new column list partitioning introduced in second
 # version for partitioning.
 #
---source include/have_partition.inc
 
 --disable_warnings
 drop table if exists t1;
@@ -111,7 +110,7 @@ partition by range columns (a)
 insert into t1 values (0x00410000);
 select hex(a) from t1 where a like 'A_';
 analyze table t1;
-explain partitions select hex(a) from t1 where a like 'A_';
+explain select hex(a) from t1 where a like 'A_';
 alter table t1 remove partitioning;
 select hex(a) from t1 where a like 'A_';
 create index a on t1 (a);
@@ -124,6 +123,8 @@ drop table t1;
 # BUG#48161, Delivering too few records using collate syntax with partitions
 #
 # Test case from BUG#48447 with some extension
+
+set names latin1;
 create table t1 (a varchar(1) character set latin1 collate latin1_general_ci)
 partition by range columns(a)
 ( partition p0 values less than ('a'),
@@ -150,6 +151,8 @@ alter table t1 remove partitioning;
 select * from t1 where b <> 'a' collate latin1_bin AND
                        a = 'A' collate latin1_bin;
 drop table t1;
+
+set names utf8mb4;
 
 create table t1 (a varchar(5))
 partition by list columns(a)
@@ -236,7 +239,7 @@ insert into t1 values (NULL),(0),(1),(2),(2),(4),(4),(4),(8),(8);
 select * from t1 where NULL <= a;
 select * from t1 where a is null;
 analyze table t1;
-explain partitions select * from t1 where a is null;
+explain select * from t1 where a is null;
 select * from t1 where a <= 1;
 drop table t1;
 
@@ -248,7 +251,7 @@ insert into t1 values (NULL),(0),(1),(2),(2),(4),(4),(4),(8),(8);
 select * from t1 where a <= NULL;
 select * from t1 where a is null;
 analyze table t1;
-explain partitions select * from t1 where a is null;
+explain select * from t1 where a is null;
 select * from t1 where a <= 1;
 drop table t1;
 
@@ -351,7 +354,7 @@ select partition_method, partition_expression, partition_description
 show create table t1;
 insert into t1 values (1, 'A', 1);
 analyze table t1;
-explain partitions select * from t1 where a = 1 AND b <= 'A' and c = 1;
+explain select * from t1 where a = 1 AND b <= 'A' and c = 1;
 select * from t1 where a = 1 AND b <= 'A' and c = 1;
 drop table t1;
 
@@ -448,7 +451,7 @@ partition by range columns(a,b)
 -- error ER_PARTITION_COLUMN_LIST_ERROR
 create table t1 (a int, b int)
 partition by range columns(a,b)
-(partition p0 values less than (1,1,1);
+(partition p0 values less than (1,1,1));
 
 create table t1 (a int, b int)
 partition by range columns(a,b)
@@ -468,9 +471,9 @@ partition by range columns(b,a)
  partition p1 values less than (3,3),
  partition p2 values less than (9,5));
 analyze table t1;
-explain partitions select * from t1 where b < 2;
+explain select * from t1 where b < 2;
 select * from t1 where b < 2;
-explain partitions select * from t1 where b < 4;
+explain select * from t1 where b < 4;
 select * from t1 where b < 4;
 
 alter table t1 reorganize partition p1 into
@@ -494,7 +497,7 @@ alter table t1 reorganize partition p2 into
 (partition p21 values less than (4,7),
  partition p22 values less than (9,5));
 analyze table t1;
-explain partitions select * from t1 where b < 4;
+explain select * from t1 where b < 4;
 select * from t1 where b < 4;
 drop table t1;
 

@@ -1,0 +1,48 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1(i INT, t LONGTEXT);
+include/sync_slave_sql_with_master.inc
+[connection master]
+INSERT INTO t1 VALUES (1, 'start');
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+START SLAVE SQL_THREAD;
+include/sync_slave_sql_with_io.inc
+include/assert.inc ["The expected read count and actual read count are same"]
+The read count for @@GLOBAL.rpl_read_size= 8192 is  883
+SET @@GLOBAL.rpl_read_size= 1048576;
+include/stop_slave.inc
+include/start_slave.inc
+[connection master]
+INSERT INTO t1 VALUES (1, 'start');
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+START SLAVE SQL_THREAD;
+include/sync_slave_sql_with_io.inc
+include/assert.inc ["The expected read count and actual read count are same"]
+The read count for @@GLOBAL.rpl_read_size= 1048576 is  7
+SET @@GLOBAL.rpl_read_size= 1048576;
+include/stop_slave.inc
+include/start_slave.inc
+SET @@GLOBAL.rpl_read_size= 8192;
+SET @@GLOBAL.rpl_read_size = 1048576;
+SELECT @@GLOBAL.rpl_read_size;
+@@GLOBAL.rpl_read_size
+1048576
+FLUSH RELAY LOGS;
+[connection master]
+INSERT INTO t1 VALUES (0, "");
+INSERT INTO t1 VALUES (1, lpad("foo", 7000, "bar"));
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+SET @@GLOBAL.rpl_read_size= 8192;
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

@@ -1,5 +1,4 @@
 -- source include/no_valgrind_without_big.inc
--- source include/have_innodb.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
@@ -169,16 +168,13 @@ alter table t2 drop index b, drop index c, drop index d;
 --error ER_FK_COLUMN_CANNOT_CHANGE
 alter table t2 MODIFY b INT NOT NULL, ALGORITHM=COPY;
 # NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.
-set @old_sql_mode = @@sql_mode;
-set @@sql_mode = 'STRICT_TRANS_TABLES';
 --error ER_FK_COLUMN_NOT_NULL
 alter table t2 MODIFY b INT NOT NULL, ALGORITHM=INPLACE;
-set @@sql_mode = @old_sql_mode;
 
 SET FOREIGN_KEY_CHECKS=0;
 --error ER_FK_COLUMN_CANNOT_DROP
 alter table t2 DROP COLUMN b, ALGORITHM=COPY;
---error ER_DROP_INDEX_FK
+--error ER_FK_COLUMN_CANNOT_DROP
 alter table t2 DROP COLUMN b;
 --error ER_FK_COLUMN_CANNOT_DROP_CHILD
 alter table t1 DROP COLUMN b, ALGORITHM=COPY;
@@ -194,7 +190,6 @@ create index dc on t1 (b,c);
 --disable_info
 # NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.
 # And adding a PRIMARY KEY will also add NOT NULL implicitly!
-set @@sql_mode = 'STRICT_TRANS_TABLES';
 --enable_info
 --error ER_FK_COLUMN_NOT_NULL
 alter table t2 add primary key (alpha), change a alpha int,
@@ -205,7 +200,6 @@ change c charlie int not null, change d delta int not null;
 alter table t2 add primary key (alpha), change a alpha int,
 change b beta int, modify c int not null;
 --disable_info
-set @@sql_mode = @old_sql_mode;
 insert into t1 values (1,1,1);
 insert into t3 values (1,1,1);
 insert into t4 values (1,1,1);
@@ -215,15 +209,11 @@ commit;
 alter table t4 add constraint dc foreign key (a) references t1(a);
 --disable_info
 show create table t4;
-# mysqltest first does replace_regex, then replace_result
---replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
 # a foreign key 'test/dc' already exists
---error ER_DUP_KEY
+--error ER_FK_DUP_NAME
 alter table t3 add constraint dc foreign key (a) references t1(a);
 SET FOREIGN_KEY_CHECKS=0;
---error ER_FK_FAIL_ADD_SYSTEM
+--error ER_FK_DUP_NAME
 alter table t3 add constraint dc foreign key (a) references t1(a);
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 show create table t3;
@@ -415,8 +405,6 @@ SET FOREIGN_KEY_CHECKS=0;
 
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1), ALGORITHM=COPY;
@@ -425,8 +413,6 @@ ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1);
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
@@ -440,8 +426,6 @@ ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1), ALGORITHM=COPY;
@@ -449,8 +433,6 @@ ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 ALTER TABLE t1 MODIFY COLUMN c2 BIGINT(12) NOT NULL;
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
@@ -498,16 +480,9 @@ SET lock_wait_timeout=1;
 CREATE INDEX t1a ON t1(a);
 --enable_info
 CREATE INDEX t2a ON t2(a);
---disable_info
-set @old_sql_mode = @@sql_mode;
 # NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.
 # And adding a PRIMARY KEY will also add NOT NULL implicitly!
-set @@sql_mode = 'STRICT_TRANS_TABLES';
---enable_info
 ALTER TABLE t2i ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=INPLACE;
---disable_info
-set @@sql_mode = @old_sql_mode;
---enable_info
 ALTER TABLE t2c ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=COPY;
 --disable_info
 connection b;
@@ -592,7 +567,7 @@ insert into t480 select 0 from t480;
 insert into t480 select 0 from t480;
 create table t1(f1 int auto_increment not null,
 		f2 char(200) not null, f3 char(200) not null,
-		f4 char(200) not null,primary key(f1))engine=innodb;
+		f4 char(200) not null,primary key(f1))engine=innodb charset latin1;
 insert into t1 select NULL,'aaa','bbb','ccc' from t480;
 insert into t1 select NULL,'aaaa','bbbb','cccc' from t480;
 insert into t1 select NULL,'aaaaa','bbbbb','ccccc' from t480;
@@ -807,7 +782,7 @@ SET GLOBAL innodb_monitor_disable = default;
 SELECT @@innodb_sort_buffer_size;
 create table t1(f1 int auto_increment not null,
 		f2 char(200) not null, f3 char(200) not null,
-		f4 char(200) not null,primary key(f1,f2,f3,f4));
+		f4 char(200) not null,primary key(f1,f2,f3,f4)) charset latin1;
 insert into t1 select NULL,'aaa','bbb','ccc' from t480;
 insert into t1 values(106, 'aaa','bbb','cccc');
 select count(*) from t1;
@@ -821,7 +796,7 @@ drop table t1;
 # Duplicates exist with in the buffer
 create table t1(f1 int auto_increment not null,
 		f2 char(200) not null, f3 char(200) not null,
-		f4 char(200) not null,primary key(f1,f2,f3,f4));
+		f4 char(200) not null,primary key(f1,f2,f3,f4)) charset latin1;
 insert into t1 select NULL,'aaa','bbb','ccc' from t480;
 insert into t1 values(108,'aaa','bbb','cccc');
 select count(*) from t1;
@@ -852,3 +827,224 @@ alter table t1 drop primary key, add primary key (b(8),a);
 select * from t1;
 drop table t1;
 
+
+--echo #
+--echo # Bug #21103101	SORTING SKIPPED WHEN DROPPING THE SINGLE
+--echo #			COLUMN PRIMARY KEY
+--echo #
+
+# Drop primary key column.
+create table t1(f1 int not null, f2 int not null,
+		primary key (f1), unique key(f1, f2))engine=innodb;
+insert into t1 values(1,3), (2,2);
+alter table t1 drop column f1;
+drop table t1;
+
+# Drop Primary key when lock is none.
+create table t1(f1 int not null, f2 int not null,
+		primary key (f1), unique key(f1, f2))engine=innodb;
+insert into t1 values(1,3), (2,2);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table t1 drop primary key, lock=none;
+drop table t1;
+
+--echo #
+--echo #  BUG#21612714 ALTER TABLE SORTING SKIPPED WHEN CHANGE PK AND DROP
+--echo #		LAST COLUMN OF OLD PK
+--echo #
+
+# no skip sort cases
+# pk(o1,o2) to pk(o1,o3), drop o2
+create table t1(o1 int, o2 int, o3 int not null, primary key(o1,o2)) engine = innodb;
+insert into t1 values(1,1,2),(1,2,1);
+alter table t1 drop primary key, add primary key(o1,o3), drop o2, lock=none;
+drop table t1;
+
+# pk(o1,o2) to pk(o3), drop o1, o2
+create table t1(o1 int, o2 int, o3 int not null, primary key(o1,o2)) engine = innodb;
+insert into t1 values(1,1,2),(1,2,1);
+alter table t1 drop o1, drop o2, add primary key(o3), lock=none;
+drop table t1;
+
+# pk(o1,o2) to pk(o1,o3)
+create table t1(o1 int, o2 int, o3 int not null, primary key(o1,o2)) engine = innodb;
+insert into t1 values(1,1,2),(1,2,1);
+alter table t1 drop primary key, add primary key(o1,o3), lock=none;
+drop table t1;
+
+# pk(o1,o2) to pk(o3)
+create table t1(o1 int, o2 int, o3 int not null, primary key(o1,o2)) engine = innodb;
+insert into t1 values(1,1,2),(1,2,1);
+alter table t1 drop primary key, add primary key(o3), lock=none;
+drop table t1;
+
+# pk(o1,o2) to pk(n1,o3)
+create table t1(o1 int, o2 int, o3 int not null, primary key(o1,o2)) engine = innodb;
+insert into t1 values(1,1,2),(1,2,1);
+alter table t1 add column n1 int not null, drop primary key, add primary key(n1,o3), lock=none;
+drop table t1;
+
+# pk(o1,o2) to pk(o3,n1)
+create table t1(o1 int, o2 int, o3 int not null, primary key(o1,o2)) engine = innodb;
+insert into t1 values(1,1,2),(2,2,1);
+alter table t1 add column n1 int not null, drop primary key, add primary key(o3,n1), lock=none;
+drop table t1;
+
+# pk(o1,o2) to pk(o2,o1)
+create table t1(o1 int, o2 int, o3 int not null, primary key(o1,o2)) engine = innodb;
+insert into t1 values(1,2,2),(2,1,1);
+alter table t1 drop primary key, add primary key(o2, o1), lock=none;
+drop table t1;
+
+# pk(o1,o2) to pk(o2)
+create table t1(o1 int, o2 int, o3 int not null, primary key(o1,o2)) engine = innodb;
+insert into t1 values(1,2,2),(2,1,1);
+alter table t1 drop primary key, add primary key(o2), lock=none;
+drop table t1;
+
+# pk(o1,o2) to pk(o2,o3)
+create table t1(o1 int, o2 int, o3 int not null, primary key(o1,o2)) engine = innodb;
+insert into t1 values(1,2,2),(2,1,1);
+alter table t1 drop primary key, add primary key(o2,o3), lock=none;
+drop table t1;
+
+# pk(o2,o1) to pk(o2,o3)
+create table t1(o1 int, o2 int, o3 int not null, primary key(o2,o1)) engine = innodb;
+insert into t1 values(1,1,2),(2,1,1);
+alter table t1 drop primary key, add primary key(o2,o3), lock=none;
+drop table t1;
+
+# pk(o1,o2) to pk(o1,o3,o2)
+create table t1(o1 int, o2 int, o3 int not null, primary key(o1,o2)) engine = innodb;
+insert into t1 values(1,1,2),(1,2,1);
+alter table t1 drop primary key, add primary key(o1,o3,o2), lock=none;
+drop table t1;
+
+# pk(o1,o2) to pk(o3,o1,o2)
+create table t1(o1 int, o2 int, o3 int not null, primary key(o1,o2)) engine = innodb;
+insert into t1 values(1,2,2),(2,1,1);
+alter table t1 drop primary key, add primary key(o3,o1,o2), lock=none;
+drop table t1;
+
+# pk(o1,o2,o3) to pk(o1,o3)
+create table t1(o1 int, o2 int, o3 int, primary key(o1,o2,o3)) engine = innodb;
+insert into t1 values(1,1,2),(1,2,1);
+alter table t1 drop primary key, add primary key(o1,o3), lock=none;
+drop table t1;
+
+# pk(o1,o2,o3) to pk(o2,o3) by drop o1
+create table t1(o1 int, o2 int, o3 int, primary key(o1,o2,o3)) engine = innodb;
+insert into t1 values(1,2,2),(2,1,1);
+alter table t1 drop o1, lock=none;
+drop table t1;
+
+# pk(o1,o2,o3) to pk(o1,o3) by drop o2
+create table t1(o1 int, o2 int, o3 int, primary key(o1,o2,o3)) engine = innodb;
+insert into t1 values(1,1,2),(1,2,1);
+alter table t1 drop o2, lock=none;
+drop table t1;
+
+# pk(o1,o2,o3) to pk(o3) by drop o1,o2
+create table t1(o1 int, o2 int, o3 int, primary key(o1,o2,o3)) engine = innodb;
+insert into t1 values(1,2,2),(2,1,1);
+alter table t1 drop o1, drop o2, lock=none;
+drop table t1;
+
+# no skip sort for prefix change
+# pk(o1(2),o2) to pk(o1(3),o2)
+create table t1(o1 varchar(10), o2 int, o3 int not null, primary key(o1(2), o2)) engine = innodb;
+insert into t1 values('abd', 1, 1), ('abc', 2, 2);
+alter table t1 drop primary key, add primary key(o1(3), o2), lock=none;
+drop table t1;
+
+# pk(o1(2),o2) to pk(o1,o2)
+create table t1(o1 varchar(10), o2 int, o3 int not null, primary key(o1(2), o2)) engine = innodb;
+insert into t1 values('abd', 1, 1), ('abc', 2, 2);
+alter table t1 drop primary key, add primary key(o1, o2), lock=none;
+drop table t1;
+
+# pk(o1(2),o2) to pk(o1(3),o3)
+create table t1(o1 varchar(10), o2 int, o3 int not null, primary key(o1(2), o2)) engine = innodb;
+insert into t1 values('abd', 1, 1), ('abc', 2, 2);
+alter table t1 drop primary key, add primary key(o1(3), o3), lock=none;
+drop table t1;
+
+# pk(o1(2),o2) to pk(o1,o3)
+create table t1(o1 varchar(10), o2 int, o3 int not null, primary key(o1(2), o2)) engine = innodb;
+insert into t1 values('abd', 1, 1), ('abc', 2, 2);
+alter table t1 drop primary key, add primary key(o1, o3), lock=none;
+drop table t1;
+
+# pk(o1(3),o2) to pk(o1(2),o2)
+create table t1(o1 varchar(10), o2 int, o3 int not null, primary key(o1(3), o2)) engine = innodb;
+insert into t1 values('abc', 2, 1), ('abd', 1, 2);
+alter table t1 drop primary key, add primary key(o1(2), o2), lock=none;
+drop table t1;
+
+# pk(o1,o2) to pk(o1(2),o2)
+create table t1(o1 varchar(10), o2 int, o3 int not null, primary key(o1, o2)) engine = innodb;
+insert into t1 values('abc', 2, 1), ('abd', 1, 2);
+alter table t1 drop primary key, add primary key(o1(2), o2), lock=none;
+drop table t1;
+
+# pk(o1(3),o2) to pk(o1(2),o3)
+create table t1(o1 varchar(10), o2 int, o3 int not null, primary key(o1(3), o2)) engine = innodb;
+insert into t1 values('abc', 2, 2), ('abd', 1, 1);
+alter table t1 drop primary key, add primary key(o1(2), o3), lock=none;
+drop table t1;
+
+# pk(o1,o2) to pk(o1(2),o3)
+create table t1(o1 varchar(10), o2 int, o3 int not null, primary key(o1, o2)) engine = innodb;
+insert into t1 values('abc', 2, 2), ('abd', 1, 1);
+alter table t1 drop primary key, add primary key(o1(2), o3), lock=none;
+drop table t1;
+
+# pk(o1,o2(2),o3) to pk(o1,o2(3))
+create table t1(o1 int, o2 varchar(10), o3 int, primary key(o1,o2(2),o3)) engine = innodb;
+insert into t1 values(1, 'abd', 1), (1, 'abc', 2);
+alter table t1 drop primary key, add primary key(o1,o2(3)), lock=none;
+drop table t1;
+
+# pk(o1,o2(2),o3) to pk(o1,o2)
+create table t1(o1 int, o2 varchar(10), o3 int, primary key(o1,o2(2),o3)) engine = innodb;
+insert into t1 values(1, 'abd', 1), (1, 'abc', 2);
+alter table t1 drop primary key, add primary key(o1,o2), lock=none;
+drop table t1;
+
+# pk(o1(3),o2(3)) to pk(o1(2),o2(3))
+create table t1(o1 varchar(10), o2 varchar(10), primary key(o1(3),o2(3))) engine = innodb;
+insert into t1 values('abc', 'acd'), ('abd', 'abd');
+alter table t1 drop primary key, add primary key(o1(2),o2(3)), lock=none;
+drop table t1;
+
+# pk(o1,o2) to pk(o1(2),o2)
+create table t1(o1 varchar(10), o2 varchar(10), primary key(o1,o2)) engine = innodb;
+insert into t1 values('abc', 'acd'), ('abd', 'abd');
+alter table t1 drop primary key, add primary key(o1(2),o2), lock=none;
+drop table t1;
+
+# pk(o1(3),o2(3)) to pk(o2(3),o1(3))
+create table t1(o1 varchar(10), o2 varchar(10), primary key(o1(3),o2(3))) engine = innodb;
+insert into t1 values('abd', 'acd'), ('acd', 'abd');
+alter table t1 drop primary key, add primary key(o2(3),o1(3)), lock=none;
+drop table t1;
+
+# pk(o1,o2) to pk(o2,o1)
+create table t1(o1 varchar(10), o2 varchar(10), primary key(o1,o2)) engine = innodb;
+insert into t1 values('abd', 'acd'), ('acd', 'abd');
+alter table t1 drop primary key, add primary key(o2,o1), lock=none;
+drop table t1;
+
+CREATE TABLE t1(a INT NOT NULL, b INT, PRIMARY KEY (a ASC)) ENGINE=INNODB;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(5,5), (4,4), (3,4), (2,3);
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a DESC);
+CHECK TABLE t1;
+SELECT * FROM t1;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a ASC);
+CHECK TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+# no skip sort cases
+--source suite/innodb/include/alter_table_pk_no_sort.inc

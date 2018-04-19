@@ -1,15 +1,21 @@
 /*
-   Copyright (C) 2007, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -242,7 +248,7 @@ DbUtil::printError(const char *msg)
       printf("\n [MySQL-%s]", m_mysql->server_version);
     else
       printf("\n [MySQL]");
-      printf("[%d] %s\n", getErrorNumber(), getError());
+    printf("[%d] %s\n", getErrorNumber(), getError());
   }
   else if (msg)
     printf(" [MySQL] %s\n", msg);
@@ -301,19 +307,18 @@ DbUtil::createDb(BaseString& m_db)
 {
   BaseString stm;
   setDbName(m_db.c_str());
-  
+
+  if (selectDb())
   {
-    if(selectDb())
+    stm.assfmt("DROP DATABASE %s", m_db.c_str());
+    if (!doQuery(stm))
     {
-      stm.assfmt("DROP DATABASE %s", m_db.c_str());
-      if(!doQuery(m_db.c_str()))
-        return false;
-    }
-    stm.assfmt("CREATE DATABASE %s", m_db.c_str());
-    if(!doQuery(m_db.c_str()))
       return false;
-    return true;
+    }
   }
+
+  stm.assfmt("CREATE DATABASE %s", m_db.c_str());
+  return doQuery(stm);
 }
 
 
@@ -416,7 +421,7 @@ DbUtil::runQuery(const char* sql,
     Update max_length, making it possible to know how big
     buffers to allocate
   */
-  my_bool one= 1;
+  bool one= 1;
   mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*) &one);
 
   if (mysql_stmt_store_result(stmt))
@@ -460,8 +465,23 @@ DbUtil::runQuery(const char* sql,
       
       bind_result[i].buffer_type= fields[i].type;
       bind_result[i].buffer= malloc(buf_len);
+      if (bind_result[i].buffer == NULL)
+      {
+          report_error("Unable to allocate memory for bind_result[].buffer", m_mysql);
+          mysql_stmt_close(stmt);
+          return false;
+      }
+
       bind_result[i].buffer_length= buf_len;
-      bind_result[i].is_null = (my_bool*)malloc(sizeof(my_bool));
+      bind_result[i].is_null = (bool*)malloc(sizeof(bool));
+      if (bind_result[i].is_null == NULL)
+      {
+          free(bind_result[i].buffer);
+          report_error("Unable to allocate memory for bind_result[].is_null", m_mysql);
+          mysql_stmt_close(stmt);
+          return false;
+      }
+
       * bind_result[i].is_null = 0;
     }
 

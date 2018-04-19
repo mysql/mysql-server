@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -20,8 +27,11 @@
 
 #include "NDBT.hpp"
 #include "NDBT_Test.hpp"
+#include "my_thread_local.h"
 #include <portlib/NdbEnv.h>
 #include <logger/Logger.hpp>
+
+#include "my_alloc.h"
 
 static int opt_stop_on_error = 0;
 
@@ -560,7 +570,7 @@ void NDBT_TestCaseImpl1::startStepInThread(int stepNo, NDBT_Context* ctx){
   char buf[16];
   BaseString::snprintf(buf, sizeof(buf), "step_%d", stepNo);
   Uint32 stackSize = ctx->getProperty(NDBT_TestCase::getStepThreadStackSizePropName(), 
-                                      Uint32(0));
+                                      Uint32(512 * 1024));
 
   NdbThread* pThread = NdbThread_Create(runStep_C,
 					(void**)pStep,
@@ -913,7 +923,10 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
 			       const char* _testname){
 
   if(tests.size() == 0)
+  {
+    g_err << "Size of test == 0" << endl;
     return NDBT_FAILED;
+  }
 
   char buf[64]; // For timestamp string
   ndbout << name << " started [" << getDate(buf, sizeof(buf)) << "]" << endl;
@@ -984,14 +997,20 @@ NDBT_TestSuite::executeOne(Ndb_cluster_connection& con,
 			   const char* _tabname, const char* _testname){
 
   if (tests.size() == 0 && explicitTests.size() == 0)
+  {
+    g_err << "Test size == 0 and explicit test size == 0" << endl;
     return NDBT_FAILED;
+  }
 
   char buf[64]; // For timestamp string
   ndbout << name << " started [" << getDate(buf, sizeof(buf)) << "]" << endl;
 
   const NdbDictionary::Table* ptab = NDBT_Tables::getTable(_tabname);
   if (ptab == NULL)
+  {
+    g_err << "ptab == NULL" << endl;
     return NDBT_FAILED;
+  }
 
   ndbout << "|- " << ptab->getName() << endl;
 
@@ -1424,15 +1443,9 @@ static struct my_option my_long_options[] =
 
 extern int global_flag_skip_invalidate_cache;
 
-const char *load_default_groups[]= { "mysql_cluster",0 };
-
 static void short_usage_sub(void)
 {
   ndb_short_usage_sub("[tabname1 tabname2 ... tabnameN]");
-}
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 int NDBT_TestSuite::execute(int argc, const char** argv){
@@ -1458,25 +1471,15 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   */
 
   char **_argv= (char **)argv;
+  Ndb_opts opts(argc, _argv, my_long_options);
+  opts.set_usage_funcs(short_usage_sub);
 
-  if (!my_progname)
-    my_progname= _argv[0];
-
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-
-  ndb_load_defaults(NULL, load_default_groups,&argc,&_argv);
-  // Save pointer to memory allocated by 'ndb_load_defaults'
-  char** defaults_argv= _argv;
-
-  int ho_error;
 #ifndef DBUG_OFF
   opt_debug= "d:t:i:F:L";
 #endif
-  if ((ho_error=handle_options(&argc, &_argv, my_long_options,
-			       ndb_std_get_one_option)))
+  if (opts.handle_options())
   {
-    usage();
-    ndb_free_defaults(defaults_argv);
+    opts.usage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
@@ -1500,7 +1503,9 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   }
   ndbout_c("random seed: %u", opt_seed);
   srand(opt_seed);
+#ifndef _WIN32
   srandom(opt_seed);
+#endif
 
   global_flag_skip_invalidate_cache = 1;
 
@@ -1597,28 +1602,25 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 
   if (opt_print == true){
     printExecutionTree();
-    ndb_free_defaults(defaults_argv);
     return 0;
   }
 
   if (opt_print_html == true){
     printExecutionTreeHTML();
-    ndb_free_defaults(defaults_argv);
     return 0;
   }
 
   if (opt_print_cases == true){
     printCases();
-    ndb_free_defaults(defaults_argv);
     return 0;
   }
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   if(m_connect_cluster && con.connect(12, 5, 1))
   {
-    ndb_free_defaults(defaults_argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
+  con.set_optimized_node_selection(opt_ndb_optimized_node_selection);
 
   if(argc == 0){
     // No table specified
@@ -1632,7 +1634,6 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     res = report(opt_testname);
   }
 
-  ndb_free_defaults(defaults_argv);
   return NDBT_ProgramExit(res);
 }
 

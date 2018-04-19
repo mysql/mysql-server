@@ -1,10 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
--- source include/ndb_default_cluster.inc
 
 echo == 1 ==;
 --exec $NDB_CONFIG --no-defaults --query=type,nodeid,host 2> /dev/null
@@ -86,3 +80,25 @@ echo == 22 == bug14555359;
 echo == 23 == bug18366909;
 # ServerPort and TcpBind_INADDR_ANY didn't show
 --exec $NDB_CONFIG --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini --query=nodeid,host,ServerPort,TcpBind_INADDR_ANY --type=ndbd 2> /dev/null
+
+echo == 24 == Bug 21280428;
+# Check if removed deprecated config parameters are treated as unknown query options.
+--exec $NDB_CONFIG --no-defaults --query=ByteOrder 2>&1
+--exec $NDB_CONFIG --no-defaults --query=MaxNoOfIndexes 2>&1
+--exec $NDB_CONFIG --no-defaults --query=NoOfDiskPagesToDiskDuringRestartTUP 2>&1
+--exec $NDB_CONFIG --no-defaults --query=NoOfDiskPagesToDiskAfterRestartTUP 2>&1
+--exec $NDB_CONFIG --no-defaults --query=NoOfDiskPagesToDiskDuringRestartACC 2>&1
+--exec $NDB_CONFIG --no-defaults --query=NoOfDiskPagesToDiskAfterRestartACC 2>&1
+--exec $NDB_CONFIG --no-defaults --query=DiskCheckpointSpeed 2>&1
+--exec $NDB_CONFIG --no-defaults --query=DiskCheckpointSpeedInRestart 2>&1
+--exec $NDB_CONFIG --no-defaults --query=ReservedSendBufferMemory 2>&1
+--exec $NDB_CONFIG --no-defaults --query=MaxNoOfSavedEvents 2>&1
+--exec $NDB_CONFIG --no-defaults --query=Id 2>&1
+--exec $NDB_CONFIG --no-defaults --query=Discless 2>&1
+--replace_regex /.*\[ndb_config\]//
+--error 255
+--exec $NDB_CONFIG --no-defaults --config-file=$MYSQL_TEST_DIR/suite/ndb/bug21280456.ini 2>&1
+
+echo == 25 == Bug25675643;
+# Check system name
+--exec $NDB_CONFIG --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini --system --query=name 2>&1

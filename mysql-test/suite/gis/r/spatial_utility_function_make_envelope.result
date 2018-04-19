@@ -1,6 +1,6 @@
 # Creating the spatial Geometry object
 USE test;
-CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
 SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
 SET @star_center= 'POINT(15 10)';
@@ -134,33 +134,27 @@ SELECT ST_ASTEXT(ST_MAKEENVELOPE(NULL,NULL));
 ST_ASTEXT(ST_MAKEENVELOPE(NULL,NULL))
 NULL
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('POINT(0 0)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('POINT(0 0)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('POINT(0 0)')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('POINT(0 0)')))' at line 1
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('POINT(0 0)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(,));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',))' at line 1
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT(@star_of_elems),));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(,ST_GEOMFROMTEXT(@star_top)));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ST_GEOMFROMTEXT(@star_top)))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',ST_GEOMFROMTEXT(@star_top)))' at line 1
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', -1024), ST_GEOMFROMTEXT('POINT(-1 1)', -1024)));
-ERROR HY000: Incorrect arguments to st_makeenvelope
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', -1), ST_GEOMFROMTEXT('POINT(-1 1)', -1)));
-ERROR HY000: Incorrect arguments to st_makeenvelope
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 1), ST_GEOMFROMTEXT('POINT(-1 1)', 1)));
-ERROR HY000: Incorrect arguments to st_makeenvelope
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 1000), ST_GEOMFROMTEXT('POINT(-1 1)', 1000)));
-ERROR HY000: Incorrect arguments to st_makeenvelope
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 0), ST_GEOMFROMTEXT('POINT(-1 1)', 1)));
-ERROR HY000: Incorrect arguments to st_makeenvelope
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 1), ST_GEOMFROMTEXT('POINT(-1 -1)', -1)));
-ERROR HY000: Incorrect arguments to st_makeenvelope
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 0), ST_GEOMFROMTEXT('POINT(-1 1)', 4145)));
+ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 0 and 4145, which should have been identical.
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 0), ST_GEOMFROMTEXT('POINT(0 0)', 4236)));
-ERROR HY000: Incorrect arguments to st_makeenvelope
+ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 0 and 4236, which should have been identical.
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('MULTIPOINT(0 0)')));
 ERROR HY000: Incorrect arguments to st_makeenvelope
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('MULTIPOINT(0 1)'), ST_GEOMFROMTEXT('POINT(0 0)')));
@@ -183,11 +177,39 @@ SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT(
 ERROR HY000: Incorrect arguments to st_makeenvelope
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
 ERROR HY000: Incorrect arguments to st_makeenvelope
-SELECT ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 10), ST_GEOMFROMTEXT('POINT(1 1)'));
-ERROR HY000: Incorrect arguments to st_makeenvelope
+SELECT ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(1 1)'));
+ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 4326 and 0, which should have been identical.
 SELECT ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1e1000)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)'));
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_MAKEENVELOPE'
 # Clean up
 DROP TABLE gis_geometrycollection;
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+DO ST_MAKEENVELOPE(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+# Projected SRS (should pass)
+DO ST_MAKEENVELOPE(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+# Geographic SRS (should fail)
+DO ST_MAKEENVELOPE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+ERROR 22S00: st_makeenvelope(POINT, POINT) has not been implemented for geographic spatial reference systems.
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_MAKEENVELOPE(
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
+);
+ERROR SR001: There's no spatial reference system with SRID 10.

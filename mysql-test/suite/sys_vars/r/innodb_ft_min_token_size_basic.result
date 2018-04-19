@@ -9,12 +9,12 @@ innodb_ft_min_token_size	3
 show session variables like 'innodb_ft_min_token_size';
 Variable_name	Value
 innodb_ft_min_token_size	3
-select * from information_schema.global_variables where variable_name='innodb_ft_min_token_size';
+select * from performance_schema.global_variables where variable_name='innodb_ft_min_token_size';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_MIN_TOKEN_SIZE	3
-select * from information_schema.session_variables where variable_name='innodb_ft_min_token_size';
+innodb_ft_min_token_size	3
+select * from performance_schema.session_variables where variable_name='innodb_ft_min_token_size';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_MIN_TOKEN_SIZE	3
+innodb_ft_min_token_size	3
 set global innodb_ft_min_token_size=1;
 ERROR HY000: Variable 'innodb_ft_min_token_size' is a read only variable
 set session innodb_ft_min_token_size=1;

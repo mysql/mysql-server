@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -100,6 +107,11 @@ setup_directories(atrt_config& config, int setup)
 static
 void
 printfile(FILE* out, Properties& props, const char * section, ...)
+  ATTRIBUTE_FORMAT(printf, 3, 4);
+
+static
+void
+printfile(FILE* out, Properties& props, const char * section, ...)
 {
   Properties::Iterator it (&props);
   const char * name = it.first();
@@ -139,6 +151,11 @@ dirname(const char * path)
   free(s);
   return 0;
 }
+
+#ifdef _WIN32
+#define popen _popen
+#define pclose _pclose
+#endif
 
 bool
 setup_files(atrt_config& config, int setup, int sshx)
@@ -182,6 +199,23 @@ setup_files(atrt_config& config, int setup, int sshx)
   
   if (setup == 2 || config.m_generated)
   {
+    bool use_mysqld = (g_mysql_install_db_bin_path == NULL);
+    if (!use_mysqld)
+    {
+      // Even if mysql_install_db exists, prefer use of mysqld if possible
+      BaseString tmp;
+      tmp.assfmt("%s --help --verbose", g_mysqld_bin_path);
+      FILE *f = popen(tmp.c_str(), "re");
+      char buf[1000];
+      while (NULL != fgets(buf, sizeof(buf), f))
+      {
+        if (strncmp(buf, "initialize-insecure ", 20) == 0)
+        {
+          use_mysqld = true;
+        }
+      }
+      pclose(f);
+    }
     /**
      * Do mysql_install_db
      */
@@ -197,26 +231,64 @@ setup_files(atrt_config& config, int setup, int sshx)
 	  const char * val;
 	  require(proc.m_options.m_loaded.get("--datadir=", &val));
 	  BaseString tmp;
-	  tmp.assfmt("%s --defaults-file=%s/my.cnf --basedir=%s --datadir=%s > %s/mysql_install_db.log 2>&1",
-		     g_mysql_install_db_bin_path, g_basedir, g_prefix, val, proc.m_proc.m_cwd.c_str());
-
+          if (use_mysqld)
+          {
+            tmp.assfmt("%s --defaults-file=%s/my.cnf --basedir=%s "
+                         "--datadir=%s --initialize-insecure "
+                         "> %s/mysqld-initialize.log 2>&1",
+                       g_mysqld_bin_path,
+                       g_basedir,
+                       g_prefix,
+                       val,
+                       proc.m_proc.m_cwd.c_str());
+          }
+          else
+          {
+            assert(g_mysql_install_db_bin_path != NULL);
+            tmp.assfmt("%s --defaults-file=%s/my.cnf --basedir=%s "
+                         "--datadir=%s > %s/mysql_install_db.log 2>&1",
+                       g_mysql_install_db_bin_path,
+                       g_basedir,
+                       g_prefix0,
+                       val,
+                       proc.m_proc.m_cwd.c_str());
+          }
           to_fwd_slashes(tmp);
-	  if (sh(tmp.c_str()) != 0)
-	  {
-	    g_logger.error("Failed to mysql_install_db for %s, cmd: '%s'",
-			   proc.m_proc.m_cwd.c_str(),
-			   tmp.c_str());
-	  }
-	  else
-	  {
-	    g_logger.info("mysql_install_db for %s",
-			  proc.m_proc.m_cwd.c_str());
-	  }
+          if (sh(tmp.c_str()) != 0)
+          {
+            if (use_mysqld)
+            {
+              g_logger.error("Failed to mysqld --initialize-insecure for "
+                               "%s, cmd: '%s'",
+                             proc.m_proc.m_cwd.c_str(),
+                             tmp.c_str());
+            }
+            else
+            {
+              g_logger.error("Failed to mysql_install_db for %s, cmd: '%s'",
+                             proc.m_proc.m_cwd.c_str(),
+                             tmp.c_str());
+            }
+          }
+          else
+          {
+            if (use_mysqld)
+            {
+              g_logger.info("mysqld --initialize-insecure for %s",
+                            proc.m_proc.m_cwd.c_str());
+            }
+            else
+            {
+              g_logger.info("mysql_install_db for %s",
+                            proc.m_proc.m_cwd.c_str());
+            }
+          }
         }
 #else
         {
-          g_logger.info("not running mysql_install_db for %s",
-                         proc.m_proc.m_cwd.c_str());
+          g_logger.info("not running mysqld --initialize-insecure nor "
+                          "mysql_install_db for %s",
+                        proc.m_proc.m_cwd.c_str());
         }
 #endif
       }
@@ -281,6 +353,11 @@ setup_files(atrt_config& config, int setup, int sshx)
 		    "[client.%d%s]",
 		    proc.m_index, proc.m_cluster->m_name.c_str());
 	  break;
+  case atrt_process::AP_CUSTOM:
+    printfile(out, proc.m_options.m_generated,
+        "[%s.%d%s]",
+        proc.m_name.c_str(), proc.m_index, proc.m_cluster->m_name.c_str());
+    break;
 	case atrt_process::AP_ALL:
 	case atrt_process::AP_CLUSTER:
 	  abort();
@@ -327,7 +404,7 @@ setup_files(atrt_config& config, int setup, int sshx)
         fprintf(fenv, "PATH=");
         for (int i = 0; g_search_path[i] != 0; i++)
         {
-          fprintf(fenv, "%s/%s:", g_prefix, g_search_path[i]);
+          fprintf(fenv, "%s/%s:", g_prefix0, g_search_path[i]);
         }
         fprintf(fenv, "$PATH\n");
 	keys.push_back("PATH");

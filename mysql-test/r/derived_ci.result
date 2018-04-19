@@ -1,0 +1,30 @@
+#
+# Resolution of alias
+#
+select QN.a from (select 1 as a) as qn;
+a
+1
+select QN.a from (select 1 as a) as QN;
+a
+1
+select qn.a from (select 1 as a) as QN;
+a
+1
+select 3 from (select 1) as qn, (select 2) as QN;
+ERROR 42000: Not unique table/alias: 'QN'
+with qn as (select 1) select * from QN;
+1
+1
+with QN as (select 1) select * from QN;
+1
+1
+with QN as (select 1) select * from qn;
+1
+1
+with qn as (select 1 as a) select QN.a from qn;
+a
+1
+with qn as (select 1), QN as (select 2) select 3;
+ERROR 42000: Not unique table/alias: 'qn'
+with qn as (select 1 as a), QN as (select 2 as a) select QN.a from QN;
+ERROR 42000: Not unique table/alias: 'qn'

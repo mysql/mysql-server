@@ -1,3 +1,5 @@
+/* Modifications copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+*/
 #ifndef UTIL_H
 #define UTIL_H
 /*
@@ -20,9 +22,11 @@ MEMCACHED_PUBLIC_API bool safe_strtoul(const char *str, uint32_t *out);
 MEMCACHED_PUBLIC_API bool safe_strtol(const char *str, int32_t *out);
 MEMCACHED_PUBLIC_API bool safe_strtof(const char *str, float *out);
 
-#ifndef HAVE_HTONLL
-MEMCACHED_PUBLIC_API extern uint64_t htonll(uint64_t);
-MEMCACHED_PUBLIC_API extern uint64_t ntohll(uint64_t);
+MEMCACHED_PUBLIC_API extern uint64_t mc_swap64(uint64_t);
+
+#if ! ( defined htonll || defined HAVE_HTONLL )
+#define htonll mc_swap64
+#define ntohll mc_swap64
 #endif
 
 #ifdef __GCC

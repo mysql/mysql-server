@@ -1,0 +1,1218 @@
+CREATE TABLE t1 (f1 INT, f2 INT, f3 CHAR(1), f4 CHAR(1), f5 CHAR(1), f6 CHAR(1),
+PRIMARY KEY (f5, f1), KEY (f2), KEY (f3), KEY (f4)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, 1, 'a', 'h', 'i', ''), (2, 3, 'a', 'h', 'i', ''), (3, 2, 'b', '', 'j', ''), (4, 2, 'b', '', 'j', '');
+INSERT INTO t1 VALUES (5, 1, 'a', 'h', 'i', ''), (6, 3, 'a', 'h', 'i', ''), (7, 2, 'b', '', 'j', ''), (8, 2, 'b', '', 'j', '');
+INSERT INTO t1 SELECT f1 + 8, f2, f3, f4, f5, f6 FROM t1;
+INSERT INTO t1 SELECT f1 + 16, f2, f3, f4, f5, f6 FROM t1;
+INSERT INTO t1 VALUES (33, 3, 'c', 'g', '', ''), (34, 4, 'c', 'g', '', ''), (35, 5, 'd', 'f', '', ''), (36, 6, 'd', 'f', '', '');
+INSERT INTO t1 SELECT f1 + 36, f2, f3, f4, f5, f6 FROM t1;
+INSERT INTO t1 SELECT f1 + 72, f2, f3, f4, f5, f6 FROM t1;
+INSERT INTO t1 SELECT f1 + 144, f2, f3, f4, f5, f6 FROM t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET optimizer_trace_max_mem_size=1048576;
+SET end_markers_in_json=on;
+SET optimizer_trace="enabled=on,one_line=off";
+SET optimizer_switch='index_merge_union=off,index_merge=off';
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c' OR f4 = 'f';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	f2,f3,f4	NULL	NULL	NULL	288	53.12	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'c') or (`test`.`t1`.`f4` = 'f'))
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c' OR f4 = 'f'	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`) */ `t1`.`f1` AS `f1` from `t1` where ((`t1`.`f2` = 5) or (`t1`.`f3` = 'c') or (`t1`.`f4` = 'f'))"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "((`t1`.`f2` = 5) or (`t1`.`f3` = 'c') or (`t1`.`f4` = 'f'))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(multiple equal(5, `t1`.`f2`) or multiple equal('c', `t1`.`f3`) or multiple equal('f', `t1`.`f4`))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(multiple equal(5, `t1`.`f2`) or multiple equal('c', `t1`.`f3`) or multiple equal('f', `t1`.`f4`))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(multiple equal(5, `t1`.`f2`) or multiple equal('c', `t1`.`f3`) or multiple equal('f', `t1`.`f4`))"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 288,
+                    "cost": 31.15
+                  } /* table_scan */,
+                  "potential_range_indexes": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    },
+                    {
+                      "index": "f2",
+                      "usable": true,
+                      "key_parts": [
+                        "f2",
+                        "f5",
+                        "f1"
+                      ] /* key_parts */
+                    },
+                    {
+                      "index": "f3",
+                      "usable": true,
+                      "key_parts": [
+                        "f3",
+                        "f5",
+                        "f1"
+                      ] /* key_parts */
+                    },
+                    {
+                      "index": "f4",
+                      "usable": true,
+                      "key_parts": [
+                        "f4",
+                        "f5",
+                        "f1"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indexes */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  } /* group_index_range */,
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                    ] /* range_scan_alternatives */,
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    } /* analyzing_roworder_intersect */
+                  } /* analyzing_range_alternatives */,
+                  "analyzing_index_merge_union": [
+                    {
+                      "indexes_to_merge": [
+                        {
+                          "range_scan_alternatives": [
+                            {
+                              "index": "f2",
+                              "ranges": [
+                                "5 <= f2 <= 5"
+                              ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": true,
+                              "using_mrr": false,
+                              "index_only": true,
+                              "rows": 8,
+                              "cost": 1.0628,
+                              "chosen": true
+                            }
+                          ] /* range_scan_alternatives */,
+                          "index_to_merge": "f2",
+                          "cumulated_cost": 1.0628
+                        },
+                        {
+                          "range_scan_alternatives": [
+                            {
+                              "index": "f3",
+                              "ranges": [
+                                "c <= f3 <= c"
+                              ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": true,
+                              "using_mrr": false,
+                              "index_only": true,
+                              "rows": 16,
+                              "cost": 1.8659,
+                              "chosen": true
+                            }
+                          ] /* range_scan_alternatives */,
+                          "index_to_merge": "f3",
+                          "cumulated_cost": 2.9287
+                        },
+                        {
+                          "range_scan_alternatives": [
+                            {
+                              "index": "f4",
+                              "chosen": false,
+                              "cause": "index_merge_hint"
+                            }
+                          ] /* range_scan_alternatives */,
+                          "chosen": false,
+                          "cause": "cost"
+                        }
+                      ] /* indexes_to_merge */,
+                      "cost_of_reading_ranges": 2.9287,
+                      "chosen": false,
+                      "cause": "cost"
+                    }
+                  ] /* analyzing_index_merge_union */
+                } /* range_analysis */
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 288,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.5312,
+                      "access_type": "scan",
+                      "resulting_rows": 153,
+                      "cost": 29.05,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 153,
+                "cost_for_plan": 29.05,
+                "chosen": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "((`t1`.`f2` = 5) or (`t1`.`f3` = 'c') or (`t1`.`f4` = 'f'))",
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "((`t1`.`f2` = 5) or (`t1`.`f3` = 'c') or (`t1`.`f4` = 'f'))"
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_explain */
+    }
+  ] /* steps */
+}	0	0
+SET optimizer_switch='index_merge=on,index_merge_intersection=on';
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	f2,f3,f4	f2	5	const	128	19.75	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f3`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b'	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f3`) */ count(0) AS `COUNT(*)` from `t1` where ((`t1`.`f4` = 'h') and (`t1`.`f2` = 2) and (`t1`.`f3` = 'b'))"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "((`t1`.`f4` = 'h') and (`t1`.`f2` = 2) and (`t1`.`f3` = 'b'))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(multiple equal('h', `t1`.`f4`) and multiple equal(2, `t1`.`f2`) and multiple equal('b', `t1`.`f3`))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(multiple equal('h', `t1`.`f4`) and multiple equal(2, `t1`.`f2`) and multiple equal('b', `t1`.`f3`))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(multiple equal('h', `t1`.`f4`) and multiple equal(2, `t1`.`f2`) and multiple equal('b', `t1`.`f3`))"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "ref_optimizer_key_uses": [
+              {
+                "table": "`t1`",
+                "field": "f2",
+                "equals": "2",
+                "null_rejecting": false
+              },
+              {
+                "table": "`t1`",
+                "field": "f3",
+                "equals": "'b'",
+                "null_rejecting": false
+              },
+              {
+                "table": "`t1`",
+                "field": "f4",
+                "equals": "'h'",
+                "null_rejecting": false
+              }
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 288,
+                    "cost": 31.15
+                  } /* table_scan */,
+                  "potential_range_indexes": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    },
+                    {
+                      "index": "f2",
+                      "usable": true,
+                      "key_parts": [
+                        "f2",
+                        "f5",
+                        "f1"
+                      ] /* key_parts */
+                    },
+                    {
+                      "index": "f3",
+                      "usable": true,
+                      "key_parts": [
+                        "f3",
+                        "f5",
+                        "f1"
+                      ] /* key_parts */
+                    },
+                    {
+                      "index": "f4",
+                      "usable": true,
+                      "key_parts": [
+                        "f4",
+                        "f5",
+                        "f1"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indexes */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  } /* group_index_range */,
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                      {
+                        "index": "f2",
+                        "ranges": [
+                          "2 <= f2 <= 2"
+                        ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
+                        "index_only": false,
+                        "rows": 128,
+                        "cost": 45.06,
+                        "chosen": false,
+                        "cause": "cost"
+                      },
+                      {
+                        "index": "f3",
+                        "chosen": false,
+                        "cause": "index_merge_hint"
+                      },
+                      {
+                        "index": "f4",
+                        "ranges": [
+                          "h <= f4 <= h"
+                        ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
+                        "index_only": false,
+                        "rows": 128,
+                        "cost": 45.06,
+                        "chosen": false,
+                        "cause": "cost"
+                      }
+                    ] /* range_scan_alternatives */,
+                    "analyzing_roworder_intersect": {
+                      "intersecting_indexes": [
+                        {
+                          "index": "f2",
+                          "index_scan_cost": 0.3003,
+                          "cumulated_index_scan_cost": 0.3003,
+                          "disk_sweep_cost": 1,
+                          "cumulated_total_cost": 1.3003,
+                          "usable": true,
+                          "matching_rows_now": 128,
+                          "isect_covering_with_this_index": false,
+                          "chosen": true
+                        },
+                        {
+                          "index": "f4",
+                          "index_scan_cost": 0.3003,
+                          "cumulated_index_scan_cost": 0.6006,
+                          "disk_sweep_cost": 1,
+                          "cumulated_total_cost": 1.6006,
+                          "usable": true,
+                          "matching_rows_now": 56.889,
+                          "isect_covering_with_this_index": false,
+                          "chosen": false,
+                          "cause": "does_not_reduce_cost"
+                        }
+                      ] /* intersecting_indexes */,
+                      "clustered_pk": {
+                        "clustered_pk_added_to_intersect": false,
+                        "cause": "no_clustered_pk_index"
+                      } /* clustered_pk */,
+                      "chosen": false,
+                      "cause": "too_few_indexes_to_merge"
+                    } /* analyzing_roworder_intersect */
+                  } /* analyzing_range_alternatives */
+                } /* range_analysis */
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "ref",
+                      "index": "f2",
+                      "rows": 128,
+                      "cost": 13.55,
+                      "chosen": true
+                    },
+                    {
+                      "access_type": "ref",
+                      "index": "f3",
+                      "rows": 128,
+                      "cost": 13.55,
+                      "chosen": false
+                    },
+                    {
+                      "access_type": "ref",
+                      "index": "f4",
+                      "rows": 128,
+                      "cost": 13.55,
+                      "chosen": false
+                    },
+                    {
+                      "rows_to_scan": 288,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.0878,
+                      "access_type": "scan",
+                      "resulting_rows": 25.284,
+                      "cost": 29.05,
+                      "chosen": false
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "condition_filtering_pct": 19.753,
+                "rows_for_plan": 25.284,
+                "cost_for_plan": 13.55,
+                "chosen": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "((`t1`.`f3` = 'b') and (`t1`.`f2` = 2) and (`t1`.`f4` = 'h'))",
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "((`t1`.`f3` = 'b') and (`t1`.`f4` = 'h'))"
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_explain */
+    }
+  ] /* steps */
+}	0	0
+SET optimizer_switch='index_merge_union=off,index_merge=off';
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  = 'b') AND (f2 BETWEEN 300 AND 310 OR f4 = 'b');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f4	5,5	NULL	2	100.00	Using sort_union(f2,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6` from `test`.`t1` where (((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'b')) and ((`test`.`t1`.`f2` between 300 and 310) or (`test`.`t1`.`f4` = 'b')))
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  = 'b') AND (f2 BETWEEN 300 AND 310 OR f4 = 'b')	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ `t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`t1`.`f3` AS `f3`,`t1`.`f4` AS `f4`,`t1`.`f5` AS `f5`,`t1`.`f6` AS `f6` from `t1` where (((`t1`.`f2` = 5) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 300 and 310) or (`t1`.`f4` = 'b')))"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(((`t1`.`f2` = 5) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 300 and 310) or (`t1`.`f4` = 'b')))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 300 and 310) or multiple equal('b', `t1`.`f4`)))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 300 and 310) or multiple equal('b', `t1`.`f4`)))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 300 and 310) or multiple equal('b', `t1`.`f4`)))"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 288,
+                    "cost": 31.15
+                  } /* table_scan */,
+                  "potential_range_indexes": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    },
+                    {
+                      "index": "f2",
+                      "usable": true,
+                      "key_parts": [
+                        "f2",
+                        "f5",
+                        "f1"
+                      ] /* key_parts */
+                    },
+                    {
+                      "index": "f3",
+                      "usable": true,
+                      "key_parts": [
+                        "f3",
+                        "f5",
+                        "f1"
+                      ] /* key_parts */
+                    },
+                    {
+                      "index": "f4",
+                      "usable": true,
+                      "key_parts": [
+                        "f4",
+                        "f5",
+                        "f1"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indexes */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  } /* group_index_range */,
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                    ] /* range_scan_alternatives */,
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    } /* analyzing_roworder_intersect */
+                  } /* analyzing_range_alternatives */,
+                  "analyzing_index_merge_union": [
+                    {
+                      "indexes_to_merge": [
+                        {
+                          "range_scan_alternatives": [
+                            {
+                              "index": "f2",
+                              "ranges": [
+                                "5 <= f2 <= 5"
+                              ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": true,
+                              "using_mrr": false,
+                              "index_only": true,
+                              "rows": 8,
+                              "cost": 1.0628,
+                              "chosen": true
+                            }
+                          ] /* range_scan_alternatives */,
+                          "index_to_merge": "f2",
+                          "cumulated_cost": 1.0628
+                        },
+                        {
+                          "range_scan_alternatives": [
+                            {
+                              "index": "f3",
+                              "ranges": [
+                                "b <= f3 <= b"
+                              ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": true,
+                              "using_mrr": false,
+                              "index_only": true,
+                              "rows": 128,
+                              "cost": 13.11,
+                              "chosen": true
+                            }
+                          ] /* range_scan_alternatives */,
+                          "index_to_merge": "f3",
+                          "cumulated_cost": 14.173
+                        }
+                      ] /* indexes_to_merge */,
+                      "cost_of_reading_ranges": 14.173,
+                      "use_roworder_union": true,
+                      "cause": "always_cheaper_than_not_roworder_retrieval",
+                      "analyzing_roworder_scans": [
+                        {
+                          "type": "range_scan",
+                          "index": "f2",
+                          "rows": 8,
+                          "ranges": [
+                            "5 <= f2 <= 5"
+                          ] /* ranges */,
+                          "analyzing_roworder_intersect": {
+                            "usable": false,
+                            "cause": "too_few_roworder_scans"
+                          } /* analyzing_roworder_intersect */
+                        },
+                        {
+                          "type": "range_scan",
+                          "index": "f3",
+                          "rows": 128,
+                          "ranges": [
+                            "b <= f3 <= b"
+                          ] /* ranges */,
+                          "analyzing_roworder_intersect": {
+                            "usable": false,
+                            "cause": "too_few_roworder_scans"
+                          } /* analyzing_roworder_intersect */
+                        }
+                      ] /* analyzing_roworder_scans */,
+                      "index_roworder_union_cost": 21.973,
+                      "members": 2,
+                      "chosen": true
+                    },
+                    {
+                      "indexes_to_merge": [
+                        {
+                          "range_scan_alternatives": [
+                            {
+                              "index": "f2",
+                              "ranges": [
+                                "300 <= f2 <= 310"
+                              ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": false,
+                              "using_mrr": false,
+                              "index_only": true,
+                              "rows": 1,
+                              "cost": 0.36,
+                              "chosen": true
+                            }
+                          ] /* range_scan_alternatives */,
+                          "index_to_merge": "f2",
+                          "cumulated_cost": 0.36
+                        },
+                        {
+                          "range_scan_alternatives": [
+                            {
+                              "index": "f4",
+                              "ranges": [
+                                "b <= f4 <= b"
+                              ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": true,
+                              "using_mrr": false,
+                              "index_only": true,
+                              "rows": 1,
+                              "cost": 0.36,
+                              "chosen": true
+                            }
+                          ] /* range_scan_alternatives */,
+                          "index_to_merge": "f4",
+                          "cumulated_cost": 0.72
+                        }
+                      ] /* indexes_to_merge */,
+                      "cost_of_reading_ranges": 0.72,
+                      "cost_sort_rowid_and_read_disk": 0.4375,
+                      "cost_duplicate_removal": 0.2545,
+                      "total_cost": 1.412
+                    }
+                  ] /* analyzing_index_merge_union */,
+                  "chosen_range_access_summary": {
+                    "range_access_plan": {
+                      "type": "index_merge",
+                      "index_merge_of": [
+                        {
+                          "type": "range_scan",
+                          "index": "f2",
+                          "rows": 1,
+                          "ranges": [
+                            "300 <= f2 <= 310"
+                          ] /* ranges */
+                        },
+                        {
+                          "type": "range_scan",
+                          "index": "f4",
+                          "rows": 1,
+                          "ranges": [
+                            "b <= f4 <= b"
+                          ] /* ranges */
+                        }
+                      ] /* index_merge_of */
+                    } /* range_access_plan */,
+                    "rows_for_plan": 2,
+                    "cost_for_plan": 1.412,
+                    "chosen": true
+                  } /* chosen_range_access_summary */
+                } /* range_analysis */
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
+                      "access_type": "range",
+                      "range_details": {
+                        "used_index": "sort_union(f2,f4)"
+                      } /* range_details */,
+                      "resulting_rows": 2,
+                      "cost": 1.612,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 2,
+                "cost_for_plan": 1.612,
+                "chosen": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(((`t1`.`f2` = 5) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 300 and 310) or (`t1`.`f4` = 'b')))",
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "(((`t1`.`f2` = 5) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 300 and 310) or (`t1`.`f4` = 'b')))"
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_explain */
+    }
+  ] /* steps */
+}	0	0
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  = 'b') AND (f2 BETWEEN 1 AND 10 OR f4 = 'b');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3	5,5	NULL	136	100.00	Using union(f2,f3); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6` from `test`.`t1` where (((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'b')) and ((`test`.`t1`.`f2` between 1 and 10) or (`test`.`t1`.`f4` = 'b')))
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  = 'b') AND (f2 BETWEEN 1 AND 10 OR f4 = 'b')	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ `t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`t1`.`f3` AS `f3`,`t1`.`f4` AS `f4`,`t1`.`f5` AS `f5`,`t1`.`f6` AS `f6` from `t1` where (((`t1`.`f2` = 5) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 1 and 10) or (`t1`.`f4` = 'b')))"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(((`t1`.`f2` = 5) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 1 and 10) or (`t1`.`f4` = 'b')))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 1 and 10) or multiple equal('b', `t1`.`f4`)))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 1 and 10) or multiple equal('b', `t1`.`f4`)))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 1 and 10) or multiple equal('b', `t1`.`f4`)))"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 288,
+                    "cost": 31.15
+                  } /* table_scan */,
+                  "potential_range_indexes": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    },
+                    {
+                      "index": "f2",
+                      "usable": true,
+                      "key_parts": [
+                        "f2",
+                        "f5",
+                        "f1"
+                      ] /* key_parts */
+                    },
+                    {
+                      "index": "f3",
+                      "usable": true,
+                      "key_parts": [
+                        "f3",
+                        "f5",
+                        "f1"
+                      ] /* key_parts */
+                    },
+                    {
+                      "index": "f4",
+                      "usable": true,
+                      "key_parts": [
+                        "f4",
+                        "f5",
+                        "f1"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indexes */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  } /* group_index_range */,
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                    ] /* range_scan_alternatives */,
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    } /* analyzing_roworder_intersect */
+                  } /* analyzing_range_alternatives */,
+                  "analyzing_index_merge_union": [
+                    {
+                      "indexes_to_merge": [
+                        {
+                          "range_scan_alternatives": [
+                            {
+                              "index": "f2",
+                              "ranges": [
+                                "5 <= f2 <= 5"
+                              ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": true,
+                              "using_mrr": false,
+                              "index_only": true,
+                              "rows": 8,
+                              "cost": 1.0628,
+                              "chosen": true
+                            }
+                          ] /* range_scan_alternatives */,
+                          "index_to_merge": "f2",
+                          "cumulated_cost": 1.0628
+                        },
+                        {
+                          "range_scan_alternatives": [
+                            {
+                              "index": "f3",
+                              "ranges": [
+                                "b <= f3 <= b"
+                              ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": true,
+                              "using_mrr": false,
+                              "index_only": true,
+                              "rows": 128,
+                              "cost": 13.11,
+                              "chosen": true
+                            }
+                          ] /* range_scan_alternatives */,
+                          "index_to_merge": "f3",
+                          "cumulated_cost": 14.173
+                        }
+                      ] /* indexes_to_merge */,
+                      "cost_of_reading_ranges": 14.173,
+                      "use_roworder_union": true,
+                      "cause": "always_cheaper_than_not_roworder_retrieval",
+                      "analyzing_roworder_scans": [
+                        {
+                          "type": "range_scan",
+                          "index": "f2",
+                          "rows": 8,
+                          "ranges": [
+                            "5 <= f2 <= 5"
+                          ] /* ranges */,
+                          "analyzing_roworder_intersect": {
+                            "usable": false,
+                            "cause": "too_few_roworder_scans"
+                          } /* analyzing_roworder_intersect */
+                        },
+                        {
+                          "type": "range_scan",
+                          "index": "f3",
+                          "rows": 128,
+                          "ranges": [
+                            "b <= f3 <= b"
+                          ] /* ranges */,
+                          "analyzing_roworder_intersect": {
+                            "usable": false,
+                            "cause": "too_few_roworder_scans"
+                          } /* analyzing_roworder_intersect */
+                        }
+                      ] /* analyzing_roworder_scans */,
+                      "index_roworder_union_cost": 21.973,
+                      "members": 2,
+                      "chosen": true
+                    },
+                    {
+                      "indexes_to_merge": [
+                        {
+                          "range_scan_alternatives": [
+                            {
+                              "index": "f2",
+                              "ranges": [
+                                "1 <= f2 <= 10"
+                              ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": false,
+                              "using_mrr": false,
+                              "index_only": true,
+                              "rows": 288,
+                              "cost": 29.174,
+                              "chosen": true
+                            }
+                          ] /* range_scan_alternatives */,
+                          "index_to_merge": "f2",
+                          "cumulated_cost": 29.174
+                        },
+                        {
+                          "range_scan_alternatives": [
+                            {
+                              "index": "f4",
+                              "ranges": [
+                                "b <= f4 <= b"
+                              ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": true,
+                              "using_mrr": false,
+                              "index_only": true,
+                              "rows": 1,
+                              "cost": 0.36,
+                              "chosen": true
+                            }
+                          ] /* range_scan_alternatives */,
+                          "index_to_merge": "f4",
+                          "cumulated_cost": 29.534
+                        }
+                      ] /* indexes_to_merge */,
+                      "cost_of_reading_ranges": 29.534,
+                      "cost_sort_rowid_and_read_disk": 1,
+                      "cost_duplicate_removal": 195.92,
+                      "total_cost": 226.45
+                    }
+                  ] /* analyzing_index_merge_union */,
+                  "chosen_range_access_summary": {
+                    "range_access_plan": {
+                      "type": "index_roworder_union",
+                      "union_of": [
+                        {
+                          "type": "range_scan",
+                          "index": "f2",
+                          "rows": 8,
+                          "ranges": [
+                            "5 <= f2 <= 5"
+                          ] /* ranges */
+                        },
+                        {
+                          "type": "range_scan",
+                          "index": "f3",
+                          "rows": 128,
+                          "ranges": [
+                            "b <= f3 <= b"
+                          ] /* ranges */
+                        }
+                      ] /* union_of */
+                    } /* range_access_plan */,
+                    "rows_for_plan": 136,
+                    "cost_for_plan": 21.973,
+                    "chosen": true
+                  } /* chosen_range_access_summary */
+                } /* range_analysis */
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 136,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
+                      "access_type": "range",
+                      "range_details": {
+                        "used_index": "union(f2,f3)"
+                      } /* range_details */,
+                      "resulting_rows": 136,
+                      "cost": 35.573,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 136,
+                "cost_for_plan": 35.573,
+                "chosen": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(((`t1`.`f2` = 5) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 1 and 10) or (`t1`.`f4` = 'b')))",
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "(((`t1`.`f2` = 5) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 1 and 10) or (`t1`.`f4` = 'b')))"
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_explain */
+    }
+  ] /* steps */
+}	0	0
+SET optimizer_switch=default;
+DROP TABLE t1;

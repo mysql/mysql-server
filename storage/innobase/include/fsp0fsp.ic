@@ -1,89 +1,82 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/fsp0fsp.ic
-File space management
+/** @file include/fsp0fsp.ic
+ File space management
 
-Created 12/18/1995 Heikki Tuuri
-*******************************************************/
-
-#ifndef UNIV_INNOCHECKSUM
+ Created 12/18/1995 Heikki Tuuri
+ *******************************************************/
 
 /** Checks if a page address is an extent descriptor page address.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
-@return TRUE if a descriptor page */
+@return true if a descriptor page */
 UNIV_INLINE
-ibool
-fsp_descr_page(
-	const page_id_t&	page_id,
-	const page_size_t&	page_size)
-{
-	return((page_id.page_no() & (page_size.physical() - 1))
-	       == FSP_XDES_OFFSET);
+ibool fsp_descr_page(const page_id_t &page_id, const page_size_t &page_size) {
+  return ((page_id.page_no() & (page_size.physical() - 1)) == FSP_XDES_OFFSET);
 }
 
 /** Determine if the tablespace is compressed from tablespace flags.
 @param[in]	flags	Tablespace flags
 @return true if compressed, false if not compressed */
 UNIV_INLINE
-bool
-fsp_flags_is_compressed(
-	ulint	flags)
-{
-	return(FSP_FLAGS_GET_ZIP_SSIZE(flags) != 0);
+bool fsp_flags_is_compressed(ulint flags) {
+  return (FSP_FLAGS_GET_ZIP_SSIZE(flags) != 0);
 }
 
-#define ACTUAL_SSIZE(ssize)	(0 == ssize ? UNIV_PAGE_SSIZE_ORIG : ssize)
+#define ACTUAL_SSIZE(ssize) (0 == ssize ? UNIV_PAGE_SSIZE_ORIG : ssize)
 
 /** Determine if two tablespaces are equivalent or compatible.
 @param[in]	flags1	First tablespace flags
 @param[in]	flags2	Second tablespace flags
 @return true the flags are compatible, false if not */
 UNIV_INLINE
-bool
-fsp_flags_are_equal(
-	ulint	flags1,
-	ulint	flags2)
-{
-	/* If either one of these flags is ULINT_UNDEFINED,
-	then they are not equal */
-	if (flags1 == ULINT_UNDEFINED || flags2 == ULINT_UNDEFINED) {
-		return(false);
-	}
+bool fsp_flags_are_equal(ulint flags1, ulint flags2) {
+  /* If either one of these flags is ULINT_UNDEFINED,
+  then they are not equal */
+  if (flags1 == ULINT_UNDEFINED || flags2 == ULINT_UNDEFINED) {
+    return (false);
+  }
 
-	if (!fsp_is_shared_tablespace(flags1) || !fsp_is_shared_tablespace(flags2)) {
-		/* At least one of these is a single-table tablespaces so all
-		flags must match. */
-		return(flags1 == flags2);
-	}
+  if (!fsp_is_shared_tablespace(flags1) || !fsp_is_shared_tablespace(flags2)) {
+    /* At least one of these is a single-table tablespaces so all
+    flags must match. */
+    return (flags1 == flags2);
+  }
 
-	/* Both are shared tablespaces which can contain all formats.
-	But they must have the same logical and physical page size.
-	Once InnoDB can support multiple page sizes together,
-	the logical page size will not matter. */
-	ulint zip_ssize1 = ACTUAL_SSIZE(FSP_FLAGS_GET_ZIP_SSIZE(flags1));
-	ulint zip_ssize2 = ACTUAL_SSIZE(FSP_FLAGS_GET_ZIP_SSIZE(flags2));
-	ulint page_ssize1 = ACTUAL_SSIZE(FSP_FLAGS_GET_PAGE_SSIZE(flags1));
-	ulint page_ssize2 = ACTUAL_SSIZE(FSP_FLAGS_GET_PAGE_SSIZE(flags2));
+  /* Both are shared tablespaces which can contain all formats.
+  But they must have the same logical and physical page size.
+  Once InnoDB can support multiple page sizes together,
+  the logical page size will not matter. */
+  ulint zip_ssize1 = ACTUAL_SSIZE(FSP_FLAGS_GET_ZIP_SSIZE(flags1));
+  ulint zip_ssize2 = ACTUAL_SSIZE(FSP_FLAGS_GET_ZIP_SSIZE(flags2));
+  ulint page_ssize1 = ACTUAL_SSIZE(FSP_FLAGS_GET_PAGE_SSIZE(flags1));
+  ulint page_ssize2 = ACTUAL_SSIZE(FSP_FLAGS_GET_PAGE_SSIZE(flags2));
 
-	return(zip_ssize1 == zip_ssize2 && page_ssize1 == page_ssize2);
+  return (zip_ssize1 == zip_ssize2 && page_ssize1 == page_ssize2);
 }
 
 /** Convert a page size, which is a power of 2, to an ssize, which is
@@ -91,17 +84,14 @@ the number of bit shifts from 512 to make that page size.
 @param[in]	page_size	compressed page size in bytes
 @return an ssize created from the page size provided. */
 UNIV_INLINE
-ulint
-page_size_to_ssize(
-	ulint	page_size)
-{
-	ulint ssize;
+ulint page_size_to_ssize(ulint page_size) {
+  ulint ssize;
 
-	for (ssize = UNIV_ZIP_SIZE_SHIFT_MIN;
-	     ((ulint) 1 << ssize) < page_size;
-	     ssize++) {};
+  for (ssize = UNIV_ZIP_SIZE_SHIFT_MIN; ((ulint)1 << ssize) < page_size;
+       ssize++) {
+  };
 
-	return(ssize - UNIV_ZIP_SIZE_SHIFT_MIN + 1);
+  return (ssize - UNIV_ZIP_SIZE_SHIFT_MIN + 1);
 }
 
 /** Add the compressed page size to the tablespace flags.
@@ -109,31 +99,27 @@ page_size_to_ssize(
 @param[in]	page_size	page sizes in bytes and compression flag.
 @return tablespace flags after zip size is added */
 UNIV_INLINE
-ulint
-fsp_flags_set_zip_size(
-	ulint			flags,
-	const page_size_t&	page_size)
-{
-	if (!page_size.is_compressed()) {
-		return(flags);
-	}
+ulint fsp_flags_set_zip_size(ulint flags, const page_size_t &page_size) {
+  if (!page_size.is_compressed()) {
+    return (flags);
+  }
 
-	/* Zip size should be a power of 2 between UNIV_ZIP_SIZE_MIN
-	and UNIV_ZIP_SIZE_MAX */
-	ut_ad(page_size.physical() >= UNIV_ZIP_SIZE_MIN);
-	ut_ad(page_size.physical() <= UNIV_ZIP_SIZE_MAX);
-	ut_ad(ut_is_2pow(page_size.physical()));
+  /* Zip size should be a power of 2 between UNIV_ZIP_SIZE_MIN
+  and UNIV_ZIP_SIZE_MAX */
+  ut_ad(page_size.physical() >= UNIV_ZIP_SIZE_MIN);
+  ut_ad(page_size.physical() <= UNIV_ZIP_SIZE_MAX);
+  ut_ad(ut_is_2pow(page_size.physical()));
 
-	ulint	ssize = page_size_to_ssize(page_size.physical());
+  ulint ssize = page_size_to_ssize(page_size.physical());
 
-	ut_ad(ssize > 0);
-	ut_ad(ssize <= UNIV_PAGE_SSIZE_MAX);
+  ut_ad(ssize > 0);
+  ut_ad(ssize <= UNIV_PAGE_SSIZE_MAX);
 
-	flags |= (ssize << FSP_FLAGS_POS_ZIP_SSIZE);
+  flags |= (ssize << FSP_FLAGS_POS_ZIP_SSIZE);
 
-	ut_ad(fsp_flags_is_valid(flags));
+  ut_ad(fsp_flags_is_valid(flags));
 
-	return(flags);
+  return (flags);
 }
 
 /** Add the page size to the tablespace flags.
@@ -141,37 +127,33 @@ fsp_flags_set_zip_size(
 @param[in]	page_size	page sizes in bytes and compression flag.
 @return tablespace flags after page size is added */
 UNIV_INLINE
-ulint
-fsp_flags_set_page_size(
-	ulint			flags,
-	const page_size_t&	page_size)
-{
-	/* Page size should be a power of two between UNIV_PAGE_SIZE_MIN
-	and UNIV_PAGE_SIZE */
-	ut_ad(page_size.logical() >= UNIV_PAGE_SIZE_MIN);
-	ut_ad(page_size.logical() <= UNIV_PAGE_SIZE_MAX);
-	ut_ad(ut_is_2pow(page_size.logical()));
+ulint fsp_flags_set_page_size(ulint flags, const page_size_t &page_size) {
+  /* Page size should be a power of two between UNIV_PAGE_SIZE_MIN
+  and UNIV_PAGE_SIZE */
+  ut_ad(page_size.logical() >= UNIV_PAGE_SIZE_MIN);
+  ut_ad(page_size.logical() <= UNIV_PAGE_SIZE_MAX);
+  ut_ad(ut_is_2pow(page_size.logical()));
 
-	/* Remove this assert once we add support for different
-	page size per tablespace. Currently all tablespaces must
-	have a page size that is equal to innodb-page-size */
-	ut_ad(page_size.logical() == UNIV_PAGE_SIZE);
+  /* Remove this assert once we add support for different
+  page size per tablespace. Currently all tablespaces must
+  have a page size that is equal to innodb-page-size */
+  ut_ad(page_size.logical() == UNIV_PAGE_SIZE);
 
-	if (page_size.logical() == UNIV_PAGE_SIZE_ORIG) {
-		ut_ad(0 == FSP_FLAGS_GET_PAGE_SSIZE(flags));
+  if (page_size.logical() == UNIV_PAGE_SIZE_ORIG) {
+    ut_ad(0 == FSP_FLAGS_GET_PAGE_SSIZE(flags));
 
-	} else {
-		ulint	ssize = page_size_to_ssize(page_size.logical());
+  } else {
+    ulint ssize = page_size_to_ssize(page_size.logical());
 
-		ut_ad(ssize);
-		ut_ad(ssize <= UNIV_PAGE_SSIZE_MAX);
+    ut_ad(ssize);
+    ut_ad(ssize <= UNIV_PAGE_SSIZE_MAX);
 
-		flags |= (ssize << FSP_FLAGS_POS_PAGE_SSIZE);
-	}
+    flags |= (ssize << FSP_FLAGS_POS_PAGE_SSIZE);
+  }
 
-	ut_ad(fsp_flags_is_valid(flags));
+  ut_ad(fsp_flags_is_valid(flags));
 
-	return(flags);
+  return (flags);
 }
 
 /** Initialize an FSP flags integer.
@@ -180,49 +162,48 @@ fsp_flags_set_page_size(
 @param[in]	has_data_dir	This tablespace is in a remote location.
 @param[in]	is_shared	This tablespace can be shared by many tables.
 @param[in]	is_temporary	This tablespace is temporary.
+@param[in]	is_encrypted	This tablespace is encrypted.
 @return tablespace flags after initialization */
 UNIV_INLINE
-ulint
-fsp_flags_init(
-	const page_size_t&	page_size,
-	bool			atomic_blobs,
-	bool			has_data_dir,
-	bool			is_shared,
-	bool			is_temporary)
-{
-	ut_ad(page_size.physical() <= page_size.logical());
-	ut_ad(!page_size.is_compressed() || atomic_blobs);
+ulint fsp_flags_init(const page_size_t &page_size, bool atomic_blobs,
+                     bool has_data_dir, bool is_shared, bool is_temporary,
+                     bool is_encrypted) {
+  ut_ad(page_size.physical() <= page_size.logical());
+  ut_ad(!page_size.is_compressed() || atomic_blobs);
 
-	/* Page size should be a power of two between UNIV_PAGE_SIZE_MIN
-	and UNIV_PAGE_SIZE, but zip_size may be 0 if not compressed. */
-	ulint flags = fsp_flags_set_page_size(0, page_size);
+  /* Page size should be a power of two between UNIV_PAGE_SIZE_MIN
+  and UNIV_PAGE_SIZE, but zip_size may be 0 if not compressed. */
+  ulint flags = fsp_flags_set_page_size(0, page_size);
 
-	if (atomic_blobs) {
-		flags |= FSP_FLAGS_MASK_POST_ANTELOPE
-			| FSP_FLAGS_MASK_ATOMIC_BLOBS;
-	}
+  if (atomic_blobs) {
+    flags |= FSP_FLAGS_MASK_POST_ANTELOPE | FSP_FLAGS_MASK_ATOMIC_BLOBS;
+  }
 
-	/* If the zip_size is explicit and different from the default,
-	compressed row format is implied. */
-	flags = fsp_flags_set_zip_size(flags, page_size);
+  /* If the zip_size is explicit and different from the default,
+  compressed row format is implied. */
+  flags = fsp_flags_set_zip_size(flags, page_size);
 
-	if (has_data_dir) {
-		flags |= FSP_FLAGS_MASK_DATA_DIR;
-	}
+  if (has_data_dir) {
+    flags |= FSP_FLAGS_MASK_DATA_DIR;
+  }
 
-	/* Shared tablespaces can hold all row formats, so we only mark the
-	POST_ANTELOPE and ATOMIC_BLOB bits if it is compressed. */
-	if (is_shared) {
-		ut_ad(!has_data_dir);
-		flags |= FSP_FLAGS_MASK_SHARED;
-	}
+  /* Shared tablespaces can hold all row formats, so we only mark the
+  POST_ANTELOPE and ATOMIC_BLOB bits if it is compressed. */
+  if (is_shared) {
+    ut_ad(!has_data_dir);
+    flags |= FSP_FLAGS_MASK_SHARED;
+  }
 
-	if (is_temporary) {
-		ut_ad(!has_data_dir);
-		flags |= FSP_FLAGS_MASK_TEMPORARY;
-	}
+  if (is_temporary) {
+    ut_ad(!has_data_dir);
+    flags |= FSP_FLAGS_MASK_TEMPORARY;
+  }
 
-	return(flags);
+  if (is_encrypted) {
+    flags |= FSP_FLAGS_MASK_ENCRYPTION;
+  }
+
+  return (flags);
 }
 
 /** Calculates the descriptor index within a descriptor page.
@@ -230,39 +211,29 @@ fsp_flags_init(
 @param[in]	offset		page offset
 @return descriptor index */
 UNIV_INLINE
-ulint
-xdes_calc_descriptor_index(
-	const page_size_t&	page_size,
-	ulint			offset)
-{
-	return(ut_2pow_remainder(offset, page_size.physical())
-	       / FSP_EXTENT_SIZE);
+ulint xdes_calc_descriptor_index(const page_size_t &page_size, ulint offset) {
+  return (ut_2pow_remainder(offset, page_size.physical()) / FSP_EXTENT_SIZE);
 }
 
-/**********************************************************************//**
-Gets a descriptor bit of a page.
-@return TRUE if free */
+/** Gets a descriptor bit of a page.
+ @return true if free */
 UNIV_INLINE
-ibool
-xdes_get_bit(
-/*=========*/
-	const xdes_t*	descr,	/*!< in: descriptor */
-	ulint		bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-	ulint		offset)	/*!< in: page offset within extent:
-				0 ... FSP_EXTENT_SIZE - 1 */
+ibool xdes_get_bit(const xdes_t *descr, /*!< in: descriptor */
+                   ulint bit,        /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+                   page_no_t offset) /*!< in: page offset within extent:
+                                     0 ... FSP_EXTENT_SIZE - 1 */
 {
-	ut_ad(offset < FSP_EXTENT_SIZE);
-	ut_ad(bit == XDES_FREE_BIT || bit == XDES_CLEAN_BIT);
+  ut_ad(offset < FSP_EXTENT_SIZE);
+  ut_ad(bit == XDES_FREE_BIT || bit == XDES_CLEAN_BIT);
 
-	ulint	index = bit + XDES_BITS_PER_PAGE * offset;
+  ulint index = bit + XDES_BITS_PER_PAGE * offset;
 
-	ulint	bit_index = index % 8;
-	ulint	byte_index = index / 8;
+  ulint bit_index = index % 8;
+  ulint byte_index = index / 8;
 
-	return(ut_bit_get_nth(
-			mach_read_ulint(descr + XDES_BITMAP + byte_index,
-					MLOG_1BYTE),
-			bit_index));
+  return (ut_bit_get_nth(
+      mach_read_ulint(descr + XDES_BITMAP + byte_index, MLOG_1BYTE),
+      bit_index));
 }
 
 /** Calculates the page where the descriptor of a page resides.
@@ -270,38 +241,191 @@ xdes_get_bit(
 @param[in]	offset		page offset
 @return descriptor page offset */
 UNIV_INLINE
-ulint
-xdes_calc_descriptor_page(
-	const page_size_t&	page_size,
-	ulint			offset)
-{
-#ifndef DOXYGEN /* Doxygen gets confused by these */
-# if UNIV_PAGE_SIZE_MAX <= XDES_ARR_OFFSET				\
-			   + (UNIV_PAGE_SIZE_MAX / FSP_EXTENT_SIZE_MAX)	\
-			   * XDES_SIZE_MAX
-#  error
-# endif
-# if UNIV_ZIP_SIZE_MIN <= XDES_ARR_OFFSET				\
-			  + (UNIV_ZIP_SIZE_MIN / FSP_EXTENT_SIZE_MIN)	\
-			  * XDES_SIZE_MIN
-#  error
-# endif
-#endif /* !DOXYGEN */
+page_no_t xdes_calc_descriptor_page(const page_size_t &page_size,
+                                    page_no_t offset) {
+  static_assert(UNIV_PAGE_SIZE_MAX > XDES_ARR_OFFSET + (UNIV_PAGE_SIZE_MAX /
+                                                        FSP_EXTENT_SIZE_MAX) *
+                                                           XDES_SIZE_MAX,
+                "Extent descriptor won't fit on a page");
 
-	ut_ad(UNIV_PAGE_SIZE > XDES_ARR_OFFSET
-	      + (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE)
-	      * XDES_SIZE);
-	ut_ad(UNIV_ZIP_SIZE_MIN > XDES_ARR_OFFSET
-	      + (UNIV_ZIP_SIZE_MIN / FSP_EXTENT_SIZE)
-	      * XDES_SIZE);
+  static_assert(UNIV_ZIP_SIZE_MIN > XDES_ARR_OFFSET + (UNIV_ZIP_SIZE_MIN /
+                                                       FSP_EXTENT_SIZE_MIN) *
+                                                          XDES_SIZE_MIN,
+                "Extent descriptor won't fit on a page");
+
+  ut_ad(UNIV_PAGE_SIZE >
+        XDES_ARR_OFFSET + (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE);
+  ut_ad(UNIV_ZIP_SIZE_MIN >
+        XDES_ARR_OFFSET + (UNIV_ZIP_SIZE_MIN / FSP_EXTENT_SIZE) * XDES_SIZE);
 
 #ifdef UNIV_DEBUG
-	if (page_size.is_compressed()) {
-		ut_a(page_size.physical() > XDES_ARR_OFFSET
-		     + (page_size.physical() / FSP_EXTENT_SIZE) * XDES_SIZE);
-	}
+  if (page_size.is_compressed()) {
+    ut_a(page_size.physical() >
+         XDES_ARR_OFFSET +
+             (page_size.physical() / FSP_EXTENT_SIZE) * XDES_SIZE);
+  }
 #endif /* UNIV_DEBUG */
 
-	return(ut_2pow_round(offset, page_size.physical()));
+  return (ut_2pow_round(offset, page_size.physical()));
 }
-#endif /* !UNIV_INNOCHECKSUM */
+
+/** Calculates the descriptor array size.
+@param[in]	page_size	page size
+@return size of descriptor array */
+UNIV_INLINE
+ulint xdes_arr_size(const page_size_t &page_size) {
+  return (page_size.physical() / FSP_EXTENT_SIZE);
+}
+
+/** Check if a specified page is inode page or not. This is used for
+index root pages of hard-coded DD tables, we can safely assume that the passed
+in page number is in the range of pages which are only either index root page
+or inode page
+@param[in]	page	Page number to check
+@return true if it's inode page, otherwise false */
+inline bool fsp_is_inode_page(page_no_t page) {
+  static const uint inode_per_page = FSP_SEG_INODES_PER_PAGE(univ_page_size);
+
+  /* Every two inode would be allocated for one index, and all inodes in
+  two inode pages are needed exactly for FSP_SEG_INODES_PER_PAGE indexes.
+  One inode page is at the beginning of one cycle, the other is in the
+  middle. If FSP_SEG_INODES_PER_PAGE is even, the second inode page
+  is at cycle / 2, if odd, it should be (cycle + 1) / 2 in the cycle. */
+  static const uint cycle = inode_per_page + 2;
+
+  /* Number of all hard-coded DD table indexes. Please sync it with
+  innodb_dd_table array. */
+  static const uint indexes = 92;
+
+  /* Max page number for index root pages of hard-coded DD tables. */
+  static const uint max_page_no =
+      FSP_FIRST_INODE_PAGE_NO + 1 /* SDI Index page */
+      + (indexes / inode_per_page) * cycle + (indexes % inode_per_page) +
+      ((indexes % inode_per_page) / ((inode_per_page + 1) / 2));
+
+  /* The page range should be determinate for different page sizes. */
+  ut_a(page >= FSP_FIRST_INODE_PAGE_NO);
+  ut_a(page <= max_page_no);
+
+  uint step = (page - FSP_FIRST_INODE_PAGE_NO) % cycle;
+
+  return (step == 0 || step == (cycle + 1) / 2);
+}
+
+/** Validate the tablespace flags.
+These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
+They should be 0 for ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT.
+The newer row formats, COMPRESSED and DYNAMIC, will have at least
+the DICT_TF_COMPACT bit set.
+@param[in]	flags	Tablespace flags
+@return true if valid, false if not */
+inline bool fsp_flags_is_valid(ulint flags) {
+  bool post_antelope = FSP_FLAGS_GET_POST_ANTELOPE(flags);
+  ulint zip_ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
+  bool atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
+  ulint page_ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
+  bool has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
+  bool is_shared = FSP_FLAGS_GET_SHARED(flags);
+  bool is_temp = FSP_FLAGS_GET_TEMPORARY(flags);
+  bool is_encryption = FSP_FLAGS_GET_ENCRYPTION(flags);
+
+  ulint unused = FSP_FLAGS_GET_UNUSED(flags);
+
+  DBUG_EXECUTE_IF("fsp_flags_is_valid_failure", return (false););
+
+  /* The Antelope row formats REDUNDANT and COMPACT did
+  not use tablespace flags, so the entire 4-byte field
+  is zero for Antelope row formats. */
+  if (flags == 0) {
+    return (true);
+  }
+
+  /* Row_FORMAT=COMPRESSED and ROW_FORMAT=DYNAMIC use a feature called
+  ATOMIC_BLOBS which builds on the page structure introduced for the
+  COMPACT row format by allowing long fields to be broken into prefix
+  and externally stored parts. So if it is Post_antelope, it uses
+  Atomic BLOBs. */
+  if (post_antelope != atomic_blobs) {
+    return (false);
+  }
+
+  /* Make sure there are no bits that we do not know about. */
+  if (unused != 0) {
+    return (false);
+  }
+
+  /* The zip ssize can be zero if it is other than compressed row format,
+  or it could be from 1 to the max. */
+  if (zip_ssize > PAGE_ZIP_SSIZE_MAX) {
+    return (false);
+  }
+
+  /* The actual page size must be within 4k and 64K (3 =< ssize =< 7). */
+  if (page_ssize != 0 &&
+      (page_ssize < UNIV_PAGE_SSIZE_MIN || page_ssize > UNIV_PAGE_SSIZE_MAX)) {
+    return (false);
+  }
+
+  /* Only single-table tablespaces use the DATA DIRECTORY clause.
+  It is not compatible with the TABLESPACE clause.  Nor is it
+  compatible with the TEMPORARY clause. */
+  if (has_data_dir && (is_shared || is_temp)) {
+    return (false);
+  }
+
+  /* Only single-table and not temp tablespaces use the encryption
+  clause. */
+  if (is_encryption && (is_shared || is_temp)) {
+    return (false);
+  }
+
+#if FSP_FLAGS_POS_UNUSED != 15
+#error You have added a new FSP_FLAG without adding a validation check.
+#endif
+
+  return (true);
+}
+
+/** Get the offset of SDI root page number in page 0.
+@param[in]	page_size	page size.
+@return	offset on success, otherwise 0. */
+inline ulint fsp_header_get_sdi_offset(const page_size_t &page_size) {
+  ulint offset;
+#ifdef UNIV_DEBUG
+  ulint left_size;
+#endif
+
+  offset = XDES_ARR_OFFSET + XDES_SIZE * xdes_arr_size(page_size) +
+           ENCRYPTION_INFO_MAX_SIZE;
+#ifdef UNIV_DEBUG
+  left_size =
+      page_size.physical() - FSP_HEADER_OFFSET - offset - FIL_PAGE_DATA_END;
+
+  ut_ad(left_size >= FSP_SDI_HEADER_LEN);
+#endif
+  return (offset);
+}
+
+/** Reads the server space version from the first page of a tablespace.
+@param[in]      page            first page of a tablespace
+@return space server version */
+UNIV_INLINE
+uint32 fsp_header_get_server_version(const page_t *page) {
+  uint32 version;
+
+  version = mach_read_from_4(page + FIL_PAGE_SRV_VERSION);
+
+  return (version);
+}
+
+/** Reads the server space version from the first page of a tablespace.
+@param[in]      page            first page of a tablespace
+@return space server version */
+UNIV_INLINE
+uint32 fsp_header_get_space_version(const page_t *page) {
+  uint32 version;
+
+  version = mach_read_from_4(page + FIL_PAGE_SPACE_VERSION);
+
+  return (version);
+}

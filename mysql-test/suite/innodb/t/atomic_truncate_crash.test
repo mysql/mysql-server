@@ -1,0 +1,54 @@
+# Debug crash points are used
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+# Observed under high parallel load
+# [ERROR] Could not find a valid tablespace ...
+# [Note] Unable to open tablespace ...
+#        This should be fixed after data dictionary and DDL recovery later.
+# ... and the crash recovery has finally success.
+CALL mtr.add_suppression(".*Could not find a valid tablespace file for");
+
+CREATE TABLE t2 (a INT);
+
+INSERT INTO t2 VALUES(10);
+INSERT INTO t2 VALUES(11);
+
+SET SESSION DEBUG = "+d,ib_truncate_crash_after_rename";
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+TRUNCATE TABLE t2;
+--source include/start_mysqld.inc
+SELECT * FROM t2;
+
+SET SESSION DEBUG = "+d,ib_truncate_crash_after_drop_old_table";
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+TRUNCATE TABLE t2;
+--source include/start_mysqld.inc
+SELECT * FROM t2;
+
+SET SESSION DEBUG = "+d,ib_truncate_crash_after_create_new_table";
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+TRUNCATE TABLE t2;
+--source include/start_mysqld.inc
+SELECT * FROM t2;
+
+SET SESSION DEBUG = "+d,ib_truncate_crash_after_innodb_complete";
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+TRUNCATE TABLE t2;
+--source include/start_mysqld.inc
+SELECT * FROM t2;
+
+SET SESSION DEBUG = "+d,ib_truncate_rollback_test";
+--error ER_GET_ERRNO
+TRUNCATE TABLE t2;
+SELECT * FROM t2;
+
+DROP TABLE t2;
+

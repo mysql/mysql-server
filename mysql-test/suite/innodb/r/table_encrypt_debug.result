@@ -1,0 +1,133 @@
+DROP DATABASE IF EXISTS tde_db;
+CREATE DATABASE tde_db;
+USE tde_db;
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+# Starting server with keyring plugin restart with keying
+# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH 
+CREATE TABLE tde_db.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+SHOW CREATE TABLE tde_db.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+INSERT INTO tde_db.t1 VALUES(0, "aaaaa");
+INSERT INTO tde_db.t1 VALUES(1, "bbbbb");
+INSERT INTO tde_db.t1 VALUES(2, "ccccc");
+INSERT INTO tde_db.t1 VALUES(3, "ddddd");
+INSERT INTO tde_db.t1 VALUES(4, "eeeee");
+INSERT INTO tde_db.t1 VALUES(5, "fffff");
+INSERT INTO tde_db.t1 VALUES(6, "ggggg");
+INSERT INTO tde_db.t1 VALUES(7, "hhhhh");
+INSERT INTO tde_db.t1 VALUES(8, "iiiii");
+INSERT INTO tde_db.t1 VALUES(9, "jjjjj");
+SET SESSION debug="+d,ib_crash_during_rotation_for_encryption";
+CREATE TABLE tde_db.t2(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+SHOW CREATE TABLE tde_db.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+INSERT INTO tde_db.t2 VALUES(0, "aaaaa");
+INSERT INTO tde_db.t2 VALUES(1, "bbbbb");
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: Lost connection to MySQL server during query
+SET SESSION debug="-d,ib_crash_during_rotation_for_encryption";
+SELECT * FROM tde_db.t1 ORDER BY c1 LIMIT 5;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+3	ddddd
+4	eeeee
+INSERT INTO tde_db.t1 VALUES(12, "mmmmm");
+SELECT * FROM tde_db.t1 ORDER BY c1 ;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+3	ddddd
+4	eeeee
+5	fffff
+6	ggggg
+7	hhhhh
+8	iiiii
+9	jjjjj
+12	mmmmm
+SELECT * FROM tde_db.t2 ORDER BY c1 ;
+c1	c2
+0	aaaaa
+1	bbbbb
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+SELECT * FROM tde_db.t1 ORDER BY c1 ;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+3	ddddd
+4	eeeee
+5	fffff
+6	ggggg
+7	hhhhh
+8	iiiii
+9	jjjjj
+12	mmmmm
+DROP TABLE tde_db.t2;
+SET SESSION debug="+d,ib_crash_during_create_for_encryption";
+CREATE TABLE tde_db.t2(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+ERROR HY000: Lost connection to MySQL server during query
+SET SESSION debug="-d,ib_crash_during_create_for_encryption";
+SELECT * FROM tde_db.t1 ORDER BY c1 LIMIT 5;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+3	ddddd
+4	eeeee
+INSERT INTO tde_db.t1 VALUES(13, "nnnnn");
+SELECT * FROM tde_db.t1 ORDER BY c1 ;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+3	ddddd
+4	eeeee
+5	fffff
+6	ggggg
+7	hhhhh
+8	iiiii
+9	jjjjj
+12	mmmmm
+13	nnnnn
+SELECT * FROM tde_db.t2;
+ERROR 42S02: Table 'tde_db.t2' doesn't exist
+FLUSH TABLE tde_db.t1 FOR EXPORT;
+UNLOCK TABLES;
+ALTER TABLE tde_db.t1 DISCARD TABLESPACE;
+SET SESSION debug="+d,ib_crash_during_decrypt_page";
+ALTER TABLE tde_db.t1 IMPORT TABLESPACE;
+ERROR HY000: Lost connection to MySQL server during query
+SET SESSION debug="-d,ib_crash_during_decrypt_page";
+INSERT INTO tde_db.t1 VALUES(11, "lllll");
+ERROR HY000: Tablespace has been discarded for table 't1'
+SELECT * FROM tde_db.t1 ORDER BY c1 ;
+ERROR HY000: Tablespace has been discarded for table 't1'
+DROP TABLE tde_db.t1;
+#
+# Bug #27307740 [ERROR] [MY-011066] INNODB: CORRUPT LOG RECORD FOUND
+# DURING CRASH RECOVERY
+#
+CREATE TABLE tde_db.test_tbl(c1 int) ENCRYPTION="Y" ENGINE=InnoDB;
+SET SESSION debug="+d,keyring_file_backup_fail";
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: Lost connection to MySQL server during query
+SET SESSION debug="-d,keyring_file_backup_fail";
+SELECT COUNT(*) FROM tde_db.test_tbl;
+COUNT(*)
+0
+DROP TABLE tde_db.test_tbl;
+SET GLOBAL innodb_file_per_table=1;

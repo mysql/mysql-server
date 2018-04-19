@@ -1,0 +1,87 @@
+--source include/have_openssl_binary.inc
+--source include/have_openssl.inc
+
+-- echo #
+-- echo #  Bug#21087159 : AUTO-GENERATED SSL CERTS HAVE NO CN
+-- echo #
+
+--echo # Setup
+
+call mtr.add_suppression("Failed to setup SSL");
+call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
+# We let our server restart attempts write to the file $server_log.
+let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let X509_SUBJECT_LOG= $MYSQLTEST_VARDIR/log/x509_subjects.log;
+
+--echo # Stop the server and cleanup all .pem files.
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--remove_file $server_log 10
+
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-cert.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-key.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-cert.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-key.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
+--error 0, 1
+--remove_file $X509_SUBJECT_LOG
+
+--echo # Restart server with --auto_generate_certs
+--exec echo "restart:--auto_generate_certs --skip-sha256_password_auto_generate_rsa_keys" > $restart_file
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+--echo # Restart completed.
+
+# Fetch subjects from X509 certificates
+--exec openssl x509 -in $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem -noout -subject > $X509_SUBJECT_LOG
+--exec openssl x509 -in $MYSQLTEST_VARDIR/mysqld.1/data/server-cert.pem -noout -subject >> $X509_SUBJECT_LOG
+--exec openssl x509 -in $MYSQLTEST_VARDIR/mysqld.1/data/client-cert.pem -noout -subject >> $X509_SUBJECT_LOG
+
+perl;
+  use strict;
+  my $search_file= $ENV{'X509_SUBJECT_LOG'};
+  my $ca_subject_pattern= "MySQL_Server_.*Auto_Generated_CA_Certificate";
+  my $server_subject_pattern= "MySQL_Server_.*Auto_Generated_Server_Certificate";
+  my $client_subject_pattern= "MySQL_Server_.*Auto_Generated_Client_Certificate";
+  my $content="";
+  open(FILE, "$search_file") or die("Unable to open '$search_file' : $!\n");
+  read(FILE, $content, 256, 0);
+  close(FILE);
+
+  if ( ($content =~ m{$ca_subject_pattern}) &&
+       ($content =~ m{$server_subject_pattern}) &&
+       ($content =~ m{$client_subject_pattern}) ) {
+    print "Auto generated certificates have valid CNs with pattern _Auto_Generated_<cert_type>_Certificate as certificate subject\n";
+  }
+  else {
+    print "One or more auto generated certificate does not contain valid CN.";
+  }
+EOF
+
+--echo # cleanup
+
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-cert.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-key.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-cert.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-key.pem
+--remove_file $X509_SUBJECT_LOG
+--disable_warnings
+--source include/force_restart.inc
+--enable_warnings

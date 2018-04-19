@@ -1,7 +1,6 @@
 #
 # Partition pruning tests for new COLUMN LIST feature
 #
--- source include/have_partition.inc
 
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
@@ -42,8 +41,8 @@ insert into t2 values (5),(15),(25),(35),(45),(55),(65);
 insert into t2 values (5),(15),(25),(35),(45),(55),(65);
 
 analyze table t1;
-explain partitions select * from t1 where a > 35 and a < 45;
-explain partitions select * from t2 where a > 35 and a < 45;
+explain select * from t1 where a > 35 and a < 45;
+explain select * from t2 where a > 35 and a < 45;
 
 drop table t1, t2;
 
@@ -67,10 +66,10 @@ insert into t1 values (2,5), (2,15), (2,25),
 insert into t1 select * from t1;
 
 analyze table t1;
-explain partitions select * from t1 where a=2;
-explain partitions select * from t1 where a=4;
+explain select * from t1 where a=2;
+explain select * from t1 where a=4;
 # Somewhat unstable filtering numbers
 --replace_regex /5.56/5.55/
-explain partitions select * from t1 where a=2 and b < 22;
+explain select * from t1 where a=2 and b < 22;
 
 drop table t1;

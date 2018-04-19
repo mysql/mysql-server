@@ -1,21 +1,27 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/* -*- c-basic-offset: 4; -*- */
 #include <ndb_global.h>
 #include <BaseString.hpp>
 #include "basestring_vsnprintf.h"
@@ -297,48 +303,50 @@ BaseString::split(Vector<BaseString> &v,
 }
 
 ssize_t
-BaseString::indexOf(char c, size_t pos) const {
-
+BaseString::indexOf(char c, size_t pos) const
+{
   if (pos >= m_len)
     return -1;
 
-    char *p = strchr(m_chr + pos, c);
-    if(p == NULL)
-	return -1;
-    return (ssize_t)(p-m_chr);
+  char *p = strchr(m_chr + pos, c);
+  if(p == NULL)
+    return -1;
+  return (ssize_t)(p-m_chr);
 }
 
 ssize_t
-BaseString::indexOf(const char * needle, size_t pos) const {
-
+BaseString::indexOf(const char * needle, size_t pos) const
+{
   if (pos >= m_len)
     return -1;
 
-    char *p = strstr(m_chr + pos, needle);
-    if(p == NULL)
-	return -1;
-    return (ssize_t)(p-m_chr);
+  char *p = strstr(m_chr + pos, needle);
+  if(p == NULL)
+    return -1;
+  return (ssize_t)(p-m_chr);
 }
 
 ssize_t
-BaseString::lastIndexOf(char c) const {
-    char *p;
-    p = strrchr(m_chr, c);
-    if(p == NULL)
-	return -1;
-    return (ssize_t)(p-m_chr);
+BaseString::lastIndexOf(char c) const
+{
+  char *p;
+  p = strrchr(m_chr, c);
+  if(p == NULL)
+    return -1;
+  return (ssize_t)(p-m_chr);
 }
 
 BaseString
-BaseString::substr(ssize_t start, ssize_t stop) const {
-    if(stop < 0)
-	stop = length();
-    ssize_t len = stop-start;
-    if(len <= 0)
-	return BaseString("");
-    BaseString s;
-    s.assign(m_chr+start, len);
-    return s;
+BaseString::substr(ssize_t start, ssize_t stop) const
+{
+  if(stop < 0)
+    stop = length();
+  ssize_t len = stop-start;
+  if(len <= 0)
+    return BaseString("");
+  BaseString s;
+  s.assign(m_chr+start, len);
+  return s;
 }
 
 static bool
@@ -577,7 +585,47 @@ BaseString_get_key(const void* key, size_t* key_length)
   return str->c_str();
 }
 
-#ifdef TEST_BASE_STRING
+size_t
+BaseString::hexdump(char * buf, size_t len, const Uint32 * wordbuf, size_t numwords)
+{
+  /**
+   * If not all words are printed end with "...\n".
+   * Words are written as "H'11223344 ", 11 character each.
+   */
+  size_t offset = 0;
+  size_t words_to_dump = numwords;
+  const size_t max_words_to_dump = (len - 5) / 11;
+  if (words_to_dump > max_words_to_dump)
+  {
+    words_to_dump = max_words_to_dump;
+  }
+  for (size_t i = 0 ; i < words_to_dump ; i ++ )
+  {
+    // Write at most 6 words per line
+    char sep = (i % 6 == 5) ? '\n' : ' ';
+    assert(offset + 11 < len);
+    int n = BaseString::snprintf(buf + offset, len - offset, "H'%08x%c", wordbuf[i], sep);
+    assert(n == 11);
+    offset += n;
+  }
+  if (words_to_dump < numwords)
+  {
+    assert(offset + 4 < len);
+    int n = BaseString::snprintf(buf + offset, len - offset, "...\n");
+    assert(n == 4);
+    offset += n;
+  }
+  else
+  {
+    assert(offset + 1 < len);
+    int n = BaseString::snprintf(buf + offset, len - offset, "\n");
+    assert(n == 1);
+    offset += n;
+  }
+  return offset;
+}
+
+#ifdef TEST_BASESTRING
 
 #include <NdbTap.hpp>
 

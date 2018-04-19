@@ -3,28 +3,28 @@ DESCRIBE INFORMATION_SCHEMA.INNODB_TRX;
 Field	Type	Null	Key	Default	Extra
 trx_id	varchar(18)	NO			
 trx_state	varchar(13)	NO			
-trx_started	datetime	NO		0000-00-00 00:00:00	
-trx_requested_lock_id	varchar(81)	YES		NULL	
-trx_wait_started	datetime	YES		NULL	
-trx_weight	bigint(21) unsigned	NO		0	
-trx_mysql_thread_id	bigint(21) unsigned	NO		0	
-trx_query	varchar(1024)	YES		NULL	
-trx_operation_state	varchar(64)	YES		NULL	
-trx_tables_in_use	bigint(21) unsigned	NO		0	
-trx_tables_locked	bigint(21) unsigned	NO		0	
-trx_lock_structs	bigint(21) unsigned	NO		0	
-trx_lock_memory_bytes	bigint(21) unsigned	NO		0	
-trx_rows_locked	bigint(21) unsigned	NO		0	
-trx_rows_modified	bigint(21) unsigned	NO		0	
-trx_concurrency_tickets	bigint(21) unsigned	NO		0	
+trx_started	datetime	NO			
+trx_requested_lock_id	varchar(81)	YES			
+trx_wait_started	datetime	YES			
+trx_weight	bigint(21) unsigned	NO			
+trx_mysql_thread_id	bigint(21) unsigned	NO			
+trx_query	varchar(1024)	YES			
+trx_operation_state	varchar(64)	YES			
+trx_tables_in_use	bigint(21) unsigned	NO			
+trx_tables_locked	bigint(21) unsigned	NO			
+trx_lock_structs	bigint(21) unsigned	NO			
+trx_lock_memory_bytes	bigint(21) unsigned	NO			
+trx_rows_locked	bigint(21) unsigned	NO			
+trx_rows_modified	bigint(21) unsigned	NO			
+trx_concurrency_tickets	bigint(21) unsigned	NO			
 trx_isolation_level	varchar(16)	NO			
-trx_unique_checks	int(1)	NO		0	
-trx_foreign_key_checks	int(1)	NO		0	
-trx_last_foreign_key_error	varchar(256)	YES		NULL	
-trx_adaptive_hash_latched	int(1)	NO		0	
-trx_adaptive_hash_timeout	bigint(21) unsigned	NO		0	
-trx_is_read_only	int(1)	NO		0	
-trx_autocommit_non_locking	int(1)	NO		0	
+trx_unique_checks	int(1)	NO			
+trx_foreign_key_checks	int(1)	NO			
+trx_last_foreign_key_error	varchar(256)	YES			
+trx_adaptive_hash_latched	int(1)	NO			
+trx_adaptive_hash_timeout	bigint(21) unsigned	NO			
+trx_is_read_only	int(1)	NO			
+trx_autocommit_non_locking	int(1)	NO			
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
 c01 INT,
@@ -71,11 +71,11 @@ SET FOREIGN_KEY_CHECKS = 1;
 SET UNIQUE_CHECKS = 1;
 BEGIN;
 INSERT INTO t2 VALUES (4,10);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c02`) REFERENCES `t1` (`c01`))
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`c02`) REFERENCES `t1` (`c01`))
 SELECT trx_state, trx_isolation_level, trx_last_foreign_key_error
 FROM INFORMATION_SCHEMA.INNODB_TRX;
 trx_state	trx_isolation_level	trx_last_foreign_key_error
-RUNNING	REPEATABLE READ	`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c02`) REFERENCES `t1` (`c01`)
+RUNNING	REPEATABLE READ	`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`c02`) REFERENCES `t1` (`c01`)
 DROP TABLE t2;
 DROP TABLE t1;
 SET GLOBAL innodb_lock_wait_timeout=default;

@@ -1,0 +1,61 @@
+#
+# Bug #26625652: SIG=11 ROW_SEL_SEC_REC_IS_FOR_CLUST_REC ROW_SEARCH_MVCC
+#
+# Connection default:
+SET @page_size = @@innodb_page_size;
+SET @page_count = 4;
+SET @initial_isolation = @@SESSION.transaction_isolation;
+SET DEBUG_SYNC='reset';
+# Connection con1:
+SET SESSION transaction_isolation = 'READ-UNCOMMITTED';
+SELECT @@SESSION.transaction_isolation;
+@@SESSION.transaction_isolation
+READ-UNCOMMITTED
+# Connection default:
+SET SESSION transaction_isolation = 'READ-UNCOMMITTED';
+SELECT @@SESSION.transaction_isolation;
+@@SESSION.transaction_isolation
+READ-UNCOMMITTED
+CREATE TABLE t (
+a INT,
+c VARCHAR(100),
+j JSON,
+vj varchar(100) as (json_unquote(j->'$.hash')) virtual,
+INDEX idx_a(a),
+INDEX idx_c(c),
+INDEX idx_vj(vj)
+) ROW_FORMAT=COMPACT;
+INSERT INTO t VALUES
+(1, 'aaaa123xx', CONCAT('{ "hash": "the_hash_a", "data": "', REPEAT('a', @page_size * @page_count), '" }'), DEFAULT),
+(2, 'aaaa1234x', CONCAT('{ "hash": "the_hash_b", "data": "', REPEAT('b', @page_size * @page_count), '" }'), DEFAULT),
+(3, 'aaaa12345', CONCAT('{ "hash": "the_hash_c", "data": "', REPEAT('c', @page_size * @page_count), '" }'), DEFAULT);
+# Connection con1:
+SET DEBUG_SYNC='blob_write_middle_after_check SIGNAL s1 WAIT_FOR s2 EXECUTE 2';
+BEGIN;
+# Sending:
+UPDATE t SET j=json_set(j,'$.hash','"the_hash_x"') WHERE a=2;
+# Connection default:
+SET DEBUG_SYNC='now WAIT_FOR s1';
+SET DEBUG_SYNC='now SIGNAL s2 WAIT_FOR s1';
+SELECT * FROM t WHERE vj LIKE 'the_hash_%';
+ERROR HY000: The JSON binary value contains invalid data.
+SET DEBUG_SYNC='now SIGNAL s2';
+# Connection con1:
+ROLLBACK;
+# Connection con1:
+SET DEBUG_SYNC='blob_write_middle_after_check SIGNAL s1 WAIT_FOR s2 EXECUTE 2';
+BEGIN;
+# Sending:
+UPDATE t SET j=json_set(j,'$.hash','"the_hash_x"') WHERE a=2;
+# Connection default:
+SET DEBUG_SYNC='now WAIT_FOR s1';
+SET DEBUG_SYNC='now SIGNAL s2 WAIT_FOR s1';
+SELECT vj FROM t WHERE c LIKE 'aaaa1234%';
+ERROR HY000: The JSON binary value contains invalid data.
+SET DEBUG_SYNC='now SIGNAL s2';
+# Connection con1:
+ROLLBACK;
+# Connection default:
+DROP TABLE t;
+SET DEBUG_SYNC='reset';
+SET SESSION transaction_isolation = @initial_isolation;

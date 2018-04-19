@@ -34,7 +34,7 @@ row4	D	4
 include/check_slave_is_running.inc
 STOP SLAVE;
 include/check_slave_no_error.inc
-call mtr.add_suppression("NDB Slave : At SQL thread start applying epoch .*");
+call mtr.add_suppression("NDB Slave: At SQL thread start applying epoch .*");
 START SLAVE;
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
@@ -94,7 +94,7 @@ Stop slave and reset position to start of the applied epoch
 STOP SLAVE;
 include/check_slave_no_error.inc
 call mtr.add_suppression("Slave: Table \'t2\' already exists .*");
-call mtr.add_suppression("Slave SQL: Error \'Table \'t2\' already exists\' .*");
+call mtr.add_suppression("Slave SQL for channel '': Error \'Table \'t2\' already exists\' .*");
 START SLAVE;
 include/wait_for_slave_sql_error.inc [errno=1050]
 Last_SQL_Error = 'Error 'Table 't2' already exists' on query. Default database: 'test'. Query: 'create table t2 (a int primary key) engine=ndb''

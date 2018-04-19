@@ -1,54 +1,58 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/*******************************************************************//**
-@file include/rem0cmp.ic
-Comparison services for records
+/** @file include/rem0cmp.ic
+ Comparison services for records
 
-Created 7/1/1994 Heikki Tuuri
-************************************************************************/
+ Created 7/1/1994 Heikki Tuuri
+ ************************************************************************/
 
 #include <mysql_com.h>
 
 /** Compare two data fields.
-@param[in] dfield1 data field; must have type field set
-@param[in] dfield2 data field
+@param[in]	dfield1	data field; must have type field set
+@param[in]	dfield2	data field
+@param[in]	is_asc	true=ASC, false=DESC
 @return the comparison result of dfield1 and dfield2
 @retval 0 if dfield1 is equal to dfield2
 @retval negative if dfield1 is less than dfield2
 @retval positive if dfield1 is greater than dfield2 */
 UNIV_INLINE
-int
-cmp_dfield_dfield(
-	const dfield_t*	dfield1,
-	const dfield_t*	dfield2)
-{
-	const dtype_t*	type;
+int cmp_dfield_dfield(const dfield_t *dfield1, const dfield_t *dfield2,
+                      bool is_asc) {
+  const dtype_t *type;
 
-	ut_ad(dfield_check_typed(dfield1));
+  ut_ad(dfield_check_typed(dfield1));
 
-	type = dfield_get_type(dfield1);
+  type = dfield_get_type(dfield1);
 
-	return(cmp_data_data(type->mtype, type->prtype,
-			     (const byte*) dfield_get_data(dfield1),
-			     dfield_get_len(dfield1),
-			     (const byte*) dfield_get_data(dfield2),
-			     dfield_get_len(dfield2)));
+  return (cmp_data_data(
+      type->mtype, type->prtype, is_asc, (const byte *)dfield_get_data(dfield1),
+      dfield_get_len(dfield1), (const byte *)dfield_get_data(dfield2),
+      dfield_get_len(dfield2)));
 }
 
 /** Compare two B-tree records.
@@ -59,82 +63,75 @@ are treated as equal.
 @param[in]	offsets1	rec_get_offsets(rec1, index)
 @param[in]	offsets2	rec_get_offsets(rec2, index)
 @param[out]	matched_fields	number of completely matched fields
-				within the first field not completely matched
+                                within the first field not completely matched
 @return positive, 0, negative if rec1 is greater, equal, less, than rec2,
 respectively */
 UNIV_INLINE
-int
-cmp_rec_rec(
-	const rec_t*		rec1,
-	const rec_t*		rec2,
-	const ulint*		offsets1,
-	const ulint*		offsets2,
-	const dict_index_t*	index,
-	ulint*			matched_fields)
-{
-	ulint	match_f;
-	int	ret;
+int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
+                const ulint *offsets2, const dict_index_t *index,
+                ulint *matched_fields) {
+  ulint match_f;
+  int ret;
 
-	ret = cmp_rec_rec_with_match(
-		rec1, rec2, offsets1, offsets2, index, false, &match_f);
+  ret = cmp_rec_rec_with_match(rec1, rec2, offsets1, offsets2, index, false,
+                               &match_f);
 
-	if (matched_fields != NULL) {
-		*matched_fields = match_f;
-	}
+  if (matched_fields != NULL) {
+    *matched_fields = match_f;
+  }
 
-	return(ret);
+  return (ret);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Compare two data fields.
 @param[in] dfield1 data field
 @param[in] dfield2 data field
 @return the comparison result of dfield1 and dfield2
-@retval 0 if dfield1 is equal to dfield2, or a prefix of dfield1
-@retval negative if dfield1 is less than dfield2
-@retval positive if dfield1 is greater than dfield2 */
+@retval true if dfield1 is equal to dfield2, or a prefix of dfield1
+@retval false otherwise */
 UNIV_INLINE
-int
-cmp_dfield_dfield_like_prefix(
-	const dfield_t*	dfield1,
-	const dfield_t*	dfield2)
-{
-	const dtype_t*  type;
+bool cmp_dfield_dfield_eq_prefix(const dfield_t *dfield1,
+                                 const dfield_t *dfield2) {
+  const dtype_t *type;
 
-	ut_ad(dfield_check_typed(dfield1));
-	ut_ad(dfield_check_typed(dfield2));
+  ut_ad(dfield_check_typed(dfield1));
+  ut_ad(dfield_check_typed(dfield2));
 
-	type = dfield_get_type(dfield1);
+  type = dfield_get_type(dfield1);
 
 #ifdef UNIV_DEBUG
-	switch (type->prtype & DATA_MYSQL_TYPE_MASK) {
-	case MYSQL_TYPE_BIT:
-	case MYSQL_TYPE_STRING:
-	case MYSQL_TYPE_VAR_STRING:
-	case MYSQL_TYPE_TINY_BLOB:
-	case MYSQL_TYPE_MEDIUM_BLOB:
-	case MYSQL_TYPE_BLOB:
-	case MYSQL_TYPE_LONG_BLOB:
-	case MYSQL_TYPE_VARCHAR:
-		break;
-	default:
-		ut_error;
-	}
+  switch (type->prtype & DATA_MYSQL_TYPE_MASK) {
+    case MYSQL_TYPE_BIT:
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_VARCHAR:
+      break;
+    default:
+      ut_error;
+  }
 #endif /* UNIV_DEBUG */
 
-	uint cs_num = (uint) dtype_get_charset_coll(type->prtype);
+  uint cs_num = (uint)dtype_get_charset_coll(type->prtype);
 
-	if (CHARSET_INFO* cs = get_charset(cs_num, MYF(MY_WME))) {
-		return(cs->coll->strnncoll(
-			       cs,
-			       static_cast<uchar*>(
-				       dfield_get_data(dfield1)),
-			       dfield_get_len(dfield1),
-			       static_cast<uchar*>(
-				       dfield_get_data(dfield2)),
-			       dfield_get_len(dfield2),
-			       1));
-	}
+  if (CHARSET_INFO *cs = get_charset(cs_num, MYF(MY_WME))) {
+    return (!cs->coll->strnncoll(
+        cs, static_cast<uchar *>(dfield_get_data(dfield1)),
+        dfield_get_len(dfield1), static_cast<uchar *>(dfield_get_data(dfield2)),
+        dfield_get_len(dfield2), 1));
+  }
 
-	ib::fatal() << "Unable to find charset-collation " << cs_num;
-	return(0);
+#ifdef UNIV_NO_ERR_MSGS
+  ib::fatal()
+#else
+  ib::fatal(ER_IB_MSG_627)
+#endif /* !UNIV_NO_ERR_MSGS */
+      << "Unable to find charset-collation " << cs_num;
+
+  return (0);
 }
+#endif /* UNIV_HOTBACKUP */

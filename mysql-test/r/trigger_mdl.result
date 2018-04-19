@@ -1,0 +1,90 @@
+RESET MASTER;
+#
+# BUG#21114768 -- INCORRECT BINLOG ORDER FOR CONCURRENT
+#                 CREATE TRIGGER AND DROP TRIGGER
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+CREATE TRIGGER trigger_1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+connect con1,localhost,root,,;
+SET DEBUG_SYNC='trigger_ddl_stmt_before_write_to_binlog SIGNAL drop_trigger_ready_to_write_to_binlog WAIT_FOR second_create_trigger_end';
+DROP TRIGGER trigger_1;
+connection default;
+SET @start_session_value= @@session.lock_wait_timeout;
+SET @@session.lock_wait_timeout= 1;
+SET DEBUG_SYNC='now WAIT_FOR drop_trigger_ready_to_write_to_binlog';
+CREATE TRIGGER trigger_1 BEFORE INSERT ON t2 FOR EACH ROW BEGIN END;
+SET DEBUG_SYNC='now SIGNAL second_create_trigger_end';
+connection con1;
+# reaping execution status for DROP TRIGGER
+connection default;
+disconnect con1;
+# For a server without mdl locking for a trigger name
+# the statement SHOW BINLOG EVENTS would returned
+# output that look likes the following:
+# binlog.000001    567    Query    1    755    use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trigger_1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
+# binlog.000001    820    Query    1    1008    use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trigger_1 BEFORE INSERT ON t2 FOR EACH ROW BEGIN END
+# binlog.000001    1008    Anonymous_Gtid    1    1073    SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+# binlog.000001    1073    Query    1    1169    use `test`; DROP TRIGGER trigger_1
+# That is, two statements CREATE TRIGGER trigger_t1 follows one
+# after another then DROP TRIGGER.
+include/show_binlog_events.inc
+connection default;
+connection default;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY)
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (a INT PRIMARY KEY)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trigger_1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
+binlog.000001	#	Query	#	#	use `test`; DROP TRIGGER trigger_1
+connection default;
+connection default;
+DROP TABLE t1,t2;
+# This test case tries to check that in case several connections contest for
+# mdl lock while trying to create a trigger with the same name then one of
+# connections acquires the mdl lock and creates a trigger successfully and
+# another one is waiting until mdl lock be released and after that failed since
+# trigger has been already created.
+CREATE TABLE t1 (a INT);
+connect  con1,localhost,root,,;
+SET DEBUG_SYNC='create_trigger_has_acquired_mdl SIGNAL trigger_creation_cont WAIT_FOR second_create_trigger_wait_on_lock';
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a := 1;
+connect  con2,localhost,root,,;
+SET DEBUG_SYNC='now WAIT_FOR trigger_creation_cont';
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a := 1;
+connection default;
+SET DEBUG_SYNC='now SIGNAL second_create_trigger_wait_on_lock';
+connection con2;
+reaping the second CREATE TRIGGER t1_bi BEFORE INSERT
+ERROR HY000: Trigger already exists
+connection default;
+disconnect con1;
+disconnect con2;
+SHOW TRIGGERS LIKE 't1';
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+t1_bi	INSERT	t1	SET @a := 1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# This test case checks that CREATE TRIGGERS suspends on MDL
+# in case DROP TRIGGER being processed in the same time from
+# another connection.
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+connect  con1,localhost,root,,;
+SET lock_wait_timeout = 1;
+connect  con2,localhost,root,,;
+SET DEBUG_SYNC='drop_trigger_has_acquired_mdl SIGNAL drop_trigger_took_mdl WAIT_FOR drop_trigger_cont';
+DROP TRIGGER t1_bi;
+connection con1;
+SET DEBUG_SYNC='now WAIT_FOR drop_trigger_took_mdl';
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC='now SIGNAL drop_trigger_cont';
+connection con2;
+reaping execution status for DROP TRIGGER
+# It's expected nothing in the output of SHOW TRIGGERS
+SHOW TRIGGERS LIKE 't1';
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+connection default;
+DROP TABLE t1;
+disconnect con1;
+disconnect con2;
+SET @@session.lock_wait_timeout= @start_session_value;

@@ -1,0 +1,144 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testBasic
+args: -n NoCommitRollback626 T1 T6 D1 D2
+max-time: 180
+
+cmd: testAsynchMultiwait
+args: -n AsynchMultiwaitWakeup T1
+max-time: 180
+
+cmd: testNativeDefault
+args:
+max-time: 180
+
+cmd: testScan
+args: -n CheckAfterTerror T1 D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -n SchemaObjectOwnerCheck T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n MaxTransactions T1 T6 T13
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadAbort240 T6 D1 D2
+max-time: 180
+
+cmd: testSystemRestart
+args: -l 1 -n SR6 T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n MaxGetValue T1 T6 T13
+max-time: 180
+
+cmd: testBlobs
+args: -bug 36756 -skip p
+max-time: 180
+
+cmd: testDict
+args: -n IndexStatCreate T1
+max-time: 180
+
+cmd: testBasic
+args: -n UnlockUpdateBatch T3
+max-time: 180
+
+cmd: testNodeRestart
+args: -n MasterFailSlowLCP T1
+max-time: 540
+
+cmd: testScan
+args: -n Bug42545 -l 1 T1
+max-time: 180
+
+cmd: testScan
+args: -n ScanRead488Timeout -l 10 T6 D1 D2
+max-time: 180
+
+cmd: testSystemRestart
+args: -n Bug29167 T1
+max-time: 720
+
+cmd: testScan
+args: -n ScanReadAndLocker T6 D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -n ApiFailReqBehaviour T1
+max-time: 180
+
+cmd: testNodeRestart
+args: -n RestartMasterNodeError T6 T13
+max-time: 180
+
+cmd: testDict
+args: -n CreateAndDrop
+max-time: 360
+
+cmd: testNdbApi
+args: -n UnlockRepeat T2
+max-time: 360
+
+cmd: testNdbApi
+args: -n NdbClusterConnectSR T1
+max-time: 540
+
+cmd: test_event
+args: -n Bug37338 T1
+max-time: 720
+
+cmd: testNodeRestart
+args: -n LCPTakeOver T6
+max-time: 4320
+
+cmd: testIndex
+args: -n CreateAll T1 T13 T14
+max-time: 1260
+
+cmd: testSystemRestart
+args: -n SR_DD_1_LCP D2
+max-time: 1800
+
+cmd: testScan
+args: -n CheckInactivityTimeOut T6 D1 D2
+max-time: 900
+
+cmd: testSingleUserMode
+args: T1
+max-time: 1620
+
+cmd: testSystemRestart
+args: -n SR2 D1
+max-time: 3240
+
+cmd: testSystemRestart
+args: -n SR1 D1
+max-time: 4140
+

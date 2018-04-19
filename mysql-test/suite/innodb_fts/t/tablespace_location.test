@@ -1,0 +1,183 @@
+--echo #
+--echo # BUG#20527217 - INNODB: PUT FTS AUXILIARY TABLES INTO THE SAME GENERAL
+--echo #		TABLESPACE AS THE PRIMARY
+--echo #
+
+--source include/have_innodb_max_16k.inc
+
+# Create a table with FTS columns and make sure the auxilliary
+# table are created in the same tablespace.
+
+
+SET DEFAULT_STORAGE_ENGINE=InnoDB;
+
+SET GLOBAL innodb_file_per_table = ON;
+SHOW VARIABLES LIKE 'innodb_file_per_table';
+
+--echo # Strict-mode has no affect on CREATE TABLESPACE.
+--echo # It rejects all invalid input, as if strict mode is always ON.
+SET SESSION innodb_strict_mode = OFF;
+SHOW VARIABLES LIKE 'innodb_strict_mode';
+
+CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd';
+CREATE TABLESPACE s_zip ADD DATAFILE 's_zip.ibd' FILE_BLOCK_SIZE=2k;
+
+--let $MYSQLD_DATADIR = `select @@datadir`
+--let $INNODB_PAGE_SIZE = `select @@innodb_page_size`
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--let $TABLESPACE=s_def
+--let $ROW_FORMAT=redundant
+--echo #
+--echo # tablespace=$TABLESPACE row_format=$ROW_FORMAT
+--echo #
+--source ../include/tablespace_location.inc
+
+--let $TABLESPACE=s_def
+--let $ROW_FORMAT=compact
+--echo #
+--echo # tablespace=$TABLESPACE row_format=$ROW_FORMAT
+--echo #
+--source ../include/tablespace_location.inc
+
+--let $TABLESPACE=s_def
+--let $ROW_FORMAT=dynamic
+--echo #
+--echo # tablespace=$TABLESPACE row_format=$ROW_FORMAT
+--echo #
+--source ../include/tablespace_location.inc
+
+--let $TABLESPACE=s_zip
+--let $ROW_FORMAT=compressed
+--let $EXTRA_PARAMS=KEY_BLOCK_SIZE=2
+--echo #
+--echo # tablespace=$TABLESPACE row_format=$ROW_FORMAT $EXTRA_PARAMS
+--echo #
+--source ../include/tablespace_location.inc
+# to unset EXTRA_PARAMS
+--let $EXTRA_PARAMS=
+
+--let $TABLESPACE=innodb_file_per_table
+--let $ROW_FORMAT=dynamic
+--echo #
+--echo # tablespace=$TABLESPACE row_format=$ROW_FORMAT
+--echo #
+--source ../include/tablespace_location.inc
+
+--let $TABLESPACE=innodb_file_per_table
+--let $ROW_FORMAT=compressed
+--let $EXTRA_PARAMS=KEY_BLOCK_SIZE=2
+--echo #
+--echo # tablespace=$TABLESPACE row_format=$ROW_FORMAT $EXTRA_PARAMS
+--echo #
+--source ../include/tablespace_location.inc
+# to unset EXTRA_PARAMS
+--let $EXTRA_PARAMS=
+
+--let $TABLESPACE=innodb_system
+--let $ROW_FORMAT=redundant
+--echo #
+--echo # tablespace=$TABLESPACE row_format=$ROW_FORMAT
+--echo #
+--source ../include/tablespace_location.inc
+
+--let $TABLESPACE=innodb_system
+--let $ROW_FORMAT=compact
+--echo #
+--echo # tablespace=$TABLESPACE row_format=$ROW_FORMAT
+--echo #
+--source ../include/tablespace_location.inc
+
+--let $TABLESPACE=innodb_system
+--let $ROW_FORMAT=dynamic
+--echo #
+--echo # tablespace=$TABLESPACE row_format=$ROW_FORMAT
+--echo #
+--source ../include/tablespace_location.inc
+
+--echo #
+--echo # Without TABLESPACE=, innodb_file_per_table=ON(default);
+--echo #
+--eval CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+--source suite/innodb/include/show_i_s_tables.inc
+DROP TABLE t1;
+
+--echo #
+--echo # Without TABLESPACE=, innodb_file_per_table=OFF
+--echo #
+SET GLOBAL innodb_file_per_table=OFF;
+--eval CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+--source suite/innodb/include/show_i_s_tables.inc
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=default;
+
+--error 1796
+CREATE TEMPORARY TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT(a,b))
+TABLESPACE=innodb_temporary ROW_FORMAT=compact;
+
+--echo # Test with FTS TABLES in remote DATA DIRECTORY
+--let $REMOTE_DIR = $MYSQLTEST_VARDIR/tmp/fts_remote
+--mkdir $REMOTE_DIR
+
+--replace_result $REMOTE_DIR REMOTE_DIR
+--eval CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) DATA DIRECTORY '$REMOTE_DIR'
+--source suite/innodb/include/show_i_s_tables.inc
+
+--echo # list files in REMOTE_DIR
+--let $regexp=/fts_([0-9a-f_]+)([A-Z0-9_]+)/fts_aux\2/
+--replace_regex $regexp
+--list_files $REMOTE_DIR/test *
+
+# Truncate the table
+TRUNCATE TABLE t1;
+
+# Truncate after restart
+--source include/restart_mysqld.inc
+TRUNCATE TABLE t1;
+
+--echo # list files in REMOTE_DIR after TRUNCATE
+--replace_regex $regexp
+--list_files $REMOTE_DIR/test *
+
+DROP TABLE t1;
+--echo # list files after DROP TABLE. Should be empty
+--list_files $REMOTE_DIR/test *
+
+--rmdir $REMOTE_DIR/test/
+--rmdir $REMOTE_DIR
+
+--echo # Test with FTS , IMPORT & EXPORT tablespace
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) TABLESPACE=s_def;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo # Test with ALTER. Add a FTS Index and also move the current
+--echo # table to general tablespace
+
+CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200)
+        ) ENGINE=InnoDB;
+
+--source suite/innodb/include/show_i_s_tables.inc
+ALTER TABLE t1 ADD FULLTEXT INDEX (title), TABLESPACE=s_def;
+--source suite/innodb/include/show_i_s_tables.inc
+
+DROP TABLE t1;
+
+--let $CREATE_TABLE_PARAMS=TABLESPACE=s_def ROW_FORMAT=compact
+--source ../include/tablespace_location_alter.inc
+
+--echo # Test with file-per-table tablespace
+--let $CREATE_TABLE_PARAMS=
+--source ../include/tablespace_location_alter.inc
+
+#
+# Clean-up.
+#
+
+DROP TABLESPACE s_def;
+DROP TABLESPACE s_zip;
+
+SET GLOBAL innodb_file_per_table = default;

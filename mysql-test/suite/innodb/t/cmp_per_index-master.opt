@@ -1,0 +1,1 @@
+--sql_mode=ONLY_FULL_GROUP_BY --innodb-cmp-per-index-enabled=1

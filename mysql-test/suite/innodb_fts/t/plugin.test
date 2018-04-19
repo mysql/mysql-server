@@ -1,7 +1,4 @@
---source include/have_innodb.inc
 --source include/have_simple_parser.inc
-# Restart is not supported in embedded
---source include/not_embedded.inc
 
 # Install fts parser plugin
 --replace_regex /\.dll/.so/
@@ -138,7 +135,7 @@ INSERT INTO articles (title, body) VALUES
 
 SELECT COUNT(*) FROM articles;
 # Simple term search - no records expected
-SELECT * FROM articles WHERE
+SELECT title, body FROM articles WHERE
 	MATCH(title, body) AGAINST('mysql');
 
 INSERT INTO articles (title, body) VALUES
@@ -151,7 +148,7 @@ INSERT INTO articles (title, body) VALUES
 --source include/kill_and_restart_mysqld.inc
 
 # Simple term search - 4 records expected
-SELECT * FROM articles WHERE
+SELECT title, body FROM articles WHERE
          MATCH(title, body) AGAINST('Tricks');
 SELECT COUNT(*) FROM articles;
 DROP TABLE articles;

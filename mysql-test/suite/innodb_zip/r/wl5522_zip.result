@@ -36,7 +36,6 @@ a	b	c
 823	Evolution	lsjndofiabsoibeg
 822	Devotion	asdfuihknaskdf
 821	Cavalry	..asdasdfaeraf
-t1.frm
 t1.ibd
 # Restarting server
 # restart
@@ -44,7 +43,6 @@ t1.ibd
 FLUSH TABLE t1 FOR EXPORT;
 # List before copying files
 t1.cfg
-t1.frm
 t1.ibd
 UNLOCK TABLES;
 INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
@@ -65,23 +63,12 @@ a	b	c
 # restart
 # Done restarting server
 # List before t1 DISCARD
-t1.frm
 t1.ibd
 ALTER TABLE t1 DISCARD TABLESPACE;
 # List after t1 DISCARD
-t1.frm
 ALTER TABLE t1 IMPORT TABLESPACE;
-SET GLOBAL innodb_file_format=Antelope;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET innodb_strict_mode=off;
 ALTER TABLE t1 ENGINE InnoDB;
-Warnings:
-Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_format > Antelope.
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
-SET GLOBAL innodb_file_format=default;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET innodb_strict_mode=default;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -97,7 +84,6 @@ a	b	c
 822	Devotion	asdfuihknaskdf
 821	Cavalry	..asdasdfaeraf
 t1.cfg
-t1.frm
 t1.ibd
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -139,7 +125,6 @@ INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
-t1.frm
 t1.ibd
 FLUSH TABLES t1 FOR EXPORT;
 SELECT COUNT(*) FROM t1;
@@ -147,7 +132,6 @@ COUNT(*)
 16
 backup: t1
 t1.cfg
-t1.frm
 t1.ibd
 UNLOCK TABLES;
 DROP TABLE t1;
@@ -159,7 +143,6 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 t1.cfg
-t1.frm
 t1.ibd
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -177,7 +160,6 @@ INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
-t1.frm
 t1.ibd
 FLUSH TABLES t1 FOR EXPORT;
 SELECT COUNT(*) FROM t1;
@@ -185,10 +167,8 @@ COUNT(*)
 16
 backup: t1
 t1.cfg
-t1.frm
 t1.ibd
 UNLOCK TABLES;
-t1.frm
 t1.ibd
 INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
@@ -201,7 +181,6 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 t1.cfg
-t1.frm
 t1.ibd
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -226,7 +205,6 @@ COUNT(*)
 16
 backup: t1
 t1.cfg
-t1.frm
 t1.ibd
 UNLOCK TABLES;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
@@ -325,7 +303,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL AUTO_INCREMENT,
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 FLUSH TABLES t1 FOR EXPORT;
 Warnings:
 Warning	1809	InnoDB: Table '`test`.`t1`' in system tablespace
@@ -349,7 +327,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
-) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 SELECT * FROM t1;
 c1	c2
 1	1
@@ -397,7 +375,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Number of indexes don't match, table has 1 indexes but the tablespace meta-data file has 2 indexes)
+ERROR HY000: Schema mismatch (Number of indexes don't match, table has 1 indexes but the tablespace meta-data file has 3 indexes)
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -461,7 +439,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
-) ENGINE=InnoDB AUTO_INCREMENT=44 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 SELECT * FROM t1;
 c1	c2
 1	1

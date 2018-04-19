@@ -29,7 +29,6 @@
 
 ##### Storage engine to be tested
 # Set the session storage engine
---source include/have_innodb.inc
 eval SET @@session.default_storage_engine = 'InnoDB';
 
 ##### Workarounds for known open engine specific bugs
@@ -37,6 +36,8 @@ eval SET @@session.default_storage_engine = 'InnoDB';
 
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines
+let $support_virtual_index= 1;
+let $support_native_partitioning= 1;
 --source suite/gcol/inc/gcol_column_def_options.inc
 
 #------------------------------------------------------------------------------#

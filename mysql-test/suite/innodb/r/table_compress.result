@@ -1,0 +1,662 @@
+#
+# Test support for the COMPRESSION syntax on any system by
+# making InnoDB ignore the actual Punch Hole and setting the
+# file system punch hole size (block_size or compression unit)
+# to half the UNIV_PAGE_SIZE so that punch hole seems to work
+# even though no space on the FS is being released.
+#
+SET DEFAULT_STORAGE_ENGINE=InnoDB;
+SET GLOBAL innodb_file_per_table = ON;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd';
+#
+# Try to create a table with ZLib compression with strict mode OFF.
+# If there is an error about Punch Hole not supported, make InnoDB
+# think that Punch Hole is working but actually ignore the calls.
+#
+SET SESSION innodb_strict_mode = OFF;
+SELECT @@innodb_strict_mode;
+@@innodb_strict_mode
+0
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB";
+DROP TABLE t1;
+#
+# Test acceptable DDL with innodb_strict_mode=ON.
+#
+SET SESSION innodb_strict_mode = ON;
+SELECT @@innodb_strict_mode;
+@@innodb_strict_mode
+1
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB";
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='ZLIB'
+INSERT INTO t1 VALUES(1),(2),(3),(4);
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+SELECT * FROM t1;
+c1
+1
+2
+3
+4
+CREATE TABLE t2(c1 INT PRIMARY KEY) COMPRESSION="LZ4";
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='LZ4'
+INSERT INTO t2 VALUES(1),(2),(3),(4);
+FLUSH TABLES t2 WITH READ LOCK;
+UNLOCK TABLES;
+SELECT * FROM t2;
+c1
+1
+2
+3
+4
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1' OR TABLE_NAME = 't2' ORDER BY TABLE_NAME;
+TABLE_NAME	CREATE_OPTIONS
+t1	COMPRESSION="ZLIB"
+t2	COMPRESSION="LZ4"
+SELECT NAME,ROW_FORMAT,SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME LIKE 'test/t%' ORDER BY NAME;
+NAME	ROW_FORMAT	SPACE_TYPE
+test/t1	Dynamic	Single
+test/t2	Dynamic	Single
+#
+# Bug#21687636 COMPRESSION COLUMN IN INNODB_TABLESPACES IS NOT CORRECT
+#
+# restart
+SET GLOBAL innodb_file_per_table = ON;
+SET SESSION innodb_strict_mode = ON;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='ZLIB'
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='LZ4'
+#
+# Bug#21557723 Create table from the SHOW CREATE TABLE output
+#
+DROP TABLE t1, t2;
+CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='ZLIB';
+CREATE TABLE `t2` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='LZ4';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='ZLIB'
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='LZ4'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1' OR TABLE_NAME = 't2' ORDER BY TABLE_NAME;
+TABLE_NAME	CREATE_OPTIONS
+t1	COMPRESSION="ZLIB"
+t2	COMPRESSION="LZ4"
+SELECT NAME,ROW_FORMAT,SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME LIKE 'test/t%' ORDER BY NAME;
+NAME	ROW_FORMAT	SPACE_TYPE
+test/t1	Dynamic	Single
+test/t2	Dynamic	Single
+INSERT INTO t1 VALUES(1),(2),(3),(4);
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+SELECT * FROM t1;
+c1
+1
+2
+3
+4
+INSERT INTO t2 VALUES(1),(2),(3),(4);
+FLUSH TABLES t2 WITH READ LOCK;
+UNLOCK TABLES;
+SELECT * FROM t2;
+c1
+1
+2
+3
+4
+DROP TABLE t2;
+#
+# Create a second table using CREATE TABLE LIKE and CREATE TABLE AS SELECT *
+# starting with a table that really has Page Compression
+#
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+CREATE TABLE t3 AS SELECT * FROM t1;
+CREATE DATABASE test2;
+CREATE TABLE test2.t2 LIKE t1;
+INSERT INTO test2.t2 SELECT * FROM t1;
+CREATE TABLE test2.t3 AS SELECT * FROM t1;
+SELECT TABLE_SCHEMA, TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME = 't2' OR TABLE_NAME = 't3' ORDER BY TABLE_SCHEMA, TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	CREATE_OPTIONS
+test	t2	COMPRESSION="ZLIB"
+test	t3	
+test2	t2	COMPRESSION="ZLIB"
+test2	t3	
+SELECT NAME,ROW_FORMAT,SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME LIKE 'test%/t%' ORDER BY NAME;
+NAME	ROW_FORMAT	SPACE_TYPE
+test/t1	Dynamic	Single
+test/t2	Dynamic	Single
+test/t3	Dynamic	Single
+test2/t2	Dynamic	Single
+test2/t3	Dynamic	Single
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='ZLIB'
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `c1` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE test2.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='ZLIB'
+SHOW CREATE TABLE test2.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `c1` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE test2.t2;
+DROP TABLE test2.t3;
+DROP DATABASE test2;
+#
+# Change compression with ALTER TABLE
+#
+ALTER TABLE t1 COMPRESSION='';
+INSERT INTO t1 VALUES(5);
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+SELECT NAME,ROW_FORMAT,SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = 'test/t1';
+NAME	ROW_FORMAT	SPACE_TYPE
+test/t1	Dynamic	Single
+ALTER TABLE t1 COMPRESSION='LZ4';
+INSERT INTO t1 VALUES(6);
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='LZ4'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+TABLE_NAME	CREATE_OPTIONS
+t1	COMPRESSION="LZ4"
+SELECT NAME,ROW_FORMAT,SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = 'test/t1';
+NAME	ROW_FORMAT	SPACE_TYPE
+test/t1	Dynamic	Single
+ALTER TABLE t1 COMPRESSION='NONE';
+INSERT INTO t1 VALUES(7);
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='NONE'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+TABLE_NAME	CREATE_OPTIONS
+t1	COMPRESSION="NONE"
+SELECT NAME,ROW_FORMAT,SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = 'test/t1';
+NAME	ROW_FORMAT	SPACE_TYPE
+test/t1	Dynamic	Single
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='NONE'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+TABLE_NAME	CREATE_OPTIONS
+t1	COMPRESSION="NONE"
+SELECT NAME,ROW_FORMAT,SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = 'test/t1';
+NAME	ROW_FORMAT	SPACE_TYPE
+test/t1	Dynamic	Single
+DROP TABLE t1;
+#
+# Test various BAD DDL with innodb_strict_mode=ON.
+#
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="zlibX";
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Unsupported compression algorithm 'zlibX'
+Error	1031	Table storage engine for 't1' doesn't have this option
+SHOW CREATE TABLE t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+#
+# Check for too long string
+#
+SET @long_str = REPEAT('ZLIB', 32768);
+SET @s = CONCAT('CREATE TABLE t1(c1 INT) ENGINE=InnoDB, COMPRESSION="', @long_str, '"');
+PREPARE stmt from @s;
+EXECUTE stmt;
+ERROR HY000: String 'ZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZL' is too long for COMPRESSION (should be no longer than 2048)
+SHOW WARNINGS;
+Level	Code	Message
+Error	1470	String 'ZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZL' is too long for COMPRESSION (should be no longer than 2048)
+DEALLOCATE PREPARE stmt;
+SHOW CREATE TABLE t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+#
+# Compression cannot be used with ROW_FORMAT=COMPRESSED, TEMPORARY
+# or Shared tablespaces, either general or system.
+#
+# CREATE TABLE: COMPRESSION + TEMPORARY
+CREATE TEMPORARY TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB";
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for temporary tables
+Error	1031	Table storage engine for 't1' doesn't have this option
+# CREATE TABLE: COMPRESSION + TABLESPACE
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB" TABLESPACE=s1;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for shared general tablespaces
+Error	1031	Table storage engine for 't1' doesn't have this option
+# CREATE TABLE: COMPRESSION + TABLESPACE=innodb_system
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB" TABLESPACE=innodb_system;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for the system tablespace
+Error	1031	Table storage engine for 't1' doesn't have this option
+# CREATE TABLE: COMPRESSION + TABLESPACE=innodb_temporary
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB" TABLESPACE=innodb_temporary;
+ERROR HY000: InnoDB: Tablespace `innodb_temporary` can only contain TEMPORARY tables.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	InnoDB: Tablespace `innodb_temporary` can only contain TEMPORARY tables.
+Error	1031	Table storage engine for 't1' doesn't have this option
+# CREATE TABLE: COMPRESSION + TEMPORARY + TABLESPACE=innodb_temporary
+CREATE TEMPORARY TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB" TABLESPACE=innodb_temporary;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for temporary tables
+Error	1031	Table storage engine for 't1' doesn't have this option
+# CREATE TABLE: COMPRESSION + implicit System Tablespace
+SET GLOBAL INNODB_FILE_PER_TABLE = OFF;
+CREATE TABLE t1(C1 INT) ENGINE=InnoDB COMPRESSION="zlib";
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for the system tablespace
+Error	1031	Table storage engine for 't1' doesn't have this option
+CREATE TABLE t1(C1 INT) ENGINE=InnoDB COMPRESSION="blah";
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Unsupported compression algorithm 'blah'
+Error	1031	Table storage engine for 't1' doesn't have this option
+SET GLOBAL INNODB_FILE_PER_TABLE = ON;
+# CREATE TABLE: COMPRESSION + ROW_FORMAT=COMPRESSED
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB" ROW_FORMAT=COMPRESSED;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Page Compression is not supported with row_format=compressed or key_block_size > 0
+Error	1031	Table storage engine for 't1' doesn't have this option
+# CREATE TABLE: COMPRESSION + KEY_BLOCK_SIZE
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB" KEY_BLOCK_SIZE=2;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Page Compression is not supported with row_format=compressed or key_block_size > 0
+Error	1031	Table storage engine for 't1' doesn't have this option
+# ALTER TABLE: implicit COMPRESSION + TABLESPACE
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB";
+ALTER TABLE t1 TABLESPACE=s1;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for shared general tablespaces
+Error	1478	Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+# ALTER TABLE: COMPRESSION + TABLESPACE
+ALTER TABLE t1 COMPRESSION="LZ4" TABLESPACE=s1;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for shared general tablespaces
+Error	1478	Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+# ALTER TABLE: implicit COMPRESSION + ROW_FORMAT=COMPRESSED
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Page Compression is not supported with row_format=compressed or key_block_size > 0
+Error	1478	Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+# ALTER TABLE: COMPRESSION + ROW_FORMAT=COMPRESSED
+ALTER TABLE t1 COMPRESSION="ZLIB" ROW_FORMAT=COMPRESSED;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Page Compression is not supported with row_format=compressed or key_block_size > 0
+Error	1478	Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+# ALTER TABLE: COMPRESSION + KEY_BLOCK_SIZE
+ALTER TABLE t1 COMPRESSION="ZLIB" KEY_BLOCK_SIZE=2;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Page Compression is not supported with row_format=compressed or key_block_size > 0
+Error	1478	Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+# ALTER TABLE: COMPRESSION='abcdefghijklmnopqrstuvwxyz'
+ALTER TABLE t1 COMPRESSION='abcdefghijklmnopqrstuvwxyz';
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Unsupported compression algorithm 'abcdefghijklmnopqrstuvwxyz'
+Error	1478	Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+DROP TABLE t1;
+#
+# Test the bad combinations above with innodb_strict_mode=OFF.
+#
+SET SESSION innodb_strict_mode = OFF;
+SELECT @@innodb_strict_mode;
+@@innodb_strict_mode
+0
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="zlibX";
+Warnings:
+Warning	1112	InnoDB: Unsupported compression algorithm 'zlibX'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Unsupported compression algorithm 'zlibX'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='zlibX'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+TABLE_NAME	CREATE_OPTIONS
+t1	COMPRESSION="zlibX"
+SELECT NAME, ROW_FORMAT, SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = 'test/t1';
+NAME	ROW_FORMAT	SPACE_TYPE
+test/t1	Dynamic	Single
+DROP TABLE t1;
+#
+# Check for too long string
+#
+SET @long_str = REPEAT('ZLIB', 32768);
+SET @s = CONCAT('CREATE TABLE t1(c1 INT) ENGINE=InnoDB, COMPRESSION="', @long_str, '"');
+PREPARE stmt from @s;
+EXECUTE stmt;
+ERROR HY000: String 'ZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZL' is too long for COMPRESSION (should be no longer than 2048)
+SHOW WARNINGS;
+Level	Code	Message
+Error	1470	String 'ZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZL' is too long for COMPRESSION (should be no longer than 2048)
+DEALLOCATE PREPARE stmt;
+SHOW CREATE TABLE t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+#
+# Compression cannot be used with ROW_FORMAT=COMPRESSED, TEMPORARY
+# or Shared tablespaces, either general or system.
+#
+# CREATE TABLE: COMPRESSION + TEMPORARY
+CREATE TEMPORARY TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB";
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for temporary tables
+Warning	138	InnoDB: Compression not supported for temporary tables
+Error	1112	Table 't1' uses an extension that doesn't exist in this MySQL version
+# CREATE TABLE: COMPRESSION + TABLESPACE
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB" TABLESPACE=s1;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for shared general tablespaces
+Error	1031	Table storage engine for 't1' doesn't have this option
+# CREATE TABLE: COMPRESSION + TABLESPACE=innodb_system
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB" TABLESPACE=innodb_system;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for the system tablespace
+Error	1031	Table storage engine for 't1' doesn't have this option
+# CREATE TABLE: COMPRESSION + TABLESPACE=innodb_temporary
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB" TABLESPACE=innodb_temporary;
+ERROR HY000: InnoDB: Tablespace `innodb_temporary` can only contain TEMPORARY tables.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	InnoDB: Tablespace `innodb_temporary` can only contain TEMPORARY tables.
+Error	1031	Table storage engine for 't1' doesn't have this option
+# CREATE TABLE: COMPRESSION + TEMPORARY + TABLESPACE=innodb_temporary
+CREATE TEMPORARY TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB" TABLESPACE=innodb_temporary;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for temporary tables
+Error	1031	Table storage engine for 't1' doesn't have this option
+# CREATE TABLE: COMPRESSION + implicit System Tablespace
+SET GLOBAL INNODB_FILE_PER_TABLE = OFF;
+CREATE TABLE t1(C1 INT) ENGINE=InnoDB COMPRESSION="zlib";
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for the system tablespace
+Warning	138	InnoDB: Compression not supported for shared tablespaces
+Error	1112	Table 't1' uses an extension that doesn't exist in this MySQL version
+CREATE TABLE t1(C1 INT) ENGINE=InnoDB COMPRESSION="blah";
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Unsupported compression algorithm 'blah'
+Warning	138	InnoDB: Compression not supported for shared tablespaces
+Error	1112	Table 't1' uses an extension that doesn't exist in this MySQL version
+SET GLOBAL INNODB_FILE_PER_TABLE = ON;
+# CREATE TABLE: COMPRESSION + ROW_FORMAT=COMPRESSED
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB" ROW_FORMAT=COMPRESSED;
+Warnings:
+Warning	1112	InnoDB: Page Compression is not supported with row_format=compressed or key_block_size > 0
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Page Compression is not supported with row_format=compressed or key_block_size > 0
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED COMPRESSION='ZLIB'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+TABLE_NAME	CREATE_OPTIONS
+t1	row_format=COMPRESSED COMPRESSION="ZLIB"
+SELECT NAME,ROW_FORMAT,SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = 'test/t1';
+NAME	ROW_FORMAT	SPACE_TYPE
+test/t1	Compressed	Single
+INSERT INTO t1 VALUES(1),(2),(3),(4);
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+SELECT * FROM t1;
+c1
+1
+2
+3
+4
+DROP TABLE t1;
+# CREATE TABLE: COMPRESSION + KEY_BLOCK_SIZE
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB" KEY_BLOCK_SIZE=2;
+Warnings:
+Warning	1112	InnoDB: Page Compression is not supported with row_format=compressed or key_block_size > 0
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Page Compression is not supported with row_format=compressed or key_block_size > 0
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=2 COMPRESSION='ZLIB'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+TABLE_NAME	CREATE_OPTIONS
+t1	KEY_BLOCK_SIZE=2 COMPRESSION="ZLIB"
+SELECT NAME,ROW_FORMAT,SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = 'test/t1';
+NAME	ROW_FORMAT	SPACE_TYPE
+test/t1	Compressed	Single
+INSERT INTO t1 VALUES(1),(2),(3),(4);
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+SELECT * FROM t1;
+c1
+1
+2
+3
+4
+DROP TABLE t1;
+# ALTER TABLE: implicit COMPRESSION + TABLESPACE
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB";
+ALTER TABLE t1 TABLESPACE=s1;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for shared general tablespaces
+Error	1478	Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+# ALTER TABLE: COMPRESSION + TABLESPACE
+ALTER TABLE t1 COMPRESSION="LZ4" TABLESPACE=s1;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for shared general tablespaces
+Error	1478	Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+# ALTER TABLE: implicit COMPRESSION + ROW_FORMAT=COMPRESSED
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
+Warnings:
+Warning	1112	InnoDB: Page Compression is not supported with row_format=compressed or key_block_size > 0
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Page Compression is not supported with row_format=compressed or key_block_size > 0
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED COMPRESSION='ZLIB'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+TABLE_NAME	CREATE_OPTIONS
+t1	row_format=COMPRESSED COMPRESSION="ZLIB"
+SELECT NAME, ROW_FORMAT, SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = 'test/t1';
+NAME	ROW_FORMAT	SPACE_TYPE
+test/t1	Compressed	Single
+# ALTER TABLE: COMPRESSION + ROW_FORMAT=COMPRESSED
+ALTER TABLE t1 COMPRESSION="ZLIB" ROW_FORMAT=COMPRESSED;
+Warnings:
+Warning	1112	InnoDB: Page Compression is not supported with row_format=compressed or key_block_size > 0
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Page Compression is not supported with row_format=compressed or key_block_size > 0
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED COMPRESSION='ZLIB'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+TABLE_NAME	CREATE_OPTIONS
+t1	row_format=COMPRESSED COMPRESSION="ZLIB"
+SELECT NAME, ROW_FORMAT, SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = 'test/t1';
+NAME	ROW_FORMAT	SPACE_TYPE
+test/t1	Compressed	Single
+# ALTER TABLE: COMPRESSION + KEY_BLOCK_SIZE
+ALTER TABLE t1 COMPRESSION="ZLIB" KEY_BLOCK_SIZE=2;
+Warnings:
+Warning	1112	InnoDB: Page Compression is not supported with row_format=compressed or key_block_size > 0
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Page Compression is not supported with row_format=compressed or key_block_size > 0
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 COMPRESSION='ZLIB'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+TABLE_NAME	CREATE_OPTIONS
+t1	row_format=COMPRESSED KEY_BLOCK_SIZE=2 COMPRESSION="ZLIB"
+SELECT NAME, ROW_FORMAT, SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = 'test/t1';
+NAME	ROW_FORMAT	SPACE_TYPE
+test/t1	Compressed	Single
+# ALTER TABLE: COMPRESSION='abcdefghijklmnopqrstuvwxyz'
+ALTER TABLE t1 COMPRESSION='abcdefghijklmnopqrstuvwxyz';
+Warnings:
+Warning	1112	InnoDB: Unsupported compression algorithm 'abcdefghijklmnopqrstuvwxyz'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Unsupported compression algorithm 'abcdefghijklmnopqrstuvwxyz'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 COMPRESSION='abcdefghijklmnopqrstuvwxyz'
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+TABLE_NAME	CREATE_OPTIONS
+t1	row_format=COMPRESSED KEY_BLOCK_SIZE=2 COMPRESSION="abcdefg"
+SELECT NAME,ROW_FORMAT,SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = 'test/t1';
+NAME	ROW_FORMAT	SPACE_TYPE
+test/t1	Compressed	Single
+DROP TABLE t1;
+#
+# BUG#22916982 - ASSERT 0 IN FSP_SDI_GET_ROOT_PAGE_NUM(), FLUSH TABLES FOR EXPORT
+#
+CREATE TABLE t1 (a INT) ENGINE=INNODB ROW_FORMAT=DYNAMIC COMPRESSION='ZLIB';
+FLUSH TABLE t1 FOR EXPORT;
+# restart
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+#
+# Cleanup
+#
+DROP TABLESPACE s1;
+SET GLOBAL INNODB_FILE_PER_TABLE=1;
+SET GLOBAL INNODB_FILE_PER_TABLE=1;
+SET DEBUG='-d,ignore_punch_hole';
+SET DEBUG='-d,ignore_punch_hole_size';

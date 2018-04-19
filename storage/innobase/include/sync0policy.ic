@@ -1,124 +1,93 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/******************************************************************//**
-@file include/sync0policy.ic
-Policy for mutexes.
+/** @file include/sync0policy.ic
+ Policy for mutexes.
 
-Created 2012-08-21 Sunny Bains.
-***********************************************************************/
+ Created 2012-08-21 Sunny Bains.
+ ***********************************************************************/
 
-#include "sync0mutex.h"
 #include "sync0debug.h"
 
 template <typename Mutex>
-void TrackPolicy<Mutex>::print(FILE* stream) const
-{
-	const char*	ptr = m_cfile_name + strlen(m_cfile_name) - 1;
+std::string GenericPolicy<Mutex>::to_string() const {
+  return (sync_mutex_to_string(get_id(), sync_file_created_get(this)));
+}
 
-	while (ptr > m_cfile_name && *ptr != '/' && *ptr != '\\') {
-		--ptr;
-	}
-
-	++ptr;
-
-	fprintf(stream, "Mutex \"%s\" created at %s:%lu ",
-		m_name, ptr, m_cline);
+template <typename Mutex>
+std::string BlockMutexPolicy<Mutex>::to_string() const {
+  /* I don't think it makes sense to keep track of the file name
+  and line number for each block mutex. Too much of overhead. Use the
+  latch id to figure out the location from the source. */
+  return (sync_mutex_to_string(get_id(), "buf0buf.cc:0"));
 }
 
 #ifdef UNIV_DEBUG
 
 template <typename Mutex>
-void DebugPolicy<Mutex>::init(
-	const Mutex&	mutex,
-	const char*	name,
-	const char*	filename,
-	ulint		line) UNIV_NOTHROW
-{
-	TrackPolicy<Mutex>::init(mutex, name, filename, line);
+void MutexDebug<Mutex>::init(latch_id_t id) UNIV_NOTHROW {
+  m_context.m_id = id;
 
-	m_magic_n = MUTEX_MAGIC_N;
-	m_thread_id = os_thread_id_t(ULINT_UNDEFINED);
+  m_context.release();
 
-	m_latch.m_name = name;
-	m_latch.m_level = sync_latch_get_level(name);
-
-	ut_ad(m_latch.m_level != SYNC_UNKNOWN);
-
-	m_file_name = 0;
-
-	m_line = ULINT_UNDEFINED;
+  m_magic_n = MUTEX_MAGIC_N;
 }
 
 template <typename Mutex>
-void DebugPolicy<Mutex>::enter(
-	const Mutex&		mutex,
-	const char*		name,
-	ulint			line) UNIV_NOTHROW
-{
-	if (!m_track) {
-		return;
-	}
+void MutexDebug<Mutex>::enter(const Mutex *mutex, const char *name,
+                              ulint line) UNIV_NOTHROW {
+  ut_ad(!is_owned());
 
-	ut_ad(!is_owned());
-	ut_ad(m_latch.m_mutex == 0 || m_latch.m_mutex == &mutex);
+  Context context(m_context.get_id());
 
-	if (m_latch.m_mutex == 0) {
-		m_latch.m_mutex = &mutex;
-	}
+  context.locked(mutex, name, line);
 
-	m_line = line;
-	m_file_name = name;
+  /* Check for latch order violation. */
 
-	ut_a(m_file_name);
-
-	/* Check latch order violation. */
-	sync_check_lock(&m_latch);
+  sync_check_lock_validate(&context);
 }
 
 template <typename Mutex>
-void DebugPolicy<Mutex>::locked(const Mutex& mutex) UNIV_NOTHROW
-{
-	if (!m_track) {
-		return;
-	}
+void MutexDebug<Mutex>::locked(const Mutex *mutex, const char *name,
+                               ulint line) UNIV_NOTHROW {
+  ut_ad(!is_owned());
+  ut_ad(m_context.m_thread_id == os_thread_id_t(ULINT_UNDEFINED));
 
-	ut_ad(!is_owned());
-	ut_ad(m_thread_id == os_thread_id_t(ULINT_UNDEFINED));
+  m_context.locked(mutex, name, line);
 
-	m_thread_id = os_thread_get_curr_id();
+  sync_check_lock_granted(&m_context);
 }
 
 template <typename Mutex>
-void DebugPolicy<Mutex>::release(const Mutex& mutex) UNIV_NOTHROW
-{
-	if (!m_track) {
-		return;
-	}
+void MutexDebug<Mutex>::release(const Mutex *mutex) UNIV_NOTHROW {
+  ut_ad(is_owned());
 
-	ut_ad(is_owned());
+  m_context.release();
 
-	m_thread_id = os_thread_id_t(ULINT_UNDEFINED);
-
-	m_file_name = NULL;
-	m_line = ULINT_UNDEFINED;
-
-	sync_check_unlock(&m_latch);
+  sync_check_unlock(&m_context);
 }
 
 #endif /* UNIV_DEBUG */

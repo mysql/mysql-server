@@ -3,7 +3,6 @@
 --echo #  T2= ( Try to take table level lock )
 --echo # Outcome: T2 waits for t1 to acquire table lock
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/count_sessions.inc
 
@@ -36,6 +35,7 @@ let $wait_timeout = 10;
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE id = @con2_id AND INFO = 'LOCK TABLE t1 WRITE/* From connection 2 */';
 --source include/wait_condition.inc
+--sleep 1
 COMMIT;
 
 --echo
@@ -92,6 +92,7 @@ let $wait_timeout = 10;
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE id = @con1_id AND INFO = 'UPDATE t1 SET c1=1 WHERE c1=0';
 --source include/wait_condition.inc
+--sleep 1
 COMMIT;
 UNLOCK TABLES;
 
@@ -196,7 +197,7 @@ DROP TABLES t1,t2;
 
 --echo # Scenario:5
 --echo # Multiple concurrent high prio transactions with the same priority.
---echo # Outcome : Transaction which is marked high prio first completes first and other high prio txn get error
+--echo # Outcome : Transaction which is marked high prio first completes first and other high prio txns wait
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
@@ -209,6 +210,7 @@ INSERT INTO t1 VALUES (0);
 
 --connection con1
 --source include/start_transaction_high_prio.inc
+--echo # connection 1:
 # statement rollback won't make txn as non high prio
 --error ER_DUP_ENTRY
 INSERT INTO t1 VALUES (0);
@@ -216,23 +218,40 @@ UPDATE t1 SET c1=1 WHERE c1=0;
 
 --connection con2
 --source include/start_transaction_high_prio.inc
---echo # connection 2: dedalock on update - txn rollback
-INSERT INTO t1 VALUES (20);
---error ER_LOCK_DEADLOCK
-UPDATE t1 SET c1=2 WHERE c1=0;
+--echo # connection 2: wait - update
+let $con2_id=`SELECT CONNECTION_ID()`;
+--send UPDATE t1 SET c1=2 WHERE c1=1 /* From connection 2 */
 
 --connection con3
 --source include/start_transaction_high_prio.inc
---echo # connection 3: dedalock on update - txn rollback
-INSERT INTO t1 VALUES (20);
---error ER_LOCK_DEADLOCK
-DELETE FROM t1 WHERE c1=0;
+--echo # connection 3: wait - delete
+--disable_query_log
+eval SET @con2_id = $con2_id;
+--enable_query_log
+let $wait_timeout = 10;
+let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE id = @con2_id AND INFO = 'UPDATE t1 SET c1=2 WHERE c1=1 /* From connection 2 */'
+AND STATE = 'updating';
+--source include/wait_condition.inc
+let $con3_id=`SELECT CONNECTION_ID()`;
+--sleep 1
+--send DELETE FROM t1 WHERE c1=1 /* From connection 3 */
 
 --connection con4
 --source include/start_transaction_high_prio.inc
---echo # connection 2: deadlock on insert as trying to insert same row - txn rollback
---error ER_LOCK_DEADLOCK
-INSERT INTO t1 VALUES (1);
+--echo # connection 4: wait - insert
+--disable_query_log
+eval SET @con3_id = $con3_id;
+--enable_query_log
+let $wait_timeout = 10;
+let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE id = @con3_id AND INFO = 'DELETE FROM t1 WHERE c1=1 /* From connection 3 */'
+AND STATE = 'updating';
+--source include/wait_condition.inc
+--echo # wait over
+let $con4_id=`SELECT CONNECTION_ID()`;
+--sleep 1
+--send INSERT INTO t1 VALUES (1) /* From connection 4 */
 
 --connection con5
 --source include/start_transaction_high_prio.inc
@@ -240,18 +259,41 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (50);
 
 --connection con1
+--echo # connection 1:
+--disable_query_log
+eval SET @con4_id = $con4_id;
+--enable_query_log
+let $wait_timeout = 10;
+let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE id = @con4_id AND INFO = 'INSERT INTO t1 VALUES (1) /* From connection 4 */';
+--source include/wait_condition.inc
+--sleep 1
 COMMIT;
+
+--connection con2
+--echo # connection 2: Reap UPDATE t1 SET c1=2 WHERE c1=1
+--reap
+COMMIT;
+
+--connection con3
+--echo # connection 3: Reap DELETE FROM t1 WHERE c1=1
+--reap
+COMMIT;
+
+--connection con4
+--echo # connection 4: Reap INSERT INTO t1 VALUES (1)
+--reap
+COMMIT;
+
+--connection con1
 INSERT INTO t1 VALUES (3);
-UPDATE t1 SET c1=4 WHERE c1=1;
+UPDATE t1 SET c1=4 WHERE c1=2;
 let $con1_id=`SELECT CONNECTION_ID()`;
 
 # con1 has already done commit hence its no longer high prio txn
 # Insert waits for con5 to complete.
 --send INSERT INTO t1 VALUES (50)
 
-# con2 transaction rollbacked due to deadlock error
-# con3 transaction rollbacked due to deadlock error
-# con4 transaction rollbacked due to deadlock error
 --connection con5
 # Check con1 insert is waiting
 --disable_query_log
@@ -261,6 +303,7 @@ let $wait_timeout = 10;
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE id = @con1_id AND INFO = 'INSERT INTO t1 VALUES (50)';
 --source include/wait_condition.inc
+--sleep 1
 COMMIT;
 
 --connection con1
@@ -268,11 +311,11 @@ COMMIT;
 --reap
 
 --connection default
---let $assert_text= 'There is a 1 in t1'
+--let $assert_text= 'There is a 3 in t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3, count, 1] = 1
 --source include/assert.inc
---echo # Expected values : 3,4,50
-SELECT * FROM t1 ;
+--echo # Expected values : 1,3,4,50
+SELECT * FROM t1 order by c1;
 
 DROP TABLES t1;
 
@@ -354,9 +397,7 @@ XA START 'second_xa_high_prio' /* HIGH PRIORITY */ ;
 --disable_query_log
 SET GLOBAL DEBUG='-d,dbug_set_high_prio_trx';
 --enable_query_log
---error ER_LOCK_DEADLOCK
-UPDATE t1 SET c1=13 WHERE c1=0;
-
+--send UPDATE t1 SET c1=13 WHERE c1=0
 
 --connection con1
 XA END 'xa_high_prio';
@@ -369,11 +410,45 @@ XA COMMIT 'xa_high_prio';
 COMMIT;
 --disconnect con2
 
+--connection con3
+--echo Reap UPDATE t1 SET c1=13 WHERE c1=0;
+--reap
+--disconnect con3
+
 --connection default
 SELECT * FROM t1;
 
 DROP TABLE t1;
 
---disconnect con3
+--echo #
+--echo # Bug#21075892 SHUTDOWN HANG, WAITING FOR ASYNC ROLLBACK TO FINISH
+--echo #
+
+--connect(con1,localhost,root,,test)
+
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 INT) ENGINE=InnoDB;
+INSERT INTO t1 values(10, 10), (20, 20), (30, 30);
+
+--echo #connection 0
+--connection default
+START TRANSACTION;
+--echo #Lock record (col1 = 20)
+UPDATE t1 set col2 = 25 where col1 = 20;
+
+--echo #connection 1
+--connection con1
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--source include/start_transaction_high_prio.inc
+
+--echo #Semi-consistent read: Attempt lock (col1 = 20) and skip in SQL
+UPDATE t1 SET col2 = 20 where col1 > 10 and col1 <30 and col2 = 30;
+COMMIT WORK;
+
+--echo #connection 0
+--connection default
+ROLLBACK WORK;
+DROP TABLE t1;
+
+--disconnect con1
 
 --source include/wait_until_count_sessions.inc

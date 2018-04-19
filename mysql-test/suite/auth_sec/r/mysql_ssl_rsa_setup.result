@@ -2,18 +2,55 @@
 # Setup
 # Case 1 : Generate Files
 # Case 2 : Files are present : Generation should be skipped
+Pattern "Certificate files are present in given dir. Skipping generation." found
+Pattern "RSA key files are present in given dir. Skipping generation." found
 # Case 3 : Certificate files are not present but RSA key files are present.
 #          Only SSL certificates and keys should be generated.
+Pattern "Executing : openssl x509" found
+Pattern "Executing : openssl req" found
+Pattern "RSA key files are present in given dir. Skipping generation." found
 # Case 4 : Certificate files are present but RSA key files are not present.
 #          Only RSA key files should be generated.
+Pattern "Certificate files are present in given dir. Skipping generation." found
+Pattern "Executing : openssl genrsa" found
 # Case 5 : Remove only client-cert.pem and client-key.pem.
 #          Certificate files should not be generated.
+Pattern "Certificate files are present in given dir. Skipping generation." found
 # Case 6 : Remove server-key.pem and public_key.pem.
 #          Certificates and RSA keys should not be generated.
+Pattern "Certificate files are present in given dir. Skipping generation." found
+Pattern "RSA key files are present in given dir. Skipping generation." found
 # Case 7 : Provide Invalid directory
+Pattern "Failed to access directory pointed by" found
 # Case 8 : Custom suffix of invalid length
+Pattern "Maximum number of characters allowed as the value for --suffix are 17" found
 # Case 9 : Custom suffix of valid length
+Pattern "MySQL_Server_wl7706_test_Auto_Generated_CA_Certificate" found
+Pattern "MySQL_Server_wl7706_test_Auto_Generated_Server_Certificate" found
+Pattern "MySQL_Server_wl7706_test_Auto_Generated_Server_Certificate" found
 # Case 10 : Custom suffix with invalid characters
+Pattern "Invalid string" found
 # Case 11 : Help and Version information
+Pattern "MySQL SSL Certificate and RSA Key Generation Utility" found
+Pattern "MySQL SSL Certificate and RSA Key Generation Utility" found
+Pattern "Ver " found
+Pattern "Ver " found
 # Case 12 : Very long path
+Pattern "Dir path is too long" found
+#
+# Bug#21087116 : MYSQL_SSL_RSA_SETUP CREATES CLIENT-CERT.PEM WITH INCORRECT CN
+#
+# CN of CA certificate should be MySQL_Server_.*_Auto_Generated_CA_Certificate
+Pattern "MySQL_Server_.*_Auto_Generated_CA_Certificate" found
+# CN of Server certificate should be MySQL_Server_.*_Auto_Generated_Server_Certificate
+Pattern "MySQL_Server_.*_Auto_Generated_Server_Certificate" found
+# CN of Client certificate should be MySQL_Server_.*_Auto_Generated_Client_Certificate
+Pattern "MySQL_Server_.*_Auto_Generated_Client_Certificate" found
 # Global Cleanup
+#
+# Bug#21025377: CAN'T CONNECT TO SSL ENABLED SERVER FIRST 30 SEC AFTER
+# INITIAL STARTUP
+#
+# Restart the server
+# Restart completed.
+No ssl errors found after running mysql server with newely created certs.

@@ -4,12 +4,14 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 create table t1 (a varchar(10) character set utf8);
-load data infile '../../std_data/loaddata6.dat' into table t1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+load data infile '../../std_data/loaddata6.dat' into table t1 CHARACTER SET latin1;
 set @@character_set_database=koi8r;
 Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 load data infile '../../std_data/loaddata6.dat' into table t1;
-set @@character_set_database=DEFAULT;
+set @@character_set_database=latin1;
 Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 load data infile '../../std_data/loaddata6.dat' into table t1;
@@ -47,8 +49,12 @@ include/sync_slave_sql_with_master.inc
 -------------test bug#45516------------------
 DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest CHARSET UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 USE mysqltest;
 CREATE TABLE t (cl varchar(100)) CHARSET UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 LOAD DATA LOCAL INFILE './std_data/loaddata_utf8.dat' INTO TABLE t
 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
 ----------content on master----------
@@ -57,6 +63,9 @@ hex(cl)
 E4B880E4BA8CE4B889
 E59B9BE4BA94E585AD
 E4B883E585ABE4B99D
+E4B880E4BA8CE4B889
+E59B9BE4BA94E585AD
+E4B883E585ABE4B99D0A
 ----------content on slave----------
 USE mysqltest;
 SELECT hex(cl) FROM t;
@@ -64,11 +73,18 @@ hex(cl)
 E4B880E4BA8CE4B889
 E59B9BE4BA94E585AD
 E4B883E585ABE4B99D
+E4B880E4BA8CE4B889
+E59B9BE4BA94E585AD
+E4B883E585ABE4B99D0A
 DROP DATABASE mysqltest;
 DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest CHARSET UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 USE mysqltest;
 CREATE TABLE t (cl varchar(100)) CHARSET UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t
 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
 ----------content on master----------
@@ -77,6 +93,9 @@ hex(cl)
 E4B880E4BA8CE4B889
 E59B9BE4BA94E585AD
 E4B883E585ABE4B99D
+E4B880E4BA8CE4B889
+E59B9BE4BA94E585AD
+E4B883E585ABE4B99D0A
 ----------content on slave----------
 USE mysqltest;
 SELECT hex(cl) FROM t;
@@ -84,5 +103,8 @@ hex(cl)
 E4B880E4BA8CE4B889
 E59B9BE4BA94E585AD
 E4B883E585ABE4B99D
+E4B880E4BA8CE4B889
+E59B9BE4BA94E585AD
+E4B883E585ABE4B99D0A
 DROP DATABASE mysqltest;
 include/rpl_end.inc

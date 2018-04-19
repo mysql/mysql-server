@@ -1,4 +1,4 @@
--- source include/not_embedded.inc
+-- source ../include/ps_truncate_all_tables.inc
 # Tests for sys schema
 # Verify the sys.schema_tables_with_full_table_scans view
 
@@ -20,27 +20,25 @@ SELECT * FROM sys.x$schema_tables_with_full_table_scans;
 --enable_result_log
 
 # Create a dummy table, force some full table scans, verify the results
-CREATE DATABASE v_schema_tables_with_full_table_scans;
+CREATE TABLE test.t (i BIGINT AUTO_INCREMENT PRIMARY KEY, j BIGINT) ENGINE = innodb;
 
-CREATE TABLE v_schema_tables_with_full_table_scans.t (i BIGINT AUTO_INCREMENT PRIMARY KEY, j BIGINT) ENGINE = innodb;
+INSERT INTO test.t (j) VALUES (1), (2), (3);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) VALUES (1), (2), (3);
+INSERT INTO test.t (j) (SELECT j*2 FROM test.t);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO test.t (j) (SELECT j*2 FROM test.t);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO test.t (j) (SELECT j*2 FROM test.t);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO test.t (j) (SELECT j*2 FROM test.t);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO test.t (j) (SELECT j*2 FROM test.t);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO test.t (j) (SELECT j*2 FROM test.t);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO test.t (j) (SELECT j*2 FROM test.t);
 
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
-
-INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO test.t (j) (SELECT j*2 FROM test.t);
 
 # The table should now have 768 rows
 
@@ -48,7 +46,14 @@ INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schem
 CALL sys.ps_truncate_all_tables(false);
 
 # Following returns 28 rows, but should full scan as j has no index
-SELECT * FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
+# Using RAND() to force no query caching, so ignore results, they are not important
+--disable_result_log
+SELECT i, j, RAND() FROM test.t WHERE j = 12;
+--enable_result_log
+
+# Ensure the base performance schema data is aggregated first
+--let $wait_condition= SELECT COUNT_STAR = 768 FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_schema = 'test' AND object_name = 't' AND index_name IS NULL
+--source include/wait_condition.inc
 
 # Now verify the table shows up in the views with the right row count (should be 768)
 SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
@@ -56,7 +61,13 @@ SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with
 SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
 
 # Scan again
-SELECT * FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
+--disable_result_log
+SELECT i, j, RAND() FROM test.t WHERE j = 12;
+--enable_result_log
+
+# Again ensure the base performance schema data is aggregated first
+--let $wait_condition= SELECT COUNT_STAR = 1536 FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_schema = 'test' AND object_name = 't' AND index_name IS NULL
+--source include/wait_condition.inc
 
 # Now verify that double the amount of rows in the table should be shown as scanned (should be 1536)
 SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
@@ -64,7 +75,7 @@ SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with
 SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
 
 # Do a point lookup
-SELECT * FROM v_schema_tables_with_full_table_scans.t WHERE i = 10;
+SELECT * FROM test.t WHERE i = 10;
 
 # The number of rows scanned should not have changed (should still be 1536)
 SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
@@ -72,13 +83,4 @@ SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with
 SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
 
 # Cleanup
-DROP DATABASE v_schema_tables_with_full_table_scans;
-
-# Ensure structure changes don't slip in
-DESC sys.x$schema_tables_with_full_table_scans;
-
-# Make sure view select does not error, but ignore results
---disable_result_log
-SELECT * FROM sys.x$schema_tables_with_full_table_scans;
---enable_result_log
-
+DROP TABLE test.t;

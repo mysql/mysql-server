@@ -1,6 +1,4 @@
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select database();
 database()
 test
@@ -13,6 +11,8 @@ database() = "test"
 select database() = _utf8"test";
 database() = _utf8"test"
 1
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select database() = _latin1"test";
 database() = _latin1"test"
 1
@@ -22,6 +22,8 @@ user() like "%@%"
 select user() like _utf8"%@%";
 user() like _utf8"%@%"
 1
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select user() like _latin1"%@%";
 user() like _latin1"%@%"
 1
@@ -34,40 +36,50 @@ version()>="3.23.29"
 select version()>=_utf8"3.23.29";
 version()>=_utf8"3.23.29"
 1
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select version()>=_latin1"3.23.29";
 version()>=_latin1"3.23.29"
 1
 select charset(version());
 charset(version())
 utf8
-explain extended select database(), user();
+explain select database(), user();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select database() AS `database()`,user() AS `user()`
 create table t1 (version char(60)) select database(), user(), version() as 'version';
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `database()` varchar(34) CHARACTER SET utf8 DEFAULT NULL,
-  `user()` varchar(77) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `user()` varchar(93) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `version` char(60) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select charset(charset(_utf8'a')), charset(collation(_utf8'a'));
 charset(charset(_utf8'a'))	charset(collation(_utf8'a'))
 utf8	utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select collation(charset(_utf8'a')), collation(collation(_utf8'a'));
 collation(charset(_utf8'a'))	collation(collation(_utf8'a'))
 utf8_general_ci	utf8_general_ci
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 select charset(_utf8'a'), collation(_utf8'a');
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `charset(_utf8'a')` varchar(64) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `collation(_utf8'a')` varchar(64) CHARACTER SET utf8 NOT NULL DEFAULT ''
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select TRUE,FALSE,NULL;
 TRUE	FALSE	NULL
@@ -100,3 +112,6 @@ select left(concat(a,version()),1) from t1;
 left(concat(a,version()),1)
 a
 drop table t1;
+# Bug#25669590: regression: assertion failed: collation.collation == ...
+prepare s from "DO SHA1(DATABASE());";
+execute s;

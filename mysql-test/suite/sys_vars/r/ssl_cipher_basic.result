@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.ssl_cipher)
 0 Expected
 '#---------------------BS_STVARS_048_03----------------------#'
 SELECT @@GLOBAL.ssl_cipher = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='ssl_cipher';
 @@GLOBAL.ssl_cipher = VARIABLE_VALUE
 NULL
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.ssl_cipher)
 0
 0 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='ssl_cipher';
 COUNT(VARIABLE_VALUE)
 1

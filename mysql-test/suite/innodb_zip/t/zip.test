@@ -1,16 +1,13 @@
--- source include/have_innodb.inc
--- source include/have_innodb_zip.inc
+-- source include/have_innodb_max_16k.inc
 
 let $per_table=`select @@innodb_file_per_table`;
-let $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
 SET @save_innodb_stats_on_metadata=@@global.innodb_stats_on_metadata;
 
 
---let $query_i_s = SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys'
+--let $query_i_s = SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA' AND table_schema != 'information_schema' ORDER BY table_schema, table_name;
 
 set session innodb_strict_mode=0;
 set global innodb_file_per_table=off;
-set global innodb_file_format=`0`;
 SET @@global.innodb_stats_on_metadata=ON;
  
 create table t0(a int primary key) engine=innodb row_format=compressed;
@@ -26,7 +23,6 @@ key_block_size=1 row_format=redundant;
 set global innodb_file_per_table=on;
 create table t6(a int primary key) engine=innodb
 key_block_size=1 row_format=redundant;
-set global innodb_file_format=`1`;
 create table t7(a int primary key) engine=innodb
 key_block_size=1 row_format=redundant;
 create table t8(a int primary key) engine=innodb
@@ -43,18 +39,23 @@ create table t13(a int primary key) engine=innodb
 row_format=compressed;
 create table t14(a int primary key) engine=innodb key_block_size=9;
 
+analyze table t0 ,t00 ,t1 ,t2 ,t3 ,t4 ,t5 ,t6 ,t7 ,t8 ,t9 ,t10 ,t11 ,t12 ,t13 ,t14;
+
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid} 2048 {valid}
 --eval $query_i_s
 
 drop table t0,t00,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14;
 alter table t1 key_block_size=0;
 alter table t1 row_format=dynamic;
+analyze table t1;
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid}
 --eval $query_i_s
 alter table t1 row_format=compact;
+analyze table t1;
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid}
 --eval $query_i_s
 alter table t1 row_format=redundant;
+analyze table t1;
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid}
 --eval $query_i_s
 drop table t1;
@@ -122,34 +123,10 @@ select count(*) from t1 where c4 = repeat('C', 20000);
 update t1 set c3 = repeat('E', 20000) where c1 = 1;
 drop table t1;
 
-#
-#
-# Test innodb_file_format
-#
-set global innodb_file_format=`0`;
-select @@innodb_file_format;
-set global innodb_file_format=`1`;
-select @@innodb_file_format;
--- error ER_WRONG_VALUE_FOR_VAR
-set global innodb_file_format=`2`;
--- error ER_WRONG_VALUE_FOR_VAR
-set global innodb_file_format=`-1`;
-set global innodb_file_format=`Antelope`;
-set global innodb_file_format=`Barracuda`;
--- error ER_WRONG_VALUE_FOR_VAR
-set global innodb_file_format=`Cheetah`;
--- error ER_WRONG_VALUE_FOR_VAR
-set global innodb_file_format=`abc`;
--- error ER_WRONG_VALUE_FOR_VAR
-set global innodb_file_format=`1a`;
--- error ER_WRONG_VALUE_FOR_VAR
-set global innodb_file_format=``;
-
 #test strict mode.
 # this does not work anymore, has been removed from mysqltest
 # -- enable_errors
 set global innodb_file_per_table = on;
-set global innodb_file_format = `1`;
 
 set innodb_strict_mode = off;
 create table t1 (id int primary key) engine = innodb key_block_size = 0;
@@ -181,6 +158,14 @@ create table t9 (id int primary key) engine = innodb row_format = dynamic;
 create table t10(id int primary key) engine = innodb row_format = compact;
 create table t11(id int primary key) engine = innodb row_format = redundant;
 
+analyze table t1;
+analyze table t3;
+analyze table t4;
+analyze table t5;
+analyze table t8;
+analyze table t9;
+analyze table t10;
+analyze table t11;
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid} 2048 {valid}
 --eval $query_i_s
 drop table t1, t3, t4, t5, t8, t9, t10, t11;
@@ -206,6 +191,9 @@ show warnings;
 
 create table t5 (id int primary key) engine = innodb
 key_block_size = 4 row_format = default;
+
+analyze table t1;
+analyze table t5;
 
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid}
 --eval $query_i_s
@@ -249,41 +237,24 @@ show warnings;
 --error ER_ILLEGAL_HA
 create table t6 (id int primary key) engine = innodb row_format = compressed;
 show warnings;
---error ER_ILLEGAL_HA
 create table t7 (id int primary key) engine = innodb row_format = dynamic;
-show warnings;
 create table t8 (id int primary key) engine = innodb row_format = compact;
 create table t9 (id int primary key) engine = innodb row_format = redundant;
 
+analyze table t7;
+analyze table t8;
+analyze table t9;
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid}
 --eval $query_i_s
-drop table t8, t9;
+drop table t7, t8, t9;
 
-#test valid values with innodb_file_format unset
 set global innodb_file_per_table = on;
-set global innodb_file_format = `0`; 
 
---error ER_ILLEGAL_HA
-create table t1 (id int primary key) engine = innodb key_block_size = 1;
-show warnings;
---error ER_ILLEGAL_HA
-create table t2 (id int primary key) engine = innodb key_block_size = 2;
-show warnings;
---error ER_ILLEGAL_HA
-create table t3 (id int primary key) engine = innodb key_block_size = 4;
-show warnings;
-
-# Tests for key_block_size = 8 and 16 were moved to innodb_16k, innodb_8k
-# and innodb_4k since they get different warnings with smaller page sizes.
-
---error ER_ILLEGAL_HA
-create table t6 (id int primary key) engine = innodb row_format = compressed;
-show warnings;
---error ER_ILLEGAL_HA
-create table t7 (id int primary key) engine = innodb row_format = dynamic;
-show warnings;
 create table t8 (id int primary key) engine = innodb row_format = compact;
 create table t9 (id int primary key) engine = innodb row_format = redundant;
+
+analyze table t8;
+analyze table t9;
 
 --replace_result 16384 {valid} 8192 {valid} 4096 {valid}
 --eval $query_i_s
@@ -295,24 +266,13 @@ eval set global innodb_file_per_table=$per_table;
 #
 -- disable_info
 set global innodb_file_per_table=on;
-set global innodb_file_format=`Barracuda`;
-set global innodb_file_format_max=`Antelope`;
 create table normal_table (
   c1 int
 ) engine = innodb;
-select @@innodb_file_format_max;
 create table zip_table (
   c1 int
 ) engine = innodb key_block_size = 4;
-select @@innodb_file_format_max;
-set global innodb_file_format_max=`Antelope`;
-select @@innodb_file_format_max;
--- disable_result_log
-show table status;
--- enable_result_log
-select @@innodb_file_format_max;
 drop table normal_table, zip_table;
--- disable_result_log
 
 #
 # restore environment to the state it was before this test execution
@@ -320,5 +280,4 @@ drop table normal_table, zip_table;
 
 -- disable_query_log
 eval set global innodb_file_per_table=$per_table;
-eval set session innodb_strict_mode=$innodb_strict_mode_orig;
 SET @@global.innodb_stats_on_metadata=@save_innodb_stats_on_metadata;

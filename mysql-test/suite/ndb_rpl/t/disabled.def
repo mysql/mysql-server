@@ -12,10 +12,23 @@
 
 ndb_rpl_ctype_ucs2_def : bug #34661 rpl_ndb_ctype_ucs2_def fails in 6.2
 ndb_rpl_conflict_load_epoch_trans : Not designed for determinism
+ndb_rpl_binlog_format_errors: Bug#26078612 PB2 TEST FAIL: NDB_RPL.NDB_RPL_BINLOG_FORMAT_ERRORS. MIXED ENGINE + SELF_LOGGING
 
 ndb_rpl_slave_lsu : SEAGULL ndb-force-binlog-format-statement
 ndb_rpl_slave_lsu_anyval : SEAGULL ndb-force-binlog-format-statement
 ndb_rpl_row_implicit_commit_binlog : SEAGULL ndb-force-binlog-format-statement
 ndb_rpl_stm_innodb : BUG#16321437 NDB_APPLY_STATUS START_POS ALWAYS EQUALS END_POS
 ndb_rpl_mix_innodb : BUG#16321437 NDB_APPLY_STATUS START_POS ALWAYS EQUALS END_POS
+ndb_dist_priv_ndb : Bug#22826700 TEST NDB_RPL.NDB_DIST_PRIV_NDB FAILS
 
+ndb_rpl_basic: Need WL#10665 Extend size of extra table metadata 
+
+# Problem with alter table while MDL lock is held on other mysqld
+ndb_rpl_ddl_open_trans: Need WL#9185 MySQL Cluster support for new DD
+
+# Problem with DDL on tablespaces not synchronized between mysqlds,
+# this need to be implemented
+ndb_rpl_dd_advance: Need WL#9185 MySQL Cluster support for new DD
+
+# Problem with distributed privilege tables in combination with shadow
+ndb_rpl_dist_priv: Need WL#9185 MySQL Cluster support for new DD

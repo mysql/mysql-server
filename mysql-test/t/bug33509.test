@@ -2,6 +2,10 @@
 # BUG#33509: Server crashes with number of recursive subqueries=61
 #  (the query may or may not fail with an error so we're using it with SP 
 #  
+
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
+
 create table t1 (a int not null);
 
 delimiter |;

@@ -1,0 +1,74 @@
+# ==== Purpose ====
+#
+# Verify that the log_statements_unsafe_for_binlog system variable works
+#
+# ==== Method ====
+#
+# 1. Turn on log_statements_unsafe_for_binlog
+# 2. Run unsafe statement
+# 3. Verify error log contains warning
+# 4. Turn off log_statements_unsafe_for_binlog
+# 5. Run unsafe statement
+# 6. Verify error log still contains only one warning
+#
+# ==== References ====
+#
+# WL#8993: Option to not log in the error log when unsafe statements are executed whilst using STATEMENT based binary logging
+
+--source include/have_log_bin.inc
+--source include/have_binlog_format_statement.inc
+
+# As this test file will check for information on the error log, we will
+# restart the server to make sure that the log contains an "startup" log
+# message to be used as starting point for the grep.
+--source include/restart_mysqld.inc
+
+CALL mtr.add_suppression("Unsafe statement written to the binary log");
+
+# Setup
+--let $saved_lsufb= `SELECT @@GLOBAL.log_statements_unsafe_for_binlog`
+
+CREATE TABLE test.unsafe (i int auto_increment primary key, j int) engine = innodb;
+
+INSERT INTO test.unsafe (j) VALUES (1), (2), (3);
+
+#
+# SCENARIO 1:
+#
+# Assert that unsafe statements are written when the option is ON (default)
+#
+--echo SCENARIO 1
+SET GLOBAL log_statements_unsafe_for_binlog= ON;
+
+UPDATE test.unsafe SET j = 4 LIMIT 1;
+
+# File to GREP
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+# Show entries only after the last occurrence of the following pattern
+--let $assert_only_after=.* \[System\] \[[^]]*\] \[[^]]*\] .* ready for connections
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] Unsafe statement written to the binary log
+--let $assert_text= Exactly one row should be written to the error log.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+#
+# SCENARIO 2:
+# Assert that unsafe statements are NOT written when the option is OFF
+#
+--echo SCENARIO 2
+SET GLOBAL log_statements_unsafe_for_binlog= OFF;
+
+connect (conn1,localhost,root,,);
+
+connection conn1;
+
+UPDATE test.unsafe SET j = 4 LIMIT 1;
+
+let $assert_text= Still only one row should be present in the error log.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+# Clean up
+disconnect conn1;
+DROP TABLE test.unsafe;
+--eval SET GLOBAL log_statements_unsafe_for_binlog= $saved_lsufb

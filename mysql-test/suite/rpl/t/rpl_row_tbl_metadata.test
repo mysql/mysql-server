@@ -26,12 +26,11 @@
 #   with mysqlbinlog reporting that it was unable to succeed in
 #   reading the event.
 -- source include/not_group_replication_plugin.inc
--- source include/have_innodb.inc
 -- source include/have_binlog_format_row.inc
 -- source include/master-slave.inc
 
 --disable_query_log
-call mtr.add_suppression("InnoDB: Cannot add field");
+call mtr.add_suppression("Cannot add field");
 --enable_query_log
 
 -- disable_warnings
@@ -189,7 +188,7 @@ CREATE TABLE `t1` (
   `c145` varchar(30) DEFAULT NULL,
   `c146` varchar(30) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET latin1;
 
 -- enable_warnings
 
@@ -286,7 +285,7 @@ for my $i (1..$ntables)
     }
   }
 
-  print FILE ") Engine=InnoDB;\n";
+  print FILE ") Engine=InnoDB CHARACTER SET latin1;\n";
 
   $tables.= " t$i WRITE";
   if ($i < $ntables)

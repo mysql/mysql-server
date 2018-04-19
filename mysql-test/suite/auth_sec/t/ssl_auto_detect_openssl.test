@@ -1,5 +1,4 @@
---source include/not_embedded.inc
---source include/have_sha256_rsa_auth.inc
+--source include/have_openssl.inc
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -38,10 +37,10 @@ let SEARCH_FILE= $server_log;
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
---remove_file $server_log
+--remove_file $server_log 25
 
 --exec echo "restart: --ssl-capath=$CADIR_LOCATION --ssl-ca=$CADIR_LOCATION/ca.pem --ssl-cert=$CERTDIR_LOCATION/server-cert.pem --ssl-key=$CERTDIR_LOCATION/server-key.pem" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
@@ -51,10 +50,10 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 
 --echo # Search for : CA certificate *ca.pem is self signed.
 let SEARCH_PATTERN= CA certificate .*ca.pem is self signed.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search for : CA certificate *ca2.pem is self signed.
 let SEARCH_PATTERN= CA certificate .*ca2.pem is self signed.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 #------------------------------------------------------------------------------
 

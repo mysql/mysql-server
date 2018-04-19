@@ -1,43 +1,287 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # 
 # DROP-related tests which execution requires debug server.
 #
 --source include/have_debug.inc
 
-###########################################################################
---echo
---echo # --
---echo # -- Bug#43138: DROP DATABASE failure does not clean up message list.
---echo # --
---echo
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
 
---disable_warnings
-DROP DATABASE IF EXISTS mysql_test;
---enable_warnings
+--echo #
+--echo # Bug#21625393 : Assert condition (e->usage() == 1) failure in
+--echo #                dd::cache::Shared_multi_map<T>::remove()
+--echo #
 
---echo
-CREATE DATABASE mysql_test;
-CREATE TABLE mysql_test.t1(a INT);
-CREATE TABLE mysql_test.t2(b INT);
-CREATE TABLE mysql_test.t3(c INT);
+--enable_connect_log
 
---echo
-SET SESSION DEBUG = "+d,bug43138";
+--echo #
+--echo # Create MyISAM table, and drop it, but make drop fail
+--echo # before the object is deleted from the dd tables. Now,
+--echo # the object exists in the global data dictionary, but
+--echo # not in the SE.
 
---echo
---sorted_result
-DROP DATABASE mysql_test;
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
 
---echo
-SET SESSION DEBUG = "-d,bug43138";
+--connect (con1, localhost, root)
+SET SESSION DEBUG='+d,fail_while_dropping_dd_object';
+--error ER_LOCK_WAIT_TIMEOUT
+DROP TABLE t1;
+SET SESSION DEBUG='-d,fail_while_dropping_dd_object';
 
---echo
---echo # --
---echo # -- End of Bug#43138.
---echo # --
+--connection default
+--echo # Drop the table for real. Use IF EXISTS clause to ignore
+--echo # the fact that table does not exist in SE.
+--echo # Without the fix this statement will fail with assert.
+DROP TABLE IF EXISTS t1;
 
-###########################################################################
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connection default
+
+--disable_connect_log
+
+--echo #
+--echo # WL#7743 "New data dictionary: changes to DDL-related parts of SE API"
+--echo #
+--echo # Systematic test coverage for changes in DROP TABLES and DROP DATABASE
+--echo # behavior.
+
+--echo #
+--echo # 1) Error handling by DROP TABLES.
+--echo #
+
+--echo #
+--echo # 1.a) DROP TABLES statement which fails due to missing table
+--echo #      should not have any side-effects.
+CREATE TABLE t_m (t_m INT) ENGINE=MyISAM;
+CREATE TABLE t_i (t_i INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE tt_m (tt_m INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE tt_i (tt_i INT) ENGINE=InnoDB;
+--echo # Notice that all missing tables are reported.
+--error ER_BAD_TABLE_ERROR
+DROP TABLES t_m, t_i, tt_m, tt_i, t_no_such_table, t_no_such_table_either;
+--echo # All tables are still there.
+SELECT * FROM t_m, t_i, tt_m, tt_i;
+--echo # Notice that all missing tables are reported.
+--error ER_BAD_TABLE_ERROR
+DROP TEMPORARY TABLES tt_m, tt_i, tt_no_such_table, tt_no_such_table_either;
+--echo # All tables are still there.
+SELECT * FROM tt_m, tt_i;
+
+--echo #
+--echo # 1.b) DROP TABLES IF EXISTS should ignore missing tables
+--echo #      as expected and drop existing tables.
+--echo #
+--echo # Notice that all missing tables are reported in warning.
+DROP TABLES IF EXISTS t_m, t_i, tt_m, tt_i, t_no_such_table, t_no_such_table_either;
+--echo # All existing tables are dropped.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t_m;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t_i;
+CREATE TEMPORARY TABLE tt_m (tt_m INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE tt_i (tt_i INT) ENGINE=InnoDB;
+--echo # Notice that all missing tables are reported in warning.
+DROP TEMPORARY TABLES IF EXISTS tt_m, tt_i, tt_no_such_table, tt_no_such_table_either;
+--echo # All existing tables are dropped.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM tt_m;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM tt_i;
+
+--echo #
+--echo # 1.c) DROP TABLES which fails due to foreign key error might
+--echo #      have side effect. This might change once WL#6049 is
+--echo #      implemented and we support smarter checks while dropping
+--echo #      tables with foreign keys. Until this side-effect is
+--echo #      limited to non-atomic SEs only.
+CREATE TABLE t_m (t_m INT) ENGINE=MyISAM;
+CREATE TABLE t_i_1 (t_i_1 INT) ENGINE=InnoDB;
+CREATE TABLE t_i_2 (t_i_2 INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_i_3 (t_i_3 INT, FOREIGN KEY(t_i_3) REFERENCES t_i_2(t_i_2)) ENGINE=InnoDB;
+--error ER_ROW_IS_REFERENCED
+DROP TABLES t_m, t_i_1, t_i_2;
+--echo # Table t_m is gone, t_i_1 and t_i_2 are still there.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t_m;
+SELECT * FROM t_i_1;
+SELECT * FROM t_i_2;
+
+--echo #
+--echo # 1.d) DROP TABLES which fails due to SE error might have side
+--echo #      effect. Tables in engines which do not support atomic DDL
+--echo #      which we have managed to drop before error stay dropped.
+--echo #      Removal of InnoDB tables should be rolled back.
+CREATE TABLE t_m (t_m INT) ENGINE=MyISAM;
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
+--error ER_UNKNOWN_ERROR
+DROP TABLES t_m, t_i_1;
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t_m;
+SELECT * FROM t_i_1;
+
+--echo #
+--echo # 1.e) DROP TABLES which fails due to SE error and involves only
+--echo #      tables in engines supporting atomic DDL should not have
+--echo #      side effects/should be rolled back.
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
+--error ER_UNKNOWN_ERROR
+DROP TABLES t_i_1, t_i_3;
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
+SELECT * FROM t_i_1;
+SELECT * FROM t_i_3;
+
+--echo # Clean-up.
+DROP TABLES t_i_1, t_i_3, t_i_2;
+
+--echo #
+--echo # 2) Binary logging and GTID handling for DROP TABLES statements.
+--echo #
+
+--echo # 2.a) Binary logging for successfull DROP TABLES statement is
+--echo #      covered by binlog_stm_mix_innodb_myisam,
+--echo #      rpl_mixed_drop_create_temp_table and other similar
+--echo #      tests.
+--echo #
+
+--echo # 2.b) Binary logging for failed DROP TABLES statement are
+--echo #      additionally covered by rpl_binlog_failed_drop_table,
+--echo #      rpl_gtid/no_gtid_split_statements tests.
+--echo #
+
+--echo # 2.c) GTID handling for DROP TABLES statement is covered by
+--echo #      rpl_gtid_split_statements and 
+--echo #      no_binlog_gtid_next_partially_failed_stmts tests.
+--echo #
+
+--echo #
+--echo # 3) DROP TABLES IF EXISTS should be able to delete tables with
+--echo #    entries in the data-dictionary, but absent from SE.
+--echo #
+LET $MYSQLD_DATADIR = `SELECT @@datadir`;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+--echo # Remove table from SE manually.
+FLUSH TABLE t1;
+--remove_file $MYSQLD_DATADIR/test/t1.MYI
+--remove_file $MYSQLD_DATADIR/test/t1.MYD
+--echo # Plain DROP TABLES reports an error.
+--error ER_ENGINE_CANT_DROP_MISSING_TABLE
+DROP TABLE t1;
+--echo # DROP TABLES IF EXISTS successfully drops table.
+DROP TABLE IF EXISTS t1;
+
+--echo #
+--echo # 4) Error handling by DROP DATABASE.
+--echo #
+
+--echo #
+--echo # 4.a) DROP DATABASE which fails due to foreign key error might
+--echo #      have side effect. This  side-effect is limited to non-atomic
+--echo #      SEs only.
+CREATE DATABASE mysqltest;
+CREATE TABLE mysqltest.t_m (t_m INT) ENGINE=MyISAM;
+CREATE TABLE mysqltest.t_i_1 (t_i_1 INT) ENGINE= InnoDB;
+CREATE TABLE mysqltest.t_i_2 (t_i_2 INT PRIMARY KEY) ENGINE= InnoDB;
+CREATE FUNCTION mysqltest.f1() RETURNS INT RETURN 0;
+CREATE TABLE t1 (fk INT,
+                 FOREIGN KEY (fk) REFERENCES mysqltest.t_i_2(t_i_2))
+                 ENGINE=InnoDB;
+--error ER_ROW_IS_REFERENCED
+DROP DATABASE mysqltest;
+--echo # Table t_m is gone.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM mysqltest.t_m;
+--echo # Database and tables t_i_1, t_i_2 are still there.
+SELECT * FROM mysqltest.t_i_1;
+SELECT * FROM mysqltest.t_i_2;
+--echo # Stored function f1() is still there too.
+SELECT mysqltest.f1();
+
+--echo #
+--echo # 4.b) DROP DATABASE which fails due to SE error might have side
+--echo #      effect. Tables in engines which do not support atomic DDL
+--echo #      which we have managed to drop before error stay dropped.
+--echo #      Removal of InnoDB tables should be rolled back.
+DROP TABLE t1;
+CREATE TABLE mysqltest.t_m (t_m INT) ENGINE=MyISAM;
+SET SESSION DEBUG='+d,rm_db_fail_after_dropping_tables';
+--error ER_UNKNOWN_ERROR
+DROP DATABASE mysqltest;
+SET SESSION DEBUG='-d,rm_db_fail_after_dropping_tables';
+--error ER_NO_SUCH_TABLE
+SELECT * FROM mysqltest.t_m;
+--echo # Database and tables t_i_1, t_i_2 are still there.
+SELECT * FROM mysqltest.t_i_1;
+SELECT * FROM mysqltest.t_i_2;
+--echo # Stored function f1() is still there too.
+SELECT mysqltest.f1();
+
+--echo #
+--echo # 4.c) DROP DATABASE which fails due to SE error and involves only
+--echo #      tables in engines supporting atomic DDL should not have side
+--echo #      effects/should be rolled back.
+SET SESSION DEBUG='+d,rm_db_fail_after_dropping_tables';
+--error ER_UNKNOWN_ERROR
+DROP DATABASE mysqltest;
+SET SESSION DEBUG='-d,rm_db_fail_after_dropping_tables';
+--echo # Database and tables t_i_1, t_i_2 are still there.
+SELECT * FROM mysqltest.t_i_1;
+SELECT * FROM mysqltest.t_i_2;
+--echo # Stored function f1() is still there too.
+SELECT mysqltest.f1();
+
+--echo #
+--echo # 4.d) DROP DATABASE which fails due to failure to drop routine
+--echo #      might have side effect. Tables in engines which do not
+--echo #      support atomic DDL stay dropped. Removal of InnoDB tables
+--echo #      should be rolled back.
+CREATE TABLE mysqltest.t_m (t_m INT) ENGINE=MyISAM;
+SET SESSION DEBUG='+d,fail_drop_db_routines';
+--error ER_SP_DROP_FAILED
+DROP DATABASE mysqltest;
+SET SESSION DEBUG='-d,fail_drop_db_routines';
+--error ER_NO_SUCH_TABLE
+SELECT * FROM mysqltest.t_m;
+--echo # Database and tables t_i_1, t_i_2 are still there.
+SELECT * FROM mysqltest.t_i_1;
+SELECT * FROM mysqltest.t_i_2;
+--echo # Stored function f1() is still there too.
+SELECT mysqltest.f1();
+
+DROP DATABASE mysqltest;
+
+--echo #
+--echo # 5) Binary logging and GTID handling for DROP DATABASE.
+--echo #
+--echo # GTID handling and Binary logging for successfull and
+--echo # failed DROP DATABASE statement are covered by
+--echo # rpl_gtid/no_gtid_split_statements_debug tests.
+--echo #
+
+
+--echo #
+--echo # Additional coverage for hidden tables handling by DROP DATABASE.
+--echo #
+
+CREATE DATABASE mysqltest;
+
+--echo # Create hidden '#sql...' table in mysqltest by starting
+--echo # non-atomic ALTER TABLE and crashing the server in the
+--echo # middle of it.
+CREATE TABLE mysqltest.t1 (i INT) ENGINE=MYISAM;
+--source include/expect_crash.inc
+SET DEBUG='+d,crash_copy_before_commit';
+--error 2013
+ALTER TABLE mysqltest.t1 ADD COLUMN j INT;
+
+--source include/start_mysqld.inc
+
+--echo # Check that after restart this hidden table is there.
+let $MYSQLD_DATADIR= `SELECT @@global.datadir`;
+--replace_regex /#sql.*\./#sqlXXXX./
+--list_files $MYSQLD_DATADIR/mysqltest *.MYD
+--echo # And that DROP DATABASE can remove this table, without problems.
+DROP DATABASE mysqltest;

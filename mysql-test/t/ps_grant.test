@@ -1,5 +1,3 @@
-# Can't test grants with embedded server
--- source include/not_embedded.inc
 
 let $type= 'MYISAM' ;
 
@@ -36,10 +34,10 @@ use mysqltest;
 --source include/ps_renew.inc
 --enable_query_log
 use test;
-grant usage on mysqltest.* to second_user@localhost
+create user second_user@localhost
 identified by 'looser' ;
-grant select on mysqltest.t9 to second_user@localhost
-identified by 'looser' ;
+grant select on mysqltest.t9 to second_user@localhost;
+--sorted_result
 show grants for second_user@localhost ;
 
 
@@ -50,6 +48,7 @@ connection con3;
 # Who am I ?
 select current_user();
 ## check the access rights
+--sorted_result
 show grants for current_user();
 prepare s_t9 from 'select c1 as my_col 
                                  from t9 where c1= 1' ;
@@ -62,10 +61,11 @@ select a as my_col from t1;
 #### give access rights to t1 and drop table t9
 ## switch back to the first session
 connection default;
-grant select on mysqltest.t1 to second_user@localhost
-identified by 'looser' ;
+grant select on mysqltest.t1 to second_user@localhost;
+--sorted_result
 show grants for second_user@localhost ;
 drop table mysqltest.t9 ;
+--sorted_result
 show grants for second_user@localhost ;
 
 
@@ -73,6 +73,7 @@ show grants for second_user@localhost ;
 ## switch to the second session
 connection con3;
 ######## Question 1: The table t1 should be now accessible. ########
+--sorted_result
 show grants for second_user@localhost ;
 prepare s_t1 from 'select a as my_col from t1' ;
 execute s_t1 ;
@@ -86,11 +87,13 @@ deallocate prepare s_t9;
 ## switch back to the first session
 connection default;
 revoke all privileges on mysqltest.t1 from second_user@localhost;
+--sorted_result
 show grants for second_user@localhost ;
 
 #### check the access as new user
 ## switch to the second session
 connection con3;
+--sorted_result
 show grants for second_user@localhost ;
 ######## Question 2: The table t1 should be now not accessible. ########
 --error 1142
@@ -103,6 +106,7 @@ connection default;
 disconnect con3 ;
 ## remove all rights of second_user@localhost
 revoke all privileges, grant option from second_user@localhost ;
+--sorted_result
 show grants for second_user@localhost ;
 drop user second_user@localhost ;
 commit ;
@@ -116,10 +120,9 @@ drop database mysqltest;
 #
 # grant/revoke + drop user
 #
-prepare stmt3 from ' grant all on test.t1 to drop_user@localhost
-identified by ''looser'' ';
-grant all on test.t1 to drop_user@localhost
-identified by 'looser' ;
+create user drop_user@localhost identified by 'looser';
+prepare stmt3 from ' grant all on test.t1 to drop_user@localhost ';
+grant all on test.t1 to drop_user@localhost;
 prepare stmt3 from ' revoke all privileges on test.t1 from 
 drop_user@localhost ';
 revoke all privileges on test.t1 from drop_user@localhost ;

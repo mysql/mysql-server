@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -9,1399 +9,1655 @@ incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file sync/sync0debug.cc
-Debug checks for latches.
+/** @file sync/sync0debug.cc
+ Debug checks for latches.
 
-Created 2012-08-21 Sunny Bains
-*******************************************************/
+ Created 2012-08-21 Sunny Bains
+ *******************************************************/
 
 #include "sync0debug.h"
 
-#include "sync0rw.h"
-#include "sync0mutex.h"
-#include "sync0sync.h"
+#include <stddef.h>
+#include <algorithm>
+#include <iostream>
+#include <map>
+#include <string>
+#include <vector>
 
+#include "my_inttypes.h"
+
+#include "sync0rw.h"
+#include "ut0mutex.h"
+
+#ifndef UNIV_NO_ERR_MSGS
 #include "srv0start.h"
+#endif /* !UNIV_NO_ERR_MSGS */
+
 #include "ut0new.h"
 
-#include "ha_prototypes.h"
+#ifdef UNIV_DEBUG
 
-#include <map>
-#include <vector>
-#include <string>
-#include <algorithm>
+bool srv_sync_debug;
 
-extern ulint	srv_max_n_threads;
+/** The global mutex which protects debug info lists of all rw-locks.
+To modify the debug info list of an rw-lock, this mutex has to be
+acquired in addition to the mutex protecting the lock. */
+static ib_mutex_t rw_lock_debug_mutex;
 
-/** For checking whether this module has been initialised or not. */
-static bool	sync_check_initialised = false;
+/** If deadlock detection does not get immediately the mutex,
+it may wait for this event */
+static os_event_t rw_lock_debug_event;
 
-/** Debug mutex for control structures, should not be tracked
-by this module. */
-typedef OSTrackMutex<TrackPolicy>
-	SyncMutex;
+/** This is set to true, if there may be waiters for the event */
+static bool rw_lock_debug_waiters;
+
+/** The latch held by a thread */
+struct Latched {
+  /** Constructor */
+  Latched() : m_latch(), m_level(SYNC_UNKNOWN) {}
+
+  /** Constructor
+  @param[in]	latch		Latch instance
+  @param[in]	level		Level of latch held */
+  Latched(const latch_t *latch, latch_level_t level)
+      : m_latch(latch), m_level(level) {
+    /* No op */
+  }
+
+  /** @return the latch level */
+  latch_level_t get_level() const { return (m_level); }
+
+  /** Check if the rhs latch and level match
+  @param[in]	rhs		instance to compare with
+  @return true on match */
+  bool operator==(const Latched &rhs) const {
+    return (m_latch == rhs.m_latch && m_level == rhs.m_level);
+  }
+
+  /** The latch instance */
+  const latch_t *m_latch;
+
+  /** The latch level. For buffer blocks we can pass a separate latch
+  level to check against, see buf_block_dbg_add_level() */
+  latch_level_t m_level;
+};
 
 /** Thread specific latches. This is ordered on level in descending order. */
-typedef std::vector<const latch_t*, ut_allocator<const latch_t*> >
-	Latches;
-
-/** Latch meta-data */
-struct latch_meta_t {
-
-#ifdef UNIV_PFS_MUTEX
-	/**
-	@param name - mutex name
-	@pram level - the latch level
-	@para level_name - text representation of level
-	@param pfs_key - performance schema key */
-
-	latch_meta_t(
-		const char*	name,
-		latch_level_t	level,
-		const char*	level_name,
-		mysql_pfs_key_t pfs_key)
-		:
-		m_name(name),
-		m_level(level),
-		m_pfs_key(pfs_key),
-		m_level_name(level_name) { }
-#else /* UNIV_PFS_MUTEX */
-	/**
-	@param name - mutex name
-	@pram level - the latch level
-	@para level_name - text representation of level */
-
-	latch_meta_t(
-		const char*	name,
-		latch_level_t	level,
-		const char*	level_name)
-		:
-		m_name(name),
-		m_level(level),
-		m_level_name(level_name) { }
-
-#endif /* UNIV_PFS_MUTEX */
-
-	latch_meta_t()
-		:
-		m_name(0),
-		m_level(SYNC_UNKNOWN),
-#ifdef UNIV_PFS_MUTEX
-		m_pfs_key(PFS_NOT_INSTRUMENTED),
-#endif /* UNIV_PFS_MUTEX */
-		m_level_name(0) { }
-
-	/** Latch name */
-	const char*		m_name;
-
-	/** Latch ordering level. */
-	latch_level_t		m_level;
-
-#ifdef UNIV_PFS_MUTEX
-	/** PFS key */
-	mysql_pfs_key_t		m_pfs_key;
-#endif /* UNIV_PFS_MUTEX */
-
-	/** Level textual representation. */
-	const char*		m_level_name;
-
-	/** The latches created for a level. */
-	Latches			m_latches;
-};
-
-
-/** Map from latch name to latch meta-data */
-typedef std::map<
-	std::string,
-	latch_meta_t,
-	std::less<std::string>,
-	ut_allocator<std::pair<const std::string, latch_meta_t> > >
-	LatchMap;
-
-/** Mapping from latch name to latch meta data. This map is created and
-populated at startup and deleted on shutdown. It is read-only at all
-other times. */
-static LatchMap* SrvLatches;
-
-#ifdef UNIV_PFS_MUTEX
-/** Wrapper around latch_add() - PFS version. */
-#define LATCH_ADD(m, n, l, k)	latch_add((m), (n), (l),  (#l), (k))
-#else
-/** Wrapper around latch_add() */
-#define LATCH_ADD(m, n, l, k)	latch_add((m), (n), (l),  (#l))
-#endif /* UNIV_PFS_MUTEX */
-
-/**
-Add the latch meta-data to the latch meta-data map, indexed by latch name.
-@param latches		The latch map
-@param name		Latch name
-@param level		Latch level
-@param lnam		Latch name
-@param key		Performance schema key */
-
-static
-void
-latch_add(
-	LatchMap*		latches,
-	const char*		name,
-	latch_level_t		level,
-	const char*		lname
-#ifdef UNIV_PFS_MUTEX
-	,mysql_pfs_key_t	key
-#endif /* UNIV_PFS_MUTEX */
-	)
-{
-	std::string		n(name);
-	LatchMap::iterator	lb = latches->lower_bound(n);
-
-	if (lb != latches->end() && !(latches->key_comp()(n, lb->first))) {
-
-		ib::fatal() << "Duplicate mutex found: " << name << "("
-			<< lname << ")";
-
-		/* There should never be a duplicate */
-		ut_error;
-	}
-
-#ifdef UNIV_PFS_MUTEX
-	LatchMap::value_type	v(n, latch_meta_t(name, level, lname, key));
-#else
-	LatchMap::value_type	v(n, latch_meta_t(name, level, lname));
-#endif /* UNIV_PFS_MUTEX */
-
-	latches->insert(lb,v);
-}
+typedef std::vector<Latched, ut_allocator<Latched>> Latches;
 
 /** The deadlock detector. */
-struct SyncDebug {
+struct LatchDebug {
+  /** Debug mutex for control structures, should not be tracked
+  by this module. */
+  typedef OSMutex Mutex;
 
-	/** Comparator for the ThreadMap. */
-	struct os_thread_id_less
-		: public std::binary_function<
-		  os_thread_id_t,
-		  os_thread_id_t,
-		  bool>
-	{
-		bool operator()(
-			const os_thread_id_t& t1,
-			const os_thread_id_t& t2) const
-		{
-			return(os_thread_pf(t1) < os_thread_pf(t2));
-		}
-	};
+  /** Comparator for the ThreadMap. */
+  struct os_thread_id_less
+      : public std::binary_function<os_thread_id_t, os_thread_id_t, bool> {
+    /** @return true if lhs < rhs */
+    bool operator()(const os_thread_id_t &lhs,
+                    const os_thread_id_t &rhs) const UNIV_NOTHROW {
+      return ((uint64_t)lhs < (uint64_t)rhs);
+    }
+  };
 
-	/** For tracking a thread's latches. */
-	typedef std::map<
-		os_thread_id_t,
-		Latches*,
-		os_thread_id_less,
-		ut_allocator<std::pair<const os_thread_id_t, Latches*> > >
-		ThreadMap;
+  /** For tracking a thread's latches. */
+  typedef std::map<os_thread_id_t, Latches *, os_thread_id_less,
+                   ut_allocator<std::pair<const os_thread_id_t, Latches *>>>
+      ThreadMap;
 
-	/**
-	Construct */
-	explicit SyncDebug(bool destroy_mutex_at_exit)
-		:
-		m_enabled(),
-		m_destroy_at_exit(destroy_mutex_at_exit)
-	{
-		new (&m_mutex) SyncMutex(destroy_mutex_at_exit);
+  /** Constructor */
+  LatchDebug() UNIV_NOTHROW;
 
-		m_mutex.init(".sync_debug_mutex", __FILE__, __LINE__);
-	}
+  /** Destructor */
+  ~LatchDebug() UNIV_NOTHROW { m_mutex.destroy(); }
 
-	/**
-	Destructor */
-	~SyncDebug()
-	{
-		if (m_destroy_at_exit) {
-			m_mutex.destroy();
-		}
-	}
+  /** Create a new instance if one doesn't exist else return
+  the existing one.
+  @param[in]	add		add an empty entry if one is not
+                                  found (default no)
+  @return	pointer to a thread's acquired latches. */
+  Latches *thread_latches(bool add = false) UNIV_NOTHROW;
 
-	/**
-	Create a new instance if one doesn't exist else return the existing one.
-	@param add - add an empty entry if one is not found (default no)
-	@return	pointer to a thread's acquired latches. */
-	Latches* thread_latches(bool add = false) UNIV_NOTHROW;
+  /** Check that all the latches already owned by a thread have a lower
+  level than limit.
+  @param[in]	latches		the thread's existing (acquired) latches
+  @param[in]	limit		to check against
+  @return latched if there is one with a level <= limit . */
+  const Latched *less(const Latches *latches,
+                      latch_level_t limit) const UNIV_NOTHROW;
 
-	// FIXME: These two can be combined using STL functions.
+  /** Checks if the level value exists in the thread's acquired latches.
+  @param[in]	latches		the thread's existing (acquired) latches
+  @param[in]	level		to lookup
+  @return	latch if found or 0 */
+  const latch_t *find(const Latches *latches,
+                      latch_level_t level) const UNIV_NOTHROW;
 
-	/**
-	Check that all the latches already owned by a thread have a lower
-	level than limit.
-	@param levels - the thread's existing (acquired) latches
-	@param limit - to check against
-	@return latch if there is one with a level <= limit . */
-	const latch_t* less(
-		const Latches*	latches,
-		latch_level_t	limit) const UNIV_NOTHROW;
+  /**
+  Checks if the level value exists in the thread's acquired latches.
+  @param[in]	level		to lookup
+  @return	latch if found or 0 */
+  const latch_t *find(latch_level_t level) UNIV_NOTHROW;
 
-	/**
-	Checks if the level value exists in the thread's acquired latches.
-	@param levels - the thread's existing (acquired) latches
-	@param level - to lookup
-	@return	latch if found or 0 */
-	const latch_t* find(
-		const Latches*	Latches,
-		latch_level_t	level) const UNIV_NOTHROW;
+  /** Report error and abort.
+  @param[in]	latches		thread's existing latches
+  @param[in]	latched		The existing latch causing the
+                                  invariant to fail
+  @param[in]	level		The new level request that breaks
+                                  the order */
+  void crash(const Latches *latches, const Latched *latched,
+             latch_level_t level) const UNIV_NOTHROW;
 
-	/**
-	Checks if the level value exists in the thread's acquired latches.
-	@param level - to lookup
-	@return	latch if found or 0 */
-	const latch_t* find(latch_level_t level) UNIV_NOTHROW;
+  /** Do a basic ordering check.
+  @param[in]	latches		thread's existing latches
+  @param[in]	requested_level	Level requested by latch
+  @param[in]	in_level	declared ulint so that we can
+                                  do level - 1. The level of the
+                                  latch that the thread is trying
+                                  to acquire
+  @return true if passes, else crash with error message. */
+  bool basic_check(const Latches *latches, latch_level_t requested_level,
+                   ulint in_level) const UNIV_NOTHROW;
 
-	/** Report error and abort. */
-	void crash(const latch_t* latch, latch_level_t level)
-		const UNIV_NOTHROW;
+  /** Adds a latch and its level in the thread level array. Allocates
+  the memory for the array if called for the first time for this
+  OS thread.  Makes the checks against other latch levels stored
+  in the array for this thread.
 
-	/** Do a basic ordering check.
-	@param latches - thread's existing latches
-	@param level - declared ulint so that we can do level - 1
-	@return true if passes, else crash with error message. */
-	bool basic_check(const Latches* latches, ulint level)
-		const UNIV_NOTHROW;
+  @param[in]	latch	latch that the thread wants to acqire.
+  @param[in]	level	latch level to check against */
+  void lock_validate(const latch_t *latch, latch_level_t level) UNIV_NOTHROW {
+    /* Ignore diagnostic latches, starting with '.' */
 
-	/**
-	Adds a latch and its level in the thread level array. Allocates
-	the memory for the array if called for the first time for this
-	OS thread.  Makes the checks against other latch levels stored
-	in the array for this thread.
+    if (*latch->get_name() != '.' && latch->get_level() != SYNC_LEVEL_VARYING) {
+      ut_ad(level != SYNC_LEVEL_VARYING);
 
-	@param latch - latch that the thread wants to acqire. */
-	void lock(const latch_t* latch) UNIV_NOTHROW
-	{
-		/* Ignore diagnost latches, starting with '.' */
+      Latches *latches = check_order(latch, level);
 
-		if (m_enabled
-		    && *latch->m_name != '.'
-		    && latch->m_level != SYNC_LEVEL_VARYING) {
+      ut_a(latches->empty() || level == SYNC_LEVEL_VARYING ||
+           level == SYNC_NO_ORDER_CHECK ||
+           latches->back().get_level() == SYNC_NO_ORDER_CHECK ||
+           latches->back().m_latch->get_level() == SYNC_LEVEL_VARYING ||
+           latches->back().get_level() >= level);
+    }
+  }
 
-			Latches*	latches = check_order(latch);
+  /** Adds a latch and its level in the thread level array. Allocates
+  the memory for the array if called for the first time for this
+  OS thread.  Makes the checks against other latch levels stored
+  in the array for this thread.
 
-			ut_a(latches->empty()
-			     || latch->m_level == SYNC_LEVEL_VARYING
-			     || latch->m_level == SYNC_NO_ORDER_CHECK
-			     || latches->back()->m_level == SYNC_NO_ORDER_CHECK
-			     || latches->back()->m_level == SYNC_LEVEL_VARYING
-			     || latches->back()->m_level >= latch->m_level);
+  @param[in]	latch	latch that the thread wants to acqire.
+  @param[in]	level	latch level to check against */
+  void lock_granted(const latch_t *latch, latch_level_t level) UNIV_NOTHROW {
+    /* Ignore diagnostic latches, starting with '.' */
 
-			latches->push_back(latch);
-		}
-	}
+    if (*latch->get_name() != '.' && latch->get_level() != SYNC_LEVEL_VARYING) {
+      Latches *latches = thread_latches(true);
 
-	/**
-	For recursive X rw-locks. */
-	void relock(const latch_t* latch) UNIV_NOTHROW
-	{
-		ut_a(latch->m_rw_lock);
+      latches->push_back(Latched(latch, level));
+    }
+  }
 
-		/* Ignore diagnost latches, starting with '.' */
+  /** For recursive X rw-locks.
+  @param[in]	latch		The RW-Lock to relock  */
+  void relock(const latch_t *latch) UNIV_NOTHROW {
+    ut_a(latch->m_rw_lock);
 
-		if (m_enabled
-		    && *latch->m_name != '.'
-		    && latch->m_level != SYNC_LEVEL_VARYING) {
+    latch_level_t level = latch->get_level();
 
-			Latches*	latches = thread_latches(true);
-			Latches::iterator	it = std::find(
-				latches->begin(), latches->end(), latch);
+    /* Ignore diagnostic latches, starting with '.' */
 
-			ut_a(latches->empty()
-			     || latch->m_level == SYNC_LEVEL_VARYING
-			     || latch->m_level == SYNC_NO_ORDER_CHECK
-			     || latches->back()->m_level == SYNC_LEVEL_VARYING
-			     || latches->back()->m_level == SYNC_NO_ORDER_CHECK
-			     || latches->back()->m_level >= latch->m_level
-			     || it != latches->end());
+    if (*latch->get_name() != '.' && latch->get_level() != SYNC_LEVEL_VARYING) {
+      Latches *latches = thread_latches(true);
 
-			if (it == latches->end()) {
-				latches->push_back(latch);
-			} else {
-				latches->insert(it, latch);
-			}
-		}
-	}
+      Latches::iterator it =
+          std::find(latches->begin(), latches->end(), Latched(latch, level));
 
-	/**
-	Iterate over a thread's latches.
-	@return true if the functor returns true. */
-	bool for_each(sync_check_functor_t& functor) UNIV_NOTHROW
-	{
-		const Latches*		latches = thread_latches();
+      ut_a(latches->empty() || level == SYNC_LEVEL_VARYING ||
+           level == SYNC_NO_ORDER_CHECK ||
+           latches->back().m_latch->get_level() == SYNC_LEVEL_VARYING ||
+           latches->back().m_latch->get_level() == SYNC_NO_ORDER_CHECK ||
+           latches->back().get_level() >= level || it != latches->end());
 
-		if (latches == 0) {
-			return(functor.result());
-		}
+      if (it == latches->end()) {
+        latches->push_back(Latched(latch, level));
+      } else {
+        latches->insert(it, Latched(latch, level));
+      }
+    }
+  }
 
-		Latches::const_iterator	end = latches->end();
+  /** Iterate over a thread's latches.
+  @param[in,out]	functor		The callback
+  @return true if the functor returns true. */
+  bool for_each(sync_check_functor_t &functor) UNIV_NOTHROW {
+    const Latches *latches = thread_latches();
 
-		for (Latches::const_iterator it = latches->begin();
-		     it != end;
-		     ++it) {
+    if (latches == 0) {
+      return (functor.result());
+    }
 
-			if (functor(*(*it))) {
-				break;
-			}
-		}
+    Latches::const_iterator end = latches->end();
 
-		return(functor.result());
-	}
+    for (Latches::const_iterator it = latches->begin(); it != end; ++it) {
+      if (functor(it->m_level)) {
+        break;
+      }
+    }
 
-	/**
-	Removes a latch from the thread level array if it is found there.
-	@return true if found in the array; it is not an error if the latch is
-	not found, as we presently are not able to determine the level for
-	every latch reservation the program does */
-	void unlock(const latch_t* latch) UNIV_NOTHROW;
+    return (functor.result());
+  }
 
-	/** Enable checking */
-	void enable() UNIV_NOTHROW
-	{
-		m_enabled = true;
-	}
+  /** Removes a latch from the thread level array if it is found there.
+  @param[in]	latch		The latch that was released
+  */
+  void unlock(const latch_t *latch) UNIV_NOTHROW;
 
-private:
-	SyncDebug(const SyncDebug&);
-	SyncDebug& operator=(const SyncDebug&);
+  /** Get the level name
+  @param[in]	level		The level ID to lookup
+  @return level name */
+  const std::string &get_level_name(latch_level_t level) const UNIV_NOTHROW {
+    Levels::const_iterator it = m_levels.find(level);
 
-	/**
-	Adds a latch and its level in the thread level array. Allocates
-	the memory for the array if called first time for this OS thread.
-	Makes the checks against other latch levels stored in the array
-	for this thread.
+    ut_ad(it != m_levels.end());
 
-	@param latch - latch that the thread wants to acqire. */
-	Latches* check_order(const latch_t* latch) UNIV_NOTHROW;
+    return (it->second);
+  }
 
-public:
-	/** Mutex protecting the deadlock detector data structures. */
-	SyncMutex		m_mutex;
+  /** Initialise the debug data structures */
+  static void init() UNIV_NOTHROW;
 
-	/** Latching order checks start when this is set true */
-	bool			m_enabled;
+  /** Shutdown the latch debug checking */
+  static void shutdown() UNIV_NOTHROW;
 
-	/** Do/Dont destroy mutex at exit */
-	bool			m_destroy_at_exit;
+  /** @return the singleton instance */
+  static LatchDebug *instance() UNIV_NOTHROW { return (s_instance); }
 
-	/** Thread specific data. Protected by m_mutex. */
-	ThreadMap		m_threads;
+  /** Create the singleton instance */
+  static void create_instance() UNIV_NOTHROW {
+    ut_ad(s_instance == NULL);
+
+    s_instance = UT_NEW_NOKEY(LatchDebug());
+  }
+
+ private:
+  /** Disable copying */
+  LatchDebug(const LatchDebug &);
+  LatchDebug &operator=(const LatchDebug &);
+
+  /** Adds a latch and its level in the thread level array. Allocates
+  the memory for the array if called first time for this OS thread.
+  Makes the checks against other latch levels stored in the array
+  for this thread.
+
+  @param[in]	latch	 pointer to a mutex or an rw-lock
+  @param[in]	level	level in the latching order
+  @return the thread's latches */
+  Latches *check_order(const latch_t *latch, latch_level_t level) UNIV_NOTHROW;
+
+  /** Print the latches acquired by a thread
+  @param[in]	latches		Latches acquired by a thread */
+  void print_latches(const Latches *latches) const UNIV_NOTHROW;
+
+  /** Special handling for the RTR mutexes. We need to add proper
+  levels for them if possible.
+  @param[in]	latch		Latch to check
+  @return true if it is a an _RTR_ mutex */
+  bool is_rtr_mutex(const latch_t *latch) const UNIV_NOTHROW {
+    return (latch->get_id() == LATCH_ID_RTR_ACTIVE_MUTEX ||
+            latch->get_id() == LATCH_ID_RTR_PATH_MUTEX ||
+            latch->get_id() == LATCH_ID_RTR_MATCH_MUTEX ||
+            latch->get_id() == LATCH_ID_RTR_SSN_MUTEX);
+  }
+
+ private:
+  /** Comparator for the Levels . */
+  struct latch_level_less
+      : public std::binary_function<latch_level_t, latch_level_t, bool> {
+    /** @return true if lhs < rhs */
+    bool operator()(const latch_level_t &lhs,
+                    const latch_level_t &rhs) const UNIV_NOTHROW {
+      return (lhs < rhs);
+    }
+  };
+
+  typedef std::map<latch_level_t, std::string, latch_level_less,
+                   ut_allocator<std::pair<const latch_level_t, std::string>>>
+      Levels;
+
+  /** Mutex protecting the deadlock detector data structures. */
+  Mutex m_mutex;
+
+  /** Thread specific data. Protected by m_mutex. */
+  ThreadMap m_threads;
+
+  /** Mapping from latche level to its string representation. */
+  Levels m_levels;
+
+  /** The singleton instance. Must be created in single threaded mode. */
+  static LatchDebug *s_instance;
+
+ public:
+  /** For checking whether this module has been initialised or not. */
+  static bool s_initialized;
 };
 
-/** Do not destroy mutex at exit for static objects */
-static SyncDebug syncDebug(false);
+/** The latch order checking infra-structure */
+LatchDebug *LatchDebug::s_instance = NULL;
+bool LatchDebug::s_initialized = false;
 
-/** Report error and abort. */
+#define LEVEL_MAP_INSERT(T)                         \
+  do {                                              \
+    std::pair<Levels::iterator, bool> result =      \
+        m_levels.insert(Levels::value_type(T, #T)); \
+    ut_ad(result.second);                           \
+  } while (0)
 
-void
-SyncDebug::crash(const latch_t* latch, latch_level_t level) const UNIV_NOTHROW
-{
-	ib::error() << "Thread " << os_thread_pf(os_thread_get_curr_id())
-		<< " already owns a latch (\""
-		<< sync_latch_get_name(latch->m_level) << "\" : "
-		<< latch->m_level << "), with a lower level than (\""
-		<< sync_latch_get_name(level) << "\" : " << level << ").";
+/** Setup the mapping from level ID to level name mapping */
+LatchDebug::LatchDebug() {
+  m_mutex.init();
 
-		latch->print(stderr);
+  LEVEL_MAP_INSERT(SYNC_UNKNOWN);
+  LEVEL_MAP_INSERT(SYNC_MUTEX);
+  LEVEL_MAP_INSERT(RW_LOCK_SX);
+  LEVEL_MAP_INSERT(RW_LOCK_X_WAIT);
+  LEVEL_MAP_INSERT(RW_LOCK_S);
+  LEVEL_MAP_INSERT(RW_LOCK_X);
+  LEVEL_MAP_INSERT(RW_LOCK_NOT_LOCKED);
+  LEVEL_MAP_INSERT(SYNC_LOCK_FREE_HASH);
+  LEVEL_MAP_INSERT(SYNC_MONITOR_MUTEX);
+  LEVEL_MAP_INSERT(SYNC_ANY_LATCH);
+  LEVEL_MAP_INSERT(SYNC_FIL_SHARD);
+  LEVEL_MAP_INSERT(SYNC_DOUBLEWRITE);
+  LEVEL_MAP_INSERT(SYNC_BUF_FLUSH_LIST);
+  LEVEL_MAP_INSERT(SYNC_BUF_FLUSH_STATE);
+  LEVEL_MAP_INSERT(SYNC_BUF_ZIP_HASH);
+  LEVEL_MAP_INSERT(SYNC_BUF_FREE_LIST);
+  LEVEL_MAP_INSERT(SYNC_BUF_ZIP_FREE);
+  LEVEL_MAP_INSERT(SYNC_BUF_BLOCK);
+  LEVEL_MAP_INSERT(SYNC_BUF_PAGE_HASH);
+  LEVEL_MAP_INSERT(SYNC_BUF_LRU_LIST);
+  LEVEL_MAP_INSERT(SYNC_POOL);
+  LEVEL_MAP_INSERT(SYNC_POOL_MANAGER);
+  LEVEL_MAP_INSERT(SYNC_SEARCH_SYS);
+  LEVEL_MAP_INSERT(SYNC_WORK_QUEUE);
+  LEVEL_MAP_INSERT(SYNC_FTS_TOKENIZE);
+  LEVEL_MAP_INSERT(SYNC_FTS_OPTIMIZE);
+  LEVEL_MAP_INSERT(SYNC_FTS_BG_THREADS);
+  LEVEL_MAP_INSERT(SYNC_FTS_CACHE_INIT);
+  LEVEL_MAP_INSERT(SYNC_RECV);
+  LEVEL_MAP_INSERT(SYNC_LOG_SN);
+  LEVEL_MAP_INSERT(SYNC_LOG_WRITER);
+  LEVEL_MAP_INSERT(SYNC_LOG_WRITE_NOTIFIER);
+  LEVEL_MAP_INSERT(SYNC_LOG_FLUSH_NOTIFIER);
+  LEVEL_MAP_INSERT(SYNC_LOG_FLUSHER);
+  LEVEL_MAP_INSERT(SYNC_LOG_CLOSER);
+  LEVEL_MAP_INSERT(SYNC_LOG_CHECKPOINTER);
+  LEVEL_MAP_INSERT(SYNC_LOG_ARCH);
+  LEVEL_MAP_INSERT(SYNC_PAGE_ARCH);
+  LEVEL_MAP_INSERT(SYNC_PAGE_ARCH_OPER);
+  LEVEL_MAP_INSERT(SYNC_PAGE_CLEANER);
+  LEVEL_MAP_INSERT(SYNC_PURGE_QUEUE);
+  LEVEL_MAP_INSERT(SYNC_TRX_SYS_HEADER);
+  LEVEL_MAP_INSERT(SYNC_REC_LOCK);
+  LEVEL_MAP_INSERT(SYNC_THREADS);
+  LEVEL_MAP_INSERT(SYNC_TRX);
+  LEVEL_MAP_INSERT(SYNC_TRX_SYS);
+  LEVEL_MAP_INSERT(SYNC_LOCK_SYS);
+  LEVEL_MAP_INSERT(SYNC_LOCK_WAIT_SYS);
+  LEVEL_MAP_INSERT(SYNC_INDEX_ONLINE_LOG);
+  LEVEL_MAP_INSERT(SYNC_IBUF_BITMAP);
+  LEVEL_MAP_INSERT(SYNC_IBUF_BITMAP_MUTEX);
+  LEVEL_MAP_INSERT(SYNC_IBUF_TREE_NODE);
+  LEVEL_MAP_INSERT(SYNC_IBUF_TREE_NODE_NEW);
+  LEVEL_MAP_INSERT(SYNC_IBUF_INDEX_TREE);
+  LEVEL_MAP_INSERT(SYNC_IBUF_MUTEX);
+  LEVEL_MAP_INSERT(SYNC_FSP_PAGE);
+  LEVEL_MAP_INSERT(SYNC_FSP);
+  LEVEL_MAP_INSERT(SYNC_EXTERN_STORAGE);
+  LEVEL_MAP_INSERT(SYNC_RSEG_ARRAY_HEADER);
+  LEVEL_MAP_INSERT(SYNC_TRX_UNDO_PAGE);
+  LEVEL_MAP_INSERT(SYNC_RSEG_HEADER);
+  LEVEL_MAP_INSERT(SYNC_RSEG_HEADER_NEW);
+  LEVEL_MAP_INSERT(SYNC_TEMP_SPACE_RSEG);
+  LEVEL_MAP_INSERT(SYNC_UNDO_SPACE_RSEG);
+  LEVEL_MAP_INSERT(SYNC_TRX_SYS_RSEG);
+  LEVEL_MAP_INSERT(SYNC_RSEGS);
+  LEVEL_MAP_INSERT(SYNC_UNDO_SPACES);
+  LEVEL_MAP_INSERT(SYNC_TRX_UNDO);
+  LEVEL_MAP_INSERT(SYNC_PURGE_LATCH);
+  LEVEL_MAP_INSERT(SYNC_TREE_NODE);
+  LEVEL_MAP_INSERT(SYNC_TREE_NODE_FROM_HASH);
+  LEVEL_MAP_INSERT(SYNC_TREE_NODE_NEW);
+  LEVEL_MAP_INSERT(SYNC_INDEX_TREE);
+  LEVEL_MAP_INSERT(SYNC_PERSIST_DIRTY_TABLES);
+  LEVEL_MAP_INSERT(SYNC_PERSIST_AUTOINC);
+  LEVEL_MAP_INSERT(SYNC_IBUF_PESS_INSERT_MUTEX);
+  LEVEL_MAP_INSERT(SYNC_IBUF_HEADER);
+  LEVEL_MAP_INSERT(SYNC_DICT_HEADER);
+  LEVEL_MAP_INSERT(SYNC_TABLE);
+  LEVEL_MAP_INSERT(SYNC_STATS_AUTO_RECALC);
+  LEVEL_MAP_INSERT(SYNC_DICT_AUTOINC_MUTEX);
+  LEVEL_MAP_INSERT(SYNC_DICT);
+  LEVEL_MAP_INSERT(SYNC_PARSER);
+  LEVEL_MAP_INSERT(SYNC_FTS_CACHE);
+  LEVEL_MAP_INSERT(SYNC_DICT_OPERATION);
+  LEVEL_MAP_INSERT(SYNC_TRX_I_S_LAST_READ);
+  LEVEL_MAP_INSERT(SYNC_TRX_I_S_RWLOCK);
+  LEVEL_MAP_INSERT(SYNC_RECV_WRITER);
+  LEVEL_MAP_INSERT(SYNC_LEVEL_VARYING);
+  LEVEL_MAP_INSERT(SYNC_NO_ORDER_CHECK);
 
-	ut_error;
+  /* Enum count starts from 0 */
+  ut_ad(m_levels.size() == SYNC_LEVEL_MAX + 1);
+}
+
+/** Print the latches acquired by a thread
+@param[in]	latches		Latches acquired by a thread */
+void LatchDebug::print_latches(const Latches *latches) const UNIV_NOTHROW {
+#ifdef UNIV_NO_ERR_MSGS
+  ib::error()
+#else
+  ib::error(ER_IB_MSG_1161)
+#endif /* UNIV_NO_ERR_MSGS */
+      << "Latches already owned by this thread: ";
+
+  Latches::const_iterator end = latches->end();
+
+  for (Latches::const_iterator it = latches->begin(); it != end; ++it) {
+#ifdef UNIV_NO_ERR_MSGS
+    ib::error()
+#else
+    ib::error(ER_IB_MSG_1162)
+#endif /* UNIV_NO_ERR_MSGS */
+        << sync_latch_get_name(it->m_latch->get_id()) << " -> " << it->m_level
+        << " "
+        << "(" << get_level_name(it->m_level) << ")";
+  }
+}
+
+/** Report error and abort
+@param[in]	latches		thread's existing latches
+@param[in]	latched		The existing latch causing the invariant to fail
+@param[in]	level		The new level request that breaks the order */
+void LatchDebug::crash(const Latches *latches, const Latched *latched,
+                       latch_level_t level) const UNIV_NOTHROW {
+  const latch_t *latch = latched->m_latch;
+  const std::string &in_level_name = get_level_name(level);
+
+  const std::string &latch_level_name = get_level_name(latched->m_level);
+
+#ifdef UNIV_NO_ERR_MSGS
+  ib::error()
+#else
+  ib::error(ER_IB_MSG_1163)
+#endif /* UNIV_NO_ERR_MSGS */
+      << "Thread " << os_thread_get_curr_id() << " already owns a latch "
+      << sync_latch_get_name(latch->m_id) << " at level"
+      << " " << latched->m_level << " (" << latch_level_name
+      << " ), which is at a lower/same level than the"
+      << " requested latch: " << level << " (" << in_level_name << "). "
+      << latch->to_string();
+
+  print_latches(latches);
+
+  ut_error;
+}
+
+/** Check that all the latches already owned by a thread have a lower
+level than limit.
+@param[in]	latches		the thread's existing (acquired) latches
+@param[in]	limit		to check against
+@return latched info if there is one with a level <= limit . */
+const Latched *LatchDebug::less(const Latches *latches,
+                                latch_level_t limit) const UNIV_NOTHROW {
+  Latches::const_iterator end = latches->end();
+
+  for (Latches::const_iterator it = latches->begin(); it != end; ++it) {
+    if (it->m_level <= limit) {
+      return (&(*it));
+    }
+  }
+
+  return (NULL);
 }
 
 /** Do a basic ordering check.
+@param[in]	latches		thread's existing latches
+@param[in]	requested_level	Level requested by latch
+@param[in]	in_level	declared ulint so that we can do level - 1.
+                                The level of the latch that the thread is
+                                trying to acquire
 @return true if passes, else crash with error message. */
+bool LatchDebug::basic_check(const Latches *latches,
+                             latch_level_t requested_level,
+                             ulint in_level) const UNIV_NOTHROW {
+  latch_level_t level = latch_level_t(in_level);
 
-bool
-SyncDebug::basic_check(const Latches* latches, ulint lvl) const UNIV_NOTHROW
-{
-	latch_level_t	level = latch_level_t(lvl);
-	const latch_t*	latch = less(latches, level);
+  ut_ad(level < SYNC_LEVEL_MAX);
 
-	if (latch != NULL) {
-		crash(latch, level);
-		return(false);
-	}
+  const Latched *latched = less(latches, level);
 
-	return(true);
+  if (latched != NULL) {
+    crash(latches, latched, requested_level);
+    return (false);
+  }
+
+  return (true);
 }
 
-/**
-Create a new instance if one doesn't exist else return the existing one.
+/** Create a new instance if one doesn't exist else return the existing one.
+@param[in]	add		add an empty entry if one is not found
+                                (default no)
 @return	pointer to a thread's acquired latches. */
+Latches *LatchDebug::thread_latches(bool add) UNIV_NOTHROW {
+  m_mutex.enter();
 
-Latches*
-SyncDebug::thread_latches(bool add) UNIV_NOTHROW
-{
-	mutex_enter(&m_mutex);
+  os_thread_id_t thread_id = os_thread_get_curr_id();
+  ThreadMap::iterator lb = m_threads.lower_bound(thread_id);
 
-	os_thread_id_t		thread_id = os_thread_get_curr_id();
-	ThreadMap::iterator	lb = m_threads.lower_bound(thread_id);
+  if (lb != m_threads.end() && !(m_threads.key_comp()(thread_id, lb->first))) {
+    Latches *latches = lb->second;
 
-	if (lb != m_threads.end()
-	    && !(m_threads.key_comp()(thread_id, lb->first))) {
+    m_mutex.exit();
 
-		Latches*	latches = lb->second;
+    return (latches);
 
-		mutex_exit(&m_mutex);
+  } else if (!add) {
+    m_mutex.exit();
 
-		return(latches);
+    return (NULL);
 
-	} else if (!add) {
+  } else {
+    typedef ThreadMap::value_type value_type;
 
-		mutex_exit(&m_mutex);
+    Latches *latches = UT_NEW_NOKEY(Latches());
 
-		return(NULL);
+    ut_a(latches != NULL);
 
-	} else {
-		typedef ThreadMap::value_type value_type;
+    latches->reserve(32);
 
-		Latches*	latches = UT_NEW(Latches(),
-						 mem_key_sync_debug_latches);
+    m_threads.insert(lb, value_type(thread_id, latches));
 
-		ut_a(latches != NULL);
+    m_mutex.exit();
 
-		latches->reserve(32);
-
-		m_threads.insert(lb, value_type(thread_id, latches));
-
-		mutex_exit(&m_mutex);
-
-		return(latches);
-	}
+    return (latches);
+  }
 }
 
-/**
-Check that all the latches already owned by a thread have a lower
-level than limit.
-@param levels - the thread's existing (acquired) latches
-@param limit - to check against
-@return latch if there is one with a level <= limit . */
-
-const latch_t*
-SyncDebug::less(
-	const Latches*	latches,
-	latch_level_t	limit) const UNIV_NOTHROW
-{
-	Latches::const_iterator	end = latches->end();
-
-	for (Latches::const_iterator it = latches->begin();
-	     it != end;
-	     ++it) {
-
-		if ((*it)->m_level <= limit) {
-
-			return(*it);
-
-		} else if ((*it)->m_level != SYNC_LEVEL_VARYING
-			   && (*it)->m_level != SYNC_NO_ORDER_CHECK) {
-
-			break;
-		}
-	}
-
-	return(NULL);
-}
-
-/**
-Checks if the level value exists in the thread's acquired latches.
-@param levels - the thread's existing (acquired) latches
-@param level - to lookup
+/** Checks if the level value exists in the thread's acquired latches.
+@param[in]	latches		the thread's existing (acquired) latches
+@param[in]	level		to lookup
 @return	latch if found or 0 */
+const latch_t *LatchDebug::find(const Latches *latches,
+                                latch_level_t level) const UNIV_NOTHROW {
+  Latches::const_iterator end = latches->end();
 
-const latch_t*
-SyncDebug::find(
-	const Latches*	latches,
-	latch_level_t	level) const UNIV_NOTHROW
-{
-	Latches::const_iterator	end = latches->end();
+  for (Latches::const_iterator it = latches->begin(); it != end; ++it) {
+    if (it->m_level == level) {
+      return (it->m_latch);
+    }
+  }
 
-	for (Latches::const_iterator it = latches->begin(); it != end; ++it) {
-
-		if ((*it)->m_level == level) {
-			return(*it);
-		}
-	}
-
-	return(0);
+  return (0);
 }
 
-/**
-Checks if the level value exists in the thread's acquired latches.
-@param level - to lookup
-@return	latch if found or 0 */
-
-const latch_t*
-SyncDebug::find(latch_level_t level) UNIV_NOTHROW
-{
-	ut_ad(m_enabled);
-
-	return(find(thread_latches(), level));
+/** Checks if the level value exists in the thread's acquired latches.
+@param[in]	 level		The level to lookup
+@return	latch if found or NULL */
+const latch_t *LatchDebug::find(latch_level_t level) UNIV_NOTHROW {
+  return (find(thread_latches(), level));
 }
 
 /**
 Adds a latch and its level in the thread level array. Allocates the memory
 for the array if called first time for this OS thread. Makes the checks
 against other latch levels stored in the array for this thread.
-
-@param latch - pointer to a mutex or an rw-lock
-@param level - level in the latching order
+@param[in]	latch	pointer to a mutex or an rw-lock
+@param[in]	level	level in the latching order
 @return the thread's latches */
+Latches *LatchDebug::check_order(const latch_t *latch,
+                                 latch_level_t level) UNIV_NOTHROW {
+  ut_ad(latch->get_level() != SYNC_LEVEL_VARYING);
 
-Latches*
-SyncDebug::check_order(const latch_t* latch)
-{
-	ut_ad(m_enabled && latch->m_level != SYNC_LEVEL_VARYING);
+  Latches *latches = thread_latches(true);
 
-	Latches*	latches = thread_latches(true);
+  /* NOTE that there is a problem with _NODE and _LEAF levels: if the
+  B-tree height changes, then a leaf can change to an internal node
+  or the other way around. We do not know at present if this can cause
+  unnecessary assertion failures below. */
 
-	/* NOTE that there is a problem with _NODE and _LEAF levels: if the
-	B-tree height changes, then a leaf can change to an internal node
-	or the other way around. We do not know at present if this can cause
-	unnecessary assertion failures below. */
+  switch (level) {
+    case SYNC_NO_ORDER_CHECK:
+    case SYNC_EXTERN_STORAGE:
+    case SYNC_TREE_NODE_FROM_HASH:
+      /* Do no order checking */
+      break;
 
-	switch (latch->m_level) {
-	case SYNC_NO_ORDER_CHECK:
-	case SYNC_EXTERN_STORAGE:
-	case SYNC_TREE_NODE_FROM_HASH:
-		/* Do no order checking */
-		break;
+    case SYNC_LOG_SN:
+    case SYNC_TRX_SYS_HEADER:
+    case SYNC_LOCK_FREE_HASH:
+    case SYNC_MONITOR_MUTEX:
+    case SYNC_RECV:
+    case SYNC_FTS_BG_THREADS:
+    case SYNC_WORK_QUEUE:
+    case SYNC_FTS_TOKENIZE:
+    case SYNC_FTS_OPTIMIZE:
+    case SYNC_FTS_CACHE:
+    case SYNC_FTS_CACHE_INIT:
+    case SYNC_PAGE_CLEANER:
+    case SYNC_LOG_CHECKPOINTER:
+    case SYNC_LOG_CLOSER:
+    case SYNC_LOG_WRITER:
+    case SYNC_LOG_FLUSHER:
+    case SYNC_LOG_WRITE_NOTIFIER:
+    case SYNC_LOG_FLUSH_NOTIFIER:
+    case SYNC_LOG_ARCH:
+    case SYNC_PAGE_ARCH:
+    case SYNC_PAGE_ARCH_OPER:
+    case SYNC_DOUBLEWRITE:
+    case SYNC_SEARCH_SYS:
+    case SYNC_THREADS:
+    case SYNC_LOCK_SYS:
+    case SYNC_LOCK_WAIT_SYS:
+    case SYNC_TRX_SYS:
+    case SYNC_IBUF_BITMAP_MUTEX:
+    case SYNC_TEMP_SPACE_RSEG:
+    case SYNC_UNDO_SPACE_RSEG:
+    case SYNC_TRX_SYS_RSEG:
+    case SYNC_RSEGS:
+    case SYNC_UNDO_SPACES:
+    case SYNC_TRX_UNDO:
+    case SYNC_PURGE_LATCH:
+    case SYNC_PURGE_QUEUE:
+    case SYNC_DICT_AUTOINC_MUTEX:
+    case SYNC_DICT_OPERATION:
+    case SYNC_DICT_HEADER:
+    case SYNC_TABLE:
+    case SYNC_TRX_I_S_RWLOCK:
+    case SYNC_TRX_I_S_LAST_READ:
+    case SYNC_IBUF_MUTEX:
+    case SYNC_INDEX_ONLINE_LOG:
+    case SYNC_STATS_AUTO_RECALC:
+    case SYNC_POOL:
+    case SYNC_POOL_MANAGER:
+    case SYNC_RECV_WRITER:
+    case SYNC_PARSER:
+    case SYNC_DICT:
 
-	case SYNC_TRX_SYS_HEADER:
+      basic_check(latches, level, level);
+      break;
 
-		if (srv_is_being_started) {
-			/* This is violated during trx_sys_create_rsegs()
-			when creating additional rollback segments when
-			upgrading in innobase_start_or_create_for_mysql(). */
-			break;
-		}
+    case SYNC_ANY_LATCH:
 
-		/* Fall through */
+      /* Temporary workaround for LATCH_ID_RTR_*_MUTEX */
+      if (is_rtr_mutex(latch)) {
+        const Latched *latched = less(latches, level);
 
-	case SYNC_MONITOR_MUTEX:
-	case SYNC_RECV:
-	case SYNC_FTS_BG_THREADS:
-	case SYNC_WORK_QUEUE:
-	case SYNC_FTS_TOKENIZE:
-	case SYNC_FTS_OPTIMIZE:
-	case SYNC_FTS_CACHE:
-	case SYNC_FTS_CACHE_INIT:
-	case SYNC_PAGE_CLEANER:
-	case SYNC_LOG:
-	case SYNC_LOG_FLUSH_ORDER:
-	case SYNC_ANY_LATCH:
-	case SYNC_FILE_FORMAT_TAG:
-	case SYNC_DOUBLEWRITE:
-	case SYNC_SEARCH_SYS:
-	case SYNC_THREADS:
-	case SYNC_LOCK_SYS:
-	case SYNC_LOCK_WAIT_SYS:
-	case SYNC_TRX_SYS:
-	case SYNC_IBUF_BITMAP_MUTEX:
-	case SYNC_REDO_RSEG:
-	case SYNC_NOREDO_RSEG:
-	case SYNC_TRX_UNDO:
-	case SYNC_PURGE_LATCH:
-	case SYNC_PURGE_QUEUE:
-	case SYNC_DICT_AUTOINC_MUTEX:
-	case SYNC_DICT_OPERATION:
-	case SYNC_DICT_HEADER:
-	case SYNC_TRX_I_S_RWLOCK:
-	case SYNC_TRX_I_S_LAST_READ:
-	case SYNC_IBUF_MUTEX:
-	case SYNC_INDEX_ONLINE_LOG:
-	case SYNC_STATS_AUTO_RECALC:
-	case SYNC_POOL:
-	case SYNC_POOL_MANAGER:
-	case SYNC_RECV_WRITER:
+        if (latched == NULL ||
+            (latched != NULL && is_rtr_mutex(latched->m_latch))) {
+          /* No violation */
+          break;
+        }
 
-		basic_check(latches, latch->m_level);
-		break;
+        crash(latches, latched, level);
 
-	case SYNC_TRX:
+      } else {
+        basic_check(latches, level, level);
+      }
 
-		/* Either the thread must own the lock_sys->mutex, or
-		it is allowed to own only ONE trx_t::mutex. */
+      break;
 
-		if (less(latches, latch->m_level) != 0) {
-			basic_check(latches, latch->m_level - 1);
-			ut_a(find(latches, SYNC_LOCK_SYS) != 0);
-		}
-		break;
+    case SYNC_TRX:
 
-	case SYNC_BUF_FLUSH_LIST:
-	case SYNC_BUF_POOL:
+      /* Either the thread must own the lock_sys->mutex, or
+      it is allowed to own only ONE trx_t::mutex. */
 
-		/* We can have multiple mutexes of this type therefore we
-		can only check whether the greater than condition holds. */
+      if (less(latches, level) != NULL) {
+        basic_check(latches, level, level - 1);
+        ut_a(find(latches, SYNC_LOCK_SYS) != 0);
+      }
+      break;
 
-		basic_check(latches, latch->m_level - 1);
-		break;
+    case SYNC_FIL_SHARD:
+    case SYNC_BUF_FLUSH_LIST:
+    case SYNC_BUF_LRU_LIST:
+    case SYNC_BUF_FREE_LIST:
+    case SYNC_BUF_ZIP_FREE:
+    case SYNC_BUF_ZIP_HASH:
+    case SYNC_BUF_FLUSH_STATE:
+    case SYNC_RSEG_ARRAY_HEADER:
 
-	case SYNC_BUF_PAGE_HASH:
+      /* We can have multiple mutexes of this type therefore we
+      can only check whether the greater than condition holds. */
 
-		/* Multiple page_hash locks are only allowed during
-		buf_validate and that is where buf_pool mutex is already
-		held. */
+      basic_check(latches, level, level - 1);
+      break;
 
-		/* Fall through */
+    case SYNC_BUF_PAGE_HASH:
+      /* Fall through */
+    case SYNC_BUF_BLOCK:
 
-	case SYNC_BUF_BLOCK:
+      if (less(latches, level) != NULL) {
+        basic_check(latches, level, level - 1);
+      }
+      break;
 
-		/* Either the thread must own the (buffer pool) buf_pool->mutex
-		or it is allowed to latch only ONE of (buffer block)
-		block->mutex or buf_pool->zip_mutex. */
+    case SYNC_REC_LOCK:
 
-		if (less(latches, latch->m_level) != 0) {
-			basic_check(latches, latch->m_level - 1);
-			ut_a(find(latches, SYNC_BUF_POOL) != 0);
-		}
-		break;
+      if (find(latches, SYNC_LOCK_SYS) != 0) {
+        basic_check(latches, level, SYNC_REC_LOCK - 1);
+      } else {
+        basic_check(latches, level, SYNC_REC_LOCK);
+      }
+      break;
 
-	case SYNC_REC_LOCK:
+    case SYNC_IBUF_BITMAP:
 
-		if (find(latches, SYNC_LOCK_SYS) != 0) {
-			basic_check(latches, SYNC_REC_LOCK - 1);
-		} else {
-			basic_check(latches, SYNC_REC_LOCK);
-		}
-		break;
+      /* Either the thread must own the master mutex to all
+      the bitmap pages, or it is allowed to latch only ONE
+      bitmap page. */
 
-	case SYNC_IBUF_BITMAP:
+      if (find(latches, SYNC_IBUF_BITMAP_MUTEX) != 0) {
+        basic_check(latches, level, SYNC_IBUF_BITMAP - 1);
+      } else {
+        basic_check(latches, level, SYNC_IBUF_BITMAP);
+      }
+      break;
 
-		/* Either the thread must own the master mutex to all
-		the bitmap pages, or it is allowed to latch only ONE
-		bitmap page. */
+    case SYNC_FSP_PAGE:
+      ut_a(find(latches, SYNC_FSP) != 0);
+      break;
 
-		if (find(latches, SYNC_IBUF_BITMAP_MUTEX) != 0) {
+    case SYNC_FSP:
 
-			basic_check(latches, SYNC_IBUF_BITMAP - 1);
+      ut_a(find(latches, SYNC_FSP) != 0 ||
+           basic_check(latches, level, SYNC_FSP));
+      break;
 
-		} else if (!srv_is_being_started) {
+    case SYNC_TRX_UNDO_PAGE:
 
-			/* This is violated during trx_sys_create_rsegs()
-			when creating additional rollback segments during
-			upgrade. */
+      /* Purge is allowed to read in as many UNDO pages as it likes.
+      The purge thread can read the UNDO pages without any covering
+      mutex. */
 
-			basic_check(latches, SYNC_IBUF_BITMAP);
-		}
-		break;
+      ut_a(find(latches, SYNC_TRX_UNDO) != 0 ||
+           find(latches, SYNC_TEMP_SPACE_RSEG) != 0 ||
+           find(latches, SYNC_UNDO_SPACE_RSEG) != 0 ||
+           find(latches, SYNC_TRX_SYS_RSEG) != 0 ||
+           basic_check(latches, level, level - 1));
+      break;
 
-	case SYNC_FSP_PAGE:
-		ut_a(find(latches, SYNC_FSP) != 0);
-		break;
+    case SYNC_RSEG_HEADER:
 
-	case SYNC_FSP:
+      ut_a(find(latches, SYNC_TEMP_SPACE_RSEG) != 0 ||
+           find(latches, SYNC_UNDO_SPACE_RSEG) != 0 ||
+           find(latches, SYNC_TRX_SYS_RSEG) != 0);
+      break;
 
-		ut_a(find(latches, SYNC_FSP) != 0
-		     || basic_check(latches, SYNC_FSP));
-		break;
+    case SYNC_RSEG_HEADER_NEW:
 
-	case SYNC_TRX_UNDO_PAGE:
+      ut_a(find(latches, SYNC_FSP_PAGE) != 0);
+      break;
 
-		/* Purge is allowed to read in as many UNDO pages as it likes.
-		The purge thread can read the UNDO pages without any covering
-		mutex. */
+    case SYNC_TREE_NODE:
 
-		ut_a(find(latches, SYNC_TRX_UNDO) != 0
-		     || find(latches, SYNC_REDO_RSEG) != 0
-		     || find(latches, SYNC_NOREDO_RSEG) != 0
-		     || basic_check(latches, latch->m_level - 1));
-		break;
+    {
+      const latch_t *fsp_latch;
 
-	case SYNC_RSEG_HEADER:
+      fsp_latch = find(latches, SYNC_FSP);
 
-		ut_a(find(latches, SYNC_REDO_RSEG) != 0
-		     || find(latches, SYNC_NOREDO_RSEG) != 0);
-		break;
+      ut_a((fsp_latch != NULL && fsp_latch->is_temp_fsp()) ||
+           find(latches, SYNC_INDEX_TREE) != 0 ||
+           find(latches, SYNC_DICT_OPERATION) ||
+           basic_check(latches, level, SYNC_TREE_NODE - 1));
+    }
 
-	case SYNC_RSEG_HEADER_NEW:
+    break;
 
-		ut_a(find(latches, SYNC_FSP_PAGE) != 0);
-		break;
+    case SYNC_TREE_NODE_NEW:
 
-	case SYNC_TREE_NODE:
+      ut_a(find(latches, SYNC_FSP_PAGE) != 0);
+      break;
 
-		ut_a(find(latches, SYNC_INDEX_TREE) != 0
-		     || find(latches, SYNC_DICT_OPERATION)
-		     || basic_check(latches, SYNC_TREE_NODE - 1));
-		break;
+    case SYNC_INDEX_TREE:
 
-	case SYNC_TREE_NODE_NEW:
+      basic_check(latches, level, SYNC_TREE_NODE - 1);
+      break;
 
-		ut_a(find(latches, SYNC_FSP_PAGE) != 0);
-		break;
+    case SYNC_IBUF_TREE_NODE:
 
-	case SYNC_INDEX_TREE:
-		basic_check(latches, SYNC_TREE_NODE - 1);
-		break;
+      ut_a(find(latches, SYNC_IBUF_INDEX_TREE) != 0 ||
+           basic_check(latches, level, SYNC_IBUF_TREE_NODE - 1));
+      break;
 
-	case SYNC_IBUF_TREE_NODE:
+    case SYNC_IBUF_TREE_NODE_NEW:
 
-		ut_a(find(latches, SYNC_IBUF_INDEX_TREE) != 0
-		     || basic_check(latches, SYNC_IBUF_TREE_NODE - 1));
-		break;
+      /* ibuf_add_free_page() allocates new pages for the change
+      buffer while only holding the tablespace x-latch. These
+      pre-allocated new pages may only be used while holding
+      ibuf_mutex, in btr_page_alloc_for_ibuf(). */
 
-	case SYNC_IBUF_TREE_NODE_NEW:
+      ut_a(find(latches, SYNC_IBUF_MUTEX) != 0 || find(latches, SYNC_FSP) != 0);
+      break;
 
-		/* ibuf_add_free_page() allocates new pages for the change
-		buffer while only holding the tablespace x-latch. These
-		pre-allocated new pages may only be used while holding
-		ibuf_mutex, in btr_page_alloc_for_ibuf(). */
+    case SYNC_IBUF_INDEX_TREE:
 
-		ut_a(find(latches, SYNC_IBUF_MUTEX) != 0
-		     || find(latches, SYNC_FSP) != 0);
-		break;
+      if (find(latches, SYNC_FSP) != 0) {
+        basic_check(latches, level, level - 1);
+      } else {
+        basic_check(latches, level, SYNC_IBUF_TREE_NODE - 1);
+      }
+      break;
 
-	case SYNC_IBUF_INDEX_TREE:
+    case SYNC_IBUF_PESS_INSERT_MUTEX:
 
-		if (find(latches, SYNC_FSP) != 0) {
-			basic_check(latches, latch->m_level - 1);
-		} else {
-			basic_check(latches, SYNC_IBUF_TREE_NODE - 1);
-		}
-		break;
+      basic_check(latches, level, SYNC_FSP - 1);
+      ut_a(find(latches, SYNC_IBUF_MUTEX) == 0);
+      break;
 
-	case SYNC_IBUF_PESS_INSERT_MUTEX:
+    case SYNC_IBUF_HEADER:
 
-		basic_check(latches, SYNC_FSP - 1);
-		ut_a(find(latches, SYNC_IBUF_MUTEX) == 0);
-		break;
+      basic_check(latches, level, SYNC_FSP - 1);
+      ut_a(find(latches, SYNC_IBUF_MUTEX) == NULL);
+      ut_a(find(latches, SYNC_IBUF_PESS_INSERT_MUTEX) == NULL);
+      break;
 
-	case SYNC_IBUF_HEADER:
+    case SYNC_PERSIST_DIRTY_TABLES:
 
-		basic_check(latches, SYNC_FSP - 1);
-		ut_a(find(latches, SYNC_IBUF_MUTEX) != 0);
-		ut_a(find(latches, SYNC_IBUF_PESS_INSERT_MUTEX) != 0);
-		break;
+      basic_check(latches, level, SYNC_IBUF_MUTEX);
+      break;
 
-	case SYNC_DICT:
-		basic_check(latches, SYNC_DICT);
-		break;
+    case SYNC_PERSIST_AUTOINC:
 
-	case SYNC_MUTEX:
-	case SYNC_UNKNOWN:
-	case SYNC_LEVEL_VARYING:
-	case RW_LOCK_X:
-	case RW_LOCK_X_WAIT:
-	case RW_LOCK_S:
-	case RW_LOCK_SX:
-	case RW_LOCK_NOT_LOCKED:
-		/* These levels should never be set for a latch. */
-		ut_error;
-		break;
-	}
+      basic_check(latches, level, SYNC_IBUF_MUTEX);
+      ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) == NULL);
+      break;
 
-	return(latches);
+    case SYNC_MUTEX:
+    case SYNC_UNKNOWN:
+    case SYNC_LEVEL_VARYING:
+    case RW_LOCK_X:
+    case RW_LOCK_X_WAIT:
+    case RW_LOCK_S:
+    case RW_LOCK_SX:
+    case RW_LOCK_NOT_LOCKED:
+      /* These levels should never be set for a latch. */
+      ut_error;
+      break;
+  }
+
+  return (latches);
 }
 
-/*
-Removes a latch from the thread level array if it is found there.
-@param latch - that was released/unlocked
-@param level - level of the latch
+/** Removes a latch from the thread level array if it is found there.
+@param[in]	latch		that was released/unlocked
 @return true if found in the array; it is not an error if the latch is
 not found, as we presently are not able to determine the level for
 every latch reservation the program does */
-void
-SyncDebug::unlock(const latch_t* latch)
-{
-	if (!m_enabled) {
-		return;
-	} else if (latch->m_level == SYNC_LEVEL_VARYING) {
-		// We don't have varying level mutexes
-		ut_ad(latch->m_rw_lock);
-	} else if (*latch->m_name == '.') {
-		/* Ignore diagnost latches, starting with '.' */
-	} else {
-		Latches*			latches = thread_latches();
-		Latches::reverse_iterator	rend = latches->rend();
+void LatchDebug::unlock(const latch_t *latch) UNIV_NOTHROW {
+  if (latch->get_level() == SYNC_LEVEL_VARYING) {
+    // We don't have varying level mutexes
+    ut_ad(latch->m_rw_lock);
+  }
 
-		for (Latches::reverse_iterator it = latches->rbegin();
-		     it != rend;
-		     ++it) {
+  Latches *latches;
 
-			if (*it != latch) {
-				continue;
-			}
+  if (*latch->get_name() == '.') {
+    /* Ignore diagnostic latches, starting with '.' */
 
-			Latches::iterator	i = it.base();
+  } else if ((latches = thread_latches()) != NULL) {
+    Latches::reverse_iterator rend = latches->rend();
 
-			latches->erase(--i);
+    for (Latches::reverse_iterator it = latches->rbegin(); it != rend; ++it) {
+      if (it->m_latch != latch) {
+        continue;
+      }
 
-			/* If this thread doesn't own any more
-			latches remove from the map.
+      Latches::iterator i = it.base();
 
-			FIXME: Perhaps use the master thread to do purge. */
+      latches->erase(--i);
 
-			if (latches->empty()) {
+      /* If this thread doesn't own any more
+      latches remove from the map.
 
-				mutex_enter(&m_mutex);
+      FIXME: Perhaps use the master thread
+      to do purge. Or, do it from close connection.
+      This could be expensive. */
 
-				os_thread_id_t	thread_id;
+      if (latches->empty()) {
+        m_mutex.enter();
 
-				thread_id = os_thread_get_curr_id();
+        os_thread_id_t thread_id;
 
-				m_threads.erase(thread_id);
+        thread_id = os_thread_get_curr_id();
 
-				mutex_exit(&m_mutex);
+        m_threads.erase(thread_id);
 
-				UT_DELETE(latches);
-			}
+        m_mutex.exit();
 
-			return;
-		}
+        UT_DELETE(latches);
+      }
 
-		/** Must find the latch. */
-		ut_error;
-	}
+      return;
+    }
+
+    if (latch->get_level() != SYNC_LEVEL_VARYING) {
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_1164)
+#endif /* UNIV_NO_ERR_MSGS */
+          << "Couldn't find latch " << sync_latch_get_name(latch->get_id());
+
+      print_latches(latches);
+
+      /** Must find the latch. */
+      ut_error;
+    }
+  }
 }
 
-/******************************************************************//**
-Load the latch meta data. */
-static
-void
-sync_latch_meta_init()
-/*==================*/
-{
-	// First add the mutexes
-	LATCH_ADD(SrvLatches, "autoinc",
-		  SYNC_DICT_AUTOINC_MUTEX,
-		  autoinc_mutex_key);
+/** Get the latch id from a latch name.
+@param[in]	name	Latch name
+@return latch id if found else LATCH_ID_NONE. */
+latch_id_t sync_latch_get_id(const char *name) {
+  LatchMetaData::const_iterator end = latch_meta.end();
 
-#if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
-	LATCH_ADD(SrvLatches, "buf_block_mutex",
-		  SYNC_BUF_BLOCK,
-		  PFS_NOT_INSTRUMENTED);
+  /* Linear scan should be OK, this should be extremely rare. */
+
+  for (LatchMetaData::const_iterator it = latch_meta.begin(); it != end; ++it) {
+    if (*it == NULL || (*it)->get_id() == LATCH_ID_NONE) {
+      continue;
+
+    } else if (strcmp((*it)->get_name(), name) == 0) {
+      return ((*it)->get_id());
+    }
+  }
+
+  return (LATCH_ID_NONE);
+}
+
+/** Get the latch name from a sync level
+@param[in]	level		Latch level to lookup
+@return NULL if not found. */
+const char *sync_latch_get_name(latch_level_t level) {
+  LatchMetaData::const_iterator end = latch_meta.end();
+
+  /* Linear scan should be OK, this should be extremely rare. */
+
+  for (LatchMetaData::const_iterator it = latch_meta.begin(); it != end; ++it) {
+    if (*it == NULL || (*it)->get_id() == LATCH_ID_NONE) {
+      continue;
+
+    } else if ((*it)->get_level() == level) {
+      return ((*it)->get_name());
+    }
+  }
+
+  return (0);
+}
+
+/** Check if it is OK to acquire the latch.
+@param[in]	latch	latch type */
+void sync_check_lock_validate(const latch_t *latch) {
+  if (LatchDebug::instance() != NULL) {
+    LatchDebug::instance()->lock_validate(latch, latch->get_level());
+  }
+}
+
+/** Note that the lock has been granted
+@param[in]	latch	latch type */
+void sync_check_lock_granted(const latch_t *latch) {
+  if (LatchDebug::instance() != NULL) {
+    LatchDebug::instance()->lock_granted(latch, latch->get_level());
+  }
+}
+
+/** Check if it is OK to acquire the latch.
+@param[in]	latch	latch type
+@param[in]	level	Latch level */
+void sync_check_lock(const latch_t *latch, latch_level_t level) {
+  if (LatchDebug::instance() != NULL) {
+    ut_ad(latch->get_level() == SYNC_LEVEL_VARYING);
+    ut_ad(latch->get_id() == LATCH_ID_BUF_BLOCK_LOCK);
+
+    LatchDebug::instance()->lock_validate(latch, level);
+    LatchDebug::instance()->lock_granted(latch, level);
+  }
+}
+
+/** Check if it is OK to re-acquire the lock.
+@param[in]	latch		RW-LOCK to relock (recursive X locks) */
+void sync_check_relock(const latch_t *latch) {
+  if (LatchDebug::instance() != NULL) {
+    LatchDebug::instance()->relock(latch);
+  }
+}
+
+/** Removes a latch from the thread level array if it is found there.
+@param[in]	latch		The latch to unlock */
+void sync_check_unlock(const latch_t *latch) {
+  if (LatchDebug::instance() != NULL) {
+    LatchDebug::instance()->unlock(latch);
+  }
+}
+
+/** Checks if the level array for the current thread contains a
+mutex or rw-latch at the specified level.
+@param[in]	level		to find
+@return	a matching latch, or NULL if not found */
+const latch_t *sync_check_find(latch_level_t level) {
+  if (LatchDebug::instance() != NULL) {
+    return (LatchDebug::instance()->find(level));
+  }
+
+  return (NULL);
+}
+
+/** Iterate over the thread's latches.
+@param[in,out]	functor		called for each element.
+@return false if the sync debug hasn't been initialised
+@return the value returned by the functor */
+bool sync_check_iterate(sync_check_functor_t &functor) {
+  if (LatchDebug::instance() != NULL) {
+    return (LatchDebug::instance()->for_each(functor));
+  }
+
+  return (false);
+}
+
+/** Enable sync order checking.
+
+Note: We don't enforce any synchronisation checks. The caller must ensure
+that no races can occur */
+void sync_check_enable() {
+  if (!srv_sync_debug) {
+    return;
+  }
+
+  /* We should always call this before we create threads. */
+
+  LatchDebug::create_instance();
+}
+
+/** Initialise the debug data structures */
+void LatchDebug::init() UNIV_NOTHROW {
+  ut_a(rw_lock_debug_event == NULL);
+
+  mutex_create(LATCH_ID_RW_LOCK_DEBUG, &rw_lock_debug_mutex);
+
+  rw_lock_debug_event = os_event_create("rw_lock_debug_event");
+
+  rw_lock_debug_waiters = FALSE;
+}
+
+/** Shutdown the latch debug checking
+
+Note: We don't enforce any synchronisation checks. The caller must ensure
+that no races can occur */
+void LatchDebug::shutdown() UNIV_NOTHROW {
+  ut_a(rw_lock_debug_event != NULL);
+
+  os_event_destroy(rw_lock_debug_event);
+
+  rw_lock_debug_event = NULL;
+
+  mutex_free(&rw_lock_debug_mutex);
+
+  ut_a(s_initialized);
+
+  s_initialized = false;
+
+  if (instance() == NULL) {
+    return;
+  }
+
+  UT_DELETE(s_instance);
+
+  LatchDebug::s_instance = NULL;
+}
+
+/** Acquires the debug mutex. We cannot use the mutex defined in sync0sync,
+because the debug mutex is also acquired in sync0arr while holding the OS
+mutex protecting the sync array, and the ordinary mutex_enter might
+recursively call routines in sync0arr, leading to a deadlock on the OS
+mutex. */
+void rw_lock_debug_mutex_enter() {
+  for (;;) {
+    if (0 == mutex_enter_nowait(&rw_lock_debug_mutex)) {
+      return;
+    }
+
+    os_event_reset(rw_lock_debug_event);
+
+    rw_lock_debug_waiters = TRUE;
+
+    if (0 == mutex_enter_nowait(&rw_lock_debug_mutex)) {
+      return;
+    }
+
+    os_event_wait(rw_lock_debug_event);
+  }
+}
+
+/** Releases the debug mutex. */
+void rw_lock_debug_mutex_exit() {
+  mutex_exit(&rw_lock_debug_mutex);
+
+  if (rw_lock_debug_waiters) {
+    rw_lock_debug_waiters = FALSE;
+    os_event_set(rw_lock_debug_event);
+  }
+}
+#endif /* UNIV_DEBUG */
+
+/* Meta data for all the InnoDB latches. If the latch is not in recorded
+here then it will be be considered for deadlock checks.  */
+LatchMetaData latch_meta;
+
+/** Load the latch meta data. */
+static void sync_latch_meta_init() UNIV_NOTHROW {
+  latch_meta.resize(LATCH_ID_MAX);
+
+  /* The latches should be ordered on latch_id_t. So that we can
+  index directly into the vector to update and fetch meta-data. */
+
+  LATCH_ADD_MUTEX(LOCK_FREE_HASH, SYNC_LOCK_FREE_HASH,
+                  lock_free_hash_mutex_key);
+
+  LATCH_ADD_MUTEX(AUTOINC, SYNC_DICT_AUTOINC_MUTEX, autoinc_mutex_key);
+
+#ifdef PFS_SKIP_BUFFER_MUTEX_RWLOCK
+  LATCH_ADD_MUTEX(BUF_BLOCK_MUTEX, SYNC_BUF_BLOCK, PFS_NOT_INSTRUMENTED);
 #else
-	LATCH_ADD(SrvLatches, "buf_block_mutex",
-		  SYNC_BUF_BLOCK,
-		  buffer_block_mutex_key);
-#endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
-
-	LATCH_ADD(SrvLatches, "buf_pool",
-		  SYNC_BUF_POOL,
-		  buf_pool_mutex_key);
-
-	LATCH_ADD(SrvLatches, "buf_pool_zip",
-		  SYNC_BUF_BLOCK,
-		  buf_pool_zip_mutex_key);
-
-	LATCH_ADD(SrvLatches, "cache_last_read",
-		  SYNC_TRX_I_S_LAST_READ,
-		  cache_last_read_mutex_key);
-
-	LATCH_ADD(SrvLatches, "dict_foreign_err",
-		  SYNC_NO_ORDER_CHECK,
-		  dict_foreign_err_mutex_key);
-
-	LATCH_ADD(SrvLatches, "dict_sys",
-		  SYNC_DICT,
-		  dict_sys_mutex_key);
-
-	LATCH_ADD(SrvLatches, "file_format_max",
-		  SYNC_FILE_FORMAT_TAG,
-		  file_format_max_mutex_key);
-
-	LATCH_ADD(SrvLatches, "fil_system",
-		  SYNC_ANY_LATCH,
-		  fil_system_mutex_key);
-
-	LATCH_ADD(SrvLatches, "flush_list",
-		  SYNC_BUF_FLUSH_LIST,
-		  flush_list_mutex_key);
-
-	LATCH_ADD(SrvLatches, "fts_bg_threads",
-		  SYNC_FTS_BG_THREADS,
-		  fts_bg_threads_mutex_key);
-
-	LATCH_ADD(SrvLatches, "fts_delete",
-		  SYNC_FTS_OPTIMIZE,
-		  fts_delete_mutex_key);
-
-	LATCH_ADD(SrvLatches, "fts_optimize",
-		  SYNC_FTS_OPTIMIZE,
-		  fts_optimize_mutex_key);
-
-	LATCH_ADD(SrvLatches, "fts_doc_id",
-		  SYNC_FTS_OPTIMIZE,
-		  fts_doc_id_mutex_key);
-
-	LATCH_ADD(SrvLatches, "fts_pll_tokenize",
-		  SYNC_FTS_TOKENIZE,
-		  fts_pll_tokenize_mutex_key);
-
-	LATCH_ADD(SrvLatches, "hash_table_mutex",
-		  SYNC_BUF_PAGE_HASH,
-		  hash_table_mutex_key);
-
-	LATCH_ADD(SrvLatches, "ibuf_bitmap",
-		  SYNC_IBUF_BITMAP_MUTEX,
-		  ibuf_bitmap_mutex_key);
-
-	LATCH_ADD(SrvLatches, "ibuf",
-		  SYNC_IBUF_MUTEX,
-		  ibuf_mutex_key);
-
-	LATCH_ADD(SrvLatches, "ibuf_pessimistic_insert",
-		  SYNC_IBUF_PESS_INSERT_MUTEX,
-		  ibuf_pessimistic_insert_mutex_key);
-
-	LATCH_ADD(SrvLatches, "log_sys",
-		  SYNC_LOG,
-		  log_sys_mutex_key);
-
-	LATCH_ADD(SrvLatches, "log_flush_order",
-		  SYNC_LOG_FLUSH_ORDER,
-		  log_flush_order_mutex_key);
-
-	LATCH_ADD(SrvLatches, "page_cleaner",
-		  SYNC_PAGE_CLEANER,
-		  page_cleaner_mutex_key);
-
-	LATCH_ADD(SrvLatches, "purge_sys_pq",
-		  SYNC_PURGE_QUEUE,
-		  purge_sys_pq_mutex_key);
-
-	LATCH_ADD(SrvLatches, "recalc_pool",
-		  SYNC_STATS_AUTO_RECALC,
-		  recalc_pool_mutex_key);
-
-	LATCH_ADD(SrvLatches, "recv_sys",
-		  SYNC_RECV,
-		  recv_sys_mutex_key);
-
-	LATCH_ADD(SrvLatches, "recv_writer",
-		  SYNC_RECV_WRITER,
-		  recv_writer_mutex_key);
-
-	LATCH_ADD(SrvLatches, "redo_rseg",
-		  SYNC_REDO_RSEG,
-		  redo_rseg_mutex_key);
-
-	LATCH_ADD(SrvLatches, "noredo_rseg",
-		  SYNC_NOREDO_RSEG,
-		  noredo_rseg_mutex_key);
-
-#ifdef UNIV_SYNC_DEBUG
-	/* Mutex names starting with '.' are not tracked. They are assumed
-	to be diagnostic mustexes used in debugging. */
-	LATCH_ADD(SrvLatches, ".rw_lock_debug",
-		  SYNC_NO_ORDER_CHECK,
-		  rw_lock_debug_mutex_key);
-#endif /* UNIV_SYNC_DEBUG */
-
-	LATCH_ADD(SrvLatches, "rtr_ssn_mutex",
-		  SYNC_ANY_LATCH,
-		  rtr_ssn_mutex_key);
-
-	LATCH_ADD(SrvLatches, "rtr_active_mutex",
-		  SYNC_ANY_LATCH,
-		  rtr_active_mutex_key);
-
-	LATCH_ADD(SrvLatches, "rtr_match_mutex",
-		  SYNC_ANY_LATCH,
-		  rtr_match_mutex_key);
-
-	LATCH_ADD(SrvLatches, "rtr_path_mutex",
-		  SYNC_ANY_LATCH,
-		  rtr_path_mutex_key);
-
-	LATCH_ADD(SrvLatches, "rw_lock_list",
-		  SYNC_NO_ORDER_CHECK,
-		  rw_lock_list_mutex_key);
-
-	LATCH_ADD(SrvLatches, "rw_lock_mutex",
-		  SYNC_NO_ORDER_CHECK,
-		  rw_lock_mutex_key);
-
-	LATCH_ADD(SrvLatches, "srv_dict_tmpfile",
-		  SYNC_DICT_OPERATION,
-		  srv_dict_tmpfile_mutex_key);
-
-	LATCH_ADD(SrvLatches, "srv_innodb_monitor",
-		  SYNC_NO_ORDER_CHECK,
-		  srv_innodb_monitor_mutex_key);
-
-	LATCH_ADD(SrvLatches, "srv_misc_tmpfile",
-		  SYNC_ANY_LATCH,
-		  srv_misc_tmpfile_mutex_key);
-
-	LATCH_ADD(SrvLatches, "srv_monitor_file",
-		  SYNC_NO_ORDER_CHECK,
-		  srv_monitor_file_mutex_key);
-
-#ifdef UNIV_SYNC_DEBUG
-	LATCH_ADD(SrvLatches, "sync_thread",
-		  SYNC_NO_ORDER_CHECK,
-		  sync_thread_mutex_key);
-#endif /* UNIV_SYNC_DEBUG */
-
-	LATCH_ADD(SrvLatches, "buf_dblwr",
-		  SYNC_DOUBLEWRITE,
-		  buf_dblwr_mutex_key);
-
-	LATCH_ADD(SrvLatches, "trx_undo",
-		  SYNC_TRX_UNDO,
-		  trx_undo_mutex_key);
-
-	LATCH_ADD(SrvLatches, "trx_pool",
-		  SYNC_POOL,
-		  trx_pool_mutex_key);
-
-	LATCH_ADD(SrvLatches, "trx_pool_manager",
-		  SYNC_POOL_MANAGER,
-		  trx_pool_manager_mutex_key);
-
-	LATCH_ADD(SrvLatches, "trx",
-		  SYNC_TRX,
-		  trx_mutex_key);
-
-	LATCH_ADD(SrvLatches, "lock_sys",
-		  SYNC_LOCK_SYS,
-		  lock_mutex_key);
-
-	LATCH_ADD(SrvLatches, "lock_sys_wait",
-		  SYNC_LOCK_WAIT_SYS,
-		  lock_wait_mutex_key);
-
-	LATCH_ADD(SrvLatches, "trx_sys",
-		  SYNC_TRX_SYS,
-		  trx_sys_mutex_key);
-
-	LATCH_ADD(SrvLatches, "srv_sys",
-		  SYNC_THREADS,
-		  srv_sys_mutex_key);
-
-	LATCH_ADD(SrvLatches, "srv_sys_tasks",
-		  SYNC_ANY_LATCH,
-		  srv_threads_mutex_key);
-
-	LATCH_ADD(SrvLatches, "page_zip_stat_per_index",
-		  SYNC_ANY_LATCH,
-		  page_zip_stat_per_index_mutex_key);
-
-#ifndef PFS_SKIP_EVENT_MUTEX
-	LATCH_ADD(SrvLatches, "event_manager",
-		  SYNC_NO_ORDER_CHECK,
-		  event_manager_mutex_key);
-#else
-	LATCH_ADD(SrvLatches, "event_manager",
-		  SYNC_NO_ORDER_CHECK,
-		  PFS_NOT_INSTRUMENTED);
-#endif /* !PFS_SKIP_EVENT_MUTEX */
-
-	LATCH_ADD(SrvLatches, "event_mutex",
-		  SYNC_NO_ORDER_CHECK,
-		  event_mutex_key);
-
-	LATCH_ADD(SrvLatches, "sync_array_mutex",
-		  SYNC_NO_ORDER_CHECK,
-		  sync_array_mutex_key);
-
-	LATCH_ADD(SrvLatches, "thread_mutex",
-		  SYNC_NO_ORDER_CHECK,
-		  thread_mutex_key);
-
-	LATCH_ADD(SrvLatches, "zip_pad_mutex",
-		  SYNC_NO_ORDER_CHECK,
-		  zip_pad_mutex_key);
-
-	LATCH_ADD(SrvLatches, "os_file_seek_mutex",
-		  SYNC_NO_ORDER_CHECK,
-		  PFS_NOT_INSTRUMENTED);
-
-	LATCH_ADD(SrvLatches, "test_mutex",
-		  SYNC_NO_ORDER_CHECK,
-		  PFS_NOT_INSTRUMENTED);
-
-	LATCH_ADD(SrvLatches, "os_aio_mutex",
-		  SYNC_NO_ORDER_CHECK,
-		  PFS_NOT_INSTRUMENTED);
-
-	LATCH_ADD(SrvLatches, "row_drop_list",
-		  SYNC_NO_ORDER_CHECK,
-		  row_drop_list_mutex_key);
-
-	LATCH_ADD(SrvLatches, "index_online_log",
-		  SYNC_INDEX_ONLINE_LOG,
-		  index_online_log_key);
-
-	LATCH_ADD(SrvLatches, "work_queue",
-		  SYNC_WORK_QUEUE,
-		  PFS_NOT_INSTRUMENTED);
-
-	// Add the RW locks
-	LATCH_ADD(SrvLatches, "btr_search",
-		  SYNC_SEARCH_SYS,
-		  btr_search_latch_key);
-
-	LATCH_ADD(SrvLatches, "buf_block_lock",
-		  SYNC_LEVEL_VARYING,
-		  buf_block_lock_key);
-
-#ifdef UNIV_SYNC_DEBUG
-	LATCH_ADD(SrvLatches, "buf_block_debug",
-		  SYNC_NO_ORDER_CHECK,
-		  buf_block_debug_latch_key);
-#endif /* UNIV_SYNC_DEBUG */
-
-	LATCH_ADD(SrvLatches, "dict_operation",
-		  SYNC_DICT,
-		  dict_operation_lock_key);
-
-	LATCH_ADD(SrvLatches, "checkpoint",
-		  SYNC_NO_ORDER_CHECK,
-		  checkpoint_lock_key);
-
-	LATCH_ADD(SrvLatches, "fil_space",
-		  SYNC_FSP,
-		  fil_space_latch_key);
-
-	LATCH_ADD(SrvLatches, "fts_cache",
-		  SYNC_FTS_CACHE,
-		  fts_cache_rw_lock_key);
-
-	LATCH_ADD(SrvLatches, "fts_cache_init",
-		  SYNC_FTS_CACHE_INIT,
-		  fts_cache_init_rw_lock_key);
-
-	LATCH_ADD(SrvLatches, "trx_i_s_cache",
-		  SYNC_TRX_I_S_RWLOCK,
-		  trx_i_s_cache_lock_key);
-
-	LATCH_ADD(SrvLatches, "trx_purge",
-		  SYNC_PURGE_LATCH,
-		  trx_purge_latch_key);
-
-	LATCH_ADD(SrvLatches, "ibuf_index_tree",
-		  SYNC_IBUF_INDEX_TREE,
-		  index_tree_rw_lock_key);
-
-	LATCH_ADD(SrvLatches, "index_tree",
-		  SYNC_INDEX_TREE,
-		  index_tree_rw_lock_key);
-
-	LATCH_ADD(SrvLatches, "dict_table_stats",
-		  SYNC_INDEX_TREE,
-		  dict_table_stats_key);
-
-	LATCH_ADD(SrvLatches, "hash_table_rw_lock",
-		  SYNC_BUF_PAGE_HASH,
-		  hash_table_locks_key);
+  LATCH_ADD_MUTEX(BUF_BLOCK_MUTEX, SYNC_BUF_BLOCK, buffer_block_mutex_key);
+#endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK */
+
+  LATCH_ADD_MUTEX(BUF_POOL_LRU_LIST, SYNC_BUF_LRU_LIST,
+                  buf_pool_LRU_list_mutex_key);
+
+  LATCH_ADD_MUTEX(BUF_POOL_FREE_LIST, SYNC_BUF_FREE_LIST,
+                  buf_pool_free_list_mutex_key);
+
+  LATCH_ADD_MUTEX(BUF_POOL_ZIP_FREE, SYNC_BUF_ZIP_FREE,
+                  buf_pool_zip_free_mutex_key);
+
+  LATCH_ADD_MUTEX(BUF_POOL_ZIP_HASH, SYNC_BUF_ZIP_HASH,
+                  buf_pool_zip_free_mutex_key);
+
+  LATCH_ADD_MUTEX(BUF_POOL_FLUSH_STATE, SYNC_BUF_FLUSH_STATE,
+                  buf_pool_flush_state_mutex_key);
+
+  LATCH_ADD_MUTEX(BUF_POOL_ZIP, SYNC_BUF_BLOCK, buf_pool_zip_mutex_key);
+
+  LATCH_ADD_MUTEX(CACHE_LAST_READ, SYNC_TRX_I_S_LAST_READ,
+                  cache_last_read_mutex_key);
+
+  LATCH_ADD_MUTEX(DICT_FOREIGN_ERR, SYNC_NO_ORDER_CHECK,
+                  dict_foreign_err_mutex_key);
+
+  LATCH_ADD_MUTEX(DICT_PERSIST_DIRTY_TABLES, SYNC_PERSIST_DIRTY_TABLES,
+                  dict_persist_dirty_tables_mutex_key);
+
+  LATCH_ADD_MUTEX(PERSIST_AUTOINC, SYNC_PERSIST_AUTOINC,
+                  autoinc_persisted_mutex_key);
+
+  LATCH_ADD_MUTEX(DICT_SYS, SYNC_DICT, dict_sys_mutex_key);
+
+  LATCH_ADD_MUTEX(DICT_TABLE, SYNC_TABLE, dict_table_mutex_key);
+
+  LATCH_ADD_MUTEX(PARSER, SYNC_PARSER, parser_mutex_key);
+
+  LATCH_ADD_MUTEX(FIL_SHARD, SYNC_FIL_SHARD, fil_system_mutex_key);
+
+  LATCH_ADD_MUTEX(FLUSH_LIST, SYNC_BUF_FLUSH_LIST, flush_list_mutex_key);
+
+  LATCH_ADD_MUTEX(FTS_BG_THREADS, SYNC_FTS_BG_THREADS,
+                  fts_bg_threads_mutex_key);
+
+  LATCH_ADD_MUTEX(FTS_DELETE, SYNC_FTS_OPTIMIZE, fts_delete_mutex_key);
+
+  LATCH_ADD_MUTEX(FTS_OPTIMIZE, SYNC_FTS_OPTIMIZE, fts_optimize_mutex_key);
+
+  LATCH_ADD_MUTEX(FTS_DOC_ID, SYNC_FTS_OPTIMIZE, fts_doc_id_mutex_key);
+
+  LATCH_ADD_MUTEX(FTS_PLL_TOKENIZE, SYNC_FTS_TOKENIZE,
+                  fts_pll_tokenize_mutex_key);
+
+  LATCH_ADD_MUTEX(HASH_TABLE_MUTEX, SYNC_BUF_PAGE_HASH, hash_table_mutex_key);
+
+  LATCH_ADD_MUTEX(IBUF_BITMAP, SYNC_IBUF_BITMAP_MUTEX, ibuf_bitmap_mutex_key);
+
+  LATCH_ADD_MUTEX(IBUF, SYNC_IBUF_MUTEX, ibuf_mutex_key);
+
+  LATCH_ADD_MUTEX(IBUF_PESSIMISTIC_INSERT, SYNC_IBUF_PESS_INSERT_MUTEX,
+                  ibuf_pessimistic_insert_mutex_key);
+
+  LATCH_ADD_MUTEX(LOG_CHECKPOINTER, SYNC_LOG_CHECKPOINTER,
+                  log_checkpointer_mutex_key);
+
+  LATCH_ADD_MUTEX(LOG_CLOSER, SYNC_LOG_CLOSER, log_closer_mutex_key);
+
+  LATCH_ADD_MUTEX(LOG_WRITER, SYNC_LOG_WRITER, log_writer_mutex_key);
+
+  LATCH_ADD_MUTEX(LOG_FLUSHER, SYNC_LOG_FLUSHER, log_flusher_mutex_key);
+
+  LATCH_ADD_MUTEX(LOG_WRITE_NOTIFIER, SYNC_LOG_WRITE_NOTIFIER,
+                  log_write_notifier_mutex_key);
+
+  LATCH_ADD_MUTEX(LOG_FLUSH_NOTIFIER, SYNC_LOG_FLUSH_NOTIFIER,
+                  log_flush_notifier_mutex_key);
+
+  LATCH_ADD_RWLOCK(LOG_SN, SYNC_LOG_SN, log_sn_lock_key);
+
+  LATCH_ADD_MUTEX(LOG_ARCH, SYNC_LOG_ARCH, log_sys_arch_mutex_key);
+
+  LATCH_ADD_MUTEX(PAGE_ARCH, SYNC_PAGE_ARCH, page_sys_arch_mutex_key);
+
+  LATCH_ADD_MUTEX(PAGE_ARCH_OPER, SYNC_PAGE_ARCH_OPER,
+                  page_sys_arch_oper_mutex_key);
+
+  LATCH_ADD_MUTEX(PAGE_CLEANER, SYNC_PAGE_CLEANER, page_cleaner_mutex_key);
+
+  LATCH_ADD_MUTEX(PURGE_SYS_PQ, SYNC_PURGE_QUEUE, purge_sys_pq_mutex_key);
+
+  LATCH_ADD_MUTEX(RECALC_POOL, SYNC_STATS_AUTO_RECALC, recalc_pool_mutex_key);
+
+  LATCH_ADD_MUTEX(RECV_SYS, SYNC_RECV, recv_sys_mutex_key);
+
+  LATCH_ADD_MUTEX(RECV_WRITER, SYNC_RECV_WRITER, recv_writer_mutex_key);
+
+  LATCH_ADD_MUTEX(TEMP_SPACE_RSEG, SYNC_TEMP_SPACE_RSEG,
+                  temp_space_rseg_mutex_key);
+
+  LATCH_ADD_MUTEX(UNDO_SPACE_RSEG, SYNC_UNDO_SPACE_RSEG,
+                  undo_space_rseg_mutex_key);
+
+  LATCH_ADD_MUTEX(TRX_SYS_RSEG, SYNC_TRX_SYS_RSEG, trx_sys_rseg_mutex_key);
 
 #ifdef UNIV_DEBUG
-	LATCH_ADD(SrvLatches, "buf_chunk_map_latch",
-		  SYNC_ANY_LATCH,
-		  buf_chunk_map_latch_key);
+  /* Mutex names starting with '.' are not tracked. They are assumed
+  to be diagnostic mutexes used in debugging. */
+  latch_meta[LATCH_ID_RW_LOCK_DEBUG] = LATCH_ADD_MUTEX(
+      RW_LOCK_DEBUG, SYNC_NO_ORDER_CHECK, rw_lock_debug_mutex_key);
 #endif /* UNIV_DEBUG */
+
+  LATCH_ADD_MUTEX(RTR_SSN_MUTEX, SYNC_ANY_LATCH, rtr_ssn_mutex_key);
+
+  LATCH_ADD_MUTEX(RTR_ACTIVE_MUTEX, SYNC_ANY_LATCH, rtr_active_mutex_key);
+
+  LATCH_ADD_MUTEX(RTR_MATCH_MUTEX, SYNC_ANY_LATCH, rtr_match_mutex_key);
+
+  LATCH_ADD_MUTEX(RTR_PATH_MUTEX, SYNC_ANY_LATCH, rtr_path_mutex_key);
+
+  LATCH_ADD_MUTEX(RW_LOCK_LIST, SYNC_NO_ORDER_CHECK, rw_lock_list_mutex_key);
+
+  LATCH_ADD_MUTEX(RW_LOCK_MUTEX, SYNC_NO_ORDER_CHECK, rw_lock_mutex_key);
+
+  LATCH_ADD_MUTEX(SRV_DICT_TMPFILE, SYNC_DICT_OPERATION,
+                  srv_dict_tmpfile_mutex_key);
+
+  LATCH_ADD_MUTEX(SRV_INNODB_MONITOR, SYNC_NO_ORDER_CHECK,
+                  srv_innodb_monitor_mutex_key);
+
+  LATCH_ADD_MUTEX(SRV_MISC_TMPFILE, SYNC_ANY_LATCH, srv_misc_tmpfile_mutex_key);
+
+  LATCH_ADD_MUTEX(SRV_MONITOR_FILE, SYNC_NO_ORDER_CHECK,
+                  srv_monitor_file_mutex_key);
+
+#ifdef UNIV_DEBUG
+  LATCH_ADD_MUTEX(SYNC_THREAD, SYNC_NO_ORDER_CHECK, sync_thread_mutex_key);
+#else
+  LATCH_ADD_MUTEX(SYNC_THREAD, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+#endif /* UNIV_DEBUG */
+
+  LATCH_ADD_MUTEX(BUF_DBLWR, SYNC_DOUBLEWRITE, buf_dblwr_mutex_key);
+
+  LATCH_ADD_MUTEX(TRX_UNDO, SYNC_TRX_UNDO, trx_undo_mutex_key);
+
+  LATCH_ADD_MUTEX(TRX_POOL, SYNC_POOL, trx_pool_mutex_key);
+
+  LATCH_ADD_MUTEX(TRX_POOL_MANAGER, SYNC_POOL_MANAGER,
+                  trx_pool_manager_mutex_key);
+
+  LATCH_ADD_MUTEX(TRX, SYNC_TRX, trx_mutex_key);
+
+  LATCH_ADD_MUTEX(LOCK_SYS, SYNC_LOCK_SYS, lock_mutex_key);
+
+  LATCH_ADD_MUTEX(LOCK_SYS_WAIT, SYNC_LOCK_WAIT_SYS, lock_wait_mutex_key);
+
+  LATCH_ADD_MUTEX(TRX_SYS, SYNC_TRX_SYS, trx_sys_mutex_key);
+
+  LATCH_ADD_MUTEX(SRV_SYS, SYNC_THREADS, srv_sys_mutex_key);
+
+  LATCH_ADD_MUTEX(SRV_SYS_TASKS, SYNC_ANY_LATCH, srv_threads_mutex_key);
+
+  LATCH_ADD_MUTEX(PAGE_ZIP_STAT_PER_INDEX, SYNC_ANY_LATCH,
+                  page_zip_stat_per_index_mutex_key);
+
+#ifndef PFS_SKIP_EVENT_MUTEX
+  LATCH_ADD_MUTEX(EVENT_MANAGER, SYNC_NO_ORDER_CHECK, event_manager_mutex_key);
+  LATCH_ADD_MUTEX(EVENT_MUTEX, SYNC_NO_ORDER_CHECK, event_mutex_key);
+#else
+  LATCH_ADD_MUTEX(EVENT_MANAGER, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+  LATCH_ADD_MUTEX(EVENT_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+#endif /* !PFS_SKIP_EVENT_MUTEX */
+
+  LATCH_ADD_MUTEX(SYNC_ARRAY_MUTEX, SYNC_NO_ORDER_CHECK, sync_array_mutex_key);
+
+  LATCH_ADD_MUTEX(THREAD_MUTEX, SYNC_NO_ORDER_CHECK, thread_mutex_key);
+
+  LATCH_ADD_MUTEX(ZIP_PAD_MUTEX, SYNC_NO_ORDER_CHECK, zip_pad_mutex_key);
+
+  LATCH_ADD_MUTEX(OS_AIO_READ_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+
+  LATCH_ADD_MUTEX(OS_AIO_WRITE_MUTEX, SYNC_NO_ORDER_CHECK,
+                  PFS_NOT_INSTRUMENTED);
+
+  LATCH_ADD_MUTEX(OS_AIO_LOG_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+
+  LATCH_ADD_MUTEX(OS_AIO_IBUF_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+
+  LATCH_ADD_MUTEX(OS_AIO_SYNC_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+
+  LATCH_ADD_MUTEX(ROW_DROP_LIST, SYNC_NO_ORDER_CHECK, row_drop_list_mutex_key);
+
+  LATCH_ADD_RWLOCK(INDEX_ONLINE_LOG, SYNC_INDEX_ONLINE_LOG,
+                   index_online_log_key);
+
+  LATCH_ADD_MUTEX(WORK_QUEUE, SYNC_WORK_QUEUE, PFS_NOT_INSTRUMENTED);
+
+  // Add the RW locks
+  LATCH_ADD_RWLOCK(BTR_SEARCH, SYNC_SEARCH_SYS, btr_search_latch_key);
+
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
+  LATCH_ADD_RWLOCK(BUF_BLOCK_LOCK, SYNC_LEVEL_VARYING, buf_block_lock_key);
+#else
+  LATCH_ADD_RWLOCK(BUF_BLOCK_LOCK, SYNC_LEVEL_VARYING, PFS_NOT_INSTRUMENTED);
+#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
+
+#ifdef UNIV_DEBUG
+  LATCH_ADD_RWLOCK(BUF_BLOCK_DEBUG, SYNC_NO_ORDER_CHECK,
+                   buf_block_debug_latch_key);
+#else
+  LATCH_ADD_RWLOCK(BUF_BLOCK_DEBUG, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+#endif /* UNIV_DEBUG */
+
+  LATCH_ADD_RWLOCK(DICT_OPERATION, SYNC_DICT, dict_operation_lock_key);
+
+  LATCH_ADD_RWLOCK(RSEGS, SYNC_RSEGS, rsegs_lock_key);
+
+  LATCH_ADD_RWLOCK(UNDO_SPACES, SYNC_UNDO_SPACES, undo_spaces_lock_key);
+
+  LATCH_ADD_RWLOCK(FIL_SPACE, SYNC_FSP, fil_space_latch_key);
+
+  LATCH_ADD_RWLOCK(FTS_CACHE, SYNC_FTS_CACHE, fts_cache_rw_lock_key);
+
+  LATCH_ADD_RWLOCK(FTS_CACHE_INIT, SYNC_FTS_CACHE_INIT,
+                   fts_cache_init_rw_lock_key);
+
+  LATCH_ADD_RWLOCK(TRX_I_S_CACHE, SYNC_TRX_I_S_RWLOCK, trx_i_s_cache_lock_key);
+
+  LATCH_ADD_RWLOCK(TRX_PURGE, SYNC_PURGE_LATCH, trx_purge_latch_key);
+
+  LATCH_ADD_RWLOCK(IBUF_INDEX_TREE, SYNC_IBUF_INDEX_TREE,
+                   index_tree_rw_lock_key);
+
+  LATCH_ADD_RWLOCK(INDEX_TREE, SYNC_INDEX_TREE, index_tree_rw_lock_key);
+
+  LATCH_ADD_RWLOCK(DICT_TABLE_STATS, SYNC_INDEX_TREE, dict_table_stats_key);
+
+  LATCH_ADD_RWLOCK(HASH_TABLE_RW_LOCK, SYNC_BUF_PAGE_HASH,
+                   hash_table_locks_key);
+
+  LATCH_ADD_RWLOCK(SYNC_DEBUG_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+
+  LATCH_ADD_MUTEX(FILE_OPEN, SYNC_NO_ORDER_CHECK, file_open_mutex_key);
+
+  LATCH_ADD_MUTEX(MASTER_KEY_ID_MUTEX, SYNC_NO_ORDER_CHECK,
+                  master_key_id_mutex_key);
+
+  LATCH_ADD_MUTEX(CLONE_SYS, SYNC_NO_ORDER_CHECK, clone_sys_mutex_key);
+
+  LATCH_ADD_MUTEX(CLONE_TASK, SYNC_NO_ORDER_CHECK, clone_task_mutex_key);
+
+  LATCH_ADD_MUTEX(CLONE_SNAPSHOT, SYNC_NO_ORDER_CHECK,
+                  clone_snapshot_mutex_key);
+
+  latch_id_t id = LATCH_ID_NONE;
+
+  /* The array should be ordered on latch ID.We need to
+  index directly into it from the mutex policy to update
+  the counters and access the meta-data. */
+
+  LatchMetaData::iterator it = latch_meta.begin();
+
+  /* Skip the first entry, it is always NULL (LATCH_ID_NONE) */
+
+  for (++it; it != latch_meta.end(); ++it) {
+    const latch_meta_t *meta = *it;
+
+    /* Debug latches will be missing */
+
+    if (meta == NULL) {
+      continue;
+    }
+
+    ut_a(meta->get_id() != LATCH_ID_NONE);
+    ut_a(id < meta->get_id());
+
+    id = meta->get_id();
+  }
 }
 
-/**
-Add the latch meta data of Latch level is SYNC_NO_ORDER_CHECK.
-@param name		Latch name
-@param key		Performance schema key */
-void
-sync_latch_add_no_check(
-	const char*		name
-#ifdef UNIV_PFS_MUTEX
-	,mysql_pfs_key_t	key
-#endif /* UNIV_PFS_MUTEX */
-	)
-{
-	LATCH_ADD(SrvLatches, name,
-		  SYNC_NO_ORDER_CHECK,
-		  key);
+/** Destroy the latch meta data */
+static void sync_latch_meta_destroy() {
+  for (LatchMetaData::iterator it = latch_meta.begin(); it != latch_meta.end();
+       ++it) {
+    UT_DELETE(*it);
+  }
+
+  latch_meta.clear();
 }
 
-/**
-Initializes the synchronization data structures. */
-void
-sync_check_init()
-{
-	ut_a(!sync_check_initialised);
+/** Track mutex file creation name and line number. This is to avoid storing
+{ const char* name; uint16_t line; } in every instance. This results in the
+sizeof(Mutex) > 64. We use a lookup table to store it separately. Fetching
+the values is very rare, only required for diagnostic purposes. And, we
+don't create/destroy mutexes that frequently. */
+struct CreateTracker {
+  /** Constructor */
+  CreateTracker() UNIV_NOTHROW { m_mutex.init(); }
 
-	sync_check_initialised = true;
+  /** Destructor */
+  ~CreateTracker() UNIV_NOTHROW {
+    ut_d(m_files.empty());
 
-	ut_a(SrvLatches == NULL);
-	SrvLatches = UT_NEW_NOKEY(LatchMap());
-	ut_ad(SrvLatches != NULL);
+    m_mutex.destroy();
+  }
 
-	sync_latch_meta_init();
+  /** Register where the latch was created
+  @param[in]	ptr		Latch instance
+  @param[in]	filename	Where created
+  @param[in]	line		Line number in filename */
+  void register_latch(const void *ptr, const char *filename,
+                      uint16_t line) UNIV_NOTHROW {
+    m_mutex.enter();
 
-	/* Init the rw-lock list and create the mutex to protect it. */
+    Files::iterator lb = m_files.lower_bound(ptr);
 
-	UT_LIST_INIT(rw_lock_list, &rw_lock_t::list);
+    ut_ad(lb == m_files.end() || m_files.key_comp()(ptr, lb->first));
 
-	mutex_create("rw_lock_list", &rw_lock_list_mutex);
+    typedef Files::value_type value_type;
 
-#ifdef UNIV_SYNC_DEBUG
-	/* The '.' prefix signifies a mutex that is not tracked. */
-	mutex_create(".rw_lock_debug", &rw_lock_debug_mutex);
-	rw_lock_debug_event = os_event_create("rw_lock_debug_event");
-	rw_lock_debug_waiters = FALSE;
-#endif /* UNIV_SYNC_DEBUG */
+    m_files.insert(lb, value_type(ptr, File(filename, line)));
 
-	sync_array_init(OS_THREAD_MAX_N);
+    m_mutex.exit();
+  }
+
+  /** Deregister a latch - when it is destroyed
+  @param[in]	ptr		Latch instance being destroyed */
+  void deregister_latch(const void *ptr) UNIV_NOTHROW {
+    m_mutex.enter();
+
+    Files::iterator lb = m_files.lower_bound(ptr);
+
+    ut_ad(lb != m_files.end() && !(m_files.key_comp()(ptr, lb->first)));
+
+    m_files.erase(lb);
+
+    m_mutex.exit();
+  }
+
+  /** Get the create string, format is "name:line"
+  @param[in]	ptr		Latch instance
+  @return the create string or "" if not found */
+  std::string get(const void *ptr) UNIV_NOTHROW {
+    m_mutex.enter();
+
+    std::string created;
+
+    Files::iterator lb = m_files.lower_bound(ptr);
+
+    if (lb != m_files.end() && !(m_files.key_comp()(ptr, lb->first))) {
+      std::ostringstream msg;
+
+      msg << lb->second.m_name << ":" << lb->second.m_line;
+
+      created = msg.str();
+    }
+
+    m_mutex.exit();
+
+    return (created);
+  }
+
+ private:
+  /** For tracking the filename and line number */
+  struct File {
+    /** Constructor */
+    File() UNIV_NOTHROW : m_name(), m_line() {}
+
+    /** Constructor
+    @param[in]	name		Filename where created
+    @param[in]	line		Line number where created */
+    File(const char *name, uint16_t line) UNIV_NOTHROW
+        : m_name(sync_basename(name)),
+          m_line(line) {
+      /* No op */
+    }
+
+    /** Filename where created */
+    std::string m_name;
+
+    /** Line number where created */
+    uint16_t m_line;
+  };
+
+  /** Map the mutex instance to where it was created */
+  typedef std::map<const void *, File, std::less<const void *>,
+                   ut_allocator<std::pair<const void *const, File>>>
+      Files;
+
+  typedef OSMutex Mutex;
+
+  /** Mutex protecting m_files */
+  Mutex m_mutex;
+
+  /** Track the latch creation */
+  Files m_files;
+};
+
+/** Track latch creation location. For reducing the size of the latches */
+static CreateTracker *create_tracker;
+
+/** Register a latch, called when it is created
+@param[in]	ptr		Latch instance that was created
+@param[in]	filename	Filename where it was created
+@param[in]	line		Line number in filename */
+void sync_file_created_register(const void *ptr, const char *filename,
+                                uint16_t line) {
+  create_tracker->register_latch(ptr, filename, line);
 }
 
-/**
-Frees the resources in InnoDB's own synchronization data structures. Use
+/** Deregister a latch, called when it is destroyed
+@param[in]	ptr		Latch to be destroyed */
+void sync_file_created_deregister(const void *ptr) {
+  create_tracker->deregister_latch(ptr);
+}
+
+/** Get the string where the file was created. Its format is "name:line"
+@param[in]	ptr		Latch instance
+@return created information or "" if can't be found */
+std::string sync_file_created_get(const void *ptr) {
+  return (create_tracker->get(ptr));
+}
+
+/** Initializes the synchronization data structures.
+@param[in]	max_threads	Maximum threads that can be created. */
+void sync_check_init(size_t max_threads) {
+  ut_ad(!LatchDebug::s_initialized);
+  ut_d(LatchDebug::s_initialized = true);
+
+  /** For collecting latch statistic - SHOW ... MUTEX */
+  mutex_monitor = UT_NEW_NOKEY(MutexMonitor());
+
+  /** For trcking mutex creation location */
+  create_tracker = UT_NEW_NOKEY(CreateTracker());
+
+  sync_latch_meta_init();
+
+  /* Init the rw-lock & mutex list and create the mutex to protect it. */
+
+  UT_LIST_INIT(rw_lock_list, &rw_lock_t::list);
+
+  mutex_create(LATCH_ID_RW_LOCK_LIST, &rw_lock_list_mutex);
+
+  ut_d(LatchDebug::init());
+
+  sync_array_init(max_threads);
+}
+
+/** Frees the resources in InnoDB's own synchronization data structures. Use
 os_sync_free() after calling this. */
-void
-sync_check_close()
-{
-	ut_a(sync_check_initialised);
+void sync_check_close() {
+  ut_d(LatchDebug::shutdown());
 
-	sync_check_initialised = false;
+  mutex_free(&rw_lock_list_mutex);
 
-	UT_DELETE(SrvLatches);
+  sync_array_close();
 
-	SrvLatches = NULL;
+  UT_DELETE(mutex_monitor);
 
-#ifdef UNIV_SYNC_DEBUG
-	mutex_free(&rw_lock_debug_mutex);
-	os_event_destroy(rw_lock_debug_event);
-	rw_lock_debug_event = 0;
-#endif /* UNIV_SYNC_DEBUG */
+  mutex_monitor = NULL;
 
-	mutex_free(&rw_lock_list_mutex);
+  UT_DELETE(create_tracker);
 
-	sync_array_close();
-}
+  create_tracker = NULL;
 
-/**
-Get the sync level for a latch name.
-@return SYNC_UNKNOWN - if not found. */
-latch_level_t
-sync_latch_get_level(
-	const char*	name)			/*!< in: Latch name */
-{
-	LatchMap::iterator	it  = SrvLatches->find(name);
-
-	if (it == SrvLatches->end()) {
-		ib::fatal() << "Mutex not found: " << name;
-	}
-
-	return(it->second.m_level);
-}
-
-/**
-Get the latch name from a sync level.
-@return 0 if not found. */
-const char*
-sync_latch_get_name(
-	latch_level_t	level)			/*!< in: Latch level */
-{
-	LatchMap::const_iterator	end = SrvLatches->end();
-
-	// Linear scan should be OK, this should be extremely rare.
-	for (LatchMap::const_iterator it = SrvLatches->begin();
-	     it != end;
-	     ++it) {
-
-		if (it->second.m_level == level) {
-			return(it->first.c_str());
-		}
-	}
-
-	return(0);
-}
-
-#ifdef UNIV_PFS_MUTEX
-/**
-Get the sync level for a latch name.
-@return SYNC_UNKNOWN - if not found. */
-mysql_pfs_key_t
-sync_latch_get_pfs_key(
-	const char*	name)			/*!< Latch name */
-{
-	LatchMap::iterator	it  = SrvLatches->find(name);
-
-	/* Must find th the PFS key, even if it is not instrumented. */
-	if (it == SrvLatches->end()) {
-
-		ib::fatal() << "Mutex not found: " << name;
-		ut_error;
-	}
-
-	return(it->second.m_pfs_key);
-}
-#endif /* UNIV_PFS_MUTEX */
-
-/**
-Check if it is OK to acquire the latch.
-@param latch - latch type */
-void
-sync_check_lock(const latch_t* latch)
-{
-	syncDebug.lock(latch);
-}
-
-/**
-Check if it is OK to acquire the latch.
-@param latch - latch type
-@param level - latch order */
-void
-sync_check_lock(const latch_t* latch, latch_level_t level)
-{
-	syncDebug.lock(latch);
-}
-
-/**
-Check if it is OK to re-acquire the lock. */
-void
-sync_check_relock(const latch_t* latch)
-{
-	syncDebug.relock(latch);
-}
-
-/**
-Removes a latch from the thread level array if it is found there.
-@param latch - to unlock */
-void
-sync_check_unlock(const latch_t* latch)
-{
-	syncDebug.unlock(latch);
-}
-
-/**
-Checks if the level array for the current thread contains a
-mutex or rw-latch at the specified level.
-@param level - to find
-@return	a matching latch, or NULL if not found */
-const latch_t*
-sync_check_find(latch_level_t level)
-{
-	return(syncDebug.find(level));
-}
-
-/**
-Iterate over the thread's latches.
-@param functor - called for each element. */
-bool
-sync_check_iterate(sync_check_functor_t& functor)
-{
-	return(syncDebug.for_each(functor));
-}
-
-/**
-Enable sync order checking. */
-void
-sync_check_enable()
-{
-	/* Currently, we should always call this before we create threads,
-	so we don't need to wait any more. */
-	syncDebug.enable();
+  sync_latch_meta_destroy();
 }

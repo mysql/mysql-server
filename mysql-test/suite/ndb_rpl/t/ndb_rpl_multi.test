@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_multi_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
 
@@ -48,7 +43,7 @@ connection server2;
 # update is actually in the server2 binlog
 set SQL_LOG_BIN=0;
 insert into t2 values (1);
--- source include/show_binlog_events2.inc
+-- source include/show_binlog_events.inc
 set SQL_LOG_BIN=1;
 --replace_result $the_epoch <the_epoch>
 --disable_query_log

@@ -1,36 +1,51 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DEFINED_RPL_BINLOG_SENDER
 #define DEFINED_RPL_BINLOG_SENDER
 
-#ifdef HAVE_REPLICATION
-#include "my_global.h"
-#include "binlog.h"           // LOG_INFO
-#include "binlog_event.h"     // enum_binlog_checksum_alg, Log_event_type
-#include "mysqld_error.h"     // ER_*
-#include "sql_error.h"        // Diagnostics_area
+#include <string.h>
+#include <sys/types.h>
+#include <time.h>
 
+#include "binlog_event.h"  // enum_binlog_checksum_alg, Log_event_type
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"  // ER_*
+#include "sql/binlog.h"    // LOG_INFO
+#include "sql/rpl_gtid.h"
+#include "sql/sql_error.h"  // Diagnostics_area
+
+class String;
+class THD;
+struct IO_CACHE;
 
 /**
   The major logic of dump thread is implemented in this class. It sends
   required binlog events to clients according to their requests.
 */
-class Binlog_sender
-{
-public:
+class Binlog_sender : Gtid_mode_copy {
+ public:
   Binlog_sender(THD *thd, const char *start_file, my_off_t start_pos,
                 Gtid_set *exclude_gtids, uint32 flag);
 
@@ -41,9 +56,10 @@ public:
     all events(for mysqlbinlog) or encounters an error.
   */
   void run();
-private:
+
+ private:
   THD *m_thd;
-  String& m_packet;
+  String &m_packet;
 
   /* Requested start binlog file and position */
   const char *m_start_file;
@@ -143,8 +159,8 @@ private:
 
   uint32 m_flag;
   /*
-    It is true if any plugin requires to observe the transmission for each event.
-    And HOOKs(reserve_header, before_send and after_send) are called when
+    It is true if any plugin requires to observe the transmission for each
+    event. And HOOKs(reserve_header, before_send and after_send) are called when
     transmitting each event. Otherwise, it is false and HOOKs are not called.
   */
   bool m_observe_transmission;
@@ -164,7 +180,7 @@ private:
   /** Check if the requested binlog file and position are valid */
   int check_start_file();
   /** Transform read error numbers to error messages. */
-  const char* log_read_error_msg(int error);
+  const char *log_read_error_msg(int error);
 
   /**
     It dumps a binlog file. Events are read and sent one by one. If it need
@@ -232,7 +248,6 @@ private:
     Previous_gtids_log_event) and the slave is connecting using
     the GTID protocol.
 
-    @param[in] packet         The buffer used to store the faked event.
     @param[in] next_log_file  The name of the binlog file will be sent after
                               the rotate event.
     @param[in] log_pos        The start position of the binlog file.
@@ -248,7 +263,7 @@ private:
      Format_description_log_event has to be set to 0. So the slave
      will not increment its master's binlog position.
 
-     @param[in] log_cache IO_CACHE of the binlog will be dumpped
+     @param[in] log       IO_CACHE of the binlog will be dumpped
      @param[in] start_pos Position requested by the slave's IO thread.
                           Only the events after the position are sent.
 
@@ -258,7 +273,6 @@ private:
   /**
      It sends a heartbeat to the client.
 
-     @param[in] packet   The buffer used to store the event.
      @param[in] log_pos  The log position that events before it are sent.
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
@@ -294,8 +308,8 @@ private:
     calls set_fatal_error().
     @retval false The event is allowed.
   */
-  bool check_event_type(binary_log::Log_event_type type,
-                        const char *log_file, my_off_t log_pos);
+  bool check_event_type(binary_log::Log_event_type type, const char *log_file,
+                        my_off_t log_pos);
   /**
     It checks if the event is in m_exclude_gtid.
 
@@ -326,12 +340,11 @@ private:
   inline int before_send_hook(const char *log_file, my_off_t log_pos);
   inline int after_send_hook(const char *log_file, my_off_t log_pos);
   /*
-    Reset thread transmit packet buffer for event sending
+    Reset the thread transmit packet buffer for event sending.
 
-    This function reserves header bytes for event transmission, and
-    should be called before store the event data to the packet buffer.
+    This function reserves the bytes for event transmission, and
+    should be called before storing the event data to the packet buffer.
 
-    @param[inout] packet  The buffer where a event will be stored.
     @param[in] flags      The flag used in reset_transmit hook.
     @param[in] event_len  If the caller already knows the event length, then
                           it can pass this value so that reset_transmit_packet
@@ -339,7 +352,7 @@ private:
                           if event_len is 0, then the caller needs to extend
                           the buffer itself.
   */
-  inline int reset_transmit_packet(ushort flags, size_t event_len= 0);
+  inline int reset_transmit_packet(ushort flags, size_t event_len = 0);
 
   /**
     It waits until receiving an update_cond signal. It will send heartbeat
@@ -365,46 +378,39 @@ private:
 #endif
 
   bool has_error() { return m_errno != 0; }
-  void set_error(int errorno, const char *errmsg)
-  {
+  void set_error(int errorno, const char *errmsg) {
     // Need to set the final '\0' since strncpy does not do that.
     strncpy(m_errmsg_buf, errmsg, sizeof(m_errmsg_buf) - 1);
-    m_errmsg_buf[sizeof(m_errmsg_buf) - 1]= '\0';
-    m_errmsg= m_errmsg_buf;
-    m_errno= errorno;
+    m_errmsg_buf[sizeof(m_errmsg_buf) - 1] = '\0';
+    m_errmsg = m_errmsg_buf;
+    m_errno = errorno;
   }
 
-  void set_unknow_error(const char *errmsg)
-  {
+  void set_unknown_error(const char *errmsg) {
     set_error(ER_UNKNOWN_ERROR, errmsg);
   }
 
-  void set_fatal_error(const char *errmsg)
-  {
+  void set_fatal_error(const char *errmsg) {
     set_error(ER_MASTER_FATAL_ERROR_READING_BINLOG, errmsg);
   }
 
-  bool is_fatal_error()
-  {
+  bool is_fatal_error() {
     return m_errno == ER_MASTER_FATAL_ERROR_READING_BINLOG;
   }
 
-  bool event_checksum_on()
-  {
+  bool event_checksum_on() {
     return m_event_checksum_alg > binary_log::BINLOG_CHECKSUM_ALG_OFF &&
-      m_event_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END;
+           m_event_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END;
   }
 
-  void set_last_pos(my_off_t log_pos)
-  {
-    m_last_file= m_linfo.log_file_name;
-    m_last_pos= log_pos;
+  void set_last_pos(my_off_t log_pos) {
+    m_last_file = m_linfo.log_file_name;
+    m_last_pos = log_pos;
   }
 
-  void set_last_file(const char *log_file)
-  {
+  void set_last_file(const char *log_file) {
     strcpy(m_last_file_buf, log_file);
-    m_last_file= m_last_file_buf;
+    m_last_file = m_last_file_buf;
   }
 
   /**
@@ -417,8 +423,8 @@ private:
    * free bytes in the buffer, the buffer is extended by a constant factor
    * (@c PACKET_GROW_FACTOR).
    *
-   * @param packet  The buffer to resize if needed.
-   * @param extra_size  The size in bytes that the caller wants to add to the buffer.
+   * @param extra_size  The size in bytes that the caller wants to add to the
+   * buffer.
    * @return true if an error occurred, false otherwise.
    */
   inline bool grow_packet(size_t extra_size);
@@ -432,24 +438,25 @@ private:
    * (@c PACKET_SHRINK_FACTOR).
    *
    * The buffer is never shrunk less than a minimum size (@c PACKET_MIN_SIZE).
-   *
-   * @param packet  The buffer to shrink.
    */
   inline bool shrink_packet();
 
-  /*
-   * Helper function to recalculate a new size for the buffer.
-   *
-   * @param current_size The baseline (for instance, the current buffer size).
-   * @param min_size The resulting buffer size, needs to be at least as large
-   *                 as this parameter states.
-   * @param factor The multiplier factor on the baseline.
-   * @param new_val[out] The placeholder where the new value will be stored.
-   * @return true in case of an error.
-   */
-  inline bool calc_buffer_size(size_t current_size, size_t min_size,
-                               float factor, size_t *new_val);
+  /**
+   Helper function to recalculate a new size for the growing buffer.
+
+   @param current_size The baseline (for instance, the current buffer size).
+   @param min_size The resulting buffer size, needs to be at least as large
+                   as this parameter states.
+   @return The new buffer size, or 0 in the case of an error.
+  */
+  inline size_t calc_grow_buffer_size(size_t current_size, size_t min_size);
+
+  /**
+   Helper function to recalculate the new size for the m_new_shrink_size.
+
+   @param current_size The baseline (for instance, the current buffer size).
+  */
+  void calc_shrink_buffer_size(size_t current_size);
 };
 
-#endif // HAVE_REPLICATION
-#endif // DEFINED_RPL_BINLOG_SENDER
+#endif  // DEFINED_RPL_BINLOG_SENDER

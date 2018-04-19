@@ -1,0 +1,143 @@
+--echo Preamble
+--source include/have_ipv4_mapped.inc
+--source include/check_ipv6.inc
+--source include/xplugin_preamble.inc
+
+# User name is limited to 32 characters, the long IPv6 localhost form
+# must be truncated like following:
+#              333322222222221111111111000000000
+#              321098765432109876543210987654321
+#   user_0000:0000:0000:0000:0000:0000:0000:0001  - before
+#               user_0::0000:0000:0000:0000:0001  - after
+#
+CREATE USER `user_localhost`@`localhost`;
+CREATE USER `user_127_0_0_1`@`127.0.0.1`;
+CREATE USER `user_::1`@`::1`;
+CREATE USER `user_0:0:0:0:0:0:0:1`@`0:0:0:0:0:0:0:1`;
+CREATE USER `user_0::0000:0000:0000:0000:0001`@`0000:0000:0000:0000:0000:0000:0000:0001`;
+CREATE USER `user_0:0:0:0:0:FFFF:127.0.0.1`@`0:0:0:0:0:FFFF:127.0.0.1`;
+CREATE USER `user_::FFFF:127.0.0.1`@`::FFFF:127.0.0.1`;
+
+--write_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
+-->sql
+SELECT user();
+SELECT @@global.mysqlx_bind_address;
+SHOW STATUS LIKE 'mysqlx_address';
+-->endsql
+EOF
+
+--let $MYSQLXTEST_INFO= $MYSQLXTEST --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 
+
+--echo #
+--echo #
+--echo # Server enabled with IPv4, test connectivity from localhosts
+--echo #
+--echo #
+--error 1
+--exec $MYSQLXTEST_INFO -u user_localhost --ipv=6 -h ::1
+--exec $MYSQLXTEST_INFO -u user_localhost --ipv=4 -h 127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_127_0_0_1 --ipv=6 -h ::1
+--exec $MYSQLXTEST_INFO -u user_127_0_0_1 --ipv=4 -h 127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_::1       --ipv=6 -h ::1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_::1       --ipv=4 -h 127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0:0:0:0:0:0:0:1 --ipv=6 -h ::1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0:0:0:0:0:0:0:1 --ipv=4 -h 127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0::0000:0000:0000:0000:0001 --ipv=6 -h ::1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0::0000:0000:0000:0000:0001 --ipv=4 -h 127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0:0:0:0:0:FFFF:127.0.0.1 --ipv=6 -h ::1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0:0:0:0:0:FFFF:127.0.0.1 --ipv=4 -h 127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_::FFFF:127.0.0.1 --ipv=6 -h ::1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_::FFFF:127.0.0.1 --ipv=4 -h 127.0.0.1
+
+--echo #
+--echo #
+--echo # Server enabled with IPv4, test connectivity from mapped localhost-ips
+--echo #
+--echo #
+--exec $MYSQLXTEST_INFO -u user_localhost --ipv=6 -h ::FFFF:127.0.0.1
+--exec $MYSQLXTEST_INFO -u user_127_0_0_1 --ipv=6 -h ::FFFF:127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_::1       --ipv=6 -h ::FFFF:127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0:0:0:0:0:0:0:1 --ipv=6 -h ::FFFF:127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0::0000:0000:0000:0000:0001 --ipv=6 -h ::FFFF:127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0:0:0:0:0:FFFF:127.0.0.1 --ipv=6 -h ::FFFF:127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_::FFFF:127.0.0.1 --ipv=6 -h ::FFFF:127.0.0.1
+
+
+--let $restart_parameters = restart: --loose-mysqlx-bind-address=::
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+
+--echo #
+--echo #
+--echo # Server enabled with IPv6 and IPv4, test connectivity from localhosts
+--echo #
+--echo #
+--exec $MYSQLXTEST_INFO -u user_localhost --ipv=6 -h ::1
+--exec $MYSQLXTEST_INFO -u user_localhost --ipv=4 -h 127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_127_0_0_1 --ipv=6 -h ::1
+--exec $MYSQLXTEST_INFO -u user_127_0_0_1 --ipv=4 -h 127.0.0.1
+--exec $MYSQLXTEST_INFO -u user_::1       --ipv=6 -h ::1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_::1       --ipv=4 -h 127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0:0:0:0:0:0:0:1 --ipv=6 -h ::1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0:0:0:0:0:0:0:1 --ipv=4 -h 127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0::0000:0000:0000:0000:0001 --ipv=6 -h ::1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0::0000:0000:0000:0000:0001 --ipv=4 -h 127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0:0:0:0:0:FFFF:127.0.0.1 --ipv=6 -h ::1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0:0:0:0:0:FFFF:127.0.0.1 --ipv=4 -h 127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_::FFFF:127.0.0.1 --ipv=6 -h ::1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_::FFFF:127.0.0.1 --ipv=4 -h 127.0.0.1
+
+--echo #
+--echo #
+--echo # Server enabled with IPv6 and IPv4, test connectivity from mapped localhost-ips
+--echo #
+--echo #
+--exec $MYSQLXTEST_INFO -u user_localhost --ipv=6 -h ::FFFF:127.0.0.1
+--exec $MYSQLXTEST_INFO -u user_127_0_0_1 --ipv=6 -h ::FFFF:127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_::1       --ipv=6 -h ::FFFF:127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0:0:0:0:0:0:0:1 --ipv=6 -h ::FFFF:127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0::0000:0000:0000:0000:0001 --ipv=6 -h ::FFFF:127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_0:0:0:0:0:FFFF:127.0.0.1 --ipv=6 -h ::FFFF:127.0.0.1
+--error 1
+--exec $MYSQLXTEST_INFO -u user_::FFFF:127.0.0.1 --ipv=6 -h ::FFFF:127.0.0.1
+
+
+## Cleanup
+DROP USER `user_localhost`@`localhost`;
+DROP USER `user_127_0_0_1`@`127.0.0.1`;
+DROP USER `user_::1`@`::1`;
+DROP USER `user_0:0:0:0:0:0:0:1`@`0:0:0:0:0:0:0:1`;
+DROP USER `user_0::0000:0000:0000:0000:0001`@`0000:0000:0000:0000:0000:0000:0000:0001`;
+DROP USER `user_0:0:0:0:0:FFFF:127.0.0.1`@`0:0:0:0:0:FFFF:127.0.0.1`;
+DROP USER `user_::FFFF:127.0.0.1`@`::FFFF:127.0.0.1`;
+
+--remove_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp

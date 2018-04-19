@@ -3,9 +3,6 @@
 #   Test statements using different character sets.
 #   See Bug#13809293 - PERFSCHEMA.DML_ESMS_BY_DIGEST FAILS ON DAILY-TRUNK SPORADICALLY
 #
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --disable_warnings
 DROP DATABASE IF EXISTS pfs_charset_test;
 --enable_warnings
@@ -16,6 +13,7 @@ USE pfs_charset_test;
 # CP1251 - 8 bits, max multibyte length = 1
 #
 SET NAMES cp1251;
+--character_set cp1251
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 CREATE TABLE долен_регистър_1251a (s1 INT);
 CREATE TABLE ДоЛеН_регистър_1251b (s1 INT, s2 INT);
@@ -24,6 +22,7 @@ CREATE TABLE ДоЛеН_регистър_1251b (s1 INT, s2 INT);
 # UTF8 - 8 bits, max multibyte length = 4
 #
 SET NAMES utf8;
+--character_set utf8mb4
 CREATE TABLE Р”РћР›Р•Рќ_СЂРµРіРёСЃС‚СЉСЂ_СѓС‚С„8 (s1 INT);
 
 #

@@ -1,14 +1,21 @@
 /*
- *  Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
+ *  it under the terms of the GNU General Public License, version 2.0,
+ *  as published by the Free Software Foundation.
+ *
+ *  This program is also distributed with certain software (including
+ *  but not limited to OpenSSL) that is licensed under separate terms,
+ *  as designated in a particular file or component or in included license
+ *  documentation.  The authors of MySQL hereby grant you an additional
+ *  permission to link the program and your derivative works with the
+ *  separately licensed software that they have included with MySQL.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  GNU General Public License, version 2.0, for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
@@ -41,15 +48,29 @@ class NdbRecordBlobImpl extends BlobImpl {
     /** The store column for this blob */
     private Column storeColumn;
 
-    /** The data holder for this blob */
-    private byte[] data;
-
-    /** The operation */
-    private NdbRecordOperationImpl operation;
-
-    public NdbRecordBlobImpl(NdbRecordOperationImpl operation, Column storeColumn) {
+    public NdbRecordBlobImpl(NdbRecordOperationImpl operation, Column storeColumn, VariableByteBufferPoolImpl byteBufferPool) {
+        super(byteBufferPool);
         this.storeColumn = storeColumn;
         this.operation = operation;
+    }
+
+    /** Copy the data and column from the other NdbRecordBlobImpl but replace the operation.
+     * This constructor is used for scans to copy the data to the newly created NdbRecordOperation.
+     * While scanning, the operation used to fetch the blob data is the scan operation. But the
+     * operation for the new NdbRecordBlobImpl is a new operation that is not currently bound to
+     * an NdbOperation. Subsequent use of the blob will require a new NdbBlob with the NdbOperation.
+     * @param operation the new operation that is not connected to the database
+     * @param ndbRecordBlobImpl2 the other NdbRecordBlobImpl that is connected to the database
+     */
+    public NdbRecordBlobImpl(NdbRecordOperationImpl operation, NdbRecordBlobImpl ndbRecordBlobImpl2) {
+        super(ndbRecordBlobImpl2.byteBufferPool);
+        this.operation = operation;
+        this.storeColumn = ndbRecordBlobImpl2.storeColumn;
+        this.data = ndbRecordBlobImpl2.data;
+    }
+
+    public int getColumnId() {
+        return storeColumn.getColumnId();
     }
 
     protected void setNdbBlob() {
@@ -81,6 +102,9 @@ class NdbRecordBlobImpl extends BlobImpl {
      */
     public void readData() {
         int length = getLength().intValue();
+        if (logger.isDetailEnabled()) {
+            logger.detail("reading: " + length + " bytes.");
+        }
         data = new byte[length];
         readData(data, length);
     }

@@ -1,0 +1,645 @@
+--echo #
+--echo # WL#9651:  Logging services: filter configuration engine
+--echo #
+
+--source include/have_debug.inc
+--source include/have_log_component.inc
+
+let GREP_START=`SELECT DATE_FORMAT(CONVERT_TZ(SYSDATE(6),'SYSTEM','UTC'),'%Y%m%d%H%i%s%f');`;
+
+SET @@global.log_error_verbosity=3;
+
+let $log_error_= `SELECT @@GLOBAL.log_error`;
+if($log_error_ == "stderr")
+{
+  let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+}
+FLUSH LOGS;
+
+# Send parse-trace to error log; first one with a current timestamp
+# to compare against our GREP_START defined above.
+SET @@session.debug="+d,parser_stmt_to_error_log";
+# Now normalize timestamp and thread_ID on all following lines,
+# for less hassle with --regex_replace in test files.  Once
+# WL#9651 goes live, we can use that to achieve the same thing.
+SET @@session.debug="+d,log_error_normalize";
+
+SELECT @@global.log_error_services;
+--echo
+
+--echo ## WL#9651
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SET @save_filters= @@global.dragnet.log_error_filter_rules;
+--echo # currently nothing is loaded that can handle this, so we'll fail
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SET @@global.dragnet.log_error_filter_rules= DEFAULT;
+--echo
+
+INSTALL COMPONENT "file://component_log_filter_dragnet";
+
+disable_warnings;
+
+SET @save_filters= @@global.dragnet.log_error_filter_rules;
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line.";
+
+--echo # when clearing rule-set, notice should also show an empty rule-set
+SET @@global.dragnet.log_error_filter_rules="";
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line.";
+
+
+# reaction we get when we try to multi-open something not supporting instances:
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_services="log_sink_internal; log_sink_internal";
+# show we get that for trying to use dragnet multiple times:
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_services="log_filter_dragnet; log_filter_dragnet";
+
+SET @@global.log_error_services="log_filter_dragnet; log_sink_internal";
+
+--echo # error, not starting with IF
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='drop.';
+SHOW WARNINGS;
+--echo
+
+--echo # error, ELSE without IF
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='ELSE drop.';
+SHOW WARNINGS;
+--echo
+
+--echo # correct OR
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a OR NOT EXISTS b THEN drop.';
+SHOW WARNINGS;
+--echo
+
+--echo # correct AND
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b THEN drop.';
+SHOW WARNINGS;
+--echo
+
+--echo # multi-chain
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b OR c>=5 THEN drop.';
+SHOW WARNINGS;
+--echo
+
+--echo # test presence/absence operator
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a=1. IF NOT EXISTS a THEN SET a='asd'.";
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'. IF EXISTS a THEN SET a='asd'.";
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'. IF NOT EXISTS a THEN SET a='asd'.";
+
+--echo # correct conditions:
+SET @@global.dragnet.log_error_filter_rules='IF a>0 THEN drop.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a<3 THEN drop.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a=>0 THEN drop.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a=<3 THEN drop.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a<>2 THEN drop.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN drop.';
+SHOW WARNINGS;
+--echo
+
+--echo # correct actions:
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/30.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b=2.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b= 2.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:="2".';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.0.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN unset.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN unset.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a==ER_STARTUP THEN drop.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN drop.';
+SHOW WARNINGS;
+
+
+SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP' THEN drop.";
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN set err_code:=ER_YES.';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN set err_symbol:="ER_YES".';
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules='IF a=="\\\\a\\\"\\\'" THEN set err_symbol:="ER_YES".';
+SHOW WARNINGS;
+
+--echo # error, unrecognized token
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='DRAUGR.';
+SHOW WARNINGS;
+
+--echo # error, == is not an assignment operator
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b==2.';
+SHOW WARNINGS;
+
+--echo # error, mismatching quotation signs
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP THEN drop.";
+SHOW WARNINGS;
+
+--echo # error, mismatching quotation signs
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF err_symbol==ER_STARTUP' THEN drop.";
+SHOW WARNINGS;
+
+--echo # error, mismatching quotation signs
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP\" THEN drop.";
+SHOW WARNINGS;
+
+--echo # error, mismatching quotation signs
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF err_symbol==\"ER_STARTUP' THEN drop.";
+SHOW WARNINGS;
+
+--echo # error, reserved
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF misc_cstring=='1' THEN drop.";
+SHOW WARNINGS;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF a=='1' THEN set misc_cstring:='abc'.";
+SHOW WARNINGS;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS misc_cstring THEN drop.";
+SHOW WARNINGS;
+
+--echo # error, trying to assign integer to string field
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set component:=1.";
+SHOW WARNINGS;
+
+--echo # error, trying to assign float to string field
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set component:=1..5.";
+SHOW WARNINGS;
+
+--echo # error, trying to assign float to an integer field
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set prio:=1.5.";
+SHOW WARNINGS;
+
+--echo # error, no action (condition ends in NUL)
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF err_symbol==ER_STARTUP";
+SHOW WARNINGS;
+
+--echo # error, NOT requires EXISTS
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF NOT field THEN action.";
+SHOW WARNINGS;
+
+# test with tab instead of space
+SET @@global.dragnet.log_error_filter_rules="IF\tEXISTS\tfield\tTHEN\tDROP.";
+SHOW WARNINGS;
+
+
+--echo
+
+--echo # error, wrong data-type
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF err_symbol==ER_STARTUP THEN drop.';
+SHOW WARNINGS;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF err_code=="ER_STARTUP" THEN drop.';
+SHOW WARNINGS;
+--echo
+
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 AND b==3 THEN unset.';
+SHOW WARNINGS;
+--echo
+
+--echo # error, both prefix and infix operators
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a>0 THEN drop.';
+SHOW WARNINGS;
+--echo
+
+--echo # error, no terminator
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop';
+SHOW WARNINGS;
+--echo
+
+--echo # error, malformed statement
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS field THEN AND.";
+
+--echo # error, malformed statement
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS field DROP.";
+
+--echo # error, incomplete action:
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set.';
+SHOW WARNINGS;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b.';
+SHOW WARNINGS;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=.';
+SHOW WARNINGS;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=.';
+SHOW WARNINGS;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set :=2.';
+SHOW WARNINGS;
+--echo
+
+# . is terminator, not delimiter
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop';
+SHOW WARNINGS;
+--echo
+
+--echo # NULL should not be allowed
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules=NULL;
+SHOW WARNINGS;
+
+--echo # empty rule-set should be allowed
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+SET @@global.dragnet.log_error_filter_rules="";
+SHOW WARNINGS;
+# rule-set should show as empty now (rather than old rule-set):
+SELECT @@global.dragnet.log_error_filter_rules;
+
+--echo # interaction with SET PERSIST
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+SET PERSIST dragnet.log_error_filter_rules= '';
+SHOW WARNINGS;
+SELECT @@global.dragnet.log_error_filter_rules;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.dragnet.log_error_filter_rules;
+RESET PERSIST;
+--let $MYSQLD_DATADIR= `select @@datadir`
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo # symbolic prio
+SET @@global.dragnet.log_error_filter_rules="IF prio>9999 THEN set prio:=WARNING.";
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules="IF prio>=ERROR THEN drop.";
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules="IF prio>=WARNING THEN drop.";
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules="IF prio>=NOTE THEN drop.";
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules="IF prio>=INFORMATION THEN drop.";
+SHOW WARNINGS;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF thread>=INFORMATION THEN drop.";
+SHOW WARNINGS;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF prio>=INFORMATION THEN set thread:=ERROR.";
+SHOW WARNINGS;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF prio>=NOUGAT THEN drop.";
+SHOW WARNINGS;
+
+--echo # == should not require a space
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg== \'Parser saw: select 1\' THEN set a:=1. ";
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg==\'Parser saw: select 1\' THEN set a:=1. ";
+SHOW WARNINGS;
+
+--echo # throw error for absurdly large values
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 1/1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 .";
+SHOW WARNINGS;
+
+--echo # throw error for floats
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF err_code == 001045 THEN throttle 1/1.1.";
+SHOW WARNINGS;
+
+--echo # test for correct range in throttle denominator
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/3600.";
+SHOW WARNINGS;
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604800.";
+SHOW WARNINGS;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604801.";
+SHOW WARNINGS;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/0.";
+SHOW WARNINGS;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/-1.";
+SHOW WARNINGS;
+
+# --echo # throw error for negative values
+# SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 1/-1.";
+
+--echo # error, drop takes no argument
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop a.';
+SHOW WARNINGS;
+--echo
+
+--echo # error, throttle requires numeric value (limit)
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle a.';
+SHOW WARNINGS;
+--echo
+
+--echo # error, throttle requires integer value (limit)
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1.5.';
+SHOW WARNINGS;
+--echo
+
+--echo # error, throttle requires numeric value (window-size)
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/b.';
+SHOW WARNINGS;
+--echo
+
+--echo # error, throttle -- / given, but not window-size
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle a/.';
+SHOW WARNINGS;
+--echo
+
+--echo # error, throttle numerator needs to be positive
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle -1/2.';
+SHOW WARNINGS;
+--echo
+
+--echo # error, throttle numerator needs to be non-zero
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 0/2.';
+SHOW WARNINGS;
+--echo
+
+
+--echo # correct ELSE
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE throttle 1/30.';
+SHOW WARNINGS;
+--echo
+
+--echo # incorrect ELSE
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='ELSE.';
+SHOW WARNINGS;
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 ELSE.';
+SHOW WARNINGS;
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop ELSE drop ELSE drop.';
+SHOW WARNINGS;
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop ELSE scream.';
+SHOW WARNINGS;
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop ELSE.';
+SHOW WARNINGS;
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF .';
+SHOW WARNINGS;
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN.';
+SHOW WARNINGS;
+--echo
+
+--echo # error, unknown comparator
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF a!!b THEN drop.';
+SHOW WARNINGS;
+--echo
+
+--echo # error, field name missing after EXISTS
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS.';
+SHOW WARNINGS;
+--echo
+
+--echo # correct ELSEIF
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.';
+SHOW WARNINGS;
+--echo
+
+--echo # correct ELSE IF
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE IF a==5 THEN throttle 1/30.';
+SHOW WARNINGS;
+--echo
+
+--echo # correct ELSEIF-ELSE
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
+SHOW WARNINGS;
+--echo
+
+--echo # correct ELSE IF-ELSE
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSE IF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
+SHOW WARNINGS;
+--echo
+
+--echo # correct multi-rule rule-set.
+CREATE TABLE my_rules (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, rule VARCHAR(256));
+INSERT INTO my_rules VALUES(NULL, 'IF EXISTS source_line THEN unset source_line.');
+INSERT INTO my_rules VALUES(NULL, 'IF EXISTS thread THEN set thread:=0.'),
+                           (NULL, 'IF EXISTS user THEN unset user.'),
+                           (NULL, 'IF EXISTS host THEN unset host.'),
+                           (NULL, 'IF EXISTS query_id THEN set query_id:=0.'),
+                           (NULL, 'IF EXISTS time THEN set time:="1970-01-01T00:00:00.000000Z".'),
+                           (NULL, 'IF EXISTS _pid THEN unset _pid.'),
+                           (NULL, 'IF EXISTS _platform THEN unset platform.'),
+                           (NULL, 'IF EXISTS _client_version THEN unset _client_version.'),
+                           (NULL, 'IF EXISTS _os THEN unset _os.');
+
+# additional rules that work in tandem with log_sink_test
+# 1 - IF/ELSEIF/ELSEIF/ELSE
+INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val1 < 1 THEN set wl9651_result1:="IF" ELSE IF wl9651_val1 == 1 THEN set wl9651_result1:="ELSEIF1" ELSE IF wl9651_val1 == 2 THEN set wl9651_result1:="ELSEIF2" ELSE set wl9651_result1:="ELSE".');
+
+# 2 - IF/OR/OR
+INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val2==1 OR wl9651_val2==2 OR wl9651_val2==3 THEN set wl9651_result2:="SUCCESS" ELSE set wl9651_result2:="FAILURE".');
+
+# 3 - IF/AND/AND
+INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val3a==1 AND wl9651_val3b==2 AND wl9651_val3c==3 THEN set wl9651_result3:="SUCCESS" ELSE set wl9651_result3:="FAILURE".');
+
+SELECT group_concat(rule ORDER BY id SEPARATOR ' ') FROM my_rules INTO @rules;
+SET @@global.dragnet.log_error_filter_rules= @rules;
+
+INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set s1:="string". IF s1=="string" THEN set cmp01:="EQ/S works" ELSE set cmp01:="EQ/S is broken".');
+
+INSERT INTO my_rules VALUES(NULL, 'IF s1!="stringx" THEN set cmp02:="NE/S works" ELSE set cmp02:="NE/S is broken".');
+
+INSERT INTO my_rules VALUES(NULL, 'IF s1>="string" THEN set cmp03:="GE/S works" ELSE set cmp03:="GE/S is broken".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1>="strin" THEN set cmp04:="GE/S works" ELSE set cmp04:="GE/S is broken".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1>="strinx" THEN set cmp04:="GE/S is broken" ELSE set cmp04:="GE/S works".');
+
+INSERT INTO my_rules VALUES(NULL, 'IF s1>"strinx" THEN set cmp05:="GT/S is broken" ELSE set cmp05:="GT/S works".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1>"string" THEN set cmp06:="GT/S is broken" ELSE set cmp06:="GT/S works".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1>"strin" THEN set cmp07:="GT/S works" ELSE set cmp07:="GT/S is broken".');
+
+INSERT INTO my_rules VALUES(NULL, 'IF s1<="string" THEN set cmp08:="LE/S works" ELSE set cmp08:="LE/S is broken".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1<="strin" THEN set cmp09:="LE/S is broken" ELSE set cmp09:="LE/S works".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1<="strinx" THEN set cmp10:="LE/S works" ELSE set cmp10:="LE/S is broken".');
+
+INSERT INTO my_rules VALUES(NULL, 'IF s1<"string" THEN set cmp11:="LT/S is broken" ELSE set cmp11:="LT/S works".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1<"strin" THEN set cmp12:="LT/S is broken" ELSE set cmp12:="LT/S works".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1<"strinx" THEN set cmp1:="LT/S works" ELSE set cmp13:="LT/S is broken".');
+
+INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set f1:=1.4. IF f1>=1.4 THEN set cmp14:="GE/# works" ELSE set cmp14:="GE/# is broken".');
+INSERT INTO my_rules VALUES(NULL, 'IF f1>=1 THEN set cmp15:="GE/# works" ELSE set cmp15:="GE/# is broken".');
+INSERT INTO my_rules VALUES(NULL, 'IF f1>=1.5 THEN set cmp16:="GE/# is broken" ELSE set cmp16:="GE/# works".');
+
+
+SET SESSION group_concat_max_len=65535;
+SELECT group_concat(rule ORDER BY id SEPARATOR ' ') FROM my_rules INTO @rules;
+
+DROP TABLE my_rules;
+--echo
+
+--echo # Heads-up: log_sink_test sets up some debug rules in the built-in
+--echo # rule-set, including a throttle for some ER_YES messages it also
+--echo # generates. We see this succeed (rate-limit) in log_components.test;
+--echo # in here, the throttle is not applied as it is in the internal rule-set,
+--echo # and we run the rule-set generated by the log_filter_dragnet language
+--echo # (which does not contain this throttle). The throttle not being applied
+--echo # therefore demonstrates the separation of the rule-sets, and counts as a
+--echo # success in this context!
+--echo
+
+INSTALL COMPONENT   "file://component_log_sink_test";
+INSTALL COMPONENT   "file://component_log_sink_json";
+SET @@global.log_error_services="log_filter_dragnet; log_sink_test";
+
+disable_warnings;
+SET @@global.dragnet.log_error_filter_rules= @rules;
+SET @@global.log_error_services="log_filter_dragnet; log_sink_json";
+
+# rule-set with too many rules -- this will fail with an explanatory message
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules= REPEAT("IF prio>9 THEN drop. ", 65);
+SHOW WARNINGS;
+# rule-set that's too long -- this will succeed, but without a decompile
+SET @rules= CONCAT("IF ", REPEAT("x", 20000), ">9 THEN drop.");
+SET @@global.dragnet.log_error_filter_rules= @rules;
+SHOW WARNINGS;
+# SELECT @@global.dragnet.log_error_filter_rules;
+
+SET @@global.log_error_services="log_filter_dragnet; log_sink_internal";
+UNINSTALL COMPONENT "file://component_log_sink_test";
+UNINSTALL COMPONENT "file://component_log_sink_json";
+
+#
+# WL#11150: Add <component> to error log messages by default
+#
+
+# Filter log messages using their subsystem
+SET @@global.dragnet.log_error_filter_rules="IF subsystem=='Server' THEN SET msg := 'This is a message from the Server subsystem'.";
+
+# Test dropping, comparing and overriding the subsystem field
+SET @@global.dragnet.log_error_filter_rules="IF subsystem == 'Server' THEN SET msg := 'Dropping subsystem if it is \"Server\" and setting it to Repl'. IF subsystem == 'Server' THEN UNSET subsystem. IF NOT EXISTS subsystem THEN SET subsystem := 'Repl'.";
+
+SET @@global.dragnet.log_error_filter_rules="IF subsystem == 'Server' THEN SET subsystem := 'InnoDB'. IF subsystem == 'InnoDB' THEN SET msg := 'The subsystem for this message has been overriden to InnoDB'.";
+
+SET @@global.dragnet.log_error_filter_rules="IF subsystem != 'SERVER' THEN SET msg := 'This message is seen as the the subsystem is specified in upper case'.";
+
+SET @@global.log_error_services=DEFAULT;
+
+--echo # Now we can uninstall.
+--error 0,ER_WRONG_VALUE_FOR_VAR
+SET @@global.dragnet.log_error_filter_rules=@save_filters;
+UNINSTALL COMPONENT "file://component_log_filter_dragnet";
+--echo
+
+
+--echo # cleanup
+SET @@session.debug="-d,parser_stmt_to_error_log";
+SET @@session.debug="-d,log_error_normalize";
+
+FLUSH ERROR LOGS;
+
+SET @@global.log_error_verbosity=DEFAULT;
+
+
+--echo
+--echo ###
+--echo ### error log file
+--echo ###
+--echo
+
+let GREP_FILE=$log_error_;
+
+perl;
+   use strict;
+   use File::stat;
+   my $file= $ENV{'GREP_FILE'} or die("grep file not set");
+   my $pattern="^20";
+   my $stime= $ENV{'GREP_START'};
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     my $ts = 0;
+
+     if ($stime == 0) {
+       print "$line";
+     }
+     elsif ($line =~ /$pattern/) {
+       $line =~ /([0-9][0-9][0-9][0-9])-([0-9][0-9])-([0-9][0-9])T([0-9][0-9]):([0-9][0-9]):([0-9][0-9])\.([0-9][0-9][0-9][0-9][0-9][0-9])[-+Z][0-9:]* *[0-9]* *?(\[.*)/;
+       $ts=$1.$2.$3.$4.$5.$6.$7;
+       if ($ts >= $stime) {
+         $stime= 0;
+       }
+     }
+   }
+   close(FILE);
+EOF
+
+--echo
+--echo ###
+--echo ### done
+--echo ###

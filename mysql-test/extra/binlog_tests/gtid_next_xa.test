@@ -1,6 +1,6 @@
 # ==== Purpose ====
 #
-# Auxiliary test file included by rpl.rpl_gtid_next_xa.test
+# Auxiliary test file included by 'binlog_gtid_next_xa.test'.
 #
 # This executes an XA PREPARE transaction, followed by an XA COMMIT or
 # XA ROLLBACK transaction.  It sets specified values of GTID_NEXT
@@ -13,6 +13,7 @@
 # --let $gtid2= [<GTID> | ANONYMOUS | AUTOMATIC | none]
 # --let $commit= [COMMIT | ROLLBACK]
 # --let $error= [0 | N]
+# --let $one_phase = [one phase]
 # --source extra/rpl_tests/rpl_gtid_next_xa.test
 #
 # Parameters:
@@ -32,11 +33,15 @@
 #     statement is used and the previous value is reused.
 #
 #   $error
+#     This is GTID setting related error.
 #     Normally, this script expects all statements to succeed.  For
 #     those cases, the caller must set $error=0. But if $gtid1 is a
-#     GTID and $gtid2 is none, ER_GTID_NEXT_TYPE_UNDEFINED_GROUP is
+#     GTID and $gtid2 is none, ER_GTID_NEXT_TYPE_UNDEFINED_GTID is
 #     expected for the second transaction.  Then the caller must set
-#     $error= ER_GTID_NEXT_TYPE_UNDEFINED_GROUP.
+#     $error= ER_GTID_NEXT_TYPE_UNDEFINED_GTID.
+#
+#   $one_phase
+#     Option to commit XA in one phase
 
 
 --echo ---- XID $xid, $commit: $gtid1 + $gtid2 ----
@@ -50,25 +55,28 @@ if ($gtid1 != none)
 eval XA START '$xid';
 eval INSERT INTO t1 VALUES($xid);
 eval XA END '$xid';
-eval XA PREPARE '$xid';
+if (!$one_phase)
+{
+  eval XA PREPARE '$xid';
 
---let $assert_text= Thread should not own any GTID.
---let $assert_cond= @@SESSION.GTID_OWNED = ""
---source include/assert.inc
 
---source include/rpl_connection_master1.inc
+  --let $assert_text= Thread should not own any GTID.
+  --let $assert_cond= @@SESSION.GTID_OWNED = ""
+  --source include/assert.inc
 
---let $assert_text= No thread should own any GTID.
---let $assert_cond= @@GLOBAL.GTID_OWNED = ""
---source include/assert.inc
+  --source include/rpl_connection_master1.inc
 
---let $assert_text= No thread should hold anonymous ownership.
---let $assert_cond= [SHOW STATUS LIKE "ONGOING_ANONYMOUS_TRANSACTION_COUNT", Value, 1] = 0
---source include/assert.inc
+  --let $assert_text= No thread should own any GTID.
+  --let $assert_cond= @@GLOBAL.GTID_OWNED = ""
+  --source include/assert.inc
 
---source include/rpl_connection_master.inc
+  --let $assert_text= No thread should hold anonymous ownership.
+  --let $assert_cond= [SHOW STATUS LIKE "ONGOING_ANONYMOUS_TRANSACTION_COUNT", Value, 1] = 0
+  --source include/assert.inc
 
---echo error=$error
+  --source include/rpl_connection_master.inc
+
+  --echo error=$error
 if ($gtid2 != none)
 {
   eval SET GTID_NEXT= '$gtid2';
@@ -97,8 +105,14 @@ if ($error)
 
   SET GTID_NEXT = 'AUTOMATIC';
 }
+}
 
-eval XA $commit '$xid';
+if ($commit == ROLLBACK)
+{
+   # Reset $one_phase to empty in this case to satisfy syntax
+   --let $one_phase=
+}
+eval XA $commit '$xid' $one_phase;
 
 --let $assert_text= Thread should not own any GTID.
 --let $assert_cond= @@SESSION.GTID_OWNED = ""

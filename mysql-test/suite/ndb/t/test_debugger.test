@@ -1,8 +1,7 @@
 --source include/have_ndb.inc
 
-# Test does not need to run with embedded
-# since mysqld/libmysqld is not involved
---source include/not_embedded.inc
+# Avoid check for result file
+--source include/ndb_no_result_file.inc
 
 let NDBAPITEST_NAME=testDebugger;
 let NDBAPITEST_ARGS=--stop-on-error;

@@ -1,0 +1,370 @@
+RUN drop schema if exists xtest
+
+0 rows affected
+RUN create schema xtest default charset='utf8mb4'
+
+1 rows affected
+RUN use xtest
+
+0 rows affected
+RUN create table mycoll (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY)
+
+0 rows affected
+RUN create table mytable (i int NOT NULL, ui int unsigned, vc varchar(100), f float, d double, dt datetime, ts timestamp(5), j json)
+
+0 rows affected
+RUN create table ` .'"````\\` (` .'"````\\` int);
+
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "mytable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "i"
+  }
+  projection {
+    name: "ui"
+  }
+  projection {
+    name: "vc"
+  }
+  projection {
+    name: "f"
+  }
+  projection {
+    name: "d"
+  }
+  projection {
+    name: "dt"
+  }
+  projection {
+    name: "ts"
+  }
+  projection {
+    name: "j"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: -100
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_UINT
+        v_unsigned_int: 100
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: ""
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_FLOAT
+        v_float: 0.33333334
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 0.333333333333
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "2015-05-05 1:20:30"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "2015-06-06 03:10:20.12345"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"name\":\"Me\"}"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 1234
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5014
+  msg: "Wrong number of fields in row being inserted"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "mytable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "ui"
+  }
+  projection {
+    name: "vc"
+  }
+  projection {
+    name: "f"
+  }
+  projection {
+    name: "d"
+  }
+  projection {
+    name: "dt"
+  }
+  projection {
+    name: "ts"
+  }
+  projection {
+    name: "j"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: -100
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_UINT
+        v_unsigned_int: 100
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: ""
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_FLOAT
+        v_float: 0.33333334
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 0.333333333333
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "2015-05-05 1:20:30"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "2015-06-06 03:10:20.12345"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"name\":\"Me\"}"
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5014
+  msg: "Wrong number of fields in row being inserted"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "mytable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "i"
+  }
+  projection {
+    name: "ui"
+  }
+  projection {
+    name: "vc"
+  }
+  projection {
+    name: "f"
+  }
+  projection {
+    name: "d"
+  }
+  projection {
+    name: "dt"
+  }
+  projection {
+    name: "ts"
+  }
+  projection {
+    name: "j"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_UINT
+        v_unsigned_int: 100
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: ""
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_FLOAT
+        v_float: 0.33333334
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 0.333333333333
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "2015-05-05 1:20:30"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "2015-06-06 03:10:20.12345"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"name\":\"Me\"}"
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5014
+  msg: "Wrong number of fields in row being inserted"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "select count(*) from xtest.mytable"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "count(*)"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  length: 21
+  flags: 16
+}
+
+Mysqlx.Resultset.Row {
+  field: "\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+RUN drop schema if exists xtest
+
+3 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

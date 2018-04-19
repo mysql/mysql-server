@@ -1,8 +1,7 @@
---source include/not_embedded.inc
---source include/not_gtid_enabled.inc
 
 # default value
 
+RESET MASTER;
 SET @start_global_value = @@global.enforce_gtid_consistency;
 SELECT @start_global_value;
 
@@ -15,8 +14,8 @@ select @@session.enforce_gtid_consistency;
 show global variables like 'enforce_gtid_consistency';
 show session variables like 'enforce_gtid_consistency';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='enforce_gtid_consistency';
-select * from information_schema.session_variables where variable_name='enforce_gtid_consistency';
+select * from performance_schema.global_variables where variable_name='enforce_gtid_consistency';
+select * from performance_schema.session_variables where variable_name='enforce_gtid_consistency';
 --enable_warnings
 
 #
@@ -29,49 +28,49 @@ select * from information_schema.session_variables where variable_name='enforce_
 set global enforce_gtid_consistency= 1;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 set global enforce_gtid_consistency= 0;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 set global enforce_gtid_consistency= 2;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 set global enforce_gtid_consistency= ON;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 set global enforce_gtid_consistency= OFF;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 set global enforce_gtid_consistency= TRUE;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 set global enforce_gtid_consistency= FALSE;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 set global enforce_gtid_consistency= WARN;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 --enable_warnings
@@ -106,7 +105,40 @@ set global enforce_gtid_consistency= TRUE;
 set global enforce_gtid_consistency= 1;
 set global gtid_mode=on_permissive;
 set global gtid_mode=off_permissive;
-set global gtid_mode=off;
+
+# test enforce_gtid_consistency changes with autocommit off
+CREATE TABLE t1 (a INT);
+SET AUTOCOMMIT = 0;
+
+## Confirm that enforce_gtid_consistency cannot be changed when a transaction
+## is in progress and gtid_next is set to 'UUID:No'.
+SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+INSERT INTO t1 VALUES (1);
+# transaction in progress, gtid_mode variable cannot be changed
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = 'off';
+COMMIT;
+
+## Confirm that enforce_gtid_consistency cannot be changed when gtid_mode is
+## set to 'UUID:No'.
+SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+# GTID_NEXT was set, enforce_gtid_consistency variable cannot be changed
+--error ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = 'off';
+COMMIT;
+
+## Confirm that enforce_gtid_consistency cannot be changed during an anonymous
+## transaction.
+SET GTID_NEXT = 'ANONYMOUS';
+--error ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = 'off';
+COMMIT;
+
+# Set back to default and cleanup
+SET AUTOCOMMIT = 1;
+SET SESSION GTID_NEXT = 'AUTOMATIC';
+SET GLOBAL GTID_MODE = 'off';
+DROP TABLE t1;
 
 set global enforce_gtid_consistency= @start_global_value;
 

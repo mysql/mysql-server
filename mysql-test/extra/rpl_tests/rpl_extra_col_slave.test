@@ -3,7 +3,6 @@
 ##################################################
 
 # Some tests in here requre partitioning
--- source include/have_partition.inc
 
 #################################################
 ############ Different Table Def Test ###########
@@ -14,7 +13,7 @@
 #################################################
 
 call mtr.add_suppression("Slave: Unknown table 'test.t6' Error_code: 1051");
-call mtr.add_suppression("Slave SQL.*Column [0-9] of table .test.t[0-9]*. cannot be converted from type.* Error_code: 1677");
+call mtr.add_suppression("Slave SQL.*Column [0-9] of table .test.t[0-9]*. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --echo **** Diff Table Def Start ****
@@ -94,7 +93,7 @@ INSERT INTO t2 () VALUES(1,2,'Kyle, TEX'),(2,1,'JOE AUSTIN'),(3,4,'QA TESTING');
 SELECT * FROM t2 ORDER BY a;
 
 connection slave;
---let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error.inc
 STOP SLAVE;
 
@@ -144,7 +143,7 @@ INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TEST
 --echo ******************************************************************
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo *** Drop t3  ***
@@ -186,7 +185,7 @@ INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
 --echo ******************************************************************
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 
@@ -229,7 +228,7 @@ INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
 --echo ******************************************************************
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 
@@ -272,7 +271,7 @@ INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
 --echo *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
 --echo ******************************************************************
 connection slave;
---let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 
@@ -430,7 +429,15 @@ if (`SELECT UPPER(LEFT($engine_type, 3)) != 'NDB'`)
   # they are declared without DEFAULT clause.
 
   sync_slave_with_master;
+  --replace_column 4 CURRENT_TIMESTAMP
   select * from t9;
+
+  # Bug #22916743 RBR DOES NOT USE DEFAULT CURRENT_TIMESTAMP FOR EXTRA COLUMN
+  # ON SLAVE
+  --let $assert_text= The values of column 'd' should have non-zero timetsamp.
+  --let $assert_cond= [SELECT COUNT(*) AS Val FROM t9 WHERE d = "0000-00-00 00:00:00", Val, 1] = 0
+  --source include/assert.inc
+  # End of test for Bug #22916743
 
   # todo: fix Bug #43992 slave sql thread can't tune own sql_mode ...
   # and add/restore waiting for stop test
@@ -478,7 +485,7 @@ INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 --echo ******************************************************************
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 
@@ -520,7 +527,7 @@ INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 --echo ******************************************************************
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 
@@ -771,7 +778,7 @@ connection slave;
 --source include/rpl_reset.inc
 
 call mtr.add_suppression("Error .Unknown table .t6.. on query.* Error_code: 1051");
-call mtr.add_suppression("Error .Duplicate column name .c6.. on query.* Error_code: 1060");
+call mtr.add_suppression("Error .Duplicate column name .c6.. on query.* Error_code: MY-001060");
 call mtr.add_suppression("Table definition on master and slave does not match: Column . ...e mismatch.* Error_code: 1535");
 
 --echo *** Master Data Insert ***
@@ -857,9 +864,12 @@ sync_slave_with_master;
 --replace_column 7 CURRENT_TIMESTAMP
 SELECT * FROM t16 ORDER BY c1;
 
---echo *** Add Partition on master ***
+--echo *** Add Partition on master if native partitioning is supported ***
 connection master;
-ALTER TABLE t16 PARTITION BY KEY(c1) PARTITIONS 4;
+if (`SELECT UPPER($engine_type) IN ('INNODB','NDB')`)
+{
+  ALTER TABLE t16 PARTITION BY KEY(c1) PARTITIONS 4;
+}
 INSERT INTO t16 () VALUES(4,1.00,'Replication Rocks',@b1,'Omer');
 SHOW CREATE TABLE t16;
 
@@ -907,7 +917,7 @@ INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
 --echo ******************************************************************
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo ** DROP table t17 ***

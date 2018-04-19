@@ -4,7 +4,6 @@
 # should follow the process for the BLOB
 # datatype as well.
 
---source include/have_innodb.inc
 
 create table bug47777(c2 linestring not null, primary key (c2(1))) engine=innodb;
 
@@ -14,6 +13,7 @@ insert into bug47777 values (ST_geomfromtext('linestring(1 2,3 4,5 6,7 8,9 10)')
 select count(*) from bug47777 where c2 =ST_geomfromtext('linestring(1 2,3 4,5 6,7 8,9 10)');
 
 # Update table bug47777 should be successful.
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 update bug47777 set c2=ST_GeomFromText('POINT(1 1)');
 
 # Verify the row get updated successfully. The original

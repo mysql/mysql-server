@@ -1,14 +1,21 @@
 /*
- Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; version 2 of the License.
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+ GNU General Public License, version 2.0, for more details.
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
@@ -60,10 +67,6 @@ extern const void * s010();
 extern const char * s012();
 extern void * s030();
 extern char * s032();
-extern const void * const s050();
-extern const char * const s052();
-extern void * const s070();
-extern char * const s072();
 
 extern void s110(const void * p0);
 extern void s112(const char * p0);
@@ -80,10 +83,6 @@ extern const void * s210();
 extern const char * s212();
 extern void * s230();
 extern char * s232();
-extern const void * const s250();
-extern const char * const s252();
-extern void * const s270();
-extern char * const s272();
 
 extern void s310(const void * p0);
 extern void s312(const char * p0);
@@ -98,21 +97,6 @@ extern void s372(char * const p0);
 // all primitive result/parameter types
 // ----------------------------------------------------------------------
 
-extern const bool f11(const bool p0);
-extern const char f12(const char p0);
-extern const signed char f13(const signed char p0);
-extern const unsigned char f14(const unsigned char p0);
-extern const signed short f15(const signed short p0);
-extern const unsigned short f16(const unsigned short p0);
-extern const signed int f17(const signed int p0);
-extern const unsigned int f18(const unsigned int p0);
-extern const signed long f19(const signed long p0);
-extern const unsigned long f20(const unsigned long p0);
-extern const signed long long f21(const signed long long p0);
-extern const unsigned long long f22(const unsigned long long p0);
-extern const float f23(const float p0);
-extern const double f24(const double p0);
-extern const long double f25(const long double p0);
 
 extern bool f31(bool p0);
 extern char f32(char p0);
@@ -134,18 +118,6 @@ extern long double f45(long double p0);
 // all fixed-size primitive result/parameter types
 // ----------------------------------------------------------------------
 
-extern const bool f011();
-extern const char f012();
-extern const int8_t f013();
-extern const uint8_t f014();
-extern const int16_t f015();
-extern const uint16_t f016();
-extern const int32_t f017();
-extern const uint32_t f018();
-extern const int64_t f021();
-extern const uint64_t f022();
-extern const float f023();
-extern const double f024();
 
 extern bool f031();
 extern char f032();
@@ -272,31 +244,7 @@ extern uint64_t * f442();
 extern float * f443();
 extern double * f444();
 
-extern const bool * const f451();
-extern const char * const f452();
-extern const int8_t * const f453();
-extern const uint8_t * const f454();
-extern const int16_t * const f455();
-extern const uint16_t * const f456();
-extern const int32_t * const f457();
-extern const uint32_t * const f458();
-extern const int64_t * const f461();
-extern const uint64_t * const f462();
-extern const float * const f463();
-extern const double * const f464();
 
-extern bool * const f471();
-extern char * const f472();
-extern int8_t * const f473();
-extern uint8_t * const f474();
-extern int16_t * const f475();
-extern uint16_t * const f476();
-extern int32_t * const f477();
-extern uint32_t * const f478();
-extern int64_t * const f481();
-extern uint64_t * const f482();
-extern float * const f483();
-extern double * const f484();
 
 extern void f511(const bool *);
 extern void f512(const char *);
@@ -380,31 +328,7 @@ extern uint64_t * f642();
 extern float * f643();
 extern double * f644();
 
-extern const bool * const f651();
-extern const char * const f652();
-extern const int8_t * const f653();
-extern const uint8_t * const f654();
-extern const int16_t * const f655();
-extern const uint16_t * const f656();
-extern const int32_t * const f657();
-extern const uint32_t * const f658();
-extern const int64_t * const f661();
-extern const uint64_t * const f662();
-extern const float * const f663();
-extern const double * const f664();
 
-extern bool * const f671();
-extern char * const f672();
-extern int8_t * const f673();
-extern uint8_t * const f674();
-extern int16_t * const f675();
-extern uint16_t * const f676();
-extern int32_t * const f677();
-extern uint32_t * const f678();
-extern int64_t * const f681();
-extern uint64_t * const f682();
-extern float * const f683();
-extern double * const f684();
 
 extern void f711(const bool *);
 extern void f712(const char *);
@@ -611,10 +535,6 @@ struct A {
         return *A::a;
     };
 
-    static A & deliver_null_ref() {
-        TRACE("A & A::deliver_null_ref()");
-        return *((A *)0);
-    };
 
     static void take_ptr(A * o) {
         TRACE("void A::take_ptr(A *)");
@@ -629,11 +549,6 @@ struct A {
     static void take_ref(A & o) {
         TRACE("void A::take_ref(A &)");
         if (&o != A::a) ABORT_ERROR("void A::take_ref(A &)");
-    };
-
-    static void take_null_ref(A & o) {
-        TRACE("void A::take_null_ref(A &)");
-        if (&o != NULL) ABORT_ERROR("void A::take_null_ref(A &)");
     };
 
     static void print(A * p0) {
@@ -1119,11 +1034,6 @@ struct E {
     static void take_EE1(EE e) {
         TRACE("void E::take_EE1(E::EE)");
         if (e != EE1) ABORT_ERROR("e != EE1");
-    };
-
-    static const EE deliver_EE1c() {
-        TRACE("const E::EE E::deliver_EE1c()");
-        return EE1;
     };
 
     static void take_EE1c(const EE e) {

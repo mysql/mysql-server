@@ -28,7 +28,7 @@ eval create $opt_tmp table t1 (a int, b int generated always as (-a) virtual);
 insert into t1 values (1,default);
 select * from t1;
 insert into t1 values (2,default);
-select * from t1;
+select * from t1 order by a;
 drop table t1;
 
 --echo # Case 3. CREATE
@@ -38,7 +38,7 @@ eval create $opt_tmp table t1 (a int, b int generated always as (-a) stored);
 insert into t1 values (1,default);
 select * from t1;
 insert into t1 values (2,default);
-select * from t1;
+select * from t1 order by a;
 drop table t1;
 
 --echo # Case 4. CREATE
@@ -48,7 +48,7 @@ eval create $opt_tmp table t1 (a int generated always as (-b) virtual, b int);
 insert into t1 values (default,1);
 select * from t1;
 insert into t1 values (default,2);
-select * from t1;
+select * from t1 order by a;
 drop table t1;
 
 --echo # Case 5. CREATE
@@ -58,7 +58,7 @@ eval create $opt_tmp table t1 (a int generated always as (-b) stored, b int);
 insert into t1 values (default,1);
 select * from t1;
 insert into t1 values (default,2);
-select * from t1;
+select * from t1 order by a;
 drop table t1;
 
 --echo # Case 6. CREATE
@@ -69,7 +69,7 @@ eval create $opt_tmp table t1 (a int, b int generated always as (-a), c int gene
 insert into t1 values (1,default,default);
 select * from t1;
 insert into t1 values (2,default,default);
-select * from t1;
+select * from t1 order by a;
 drop table t1;
 
 --echo # Case 7. ALTER. Modify virtual stored -> virtual non-stored
@@ -95,7 +95,7 @@ eval create $opt_tmp table t2 like t1;
 insert into t2 values (1,default,default);
 select * from t2;
 insert into t2 values (2,default,default);
-select * from t2;
+select * from t2 order by a;
 drop table t2;
 drop table t1;
 
@@ -105,9 +105,9 @@ drop table t1;
 eval create $opt_tmp table t1 (a int generated always as (-b) virtual, b int, c varchar(5));
 insert into t1 values (default,1,'v1');
 insert into t1 values (default,2,'v2');
-select * from t1;
+select * from t1 order by b;
 alter table t1 drop column a;
-select * from t1;
+select * from t1 order by b;
 show create table t1;
 drop table t1;
 
@@ -117,9 +117,9 @@ drop table t1;
 eval create $opt_tmp table t1 (a int generated always as (-b) stored, b int, c char(5));
 insert into t1 values (default,1,'v1');
 insert into t1 values (default,2,'v2');
-select * from t1;
+select * from t1 order by b;
 alter table t1 drop column a;
-select * from t1;
+select * from t1 order by b;
 show create table t1;
 drop table t1;
 
@@ -127,9 +127,9 @@ drop table t1;
 eval create $opt_tmp table t1 (a int, b datetime);
 insert into t1 values (1,'2008-09-04');
 insert into t1 values (2,'2008-09-05');
-select * from t1;
+select * from t1 order by a;
 alter table t1 add column c int generated always as (dayofyear(b)) virtual after a;
-select * from t1;
+select * from t1 order by a;
 show create table t1;
 drop table t1;
 
@@ -137,9 +137,9 @@ drop table t1;
 eval create $opt_tmp table t1 (a int, b datetime);
 insert into t1 values (1,'2008-09-04');
 insert into t1 values (2,'2008-09-05');
-select * from t1;
+select * from t1 order by a;
 alter table t1 add column c int generated always as (dayofyear(b)) stored after a;
-select * from t1;
+select * from t1 order by a;
 show create table t1;
 drop table t1;
 
@@ -147,9 +147,9 @@ drop table t1;
 eval create $opt_tmp table t1 (a int, b datetime, c int generated always as (week(b)) stored);
 insert into t1 values (1,'2008-09-04',default);
 insert into t1 values (2,'2008-09-05',default);
-select * from t1;
+select * from t1 order by a;
 alter table t1 change column c c int generated always as (week(b,1)) stored;
-select * from t1;
+select * from t1 order by a;
 show create table t1;
 drop table t1;
 
@@ -157,9 +157,9 @@ drop table t1;
 eval create $opt_tmp table t1 (a int, b datetime, c int generated always as (week(b)) virtual);
 insert into t1 values (1,'2008-09-04',default);
 insert into t1 values (2,'2008-09-05',default);
-select * from t1;
+select * from t1 order by a;
 alter table t1 change column c c int generated always as (week(b,1)) virtual;
-select * from t1;
+select * from t1 order by a;
 show create table t1;
 drop table t1;
 

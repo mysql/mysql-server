@@ -1,143 +1,142 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/buf0flu.ic
-The database buffer pool flush algorithm
+/** @file include/buf0flu.ic
+ The database buffer pool flush algorithm
 
-Created 11/5/1995 Heikki Tuuri
-*******************************************************/
+ Created 11/5/1995 Heikki Tuuri
+ *******************************************************/
 
-#ifndef UNIV_HOTBACKUP
 #include "buf0buf.h"
+#include "fsp0types.h"
 #include "mtr0mtr.h"
 #include "srv0srv.h"
-#include "fsp0types.h"
 
-/********************************************************************//**
-Inserts a modified block into the flush list. */
-void
-buf_flush_insert_into_flush_list(
-/*=============================*/
-	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
-	buf_block_t*	block,		/*!< in/out: block which is modified */
-	lsn_t		lsn);		/*!< in: oldest modification */
-/********************************************************************//**
-Inserts a modified block into the flush list in the right sorted position.
-This function is used by recovery, because there the modifications do not
-necessarily come in the order of lsn's. */
-void
-buf_flush_insert_sorted_into_flush_list(
-/*====================================*/
-	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
-	buf_block_t*	block,		/*!< in/out: block which is modified */
-	lsn_t		lsn);		/*!< in: oldest modification */
+#ifndef UNIV_HOTBACKUP
+/** Inserts a modified block into the flush list. */
+void buf_flush_insert_into_flush_list(
+    buf_pool_t *buf_pool, /*!< buffer pool instance */
+    buf_block_t *block,   /*!< in/out: block which is modified */
+    lsn_t lsn);           /*!< in: oldest modification */
 
-/********************************************************************//**
-This function should be called at a mini-transaction commit, if a page was
-modified in it. Puts the block to the list of modified blocks, if it is not
-already in it. */
+/** Inserts a modified block into the flush list in the right sorted position.
+ This function is used by recovery, because there the modifications do not
+ necessarily come in the order of lsn's. */
+void buf_flush_insert_sorted_into_flush_list(
+    buf_pool_t *buf_pool, /*!< buffer pool instance */
+    buf_block_t *block,   /*!< in/out: block which is modified */
+    lsn_t lsn);           /*!< in: oldest modification */
+
+/** This function should be called at a mini-transaction commit, if a page was
+ modified in it. Puts the block to the list of modified blocks, if it is not
+ already in it. */
 UNIV_INLINE
-void
-buf_flush_note_modification(
-/*========================*/
-	buf_block_t*	block,		/*!< in: block which is modified */
-	lsn_t		start_lsn,	/*!< in: start lsn of the mtr that
-					modified this block */
-	lsn_t		end_lsn)	/*!< in: end lsn of the mtr that
-					modified this block */
+void buf_flush_note_modification(
+    buf_block_t *block,      /*!< in: block which is modified */
+    lsn_t start_lsn,         /*!< in: start lsn of the mtr that
+                             modified this block */
+    lsn_t end_lsn,           /*!< in: end lsn of the mtr that
+                             modified this block */
+    FlushObserver *observer) /*!< in: flush observer */
 {
 #ifdef UNIV_DEBUG
-	{
-		/* Allow write to proceed to shared temporary tablespace
-		in read-only mode. */
-		ut_ad(!srv_read_only_mode
-		      || fsp_is_system_temporary(block->page.id.space()));
-		ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-		ut_ad(block->page.buf_fix_count > 0);
+  {
+    /* Allow write to proceed to shared temporary tablespace
+    in read-only mode. */
+    ut_ad(!srv_read_only_mode ||
+          fsp_is_system_temporary(block->page.id.space()));
+    ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+    ut_ad(block->page.buf_fix_count > 0);
 
-		buf_pool_t*	buf_pool = buf_pool_from_block(block);
+    buf_pool_t *buf_pool = buf_pool_from_block(block);
 
-		ut_ad(!buf_pool_mutex_own(buf_pool));
-		ut_ad(!buf_flush_list_mutex_own(buf_pool));
-	}
+    ut_ad(!buf_flush_list_mutex_own(buf_pool));
+  }
 #endif /* UNIV_DEBUG */
 
-	mutex_enter(&block->mutex);
+  mutex_enter(&block->mutex);
 
-	ut_ad(block->page.newest_modification <= end_lsn);
-	block->page.newest_modification = end_lsn;
+  ut_ad(block->page.newest_modification <= end_lsn);
+  block->page.newest_modification = end_lsn;
 
-	if (block->page.oldest_modification == 0) {
-		buf_pool_t*	buf_pool = buf_pool_from_block(block);
+  /* Don't allow to set flush observer from non-null to null,
+  or from one observer to another. */
+  ut_ad(block->page.flush_observer == NULL ||
+        block->page.flush_observer == observer);
+  block->page.flush_observer = observer;
 
-		buf_flush_insert_into_flush_list(buf_pool, block, start_lsn);
-	} else {
-		ut_ad(block->page.oldest_modification <= start_lsn);
-	}
+  if (block->page.oldest_modification == 0) {
+    buf_pool_t *buf_pool = buf_pool_from_block(block);
 
-	buf_page_mutex_exit(block);
+    buf_flush_insert_into_flush_list(buf_pool, block, start_lsn);
+  } else {
+    ut_ad(block->page.oldest_modification <= start_lsn);
+  }
 
-	srv_stats.buf_pool_write_requests.inc();
+  buf_page_mutex_exit(block);
+
+  srv_stats.buf_pool_write_requests.inc();
 }
 
-/********************************************************************//**
-This function should be called when recovery has modified a buffer page. */
+/** This function should be called when recovery has modified a buffer page. */
 UNIV_INLINE
-void
-buf_flush_recv_note_modification(
-/*=============================*/
-	buf_block_t*	block,		/*!< in: block which is modified */
-	lsn_t		start_lsn,	/*!< in: start lsn of the first mtr in a
-					set of mtr's */
-	lsn_t		end_lsn)	/*!< in: end lsn of the last mtr in the
-					set of mtr's */
+void buf_flush_recv_note_modification(
+    buf_block_t *block, /*!< in: block which is modified */
+    lsn_t start_lsn,    /*!< in: start lsn of the first mtr in a
+                        set of mtr's */
+    lsn_t end_lsn)      /*!< in: end lsn of the last mtr in the
+                        set of mtr's */
 {
 #ifdef UNIV_DEBUG
-	{
-		ut_ad(!srv_read_only_mode);
-		ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-		ut_ad(block->page.buf_fix_count > 0);
+  {
+    ut_ad(!srv_read_only_mode);
+    ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+    ut_ad(block->page.buf_fix_count > 0);
 
-		buf_pool_t*	buf_pool = buf_pool_from_block(block);
+    buf_pool_t *buf_pool = buf_pool_from_block(block);
 
-		ut_ad(!buf_pool_mutex_own(buf_pool));
-		ut_ad(!buf_flush_list_mutex_own(buf_pool));
+    ut_ad(!buf_flush_list_mutex_own(buf_pool));
 
-		ut_ad(start_lsn != 0);
-		ut_ad(block->page.newest_modification <= end_lsn);
-	}
+    ut_ad(start_lsn != 0);
+    ut_ad(block->page.newest_modification <= end_lsn);
+  }
 #endif /* UNIV_DEBUG */
 
-	buf_page_mutex_enter(block);
+  buf_page_mutex_enter(block);
 
-	block->page.newest_modification = end_lsn;
+  block->page.newest_modification = end_lsn;
 
-	if (!block->page.oldest_modification) {
-		buf_pool_t*	buf_pool = buf_pool_from_block(block);
+  if (!block->page.oldest_modification) {
+    buf_pool_t *buf_pool = buf_pool_from_block(block);
 
-		buf_flush_insert_sorted_into_flush_list(
-			buf_pool, block, start_lsn);
-	} else {
-		ut_ad(block->page.oldest_modification <= start_lsn);
-	}
+    buf_flush_insert_sorted_into_flush_list(buf_pool, block, start_lsn);
+  } else {
+    ut_ad(block->page.oldest_modification <= start_lsn);
+  }
 
-	buf_page_mutex_exit(block);
-
+  buf_page_mutex_exit(block);
 }
 #endif /* !UNIV_HOTBACKUP */

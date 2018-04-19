@@ -1,7 +1,6 @@
 #
 # Bug #56947 valgrind reports a memory leak in innodb-plugin.innodb-index
 #
--- source include/have_innodb.inc
 -- source include/have_debug.inc
 
 SET GLOBAL innodb_file_per_table=0;

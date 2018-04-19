@@ -1,0 +1,58 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (c1 INT);
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET @saved_expire_logs_days= @@GLOBAL.expire_logs_days;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
+SET @saved_binlog_expire_logs_seconds= @@GLOBAL.binlog_expire_logs_seconds;
+SET @@GLOBAL.expire_logs_days= 0;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
+SET @@GLOBAL.binlog_expire_logs_seconds= 1;
+[connection master1]
+LOCK INSTANCE FOR BACKUP;
+[connection slave]
+LOCK INSTANCE FOR BACKUP;
+[connection master]
+FLUSH LOCAL LOGS;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+FLUSH LOCAL LOGS;
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+INSERT INTO t1 VALUES (6);
+FLUSH LOCAL LOGS;
+INSERT INTO t1 VALUES (7);
+include/sync_slave_sql_with_master.inc
+[connection master]
+FLUSH LOCAL LOGS;
+INSERT INTO t1 VALUES (8);
+include/sync_slave_sql_with_master.inc
+SHOW RELAYLOG EVENTS IN 'FIRST_RELAY_LOG_FILE';
+SHOW RELAYLOG EVENTS IN 'LAST_RELAY_LOG_FILE';
+[connection master]
+include/assert.inc [1st binary log file should still be available]
+include/assert.inc [2nd binary log file should still be available]
+include/assert.inc [3rd binary log file should still be available]
+[connection slave]
+UNLOCK INSTANCE;
+[connection master1]
+UNLOCK INSTANCE;
+FLUSH LOCAL LOGS;
+include/assert.inc [1st to 3rd binary log file should be not available]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+SHOW RELAYLOG EVENTS IN 'FIRST_RELAY_LOG_FILE';
+SHOW RELAYLOG EVENTS IN 'LAST_RELAY_LOG_FILE';
+[connection master]
+SET @@GLOBAL.binlog_expire_logs_seconds= @saved_binlog_expire_logs_seconds;
+SET @@GLOBAL.expire_logs_days= @saved_expire_logs_days;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
+include/rpl_end.inc

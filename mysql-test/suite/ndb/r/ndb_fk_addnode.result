@@ -1,12 +1,16 @@
-create table t1(id1 int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
-create table t2(id2 int NOT NULL PRIMARY KEY, id1 int, data char(8)) engine=ndb;
+create table t1(id1 int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t2(id2 int NOT NULL PRIMARY KEY, id1 int, data char(8)) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 alter table t2 algorithm=inplace, add constraint id1 foreign key (id1) references t1(id1);
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 fields terminated by ' ' lines terminated by '\n' ignore 900 lines;
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t2 fields terminated by ' ' lines terminated by '\n' ignore 900 lines (@id, data) set id1 = @id, id2 = -@id;
+PartitionCount 2
 FragmentCount 2
 HashMap DEFAULT-HASHMAP-3840-2
 
 
+PartitionCount 2
 FragmentCount 2
 HashMap DEFAULT-HASHMAP-3840-2
 ... id1 (id1) REFERENCES test.t1/PRIMARY KEY () on update noaction on delete noaction
@@ -15,16 +19,14 @@ HashMap DEFAULT-HASHMAP-3840-2
 Nodegroup 1 created
 Drop Node Group 1 done
 Nodegroup 1 created
-alter online table t2 reorganize partition;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t1 reorganize partition;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+alter table t2 algorithm=inplace, reorganize partition;
+alter table t1 algorithm=inplace, reorganize partition;
+PartitionCount 4
 FragmentCount 4
 HashMap DEFAULT-HASHMAP-3840-4
 
 
+PartitionCount 4
 FragmentCount 4
 HashMap DEFAULT-HASHMAP-3840-4
 ... id1 (id1) REFERENCES test.t1/PRIMARY KEY () on update noaction on delete noaction

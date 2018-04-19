@@ -1,7 +1,6 @@
 --source include/force_myisam_default.inc
 
 -- source include/force_binlog_format_statement.inc
--- source include/have_gb18030.inc
 
 RESET MASTER;
 SET NAMES gb18030;
@@ -30,15 +29,16 @@ DROP PROCEDURE p1;
 RENAME TABLE t1 to t2;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
-copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin-gb18030.saved;
+copy_file $MYSQLD_DATADIR/binlog.000001 $MYSQLD_DATADIR/binlog-gb18030.saved;
 # Reset GTIDs
 RESET MASTER;
---exec $MYSQL_BINLOG --force-if-open --short-form $MYSQLD_DATADIR/master-bin-gb18030.saved | $MYSQL
+--exec $MYSQL_BINLOG --force-if-open --short-form $MYSQLD_DATADIR/binlog-gb18030.saved | $MYSQL
 SELECT hex(f1), f1 FROM t2;
 SELECT hex(f1), f1 FROM t1;
 
 DROP PROCEDURE p1;
 DROP TABLE t1;
 DROP TABLE t2;
+--remove_file $MYSQLD_DATADIR/binlog-gb18030.saved
 
 --source include/restore_default_binlog_format.inc

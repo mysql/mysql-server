@@ -1,0 +1,28 @@
+include/have_replication_observers_example_plugin.inc
+SET @saved_master_info_repository = @@GLOBAL.master_info_repository;
+SET @saved_relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
+include/install_replication_observers_example.inc
+CALL mtr.add_suppression('For the creation of replication channels the server *');
+CALL mtr.add_suppression('For the creation of replication channels the master *');
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+SET @original_slave_server_id= @@GLOBAL.server_id;
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,validate_replication_observers_plugin_server_channels_init';
+SET @@GLOBAL.server_id= 0;
+INSERT INTO t1 VALUES(1);
+SET @@GLOBAL.server_id= @original_slave_server_id;
+SET @@GLOBAL.relay_log_info_repository='FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+SET @@GLOBAL.master_info_repository='TABLE';
+INSERT INTO t1 VALUES(2);
+SET @@GLOBAL.relay_log_info_repository='TABLE';
+SET @@GLOBAL.master_info_repository='FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+INSERT INTO t1 VALUES(3);
+SET @@GLOBAL.master_info_repository = @saved_master_info_repository;
+SET @@GLOBAL.relay_log_info_repository = @saved_relay_log_info_repository;
+SET @@GLOBAL.DEBUG= @debug_saved;
+DROP TABLE t1;
+include/uninstall_replication_observers_example.inc

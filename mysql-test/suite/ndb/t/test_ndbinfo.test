@@ -1,13 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
 
-# Test does not need to run with embedded
-# since mysqld/libmysqld is not involved
---source include/not_embedded.inc
+# Avoid check for result file
+--source include/ndb_no_result_file.inc
 
 let NDBAPITEST_NAME=testNdbinfo;
 --source suite/ndb/include/run_ndbapitest.inc

@@ -1,0 +1,84 @@
+--source include/windows.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+let $shm_name= query_get_value("SHOW GLOBAL VARIABLES LIKE 'shared_memory_base_name'", Value, 1);
+
+# WL#7729
+#
+## Connection Protocols: PIPE, MEMORY BY enabling general log. 
+
+# Enabling general log. Make sure we start with a clean slate.
+TRUNCATE TABLE mysql.general_log;
+
+--echo --------------- general log ---------------------------------------
+
+SET @old_log_output=    @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+SET @old_general_log_file=    @@global.general_log_file;
+
+let $general_file_on = $MYSQLTEST_VARDIR/log/general_connection_protocols.log;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SET GLOBAL general_log_file = '$general_file_on';
+SET GLOBAL log_output =       'FILE,TABLE';
+SET GLOBAL general_log=       'ON';
+
+--echo
+
+CREATE USER 'user_tcp'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON *.* TO 'user_tcp'@'127.0.0.1';
+CREATE USER 'user_ssl'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON *.* TO 'user_ssl'@'127.0.0.1';
+
+# Testing NAMED PIPE connection protocol.
+connect(pipe_con1,localhost,root,,,,,PIPE);
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+
+connection default;
+disconnect pipe_con1;
+--echo
+
+connect(pipe_con2,localhost,root,,,$MASTER_MYPORT,,PIPE);
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+connection default;
+disconnect pipe_con2;
+
+connect(memory_con,localhost,root,,,,$shm_name,SHM);
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+
+connection default;
+disconnect memory_con;
+
+--echo
+--echo # Connection type testing for TCP/IP  protocol 
+--echo
+--exec $MYSQL --host=localhost --user=root --protocol=TCP -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+--exec $MYSQL --host=127.0.0.1 --user=user_tcp --ssl-mode=DISABLED --protocol=TCP -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+#
+--echo # Testing TCP/IP connections over SSL/TLS
+#
+--exec $MYSQL --host=localhost --user=root --protocol=TCP --ssl-mode=REQUIRED -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+--exec $MYSQL --host=127.0.0.1 --user=user_ssl --protocol=TCP --ssl-mode=REQUIRED -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+--echo
+CREATE TABLE test_log (argument TEXT);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA LOCAL INFILE '$general_file_on'
+INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
+
+--echo Show what is logged:
+--echo ------ rewrite ------
+SELECT argument FROM mysql.general_log where command_type='connect';
+--echo ------ done ------
+
+--remove_file $general_file_on
+DROP table test_log;
+
+SET GLOBAL general_log_file=  @old_general_log_file;
+SET GLOBAL general_log=       @old_general_log;
+SET GLOBAL log_output=        @old_log_output;
+
+
+--echo #Cleanup
+DROP USER 'user_tcp'@'127.0.0.1', 'user_ssl'@'127.0.0.1';
+
+

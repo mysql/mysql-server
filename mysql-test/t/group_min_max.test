@@ -21,7 +21,7 @@ drop table if exists t1;
 
 create table t1 (
   a1 char(64), a2 char(64), b char(16), c char(16) not null, d char(16), dummy char(248) default ' '
-);
+) charset latin1;
 
 insert into t1 (a1, a2, b, c, d) values
 ('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
@@ -71,7 +71,7 @@ drop table if exists t2;
 
 create table t2 (
   a1 char(64), a2 char(64) not null, b char(16), c char(16), d char(16), dummy char(248) default ' '
-);
+) charset latin1;
 insert into t2 select * from t1;
 # add few rows with NULL's in the MIN/MAX column
 insert into t2 (a1, a2, b, c, d) values
@@ -108,7 +108,7 @@ drop table if exists t3;
 
 create table t3 (
   a1 char(1), a2 char(1), b char(1), c char(4) not null, d char(3), dummy char(1) default ' '
-);
+) charset latin1;
 
 insert into t3 (a1, a2, b, c, d) values
 ('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
@@ -505,7 +505,7 @@ select a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1
 # plans
 explain select distinct a1,a2,b from t1;
 explain select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a');
-explain extended select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+explain select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 explain select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 explain select distinct b from t1 where (a2 >= 'b') and (b = 'a');
 
@@ -513,7 +513,7 @@ explain select distinct b from t1 where (a2 >= 'b') and (b = 'a');
 explain select distinct a1,a2,b from t2;
 --replace_column 10 #
 explain select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a');
-explain extended select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+explain select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 --replace_column 10 #
 explain select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 explain select distinct b from t2 where (a2 >= 'b') and (b = 'a');
@@ -588,9 +588,9 @@ select distinct b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 
 explain select count(distinct a1,a2,b) from t1 where (a2 >= 'b') and (b = 'a');
 explain select count(distinct a1,a2,b,c) from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
-explain extended select count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
+explain select count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 explain select count(distinct b) from t1 where (a2 >= 'b') and (b = 'a');
-explain extended select 98 + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
+explain select 98 + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
 
 select count(distinct a1,a2,b) from t1 where (a2 >= 'b') and (b = 'a');
 select count(distinct a1,a2,b,c) from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
@@ -630,19 +630,19 @@ explain select a1,a2,b,d from t1 group by a1,a2,b;
 
 # predicate that references an attribute that is after the MIN/MAX argument
 # in the index
-explain extended select a1,a2,min(b),max(b) from t1
+explain select a1,a2,min(b),max(b) from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2;
 
 # predicate that references a non-indexed attribute
-explain extended select a1,a2,b,min(c),max(c) from t1
+explain select a1,a2,b,min(c),max(c) from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b;
 
-explain extended select a1,a2,b,c from t1
+explain select a1,a2,b,c from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b,c;
 
 # non-equality predicate for a non-group select attribute
 explain select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b < 'b') group by a1;
-explain extended select a1,a2,b from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2,b;
+explain select a1,a2,b from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2,b;
 
 # non-group field with an equality predicate that references a keypart after the
 # MIN/MAX argument
@@ -663,8 +663,8 @@ explain select a1, a2, b, c, min(d), max(d) from t1 group by a1,a2,b,c;
 
 # other aggregate functions than MIN/MAX
 explain select a1,a2,count(a2) from t1 group by a1,a2,b;
-explain extended select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
-explain extended select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
+explain select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
+explain select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
 
 
 #
@@ -727,7 +727,7 @@ drop table t1;
 #             returns impossible range
 #
 
-CREATE TABLE t1 (a varchar(5), b int(11), PRIMARY KEY (a,b));
+CREATE TABLE t1 (a varchar(5), b int(11), PRIMARY KEY (a,b)) charset utf8mb4;
 INSERT INTO t1 VALUES ('AA',1), ('AA',2), ('AA',3), ('BB',1), ('AA',4);
 OPTIMIZE TABLE t1;
 
@@ -785,7 +785,7 @@ DROP PROCEDURE a;
 # Bug #18068: SELECT DISTINCT
 #
 
-CREATE TABLE t1 (a varchar(64) NOT NULL default '', PRIMARY KEY(a));
+CREATE TABLE t1 (a varchar(64) NOT NULL default '', PRIMARY KEY(a)) charset utf8mb4;
 
 INSERT INTO t1 (a) VALUES 
   (''), ('CENTRAL'), ('EASTERN'), ('GREATER LONDON'),
@@ -865,10 +865,13 @@ SELECT MIN(c) FROM t2 WHERE b = 2 and a = 1 and c > 1 GROUP BY a;
 
 DROP TABLE t1,t2;
 
+# HANDLER_READ_KEY count differs when using ps protocol because of prepare
+# phase of ps protocol results in call to innodb storage engine apis to check
+# for table existence.
+--disable_ps_protocol
 #
 # Bug#24156: Loose index scan not used with CREATE TABLE ...SELECT and similar statements
 #
-
 CREATE TABLE t1 (a INT, b INT, INDEX (a,b));
 INSERT INTO t1 (a, b) VALUES (1,1), (1,2), (1,3), (1,4), (1,5),
        (2,2), (2,3), (2,1), (3,1), (4,1), (4,2), (4,3), (4,4), (4,5), (4,6),
@@ -908,6 +911,12 @@ EXPLAIN SELECT (SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
   FROM t1 AS t1_outer) x2 FROM t1 AS t1_outer2;
 
 CREATE TABLE t3 LIKE t1;
+--echo # Warm-up data-dictionary cache.
+--disable_result_log
+--disable_query_log
+SELECT * FROM t3;
+--enable_query_log
+--enable_result_log
 FLUSH STATUS;
 INSERT INTO t3 SELECT a,MAX(b) FROM t1 GROUP BY a;
 SHOW STATUS LIKE 'handler_read__e%';
@@ -926,6 +935,7 @@ DELETE FROM t3 WHERE (SELECT (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) x
 SHOW STATUS LIKE 'handler_read__e%';
 
 DROP TABLE t1,t2,t3;
+--enable_ps_protocol
 
 #
 # Bug#25602: queries with DISTINCT and SQL_BIG_RESULT hint 
@@ -1000,7 +1010,7 @@ insert into  t1 (a,b) values
   (3,7),(3,8),(3,9),(3,10),(3,11),(3,12),(3,13);
 insert into t1 (a,b) select a, max(b)+1 from t1 where a = 0 group by a;
 select * from t1;
-explain extended select sql_buffer_result a, max(b)+1 from t1 where a = 0 group by a;
+explain select sql_buffer_result a, max(b)+1 from t1 where a = 0 group by a;
 drop table t1;
 
 
@@ -1125,9 +1135,6 @@ INSERT INTO t1 VALUES (1), (2), (3);
 --echo # NULL-safe operator test disabled for non-NULL indexed columns.
 --echo #
 --echo # See bugs
---echo #
---echo # - Bug#52173: Reading NULL value from non-NULL index gives
---echo #   wrong result in embedded server 
 --echo #
 --echo # - Bug#52174: Sometimes wrong plan when reading a MAX value from 
 --echo #   non-NULL index
@@ -1321,7 +1328,7 @@ CREATE TABLE t1 (
   f1 int(11) NOT NULL DEFAULT '0',
   f2 char(1) NOT NULL DEFAULT '',
   PRIMARY KEY (f1,f2)
-) ;
+)  charset utf8mb4;
 insert into t1 values(1,'A'),(1 , 'B'), (1, 'C'), (2, 'A'), 
 (3, 'A'), (3, 'B'), (3, 'C'), (3, 'D');
 
@@ -1429,3 +1436,386 @@ SELECT 1 FROM t WHERE b IN ('') GROUP BY  b ;
 DROP TABLE t;
 --echo # End of test#18486293.
 
+--echo #
+--echo # Bug#18109609: LOOSE INDEX SCAN IS NOT USED WHEN IT SHOULD
+--echo #
+
+CREATE TABLE t1 (
+id INT AUTO_INCREMENT PRIMARY KEY,
+c1 INT,
+c2 INT,
+KEY(c1,c2));
+
+INSERT INTO t1(c1,c2) VALUES
+(1, 1), (1,2), (2,1), (2,2), (3,1), (3,2), (3,3), (4,1), (4,2), (4,3),
+(4,4), (4,5), (4,6), (4,7), (4,8), (4,9), (4,10), (4,11), (4,12), (4,13),
+(4,14), (4,15), (4,16), (4,17), (4,18), (4,19), (4,20),(5,5);
+
+EXPLAIN SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
+FLUSH STATUS;
+SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
+SHOW SESSION STATUS LIKE 'Handler_read%';
+
+DROP TABLE t1;
+
+--echo # End of test for Bug#18109609
+
+--echo #
+--echo # Bug#22661012 - "USING INDEX FOR GROUP-BY" QUERIES CAN RETURN
+--echo #                NO DATA WITH LE/LEQ AND ROUNDING
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, KEY(a,b));
+INSERT INTO t1 VALUES (1,1000), (1,1001), (1,2000),
+                      (1,2001), (1,3000), (1,3002);
+
+ANALYZE TABLE t1;
+
+let query= SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b < 1999.5 GROUP BY a;
+eval EXPLAIN $query;
+eval $query;
+
+let query= SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b <= 1999.5 GROUP BY a;
+eval EXPLAIN $query;
+eval $query;
+
+let query= SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b between 0 and 1999.5
+           GROUP BY a;
+eval EXPLAIN $query;
+eval $query;
+
+let query= SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b > 2000.1 GROUP BY a;
+eval EXPLAIN $query;
+eval $query;
+
+let query= SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b >= 2000.1 GROUP BY a;
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo # End of test for Bug#22661012
+
+--echo #
+--echo # Bug#24484060 INCORRECT EVALUATION OF MIN/MAX REFERRING
+--echo # TO AN OUTER QUERY BLOCK
+--echo #
+
+CREATE TABLE t1 (pk INT PRIMARY KEY, nk INT, k INT UNIQUE);
+INSERT INTO t1 VALUES (1,1,1),(2,2,2),(4,4,4);
+CREATE TABLE t2 (k INT);
+INSERT INTO t2 VALUES (1),(2),(4);
+
+ANALYZE TABLE t1, t2;
+
+let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk<>3 AND out1.nk = (SELECT MAX(out1.k) FROM t1);
+
+eval explain $query;
+eval $query;
+
+--echo # Repeat the test with PRIMARY KEY instead of the non-indexed column.
+ALTER TABLE t1 DROP COLUMN nk;
+
+let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MAX(out1.k) FROM t1);
+
+eval explain $query;
+eval $query;
+
+--echo # Inner reference should be optimized.
+let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MAX(k) FROM t1);
+
+eval explain $query;
+eval $query;
+
+let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT 2*MIN(k) FROM t1);
+
+eval explain $query;
+eval $query;
+
+let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT SUM(k) - COUNT(k) FROM t1);
+
+eval explain $query;
+eval $query;
+
+--echo # Combinations of outer and inner references should not be optimized.
+let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MIN(out1.k + k) - 1 FROM t1);
+
+eval explain $query;
+eval $query;
+
+let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT out1.k + MIN(k) - 1 FROM t1);
+
+eval explain $query;
+eval $query;
+
+let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MIN(out1.k) + MIN(k) - 1 FROM t1);
+
+eval explain $query;
+eval $query;
+
+let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT SUM(out1.k) / COUNT(k) FROM t1);
+
+eval explain $query;
+eval $query;
+
+let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT SUM(out1.k) / COUNT(*) FROM t1);
+
+eval explain $query;
+eval $query;
+
+let query= SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT AVG(out1.k) FROM t1);
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for Bug#24484060
+
+--echo #
+--echo # Bug#24657798 HANDLER::HA_INDEX_INIT() TRIES TO USE
+--echo # AN UNLOCKED CONST TABLE IN OPT_SUM_QUERY()
+--echo #
+
+CREATE TABLE t1 (k INT, KEY(k)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (h INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (3);
+
+let query= SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
+eval explain $query;
+eval $query;
+let query= SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
+eval explain $query;
+eval $query;
+let query= SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
+eval explain $query;
+eval $query;
+
+UPDATE t1 SET k=0;
+
+let query= SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
+eval explain $query;
+eval $query;
+let query= SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
+eval explain $query;
+eval $query;
+let query= SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
+eval explain $query;
+eval $query;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (nk INT, k INT, KEY(k)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1);
+
+let query= SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
+eval explain $query;
+eval $query;
+let query= SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
+eval explain $query;
+eval $query;
+
+UPDATE t1 SET nk=0, k=0;
+
+let query= SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
+eval explain $query;
+eval $query;
+let query= SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
+eval explain $query;
+eval $query;
+
+DROP TABLE t1;
+
+DROP TABLE t2;
+
+--echo # End of test for Bug#24657798
+
+--echo #
+--echo # Bug#24423143 - WRONG RESULTS FOR AGGREGATE QUERY
+--echo #
+
+--echo # Test index merge tree scenario
+CREATE TABLE a (
+  aggr_col int,
+  group_by_col int,
+  KEY aggr_col_key (aggr_col),
+  KEY group_by_col_key (group_by_col, aggr_col)
+) ENGINE=InnoDB;
+
+let $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
+eval set optimizer_trace_max_mem_size=$DEFAULT_TRACE_MEM_SIZE;
+set @@session.optimizer_trace='enabled=on';
+set end_markers_in_json=on;
+
+INSERT INTO a VALUES (2,3),(5,6),(6,3),(7,NULL),(9,NULL),(10,6);
+ANALYZE TABLE a;
+
+SELECT group_by_col, MIN(aggr_col) FROM a
+WHERE (group_by_col IN (70, 9)) OR (aggr_col > 2) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col) FROM a
+WHERE (group_by_col IN (70 ,9)) OR (aggr_col > 2) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SELECT group_by_col, MAX(aggr_col) FROM a
+WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MAX(aggr_col) FROM a
+WHERE (group_by_col IN (70 , 9)) OR (aggr_col < 9) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Test IMPOSSIBLE TREE scenario
+ALTER TABLE a DROP KEY aggr_col_key;
+
+SELECT group_by_col, MIN(aggr_col) FROM a
+WHERE (group_by_col IN (70 ,9)) OR (aggr_col > 2) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col) FROM a
+WHERE (group_by_col IN (70, 9)) OR (aggr_col > 2) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SELECT group_by_col, MAX(aggr_col) FROM a
+WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MAX(aggr_col) FROM a
+WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 3: aggregate field used as equal expression.
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE (group_by_col IN (3, 9)) OR (aggr_col = 9) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE (group_by_col IN (3, 9)) OR (aggr_col = 9) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 4: non aggregate field used as equal expression.
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE (group_by_col = 3) OR (aggr_col > 8) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE (group_by_col = 3) OR (aggr_col > 8) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 5: aggregate field used as non-zero expression.
+INSERT INTO a VALUES(0, 3);
+INSERT INTO a VALUES(0, 9);
+INSERT INTO a VALUES(8, 0);
+ANALYZE TABLE a;
+
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE (group_by_col = 9) OR aggr_col GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE group_by_col = 9 OR aggr_col GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+
+--echo # Scenario 6: non aggregate field used as non-zero expression.
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE group_by_col OR (aggr_col < 9) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE group_by_col OR (aggr_col < 9) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+
+--echo # Scenario 7: aggregate field used in equal exp without a CONST
+INSERT INTO a VALUES(1,1),(1,2),(2,1);
+
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col = group_by_col GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col = group_by_col GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 8: aggregate field used in a non-eq exp without a CONST
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col < group_by_col GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col < group_by_col GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 8
+INSERT INTO a VALUES(0,1),(1,0),(0,0);
+
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col OR group_by_col GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col OR group_by_col GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 9
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col AND group_by_col GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col AND group_by_col GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 10: Added for completion. This fix does not have an impact.
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col<>0 AND group_by_col<>0 GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col<>0 AND group_by_col<>0 GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Scenario 11: ITEM_FUNC as an argument of ITEM_FUNC
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE group_by_col OR (group_by_col < (aggr_col = 1)) GROUP BY group_by_col;
+
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE group_by_col OR (group_by_col < (aggr_col = 1)) GROUP BY group_by_col;
+
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+                                FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SET optimizer_trace_max_mem_size=DEFAULT;
+SET optimizer_trace=DEFAULT;
+SET end_markers_in_json=DEFAULT;
+
+DROP TABLE a;
+
+--echo # End of test for Bug#24423143

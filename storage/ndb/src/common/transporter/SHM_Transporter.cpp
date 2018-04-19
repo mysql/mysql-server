@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -40,16 +47,18 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 				 bool checksum, 
 				 bool signalId,
 				 key_t _shmKey,
-				 Uint32 _shmSize) :
+				 Uint32 _shmSize,
+				 bool preSendChecksum) :
   Transporter(t_reg, tt_SHM_TRANSPORTER,
 	      lHostName, rHostName, r_port, isMgmConnection_arg,
 	      lNodeId, rNodeId, serverNodeId,
 	      0, false, checksum, signalId, 
-              4096 + MAX_SEND_MESSAGE_BYTESIZE),
+              4096 + MAX_SEND_MESSAGE_BYTESIZE,
+              preSendChecksum),
   shmKey(_shmKey),
   shmSize(_shmSize)
 {
-#ifndef NDB_WIN32
+#ifndef _WIN32
   shmId= 0;
 #endif
   _shmSegCreated = false;
@@ -372,7 +381,7 @@ SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
   return false;
 }
 
-int
+bool
 SHM_Transporter::doSend()
 {
   struct iovec iov[64];
@@ -380,7 +389,7 @@ SHM_Transporter::doSend()
 
   if (cnt == 0)
   {
-    return 0;
+    return false;
   }
 
   Uint32 sum = 0;
@@ -399,10 +408,10 @@ SHM_Transporter::doSend()
 
     if (Uint32(nBytesSent) == sum && (cnt != NDB_ARRAY_SIZE(iov)))
     {
-      return 0;
+      return false;
     }
-    return 1;
+    return true;
   }
 
-  return 1;
+  return true;
 }

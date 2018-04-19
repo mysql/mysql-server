@@ -1,7 +1,7 @@
 SET default_storage_engine=InnoDB;
 set global innodb_file_per_table=1;
 ### Test 1 ###
-create table worklog5743(a TEXT not null, primary key (a(1000))) ROW_FORMAT=DYNAMIC;
+create table worklog5743(a TEXT not null, primary key (a(1000))) charset latin1 ROW_FORMAT=DYNAMIC;
 show warnings;
 Level	Code	Message
 insert into worklog5743 values(repeat("a", 20000));
@@ -11,8 +11,8 @@ show warnings;
 Level	Code	Message
 begin;
 update worklog5743 set a = (repeat("x", 17000));
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 select a = repeat("x", 17000) from worklog5743;
 a = repeat("x", 17000)
@@ -21,8 +21,8 @@ select a = repeat("b", 16000) from worklog5743;
 a = repeat("b", 16000)
 1
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 READ-UNCOMMITTED
 select a = repeat("x", 17000) from worklog5743;
 a = repeat("x", 17000)
@@ -30,7 +30,7 @@ a = repeat("x", 17000)
 rollback;
 drop table worklog5743;
 ### Test 2 ###
-create table worklog5743(a1 int, a2 TEXT not null) ROW_FORMAT=DYNAMIC;
+create table worklog5743(a1 int, a2 TEXT not null) charset latin1 ROW_FORMAT=DYNAMIC;
 show warnings;
 Level	Code	Message
 create index idx on worklog5743(a1, a2(2000));
@@ -39,20 +39,20 @@ Level	Code	Message
 insert into worklog5743 values(9, repeat("a", 10000));
 begin;
 update worklog5743 set a1 = 1000;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	worklog5743	NULL	ref	idx	idx	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`worklog5743`.`a1` AS `a1`,(`test`.`worklog5743`.`a2` = repeat('a',10000)) AS `a2 = repeat("a", 10000)` from `test`.`worklog5743` where (`test`.`worklog5743`.`a1` = 9)
+Note	1003	/* select#1 */ select `test`.`worklog5743`.`a1` AS `a1`,(`test`.`worklog5743`.`a2` = convert(repeat('a',10000) using latin1)) AS `a2 = repeat("a", 10000)` from `test`.`worklog5743` where (`test`.`worklog5743`.`a1` = 9)
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
 9	1
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 READ-UNCOMMITTED
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
@@ -64,8 +64,8 @@ create index idx on worklog5743(a1, a2(50));
 insert into worklog5743 values(9, repeat("a", 10000));
 begin;
 update worklog5743 set a1 = 1000;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -76,30 +76,19 @@ select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
 9	1
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 READ-UNCOMMITTED
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
 rollback;
 drop table worklog5743;
 ### Test 4 ###
-create table worklog5743_1(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=1;
-create table worklog5743_2(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=2;
-create table worklog5743_4(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=4;
-create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8;
-create table worklog5743_16(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=16;
-set global innodb_large_prefix=0;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
-create index idx1 on worklog5743_1(a2(4000));
-ERROR 42000: Specified key was too long; max key length is 767 bytes
-show warnings;
-Level	Code	Message
-Error	1071	Specified key was too long; max key length is 767 bytes
-set global innodb_large_prefix=1;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+create table worklog5743_1(a1 int, a2 TEXT not null) charset latin1 KEY_BLOCK_SIZE=1;
+create table worklog5743_2(a1 int, a2 TEXT not null) charset latin1 KEY_BLOCK_SIZE=2;
+create table worklog5743_4(a1 int, a2 TEXT not null) charset latin1 KEY_BLOCK_SIZE=4;
+create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) charset latin1 KEY_BLOCK_SIZE=8;
+create table worklog5743_16(a1 int, a2 TEXT, a3 TEXT) charset latin1 KEY_BLOCK_SIZE=16;
 create index idx2 on worklog5743_1(a2(4000));
 ERROR 42000: Specified key was too long; max key length is 3072 bytes
 show warnings;
@@ -121,21 +110,7 @@ Error	1118	Row size too large. The maximum row size for the used table type, not
 create index idx6 on worklog5743_1(a1, a2(428));
 show warnings;
 Level	Code	Message
-set global innodb_large_prefix=0;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET sql_mode= '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
-create index idx1 on worklog5743_2(a2(4000));
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-show warnings;
-Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 767 bytes
-set global innodb_large_prefix=1;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 create index idx2 on worklog5743_2(a2(4000));
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 show warnings;
@@ -158,18 +133,6 @@ Error	1118	Row size too large. The maximum row size for the used table type, not
 create index idx6 on worklog5743_2(a1, a2(940));
 show warnings;
 Level	Code	Message
-set global innodb_large_prefix=0;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
-create index idx1 on worklog5743_4(a2(4000));
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-show warnings;
-Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 767 bytes
-set global innodb_large_prefix=1;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 create index idx2 on worklog5743_4(a2(4000));
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 show warnings;
@@ -192,18 +155,6 @@ Error	1118	Row size too large. The maximum row size for the used table type, not
 create index idx6 on worklog5743_4(a1, a2(1964));
 show warnings;
 Level	Code	Message
-set global innodb_large_prefix=0;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
-create index idx1 on worklog5743_8(a2(1000));
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-show warnings;
-Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 767 bytes
-set global innodb_large_prefix=1;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 create index idx2 on worklog5743_8(a2(3073));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 3072 bytes
@@ -232,18 +183,6 @@ Error	1071	Specified key was too long; max key length is 3072 bytes
 create index idx7 on worklog5743_8(a1, a2(2000), a3(1068));
 show warnings;
 Level	Code	Message
-set global innodb_large_prefix=0;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
-create index idx1 on worklog5743_16(a2(1000));
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-show warnings;
-Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 767 bytes
-set global innodb_large_prefix=1;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 create index idx2 on worklog5743_16(a2(3073));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 3072 bytes
@@ -278,17 +217,11 @@ insert into worklog5743_2 values(9, repeat("a", 10000));
 insert into worklog5743_4 values(9, repeat("a", 10000));
 insert into worklog5743_8 values(9, repeat("a", 10000), repeat("a", 10000));
 insert into worklog5743_16 values(9, repeat("a", 10000), repeat("a", 10000));
-set global innodb_large_prefix=0;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 insert into worklog5743_1 values(2, repeat("b", 10000));
 insert into worklog5743_2 values(2, repeat("b", 10000));
 insert into worklog5743_4 values(2, repeat("b", 10000));
 insert into worklog5743_8 values(2, repeat("b", 10000), repeat("b", 10000));
 insert into worklog5743_16 values(2, repeat("b", 10000), repeat("b", 10000));
-set global innodb_large_prefix=1;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 select a1, left(a2, 20) from worklog5743_1;
 a1	left(a2, 20)
 9	aaaaaaaaaaaaaaaaaaaa
@@ -335,8 +268,8 @@ select a1, left(a2, 20) from worklog5743_16;
 a1	left(a2, 20)
 1000	aaaaaaaaaaaaaaaaaaaa
 1000	bbbbbbbbbbbbbbbbbbbb
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 explain select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -379,8 +312,8 @@ select a1, left(a2, 20) from worklog5743_16 where a1 = 9;
 a1	left(a2, 20)
 9	aaaaaaaaaaaaaaaaaaaa
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 READ-UNCOMMITTED
 select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
 a1	left(a2, 20)
@@ -405,10 +338,9 @@ a3 varchar(3073),
 a4 varchar(3072),
 a5 varchar(3069),
 a6 varchar(3068))
+charset latin1
 ROW_FORMAT=DYNAMIC;
 SET sql_mode='';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create index idx1 on worklog5743(a2);
 Warnings:
 Warning	1071	Specified key was too long; max key length is 3072 bytes
@@ -452,8 +384,8 @@ repeat("a", 3072), repeat("a", 3069),
 repeat("a", 3068));
 begin;
 update worklog5743 set a1 = 1000;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 explain select a1 from worklog5743 where a1 = 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -464,17 +396,21 @@ select a1 from worklog5743 where a1 = 9;
 a1
 9
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 READ-UNCOMMITTED
 select a1 from worklog5743 where a1 = 9;
 a1
 rollback;
 drop table worklog5743;
 ### Test 6 ###
-create table worklog5743(a TEXT not null, primary key (a(1000)));
+create table worklog5743(a TEXT not null, primary key (a(1000)))
+charset latin1
+row_format=compact;
 ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
-create table worklog5743(a TEXT);
+create table worklog5743(a TEXT)
+charset latin1
+row_format=compact;
 create index idx on worklog5743(a(768));
 ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
 create index idx on worklog5743(a(767));
@@ -482,15 +418,15 @@ insert into worklog5743 values(repeat("a", 20000));
 begin;
 insert into worklog5743 values(repeat("b", 20000));
 update worklog5743 set a = (repeat("x", 25000));
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 select a = repeat("a", 20000) from worklog5743;
 a = repeat("a", 20000)
 1
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 READ-UNCOMMITTED
 select a = repeat("x", 25000) from worklog5743;
 a = repeat("x", 25000)
@@ -501,29 +437,28 @@ drop table worklog5743;
 ### Test 7 ###
 create table worklog5743(a TEXT not null) ROW_FORMAT=DYNAMIC;
 SET sql_mode='';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create index idx1 on worklog5743(a(3073));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 3072 bytes
 create index idx2 on worklog5743(a(3072));
 Warnings:
+Warning	1071	Specified key was too long; max key length is 3072 bytes
 Warning	1831	Duplicate index 'idx2' defined on the table 'test.worklog5743'. This is deprecated and will be disallowed in a future release.
 show create table worklog5743;
 Table	Create Table
 worklog5743	CREATE TABLE `worklog5743` (
   `a` text NOT NULL,
-  KEY `idx1` (`a`(3072)),
-  KEY `idx2` (`a`(3072))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+  KEY `idx1` (`a`(768)),
+  KEY `idx2` (`a`(768))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 drop table worklog5743;
 SET sql_mode= default;
-create table worklog5743(a TEXT not null) ROW_FORMAT=REDUNDANT;
+create table worklog5743(a TEXT not null) charset latin1 ROW_FORMAT=REDUNDANT;
 create index idx on worklog5743(a(768));
 ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
 create index idx2 on worklog5743(a(767));
 drop table worklog5743;
-create table worklog5743(a TEXT not null) ROW_FORMAT=COMPACT;
+create table worklog5743(a TEXT not null) charset latin1 ROW_FORMAT=COMPACT;
 create index idx on worklog5743(a(768));
 ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
 create index idx2 on worklog5743(a(767));

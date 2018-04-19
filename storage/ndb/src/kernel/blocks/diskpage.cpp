@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -57,8 +64,13 @@ operator<<(NdbOut& out, const File_formats::Zero_page_header& obj)
     ndbGetVersionString(obj.m_ndb_version, 0, 0, buf, sizeof(buf)) << endl;
   out << "ndb node id: " << obj.m_node_id << endl;
   out << "file type:   " << obj.m_file_type << endl;
+
+  /**
+   *  m_time is 32bit, time_t may be bigger (64bit).
+   */
+  const time_t tm = obj.m_time;
   out << "time:        " << obj.m_time << ", " 
-      << ctime((time_t*)&obj.m_time)<< endl;
+      << ctime(&tm) << endl;
   return out;
 }
 
@@ -81,6 +93,25 @@ operator<<(NdbOut& out, const File_formats::Datafile::Zero_page& obj)
 }
 
 NdbOut&
+operator<<(NdbOut& out, const File_formats::Datafile::Zero_page_v2& obj)
+{
+  out << obj.m_page_header << endl;
+  out << "m_file_no: " << obj.m_file_no << endl;
+  out << "m_tablespace_id: " << obj.m_tablespace_id << endl;
+  out << "m_tablespace_version: " << obj.m_tablespace_version << endl;
+  out << "m_data_pages: " << obj.m_data_pages << endl;
+  out << "m_extent_pages: " << obj.m_extent_pages << endl;
+  out << "m_extent_size: " << obj.m_extent_size << endl;
+  out << "m_extent_count: " << obj.m_extent_count << endl;
+  out << "m_extent_headers_per_page: " << obj.m_extent_headers_per_page << endl;
+  out << "m_extent_header_words: " << obj.m_extent_header_words << endl;
+  out << "m_extent_header_bits_per_page: " << obj.m_extent_header_bits_per_page << endl;
+  out << "m_checksum: " << obj.m_checksum << endl;
+
+  return out;
+}
+
+NdbOut&
 operator<<(NdbOut& out, const File_formats::Undofile::Zero_page& obj)
 {
   out << obj.m_page_header << endl;
@@ -92,3 +123,15 @@ operator<<(NdbOut& out, const File_formats::Undofile::Zero_page& obj)
   return out;
 }
 
+NdbOut&
+operator<<(NdbOut& out, const File_formats::Undofile::Zero_page_v2& obj)
+{
+  out << obj.m_page_header << endl;
+  out << "m_file_id: " << obj.m_file_id << endl;
+  out << "m_logfile_group_id: " << obj.m_logfile_group_id << endl;
+  out << "m_logfile_group_version: " << obj.m_logfile_group_version << endl;
+  out << "m_undo_pages: " << obj.m_undo_pages << endl;
+  out << "m_checksum: " << obj.m_checksum << endl;
+  
+  return out;
+}

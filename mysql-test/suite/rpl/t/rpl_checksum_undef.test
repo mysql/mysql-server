@@ -20,7 +20,6 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
 --source include/master-slave.inc
---source include/have_log_bin.inc
 
 connection slave;
 --echo [ON SLAVE]
@@ -31,7 +30,7 @@ call mtr.add_suppression('The slave I/O thread was stopped because a fatal error
 SET GLOBAL debug='+d,undefined_algorithm_on_slave';
 
 START SLAVE;
---let $slave_io_errno= 1593
+--let $slave_io_errno= 13117
 --source include/wait_for_slave_io_error.inc
 
 --source include/stop_slave.inc

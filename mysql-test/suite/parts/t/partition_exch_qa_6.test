@@ -1,12 +1,10 @@
 # Author: Horst Hunger
 # Created: 2010-07-06
 
---source include/not_embedded.inc
---source include/have_partition.inc
 
-let $engine_table= MYISAM;
-let $engine_part= MYISAM;
-let $engine_subpart= MYISAM;
+let $engine_table= INNODB;
+let $engine_part= INNODB;
+let $engine_subpart= INNODB;
 
 CREATE USER test2@localhost;
 

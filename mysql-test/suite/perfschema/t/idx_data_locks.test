@@ -1,0 +1,121 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = COUNT(*);
+let $table = performance_schema.data_locks;
+
+connect(con1, localhost, root,,);
+
+--echo # Connection con1
+--connection con1
+
+create database explain_test_db;
+create table explain_test_db.explain_test_table(a int, b int, PRIMARY KEY (a, b)) engine=innodb
+  PARTITION BY RANGE( a )
+    SUBPARTITION BY HASH( b ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0,
+            SUBPARTITION s1
+        ),
+        PARTITION p1 VALUES LESS THAN (2000) (
+            SUBPARTITION s2,
+            SUBPARTITION s3
+        ),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s4,
+            SUBPARTITION s5
+        )
+  );
+
+insert into explain_test_db.explain_test_table values (1, 100), (1995, 200);
+
+start transaction;
+update explain_test_db.explain_test_table set b=b+1;
+
+--echo # Connection default
+--connection default
+
+# Debug
+# select * from performance_schema.data_locks;
+
+select ENGINE, ENGINE_LOCK_ID, ENGINE_TRANSACTION_ID, THREAD_ID, EVENT_ID,
+  PARTITION_NAME, SUBPARTITION_NAME
+  from performance_schema.data_locks
+  where OBJECT_NAME = 'explain_test_table'
+  and LOCK_TYPE = 'RECORD' and LOCK_DATA = '1, 100'
+  into @engine, @lock_id, @trx_id, @thread_id, @event_id, @part, @subpart;
+
+# Debug
+# select @engine, @lock_id, @trx_id, @thread_id, @event_id, @part, @subpart;
+
+# Make sure this test found a record.
+select @engine is null,
+       @lock_id is null,
+       @trx_id is null,
+       @thread_id is null,
+       @event_id is null,
+       @part, @subpart;
+
+###########################################################################
+# Test index on PRIMARY
+###########################################################################
+
+let $column_count = 2;
+let $col1 = ENGINE_LOCK_ID;
+let $col2 = ENGINE;
+let $col1_act = @lock_id;
+let $col2_act = @engine;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on ENGINE_TRANSACTION_ID
+###########################################################################
+
+let $column_count = 2;
+let $col1 = ENGINE_TRANSACTION_ID;
+let $col2 = ENGINE;
+let $col1_act = @trx_id;
+let $col2_act = @engine;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on THREAD_ID
+###########################################################################
+
+let $column_count = 2;
+let $col1 = THREAD_ID;
+let $col2 = EVENT_ID;
+let $col1_act = @thread_id;
+let $col2_act = @event_id;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on OBJECT_SCHEMA, OBJECT_NAME, PARTITION_NAME, SUBPARTITION_NAME
+###########################################################################
+
+let $column_count = 4;
+let $col1 = OBJECT_SCHEMA;
+let $col2 = OBJECT_NAME;
+let $col3 = PARTITION_NAME;
+let $col4 = SUBPARTITION_NAME;
+let $col1_act = "explain_test_db";
+let $col2_act = "explain_test_table";
+let $col3_act = @part;
+let $col4_act = @subpart;
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+
+--echo # Connection con1
+--connection con1
+commit;
+drop table explain_test_db.explain_test_table;
+drop database explain_test_db;
+
+--echo # Connection default
+--connection default
+--disconnect con1

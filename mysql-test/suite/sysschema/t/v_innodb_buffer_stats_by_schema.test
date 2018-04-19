@@ -1,4 +1,4 @@
--- source include/not_embedded.inc
+-- source ../include/ps_truncate_all_tables.inc
 # Tests for sys schema
 # Verify the sys.innodb_buffer_stats_by_schema view
 
@@ -18,4 +18,3 @@ DESC sys.x$innodb_buffer_stats_by_schema;
 --disable_result_log
 SELECT * FROM sys.x$innodb_buffer_stats_by_schema;
 --enable_result_log
-

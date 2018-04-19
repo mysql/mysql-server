@@ -1,2 +1,3 @@
 --sync-relay-log-info=1 --relay-log-recovery=1 --default-storage-engine=MyISAM --innodb-file-per-table=0
 --skip-core-file
+--master-info-repository=FILE

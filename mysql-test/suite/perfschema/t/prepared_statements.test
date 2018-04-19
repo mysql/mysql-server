@@ -1,13 +1,12 @@
 # Test for prepared statement instrumentation 
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
---source suite/perfschema/include/no_protocol.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
 CREATE DATABASE db;
 USE db;
 
---let $psi_select =  SELECT STATEMENT_NAME, SQL_TEXT, COUNT_REPREPARE, COUNT_EXECUTE FROM performance_schema.prepared_statements_instances 
+--let $psi_select =  SELECT STATEMENT_NAME, SQL_TEXT, COUNT_REPREPARE, COUNT_EXECUTE, SUM_ROWS_SENT, SUM_SELECT_SCAN, SUM_NO_INDEX_USED FROM performance_schema.prepared_statements_instances 
 --let $psi_truncate =  TRUNCATE TABLE performance_schema.prepared_statements_instances 
 --let $eshl_select = SELECT EVENT_NAME, SQL_TEXT, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA='db' 
 --let $eshl_truncate = TRUNCATE TABLE performance_schema.events_statements_history_long 

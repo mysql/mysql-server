@@ -1,12 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
---source include/not_embedded.inc
 --source include/have_ndb.inc
-
---source ndbinfo_create.inc
 
 USE ndbinfo;
 
@@ -22,5 +14,3 @@ select count(*) from blocks;
 --exec $MYSQL_DUMP --no-data --databases test ndbinfo > $dump_file
 --exec $MYSQL test < $dump_file
 select count(*) from blocks;
-
---source ndbinfo_drop.inc

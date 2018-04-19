@@ -53,7 +53,7 @@ SELECT COUNT(@@GLOBAL.server_uuid);
 
 --disable_warnings
 SELECT @@GLOBAL.server_uuid = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='server_uuid';
 --enable_warnings
 --echo 1 Expected
@@ -63,7 +63,7 @@ SELECT COUNT(@@GLOBAL.server_uuid);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='server_uuid';
 --enable_warnings
 --echo 1 Expected

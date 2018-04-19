@@ -3,8 +3,6 @@
 #
 #
 
---source include/have_innodb.inc
---source include/not_embedded.inc
 
 #Test 3 scenarios:
 #1. CREATE a CJK fulltext index with ngram parser when ngram parser is loaded,
@@ -12,7 +10,7 @@
 #2. CREATE a CJK fulltext index with ngram parser when ngram parser is not loaded.
 #3. CREATE a CJK fulltext index without ngram parser when ngram parser is not loaded.
 
-SET NAMES utf8;
+SET NAMES utf8mb4;
 
 # t1 with default parser
 CREATE TABLE t1 (
@@ -28,11 +26,11 @@ ALTER TABLE t1 ADD FULLTEXT INDEX ft_title (title);
 
 SHOW CREATE TABLE t1;
 
-SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国');
-SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国上海');
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国') ORDER BY id;
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国上海') ORDER BY id;
 
-SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国');
-SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国上海');
+SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国') ORDER BY id;
+SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国上海') ORDER BY id;
 
 DROP TABLE t1;
 
@@ -50,11 +48,11 @@ ALTER TABLE t1 ADD FULLTEXT INDEX ft_title (title) WITH PARSER ngram;
 
 SHOW CREATE TABLE t1;
 
-SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国');
-SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国上海');
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国') ORDER BY id;
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国上海') ORDER BY id;
 
-SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国');
-SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国上海');
+SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国') ORDER BY id;
+SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国上海') ORDER BY id;
 
 # t2 with ngram parser
 CREATE TABLE t2 (
@@ -127,8 +125,8 @@ ALTER TABLE t2 ADD FULLTEXT INDEX ft_title (title);
 
 INSERT INTO t2 (title) VALUES  ('中国');
 
-SELECT * FROM t2 WHERE MATCH(title) AGAINST('中国');
-SELECT * FROM t2 WHERE MATCH(title) AGAINST('中国上海');
+SELECT * FROM t2 WHERE MATCH(title) AGAINST('中国') ORDER BY id;
+SELECT * FROM t2 WHERE MATCH(title) AGAINST('中国上海') ORDER BY id;
 
 DROP TABLE t2;
 
@@ -140,10 +138,10 @@ CHECK TABLE t1;
 
 SELECT * FROM t1;
 
-SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国');
-SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国上海');
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国') ORDER BY id;
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国上海') ORDER BY id;
 
-SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国');
-SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国上海');
+SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国') ORDER BY id;
+SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国上海') ORDER BY id;
 
 DROP TABLE t1;

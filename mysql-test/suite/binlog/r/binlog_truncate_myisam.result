@@ -1,5 +1,5 @@
 SET @old_binlog_format=@@binlog_format;
-SET BINLOG_FORMAT=ROW;
+SET BINLOG_FORMAT='ROW';
 RESET MASTER;
 CREATE TABLE t1 (a INT) ENGINE=MyISAM;
 CREATE TABLE t2 (a INT) ENGINE=MyISAM;
@@ -9,8 +9,8 @@ TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
-master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t2
+binlog.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
+binlog.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t2
 DROP TABLE t1,t2;
 #
 # Bug#42643: InnoDB does not support replication of TRUNCATE TABLE
@@ -40,17 +40,17 @@ COUNT(*)
 # Connection: default
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.t2)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.t2)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
 DROP TABLE t1,t2;
-SET BINLOG_FORMAT=STATEMENT;
+SET BINLOG_FORMAT='STATEMENT';
 RESET MASTER;
 CREATE TABLE t1 (a INT) ENGINE=MyISAM;
 CREATE TABLE t2 (a INT) ENGINE=MyISAM;
@@ -60,8 +60,8 @@ TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
-master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t2
+binlog.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
+binlog.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t2
 DROP TABLE t1,t2;
 #
 # Bug#42643: InnoDB does not support replication of TRUNCATE TABLE
@@ -91,12 +91,12 @@ COUNT(*)
 # Connection: default
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 SELECT * FROM t1
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 SELECT * FROM t1
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t2 SELECT * FROM t1
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t2 SELECT * FROM t1
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
 DROP TABLE t1,t2;
 SET BINLOG_FORMAT=@old_binlog_format;

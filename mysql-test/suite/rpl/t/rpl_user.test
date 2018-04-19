@@ -1,2 +1,140 @@
 --source include/not_group_replication_plugin.inc
---source extra/rpl_tests/rpl_user.inc
+
+# BUG#33862 completely failed DROP USER statement gets replicated
+--source include/master-slave.inc
+
+#
+# remove all users will be used in the test
+#
+connection master;
+set session sql_log_bin=0;
+delete from mysql.user where Host='fakehost';
+set session sql_log_bin=1;
+
+connection slave;
+set session sql_log_bin=0;
+delete from mysql.user where Host='fakehost';
+set session sql_log_bin=1;
+
+#
+# Test create user
+#
+connection master;
+create user 'foo'@'fakehost';
+--error ER_CANNOT_USER
+create user 'foo'@'fakehost', 'bar'@'fakehost';
+create user 'bar'@'fakehost';
+
+# In log event, Plaintext password 'foo1' is replaced by ciphertext.
+create user 'foo1'@'fakehost' IDENTIFIED WITH 'mysql_native_password' BY 'foo1',
+  'foo2'@'fakehost' IDENTIFIED WITH 'mysql_native_password' AS '*1111111111111111111111111111111111111111',
+  'foo3'@'fakehost';
+--source include/sync_slave_sql_with_master.inc
+select Host,User from mysql.user where Host='fakehost';
+--let $diff_tables= master:mysql.user, slave:mysql.user
+source include/diff_tables.inc;
+
+#
+# Test rename user
+#
+connection master;
+rename user 'foo'@'fakehost' to 'foofoo'@'fakehost';
+--error ER_CANNOT_USER
+rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'bar'@'fakehost' to 'barbar'@'fakehost';
+--error ER_CANNOT_USER
+rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'not_exist_user2'@'fakehost' to 'barfoo'@'fakehost';
+
+--source include/sync_slave_sql_with_master.inc
+select Host,User from mysql.user where Host='fakehost';
+
+#
+# Test drop user
+#
+connection master;
+drop user 'foofoo'@'fakehost';
+drop user 'bar'@'fakehost';
+drop user 'foo1'@'fakehost', 'foo2'@'fakehost', 'foo3'@'fakehost';
+--error ER_CANNOT_USER
+drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost';
+--error ER_CANNOT_USER
+drop user 'not_exist_user1'@'fakehost', 'not_exist_user2'@'fakehost';
+
+--source include/sync_slave_sql_with_master.inc
+select Host,User from mysql.user where Host='fakehost';
+
+
+--echo #
+--echo # WL2392: "Change Password at next login" (initial default for root)
+--echo #
+
+connection master;
+CREATE USER must_change2@localhost IDENTIFIED BY 'aha';
+ALTER USER must_change2@localhost PASSWORD EXPIRE;
+--source include/sync_slave_sql_with_master.inc
+select Host,User,password_expired from mysql.user where user='must_change2';
+
+connect(must_change_con_slave,localhost,must_change2,aha,test,$SLAVE_MYPORT,);
+connection must_change_con_slave;
+--echo # must throw an error
+--error ER_MUST_CHANGE_PASSWORD
+SELECT USER();
+connection master;
+disconnect must_change_con_slave;
+
+connect(must_change_con_master,localhost,must_change2,aha);
+connection must_change_con_master;
+--echo # setting a password unlocks it
+SET PASSWORD = 'aha2';
+connection master;
+disconnect must_change_con_master;
+
+--source include/sync_slave_sql_with_master.inc
+connection master;
+
+connect(must_change_con_slave,localhost,must_change2,aha2,test,$SLAVE_MYPORT,);
+connection must_change_con_slave;
+--echo # must not throw an error
+SELECT USER();
+connection master;
+disconnect must_change_con_slave;
+
+DROP USER must_change2@localhost;
+
+--source include/sync_slave_sql_with_master.inc
+connection master;
+
+--echo #
+--echo # WL#9591: Caching sha2 authentication plugin
+--echo #
+
+connection master;
+CREATE USER 9591_user@localhost IDENTIFIED WITH caching_sha2_password BY 'abcd' REQUIRE NONE;
+--source include/sync_slave_sql_with_master.inc
+SELECT Host, User, Plugin FROM mysql.user WHERE user='9591_user';
+
+connect(9591_user_con_slave, localhost, 9591_user, abcd, test, $SLAVE_MYPORT,,SSL);
+connection 9591_user_con_slave;
+SELECT CURRENT_USER();
+connection master;
+disconnect 9591_user_con_slave;
+
+connect(9591_user_con_master, localhost, 9591_user, abcd,,,,SSL);
+connection 9591_user_con_master;
+SELECT CURRENT_USER();
+
+connection master;
+disconnect 9591_user_con_master;
+
+DROP USER 9591_user@localhost;
+
+--source include/sync_slave_sql_with_master.inc
+connection master;
+
+#
+# show the binlog events on the master
+#
+connection master;
+--let $mask_user_password_events=1
+source include/show_binlog_events.inc;
+--let $mask_user_password_events=0
+--source include/rpl_end.inc

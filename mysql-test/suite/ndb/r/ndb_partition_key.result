@@ -21,6 +21,7 @@ ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning 
 CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY(a,b))
 ENGINE = NDB
 PARTITION BY KEY (a);
+ALTER TABLE t1 ALGORITHM=INPLACE, REORGANIZE PARTITION;
 insert into t1 values 
 (1,1,3),(1,2,3),(1,3,3),(1,4,3),(1,5,3),(1,6,3),
 (1,7,3),(1,8,3),(1,9,3),(1,10,3),(1,11,3),(1,12,3);
@@ -83,7 +84,7 @@ PARTITION BY KEY(a)
 (PARTITION p0 ENGINE = NDB, PARTITION p1 ENGINE = NDB);
 drop table t1;
 CREATE TABLE t1 (a int not null primary key);
-ALTER TABLE t1
+ALTER TABLE t1 ALGORITHM=COPY,
 ENGINE = NDB
 PARTITION BY KEY(a)
 (PARTITION p0 ENGINE = NDB, PARTITION p1 ENGINE = NDB);
@@ -102,37 +103,37 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = ndbcluster,
  PARTITION p1 ENGINE = ndbcluster) */
-alter table t1 engine=heap;
+alter table t1 engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MEMORY,
- PARTITION p1 ENGINE = MEMORY) */
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 alter table t1 engine=ndb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = ndbcluster,
  PARTITION p1 ENGINE = ndbcluster) */
-alter table t1 engine=heap remove partitioning;
+alter table t1 engine=innodb remove partitioning;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 engine=ndb
 partition by key(a)
 (partition p0, partition p1 engine = ndb);
@@ -141,7 +142,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = ndbcluster,
  PARTITION p1 ENGINE = ndbcluster) */
@@ -153,7 +154,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = ndbcluster,
  PARTITION p1 ENGINE = ndbcluster) */
@@ -163,7 +164,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1
 partition by key(a)
 (partition p0 engine=ndb, partition p1);
@@ -176,7 +177,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = ndbcluster,
  PARTITION p1 ENGINE = ndbcluster) */
@@ -192,7 +193,7 @@ c7 TIMESTAMP,
 PRIMARY KEY(c1,c3))
 ENGINE=NDB
 PARTITION BY KEY(c3) PARTITIONS 5;
-ALTER TABLE t1 COALESCE PARTITION 4;
+ALTER TABLE t1 ALGORITHM=COPY, COALESCE PARTITION 4;
 DROP TABLE t1;
 CREATE TABLE t1 (a int primary key)
 ENGINE=NDB
@@ -209,19 +210,19 @@ test.t1	optimize	status	OK
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	note	The storage engine for the table doesn't support repair
-ALTER TABLE t1 OPTIMIZE PARTITION p0;
+ALTER TABLE t1 ALGORITHM=INPLACE, OPTIMIZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
-ALTER TABLE t1 CHECK PARTITION p0;
+ALTER TABLE t1 ALGORITHM=INPLACE, CHECK PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
-ALTER TABLE t1 REPAIR PARTITION p0;
+ALTER TABLE t1 ALGORITHM=INPLACE, REPAIR PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	note	The storage engine for the table doesn't support repair
-ALTER TABLE t1 ANALYZE PARTITION p0;
+ALTER TABLE t1 ALGORITHM=INPLACE, ANALYZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-ALTER TABLE t1 REBUILD PARTITION p0;
+ALTER TABLE t1 ALGORITHM=INPLACE, REBUILD PARTITION p0;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 DROP TABLE t1;
 CREATE TABLE t1 (

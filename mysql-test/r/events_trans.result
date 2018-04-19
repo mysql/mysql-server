@@ -115,7 +115,6 @@ a
 OK: create event: database does not exist
 delete from t1;
 commit work;
-drop database events_test;
 #
 # Bug#54105 assert in MDL_context::release_locks_stored_before
 #
@@ -130,9 +129,53 @@ INSERT INTO t1 VALUES (1);
 SAVEPOINT A;
 SHOW CREATE EVENT e1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-e1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e1` ON SCHEDULE EVERY 1 DAY STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+e1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e1` ON SCHEDULE EVERY 1 DAY STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT * FROM t2;
 a
 ROLLBACK WORK TO SAVEPOINT A;
 DROP TABLE t1, t2;
 DROP EVENT e1;
+drop database if exists mysqltest_db2;
+use events_test;
+create user mysqltest_user1@localhost;
+grant create, insert, select, delete on mysqltest_db2.*
+to mysqltest_user1@localhost;
+create database mysqltest_db2;
+set autocommit=off;
+select @@autocommit;
+@@autocommit
+0
+create table t1 (a varchar(255)) engine=innodb;
+begin work;
+insert into t1 (a) values ("OK: create event: insufficient privileges");
+create event e1 on schedule every 1 day do select 1;
+ERROR 42000: Access denied for user 'mysqltest_user1'@'localhost' to database 'mysqltest_db2'
+rollback work;
+select * from t1;
+a
+OK: create event: insufficient privileges
+delete from t1;
+commit work;
+begin work;
+insert into t1 (a) values ("OK: alter event: insufficient privileges");
+alter event e1 on schedule every 1 day do select 1;
+ERROR 42000: Access denied for user 'mysqltest_user1'@'localhost' to database 'mysqltest_db2'
+rollback work;
+select * from t1;
+a
+OK: alter event: insufficient privileges
+delete from t1;
+commit work;
+begin work;
+insert into t1 (a) values ("OK: drop event: insufficient privileges");
+drop event e1;
+ERROR 42000: Access denied for user 'mysqltest_user1'@'localhost' to database 'mysqltest_db2'
+rollback work;
+select * from t1;
+a
+OK: drop event: insufficient privileges
+delete from t1;
+commit work;
+drop user mysqltest_user1@localhost;
+drop database mysqltest_db2;
+drop database events_test;

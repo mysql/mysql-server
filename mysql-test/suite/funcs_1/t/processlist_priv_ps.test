@@ -15,19 +15,17 @@
 #                                                                      #
 ########################################################################
 
-# This test does not make sense on the embedded server because processlist
-# will be empty.
---source include/not_embedded.inc
 
 # One subtest is skipped because of
 #    Bug#30395 strange results after REVOKE PROCESS ON *.* FROM ...
 let $fixed_bug_30395= 0;
 
 # The file with expected results fits only to a run with "--ps-protocol".
-if (`SELECT $SP_PROTOCOL + $CURSOR_PROTOCOL + $VIEW_PROTOCOL > 0
-        OR $PS_PROTOCOL = 0`)
-{
-   --skip Test requires: ps-protocol enabled, other protocols disabled
-}
+--source include/have_ps_protocol.inc
+# Other protocols disabled
+--source include/no_sp_protocol.inc
+--source include/no_view_protocol.inc
+--source include/no_cursor_protocol.inc
+
 
 --source suite/funcs_1/datadict/processlist_priv.inc

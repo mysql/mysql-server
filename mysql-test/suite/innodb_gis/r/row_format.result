@@ -1,16 +1,15 @@
 SET GLOBAL innodb_file_per_table='off';
-SET GLOBAL innodb_file_format='Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 CREATE TABLE t1 (
 id bigint(12) unsigned NOT NULL auto_increment,
 c2 varchar(15) collate utf8_bin DEFAULT NULL,
 c1 varchar(15) collate utf8_bin DEFAULT NULL,
 c3 varchar(10) collate utf8_bin DEFAULT NULL,
-spatial_point point NOT NULL,
+spatial_point point NOT NULL SRID 0,
 PRIMARY KEY(id),
 SPATIAL KEY (spatial_point)
 ) ROW_FORMAT=REDUNDANT ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (c2, c1, c3, spatial_poINT) VALUES
 ('y', 's', 'j', ST_GeomFromText('POINT(167 74)')),
 ('r', 'n', 'd', ST_GeomFromText('POINT(215 118)')),
@@ -392,22 +391,18 @@ COUNT(*)
 353
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET GLOBAL innodb_file_per_table='on';
-SET GLOBAL innodb_file_format='Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 CREATE TABLE t1 (
 id bigint(12) unsigned NOT NULL auto_increment,
 c2 varchar(15) collate utf8_bin DEFAULT NULL,
 c1 varchar(15) collate utf8_bin DEFAULT NULL,
 c3 varchar(10) collate utf8_bin DEFAULT NULL,
-spatial_point point NOT NULL,
+spatial_point point NOT NULL SRID 0,
 PRIMARY KEY(id),
 SPATIAL KEY (spatial_point)
 ) ROW_FORMAT=COMPRESSED ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (c2, c1, c3, spatial_poINT) VALUES
 ('y', 's', 'j', ST_GeomFromText('POINT(167 74)')),
 ('r', 'n', 'd', ST_GeomFromText('POINT(215 118)')),
@@ -789,22 +784,18 @@ COUNT(*)
 353
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET GLOBAL innodb_file_per_table='on';
-SET GLOBAL innodb_file_format='Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 CREATE TABLE t1 (
 id bigint(12) unsigned NOT NULL auto_increment,
 c2 varchar(15) collate utf8_bin DEFAULT NULL,
 c1 varchar(15) collate utf8_bin DEFAULT NULL,
 c3 varchar(10) collate utf8_bin DEFAULT NULL,
-spatial_point point NOT NULL,
+spatial_point point NOT NULL SRID 0,
 PRIMARY KEY(id),
 SPATIAL KEY (spatial_point)
 ) ROW_FORMAT=DYNAMIC ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (c2, c1, c3, spatial_poINT) VALUES
 ('y', 's', 'j', ST_GeomFromText('POINT(167 74)')),
 ('r', 'n', 'd', ST_GeomFromText('POINT(215 118)')),
@@ -1186,22 +1177,18 @@ COUNT(*)
 353
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET GLOBAL innodb_file_per_table='off';
-SET GLOBAL innodb_file_format='Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 CREATE TABLE t1 (
 id bigint(12) unsigned NOT NULL auto_increment,
 c2 varchar(15) collate utf8_bin DEFAULT NULL,
 c1 varchar(15) collate utf8_bin DEFAULT NULL,
 c3 varchar(10) collate utf8_bin DEFAULT NULL,
-spatial_point point NOT NULL,
+spatial_point point NOT NULL SRID 0,
 PRIMARY KEY(id),
 SPATIAL KEY (spatial_point)
 ) ROW_FORMAT=COMPACT ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (c2, c1, c3, spatial_poINT) VALUES
 ('y', 's', 'j', ST_GeomFromText('POINT(167 74)')),
 ('r', 'n', 'd', ST_GeomFromText('POINT(215 118)')),
@@ -1583,6 +1570,3 @@ COUNT(*)
 353
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html

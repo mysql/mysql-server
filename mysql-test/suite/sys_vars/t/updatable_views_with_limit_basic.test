@@ -203,7 +203,7 @@ SET @@session.updatable_views_with_limit = 123456789031;
 
 --disable_warnings
 SELECT @@global.updatable_views_with_limit = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='updatable_views_with_limit';
 --enable_warnings
 
@@ -214,7 +214,7 @@ WHERE VARIABLE_NAME='updatable_views_with_limit';
 
 --disable_warnings
 SELECT @@session.updatable_views_with_limit = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='updatable_views_with_limit';
 --enable_warnings
 

@@ -28,31 +28,26 @@ DROP FUNCTION test.f1;
 #########################################################################
 DESCRIBE          information_schema.SCHEMATA;
 Field	Type	Null	Key	Default	Extra
-CATALOG_NAME	varchar(512)	NO			
-SCHEMA_NAME	varchar(64)	NO			
-DEFAULT_CHARACTER_SET_NAME	varchar(32)	NO			
-DEFAULT_COLLATION_NAME	varchar(32)	NO			
-SQL_PATH	varchar(512)	YES		NULL	
+CATALOG_NAME	varchar(64)	NO		NULL	
+SCHEMA_NAME	varchar(64)	NO		NULL	
+DEFAULT_CHARACTER_SET_NAME	varchar(64)	NO		NULL	
+DEFAULT_COLLATION_NAME	varchar(64)	NO		NULL	
+SQL_PATH	binary(0)	YES		NULL	
 SHOW CREATE TABLE information_schema.SCHEMATA;
-Table	Create Table
-SCHEMATA	CREATE TEMPORARY TABLE `SCHEMATA` (
-  `CATALOG_NAME` varchar(512) NOT NULL DEFAULT '',
-  `SCHEMA_NAME` varchar(64) NOT NULL DEFAULT '',
-  `DEFAULT_CHARACTER_SET_NAME` varchar(32) NOT NULL DEFAULT '',
-  `DEFAULT_COLLATION_NAME` varchar(32) NOT NULL DEFAULT '',
-  `SQL_PATH` varchar(512) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+View	Create View	character_set_client	collation_connection
+SCHEMATA	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`SCHEMATA` AS select `cat`.`name` AS `CATALOG_NAME`,`sch`.`name` AS `SCHEMA_NAME`,`cs`.`name` AS `DEFAULT_CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATION_NAME`,NULL AS `SQL_PATH` from (((`mysql`.`schemata` `sch` join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `col` on((`sch`.`default_collation_id` = `col`.`id`))) join `mysql`.`character_sets` `cs` on((`col`.`character_set_id` = `cs`.`id`))) where can_access_database(`sch`.`name`)	utf8	utf8_general_ci
 SHOW COLUMNS FROM information_schema.SCHEMATA;
 Field	Type	Null	Key	Default	Extra
-CATALOG_NAME	varchar(512)	NO			
-SCHEMA_NAME	varchar(64)	NO			
-DEFAULT_CHARACTER_SET_NAME	varchar(32)	NO			
-DEFAULT_COLLATION_NAME	varchar(32)	NO			
-SQL_PATH	varchar(512)	YES		NULL	
+CATALOG_NAME	varchar(64)	NO		NULL	
+SCHEMA_NAME	varchar(64)	NO		NULL	
+DEFAULT_CHARACTER_SET_NAME	varchar(64)	NO		NULL	
+DEFAULT_COLLATION_NAME	varchar(64)	NO		NULL	
+SQL_PATH	binary(0)	YES		NULL	
 SELECT catalog_name, schema_name, sql_path
 FROM information_schema.schemata
-WHERE catalog_name IS NOT NULL or sql_path IS NOT NULL;
-catalog_name	schema_name	sql_path
+WHERE catalog_name IS NOT NULL or sql_path IS NOT NULL
+ORDER BY schema_name;
+CATALOG_NAME	SCHEMA_NAME	SQL_PATH
 def	information_schema	NULL
 def	mtr	NULL
 def	mysql	NULL
@@ -64,8 +59,8 @@ def	test	NULL
 ###############################################################################
 DROP DATABASE IF EXISTS db_datadict_1;
 DROP DATABASE IF EXISTS db_datadict_2;
-CREATE DATABASE db_datadict_1;
-CREATE DATABASE db_datadict_2;
+CREATE DATABASE db_datadict_1 charset latin1;
+CREATE DATABASE db_datadict_2 charset latin1;
 DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
 DROP   USER 'testuser2'@'localhost';
@@ -126,31 +121,33 @@ CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_P
 def	db_datadict	latin1	latin1_swedish_ci	NULL
 SELECT schema_name, default_character_set_name
 FROM information_schema.schemata WHERE schema_name = 'db_datadict';
-schema_name	default_character_set_name
+SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME
 db_datadict	latin1
 ALTER SCHEMA db_datadict CHARACTER SET 'utf8';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT schema_name, default_character_set_name
 FROM information_schema.schemata WHERE schema_name = 'db_datadict';
-schema_name	default_character_set_name
+SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME
 db_datadict	utf8
 ALTER SCHEMA db_datadict CHARACTER SET 'latin1';
 SELECT schema_name, default_collation_name FROM information_schema.schemata
 WHERE schema_name = 'db_datadict';
-schema_name	default_collation_name
+SCHEMA_NAME	DEFAULT_COLLATION_NAME
 db_datadict	latin1_swedish_ci
 ALTER SCHEMA db_datadict COLLATE 'latin1_general_cs';
 SELECT schema_name, default_collation_name FROM information_schema.schemata
 WHERE schema_name = 'db_datadict';
-schema_name	default_collation_name
+SCHEMA_NAME	DEFAULT_COLLATION_NAME
 db_datadict	latin1_general_cs
 SELECT schema_name
 FROM information_schema.schemata WHERE schema_name = 'db_datadict';
-schema_name
+SCHEMA_NAME
 db_datadict
 DROP DATABASE db_datadict;
 SELECT schema_name
 FROM information_schema.schemata WHERE schema_name = 'db_datadict';
-schema_name
+SCHEMA_NAME
 ########################################################################
 # Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
 #           DDL on INFORMATION_SCHEMA tables are not supported

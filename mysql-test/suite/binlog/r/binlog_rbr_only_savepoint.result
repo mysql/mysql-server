@@ -1,0 +1,4 @@
+RESET MASTER;
+CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 TEXT, c3 INT DEFAULT 0);
+Generating 200 transactions using SAVEPOINT/ROLLBACK TO SAVEPOINT
+include/include/assert_rbr_only_flags.inc

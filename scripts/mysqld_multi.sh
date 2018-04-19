@@ -1,21 +1,26 @@
-#!/usr/bin/perl
+#!@PERL_PATH@
 
-# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU Library General Public
-# License as published by the Free Software Foundation; version 2
-# of the License.
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# Library General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
 #
-# You should have received a copy of the GNU Library General Public
-# License along with this library; if not, write to the Free
-# Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
-# MA 02110-1301, USA
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 use Getopt::Long;
 use POSIX qw(strftime getcwd);
@@ -337,32 +342,8 @@ sub start_mysqlds()
           print "FATAL ERROR: Cannot create data directory $datadir: $!\n";
           exit(1);
         }
-        if (! -d $datadir."/mysql") {
-          if (-w $datadir) {
-            print "\n\nInstalling new database in $datadir\n\n";
-            $install_cmd="@bindir@/mysql_install_db ";
-            $install_cmd.="--user=mysql ";
-            $install_cmd.="--datadir=$datadir";
-            system($install_cmd);
-          } else {
-            print "\n";
-            print "FATAL ERROR: Tried to create mysqld under group [$groups[$i]],\n";
-            print "but the data directory is not writable.\n";
-            print "data directory used: $datadir\n";
-            exit(1);
-          }
-        }
-
-        if (! -d $datadir."/mysql") {
-          print "\n";
-          print "FATAL ERROR: Tried to start mysqld under group [$groups[$i]],\n";
-          print "but no data directory was found or could be created.\n";
-          print "data directory used: $datadir\n";
-          exit(1);
-        }
       }
-
-      if ("--mysqladmin=" eq substr($options[$j], 0, 13))
+      elsif ("--mysqladmin=" eq substr($options[$j], 0, 13))
       {
 	# catch this and ignore
       }
@@ -397,7 +378,6 @@ sub start_mysqlds()
     }
     $com.= $tmp;
     $com.= " >> $opt_log 2>&1" if (!$opt_no_log);
-    $com.= " &";
     if (!$mysqld_found)
     {
       print "\n";
@@ -412,7 +392,26 @@ sub start_mysqlds()
       $curdir=getcwd();
       chdir($basedir) or die "Can't change to datadir $basedir";
     }
-    system($com);
+    if (! -d $datadir."/mysql") {
+      if (-w $datadir) {
+        print "\n\nInstalling new database in $datadir\n\n";
+        system($com." --initialize");
+      } else {
+        print "\n";
+        print "FATAL ERROR: Tried to create mysqld under group [$groups[$i]],\n";
+        print "but the data directory is not writable.\n";
+        print "data directory used: $datadir\n";
+        exit(1);
+      }
+    }
+    if (! -d $datadir."/mysql") {
+      print "\n";
+      print "FATAL ERROR: Tried to start mysqld under group [$groups[$i]],\n";
+      print "but no data directory was found or could be created.\n";
+      print "data directory used: $datadir\n";
+      exit(1);
+    }
+    system($com." &");
     if ($basedir_found)
     {
       chdir($curdir) or die "Can't change back to original dir $curdir";
@@ -687,7 +686,11 @@ sub my_which
   my ($command) = @_;
   my (@paths, $path);
 
-  return $command if (-f $command && -x $command);
+ # If the argument is not 'my_print_defaults' then it would be of the format
+ # <absolute_path>/<program>
+ return $command if ($command ne 'my_print_defaults' && -f $command &&
+                     -x $command);
+
   @paths = split(':', $ENV{'PATH'});
   foreach $path (@paths)
   {

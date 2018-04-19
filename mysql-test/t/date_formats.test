@@ -1,127 +1,3 @@
-
-#
-# Test of date format functions
-#
-
---disable_warnings
-drop table if exists t1;
---enable_warnings
-
---disable_warnings
-SELECT variable_name, variable_value
-FROM information_schema.global_variables
-WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
-ORDER BY variable_name;
-
-SELECT variable_name, variable_value
-FROM information_schema.session_variables
-WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
-ORDER BY variable_name;
---enable_warnings
-
-#
-# The following tests will work only when we at some point will enable
-# dynamic changing of formats
-#
-
-# SET time_format='%H%i%s';
-# SET time_format='%H:%i:%s.%f';
-# SET time_format='%h-%i-%s.%f%p';
-# SET time_format='%h:%i:%s.%f %p';
-# SET time_format='%h:%i:%s%p';
-# 
-# SET date_format='%Y%m%d';
-# SET date_format='%Y.%m.%d';
-# SET date_format='%d.%m.%Y';
-# SET date_format='%m-%d-%Y';
-# 
-# set datetime_format= '%Y%m%d%H%i%s';
-# set datetime_format= '%Y-%m-%d %H:%i:%s';
-# set datetime_format= '%m-%d-%y %H:%i:%s.%f';
-# set datetime_format= '%d-%m-%Y %h:%i:%s%p';
-# set datetime_format= '%H:%i:%s %Y-%m-%d';
-# set datetime_format= '%H:%i:%s.%f %m-%d-%Y';
-# set datetime_format= '%h:%i:%s %p %Y-%m-%d';
-# set datetime_format= '%h:%i:%s.%f %p %Y-%m-%d';
-# 
-# SELECT variable_name, variable_value
-# FROM information_schema.session_variables
-# WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
-# ORDER BY variable_name;
-# 
-# --error 1231
-# SET time_format='%h:%i:%s';
-# --error 1231
-# SET time_format='%H %i:%s';
-# --error 1231
-# SET time_format='%H::%i:%s';
-# --error 1231
-# SET time_format='%H:%i:%s%f';
-# --error 1231
-# SET time_format='%H:%i.%f:%s';
-# --error 1231
-# SET time_format='%H:%i:%s%p';
-# --error 1231
-# SET time_format='%h:%i:%s.%f %p %Y-%m-%d';
-# --error 1231
-# SET time_format='%H%i%s.%f';
-# --error 1231
-# SET time_format='%H:%i-%s.%f';
-# --error 1231
-# SET date_format='%d.%m.%d';
-# --error 1231
-# SET datetime_format='%h.%m.%y %d.%i.%s';
-# --error 1231
-# set datetime_format= '%H:%i:%s.%f %p %Y-%m-%d';
-# 
-# #
-# # Test GLOBAL values
-# 
-# set GLOBAL datetime_format= '%H:%i:%s %Y-%m-%d';
-# SET SESSION datetime_format=default;
-# select @@global.datetime_format, @@session.datetime_format;
-# SET GLOBAL datetime_format=default;
-# SET SESSION datetime_format=default;
-# select @@global.datetime_format, @@session.datetime_format;
-# 
-# SET GLOBAL date_format=default;
-# SET GLOBAL time_format=default;
-# SET GLOBAL datetime_format=default;
-# SET time_format=default;
-# SET date_format=default;
-# SET datetime_format=default;
-
-# SET date_format='%d.%m.%Y';
-# select CAST('01.01.2001' as DATE) as a;
-# SET datetime_format='%d.%m.%Y %H.%i.%s';
-# select CAST('01.01.2001 05.12.06' as DATETIME) as a;
-# SET time_format='%H.%i.%s';
-# select CAST('05.12.06' as TIME) as a;
-# 
-# SET datetime_format='%d.%m.%Y %h:%i:%s %p';
-# select CAST('01.01.2001 05:12:06AM' as DATETIME) as a;
-# select CAST('01.01.2001 05:12:06 PM' as DATETIME) as a;
-# 
-# SET time_format='%h:%i:%s %p';
-# select CAST('05:12:06 AM' as TIME) as a;
-# select CAST('05:12:06.1234PM' as TIME) as a;
-# 
-# SET time_format='%h.%i.%s %p';
-# SET date_format='%d.%m.%y';
-# SET datetime_format='%d.%m.%y %h.%i.%s %p';
-# select CAST('12-12-06' as DATE) as a;
-# 
-# select adddate('01.01.97 11.59.59.000001 PM', 10);
-# select datediff('31.12.97 11.59:59.000001 PM','01.01.98');
-# select weekofyear('31.11.97 11:59:59.000001 PM');
-# select makedate(1997,1);
-# select addtime('31.12.97 11.59.59.999999 PM', '1 1.1.1.000002');
-# select maketime(23,11,12);
-# select timediff('01.01.97 11:59:59.000001 PM','31.12.95 11:59:59.000002 PM');
-# 
-# SET time_format='%i:%s:%H';
-# select cast(str_to_date('15-01-2001 12:59:59', '%d-%m-%Y %H:%i:%S') as TIME);
-
 #
 # Test of str_to_date
 #
@@ -229,7 +105,7 @@ select get_format(TIMESTAMP, 'eur') as a;
 select get_format(DATE, 'TEST') as a;
 select str_to_date('15-01-2001 12:59:59', GET_FORMAT(DATE,'USA'));
 
-explain extended select makedate(1997,1), addtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),subtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),timediff("01.01.97 11:59:59.000001 PM","31.12.95 11:59:59.000002 PM"),cast(str_to_date("15-01-2001 12:59:59", "%d-%m-%Y %H:%i:%S") as TIME), maketime(23,11,12),microsecond("1997-12-31 23:59:59.000001");
+explain select makedate(1997,1), addtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),subtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),timediff("01.01.97 11:59:59.000001 PM","31.12.95 11:59:59.000002 PM"),cast(str_to_date("15-01-2001 12:59:59", "%d-%m-%Y %H:%i:%S") as TIME), maketime(23,11,12),microsecond("1997-12-31 23:59:59.000001");
 
 #
 # Test of date_format()
@@ -411,3 +287,44 @@ do str_to_date(1, "%#");
 --echo #
 
 do timestamp(date_format('2011-11-11', right("12345" + 1, 3)));
+
+--echo #
+--echo # Bug #25949639: DATE FORMAT 'YYYYMMDD' ISN'T RECOGNIZED IN LEFT JOIN
+--echo #
+
+CREATE TABLE t1 (a varchar(10), PRIMARY KEY (a));
+CREATE TABLE t2 (a varchar(10), b date, PRIMARY KEY(a,b));
+CREATE TABLE t3 (a varchar(10), b TIME, PRIMARY KEY(a,b));
+INSERT INTO t1 VALUES ('test1');
+INSERT INTO t2 VALUES
+('test1','2016-12-13'),('test1','2016-12-14'),('test1','2016-12-15');
+INSERT INTO t3 VALUES
+('test1','11:13:14'), ('test1','12:13:14'), ('test1','10:13:14');
+
+let query1=
+SELECT *
+FROM t1 LEFT JOIN t2
+  ON t2.a = 'test1' AND t2.b = '20161213'
+WHERE t1.a = 'test1';
+
+let query2=
+SELECT *
+FROM t1 LEFT JOIN t2 IGNORE INDEX(PRIMARY)
+  ON t2.a = 'test1' AND t2.b = '20161213'
+WHERE t1.a = 'test1';
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+eval $query1;
+eval $query2;
+
+SELECT b, b = '20161213',
+       CASE b WHEN '20161213' then 'found' ELSE 'not found' END FROM t2;
+SELECT b, b IN ('20161213'), b in ('20161213', 0) FROM t2;
+
+#Uses datatype TIME
+SELECT b, b = '121314',
+       CASE b WHEN '121314' then 'found' ELSE 'not found' END FROM t3;
+SELECT b, b in ('121314'), b in ('121314', 0) FROM t3;
+
+DROP TABLE t1, t2, t3;

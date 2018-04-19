@@ -9,7 +9,6 @@
 #                              time available storage engine
 #                              2006-08 MySQL 5.1 MyISAM and MEMORY only
 # have to be set before sourcing this script.
--- source include/not_embedded.inc
 #
 # test of HANDLER ...
 #
@@ -786,7 +785,8 @@ connection default;
 # Bug#44151 using handler commands on information_schema tables crashes server
 #
 USE information_schema;
---error ER_WRONG_USAGE
+--replace_result columns COLUMNS
+--error ER_WRONG_OBJECT
 HANDLER COLUMNS OPEN;
 USE test;
 
@@ -1899,3 +1899,29 @@ HANDLER t1 READ ab LAST;
 HANDLER t1 READ b PREV;
 HANDLER t1 CLOSE;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#21650603 ASSERT `0' FAILED AT THD::SEND_STATEMENT_STATUS() ON
+--echo #              HANDLER READ + INVALID DATE
+--echo #
+CREATE TABLE t (
+  col_date DATE
+  , col_datetime DATETIME
+  , col_time TIME
+  , col_year YEAR
+  , KEY col_date_key (col_date)
+  , KEY col_datetime_key (col_datetime)
+  , KEY col_year_key (col_year));
+
+HANDLER t OPEN;
+
+--error ER_WRONG_ARGUMENTS
+HANDLER t READ col_date_key <= ('p');
+
+--error ER_WRONG_ARGUMENTS
+HANDLER t READ col_datetime_key <= ('p');
+
+--error ER_WRONG_ARGUMENTS
+HANDLER t READ col_year_key <= ('p');
+
+DROP TABLE t;

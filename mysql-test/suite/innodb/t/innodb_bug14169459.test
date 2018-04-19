@@ -1,6 +1,5 @@
 # This is the test for bug #14169459.
 
---source include/have_innodb.inc
 
 SET default_storage_engine=InnoDB;
 
@@ -61,4 +60,3 @@ DROP TABLE t14169459_2;
 -- disable_query_log
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 -- enable_query_log
-

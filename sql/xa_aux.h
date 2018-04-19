@@ -1,17 +1,24 @@
 /*
    Copyright (c) 2015, Oracle and/or its affiliates. All Rights Reserved.
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef XA_AUX_H
 #define XA_AUX_H
@@ -36,10 +43,9 @@
 */
 
 inline char *serialize_xid(char *buf, long fmt, long gln, long bln,
-                           const char *dat)
-{
+                           const char *dat) {
   int i;
-  char *c= buf;
+  char *c = buf;
   /*
     Build a string like following pattern:
       X'hex11hex12...hex1m',X'hex21hex22...hex2n',11
@@ -48,27 +54,25 @@ inline char *serialize_xid(char *buf, long fmt, long gln, long bln,
     raw bytes (1 <= i <= m, 1 <= k <= n), and `m' and `n' even numbers
     half of which corresponding to the lengths of XID's components.
   */
-  *c++= 'X';
-  *c++= '\'';
-  for (i= 0; i < gln; i++)
-  {
-    *c++=_dig_vec_lower[((uchar*) dat)[i] >> 4];
-    *c++=_dig_vec_lower[((uchar*) dat)[i] & 0x0f];
+  *c++ = 'X';
+  *c++ = '\'';
+  for (i = 0; i < gln; i++) {
+    *c++ = _dig_vec_lower[((uchar *)dat)[i] >> 4];
+    *c++ = _dig_vec_lower[((uchar *)dat)[i] & 0x0f];
   }
-  *c++= '\'';
+  *c++ = '\'';
 
-  *c++= ',';
-  *c++= 'X';
-  *c++= '\'';
-  for (; i < gln + bln; i++)
-  {
-    *c++=_dig_vec_lower[((uchar*) dat)[i] >> 4];
-    *c++=_dig_vec_lower[((uchar*) dat)[i] & 0x0f];
+  *c++ = ',';
+  *c++ = 'X';
+  *c++ = '\'';
+  for (; i < gln + bln; i++) {
+    *c++ = _dig_vec_lower[((uchar *)dat)[i] >> 4];
+    *c++ = _dig_vec_lower[((uchar *)dat)[i] & 0x0f];
   }
-  *c++= '\'';
+  *c++ = '\'';
   sprintf(c, ",%lu", fmt);
 
- return buf;
+  return buf;
 }
 
-#endif	/* XA_AUX_H */
+#endif /* XA_AUX_H */

@@ -1,8 +1,6 @@
 DROP TABLE IF EXISTS t1, t2;
 SET NAMES latin1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 #
 # Testing DATE literals
 #
@@ -44,7 +42,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `DATE'2010-01-01'` date NOT NULL DEFAULT '0000-00-00'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 AS SELECT
 {d'2001-01-01'},
@@ -53,25 +51,25 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `{d'2001-01-01'}` date NOT NULL DEFAULT '0000-00-00',
-  `2001-01-01 10:10:10` varchar(19) NOT NULL DEFAULT ''
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `2001-01-01 10:10:10` varchar(19) CHARACTER SET latin1 NOT NULL DEFAULT ''
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
-EXPLAIN EXTENDED SELECT {d'2010-01-01'};
+EXPLAIN SELECT {d'2010-01-01'};
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select DATE'2010-01-01' AS `{d'2010-01-01'}`
-EXPLAIN EXTENDED SELECT DATE'2010-01-01';
+EXPLAIN SELECT DATE'2010-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select DATE'2010-01-01' AS `DATE'2010-01-01'`
 #
 # Testing DATE literals in non-default sql_mode
 #
-SET sql_mode='STRICT_ALL_TABLES';
+SET sql_mode='NO_ZERO_IN_DATE';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT DATE'2001-00-00';
 ERROR HY000: Incorrect DATE value: '2001-00-00'
 SELECT DATE'2001-01-00';
@@ -159,7 +157,7 @@ t1	CREATE TABLE `t1` (
   `TIME'10:10:10.1234'` time(4) NOT NULL DEFAULT '00:00:00.0000',
   `TIME'10:10:10.12345'` time(5) NOT NULL DEFAULT '00:00:00.00000',
   `TIME'10:10:10.123456'` time(6) NOT NULL DEFAULT '00:00:00.000000'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 AS SELECT
 {t'10:10:10'},
@@ -172,20 +170,18 @@ t1	CREATE TABLE `t1` (
   `{t'10:10:10'}` time NOT NULL DEFAULT '00:00:00',
   `{t'10:10:10.'}` time NOT NULL DEFAULT '00:00:00',
   `{t'10:10:10.123456'}` time(6) NOT NULL DEFAULT '00:00:00.000000',
-  `2001-01-01` varchar(10) NOT NULL DEFAULT ''
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `2001-01-01` varchar(10) CHARACTER SET latin1 NOT NULL DEFAULT ''
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
-EXPLAIN EXTENDED SELECT {t'10:01:01'};
+EXPLAIN SELECT {t'10:01:01'};
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select TIME'10:01:01' AS `{t'10:01:01'}`
-EXPLAIN EXTENDED SELECT TIME'10:01:01';
+EXPLAIN SELECT TIME'10:01:01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select TIME'10:01:01' AS `TIME'10:01:01'`
 #
 # Testing TIMESTAMP literals
@@ -251,7 +247,7 @@ t1	CREATE TABLE `t1` (
   `TIMESTAMP'2010-01-01 10:10:10.1234'` datetime(4) NOT NULL DEFAULT '0000-00-00 00:00:00.0000',
   `TIMESTAMP'2010-01-01 10:10:10.12345'` datetime(5) NOT NULL DEFAULT '0000-00-00 00:00:00.00000',
   `TIMESTAMP'2010-01-01 10:10:10.123456'` datetime(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 AS SELECT
 {ts'2001-01-01 10:10:10'},
@@ -264,27 +260,23 @@ t1	CREATE TABLE `t1` (
   `{ts'2001-01-01 10:10:10'}` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   `{ts'2001-01-01 10:10:10.'}` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   `{ts'2001-01-01 10:10:10.123456'}` datetime(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
-  `2001-01-01` varchar(10) NOT NULL DEFAULT ''
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `2001-01-01` varchar(10) CHARACTER SET latin1 NOT NULL DEFAULT ''
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
-EXPLAIN EXTENDED SELECT {ts'2010-01-01 10:10:10'};
+EXPLAIN SELECT {ts'2010-01-01 10:10:10'};
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select TIMESTAMP'2010-01-01 10:10:10' AS `{ts'2010-01-01 10:10:10'}`
-EXPLAIN EXTENDED SELECT TIMESTAMP'2010-01-01 10:10:10';
+EXPLAIN SELECT TIMESTAMP'2010-01-01 10:10:10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select TIMESTAMP'2010-01-01 10:10:10' AS `TIMESTAMP'2010-01-01 10:10:10'`
 #
 # Testing nanosecond rounding for TIMESTAMP literals with bad dates
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT TIMESTAMP'2001-00-00 00:00:00.999999';
 TIMESTAMP'2001-00-00 00:00:00.999999'
 2001-00-00 00:00:00.999999

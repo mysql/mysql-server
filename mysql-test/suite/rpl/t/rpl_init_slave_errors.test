@@ -30,7 +30,6 @@
 ######################################################################
 source include/have_debug.inc;
 source include/master-slave.inc;
-source include/have_log_bin.inc;
 
 connection slave;
 
@@ -53,8 +52,7 @@ start slave;
 # slave is going to stop because of emulated failures
 # but there won't be any crashes nor asserts hit.
 #
-# 1593 = ER_SLAVE_FATAL_ERROR
---let $slave_sql_errno= 1593
+--let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR)
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 
@@ -65,10 +63,9 @@ SET SESSION sql_log_bin= 1;
 # Bug#11765758 - 58754
 # above tests part logics make sure the IO thread is down to allow 
 # safe updating to @@global.debug
-
---let $assert_text= SHOW SLAVE STATUS should return No IO thread running status
---let $assert_cond= "[SHOW SLAVE STATUS, Slave_IO_Running, 1]" like "No"
---source include/assert.inc
+--let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
 
 SET GLOBAL debug= "";
 
@@ -82,8 +79,8 @@ reset slave;
 SET GLOBAL init_slave= "garbage";
 
 start slave;
-# 1064 = ER_PARSE_ERROR
---let $slave_sql_errno= 1064
+# 13145 = ER_SERVER_SLAVE_INIT_QUERY_FAILED
+--let $slave_sql_errno= 13145
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 

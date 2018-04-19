@@ -17,7 +17,7 @@ DROP TABLE IF EXISTS t1;
 SET @@session.collation_connection = utf8_spanish_ci;
 SELECT @@collation_connection, @@character_set_database;
 @@collation_connection	@@character_set_database
-utf8_spanish_ci	latin1
+utf8_spanish_ci	utf8mb4
 '---check if collation_connection works for literal string comparision--'
 SET @@session.collation_connection = latin1_swedish_ci;
 SELECT 'mysql'='MySql';
@@ -29,6 +29,9 @@ _latin2'mysql' COLLATE latin2_general_ci='MySql'
 SELECT _utf8'mysql'=_utf8'MySql' COLLATE utf8_unicode_ci;
 _utf8'mysql'=_utf8'MySql' COLLATE utf8_unicode_ci
 1
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET @@session.collation_connection = latin1_general_cs;
 SELECT 'mysql'='MySql';
 'mysql'='MySql'
@@ -40,21 +43,22 @@ SELECT _utf8'mysql'COLLATE utf8_danish_ci=_utf8'MySql'COLLATE utf8_unicode_ci;
 ERROR HY000: Illegal mix of collations (utf8_danish_ci,EXPLICIT) and (utf8_unicode_ci,EXPLICIT) for operation '='
 '---collation_connection does not effect comparision with column---'
 CREATE TABLE t1(a CHAR(20)CHARACTER SET latin1 COLLATE latin1_german2_ci);
-INSERT INTO t1 VALUES('Müller');
+INSERT INTO t1 VALUES(_latin1'Müller');
 SET @@session.collation_connection = latin2_hungarian_ci;
-SELECT * FROM t1 WHERE a='Müller';
+SELECT * FROM t1 WHERE a=_latin1'Müller';
 a
-Müller
+MÃ¼ller
 SET @@session.collation_connection = latin1_general_cs;
-SELECT * FROM t1 WHERE a='müller';
+SELECT * FROM t1 WHERE a=_latin1'müller';
 a
-Müller
+MÃ¼ller
 'check if string literal collation is used';
-SELECT * FROM t1 WHERE a='müller' COLLATE latin1_general_cs;
+SELECT * FROM t1 WHERE a=_latin1'müller' COLLATE latin1_general_cs;
 a
-SELECT * FROM t1 WHERE a='müller' COLLATE latin1_german1_ci;
+SELECT * FROM t1 WHERE a=_latin1'müller' COLLATE latin1_german1_ci;
 a
-Müller
+MÃ¼ller
 DROP TABLE t1;
+set names utf8mb4;
 SET @@global.collation_connection = @global_collation_connection;
 SET @@session.collation_connection = @session_collation_connection;

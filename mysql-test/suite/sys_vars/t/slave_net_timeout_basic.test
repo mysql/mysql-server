@@ -25,7 +25,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/not_embedded.inc
 --source include/load_sysvars.inc
 ###########################################################
 #           START OF slave_net_timeout TESTS              #
@@ -124,19 +123,19 @@ SET @@global.slave_net_timeout = 0.6;
 SET @@global.slave_net_timeout = 3000;
 --disable_warnings
 SELECT @@global.slave_net_timeout = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='slave_net_timeout';
 --enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_146_07-----------------------#'
 ###########################################################################
-#  Check if the value is present in INFORMATION_SCHEMA.SESSION_VARIABLES  #
+#  Check if the value is present in performance_schema.session_variables  #
 ###########################################################################
 
 --disable_warnings
 SELECT count(VARIABLE_VALUE) 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='slave_net_timeout';
 --enable_warnings
 

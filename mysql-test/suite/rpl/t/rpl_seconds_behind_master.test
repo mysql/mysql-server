@@ -1,15 +1,15 @@
--- source include/master-slave.inc
--- source include/have_debug.inc
+--source include/have_debug.inc
 
 # make the test only run once (STMT is actually needed because we rely
 # on SHOW PROCESS LIST output in some of the tests)
--- source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_statement.inc
 
 # this test logics requires adaption to MTS policies for SBM
 # (see rpl_parallel_seconds_behind_master.test)
--- source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_slave_parallel_workers.inc
 
-SET @old_debug= @@global.debug;
+--source include/master-slave.inc
+
 call mtr.add_suppression('Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT');
 
 #
@@ -143,7 +143,8 @@ drop table t1;
 
 # this will increase the timestamp +3600, so it becomes
 # clear at the slave that it must show 0 and not 3600
-SET GLOBAL DEBUG= '+d,dec_event_time_by_1_hour';
+--let $debug_point= dec_event_time_by_1_hour
+--source include/add_debug_point.inc
 CREATE TABLE t1 (a INT);
 --source include/sync_slave_sql_with_master.inc
 
@@ -201,10 +202,62 @@ source include/assert.inc;
 UNLOCK TABLES;
 
 -- connection master
+--let $debug_point= dec_event_time_by_1_hour
+--source include/remove_debug_point.inc
+--source include/sync_slave_sql_with_master.inc
+
+
+# Check that Seconds_behind_master is greater than or equal to the delay when
+# the slave has not yet applied the event
+
+--let $delay= 10
+--source include/stop_slave.inc
+--eval CHANGE MASTER TO MASTER_DELAY= $delay
+
+--source include/rpl_connection_master.inc
+--let $start= `SELECT UNIX_TIMESTAMP()`
+INSERT INTO t1 VALUES (47);
+--let $stop_exec= `SELECT UNIX_TIMESTAMP()`
+
+--source include/rpl_connection_slave.inc
+LOCK TABLE t1 WRITE;
+--source include/start_slave.inc
+
+# now wait for the SQL thread to start the insert
+# override default wait_timeout of 30 seconds with 60.
+--let $wait_timeout= 60
+--let $show_statement= SHOW PROCESSLIST
+--let $field= Info
+--let $condition= = 'INSERT INTO t1 VALUES (47)'
+--source include/wait_show_condition.inc
+
+# While the SQL thread executes an event, the following should hold:
+# Seconds_Behind_Master = NOW - the event timestamp set by the master
+# (for query log events it's event creation time + exec_time).
+#
+# ASSERTION: check that SBM shows at least the delay
+
+--let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1)
+# We need to deduct execution time on master to SBM lower_bound.
+# SBM= now - (ev.when + ev.exec_time)
+# Also deduct a second to handle rounding differences.
+--let $lower_bound= `SELECT $delay - ($stop_exec - $start) - 1`
+--let $stop= `SELECT UNIX_TIMESTAMP()`
+# Also add a second to handle rounding differences.
+--let $upper_bound= `SELECT $stop - $start +1`
+--let $assert_text= Seconds_Behind_Master must be between 'lower_bound' and 'upper_bound'
+--let $assert_cond= $lower_bound <= $sbm AND $sbm <= $upper_bound
+--source include/assert.inc
+
+UNLOCK TABLES;
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# clean up
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_DELAY= 0;
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
--- connection master
-
-SET @@global.debug= @old_debug;
-
--- source include/rpl_end.inc
+--source include/rpl_end.inc

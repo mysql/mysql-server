@@ -1,29 +1,35 @@
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
 MACRO (MYSQL_USE_BUNDLED_LIBEVENT)
+  SET(WITH_LIBEVENT "bundled" CACHE STRING "Use bundled libevent library")
   SET(LIBEVENT_LIBRARY  event)
-  SET(LIBEVENT_INCLUDE_DIR  ${CMAKE_SOURCE_DIR}/libevent)
+  SET(LIBEVENT_INCLUDE_DIR  ${CMAKE_SOURCE_DIR}/extra/libevent)
   SET(LIBEVENT_FOUND  TRUE)
-  SET(WITH_LIBEVENT "bundled" CACHE STRING "Use bundled libevent")
-  # Use EXCLUDE_FROM_ALL to build only if another component
-  # which dependens on libevent is built
-  ADD_SUBDIRECTORY(libevent EXCLUDE_FROM_ALL)
+  ADD_DEFINITIONS("-DHAVE_LIBEVENT1")
+  ADD_SUBDIRECTORY(extra/libevent)
   GET_TARGET_PROPERTY(src libevent SOURCES)
   FOREACH(file ${src})
-    SET(LIBEVENT_SOURCES ${LIBEVENT_SOURCES} ${CMAKE_SOURCE_DIR}/libevent/${file})
+    SET(LIBEVENT_SOURCES ${LIBEVENT_SOURCES} ${CMAKE_SOURCE_DIR}/extra/libevent/${file})
   ENDFOREACH()
 ENDMACRO()
 
@@ -62,15 +68,21 @@ MACRO (MYSQL_CHECK_LIBEVENT)
       set(LIBEVENT_LIB_PATHS /usr/local/lib /opt/local/lib)
     ENDIF()
 
+    ## libevent.so is historical, use libevent_core.so if found.
+    find_library(LIBEVENT_CORE event_core PATHS ${LIBEVENT_LIB_PATHS})
     find_library(LIBEVENT_LIB event PATHS ${LIBEVENT_LIB_PATHS})
 
-    if (NOT LIBEVENT_LIB)
+    if (NOT LIBEVENT_LIB AND NOT LIBEVENT_CORE)
         MESSAGE(SEND_ERROR "Cannot find appropriate event lib in /usr/local/lib or /opt/local/lib. Use bundled libevent")
     endif() 
 
-    IF (LIBEVENT_LIB AND LIBEVENT_INCLUDE_DIR)
+    IF ((LIBEVENT_LIB OR LIBEVENT_CORE) AND LIBEVENT_INCLUDE_DIR)
       set(LIBEVENT_FOUND TRUE)
-      set(LIBEVENT_LIBS ${LIBEVENT_LIB})
+      IF (LIBEVENT_CORE)
+        set(LIBEVENT_LIBS ${LIBEVENT_CORE})
+      ELSE()
+        set(LIBEVENT_LIBS ${LIBEVENT_LIB})
+      ENDIF()
     ELSE()
       set(LIBEVENT_FOUND FALSE)
     ENDIF()
@@ -79,7 +91,12 @@ MACRO (MYSQL_CHECK_LIBEVENT)
       SET(LIBEVENT_SOURCES "")
       SET(LIBEVENT_LIBRARIES ${LIBEVENT_LIBS})
       SET(LIBEVENT_INCLUDE_DIRS ${LIBEVENT_INCLUDE_DIR})
-      SET(LIBEVENT_DEFINES "-DHAVE_LIBEVENT")
+      find_path(LIBEVENT2_INCLUDE_DIR event2 HINTS ${LIBEVENT_INCLUDE_PATH}/event)
+      IF (LIBEVENT2_INCLUDE_DIR)
+        ADD_DEFINITIONS("-DHAVE_LIBEVENT2")
+      ELSE()
+        ADD_DEFINITIONS("-DHAVE_LIBEVENT1")
+      ENDIF()
     ELSE()
       IF(WITH_LIBEVENT STREQUAL "system")
         MESSAGE(SEND_ERROR "Cannot find appropriate system libraries for libevent. Use bundled libevent")

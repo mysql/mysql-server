@@ -118,7 +118,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(100) DEFAULT NULL,
   `c` varchar(300) DEFAULT NULL,
   `d` char(5) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 include/sync_slave_sql_with_master.inc
 Insert some values and select them on slave
 SELECT * FROM t1;
@@ -131,7 +131,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(400) DEFAULT NULL,
   `c` varchar(500) DEFAULT NULL,
   `d` char(100) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 Create bit table on master
 CREATE TABLE t1 (
@@ -170,7 +170,7 @@ t1	CREATE TABLE `t1` (
   `c` bit(21) DEFAULT NULL,
   `d` bit(11) DEFAULT NULL,
   `e` bit(11) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 include/sync_slave_sql_with_master.inc
 Insert some values and select them on master
 SELECT BIN(a), BIN(b), BIN(c), BIN(d), BIN(e) FROM t1;
@@ -184,7 +184,7 @@ t1	CREATE TABLE `t1` (
   `c` bit(54) DEFAULT NULL,
   `d` bit(25) DEFAULT NULL,
   `e` bit(13) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t2(i INTEGER);
 CREATE TRIGGER t1_tr BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN

@@ -40,8 +40,10 @@ drop table if exists t1;
 --error 1075
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) engine=heap;
 
--- error 1049
+--error ER_BAD_DB_ERROR
 create table not_existing_database.test (a int);
+--error ER_BAD_DB_ERROR
+create temporary table not_existing_database.test (a int);
 create table `a/a` (a int);
 show create table `a/a`;
 create table t1 like `a/a`;
@@ -77,7 +79,7 @@ create table 1ea10 (1a20 int,1e int);
 insert into 1ea10 values(1,1);
 select 1ea10.1a20,1e+ 1e+10 from 1ea10;
 drop table 1ea10;
-create table t1 (t1.index int);
+create table t1 (`index` int);
 drop table t1;
 # Test that we get warning for this
 drop database if exists mysqltest;
@@ -294,6 +296,9 @@ show create table t3;
 select * from t3;
 # Disable PS becasue of @@warning_count
 create table if not exists t3 like t1;
+# HANDLER_READ_KEY count differs when using ps protocol because of prepare
+# phase of ps protocol results in call to innodb storage engine apis to check
+# for table existence.
 --disable_ps_protocol
 select @@warning_count;
 --enable_ps_protocol
@@ -524,15 +529,16 @@ drop table t1;
 #
 # Bug#10413: Invalid column name is not rejected
 #
---error 1103
+--error ER_PARSE_ERROR
 create table t1(column.name int);
---error 1103
+--error ER_PARSE_ERROR
 create table t1(test.column.name int);
---error 1102
+--error ER_PARSE_ERROR
 create table t1(xyz.t1.name int);
+--error ER_PARSE_ERROR
 create table t1(t1.name int);
+--error ER_PARSE_ERROR
 create table t2(test.t2.name int);
-drop table t1,t2;
 
 #
 # Bug #12537: UNION produces longtext instead of varchar
@@ -720,7 +726,7 @@ create table t1 select * from t2;
 create table t1 select * from t1;
 # Error which happens before select_create::prepare()
 --error ER_CANT_AGGREGATE_2COLLATIONS
-create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
+create table t1 select coalesce(_latin1 'a' collate latin1_swedish_ci,_latin1 'b' collate latin1_bin);
 # Error during table creation
 --error ER_KEY_COLUMN_DOES_NOT_EXITS
 create table t1 (primary key(a)) select "b" as b;
@@ -743,7 +749,7 @@ select * from t1;
 drop table t1;
 # Error before select_create::prepare()
 --error ER_CANT_AGGREGATE_2COLLATIONS
-create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
+create table t1 select coalesce(_latin1 'a' collate latin1_swedish_ci,_latin1 'b' collate latin1_bin);
 
 
 # Base vs temporary tables dillema (a.k.a. bug#24508 "Inconsistent
@@ -837,6 +843,10 @@ create table t2(a int not null, b int not null, c int not null, primary key (a),
 foreign key fk_bug26104 (b,c) references t1(a));
 drop table t1;
 
+# HANDLER_READ_KEY count differs when using ps protocol because of prepare
+# phase of ps protocol results in call to innodb storage engine apis to check
+# for table existence.
+--disable_ps_protocol
 #
 # Bug#15130:CREATE .. SELECT was denied to use advantages of the SQL_BIG_RESULT.
 #
@@ -846,6 +856,7 @@ flush status;
 create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
 show status like 'handler_read%';
 drop table t1,t2;
+--enable_ps_protocol
 
 #
 # Bug #25162: Backing up DB from 5.1 adds 'USING BTREE' to KEYs on table creates
@@ -966,7 +977,6 @@ USE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 --error ER_TOO_LONG_IDENT
 SHOW CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 
-#
 # Bug#21432 Database/Table name limited to 64 bytes, not chars, problems with multi-byte
 #
 set names utf8;
@@ -994,16 +1004,16 @@ from имя_таблицы_в_кодировке_утф8_длиной_больш
 select * from имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
 
 select TABLE_NAME from information_schema.tables where
-table_schema='test';
+table_schema='test' order by TABLE_NAME;
 
 select COLUMN_NAME from information_schema.columns where
-table_schema='test';
+table_schema='test' order by COLUMN_NAME;
 
 select INDEX_NAME from information_schema.statistics where
-table_schema='test';
+table_schema='test' order by INDEX_NAME;
 
 select TABLE_NAME from information_schema.views where
-table_schema='test';
+table_schema='test' order by TABLE_NAME;
 
 show create table имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
 show create view имя_вью_кодировке_утф8_длиной_больше_чем_42;
@@ -1070,7 +1080,7 @@ create table t2 as select f1() from t1;
 drop table t1,t2;
 drop function f1;
 
-#
+# WL6599_CREATE_LIKE_IS_VIEW
 # Bug#25629 CREATE TABLE LIKE does not work with INFORMATION_SCHEMA
 #
 create table t1 like information_schema.processlist;
@@ -1081,7 +1091,9 @@ create temporary table t1 like information_schema.processlist;
 --replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 show create table t1;
 drop table t1;
-create table t1 like information_schema.character_sets;
+# See WL6599 HLS/6g on why "CREATE LIKE " is not allowed on I_S system
+# views. We use 'CREATE .. AS SELECT * FROM <I_S table>' now.
+create table t1 as select * from information_schema.character_sets;
 show create table t1;
 drop table t1;
 
@@ -1151,19 +1163,12 @@ CREATE TABLE t1(c1 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURREN
 
 --echo
 
-SET sql_mode = '';
+SET sql_mode = 'NO_ZERO_DATE';
 
 --echo
 CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP DEFAULT 0);
 DROP TABLE t2;
 
-SET sql_mode = 'STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
-
---echo
---error ER_INVALID_DEFAULT
-CREATE TABLE t2(c1 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, c2 TIMESTAMP NOT NULL);
-
-SET sql_mode = '';
 
 --echo
 --echo # -- Check that NULL column still can be created.
@@ -1575,7 +1580,7 @@ drop temporary table t1;
 --echo #
 drop view t1;
 create view t1 as select a + 5 as a from t2;
---error ER_NON_INSERTABLE_TABLE
+--error ER_NONUPDATEABLE_COLUMN
 insert into t1 (a) values (1);
 --error ER_NONUPDATEABLE_COLUMN
 update t1 set a=3 where a=2;
@@ -1662,7 +1667,7 @@ drop table t1;
 create table if not exists t1 (a int, b date, c date) select 1 as b, 2 as c;
 select * from t1;
 drop table t1;
-set @@session.sql_mode='STRICT_ALL_TABLES';
+set @@session.sql_mode=default;
 --error ER_TRUNCATED_WRONG_VALUE
 create table if not exists t1 (a int, b date, c date) select 1 as b, 2 as c;
 --error ER_NO_SUCH_TABLE
@@ -1676,7 +1681,6 @@ select * from t1;
 create table if not exists t1 (a int, b date, c date) 
   ignore select 1 as b, 2 as c;
 select * from t1;
-set @@session.sql_mode=default;
 drop table t1;
 
 create table if not exists t1 (a int unique, b int)
@@ -1761,7 +1765,7 @@ drop function f;
 --echo #
 
 --error ER_TOO_BIG_ROWSIZE
-CREATE TABLE t1 (v varchar(65535));
+CREATE TABLE t1 (v varchar(65535) CHARACTER SET latin1);
 
 --echo #
 --echo # Bug#11746295 - 25168: "INCORRECT TABLE NAME" INSTEAD OF "IDENTIFIER TOO
@@ -1772,4 +1776,153 @@ CREATE TABLE t1 (v varchar(65535));
 CREATE TABLE t01234567890123456789012345678901234567890123456789012345678901234567890123456789(a int);
 --error ER_TOO_LONG_IDENT
 CREATE DATABASE t01234567890123456789012345678901234567890123456789012345678901234567890123456789;
-SET sql_mode = default;
+
+--echo #
+--echo # Bug #20573701 DROP DATABASE ASSERT ON DEBUG WHEN OTHER FILES PRESENT IN
+--echo #               DB FOLDER.
+--echo #
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+# Case 1: A database with no tables and has an unrelated file in it's database
+#         directory. Dropping such database should throw ER_DB_DROP_RMDIR
+#         error.
+CREATE DATABASE db_with_no_tables_and_an_unrelated_file_in_data_directory;
+--write_file $MYSQLD_DATADIR/db_with_no_tables_and_an_unrelated_file_in_data_directory/intruder.txt
+EOF
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--replace_regex /errno: [0-9]+ - .*\)/errno: ## - ...)/
+--error ER_DB_DROP_RMDIR
+DROP DATABASE db_with_no_tables_and_an_unrelated_file_in_data_directory;
+# Cleanup
+--remove_file $MYSQLD_DATADIR/db_with_no_tables_and_an_unrelated_file_in_data_directory/intruder.txt
+DROP DATABASE db_with_no_tables_and_an_unrelated_file_in_data_directory;
+
+# Case 2: A database with tables in it and has an unrelated file in it's database
+#         directory. Dropping such database should throw ER_DB_DROP_RMDIR
+#         error.
+CREATE DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
+--write_file $MYSQLD_DATADIR/db_with_tables_and_an_unrelated_file_in_data_directory/intruder.txt
+EOF
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--replace_regex /errno: [0-9]+ - .*\)/errno: ## - ...)/
+--error ER_DB_DROP_RMDIR
+DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
+# Cleanup
+--remove_file $MYSQLD_DATADIR/db_with_tables_and_an_unrelated_file_in_data_directory/intruder.txt
+DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
+
+# Case 3: A database (fakely created using mkdir) and has an unrelated file in it's database
+#         directory. Dropping such database should throw ER_SCHEMA_DIR_UNKNOWN
+#         error (creating a database with mkdir is not supported with new DD).
+--mkdir $MYSQLD_DATADIR/db_created_with_mkdir_and_an_unrelated_file_in_data_directory
+--write_file $MYSQLD_DATADIR/db_created_with_mkdir_and_an_unrelated_file_in_data_directory/intruder.txt
+EOF
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_UNKNOWN
+DROP DATABASE db_created_with_mkdir_and_an_unrelated_file_in_data_directory;
+# Cleanup
+--remove_file $MYSQLD_DATADIR/db_created_with_mkdir_and_an_unrelated_file_in_data_directory/intruder.txt
+--rmdir $MYSQLD_DATADIR/db_created_with_mkdir_and_an_unrelated_file_in_data_directory
+
+--echo #
+--echo # Bug#20857556: IMPROPER ERROR DURING CREATE TABLE
+--echo #
+
+--echo # Without the patch ER_WRONG_TABLE_NAME was getting reported.
+--error ER_PATH_LENGTH
+CREATE TABLE t1 (id INT) INDEX DIRECTORY = 'a#######################################################b#######################################################################################b#####################################################################################b######################################################################################b######################################################################################b#############################################################################################################';
+--error ER_PATH_LENGTH
+CREATE TABLE t2 (id INT NOT NULL, name VARCHAR(30))
+ENGINE = InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (10) INDEX DIRECTORY = 'a#######################################################b#######################################################################################b#####################################################################################b######################################################################################b######################################################################################b#############################################################################################################'
+);
+
+--error ER_WRONG_VALUE
+CREATE TABLE t3 (id INT) INDEX DIRECTORY = 'test';
+
+--error ER_WRONG_VALUE
+CREATE TABLE t4 (id INT NOT NULL, name VARCHAR(30))
+ENGINE = InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (10) INDEX DIRECTORY = 'test'
+);
+
+
+--echo #
+--echo # Bug #27331588: ASSERTION `THD->MDL_CONTEXT.OWNS_EQUAL_OR_STRONGER_LOCK
+--echo # MDL_KEY::TABLESPACE
+--echo #
+
+SET GLOBAL innodb_file_per_table= 0;
+CREATE TABLE t (i INT) PARTITION BY HASH(i) PARTITIONS 2;
+CREATE TABLE t_like LIKE t;
+DROP TABLES t, t_like;
+SET GLOBAL innodb_file_per_table= DEFAULT;
+
+
+--echo #
+--echo # BUG 27516741 - MYSQL SERVER DOES NOT WRITE INNODB ROW_TYPE
+--echo #                TO .FRM FILE WHEN DEFAULT USED
+
+--echo # Set up.
+SET @saved_innodb_default_row_format= @@global.innodb_default_row_format;
+SET @saved_show_create_table_verbosity= @@session.show_create_table_verbosity;
+
+--echo # Current InnoDB default row format and 'show_create_table_verbosity'
+--echo # values respectively.
+SELECT @@global.innodb_default_row_format;
+SELECT @@session.show_create_table_verbosity;
+
+CREATE TABLE t1(fld1 INT) ENGINE= InnoDB;
+CREATE TABLE t2(fld1 INT) ENGINE= InnoDB, ROW_FORMAT= DEFAULT;
+SET GLOBAL innodb_default_row_format= 'COMPACT';
+CREATE TABLE t3(fld1 INT) ENGINE= InnoDB;
+CREATE TABLE t4(fl1 INT) ENGINE= InnoDB, ROW_FORMAT= COMPRESSED;
+
+--echo # Test without show_create_table_verbosity enabled.
+--echo # Row format used is not displayed for all tables
+--echo # except t4 where it is explicitly specified.
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SHOW CREATE TABLE t4;
+
+--echo # Test with show_create_table_verbosity enabled.
+--echo # Row format used is displayed for all tables.
+SET SESSION show_create_table_verbosity= ON;
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SHOW CREATE TABLE t4;
+
+SET GLOBAL innodb_default_row_format= 'DYNAMIC';
+SET SESSION show_create_table_verbosity= OFF;
+
+--echo # Test with corresponding temporary tables.
+CREATE TEMPORARY TABLE t1(fld1 INT) ENGINE= InnoDB;
+CREATE TEMPORARY TABLE t2(fld1 INT) ENGINE= InnoDB, ROW_FORMAT= DEFAULT;
+SET GLOBAL innodb_default_row_format= 'COMPACT';
+CREATE TEMPORARY TABLE t3(fld1 INT) ENGINE= InnoDB;
+CREATE TEMPORARY TABLE t4(fl1 INT) ENGINE= InnoDB, ROW_FORMAT= REDUNDANT;
+
+--echo # Test without show_create_table_verbosity enabled.
+--echo # Row format used is not displayed for all tables
+--echo # except t4 where it is explicitly specified.
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SHOW CREATE TABLE t4;
+
+--echo # Test with show_create_table_verbosity enabled.
+--echo # Row format used is displayed for all tables.
+SET SESSION show_create_table_verbosity= ON;
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SHOW CREATE TABLE t4;
+
+--echo # Clean up.
+DROP TABLE t1, t2, t3, t4;
+DROP TABLE t1, t2, t3, t4;
+SET GLOBAL innodb_default_row_format= @saved_innodb_default_row_format;
+SET SESSION show_create_table_verbosity= @saved_show_create_table_verbosity;

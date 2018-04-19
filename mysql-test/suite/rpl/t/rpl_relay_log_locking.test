@@ -1,0 +1,87 @@
+# ==== Purpose ====
+#
+# This test case will test the concurrency between the receiver (a.k.a. I/O)
+# thread and the applier (a.k.a. SQL) thread when the receiver is writing
+# events to the same relay log file the applier is reading (the "hot" log).
+#
+# The test uses debug instrumentation to pause the receiver thread while
+# holding the locks it uses when writing events to the relay log, and make
+# the SQL thread to consume the events on the same relay log file.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# WL#8599: Reduce contention in IO and SQL threads
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/master-slave.inc
+
+# Create one table, populate it, then drop it
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+--source include/sync_slave_sql_with_master.inc
+
+# Hold the applier thread executing a new event.
+LOCK TABLES t1 WRITE;
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 (c1) VALUES (1);
+
+# Wait until the applier reached the waiting point
+--source include/rpl_connection_slave.inc
+--let $show_statement= SHOW PROCESSLIST
+--let $field= State
+--let $condition= = 'Waiting for table metadata lock'
+--source include/wait_show_condition.inc
+
+--source include/rpl_connection_master.inc
+--let $num_inserts= 5
+--echo Populate the table with additional $num_inserts rows
+--disable_query_log
+--let $i= 1
+while ($i < $num_inserts)
+{
+  --inc $i
+  --eval INSERT INTO t1 (c1) VALUES ($i)
+}
+--enable_query_log
+
+--source include/sync_slave_io_with_master.inc
+
+# Add debug instrumentation to hold the receiver thread
+# while writing to the relay log.
+--let $debug_point=pause_on_queue_event_after_write_buffer
+--source include/add_debug_point.inc
+
+# Generate a new transaction to make the receiver to work
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+# Wait until the receiver reached the debug point
+--source include/rpl_connection_slave.inc
+SET DEBUG_SYNC='now WAIT_FOR receiver_reached_pause_on_queue_event';
+
+# At this point, we have the receiver thread holding the relay log LOCK_log
+# and mi->data_lock. The applier thread is applying the same relay log file
+# and should progress normally.
+
+# Let the applier "fly"...
+UNLOCK TABLES;
+
+--echo Wait until all the inserts are applied
+--let $wait_condition= SELECT COUNT(*) = $num_inserts FROM t1
+--source include/wait_condition_or_abort.inc
+
+# It is possible to show the events in the active relay log
+--let $binlog_file= slave-relay-bin.000002
+--let $binlog_limit= 1, 6
+--let $keep_gtid_events= 1
+--let $mask_anonymous_gtid_events= 1
+--source include/show_relaylog_events.inc
+
+--let $debug_point=pause_on_queue_event_after_write_buffer
+--source include/remove_debug_point.inc
+SET DEBUG_SYNC='now SIGNAL receiver_continue_queuing_event';
+
+# Cleanup
+--source include/rpl_end.inc

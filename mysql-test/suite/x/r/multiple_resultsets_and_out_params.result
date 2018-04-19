@@ -1,0 +1,352 @@
+RUN create schema xtest
+
+1 rows affected
+RUN use xtest
+
+0 rows affected
+RUN CREATE TABLE tab_1 (c1t1 INT UNSIGNED, c2t1 VARCHAR(10))
+
+0 rows affected
+RUN INSERT INTO tab_1 VALUES (1, "ONE"), (2, "TWO"), (3, "THREE")
+
+3 rows affected
+Records: 3  Duplicates: 0  Warnings: 0
+RUN CREATE TABLE tab_2 (c1t2 DATETIME)
+
+0 rows affected
+RUN INSERT INTO tab_2 VALUES ('2006-07-03'), ('2013-06-15'), ('2012-11-24'), ('1979-11-24')
+
+4 rows affected
+Records: 4  Duplicates: 0  Warnings: 0
+RUN CREATE PROCEDURE `empty`()
+BEGIN
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE one_results_set()
+BEGIN
+  SELECT * FROM tab_1;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE three_results_sets()
+BEGIN
+  SELECT * FROM tab_1;
+  SELECT * FROM tab_2;
+
+  CALL one_results_set();
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE out_param_no_select(IN val INT, OUT res INT)
+BEGIN
+  SET res = 2 * val;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE out_params_with_select(OUT min_val DATETIME, OUT max_val DATETIME)
+BEGIN
+  SELECT MIN(c1t2) INTO min_val FROM tab_2;
+  SELECT MAX(c1t2) INTO max_val FROM tab_2;
+
+  SELECT * FROM tab_1;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE update_no_select()
+BEGIN
+
+  UPDATE tab_1 SET c1t1 = c1t1 + 1 WHERE c1t1 > 1;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE update_and_select()
+BEGIN
+
+  UPDATE tab_1 SET c1t1 = c1t1 + 2 WHERE c1t1 > 2;
+  SELECT * FROM tab_1;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE update_and_out_param(OUT max_val INT)
+BEGIN
+
+  UPDATE tab_1 SET c1t1 = c1t1 + 2 ORDER BY c1t1 LIMIT 1;
+  SELECT MAX(c1t1) into max_val FROM tab_1;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE update_and_out_param_and_select(OUT max_val INT)
+BEGIN
+  UPDATE tab_1 SET c1t1 = c1t1 * 2 ORDER BY c1t1 DESC LIMIT 1;
+  SELECT MAX(c1t1) into max_val FROM tab_1;
+  SELECT AVG(c1t1) FROM tab_1;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE insert_no_select()
+BEGIN
+  INSERT INTO tab_1 VALUES (11, "s11"), (12, "s12"), (13, "s13");
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE insert_and_select()
+BEGIN
+  INSERT INTO tab_1 VALUES (111, "s111"), (112, "s112"), (13, "s113");
+  SELECT * FROM tab_1;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE insert_and_out_param(OUT max_val INT)
+BEGIN
+
+  INSERT INTO tab_1 VALUES(9999, "BIG ONE");
+  SELECT MAX(c1t1) into max_val FROM tab_1;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE insert_and_out_param_and_select(OUT max_val INT)
+BEGIN
+
+  INSERT INTO tab_1 VALUES(19999, "BIGER ONE");
+  SELECT MAX(c1t1) into max_val FROM tab_1;
+  SELECT MIN(c1t1) FROM tab_1;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE error()
+BEGIN
+  SELECT * FROM tab_not_existing;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE select_and_error()
+BEGIN
+  SELECT * FROM tab_1;
+  SELECT * FROM tab_not_existing;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE out_param_and_error(OUT min_val INT)
+BEGIN
+  SELECT MIN(c1t1) INTO min_val FROM tab_1;
+  SELECT * FROM tab_not_existing;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE select_out_param_and_error(OUT min_val INT)
+BEGIN
+  SELECT MIN(c1t1) INTO min_val FROM tab_1;
+  SELECT COUNT(c1t1) FROM tab_1;
+  SELECT * FROM tab_not_existing;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE with_warning()
+BEGIN
+  DECLARE tiny TINYINT;
+
+  SET tiny = 9000;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE select_and_warning()
+BEGIN
+  DECLARE tiny TINYINT;
+  SELECT * FROM tab_2;
+  SET tiny = 9000;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE out_param_and_warning(OUT vavg FLOAT)
+BEGIN
+  DECLARE tiny TINYINT;
+  SELECT AVG(c1t1) INTO vavg FROM tab_1;
+  SET tiny = 9000;
+END 
+
+0 rows affected
+RUN CREATE PROCEDURE select_out_param_and_warning(OUT min_val INT)
+BEGIN
+  DECLARE c CHAR(2);
+  SELECT MIN(c1t1) INTO min_val FROM tab_1;
+  SELECT COUNT(c1t1) FROM tab_1;
+  SET c = "TOO LONG";
+END 
+
+0 rows affected
+RUN CALL `empty`()
+
+0 rows affected
+RUN CALL one_results_set()
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+0 rows affected
+RUN CALL three_results_sets()
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+c1t2
+2006-07-03 00:00:00
+2013-06-15 00:00:00
+2012-11-24 00:00:00
+1979-11-24 00:00:00
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+0 rows affected
+RUN CALL out_param_no_select(5,@res)
+
+0 rows affected
+RUN CALL out_params_with_select(@min_val, @max_val)
+c1t1	c2t1
+1	ONE
+2	TWO
+3	THREE
+0 rows affected
+RUN SELECT @res, @min_val, @max_val
+@res	@min_val	@max_val
+10	1979-11-24 00:00:00	2013-06-15 00:00:00
+0 rows affected
+RUN CALL update_no_select()
+
+2 rows affected
+RUN CALL update_and_select()
+c1t1	c2t1
+1	ONE
+5	TWO
+6	THREE
+0 rows affected
+RUN CALL update_and_out_param(@max_val)
+
+1 rows affected
+RUN SELECT @max_val
+@max_val
+6
+0 rows affected
+RUN CALL update_and_out_param_and_select(@max_val)
+AVG(c1t1)
+6.6667
+0 rows affected
+RUN SELECT @max_val
+@max_val
+12
+0 rows affected
+RUN CALL insert_no_select()
+
+3 rows affected
+RUN CALL insert_and_select()
+c1t1	c2t1
+3	ONE
+5	TWO
+12	THREE
+11	s11
+12	s12
+13	s13
+111	s111
+112	s112
+13	s113
+0 rows affected
+RUN CALL insert_and_out_param(@max_val)
+
+1 rows affected
+RUN SELECT @max_val
+@max_val
+9999
+0 rows affected
+RUN CALL insert_and_out_param_and_select(@max_val)
+MIN(c1t1)
+3
+0 rows affected
+RUN SELECT @max_val
+@max_val
+19999
+0 rows affected
+RUN CALL error()
+While executing CALL error():
+Got expected error: Table 'xtest.tab_not_existing' doesn't exist (code 1146)
+RUN CALL select_and_error()
+c1t1	c2t1
+3	ONE
+5	TWO
+12	THREE
+11	s11
+12	s12
+13	s13
+111	s111
+112	s112
+13	s113
+9999	BIG ONE
+19999	BIGER ONE
+While executing CALL select_and_error():
+Got expected error: Table 'xtest.tab_not_existing' doesn't exist (code 1146)
+RUN CALL out_param_and_error(@min_val)
+While executing CALL out_param_and_error(@min_val):
+Got expected error: Table 'xtest.tab_not_existing' doesn't exist (code 1146)
+RUN SELECT @min_val
+@min_val
+1979-11-24 00:00:00
+0 rows affected
+RUN CALL select_out_param_and_error(@min_val)
+COUNT(c1t1)
+11
+While executing CALL select_out_param_and_error(@min_val):
+Got expected error: Table 'xtest.tab_not_existing' doesn't exist (code 1146)
+RUN SELECT @min_val
+@min_val
+1979-11-24 00:00:00
+0 rows affected
+RUN CALL with_warning()
+While executing CALL with_warning():
+Got expected error: Out of range value for column 'tiny' at row 1 (code 1264)
+RUN SHOW WARNINGS
+Level	Code	Message
+Error	1264	Out of range value for column 'tiny' at row 1
+0 rows affected
+RUN CALL select_and_warning()
+c1t2
+2006-07-03 00:00:00
+2013-06-15 00:00:00
+2012-11-24 00:00:00
+1979-11-24 00:00:00
+While executing CALL select_and_warning():
+Got expected error: Out of range value for column 'tiny' at row 1 (code 1264)
+RUN SHOW WARNINGS
+Level	Code	Message
+Error	1264	Out of range value for column 'tiny' at row 1
+0 rows affected
+RUN CALL out_param_and_warning(@vavg)
+While executing CALL out_param_and_warning(@vavg):
+Got expected error: Out of range value for column 'tiny' at row 1 (code 1264)
+RUN SHOW WARNINGS
+Level	Code	Message
+Error	1264	Out of range value for column 'tiny' at row 1
+0 rows affected
+RUN SELECT @vavg
+@vavg
+null
+0 rows affected
+RUN CALL select_out_param_and_warning(@min_val)
+COUNT(c1t1)
+11
+While executing CALL select_out_param_and_warning(@min_val):
+Got expected error: Data too long for column 'c' at row 1 (code 1406)
+RUN SHOW WARNINGS
+Level	Code	Message
+Error	1406	Data too long for column 'c' at row 1
+0 rows affected
+RUN SELECT @min_val
+@min_val
+1979-11-24 00:00:00
+0 rows affected
+RUN drop schema if exists xtest
+
+2 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

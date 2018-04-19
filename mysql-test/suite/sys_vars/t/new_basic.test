@@ -130,7 +130,7 @@ SET @@global.new = test;
 SET @@session.new = ONN;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.new = ONF;
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@session.new = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.new = 'OFN';
@@ -152,7 +152,7 @@ SET @@session.new = test;
 
 --disable_warnings
 SELECT IF(@@global.new, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='new';
 --enable_warnings
 
@@ -163,7 +163,7 @@ WHERE VARIABLE_NAME='new';
 
 --disable_warnings
 SELECT IF(@@session.new, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='new';
 --enable_warnings
 

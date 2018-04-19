@@ -1,0 +1,121 @@
+--disable_ps_protocol
+
+--echo # Setting general_log content empty.
+TRUNCATE TABLE mysql.general_log;
+
+--echo # Creating tables
+CREATE TABLE t_int (c1  TINYINT,
+                    c2  SMALLINT,
+                    c3  MEDIUMINT,
+                    c4  INT,
+                    c5  INTEGER,
+                    c6  SMALLINT UNSIGNED,
+                    c7  MEDIUMINT UNSIGNED,
+                    c8  INT UNSIGNED,
+                    c9  INTEGER);
+
+CREATE TABLE t_bigint (c1  BIGINT,
+                       c2  BIGINT UNSIGNED);
+
+CREATE TABLE t_real (c1 REAL UNSIGNED,
+                     c2 DOUBLE UNSIGNED,
+                     c3 FLOAT UNSIGNED,
+                     c4 DECIMAL UNSIGNED,
+                     c5 NUMERIC UNSIGNED,
+                     c6 DOUBLE,
+                     c7 FLOAT,
+                     c8 DECIMAL,
+                     c9 NUMERIC);
+
+CREATE TABLE t_date (c1 DATE,
+                     c2 TIME,
+                     c3 TIMESTAMP,
+                     c4 DATETIME,
+                     c5 YEAR);
+
+--echo # Inserting values into the tables
+INSERT INTO t_int VALUES (91,92,93,94,95,96,97,98,99),(81,82,83,84,85,86,87,88,89);
+
+INSERT INTO t_bigint VALUES (91,92),(81,82);
+
+INSERT INTO t_real VALUES (8.51,8.52,8.53,8.54,8.55,8.56,8.57,8.58,8.59);
+
+INSERT INTO t_real VALUES (9.51,9.52,9.53,9.54,9.55,9.56,9.57,9.58,9.59);
+
+INSERT INTO t_date VALUES ('2015-07-06','20:15','2015-12-31 14:59:48','2014-11-30 13:58:47','2015');
+
+INSERT INTO t_date VALUES ('2015-07-07','20:17','2013-12-31 17:59:47','2012-10-31 15:57:47','2010');
+
+SET @old_log_output = @@global.log_output;
+SET @old_general_log = @@global.general_log;
+SET @old_general_log_file = @@global.general_log_file;
+
+--echo ##########################################
+--echo # Start plugin with general log
+--echo ##########################################
+--replace_result $MYSQLTEST_VARDIR ...
+eval SET GLOBAL general_log_file = '$MYSQLTEST_VARDIR/log/test_sql_general.log';
+SET GLOBAL log_output = 'FILE,TABLE';
+SET GLOBAL general_log = 'ON';
+
+--echo ##########################################
+--echo # Run plugin
+--echo ##########################################
+--replace_result $TEST_SQL_2_SESSIONS TEST_SQL_2_SESSIONS
+eval INSTALL PLUGIN test_sql_2_sessions SONAME '$TEST_SQL_2_SESSIONS';
+
+--echo ##########################################
+--echo # Stop plugin
+--echo ##########################################
+UNINSTALL PLUGIN test_sql_2_sessions;
+
+--echo ##########################################
+--echo # Plugin log
+--echo ##########################################
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_sql_2_sessions.log;
+remove_file $MYSQLD_DATADIR/test_sql_2_sessions.log;
+
+--echo ##########################################
+--echo # Check general log file
+--echo ##########################################
+CREATE TABLE t1 (c1 TEXT, c2 TEXT, c3 TEXT);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--disable_warnings
+eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/test_sql_general.log' INTO TABLE t1;
+--enable_warnings
+
+SELECT c3 FROM t1 WHERE c3 LIKE '%FROM test.t_int%';
+SELECT c3 FROM t1 WHERE c3 LIKE '%FROM test.t_bigint%';
+
+SELECT count(*) FROM t1 WHERE c2 LIKE '%Connect%';
+SELECT count(*) FROM t1 WHERE c2 LIKE '%Quit%';
+
+SELECT argument FROM mysql.general_log WHERE command_type = 'Query' AND 
+                                      (argument LIKE '%FROM test.t_int%' OR
+                                       argument LIKE '%FROM test.t_bigint%');
+
+SELECT count(*) FROM mysql.general_log WHERE command_type = 'Connect';
+SELECT count(*) FROM mysql.general_log WHERE command_type = 'Quit';
+
+--echo ##########################################
+--echo # Cleanup
+--echo ##########################################
+
+--echo # Dropping the created tables
+DROP TABLE t1;
+DROP TABLE t_int;
+DROP TABLE t_bigint;
+DROP TABLE t_real;
+DROP TABLE t_date;
+
+--echo # Removing general_log content
+TRUNCATE TABLE mysql.general_log;
+
+--echo # Deleting log file created
+--remove_file $MYSQLTEST_VARDIR/log/test_sql_general.log
+
+SET GLOBAL log_output = @old_log_output;
+SET GLOBAL general_log = @old_general_log;
+SET GLOBAL general_log_file = @old_general_log_file;
+--enable_ps_protocol

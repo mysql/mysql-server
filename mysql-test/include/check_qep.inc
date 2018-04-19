@@ -38,7 +38,7 @@ let $cost=
 --disable_warnings
 let $reads=
 `select sum(variable_value)
-   from information_schema.session_status
+   from performance_schema.session_status
    where VARIABLE_NAME like 'Handler_read%'`;
 --enable_warnings
 

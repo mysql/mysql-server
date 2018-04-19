@@ -1,5 +1,4 @@
 --source include/have_mysqld_safe.inc
---source include/not_embedded.inc
 --source include/not_windows.inc
 
 # 1) Set valiables to be used in parameters of mysqld_safe.
@@ -20,8 +19,9 @@ perl;
  my $dir = $ENV{'MYSQLTEST_VARDIR'};
  open ( OUTPUT, ">$dir/tmp/mysqld_path_file.inc") ;
  my $path = $ENV{MYSQLD};
- $path =~ /(.*?)(mysqld|mysqld-debug)$/i ;   
+ $path =~ /^(.*)\/([^\/]*)$/;
  print OUTPUT "let \$mysqld_path = $1;\n";
+ print OUTPUT "let \$mysqld_bin = $2;\n";
  close (OUTPUT);
 EOF
 
@@ -35,13 +35,12 @@ EOF
 --let $_server_id= `SELECT @@server_id`
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
 --exec echo "wait" > $_expect_file_name
---shutdown_server 
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 
 # 3) Run the mysqld_safe script with exec.
---exec sh $MYSQLD_SAFE --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-error=$MYSQLTEST_VARDIR/log/err.log --basedir=$MYSQL_BASEDIR --ledir=$mysqld_path --datadir=$MYSQLD_DATADIR --secure-file-priv=$MYSQLTEST_VARDIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --timezone=SYSTEM --log-output=file --loose-debug-sync-timeout=600 --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB --loose-skip-log-bin --core-file --lc-messages-dir=$MYSQL_MESSAGESDIR --innodb-page-size=$other_page_size_nk < /dev/null > /dev/null 2>&1 &
-
+--exec sh $MYSQLD_SAFE --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-error=$MYSQLTEST_VARDIR/log/err.log --basedir=$MYSQL_BASEDIR --ledir=$mysqld_path --mysqld=$mysqld_bin --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --timezone=SYSTEM --log-output=file --loose-debug-sync-timeout=600 --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB  --secure-file-priv="" --loose-skip-log-bin --core-file --lc-messages-dir=$MYSQL_MESSAGESDIR --innodb-page-size=$other_page_size_nk < /dev/null > /dev/null 2>&1 &
 # mysqld_safe takes some time to start mysqld
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -65,7 +64,7 @@ connection default;
 --exec $MYSQL -h localhost -S $MYSQL_SOCKET -P $MYSQL_PORT -u root -e "SHOW DATABASES" 2>&1
 
 # 8) Shutdown mysqld with mysqladmin
---exec $MYSQLADMIN -h localhost -S $MYSQL_SOCKET -P $MYSQL_PORT -u root shutdown 2>&1
+--exec $MYSQLADMIN --no-defaults -h localhost -S $MYSQL_SOCKET -P $MYSQL_PORT -u root shutdown 2>&1
 
 # Delay introduced - mysqld_safe takes some time to restart mysqld
 --source include/wait_until_disconnected.inc

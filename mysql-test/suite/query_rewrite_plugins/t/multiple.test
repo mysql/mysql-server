@@ -3,20 +3,21 @@
 --echo # installation, where all plugins are in the same directory.
 --echo #
 
---source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
---source suite/query_rewrite_plugins/include/have_plugin_rewrite_example.inc
 
---source suite/query_rewrite_plugins/include/install_pre_parse_plugin.inc
---echo # We get about a dozen tedious warnings when installing the plugin, so
---echo # we silence them.
---disable_warnings
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+--source include/no_opt_trace_protocol.inc
+--source include/no_explain_protocol.inc
+--source include/no_json_explain_protocol.inc
+
+--let plugins= REWRITER,REWRITE_EXAMPLE
+--source include/check_plugin_dir.inc
+
 --source suite/query_rewrite_plugins/include/install_rewriter.inc
---enable_warnings
+--source suite/query_rewrite_plugins/include/install_pre_parse_plugin.inc
 
---echo # If you read the warning message, it will become obvious why we use
---echo # upper() here.
-INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement, enabled )
-VALUES ( 'SELECT "abc"', 'SELECT "Rewritten"', upper('Y') );
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "abc"', 'SELECT "Rewritten"' );
 
 CALL query_rewrite.flush_rewrite_rules();
 
@@ -25,9 +26,5 @@ SELECT * FROM query_rewrite.rewrite_rules;
 SELECT 'abc';
 SELECT 'ABC';
 
---echo # We get about a dozen tedious warnings when uninstalling the plugins,
---echo # too, so we silence them as well.
---disable_warnings
---source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
 UNINSTALL PLUGIN rewrite_example;
---enable_warnings
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

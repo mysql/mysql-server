@@ -29,21 +29,21 @@ log_bin	ON
 show variables like 'log_slave_updates';
 Variable_name	Value
 log_slave_updates	ON
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	Query	2	#	use `test`; CREATE TABLE t1 (a int key, b int) ENGINE=ndb
-slave-bin.000001	#	Query	2	#	BEGIN
-slave-bin.000001	#	Table_map	2	#	table_id: # (test.t1)
-slave-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-slave-bin.000001	#	Write_rows	2	#	table_id: #
-slave-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-slave-bin.000001	#	Query	2	#	COMMIT
-slave-bin.000001	#	Query	2	#	BEGIN
-slave-bin.000001	#	Table_map	2	#	table_id: # (test.t1)
-slave-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-slave-bin.000001	#	Write_rows	2	#	table_id: #
-slave-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
-slave-bin.000001	#	Query	2	#	COMMIT
+slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a int key, b int) ENGINE=ndb
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+slave-bin.000001	#	Write_rows	#	#	table_id: #
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+slave-bin.000001	#	Write_rows	#	#	table_id: #
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
 include/check_slave_is_running.inc
 SELECT * FROM t1 ORDER BY a;
 a	b
@@ -60,14 +60,14 @@ log_bin	ON
 show variables like 'log_slave_updates';
 Variable_name	Value
 log_slave_updates	OFF
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	BEGIN
-master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	1	#	table_id: #
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	1	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 STOP SLAVE;
 DROP TABLE t1;
 start slave;
@@ -88,7 +88,7 @@ select server_id, log_name from mysql.ndb_apply_status order by server_id;
 server_id	log_name
 1	master-bin.000001
 'Slave' has following ndb_binlog_index entries
-select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position;
+select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position,orig_epoch;
 inserts	updates	deletes	schemaops	orig_server_id
 1	0	0	0	1
 1	0	0	0	2
@@ -102,9 +102,8 @@ insert into t1 values (1,1);
 select server_id, log_name from mysql.ndb_apply_status order by server_id;
 server_id	log_name
 1	master-bin.000001
-show binlog events;
 'Slave' has following ndb_binlog_index entries
-select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position;
+select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position,orig_epoch;
 inserts	updates	deletes	schemaops	orig_server_id
 1	0	0	0	1
 1	0	0	0	2

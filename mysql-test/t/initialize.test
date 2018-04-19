@@ -1,17 +1,12 @@
 --source include/big_test.inc
---source include/not_embedded.inc
---source include/have_no_undo_tablespaces.inc
 
 
 let BASEDIR= `select @@basedir`;
 let DDIR=$MYSQL_TMP_DIR/installdb_test;
 let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
-let extra_args=--no-defaults --console --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
 let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/tiny_bootstrap.sql;
 let PASSWD_FILE=$MYSQL_TMP_DIR/password_file.txt;
-
---echo # We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
 
 --echo # Save the count of columns in mysql
 --let $mysql_cnt=`SELECT COUNT(COLUMN_NAME) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='mysql'`
@@ -21,92 +16,6 @@ CALL mtr.add_suppression("InnoDB:");
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --echo # Server is down
-
---echo #
---echo # Try --bootstrap and see if you get a warning
---echo #
-
---echo # create bootstrap file
-write_file $BOOTSTRAP_SQL;
-CREATE DATABASE mysql;
-CREATE DATABASE test;
-CREATE TABLE mysql.t1(a INT) ENGINE=innodb;
-EOF
-
---echo # play tiny_bootstrap.sql
-
---echo # create the empty datadir
-mkdir $DDIR;
-
---echo # try --bootstrap
---exec $MYSQLD $extra_args --bootstrap --datadir=$DDIR < $BOOTSTRAP_SQL >$MYSQLD_LOG 2>&1
-
---echo # look for bootstrap deprecated
-perl;
-  use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
-  open(FILE, "$log") or die;
-  my $c= grep(/.Warning. --bootstrap is deprecated/gi,<FILE>);
-  print "bootstrap deprecated found $c times\n";
-  close(FILE);
-EOF
-
-
---echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
---echo # delete bootstrap file
-remove_file $BOOTSTRAP_SQL;
---echo # delete mysqld log
-remove_file $MYSQLD_LOG;
-
-
---echo #
---echo # Try --bootstrap and --initialize and expect an error
---echo #
-
---echo # create bootstrap file
-write_file $BOOTSTRAP_SQL;
-CREATE DATABASE mysql;
-CREATE DATABASE test;
-CREATE TABLE mysql.t1(a INT) ENGINE=innodb;
-EOF
-
---echo # try --bootstrap --initialize
---error 1
---exec $MYSQLD $extra_args --bootstrap --initialize --datadir=$DDIR < $BOOTSTRAP_SQL >$MYSQLD_LOG 2>&1
-
---echo # delete bootstrap file
-remove_file $BOOTSTRAP_SQL;
-
---echo # delete mysqld log
-remove_file $MYSQLD_LOG;
-
-
---echo #
---echo # Try --bootstrap and --initialize-insecure and expect an error
---echo #
-
---echo # create bootstrap file
-write_file $BOOTSTRAP_SQL;
-CREATE DATABASE mysql;
-CREATE DATABASE test;
-CREATE TABLE mysql.t1(a INT) ENGINE=innodb;
-EOF
-
---echo # try --bootstrap --initialize-initialize-insecure
---error 1
---exec $MYSQLD $extra_args --bootstrap --initialize-insecure --datadir=$DDIR < $BOOTSTRAP_SQL >$MYSQLD_LOG 2>&1
-
---echo # delete bootstrap file
-remove_file $BOOTSTRAP_SQL;
-
---echo # delete mysqld log
-remove_file $MYSQLD_LOG;
-
 
 --echo #
 --echo # Try --initialize
@@ -169,7 +78,7 @@ SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 
 --echo # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string)
-  FROM mysql.user;
+  FROM mysql.user ORDER by user;
 
 --echo # Check the sys schema exists with the right object counts
 --echo #
@@ -203,11 +112,7 @@ remove_file $PASSWD_FILE;
 remove_file $MYSQLD_LOG;
 
 --echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 
 --echo #
@@ -251,7 +156,7 @@ SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 
 --echo # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string)
-  FROM mysql.user;
+  FROM mysql.user ORDER BY user;
 
 --echo # check the result of running --init-file
 SELECT a FROM t1 ORDER BY a;
@@ -273,11 +178,7 @@ remove_file $MYSQLD_LOG;
 remove_file $BOOTSTRAP_SQL;
 
 --echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 
 --echo #
@@ -292,11 +193,7 @@ EOF
 remove_file $MYSQLD_LOG;
 
 --echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 
 --echo #
@@ -311,11 +208,19 @@ EOF
 remove_file $MYSQLD_LOG;
 
 --echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
+
+
+--echo #
+--echo # Bug#22777039 - MYSQLD --INITIALIZE DOES NOT SUPPORT THE KEYRING_FILE_DATA OPTION
+--echo #
+--exec $MYSQLD $extra_args --datadir=$DDIR --initialize --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/keyring $KEYRING_PLUGIN_OPT > $MYSQLD_LOG 2>&1
+
+--echo # delete temp keyring file
+remove_file $MYSQL_TMP_DIR/keyring;
+
+--echo # delete datadir
+--force-rmdir $DDIR
 
 
 --echo #

@@ -1,0 +1,52 @@
+# ==== Purpose ====
+#
+# This test will verify if a slave will skip the transaction boundary parser
+# and the Retrieved_Gtid_Set initialization when relay_log_recovery is set.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#21798355 SLOW STARTUP OF 5.7.X SLAVE WITH RELAY_LOG_RECOVERY = ON
+#              AND MANY RELAY LOGS
+
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave=1
+--source include/master-slave.inc
+# Suppress recovery warning messages
+CALL mtr.add_suppression('Recovery from master pos');
+
+# Insert some content on the master
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+
+# Rotate the binary log to have events on more than one relay log file
+FLUSH LOCAL BINARY LOGS;
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+
+# Start and sync the I/O thread before restarting the slave
+--source include/rpl_connection_slave.inc
+--source include/start_slave_io.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_io_with_master.inc
+
+# Restart the slave enabling relay_log_recovery
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --relay_log_recovery=ON
+--source include/rpl_restart_server.inc
+
+# File to GREP
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+# Show entries only after the last occurrence of the following pattern
+--let $assert_only_after=.* \[Note\] \[[^]]*\] Shutting down slave threads
+# Assert that there is no expected note log line about reading relay log events
+--let $assert_count= 0
+--let $assert_select=.* \[Note\] \[[^]]*\] .* events read in relaylog file .*
+--let $assert_text= Found no lines about reading events on the relay log.
+--source include/assert_grep.inc
+
+# Cleanup
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

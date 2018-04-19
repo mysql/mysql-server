@@ -1,6 +1,4 @@
---source include/have_ujis.inc
---source include/have_innodb.inc
-
+--character_set ujis
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;

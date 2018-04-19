@@ -1,14 +1,21 @@
 /*
- *  Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
+ *  it under the terms of the GNU General Public License, version 2.0,
+ *  as published by the Free Software Foundation.
+ *
+ *  This program is also distributed with certain software (including
+ *  but not limited to OpenSSL) that is licensed under separate terms,
+ *  as designated in a particular file or component or in included license
+ *  documentation.  The authors of MySQL hereby grant you an additional
+ *  permission to link the program and your derivative works with the
+ *  separately licensed software that they have included with MySQL.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  GNU General Public License, version 2.0, for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
@@ -128,6 +135,10 @@ class ClusterTransactionImpl implements ClusterTransaction {
         this.bufferManager = db.getBufferManager();
     }
 
+    public ClusterConnectionImpl getClusterConnection() {
+        return this.clusterConnectionImpl;
+    }
+
     public void close() {
         if (ndbTransaction != null) {
             ndbTransaction.close();
@@ -149,6 +160,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
      * Otherwise, use the partition key to enlist the transaction.
      */
     private void enlist() {
+        db.assertNotClosed("ClusterTransactionImpl.enlist");
         if (logger.isTraceEnabled()) logger.trace("ndbTransaction: " + ndbTransaction
                 + " with joinTransactionId: " + joinTransactionId);
         if (ndbTransaction == null) {
@@ -162,6 +174,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
     }
 
     public void executeCommit(boolean abort, boolean force) {
+        db.assertNotClosed("ClusterTransactionImpl.executeCommit");
         if (logger.isTraceEnabled()) logger.trace("");
         // nothing to do if no ndbTransaction was ever enlisted or already autocommitted
         if (isEnlisted() && !autocommitted) {
@@ -181,6 +194,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
     }
 
     public void executeNoCommit(boolean abort, boolean force) {
+        db.assertNotClosed("ClusterTransactionImpl.executeNoCommit");
         if (logger.isTraceEnabled()) logger.trace("");
         if (!isEnlisted()) {
             // nothing to do if no ndbTransaction was ever enlisted
@@ -201,6 +215,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
     }
 
     public void executeRollback() {
+        db.assertNotClosed("ClusterTransactionImpl.executeRollback");
         if (!isEnlisted()) {
             // nothing to do if no ndbTransaction was ever enlisted
             return;
@@ -461,6 +476,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
      */
     public NdbIndexScanOperation scanIndex(NdbRecordConst key_record, NdbRecordConst result_record,
             byte[] result_mask, ScanOptions scanOptions) {
+        enlist();
         return ndbTransaction.scanIndex(key_record, result_record, indexScanLockMode, result_mask, null, scanOptions, 0);
     }
 
@@ -543,7 +559,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
     private void handlePendingPostExecuteCallbacks() {
         // if any pending postExecuteCallbacks, flush via executeNoCommit
         if (!postExecuteCallbacks.isEmpty()) {
-            executeNoCommit();
+            executeNoCommit(false, true);
         }
     }
 
@@ -569,6 +585,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
                 try {
                     runnable.run();
                 } catch (Throwable t) {
+                    t.printStackTrace();
                     exceptionMessages.append(t.getMessage());
                     exceptionMessages.append('\n');
                 }

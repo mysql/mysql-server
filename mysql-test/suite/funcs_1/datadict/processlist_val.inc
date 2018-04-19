@@ -192,7 +192,7 @@ SELECT @test_user_con1_id = @default_id + 1
 SELECT 0 <=  @time < 10 AS "Has TIME a reasonable value?";
 #
 # 4. HOST must be for both connections similar (varying port on Win)
-SELECT COUNT(*) = 2 AS "Is HOST LIKE 'localhost%'?"
+SELECT COUNT(*) = 3 AS "Is HOST LIKE 'localhost%'?"
 FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE HOST LIKE 'localhost%';
 #

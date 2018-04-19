@@ -16,6 +16,8 @@ utf8
 'connection default'
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(b CHAR(40) CHARACTER SET utf8);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 '--verify that character_set_connection converts character_set_client--'
 SET @@session.character_set_client = utf8;
 SET @@session.character_set_results = utf8;
@@ -23,6 +25,8 @@ SET @@session.character_set_connection = latin1;
 SELECT 'ЁЂЃЄ' AS utf_text;
 utf_text
 ????
+Warnings:
+Warning	1300	Invalid utf8 character string: '\xD0\x81\xD0\x82\xD0\x83...'
 SET @@session.character_set_connection = utf8;
 SELECT 'ЁЂЃЄ' AS utf_text;
 utf_text
@@ -30,6 +34,8 @@ utf_text
 '---now inserting utf8 string with different character_set_connection--'
 SET @@session.character_set_connection = ascii;
 INSERT INTO t1 VALUES('ЁЂЃЄ');
+Warnings:
+Warning	1300	Invalid utf8 character string: '\xD0\x81\xD0\x82\xD0\x83...'
 SELECT * FROM t1;
 b
 ????
@@ -39,11 +45,15 @@ SET @@session.character_set_connection = ascii;
 SET @@session.character_set_client = latin1;
 SET @@session.character_set_results = latin1;
 INSERT INTO t1 VALUES('ЁЂЃЄ');
+Warnings:
+Warning	1300	Invalid latin1 character string: '\xD0\x81\xD0\x82\xD0\x83...'
 SELECT * FROM t1;
 b
 ????????
 TRUNCATE TABLE t1;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES('ЁЂЃЄ');
 SELECT * FROM t1;
 b

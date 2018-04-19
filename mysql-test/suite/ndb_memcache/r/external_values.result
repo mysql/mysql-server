@@ -1,16 +1,32 @@
+Testing ascii protocol
+Passed t1 .. t4
+Passed t5 .. t8
+Passed t9 .. t10
+Passed t11 .. t15
+Passed t16 .. t25
+Passed t26 .. t30
+Passed t31 .. t47
+Passed APPEND stress test
+Passed PREPEND stress test
+Testing binary protocol
+Passed t1 .. t4
+Passed t5 .. t8
+Passed t9 .. t10
+Passed t11 .. t15
+Passed t16 .. t25
+Passed t26 .. t30
+Passed t31 .. t47
+Passed APPEND stress test
+Passed PREPEND stress test
 USE ndbmemcache;
 SELECT mkey, string_value, ext_size, SUM(length(content)) AS total_parts
-FROM demo_table_large t1
-JOIN external_values  t2 ON (t1.ext_id = t2.id) 
-GROUP BY mkey, string_value, ext_size;
+FROM large_nolog t1
+JOIN  external_nolog t2 ON (t1.ext_id = t2.id)
+GROUP BY mkey, string_value, ext_size
+ORDER BY mkey;
 mkey	string_value	ext_size	total_parts
-test8	NULL	160153	160153
+t10	NULL	10800	10800
+t9	NULL	15000	15000
+test8	NULL	120153	120153
 test8c	NULL	13951	13951
 test_set	NULL	13949	13949
-SELECT mkey, string_value, ext_size, SUM(length(content)) AS total_parts
-FROM large_nolog t1
-JOIN  external_nolog t2 ON (t1.ext_id = t2.id) 
-GROUP BY mkey, string_value, ext_size;
-mkey	string_value	ext_size	total_parts
-t10	NULL	15000	15000
-t9	NULL	15000	15000

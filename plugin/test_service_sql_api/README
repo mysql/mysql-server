@@ -1,0 +1,131 @@
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+Testing plugin services
+-----------------------
+
+Plugin services are usually APIs provided by the mysqld server. Theses APIs can be tested with 
+unit test frameworks like "googletest" by developers. In QA it is preferable to test plugin 
+services closer to reality with the help of plugins due to following reasons:
+
+  - Integrating plugin, plugin services, clients and SQL layer for testing interaction between all.
+  - Having examples for users close to reality (as described in user manual).
+  - Using our (qa) test tools.
+
+Implementing a test plugin
+--------------------------
+
+Depending on the specification of a plugin service, the test plugin must have a special plugin type
+or even tested with all plugin types.
+
+For the frame work to implement test plugins, the plugin type "daemon" has be chosen. It will be
+loaded (started) with the sql statement "INSTALL PLUGIN" and unloaded (stopped) by calling 
+"UNINSTALL PLUGIN". There is no other communication between server and daemon unless it will be 
+explicitly implemented, e.g. with the help of an API or service. INSTALL and UNINSTALL will be 
+executed by a mtr test. The mtr test may of course contain other sql statements to test the 
+interaction between plugin (service) and SQL layer.
+
+The plugin shall write its test results into one or more files. These files can then be written
+into the result file of the mtr test with the normal mtr commands like "cat_file".
+
+With the help of the log_message service the test plugin can easily write messages into 
+"mysqld.1.err". These messages can be made visible in the result file or checked as follows:
+Load this log into a table with 2 columns (date, info). The column "date" is ignored as not 
+deterministic. The column "info" will be selected by removing "\r" to be compatible to windows
+(The err log file on windows contains CR,LF as newline). Select the messages so they will be 
+visible in the mtr result file.
+
+A perl snippet can be used for that purpose, too.
+
+In a plugin status and system (sql) variables can be specified. With status variables the 
+state of the test execution can be reported to the mtr test calling the test plugin. That might 
+be useful to e.g. give a ready message for a test case or the whole plugin. Especially when 
+using threads in a test plugin such status variables are useful to synchronize execution of 
+plugin and mtr test as both are running in parallel. System variables can be used to e.g. control 
+test execution. But, that is very rudimentary as can be used to configure the plugin as its start.
+
+Test plugins
+------------
+
+There exist test plugins of type "daemon", which can be taken as examples or frameworks and 
+calling mtr tests:
+
+  - "plugin/test_services" for the test plugin written in C++,
+  - "mysql-test/suite/test_services" for the corresponding mtr tests.
+
+Test plugins:
+
+  -  "test_services.cc" 
+
+     showing how to implement a test plugin for simple plugin services like "LogPluginErr"
+     used to write messages to the error log. For each of the services there is a function
+     implemented containing the test cases. Instead of using the standard I/O of C++ it is much 
+     more comfortable to used "my_open", "my_write", etc. as it covers all platforms.
+     "LogPluginErr" writes into "mysqld.1.err". The (selected) contents of these files
+     can be seen in the result file of "test_services.test". "test_services.test" didn't create
+     a thread. The effect is that the test (mysqld) is waiting until the plugin completes its work.
+     A waiting condition to synchronize execution of plugin and mtr test is not necessary.
+
+  -  "test_service_threaded.cc" 
+     
+     runs the same tests as "test_services.cc", but in a thread. This needs synchronization 
+     of plugin and mtr test as both are running in parallel. The synchronization will be done 
+     by waiting for the plugin (exactly the thread in the plugin) to be finished. If the 
+     thread is needing a very long time then the mtr test may run in a timeout.
+
+  - "test_framework.cc"
+
+     is a rudimentary implementation of a daemon plugin, which can be take to create a new one. 
+     Of course copying and modifying/extending one of the other plugins to create a new 
+     test plugin can be recommended depending on the need of threads.
+
+Using threads has the advantage of limiting test execution with a timeout. That may be interesting 
+for long running plugins, testing complex APIs. Plugins needing a short run time may run without threads.
+
+    To create the plugins and run the test do the following:
+        - modify "CmakeLists.txt" if you want to add a new test plugin,
+        - rebuild ALL or only make test_services by running make in the test_services directory,
+        - in mysql-test: "./mtr --suite=test_services test_services" or 
+          "./mtr --suite=test_services test_services_threaded"
+
+    If a test case in plugin "test_services" shall be switched off run the test as follows:
+
+        ./mtr --mysqld=--loose-test-services-with-log-message=0 t/test_services.test
+
+That shows a simple way of control test execution with system variables. 
+
+Steps to create a new test plugin
+---------------------------------
+
+The following is an example of steps to create a test plugin for a plugin service relying on
+the daemon type:
+
+  - Create test_<plugin name>.cc file under mysql/plugin/test_plugins deciding if threading
+    is needed or not.
+      - Put the test cases for plugin service to be tested in the init function (preferred) and
+        the clean up in the deinit function.
+      - Add new plugin to plugin.def to make it available to mtr.
+  - Create one or more MTR tests.
+      - MTR test loads plugin and execute the test cases.
+      - After uninstall of the plugin put the test results into the result file of the mtr test.
+      - Create a reference result file.
+

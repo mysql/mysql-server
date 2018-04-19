@@ -1,3 +1,9 @@
+CALL mtr.add_suppression("innodb_open_files should not be greater than the open_files_limit.");
+CALL mtr.add_suppression("You must raise the value of innodb_open_files in my.cnf! Remember that InnoDB keeps all");
+CALL mtr.add_suppression("log files and all system tablespace files open for the whole time mysqld is running, and");
+CALL mtr.add_suppression("needs to open also some .ibd files if the file-per-table storage model is used. Current open files .*, max allowed open files 1.");
+CALL mtr.add_suppression("Too many (.*) files stay open while the maximum allowed value would be 1. You may need to raise the value of innodb_open_files in my.cnf.");
+CALL mtr.add_suppression("Open files 7 exceeds the limit 1");
 '#________________________VAR_05_table_open_cache__________________#'
 echo '##'
 --echo '#---------------------WL6372_VAR_5_01----------------------#'
@@ -6,10 +12,10 @@ echo '##'
 ####################################################################
 SELECT COUNT(@@GLOBAL.table_open_cache)
 1 Expected
-SELECT IF(@@open_files_limit < 5000, 2000, @@GLOBAL.table_open_cache);
-IF(@@open_files_limit < 5000, 2000, @@GLOBAL.table_open_cache)
-2000
-2000 Expected
+SELECT IF(@@open_files_limit < 5000, 4000, @@GLOBAL.table_open_cache);
+IF(@@open_files_limit < 5000, 4000, @@GLOBAL.table_open_cache)
+4000
+4000 Expected
 '#---------------------WL6372_VAR_5_02----------------------#'
 # Restart server with table_open_cache 1
 SELECT @@GLOBAL.table_open_cache;
@@ -19,8 +25,8 @@ SELECT @@GLOBAL.table_open_cache;
 SET @@GLOBAL.table_open_cache=DEFAULT;
 SELECT @@GLOBAL.table_open_cache;
 @@GLOBAL.table_open_cache
-2000
-2000 Expected
+4000
+4000 Expected
 '#---------------------WL6372_VAR_5_03----------------------#'
 SET @@local.table_open_cache=1;
 ERROR HY000: Variable 'table_open_cache' is a GLOBAL variable and should be set with SET GLOBAL
@@ -32,11 +38,11 @@ SET @@GLOBAL.table_open_cache=1;
 SET @@GLOBAL.table_open_cache=DEFAULT;
 SELECT @@GLOBAL.table_open_cache;
 @@GLOBAL.table_open_cache
-2000
-2000 Expected
+4000
+4000 Expected
 '#---------------------WL6372_VAR_5_04----------------------#'
 SELECT @@GLOBAL.table_open_cache = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='table_open_cache';
 @@GLOBAL.table_open_cache = VARIABLE_VALUE
 1
@@ -46,7 +52,7 @@ COUNT(@@GLOBAL.table_open_cache)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='table_open_cache';
 COUNT(VARIABLE_VALUE)
 1
@@ -122,10 +128,10 @@ select 1 from tab1;
 select 1 from tab2;
 1
 1 Expected
-set @opened_tables = (select variable_value from information_schema.session_status where variable_name ='Opened_tables');
-set @open_cache_hits = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits');
-set @open_cache_miss = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses');
-set @open_cache_overflow = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows');
+set @opened_tables = (select variable_value from performance_schema.session_status where variable_name ='Opened_tables');
+set @open_cache_hits = (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_hits');
+set @open_cache_miss = (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_misses');
+set @open_cache_overflow = (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_overflows');
 # table_open_cache hit 1
 select 1 from tab1;
 1
@@ -135,123 +141,123 @@ select 1 from tab1;
 select 1 from tab2;
 1
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables;
-(select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables
-1
+select (select variable_value from performance_schema.session_status where variable_name ='Opened_tables') = @opened_tables;
+(select variable_value from performance_schema.session_status where variable_name ='Opened_tables') = @opened_tables
+0
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 2;
-(select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 2
-1
+select (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 2;
+(select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 2
+0
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss;
-(select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss
-1
+select (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss;
+(select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss
+0
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow;
-(select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow
-1
+select (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow;
+(select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow
+0
 1 Expected
 # open third table
 select 1 from tab3;
 1
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables + 1;
-(select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables + 1
-1
+select (select variable_value from performance_schema.session_status where variable_name ='Opened_tables') = @opened_tables + 1;
+(select variable_value from performance_schema.session_status where variable_name ='Opened_tables') = @opened_tables + 1
+0
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 2;
-(select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 2
-1
+select (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 2;
+(select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 2
+0
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss + 1;
-(select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss + 1
-1
+select (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss + 1;
+(select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss + 1
+0
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow + 1;
-(select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow + 1
-1
+select (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow + 1;
+(select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow + 1
+0
 1 Expected
 flush status;
-set @global_opened_tables = (select variable_value from information_schema.global_status where variable_name ='Opened_tables');
-set @global_open_cache_hits = (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_hits');
-set @global_open_cache_miss = (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_misses');
-set @global_open_cache_overflow = (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_overflows');
+set @global_opened_tables = (select variable_value from performance_schema.global_status where variable_name ='Opened_tables');
+set @global_open_cache_hits = (select variable_value from performance_schema.global_status where variable_name ='Table_open_cache_hits');
+set @global_open_cache_miss = (select variable_value from performance_schema.global_status where variable_name ='Table_open_cache_misses');
+set @global_open_cache_overflow = (select variable_value from performance_schema.global_status where variable_name ='Table_open_cache_overflows');
 # opening table 2 from another client session
-set @opened_tables = (select variable_value from information_schema.session_status where variable_name ='Opened_tables');
-set @open_cache_hits = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits');
-set @open_cache_miss = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses');
-set @open_cache_overflow = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows');
+set @opened_tables = (select variable_value from performance_schema.session_status where variable_name ='Opened_tables');
+set @open_cache_hits = (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_hits');
+set @open_cache_miss = (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_misses');
+set @open_cache_overflow = (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_overflows');
 select 1 from tab2;
 1
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables;
-(select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables
-1
+select (select variable_value from performance_schema.session_status where variable_name ='Opened_tables') = @opened_tables;
+(select variable_value from performance_schema.session_status where variable_name ='Opened_tables') = @opened_tables
+0
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 1;
-(select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 1
-1
+select (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 1;
+(select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 1
+0
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss;
-(select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss
-1
+select (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss;
+(select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss
+0
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow;
-(select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow
-1
+select (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow;
+(select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow
+0
 1 Expected
 flush status;
-select (select variable_value from information_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables;
-(select variable_value from information_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables
-1
+select (select variable_value from performance_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables;
+(select variable_value from performance_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables
+0
 1 Expected
-select (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_hits') = @global_open_cache_hits + 1;
-(select variable_value from information_schema.global_status where variable_name ='Table_open_cache_hits') = @global_open_cache_hits + 1
-1
+select (select variable_value from performance_schema.global_status where variable_name ='Table_open_cache_hits') = @global_open_cache_hits + 1;
+(select variable_value from performance_schema.global_status where variable_name ='Table_open_cache_hits') = @global_open_cache_hits + 1
+0
 1 Expected
-select (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_misses') = @global_open_cache_miss;
-(select variable_value from information_schema.global_status where variable_name ='Table_open_cache_misses') = @global_open_cache_miss
-1
+select (select variable_value from performance_schema.global_status where variable_name ='Table_open_cache_misses') = @global_open_cache_miss;
+(select variable_value from performance_schema.global_status where variable_name ='Table_open_cache_misses') = @global_open_cache_miss
+0
 1 Expected
-select (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_overflows') = @global_open_cache_overflow;
-(select variable_value from information_schema.global_status where variable_name ='Table_open_cache_overflows') = @global_open_cache_overflow
-1
+select (select variable_value from performance_schema.global_status where variable_name ='Table_open_cache_overflows') = @global_open_cache_overflow;
+(select variable_value from performance_schema.global_status where variable_name ='Table_open_cache_overflows') = @global_open_cache_overflow
+0
 1 Expected
 select 1 from tab1;
 1
 1
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables + 1;
-(select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables + 1
+select (select variable_value from performance_schema.session_status where variable_name ='Opened_tables') = @opened_tables + 1;
+(select variable_value from performance_schema.session_status where variable_name ='Opened_tables') = @opened_tables + 1
 1
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits;
-(select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits
+select (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits;
+(select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits
 1
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss + 1;
-(select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss + 1
+select (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss + 1;
+(select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss + 1
 1
 1 Expected
-select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow + 1;
-(select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow + 1
+select (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow + 1;
+(select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow + 1
 1
 flush status;
-select (select variable_value from information_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables + 1;
-(select variable_value from information_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables + 1
-1
+select (select variable_value from performance_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables + 1;
+(select variable_value from performance_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables + 1
+0
 1 Expected
-select (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_hits') = @global_open_cache_hits + 1;
-(select variable_value from information_schema.global_status where variable_name ='Table_open_cache_hits') = @global_open_cache_hits + 1
-1
+select (select variable_value from performance_schema.global_status where variable_name ='Table_open_cache_hits') = @global_open_cache_hits + 1;
+(select variable_value from performance_schema.global_status where variable_name ='Table_open_cache_hits') = @global_open_cache_hits + 1
+0
 1 Expected
-select (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_misses') = @global_open_cache_miss + 1;
-(select variable_value from information_schema.global_status where variable_name ='Table_open_cache_misses') = @global_open_cache_miss + 1
-1
+select (select variable_value from performance_schema.global_status where variable_name ='Table_open_cache_misses') = @global_open_cache_miss + 1;
+(select variable_value from performance_schema.global_status where variable_name ='Table_open_cache_misses') = @global_open_cache_miss + 1
+0
 1 Expected
-select (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_overflows') = @global_open_cache_overflow + 1;
-(select variable_value from information_schema.global_status where variable_name ='Table_open_cache_overflows') = @global_open_cache_overflow + 1
-1
+select (select variable_value from performance_schema.global_status where variable_name ='Table_open_cache_overflows') = @global_open_cache_overflow + 1;
+(select variable_value from performance_schema.global_status where variable_name ='Table_open_cache_overflows') = @global_open_cache_overflow + 1
+0
 1 Expected
 #cleanup
 DROP TABLE IF EXISTS tab1;

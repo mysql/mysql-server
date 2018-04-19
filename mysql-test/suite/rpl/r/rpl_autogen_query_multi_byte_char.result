@@ -1,0 +1,34 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+set names latin1;
+Test case 1:- table name with one character latin name.
+SET @s:=CONCAT("CREATE TABLE `",REPEAT(CHAR(131),1),"` (a INT)");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+SET @s:=CONCAT("INSERT INTO `",REPEAT(CHAR(131),1),"` VALUES (1)");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+SET @s:=CONCAT("DROP TABLE `",REPEAT(CHAR(131),1), "`");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+set names latin1;
+Test case 2:- table name and database names with one character latin name.
+SET @s:=CONCAT("CREATE DATABASE `",REPEAT(CHAR(131),1),"`");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+SET @s:=CONCAT("CREATE TABLE `",REPEAT(CHAR(131),1),"`.`",REPEAT(CHAR(131),1),"` (a INT)");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+SET @s:=CONCAT("INSERT INTO `",REPEAT(CHAR(131),1),"`.`",REPEAT(CHAR(131),1),"` VALUES (1)");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+SET @s:=CONCAT("DROP TABLE `",REPEAT(CHAR(131),1),"`.`",REPEAT(CHAR(131),1), "`");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+SET @s:=CONCAT("DROP DATABASE `",REPEAT(CHAR(131),1),"`");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+include/rpl_end.inc

@@ -1,0 +1,48 @@
+--source include/have_example_component.inc
+--source include/no_valgrind_without_big.inc
+--source include/mysql_upgrade_preparation.inc
+
+--echo #
+--echo # Bug #24453571  SERVER CRASHES WHEN INSTALL COMPONENT IS ISSUED,
+--echo # AFTER MYSQL_UPGRADE
+--echo #
+
+--echo # Checking MYSQL_UPGRADE creates the missing mysql.component table
+--echo # when upgrading from 5.7. Simulating the senario by deleting the
+--echo # component table.
+
+CALL mtr.add_suppression("Table 'mysql.component' doesn't exis");
+CALL mtr.add_suppression("The mysql.component table is missing or has an incorrect definition.");
+# Basic test that we can run mysql_upgrde and that it finds the expected
+# binaries it uses.
+--echo Run mysql_upgrade once
+# Filter out ndb_binlog_index to mask differences due to running with or without
+# ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+# It should have created a file in the MySQL Servers datadir
+let $MYSQLD_DATADIR= `select @@datadir`;
+file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
+
+--echo # Dropping component table.
+DROP TABLE mysql.component;
+--echo # shutdown the server from mtr.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # restart the server.
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--echo # running mysql_upgrade
+# Filter out ndb_binlog_index to mask differences due to running with or without
+# ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--source include/have_example_component.inc
+INSTALL COMPONENT "file://component_example_component1";
+--echo # a component should present
+SELECT COUNT(*) FROM mysql.component;
+UNINSTALL COMPONENT "file://component_example_component1";

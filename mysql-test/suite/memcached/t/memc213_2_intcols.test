@@ -1,16 +1,15 @@
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
 source include/not_windows.inc;
-source include/have_innodb.inc;
 
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
-CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
 --enable_query_log
 
 --enable_connect_log
-SET @tx_isolation= @@global.tx_isolation;
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 # Create the memcached tables
@@ -26,10 +25,12 @@ INSERT INTO config_options VALUES("separator", "|");
 # describe table for memcache
 INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 			       "c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
-
+INSERT INTO containers VALUES ("int_test", "test", "int_test",
+			       "k", "v",  "", "", "", "PRIMARY");
 USE test;
 
 --disable_warnings
+DROP TABLE IF EXISTS int_test;
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 CREATE TABLE t1        (c1 VARCHAR(32),
@@ -37,6 +38,9 @@ CREATE TABLE t1        (c1 VARCHAR(32),
 			c21 VARCHAR(1024),
 			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
+
+CREATE TABLE int_test  (k varchar(32),
+			v int unsigned NOT NULL, PRIMARY KEY (k)) ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES ('D', 1, 'City', 0, 0, 0);
 INSERT INTO t1 VALUES ('B', 2, 'Mitte', 0, 0, 0);
@@ -425,7 +429,32 @@ EOF
 DROP TABLE t1;
 SET sql_mode=default;
 
+--echo #
+--echo # Bug#20535517	INCORRECT HANDLING OF UNSIGNED NOT NULL INTEGERS IN INNODB_MEMCACHED
+--echo #
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11213" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+
+$memd->get('@@int_test');
+$memd->set("E","543");
+
+print "Here the memcached results with E:\n";
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+SELECT * FROM int_test;
+DROP TABLE int_test;
+
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
 
-SET @@global.tx_isolation= @tx_isolation;
+SET @@global.transaction_isolation= @transaction_isolation;

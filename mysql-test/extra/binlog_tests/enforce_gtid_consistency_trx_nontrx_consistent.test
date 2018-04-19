@@ -12,7 +12,7 @@ CREATE TABLE innodb (a INT) ENGINE = InnoDB;
 # non-transactional updates are mixed that it violates
 # GTID-consistency).
 
-# if gtid_next=GTID, it generates ER_GTID_NEXT_TYPE_UNDEFINED_GROUP.
+# if gtid_next=GTID, it generates ER_GTID_NEXT_TYPE_UNDEFINED_GTID.
 if ($gtid_next != 'GTID')
 {
   --echo ---- MyISAM followed by MyISAM, in one 'trx' ----
@@ -28,7 +28,7 @@ CREATE TRIGGER trig BEFORE INSERT ON myisam1 FOR EACH ROW INSERT INTO myisam2 VA
 --source extra/binlog_tests/enforce_gtid_consistency_statement.inc
 DROP TRIGGER trig;
 
-# if gtid_next=GTID, it generates ER_GTID_NEXT_TYPE_UNDEFINED_GROUP.
+# if gtid_next=GTID, it generates ER_GTID_NEXT_TYPE_UNDEFINED_GTID.
 if ($gtid_next != 'GTID')
 {
   # As a special case, when MyISAM precedes InnoDB in a transaction, the
@@ -41,7 +41,7 @@ if ($gtid_next != 'GTID')
   --source extra/binlog_tests/enforce_gtid_consistency_statement.inc
 }
 
-# When InnoDB is mixed with *temporary* MyISAM and binlog_format=row,
+# When InnoDB is mixed with *temporary* MyISAM and binlog_format='row',
 # or binlog_format=mixed and it logs in row format, it is
 # GTID-consistent since DML on temporary tables is not logged at all
 # in row format.
@@ -77,16 +77,16 @@ CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
 
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
 
---echo ---- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+--echo ---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 --let $pre_statement= BEGIN; INSERT INTO innodb VALUES (1)
 --let $statement= INSERT INTO tmp_myisam1 VALUES (1)
 --source extra/binlog_tests/enforce_gtid_consistency_statement.inc
 
---echo ---- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+--echo ---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 --eval CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END
 --let $statement= INSERT INTO innodb VALUES (1)
 --source extra/binlog_tests/enforce_gtid_consistency_statement.inc
@@ -94,7 +94,7 @@ DROP TRIGGER trig;
 
 # Drop temp tables and recreate them after SET BINLOG_FORMAT, since
 # it's not allowed to have temp tables open when switching from
-# binlog_format=row to statement.
+# binlog_format='row' to statement.
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
 
 --replace_regex /'[A-Z]*'/#/

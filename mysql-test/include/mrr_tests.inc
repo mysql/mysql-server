@@ -1,5 +1,5 @@
 
-create table t1(a int);
+create table t1(a int) charset utf8mb4;
 show create table t1;
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2(a int);
@@ -77,7 +77,7 @@ select b,filler from t3 where (b>='c-1011=w' and b<= 'c-1018=w') or
 # Now try different keypart types and special values
 #
 create table t4 (a varchar(10), b int, c char(10), filler char(200),
-                 key idx1 (a, b, c));
+                 key idx1 (a, b, c)) charset utf8mb4;
 
 # insert buffer_size * 1.5 all-NULL tuples
 insert into t4 (filler) select concat('NULL-', 15-a) from t2 order by a limit 15;
@@ -179,7 +179,7 @@ ANALYZE TABLE t2;
 -- enable_result_log
 -- enable_query_log
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT MIN(t1.pk)
 FROM t1 WHERE EXISTS (
  SELECT t2.pk
@@ -238,7 +238,7 @@ set read_rnd_buffer_size=64;
 # replaced by using the table's read_set bitmap.
 create table t1(a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
-create table t2(a char(8), b char(8), c char(8), filler char(100), key k1(a,b,c) );
+create table t2(a char(8), b char(8), c char(8), filler char(100), key k1(a,b,c) ) charset utf8mb4;
 
 insert into t2 select 
   concat('a-', 1000 + A.a, '-a'),
@@ -255,8 +255,6 @@ select count(length(a) + length(filler))
 from t2 force index (k1)
 where a>='a-1000-a' and a <'a-1001-a';
 
-# The expected rows differs a bit with different page sizes
---replace_result 98 ROWS 99 ROWS
 eval EXPLAIN $query;
 eval $query;
 
@@ -264,7 +262,7 @@ drop table t2;
 
 # Try a very big rowid
 create table t2 (a char(100), b char(100), c char(100), d int, 
-                 filler char(10), key(d), primary key (a,b,c));
+                 filler char(10), key(d), primary key (a,b,c)) charset latin1;
 insert into t2 select A.a, B.a, B.a, A.a, 'filler' from t1 A, t1 B;
 -- disable_query_log
 -- disable_result_log
@@ -522,7 +520,7 @@ CREATE TABLE t1 (
   i1 INTEGER NOT NULL,
   c1 VARCHAR(10) NOT NULL,
   PRIMARY KEY (pk)
-);
+) charset latin1;
 
 INSERT INTO t1
   SELECT a, 1, 'MySQL' FROM ten;
@@ -532,7 +530,7 @@ CREATE TABLE t2 (
   c1 VARCHAR(10) NOT NULL,
   c2 varchar(10) NOT NULL,
   PRIMARY KEY (pk)
-);
+) charset latin1;
 
 INSERT INTO t2
   SELECT a, 'MySQL', 'MySQL' FROM ten;
@@ -541,7 +539,7 @@ CREATE TABLE t3 (
   pk INTEGER NOT NULL,
   c1 VARCHAR(10) NOT NULL,
   PRIMARY KEY (pk)
-);
+) charset latin1;
 
 INSERT INTO t3
   SELECT a, 'MySQL' FROM ten;
@@ -553,7 +551,7 @@ CREATE TABLE t4 (
   c3 varchar(10) NOT NULL,
   PRIMARY KEY (pk),
   KEY k1 (c1_key)
-);
+) charset latin1;
 
 # t4 is empty
 
@@ -561,7 +559,7 @@ CREATE TABLE t5 (
   pk INTEGER NOT NULL,
   c1 VARCHAR(10) NOT NULL,
   PRIMARY KEY (pk)
-);
+) charset latin1;
 
 INSERT INTO t5
   SELECT a, 'MySQL' FROM ten;
@@ -606,7 +604,7 @@ SELECT @@big_tables;
 CREATE TABLE t1 (
   i1 INTEGER NOT NULL,
   c1 VARCHAR(1)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (1,'a'), (2, NULL);
 
@@ -614,7 +612,7 @@ CREATE TABLE t2 (
   c1 VARCHAR(1),
   i1 INTEGER NOT NULL,
   KEY (c1)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES ('a', 1), (NULL, 2);
 

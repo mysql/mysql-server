@@ -1,0 +1,73 @@
+# ==== Purpose ====
+#
+# Test the behavior of mysql server replication with the transaction boundary
+# parser.
+#
+# This test will insert data in the master while the slave will have some debug
+# sync points activated to stop the IO thread in the middle of the transaction
+# what will cause the transactions to be spanned along distinct relay log files.
+#
+# As the GTID auto positioning protocol will retrieved the partial transactions
+# from the beginning, we repeat the test again disabling GTID auto positioning.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#17943188: SHOW SLAVE STATUS/RETRIEVED_GTID_SET MAY HAVE PARTIAL TRX OR
+#               MISS COMPLETE TRX
+#
+
+# This test should run only on debug build
+--source include/have_debug.inc
+# This test uses debug sync to stop the IO thread in the middle of a transaction
+--source include/have_debug_sync.inc
+
+--source include/have_myisam.inc
+
+--let $rpl_gtid_utils= 1
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+--echo # Using MyISAM storage engine
+--let $storage_engine= MyISAM
+--source extra/rpl_tests/rpl_trx_boundary_parser.inc
+
+--echo # Using InnoDB storage engine
+--let $storage_engine= InnoDB
+--source extra/rpl_tests/rpl_trx_boundary_parser.inc
+
+#
+# As we are going to use GTID related checks for the IO thread after
+# a CHANGE MASTER, we will first reset both slave and master to avoid
+# problems with the gtid related mtr includes.
+#
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+RESET MASTER;
+RESET SLAVE;
+--source include/rpl_connection_master.inc
+RESET MASTER;
+
+#
+# Disabling slave's auto positioning
+#
+--source include/rpl_connection_slave.inc
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+--source include/start_slave.inc
+
+--echo # Using MyISAM storage engine without auto positioning
+--let $storage_engine= MyISAM
+--source extra/rpl_tests/rpl_trx_boundary_parser.inc
+
+--echo # Using InnoDB storage engine without auto positioning
+--let $storage_engine= InnoDB
+--source extra/rpl_tests/rpl_trx_boundary_parser.inc
+
+#
+# Enabling slave's auto positioning again
+#
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

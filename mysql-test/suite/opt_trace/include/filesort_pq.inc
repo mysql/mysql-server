@@ -1,11 +1,8 @@
 --source include/have_optimizer_trace.inc
 --source include/have_64bit.inc
 
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
-            + $VIEW_PROTOCOL > 0`)
-{
-   --skip Need normal protocol
-}
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
 SET optimizer_trace_max_mem_size=1048576; # 1MB
 SET end_markers_in_json=off;
@@ -17,7 +14,8 @@ SET optimizer_trace="enabled=on,one_line=off";
 --echo #
 
 
-CREATE TABLE t1(f0 int auto_increment primary key, f1 int, f2 varchar(200));
+CREATE TABLE t1(f0 int auto_increment primary key, f1 int, f2 varchar(200))
+charset latin1;
 INSERT INTO t1(f1, f2) VALUES 
 (0,"0"),(1,"1"),(2,"2"),(3,"3"),(4,"4"),(5,"5"),
 (6,"6"),(7,"7"),(8,"8"),(9,"9"),(10,"10"),
@@ -134,7 +132,7 @@ set sort_buffer_size= 327680;
 set optimizer_trace_limit=1;
 set optimizer_trace_offset=-1;
 
-CREATE TEMPORARY TABLE tmp (f1 int, f2 varchar(20));
+CREATE TEMPORARY TABLE tmp (f1 int, f2 varchar(20)) charset latin1;
 INSERT INTO tmp SELECT f1, f2 FROM t1;
 INSERT INTO t1(f1, f2) SELECT * FROM tmp;
 INSERT INTO tmp SELECT f1, f2 FROM t1;
@@ -229,7 +227,7 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 ################
 ## Test stripping additional fields
-CREATE TEMPORARY TABLE tmp (f1 int, f2 varchar(20));
+CREATE TEMPORARY TABLE tmp (f1 int, f2 varchar(20) charset latin1);
 INSERT INTO tmp SELECT f1,f2 FROM t1;
 INSERT INTO t1(f1,f2) SELECT * FROM tmp;
 INSERT INTO tmp SELECT f1,f2 FROM t1;
@@ -248,7 +246,7 @@ INSERT INTO t1(f1,f2) SELECT * FROM tmp;
 
 # Test when only sortkeys fits to memory
 set sort_buffer_size= 32768; 
-SELECT * FROM t1 ORDER BY f2 LIMIT 100;
+SELECT * FROM t1 ORDER BY f2,f0 LIMIT 100;
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 DROP TABLE t1, tmp;
@@ -256,3 +254,33 @@ DROP VIEW v1, v2;
 
 --echo # end of WL#1393 - Optimizing filesort with small limit
 --echo # end of WL#5834 - Add optimizer traces for sorting
+
+--echo # WL#8741 Varlen keys for sorting JSON values
+
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, j JSON);
+
+INSERT INTO t(j) VALUES
+(NULL), ('true'), ('false'),
+('"abc"'), ('""'), ('"abcd"'), ('"bc"'),
+('"abc\\u0000\\u0000"'),
+('"abc\\u0000"'),
+('0.0'), ('-0.0'), ('9223372036854776000'),
+('1.0e-1'), ('1.0e-2')
+;
+
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id;
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id;
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id;
+SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id
+limit 2 offset 2;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+DROP TABLE t;
+
+--echo # --end of WL#8741 Varlen keys for sorting JSON values

@@ -26,7 +26,7 @@ SELECT @@global.innodb_log_compressed_pages;
 1
 '#---------------------BS_STVARS_028_03----------------------#'
 SELECT IF(@@GLOBAL.innodb_log_compressed_pages,'ON','OFF') = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_log_compressed_pages';
 IF(@@GLOBAL.innodb_log_compressed_pages,'ON','OFF') = VARIABLE_VALUE
 1
@@ -36,7 +36,7 @@ COUNT(@@GLOBAL.innodb_log_compressed_pages)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_log_compressed_pages';
 COUNT(VARIABLE_VALUE)
 1

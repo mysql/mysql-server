@@ -9,7 +9,6 @@ select count(*) from performance_schema.setup_consumers;
 # idle/io/socket is a native instrument
 # wait/lock/metadata is a native instrument
 select count(*) > 4 from performance_schema.setup_instruments;
-select count(*) from performance_schema.setup_timers;
 
 # Make sure we don't crash, no matter what the starting parameters are
 
@@ -25,6 +24,8 @@ select * from performance_schema.events_stages_summary_by_thread_by_event_name;
 select * from performance_schema.events_stages_summary_by_user_by_event_name;
 select * from performance_schema.events_stages_summary_global_by_event_name;
 select * from performance_schema.events_statements_current;
+select * from performance_schema.events_statements_histogram_by_digest;
+select * from performance_schema.events_statements_histogram_global;
 select * from performance_schema.events_statements_history;
 select * from performance_schema.events_statements_history_long;
 select * from performance_schema.events_statements_summary_by_account_by_event_name;
@@ -55,6 +56,11 @@ select * from performance_schema.memory_summary_by_host_by_event_name;
 select * from performance_schema.memory_summary_by_thread_by_event_name;
 select * from performance_schema.memory_summary_by_user_by_event_name;
 select * from performance_schema.memory_summary_global_by_event_name;
+select * from performance_schema.events_errors_summary_by_account_by_error;
+select * from performance_schema.events_errors_summary_by_host_by_error;
+select * from performance_schema.events_errors_summary_by_thread_by_error;
+select * from performance_schema.events_errors_summary_by_user_by_error;
+select * from performance_schema.events_errors_summary_global_by_error;
 select * from performance_schema.file_instances;
 select * from performance_schema.file_summary_by_event_name;
 select * from performance_schema.file_summary_by_instance;
@@ -70,13 +76,15 @@ select * from performance_schema.mutex_instances;
 select * from performance_schema.objects_summary_global_by_type;
 select * from performance_schema.performance_timers;
 select * from performance_schema.rwlock_instances;
+select * from performance_schema.data_locks;
+select * from performance_schema.data_lock_waits;
 select * from performance_schema.session_account_connect_attrs;
 select * from performance_schema.session_connect_attrs;
 select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
-select * from performance_schema.setup_timers;
+select * from performance_schema.setup_threads;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
 select * from performance_schema.socket_summary_by_event_name;
@@ -102,9 +110,6 @@ select * from performance_schema.global_variables;
 select * from performance_schema.variables_by_thread;
 select * from performance_schema.session_variables;
 --enable_result_log
-
-# This has a stable output, printing the result:
-show global variables like "performance_schema%";
 
 # This has an unrepeatable output, it does depends too much on
 # - the platform hardware (sizeof structures, padding)

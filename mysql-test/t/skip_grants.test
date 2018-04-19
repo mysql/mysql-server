@@ -1,7 +1,3 @@
-
-# This tests not performed with embedded server
--- source include/not_embedded.inc
-
 use test;
 
 #
@@ -125,11 +121,11 @@ select count(*) from information_schema.TABLE_PRIVILEGES;
 select count(*) from information_schema.USER_PRIVILEGES;
 --echo End of 5.0 tests
 
---echo #
---echo # Bug#29817 Queries with UDF fail with non-descriptive error
---echo # if mysql.proc is missing
---echo #
---error ER_SP_DOES_NOT_EXIST
-select no_such_function(1);
+#
+# Bug #89457: SET PERSIST_ONLY ignore skip-grant-tables
+#
 
---echo End of 5.1 tests
+SET PERSIST max_connections = 18;
+SET PERSIST_ONLY max_connections = 18;
+## set to default
+SET GLOBAL max_connections = DEFAULT;

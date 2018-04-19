@@ -1,0 +1,140 @@
+include/master-slave.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Slave I/O thread .* register on master");
+call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
+CALL mtr.add_suppression(".*master and slave have equal MySQL server UUIDs.*");
+CALL mtr.add_suppression("Master's UUID has changed, although this should not happen unless you have changed it manually");
+CALL mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master failed with error: Lost connection to MySQL server during query");
+CALL mtr.add_suppression("Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error");
+CALL mtr.add_suppression("A slave with the same server_uuid/server_id as this slave has connected to the master");
+SET @@GLOBAL.LOG_ERROR_VERBOSITY= 3;
+include/sync_slave_sql_with_master.inc
+
+# Case 1:
+# Master's UUID appears in the result of 'SHOW SLAVE STATUS'.
+# Slave's UUID appears in the result of 'SHOW SLAVE HOSTS'.
+-----------------------------------------------------------------------------
+include/assert.inc ["Slave's SHOW SLAVE HOST should contain the correct value for master's server_uuid]
+include/assert.inc [Master's SHOW SLAVE HOSTS should contain the correct value for slave's server_uuid]
+
+# Case 2: 
+# After executing 'STOP SLAVE [IO_THREAD|SQL_THREAD]' successfully, Master's UUID
+# is still kept into Slave status.
+-----------------------------------------------------------------------------
+include/stop_slave_io.inc
+include/check_slave_param.inc [Slave_IO_Running]
+include/stop_slave_sql.inc
+include/check_slave_param.inc [Slave_SQL_Running]
+include/start_slave.inc
+include/stop_slave.inc
+include/check_slave_param.inc [Slave_IO_Running]
+
+# Case 3:
+# Slave generates an error and aborts, if master's UUID is
+# equal to slave's UUID unless --replicate-same-server-id
+# option is set.
+-----------------------------------------------------------------------------
+include/rpl_restart_server.inc [server_number=1]
+START SLAVE IO_THREAD;
+include/wait_for_slave_io_error.inc [errno=13117]
+include/rpl_restart_server.inc [server_number=1]
+
+# server_3 is running with --replicate-same-server-id option 
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
+MASTER_PORT= MASTER_PORT,
+MASTER_USER= 'root',
+MASTER_LOG_FILE='master-bin.000001';
+Warnings:
+Warning	####	CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+include/check_slave_no_error.inc
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1]
+
+# Case 4:
+# When executing 'CHANGE MASTER ...', master's UUID and server_id will be
+# cleared if master_host or/and master_port are changed.
+# Master's UUID and server_id will not be cleared if both master_port
+# and master_host are not changed.
+-----------------------------------------------------------------------------
+START SLAVE IO_THREAD;
+include/wait_for_slave_param.inc [Master_UUID]
+include/stop_slave.inc
+
+# Only change MASTER_PORT
+CHANGE MASTER TO MASTER_PORT= 1111;
+include/check_slave_param.inc [Master_UUID]
+include/check_slave_param.inc [Master_Server_Id]
+CHANGE MASTER TO MASTER_PORT= MASTER_PORT,
+MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+START SLAVE IO_THREAD;
+include/wait_for_slave_param.inc [Master_UUID]
+
+# Only change MASTER_HOST
+STOP SLAVE IO_THREAD;
+include/wait_for_slave_io_to_stop.inc
+CHANGE MASTER TO MASTER_HOST= 'localhost';
+include/check_slave_param.inc [Master_UUID]
+include/check_slave_param.inc [Master_Server_Id]
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
+MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+START SLAVE IO_THREAD;
+include/wait_for_slave_param.inc [Master_UUID]
+
+# Both MASTER_HOST and MASTER_PORT are changed
+STOP SLAVE IO_THREAD;
+include/wait_for_slave_io_to_stop.inc
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= 1111;
+include/check_slave_param.inc [Master_UUID]
+include/check_slave_param.inc [Master_Server_Id]
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT,
+MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+START SLAVE IO_THREAD;
+include/wait_for_slave_param.inc [Master_UUID]
+
+# Both MASTER_HOST and MASTER_PORT are NOT changed
+STOP SLAVE IO_THREAD;
+include/wait_for_slave_io_to_stop.inc
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT;
+include/check_slave_param.inc [Slave_IO_Running]
+CHANGE MASTER TO 
+MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+include/check_slave_param.inc [Slave_IO_Running]
+
+# Case 5:
+# After executing 'RESET SLAVE' successfully, Master's UUID is still kept 
+# into Slave status.
+-----------------------------------------------------------------------------
+RESET SLAVE;
+include/check_slave_param.inc [Slave_IO_Running]
+CHANGE MASTER TO 
+MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+include/start_slave.inc
+
+# Case 6:
+# In an existing master-slave replication forum (M->S1), if another
+# slave (S2) with the same UUID as S1 joins the forum and connects
+# to Master(M), the master will throw an error to the first slave
+# connection that will not try to reconnect.
+-----------------------------------------------------------------------------
+include/rpl_restart_server.inc [server_number=3]
+[connection server_2]
+include/wait_for_slave_io_error.inc [errno=13114]
+include/assert_grep.inc [Found the expected line in master's error log for server 2 disconnection]
+include/start_slave_io.inc
+[connection server_3]
+include/wait_for_slave_io_error.inc [errno=13114]
+include/assert_grep.inc [Found the expected line in master's error log for server 3 disconnection]
+include/assert_grep.inc [Found the expected line in server 2 error log]
+include/assert_grep.inc [Found the expected line in server 3 error log]
+include/rpl_restart_server.inc [server_number=3]
+include/stop_slave.inc
+[connection master]
+SET @@GLOBAL.log_error_verbosity= OLD_LOG_ERROR_VERBOSITY;
+include/rpl_end.inc

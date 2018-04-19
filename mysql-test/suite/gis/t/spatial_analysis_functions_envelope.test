@@ -10,7 +10,6 @@
 #                                                                                 #
 ###################################################################################
 
---source include/have_geometry.inc
 
 ############################################################################################
 # Creating the spatial objects                                                             #
@@ -19,7 +18,7 @@
 --echo # Creating the spatial Geometry object
 USE test;
 
-CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 
 ############################################################################################
 # Inserting the values specific to the spatial objects                                     #
@@ -131,6 +130,7 @@ SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star_lines_near_horizontal)));
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')));
 
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')));
@@ -149,13 +149,13 @@ SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star)));
 
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star_elem_vertical)));
 
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5))')));
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5, 0 0))')));
 
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))')));
 
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((10 10,10 0,0 20,0 10,10 10))')));
 
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')));
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10,0 0))')));
 
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')));
 
@@ -173,15 +173,15 @@ SELECT ST_ASTEXT(ST_ENVELOPE(g)) FROM gis_geometrycollection WHERE fid=100;
 
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star_of_elems)));
 
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5)))')));
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5, 0 0)))')));
 
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')));
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0,0 10)),((0 0,10 10,10 0,0 0)))')));
 
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')));
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,0 0)),((10 10,10 15,15 15,10 10)))')));
 
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))')));
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4,4 4)))')));
 
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))')));
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))')));
 
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')));
 
@@ -194,7 +194,7 @@ SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((10 10,10 0,5 10,10 
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))')));
 
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),'
-                                                          '((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))')));
+                                                          '((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,4 4)))')));
 
 SELECT ST_ASTEXT(ST_ENVELOPE(g)) FROM gis_geometrycollection WHERE fid=103;
 
@@ -217,7 +217,7 @@ SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),MU
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')));
 
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
-                                                                'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
+                                                                'MULTILINESTRING((0 0,0 10,10 10,10 0,0 0),(10 10,10 15,15 15,10 10)))')));
 
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10))')));
 
@@ -226,32 +226,32 @@ SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),'
                                                                 'MULTIPOINT(0 0,10 10),'
                                                                 'LINESTRING(1 1,2 2,3 3),'
-                                                                'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
+                                                                'MULTILINESTRING((0 0,0 10,10 10,10 0,0 0),(10 10,10 15,15 15,10 10)))')));
 
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))')));
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0, 0 0)))')));
 
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))')));
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0, 0 0)))))')));
 
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),'
-                                                                'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))')));
-
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
-                                                                                   'MULTIPOINT(0 0,10 10)),'
-                                                                'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
-                                                                                   'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))')));
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                'MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0)),((10 10,10 15,15 15,15 10,10 10))))')));
 
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                                    'MULTIPOINT(0 0,10 10)),'
                                                                 'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
-                                                                                   'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),'
-                                                                'GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),'
-                                                                                   'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),'
+                                                                                   'MULTILINESTRING((0 0,0 10,10 10,10 0,0 0),(10 10,10 15,15 15,10 10))))')));
+
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                                   'MULTIPOINT(0 0,10 10)),'
+                                                                'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
+                                                                                   'MULTILINESTRING((0 0,0 10,10 10,10 0,0 0),(10 10,10 15,15 15,10 10))),'
+                                                                'GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                   'MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0)),'
                                                                                                 '((10 10,10 15,15 15,15 10,10 10)))))')));
 
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                                    'MULTIPOINT(0 0,10 10)),'
                                                                 'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
-                                                                                   'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),'
+                                                                                   'MULTILINESTRING((0 0,0 10,10 10,10 0,0 0),(10 10,10 15,15 15,10 10))),'
                                                                 'GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
 
 SELECT ST_ASTEXT(ST_ENVELOPE(g)) FROM gis_geometrycollection WHERE fid=115;
@@ -260,20 +260,26 @@ SELECT ST_ASTEXT(ST_ENVELOPE(g)) FROM gis_geometrycollection WHERE fid=115;
 --echo # ST_ENVELOPE(geometry) with different SRID values
 --echo #####################################################################################
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star_center,-1024)));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star_all_points,-1)));
 
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star_top_to_center,0)));
 
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star_lines_near_vertical,1000)));
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star_lines_near_vertical,2000)));
 
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star,123456789)));
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star,4326)));
 
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)));
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star_elem_vertical,4145)));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star_of_elems,4294967296)));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)));
 
 --echo #####################################################################################
@@ -345,11 +351,10 @@ SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0))')));
 --error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,5 5))')));
 
---error ER_GIS_INVALID_DATA
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,5 5,10 10))')));
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,5 5,10 10, 0 0))')));
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,10 10),(0 0))')));
+SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,10 10,0 0),(0 0))')));
 
 --error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5)),((10 10)))')));
@@ -383,3 +388,25 @@ SELECT ST_ASTEXT(ST_ENVELOPE(0x010400000002000000010100000000000000000000));
 
 --echo # Clean up
 DROP TABLE gis_geometrycollection;
+
+--echo #
+--echo # WL#8579 Spatial Reference Systems
+--echo #
+
+--echo # SRID 0 (should pass)
+DO ST_ENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 0));
+
+--echo # Projected SRS (should pass)
+DO ST_ENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
+
+--echo # Geographic SRS (should fail)
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
+DO ST_ENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_ENVELOPE(x'0A000000010100000000000000000000000000000000000000');

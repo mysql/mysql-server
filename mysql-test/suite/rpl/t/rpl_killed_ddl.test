@@ -26,10 +26,7 @@
 #
 # There are some part of the test are temporarily disabled because of
 # the following bugs, please enable then once they get fixed:
-#  - BUG#44041
-#  - BUG#43353
-#  - BUG#25705
-#  - BUG#44171
+#  - BUG#22473427
 
 # This test takes long time, so only run it with the --big-test mtr-flag.
 --source include/not_group_replication_plugin.inc
@@ -85,9 +82,9 @@ CREATE FUNCTION f1 () RETURNS INT DETERMINISTIC
     RETURN 1;
 
 DELIMITER //;
-CREATE PROCEDURE p1 (OUT rows INT)
+CREATE PROCEDURE p1 (OUT rownum INT)
     BEGIN
-        SELECT COUNT(*) INTO rows FROM t1;
+        SELECT COUNT(*) INTO rownum FROM t1;
     END;
     //
 DELIMITER ;//
@@ -148,11 +145,9 @@ let $rpl_diff_statement= SELECT schema_name FROM information_schema.schemata
 send CREATE DATABASE d2;
 source include/kill_query_and_diff_master_slave.inc;
 
-# Temporarily disabled, see BUG#44041, the ALTER DATABASE can affect the
-# collation of other database on slave
-#send ALTER DATABASE d1
-#       DEFAULT CHARACTER SET = 'utf8';
-#source include/kill_query_and_diff_master_slave.inc;
+send ALTER DATABASE d1
+       DEFAULT CHARACTER SET = 'utf8';
+source include/kill_query_and_diff_master_slave.inc;
 
 send DROP DATABASE d1;
 source include/kill_query_and_diff_master_slave.inc;
@@ -171,11 +166,9 @@ send CREATE EVENT e2
   DO INSERT INTO test.t1 VALUES (2);
 source include/kill_query_and_diff_master_slave.inc;
 
-# Temporarily disabled because of BUG#44171, killing ALTER EVENT can
-# crash the server
-#send ALTER EVENT e1
-#  ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 2 DAY;
-#source include/kill_query_and_diff_master_slave.inc;
+send ALTER EVENT e1
+  ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 2 DAY;
+source include/kill_query_and_diff_master_slave.inc;
 
 send DROP EVENT e1;
 source include/kill_query_and_diff_master_slave.inc;
@@ -201,25 +194,17 @@ source include/kill_query_and_diff_master_slave.inc;
 
 # function f2 probably does not exist because the CREATE query was
 # killed
-#
-# Temporarily disabled. Because of BUG#43353, KILL the query may
-# result in function not found, and for 5.1, DROP statements will be
-# logged if the function is not found on master, so the following DROP
-# FUNCTION statement may be interrupted and not drop the function on
-# master, but still get logged and executed on slave and cause
-# inconsistence. Also disable the following DROP PROCEDURE IF EXITS
-# below.
-#send DROP FUNCTION IF EXISTS f2;
-#source include/kill_query_and_diff_master_slave.inc;
+send DROP FUNCTION IF EXISTS f2;
+source include/kill_query_and_diff_master_slave.inc;
 
 ######## PROCEDURE ########
 
 --let $rpl_diff_statement= SHOW PROCEDURE STATUS LIKE \'p%\'
 
 DELIMITER //;
-send CREATE PROCEDURE p2 (OUT rows INT)
+send CREATE PROCEDURE p2 (OUT rownum INT)
      BEGIN
-       SELECT COUNT(*) INTO rows FROM t2;
+       SELECT COUNT(*) INTO rownum FROM t2;
      END;
      //
 DELIMITER ;//
@@ -231,9 +216,8 @@ source include/kill_query_and_diff_master_slave.inc;
 send DROP PROCEDURE p1;
 source include/kill_query_and_diff_master_slave.inc;
 
-# Temporarily disabled because of bug#43353, see comment above for DROP FUNCTION IF EXISTS
-#send DROP PROCEDURE IF EXISTS p2;
-#source include/kill_query_and_diff_master_slave.inc;
+send DROP PROCEDURE IF EXISTS p2;
+source include/kill_query_and_diff_master_slave.inc;
 
 ######## TABLE ########
 
@@ -261,9 +245,10 @@ source include/kill_query_and_diff_master_slave.inc;
 
 ######## SERVER ########
 
-# Tempoarily disabled, see bug#25705
+# Temporarily disabled, see Bug #22473427 - DROP SERVER FAILS
+# AFTER ALTER SERVER+KILL QUERY
 
-# --let $rpl_diff_statement= SELECT * FROM mysql.server WHERE name like \'s%\'
+# --let $rpl_diff_statement= SELECT * FROM mysql.servers WHERE Server_name like \'s%\'
 
 # send CREATE SERVER s2
 #     FOREIGN DATA WRAPPER mysql
@@ -355,6 +340,8 @@ DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 DROP TABLE IF EXISTS t3;
 DROP TABLE IF EXISTS t4;
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
 DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
 DROP PROCEDURE IF EXISTS p3;

@@ -1,17 +1,24 @@
-# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   return()
 endif()
@@ -43,8 +50,8 @@ if(HAVE_UNISTD_H)
       CHECK_SYMBOL_EXISTS("_SC_PHYS_PAGES" "unistd.h" HAVE__SC_PHYS_PAGES)
     endif(_A__SC_PAGESIZE)
     CHECK_SYMBOL_EXISTS("_SC_NPROCESSORS_CONF" "unistd.h" HAVE__SC_NPROCESSORS_CONF)
-  endif(HAVE_SYSCONF_SYMBOL)
-endif(HAVE_UNISTD_H)
+  endif()
+endif()
 
 if(HAVE_WINDOWS_H)
   LIST(APPEND CMAKE_REQUIRED_INCLUDES "Windows.h")
@@ -58,68 +65,27 @@ if(HAVE_WINDOWS_H)
   macro(CHECK_WIN_SOURCE_COMPILES_ code var)
     CHECK_C_SOURCE_COMPILES("#include <Windows.h>
 int main() { ${code}; return 0; }" ${var})
-  endmacro(CHECK_WIN_SOURCE_COMPILES_)
+  endmacro()
 
   if(HAVE_GLOBALMEMORYSTATUSEX_SYMBOL)
     CHECK_WIN_SOURCE_COMPILES_("GlobalMemoryStatusEx(NULL)" 
       HAVE_GLOBALMEMORYSTATUSEX)
-  endif(HAVE_GLOBALMEMORYSTATUSEX_SYMBOL)
+  endif()
 
   if(HAVE_GLOBALMEMORYSTATUS_SYMBOL)
     CHECK_WIN_SOURCE_COMPILES_("GlobalMemoryStatus(NULL)" 
       HAVE_GLOBALMEMORYSTATUS)
-  endif(HAVE_GLOBALMEMORYSTATUS_SYMBOL)
+  endif()
 
   if(HAVE_GETSYSTEMINFO_SYMBOL)
     CHECK_WIN_SOURCE_COMPILES_("GetSystemInfo(NULL)" HAVE_GETSYSTEMINFO)
-  endif(HAVE_GETSYSTEMINFO_SYMBOL)
-endif(HAVE_WINDOWS_H)
+  endif()
+endif()
 
 configure_file("config.h.cmake" "${CMAKE_CURRENT_BINARY_DIR}/host_info_config.h")
 include_directories(${CMAKE_CURRENT_BINARY_DIR}) 
 
-if(DEFAULT_MYSQL_HOME)
-  MYSQL_ADD_EXECUTABLE(host_info host_info.c
-    DESTINATION "${MCC_INSTALL_SUBDIR}/host_info/${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}"
-    COMPONENT ClusterTools)
-else()
-  # If not building as part of Cluster we don't have the
-  # MYSQL_ADD_EXECUTABLE macro available, so we just use the normal
-  # add_executable command...
-  add_executable(host_info host_info.c)
+MYSQL_ADD_EXECUTABLE(host_info host_info.cpp
+  DESTINATION "${MCC_INSTALL_SUBDIR}/host_info/${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}"
+  COMPONENT ClusterTools)
 
-  # ... and install the old way
-  # "Install" binary for this host into source tree
-  install(TARGETS host_info
-    DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/binaries/${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}")
-
-  # Install all binaries in source tree into install dir/package
-  install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/binaries" 
-    DESTINATION "${MCC_INSTALL_SUBDIR}/host_info"
-    USE_SOURCE_PERMISSIONS)
-endif()
-
-if (FALSE)
-  add_custom_command(TARGET host_info POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} -E echo Checking/Updating manifest of 
-    $(ConfigurationName)/$(TargetFileName)
-    COMMAND mt.exe -verbose -inputresource:$(ConfigurationName)/$(TargetFileName) 
-        -out:$(ConfigurationName)/$(TargetFileName).binary.manifest
-      
-        COMMAND ${CMAKE_COMMAND} -E compare_files 
-        host_info.dir/$(ConfigurationName)/$(TargetFileName).embed.manifest 
-        $(ConfigurationName)/$(TargetFileName).binary.manifest
-      
-        COMMAND mt.exe -verbose 
-        -manifest host_info.dir/$(ConfigurationName)/$(TargetFileName).embed.manifest 
-        -outputresource:$(ConfigurationName)/$(TargetFileName))
-endif(FALSE)
-
-# "Install" binary for this host into source tree
-#install(TARGETS host_info
-#  DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/binaries/${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}")
-
-# Install all binaries in source tree into install dir/package
-#install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/binaries" 
-#  DESTINATION "${MCC_INSTALL_SUBDIR}/host_info"
-#  USE_SOURCE_PERMISSIONS)

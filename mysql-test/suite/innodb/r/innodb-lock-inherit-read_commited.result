@@ -1,0 +1,109 @@
+#
+# Bug #21025880	DUPLICATE UK VALUES IN READ-COMMITTED(AGAIN)
+#
+CREATE TABLE t1 (
+a INT NOT NULL,
+b INT NOT NULL,
+PRIMARY KEY(b),
+UNIQUE KEY(a))
+ENGINE=INNODB;
+SET @old_innodb_stats_auto_recalc = @@innodb_stats_auto_recalc;
+SET GLOBAL innodb_stats_auto_recalc = OFF;
+SET GLOBAL innodb_purge_stop_now = ON;
+SET @old_transaction_isolation = @@transaction_isolation;
+SET GLOBAL transaction_isolation = 'READ-COMMITTED';
+SET @old_innodb_lock_wait_timeout = @@innodb_lock_wait_timeout;
+SET GLOBAL innodb_lock_wait_timeout = 1;
+INSERT INTO t1 VALUES (1,1),(2,2);
+DELETE FROM t1;
+SET debug_sync = 'row_ins_sec_index_entry_dup_locks_created SIGNAL
+con1_locks_done WAIT_FOR con1_go';
+SET debug_sync = 'ha_commit_trans_after_acquire_commit_lock SIGNAL
+con1_insert_done WAIT_FOR con1_finish';
+REPLACE INTO t1 VALUES (1,2);
+SET debug_sync = 'now WAIT_FOR con1_locks_done';
+SET debug_sync = 'lock_wait_suspend_thread_enter SIGNAL con2_blocked
+WAIT_FOR con2_go';
+SET debug_sync = 'ha_commit_trans_after_acquire_commit_lock SIGNAL
+con2_insert_done WAIT_FOR con2_finish';
+SET debug_sync = 'ib_after_row_insert SIGNAL con2_insert_done';
+REPLACE INTO t1 VALUES (1,3);
+SET debug_sync = 'now WAIT_FOR con2_blocked';
+SET GLOBAL innodb_purge_run_now=ON;
+SET debug_sync = 'now SIGNAL con2_go WAIT_FOR con2_insert_done';
+SET debug_sync = 'now SIGNAL con1_go WAIT_FOR con1_insert_done';
+SET debug_sync = 'now SIGNAL con1_finish';
+SET debug_sync = 'now SIGNAL con2_finish';
+SELECT * FROM t1;
+a	b
+1	2
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+SET GLOBAL innodb_stats_auto_recalc = @old_innodb_stats_auto_recalc;
+SET GLOBAL transaction_isolation = @old_transaction_isolation;
+SET GLOBAL innodb_lock_wait_timeout = @old_innodb_lock_wait_timeout;
+SET DEBUG_SYNC= 'RESET';
+CREATE TABLE t1 (
+a INT NOT NULL,
+b INT NOT NULL,
+PRIMARY KEY(b),
+UNIQUE KEY(a))
+ENGINE=INNODB;
+SET @old_innodb_stats_auto_recalc = @@innodb_stats_auto_recalc;
+SET GLOBAL innodb_stats_auto_recalc = OFF;
+SET GLOBAL innodb_purge_stop_now = ON;
+SET @old_transaction_isolation = @@transaction_isolation;
+SET GLOBAL transaction_isolation = 'READ-COMMITTED';
+SET @old_innodb_lock_wait_timeout = @@innodb_lock_wait_timeout;
+SET GLOBAL innodb_lock_wait_timeout = 1;
+INSERT INTO t1 VALUES (1,1),(2,2);
+DELETE FROM t1;
+SET debug_sync = 'row_ins_sec_index_entry_dup_locks_created SIGNAL
+con1_locks_done WAIT_FOR con1_go';
+SET debug_sync = 'ha_commit_trans_after_acquire_commit_lock SIGNAL
+con1_insert_done WAIT_FOR con1_finish';
+INSERT INTO t1 values (1,2) ON DUPLICATE KEY UPDATE a=2;
+SET debug_sync = 'now WAIT_FOR con1_locks_done';
+SET debug_sync = 'lock_wait_suspend_thread_enter SIGNAL con2_blocked
+WAIT_FOR con2_go';
+SET debug_sync = 'ha_commit_trans_after_acquire_commit_lock SIGNAL
+con2_insert_done WAIT_FOR con2_finish';
+SET debug_sync = 'ib_after_row_insert SIGNAL con2_insert_done';
+REPLACE INTO t1 VALUES (1,3);
+SET debug_sync = 'now WAIT_FOR con2_blocked';
+SET GLOBAL innodb_purge_run_now=ON;
+SET debug_sync = 'now SIGNAL con2_go WAIT_FOR con2_insert_done';
+SET debug_sync = 'now SIGNAL con1_go WAIT_FOR con1_insert_done';
+SET debug_sync = 'now SIGNAL con1_finish';
+SET debug_sync = 'now SIGNAL con2_finish';
+SELECT * FROM t1;
+a	b
+1	2
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+SET GLOBAL innodb_stats_auto_recalc = @old_innodb_stats_auto_recalc;
+SET GLOBAL transaction_isolation = @old_transaction_isolation;
+SET GLOBAL innodb_lock_wait_timeout = @old_innodb_lock_wait_timeout;
+SET DEBUG_SYNC= 'RESET';
+#
+# Bug#24344131 ASSERT !OTHER_LOCK IN LOCK_REC_ADD_TO_QUEUE AT LOCK0LOCK.CC:1641
+#
+CREATE TABLE t1(a INT, b INT, primary key(a));
+INSERT INTO t1 VALUES(101, 20);
+SET DEBUG_SYNC="transaction_commit_start SIGNAL s1 WAIT_FOR s2";
+SET DEBUG_SYNC="before_lock_trx_release_locks SIGNAL s3 WAIT_FOR s5";
+INSERT INTO t1 VALUES(10, 20);
+SET DEBUG_SYNC="now WAIT_FOR s1";
+SET DEBUG_SYNC="before_lock_rec_convert_impl_to_expl_for_trx SIGNAL s2 WAIT_FOR s4";
+SET DEBUG_SYNC="before_lock_wait_suspend SIGNAL s5 WAIT_FOR s7";
+UPDATE t1 SET b=25 WHERE a=10;
+SET DEBUG_SYNC="now WAIT_FOR s3";
+SET DEBUG_SYNC="after_lock_clust_rec_read_check_and_lock SIGNAL s4 WAIT_FOR s6";
+UPDATE t1 SET b=30 WHERE a=10;
+SET DEBUG_SYNC="now SIGNAL s6";
+SET DEBUG_SYNC="now SIGNAL s7";
+DROP TABLE t1;

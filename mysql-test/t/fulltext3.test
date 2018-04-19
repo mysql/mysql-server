@@ -5,7 +5,6 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
---source include/have_gbk.inc
 #
 # test of new fulltext search features
 #
@@ -45,5 +44,6 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (a TEXT CHARSET LATIN1, FULLTEXT(a)) ENGINE=INNODB;
+--error ER_WRONG_ARGUMENTS
 SELECT (SELECT 1 FROM (SELECT 1) foo WHERE MATCH(`a`) AGAINST ('')) FROM t1;
 DROP TABLE t1;

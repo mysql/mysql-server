@@ -19,9 +19,6 @@
 #                                                                              #
 ################################################################################
 
---source include/have_perfschema.inc
---source include/not_embedded.inc
---source include/not_windows_embedded.inc
 --source include/have_example_plugin.inc
 --source include/have_debug_sync.inc
 
@@ -34,15 +31,12 @@
 --echo # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 --echo
---echo # Save current SHOW_COMPATIBILITY_56 setting
-SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
---echo
 --echo # Verify EXAMPLE plugin is not loaded
 SELECT COUNT(*) = 0 AS "Expect 1" FROM information_schema.plugins WHERE plugin_name = "EXAMPLE";
 --echo
 --echo # Create one session to force local and global system variables;
 connect(con0, localhost, root,,);
-connection default;
+--connection default
 --echo
 --echo ================================================================================
 --echo TEST 1- NO PLUGIN VARS
@@ -65,7 +59,7 @@ eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 --echo ================================================================================
 --source ../include/show_plugin_verifier.inc
 
-disconnect con0;
+--disconnect con0
 
 --echo
 --echo ================================================================================
@@ -150,7 +144,7 @@ eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 --echo ================================================================================
 --echo 3.2 - SET GLOBAL AND DEFAULT CONNECTION VARS
 --echo ================================================================================
-connection default;
+--connection default
 SET GLOBAL example_ulong_var = 300;
 SET GLOBAL example_enum_var = e1;
 SET GLOBAL example_double_var = 301.0000;
@@ -170,7 +164,7 @@ SET SESSION example_double_thdvar = 300.2222;
 connect(con3, localhost, root,,);
 SET SESSION example_double_thdvar = 300.3333;
 --echo
-connection default;
+--connection default
 
 --echo
 --echo ================================================================================
@@ -186,10 +180,19 @@ WHERE variable_name LIKE "example_%" ORDER BY variable_value;
 --echo ================================================================================
 --echo 3.5 - DISCONNECT CLIENTS
 --echo ================================================================================
-connection default;
-disconnect con1;
-disconnect con2;
-disconnect con3;
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection con2
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection con3
+--disconnect con3
+--source include/wait_until_disconnected.inc
+
+--connection default
 
 --echo
 --echo ================================================================================
@@ -214,7 +217,7 @@ SET SESSION example_double_thdvar = 322.2222;
 connect(con3, localhost, root,,);
 SET SESSION example_double_thdvar = 333.3333;
 --echo
-connection default;
+--connection default
 
 --echo
 --echo ================================================================================
@@ -246,10 +249,19 @@ WHERE variable_name LIKE "example_%" ORDER BY variable_value;
 --echo ================================================================================
 --echo 3.11 - DISCONNECT CLIENTS
 --echo ================================================================================
-connection default;
-disconnect con1;
-disconnect con2;
-disconnect con3;
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection con2
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection con3
+--disconnect con3
+--source include/wait_until_disconnected.inc
+
+--connection default
 
 --echo
 --echo ================================================================================
@@ -265,15 +277,6 @@ WHERE variable_name LIKE "example_%" ORDER BY variable_value;
 --echo ================================================================================
 --echo TEST 4 - BUG#18008907: DEADLOCK WITH CHANGE_USER, SHOW VARIABLES, INSTALL PLUGIN
 --echo ================================================================================
-#
-# The following tests are executed by main/plugin.test with show_compatibility_56 = ON.
-# Here they are executed with the compatibility mode disabled.
-#
---echo #
---echo # SET COMPATIBILITY MODE = OFF
---echo #
-SET @@global.show_compatibility_56 = OFF;
-
 --echo
 --disable_result_log
 DELIMITER |;
@@ -285,7 +288,14 @@ END|
 --echo
 CREATE PROCEDURE show_vars()
 BEGIN
-  SELECT COUNT(*) FROM information_schema.global_variables;
+  -- select on performance_schema.global_variables
+  -- will fail, still need to cover execution of the code
+  -- to verify potential dead locks.
+  declare continue handler for sqlexception
+  begin
+  end;
+
+  SELECT COUNT(*) FROM performance_schema.global_variables;
   SELECT COUNT(*) FROM performance_schema.global_variables;
 END|
 
@@ -301,11 +311,11 @@ DELIMITER ;|
 connect(con1, localhost, root,,);
 SET DEBUG_SYNC='acquired_LOCK_system_variables_hash SIGNAL install_plugin WAIT_FOR cont_show_vars';
 --send call show_vars();
-connection default;
+--connection default
 SET DEBUG_SYNC='now WAIT_FOR install_plugin';
 SET DEBUG_SYNC='acquired_LOCK_plugin SIGNAL cont_show_vars';
 --send call install_no_such_plugin();
-connection con1;
+--connection con1
 
 --echo
 --echo # Without fix, reap will hang.
@@ -315,7 +325,7 @@ connection con1;
 --enable_warnings
 SET DEBUG_SYNC='RESET';
 
-connection default;
+--connection default
 --replace_regex /(Can\'t open shared library).*$/\1/
 --error ER_CANT_OPEN_LIBRARY
 --reap;
@@ -331,7 +341,7 @@ SET DEBUG_SYNC='RESET';
 --echo ================================================================================
 SET DEBUG_SYNC='acquired_LOCK_system_variables_hash SIGNAL install_plugin WAIT_FOR nothing TIMEOUT 10';
 --send call show_vars();
-connection con1;
+--connection con1
 SET DEBUG_SYNC='now WAIT_FOR install_plugin';
 SET DEBUG_SYNC='acquired_LOCK_plugin SIGNAL create_connection WAIT_FOR nothing TIMEOUT 10';
 --send call install_no_such_plugin();
@@ -343,20 +353,20 @@ SET DEBUG_SYNC='now WAIT_FOR create_connection';
 --echo # default and con1.  Because of this, change_user operation hangs.
 --echo change_user
 change_user;
-connection con1;
+--connection con1
 --replace_regex /(Can\'t open shared library).*$/\1/
 --error ER_CANT_OPEN_LIBRARY
 --reap;
 
 --echo
-connection default;
+--connection default
 --replace_column 1 #
 --disable_warnings
 --reap;
 --enable_warnings
 
 --echo
-disconnect con2;
+--disconnect con2
 
 --echo
 --echo ================================================================================
@@ -367,7 +377,7 @@ disconnect con2;
 --echo #
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
-connection con1;
+--connection con1
 
 --echo
 --echo # Acquiring LOCK_system_variables_hash and LOCK_plugin_delete
@@ -381,7 +391,7 @@ connect(con2, localhost, root,,);
 --echo #
 SET DEBUG_SYNC='now WAIT_FOR uninstall_plugin';
 --send UNINSTALL PLUGIN example;
-connection default;
+--connection default
 
 --echo
 --echo # Uninstall will wait until SHOW VARIABLES releases LOCK_plugin_delete.
@@ -391,35 +401,58 @@ let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
 --source include/wait_condition.inc
 SET DEBUG_SYNC='now SIGNAL go';
 --echo # Connect con1 - reap
-connection con1;
+--connection con1
 --replace_column 1 #
 --disable_warnings
 --reap
 --enable_warnings
 --echo # Connect con2 - reap
-connection con2;
+--connection con2
 --disable_warnings
 --reap
 --enable_warnings
 
 --echo
 --echo ================================================================================
+--echo TEST 5 - BUG#22225549 MYSQL_CHANGE_USER/MYSQL_RESET_CONNECTION + SET INNODB...
+--echo          Update to plugin-defined session variable triggers resync with global
+--echo          variables and deadlocks on THD::LOCK_thd_sysvar.
+--echo ================================================================================
+#
+# The deadlock occurs when plugin-defined session variables are resynced with the global
+# variables. To force a resync, change the user and update a session variable from a
+# plugin, in this case InnoDB.
+#
+select @@session.innodb_strict_mode;
+let $innodb_strict_mode_save = `select @@session.innodb_strict_mode`;
+select user(), current_user();
+--echo change_user root
+--change_user root
+--echo #
+--echo # Trigger a resync of session variables with global variables.
+--echo #
+set @@session.innodb_strict_mode=off;
+
+--echo
+--echo # Restore
+--echo
+eval set @@session.innodb_strict_mode=$innodb_strict_mode_save;
+select @@session.innodb_strict_mode;
+
+--echo
+--echo ================================================================================
 --echo CLEAN UP
 --echo ================================================================================
-connection default;
+--connection default
 --echo
 DROP PROCEDURE show_vars;
 DROP PROCEDURE install_no_such_plugin;
 SET DEBUG_SYNC='RESET';
 
 --echo
-disconnect con1;
-disconnect con2;
+--disconnect con1
+--disconnect con2
 --disable_connect_log
-
---echo
---echo # Restore SHOW_COMPATIBILITY_56 setting
-SET @@global.show_compatibility_56 = @show_compatibility_56_save;
 
 --echo
 --echo # Wait till we reached the initial number of concurrent sessions

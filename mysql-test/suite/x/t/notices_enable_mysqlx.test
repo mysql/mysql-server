@@ -1,0 +1,883 @@
+## This is test file for verification of enaling warning,password_expired,generated_insert_id,rows_affected,produced_message notices and their functionality
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--let $xtest_result= $MYSQL_TMP_DIR/stmtexecute_query_result_mysqlx.tmp
+--write_file $xtest_result
+-->import assert_variable.macro
+-->quiet
+
+-->echo check with dropping db which doesn't exists
+-->stmtsql drop database if exists mysqltest;
+-->recvresult
+
+-->echo check with dropping table which doesn't exists
+-->stmtsql drop table if exists test.mysqltest;
+-->recvresult
+
+-->echo check with show variables like version
+-->stmtsql show variables like 'versio';
+-->recvresult
+
+-->echo check with dropping procedure which doesn't exists
+-->stmtsql drop procedure if exists test.test_invalid;
+-->recvresult
+
+-->echo check with dropping function which doesn't exists
+-->stmtsql drop function if exists test.test_signal_func;
+-->recvresult
+
+-->echo check with dropping view which doesn't exists
+-->stmtsql drop view if exists test.v1;
+-->recvresult
+
+-->echo out of range values for INT,UNSIGN INT
+-->stmtsql create table test.t1 (c1 INT, c2 INT UNSIGNED);
+-->recvresult
+
+-->stmtsql insert ignore into test.t1 values ('21474836461','21474836461');
+-->recvresult
+
+-->stmtsql insert ignore into test.t1 values ('-21474836461','-21474836461');
+-->recvresult
+
+-->stmtsql drop table test.t1;
+-->recvresult
+
+-->echo checking double data type
+-->stmtsql create table test.t1 (grp int, a bigint unsigned, c char(10) not null, d char(10) not null, index grp_idx(grp));
+-->recvresult
+
+-->stmtsql insert into test.t1 values (1,1,"a","a");
+-->recvresult
+
+-->stmtsql insert into test.t1 values (2,2,"b","a");
+-->recvresult
+
+-->stmtsql insert into test.t1 values (2,3,"c","b");
+-->recvresult
+
+-->stmtsql insert into test.t1 values (3,4,"E","a");
+-->recvresult
+
+-->stmtsql insert into test.t1 values (3,5,"C","b");
+-->recvresult
+
+-->stmtsql insert into test.t1 values (3,6,"D","b");
+-->recvresult
+
+-->stmtsql insert into test.t1 values (3,7,"d","d");
+-->recvresult
+
+-->stmtsql insert into test.t1 values (3,8,"d","d");
+-->recvresult
+
+-->stmtsql insert into test.t1 values (3,9,"D","c");
+-->recvresult
+
+-->stmtsql select grp,group_concat(a order by a,d-ascii(c)-a) from test.t1 group by grp order by grp;
+-->recvresult
+
+-->stmtsql select grp,group_concat(a order by c-ascii(c),a) from test.t1 group by grp order by grp;
+-->recvresult
+
+-->stmtsql set group_concat_max_len = 4;
+-->recvresult
+
+-->stmtsql select grp,group_concat(c order by c) from test.t1 group by grp order by grp;
+-->recvresult
+
+-->stmtsql drop table test.t1;
+-->recvresult
+
+-->echo checking character data type
+-->echo Error is returned instead of warning for insert operation with xplugin
+-->stmtsql SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+-->recvresult
+
+-->stmtsql prepare stmt from 'create table test.t1 (a varchar(10) character set utf8)';
+-->recvresult
+
+-->stmtsql execute stmt;
+-->recvresult
+
+-->stmtsql insert into test.t1 (a) values (repeat('a', 20));
+-->recvresult
+
+-->stmtsql select length(a) from test.t1;
+-->recvresult
+
+-->stmtsql drop table test.t1;
+-->recvresult
+
+-->stmtsql execute stmt;
+-->recvresult
+
+-->echo checking directly from IS tables
+-->stmtsql show session variables like 'max_join_size';
+-->recvresult
+
+-->stmtsql show session variables like 'concurrent_insert';
+-->recvresult
+
+-->stmtsql show session variables like 'default_storage_engine';
+-->recvresult
+
+-->echo checking errors and warnings with duplicate table
+-->stmtsql SET SQL_WARNINGS=1;
+-->recvresult
+
+-->echo checking errors and warnings with duplicate table names
+-->stmtsql create table test.dup (a int);
+-->recvresult
+
+-->stmtsql create table test.dup (a int);
+-->expecterror 1050
+-->recvresult
+
+-->stmtsql show count(*) errors;
+-->recvresult
+
+-->stmtsql show errors;
+-->recvresult
+
+-->stmtsql drop table test.dup;
+-->recvresult
+
+-->echo checking creating table with if not exists
+-->stmtsql flush status;
+-->recvresult
+
+-->stmtsql use test;
+-->recvresult
+
+-->stmtsql create table t1 (a int not null, b int, primary key (a));
+-->expecterror 1050
+-->recvresult
+
+-->stmtsql create table if not exists t1 select 2;
+-->recvresult
+
+-->stmtsql select * from t1;
+-->recvresult
+
+-->stmtsql create table if not exists t1 select 3 as 'a',4 as 'b';
+-->recvresult
+
+-->stmtsql show status like "Opened_tables";
+-->recvresult
+
+-->stmtsql select * from t1;
+-->recvresult
+
+-->stmtsql drop table t1;
+-->recvresult
+
+-->echo try droping mutliplt tables with if exists and check multiple warnings
+-->stmtsql use test;
+-->recvresult
+
+-->stmtsql drop tables if exists t1, t2;
+-->recvresult
+-->echo try checking may warnings
+-->stmtsql drop tables if exists t1, t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28,t29,t30,a1, a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,aa1, aa2,aa3,aa4,aa5,aa6,aa7,aa8,aa9,aa10,aa11,aa12,aa13,aa14,aa15,aa16,aa17,aa18,aa19,aa20,aa21,aa22,aa23,aa24,aa25,aa26,aa27,aa28,aa29,aa30,aaaa1, aaaa2,aaaa3,aaaa4,aaaa5,aaaa6,aaaa7,aaaa8,aaaa9,aaaa10,aaaa11,aaaa12,aaaa13,aaaa14,aaaa15,aaaa16,aaaa17,aaaa18,aaaa19,aaaa20,aaaa21,aaaa22,aaaa23,aaaa24,aaaa25,aaaa26,aaaa27,aaaa28,aaaa29,aaaa30;
+-->recvresult
+
+-->echo dropping same table with if exists and observe error/wrarnings
+Mysqlx.Sql.StmtExecute {
+ stmt: "drop tables if exists t1,t1;"
+}
+-->expecterror 1066
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+ stmt: "set max_error_count=65535;"
+}
+-->recvresult
+
+-->echo check more than 64 warnings returned
+Mysqlx.Sql.StmtExecute {
+ stmt: "drop tables if exists t1, t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28,t29,t30,a1, a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,aa1, aa2,aa3,aa4,aa5,aa6,aa7,aa8,aa9,aa10,aa11,aa12,aa13,aa14,aa15,aa16,aa17,aa18,aa19,aa20,aa21,aa22,aa23,aa24,aa25,aa26,aa27,aa28,aa29,aa30,aaaa1, aaaa2,aaaa3,aaaa4,aaaa5,aaaa6,aaaa7,aaaa8,aaaa9,aaaa10,aaaa11,aaaa12,aaaa13,aaaa14,aaaa15,aaaa16,aaaa17,aaaa18,aaaa19,aaaa20,aaaa21,aaaa22,aaaa23,aaaa24,aaaa25,aaaa26,aaaa27,aaaa28,aaaa29,aaaa30,bb1, bb2,bb3,bb4,bb5,bb6,bb7,bb8,bb9,bb10,bb11,bb12,bb13,bb14,bb15,bb16,bb17,bb18,bb19,bb20,bb21,bb22,bb23,bb24,bb25,bb26,bb27,bb28,bb29,bb30,b1, b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15,b16,b17,b18,b19,b20,b21,b22,b23,b24,b25,b26,b27,b28,b29,b30;"
+}
+-->recvresult
+
+-->echo check no warnings based on max_error_count parameter set
+Mysqlx.Sql.StmtExecute {
+ stmt: "set max_error_count=0;"
+}
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+ stmt: "drop tables if exists t1,t2;"
+}
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+ stmt: "set max_error_count=-64;"
+}
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+ stmt: "show variables like 'max_error_count';"
+}
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+ stmt: "set max_error_count=64;"
+}
+-->recvresult
+
+-->echo checking creating temporary table when normal and temp table exists
+-->stmtsql use test;
+-->recvresult
+
+-->stmtsql create table if not exists t1 (a int) select 2 as a;
+-->recvresult
+
+-->stmtsql create temporary table t1 (a int) select 2 as a;
+-->recvresult
+
+-->stmtsql select * from t1;
+-->recvresult
+
+-->stmtsql create temporary table if not exists t1 (a int) select 2 as a;
+-->recvresult
+
+-->stmtsql select * from t1;
+-->recvresult
+
+-->stmtsql drop temporary table t1;
+-->recvresult
+
+-->stmtsql drop table t1;
+-->recvresult
+
+-->echo checking data truncation warnings for default values
+-->stmtsql use test;
+-->recvresult
+
+-->stmtsql CREATE TABLE t1 SELECT 0.123456789012345678901234567890123456 AS f1;
+-->recvresult
+
+-->stmtsql drop table t1;
+-->recvresult
+
+-->echo checking data truncation warnings while creating table with expression
+-->stmtsql use test;
+-->recvresult
+
+-->stmtsql create table t1 as select 5.05 / 0.014;
+-->recvresult
+
+-->stmtsql drop table t1;
+-->recvresult
+
+-->echo checking warnings with insert and select operations
+-->echo below insert into t1 returns 17775 warnings,checking only limited warnings as test takes more time to render the warnings
+-->stmtsql use test;
+-->recvresult
+
+-->stmtsql create table t2 (a char(1));
+-->recvresult
+
+-->stmtsql insert into t2 values ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
+-->recvresult
+
+-->stmtsql insert into t2 values ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
+-->recvresult
+
+-->stmtsql create table t1 (a varchar(2) character set cp932) engine=myisam;
+-->recvresult
+
+-->echo checking for more than default 64 warnings
+Mysqlx.Sql.StmtExecute {
+ stmt: "set max_error_count=500;"
+}
+-->recvresult
+
+-->stmtsql insert into t1 select unhex(concat(t24.a, t23.a, t22.a, t21.a)) from t2 t21, t2 t22, t2 t23, t2 t24;
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+ stmt: "set max_error_count=64;"
+}
+-->recvresult
+
+-->stmtsql drop tables t1,t2;
+-->recvresult
+
+-->echo checking warnings with prepare and execute statmenets
+-->stmtsql use test;
+-->recvresult
+
+-->stmtsql CREATE TABLE t1(f1 VARCHAR(6) NOT NULL, FULLTEXT KEY(f1), UNIQUE(f1));
+-->recvresult
+
+-->stmtsql INSERT INTO t1 VALUES ('test');
+-->recvresult
+
+-->stmtsql SELECT 1 FROM t1 WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) against ("")) WHERE t1.f1 GROUP BY t1.f1)) xor f1;
+-->recvresult
+
+-->stmtsql PREPARE stmt FROM 'SELECT 1 FROM t1 WHERE 1 > ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a ON (MATCH(t1.f1) against ("")) WHERE t1.f1 GROUP BY t1.f1)) xor f1';
+-->recvresult
+
+-->stmtsql EXECUTE stmt;
+-->recvresult
+
+-->stmtsql EXECUTE stmt;
+-->recvresult
+
+-->stmtsql DEALLOCATE PREPARE stmt;
+-->recvresult
+
+-->stmtsql PREPARE stmt FROM 'SELECT 1 FROM t1 WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) against ("")) WHERE t1.f1 GROUP BY t1.f1))';
+-->recvresult
+
+-->stmtsql EXECUTE stmt;
+-->recvresult
+
+-->stmtsql EXECUTE stmt;
+-->recvresult
+
+-->stmtsql DEALLOCATE PREPARE stmt;
+-->recvresult
+
+-->stmtsql drop table t1;
+-->recvresult
+
+-->echo checking warnings with group by when sql_mode is no_engine_substitution
+-->stmtsql use test;
+-->recvresult
+
+-->stmtsql SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+-->recvresult
+
+-->stmtsql create table t1 (c1 char(3), c2 char(3));
+-->recvresult
+
+-->stmtsql create table t2 (c3 char(3), c4 char(3));
+-->recvresult
+
+-->stmtsql insert into t1 values ('aaa', 'bb1'), ('aaa', 'bb2');
+-->recvresult
+
+-->stmtsql insert into t2 values ('aaa', 'bb1'), ('aaa', 'bb2');
+-->recvresult
+
+-->stmtsql select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by c2;
+-->recvresult
+
+-->stmtsql select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by t1.c1;
+-->recvresult
+
+-->stmtsql drop table t1, t2;
+-->recvresult
+
+-->echo setting back to default of sql_mode
+-->stmtsql SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+-->recvresult
+
+-->echo checking with group by where both error and warnings expected with default sql_mode
+-->stmtsql use test;
+-->recvresult
+
+-->stmtsql create table t1 (c1 char(3), c2 char(3));
+-->recvresult
+
+-->stmtsql create table t2 (c3 char(3), c4 char(3));
+-->recvresult
+
+-->stmtsql insert into t1 values ('aaa', 'bb1'), ('aaa', 'bb2');
+-->recvresult
+
+-->stmtsql insert into t2 values ('aaa', 'bb1'), ('aaa', 'bb2');
+-->recvresult
+
+-->stmtsql select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by c2;
+-->expecterror 1055
+-->recvresult
+
+
+-->echo expect both error and warning
+-->echo change result file once Bug#21524666 is fixed
+-->stmtsql select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by t1.c1;
+-->recvresult
+
+-->stmtsql drop table t1, t2;
+-->recvresult
+
+-->echo checking warnings with rollback on non-transactional tables
+-->stmtsql use test;
+-->recvresult
+
+-->stmtsql create table t1 (n int not null primary key) engine=myisam;
+-->recvresult
+
+-->stmtsql begin work;
+-->recvresult
+
+-->stmtsql insert into t1 values (4);
+-->recvresult
+
+-->stmtsql insert into t1 values (5);
+-->recvresult
+
+-->stmtsql rollback;
+-->recvresult
+
+-->stmtsql show warnings;
+-->recvresult
+
+-->stmtsql show errors;
+-->recvresult
+
+-->stmtsql select @@warning_count,@@error_count;
+-->recvresult
+
+-->stmtsql select * from t1;
+-->recvresult
+
+-->stmtsql show warnings;
+-->recvresult
+
+-->stmtsql select @@warning_count;
+-->recvresult
+
+-->stmtsql drop table t1;
+-->recvresult
+
+-->echo expect 2 warnings for insert related to truncation and incorrect date value
+-->sql
+use test;
+set sql_mode='';
+create table t1 (
+a date not null,
+b mediumtext generated always as ((a not in (a,a))) virtual,
+c timestamp generated always as ((a not in (b,b))) stored not null
+);
+-->endsql
+-->stmtsql insert t1(a) values(7777777777);
+-->recvresult
+
+-->sql
+drop table t1;
+SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+-->endsql
+
+-->echo checking warnings while creating index which is more than row size
+-->sql
+use test;
+create table worklog5743_1(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=1;
+create table worklog5743_2(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=2;
+create table worklog5743_4(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=4;
+create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8;
+-->endsql
+
+-->echo below statement throws warning as Error and actual error is missing
+-->echo change result file once Bug#21529270 fixed
+-->stmtsql create index idx1 on worklog5743_1(a2(4000));
+-->expecterror 1071
+-->recvresult
+
+-->expecterror 1193
+-->sql
+## setting back to original value
+set global innodb_large_prefix=1;
+drop table worklog5743_1;
+drop table worklog5743_2;
+drop table worklog5743_4;
+drop table worklog5743_8;
+-->endsql
+
+-->echo checking warnings with different innodb file format
+-->sql
+use test;
+-->endsql
+
+-->stmtsql set innodb_strict_mode = off;
+-->recvresult
+
+-->stmtsql set global innodb_file_per_table = 0;
+-->recvresult
+
+-->stmtsql create temporary table t (i int) engine = innodb row_format = compressed;
+-->recvresult
+
+-->sql
+## setting back to original value
+drop table t;
+set innodb_strict_mode = on;
+set @@global.innodb_file_per_table = 1;
+-->endsql
+
+-->echo checking warnings with different innodb row format
+-->sql
+use test;
+-->endsql
+
+-->echo expect one Error and Warning
+-->echo modify the result file once Bug#21524666 is fixed
+-->stmtsql create table t2 (id int primary key) engine = innodb key_block_size = 9;
+-->expecterror 1031
+-->recvresult
+
+-->echo expect 2 warnings and 1 Error
+-->echo modify the result file once Bug#21524666 is fixed
+-->stmtsql create table t2 (id int primary key) engine = innodb key_block_size = 9 row_format = redundant;
+-->expecterror 1031
+-->recvresult
+
+-->echo expect 1 warning and 2 Error
+-->echo modify the result file once Bug#21524666 is fixed
+-->stmtsql create table bug46000(`id` int, key `GEN_clust_INDEX`(`id`))engine=innodb;
+-->expecterror 1280
+-->recvresult
+
+-->echo check with show variables like versio and expect warning related to GTID session
+-->stmtsql show variables like 'versio';
+-->recvresult
+
+-->echo check with show variables like versio and expect warning related to GTID session
+-->stmtsql show session variables like 'max_join_size';
+-->recvresult
+
+-->stmtsql show session variables like 'concurrent_insert';
+-->recvresult
+
+-->stmtsql show session variables like 'default_storage_engine';
+-->recvresult
+
+-->echo Try to enable fixed notice, should be ok
+
+-->stmtadmin enable_notices	{"notice":"account_expired"}
+-->recvresult
+
+-->callmacro Assert_recived_notices
+-->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
+-->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	1
+-->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0
+EOF
+
+--let $xtest_warnings= $MYSQL_TMP_DIR/stmtexecute_proc_warnings_mysqlx.tmp
+--write_file $xtest_warnings
+-->import assert_variable.macro
+-->quiet
+-->echo checking warnings with procedure execution
+-->sql
+SET @start_global_value = @@global.max_error_count;
+SELECT @start_global_value;
+SET @start_session_value = @@session.max_error_count;
+SELECT @start_session_value;
+drop database if exists demo;
+create database demo;
+use demo;
+delimiter //
+create procedure proc_1()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_1';
+    call proc_2();
+end//
+
+delimiter //
+create procedure proc_2()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_2';
+    call proc_3();
+end//
+
+delimiter //
+create procedure proc_3()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_3';
+    call proc_4();
+end//
+
+delimiter //
+create procedure proc_4()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_4';
+    call proc_5();
+end//
+
+delimiter //
+create procedure proc_5()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_5';
+    call proc_6();
+end//
+
+delimiter //
+create procedure proc_6()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_6';
+    call proc_7();
+end//
+
+delimiter //
+create procedure proc_7()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_7';
+    call proc_8();
+end//
+
+delimiter //
+create procedure proc_8()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_8';
+    call proc_9();
+end//
+
+delimiter //
+create procedure proc_9()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_9';
+    ## Do something that fails, to see how errors are reported
+    drop table oops_it_is_not_here;
+end//
+
+-->endsql
+
+-->stmtsql call proc_1();
+-->expecterror 1644
+-->recvresult
+
+-->sql
+SET @@session.max_error_count = 5;
+SELECT @@session.max_error_count;
+-->endsql
+
+-->stmtsql call proc_1();
+-->expecterror 1644
+-->recvresult
+
+-->sql
+SET @@session.max_error_count = 7;
+SELECT @@session.max_error_count;
+-->endsql
+
+-->stmtsql call proc_1();
+-->expecterror 1644
+-->recvresult
+
+-->sql
+SET @@session.max_error_count = 9;
+SELECT @@session.max_error_count;
+-->endsql
+
+-->stmtsql call proc_1();
+-->expecterror 1644
+-->recvresult
+
+-->sql
+drop database demo;
+SET @@global.max_error_count = @start_global_value;
+SELECT @@global.max_error_count;
+SET @@session.max_error_count = @start_session_value;
+SELECT @@session.max_error_count;
+-->endsql
+
+-->echo checking warnings while creating index with more than row size
+-->sql
+use test;
+create table worklog5743_1(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=1;
+create table worklog5743_2(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=2;
+create table worklog5743_4(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=4;
+create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8;
+-->endsql
+
+
+-->echo below statement throwing warning as an Error and actual error is missing
+-->echo change result file once Bug#21529270 is fixed
+-->stmtsql create index idx1 on worklog5743_1(a2(4000));
+-->expecterror 1071
+-->recvresult
+
+-->sql
+## setting back to original value
+drop table worklog5743_1;
+drop table worklog5743_2;
+drop table worklog5743_4;
+drop table worklog5743_8;
+-->endsql
+
+-->callmacro Assert_recived_notices
+-->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
+-->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	0
+-->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0
+EOF
+
+--let $xtest_enable_notice= $MYSQL_TMP_DIR/enable_notice_mysqlx.tmp
+--write_file $xtest_enable_notice
+-->import assert_status_variable.macro
+-->quiet
+-->echo Try enable warnings
+-->stmtadmin enable_notices	{"notice":"warnings"}
+-->recvresult
+
+-->echo Try enable account_expired
+-->stmtadmin enable_notices	{"notice":"account_expired"}
+-->recvresult
+
+-->echo Try enable generated_insert_id
+-->stmtadmin enable_notices	{"notice":"generated_insert_id"}
+-->recvresult
+
+-->echo Try enable rows_affected
+-->stmtadmin enable_notices	{"notice":"rows_affected"}
+-->recvresult
+
+-->echo Try enable produced_message
+-->stmtadmin enable_notices	{"notice":"produced_message"}
+-->recvresult
+
+-->callmacro Assert_recived_notices
+-->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
+-->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	5
+-->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0
+EOF
+
+--let $xtest_multiple_notices= $MYSQL_TMP_DIR/enable_multiple_notices_mysqlx.tmp
+--write_file $xtest_multiple_notices
+-->import assert_status_variable.macro
+-->quiet
+-->echo Enable multiple notices both read-only and read-write with single StmtExecute,expect success
+-->stmtadmin enable_notices	{"notice":["warnings","account_expired","generated_insert_id","rows_affected","produced_message"]}
+-->recvresult
+
+-->stmtadmin list_notices
+-->recvresult
+
+-->callmacro Assert_recived_notices
+-->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
+-->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	1
+-->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	1
+EOF
+
+--let $xtest_stats= $MYSQL_TMP_DIR/stats_notices_mysqlx.tmp
+--write_file $xtest_stats
+-->import assert_status_variable.macro
+-->quiet
+
+-->sql
+use mysql;
+-->endsql
+
+-->stmtsql drop tables if exists t1;
+-->recvresult
+
+-->echo expect Mysqlx_notice_other_sent=8 and Mysqlx_notice_warning_sent=3
+-->echo seems like some problem with these stats, need to change values once issues fixed
+
+-->echo disable warnings notice and observe stats
+-->stmtadmin disable_notices	{"notice": "warnings"}
+-->recvresult
+
+-->echo enable account_expired notice and check stats
+-->stmtadmin enable_notices	{"notice":"warnings"}
+-->recvresult
+
+-->echo enable account_expired notice and check stats
+-->stmtadmin enable_notices	{"notice":"account_expired"}
+-->recvresult
+
+-->echo listing notices after enabling warnings,account_expired notices
+-->stmtadmin list_notices
+-->recvresult
+
+-->echo listing notices with mixed case
+-->stmtadmin LIST_notices
+-->recvresult
+
+-->callmacro Assert_recived_notices
+-->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	1
+-->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	2
+-->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	2
+EOF
+
+--let $xtest_stats_noti= $MYSQL_TMP_DIR/stats_noti_mysqlx.tmp
+--write_file $xtest_stats_noti
+-->import assert_status_variable.macro
+-->quiet
+-->expecterror 1044
+-->sql
+use mysql;
+-->endsql
+
+-->stmtsql drop tables if exists t1;
+-->expecterror 1046
+-->recvresult
+
+-->callmacro Assert_recived_notices
+-->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
+-->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	0
+-->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0
+EOF
+
+--let $xtest_stats_noti_no_err= $MYSQL_TMP_DIR/stats_noti_no_err_mysqlx.tmp
+--write_file $xtest_stats_noti_no_err
+-->import assert_status_variable.macro
+-->quiet
+-->sql
+use mysql;
+-->endsql
+
+-->stmtsql drop tables if exists t1;
+-->recvresult
+
+-->callmacro Assert_recived_notices
+EOF
+
+
+--let $MACROS= --import=$MYSQLXTEST_MACRO_DIR
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_result $MACROS 2>&1
+
+##change result file once Bug#21611216 is fixed
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_warnings $MACROS 2>&1
+
+##try enable read-only notices
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_enable_notice $MACROS 2>&1
+
+##try enable read-only notices with normal user
+create user xplugin@localhost identified by 'xplugin';
+--exec $MYSQLXTEST -uxplugin --password='xplugin' --file=$xtest_enable_notice $MACROS 2>&1
+
+## Enable multiple notices both read-only and read-write with single StmtExecute,expect success
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_multiple_notices $MACROS 2>&1
+
+## checking notices related stats
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_stats $MACROS 2>&1
+
+##verify MYSQLX_NOTICE_OTHER_SENT,MYSQLX_NOTICE_WARNING_SENT
+let $restart_parameters = restart: ;
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_stats_noti_no_err $MACROS 2>&1
+
+##verify MYSQLX_NOTICE_OTHER_SENT,MYSQLX_NOTICE_WARNING_SENT with unprivileged user
+let $restart_parameters = restart: ;
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+create user noti@localhost identified by 'noti';
+--exec $MYSQLXTEST -unoti --password='noti' --file=$xtest_stats_noti $MACROS 2>&1
+
+## Cleanup
+drop user noti@localhost;
+drop user xplugin@localhost;
+--remove_file $xtest_result
+--remove_file $xtest_warnings
+--remove_file $xtest_enable_notice
+--remove_file $xtest_multiple_notices
+--remove_file $xtest_stats
+--remove_file $xtest_stats_noti
+--remove_file $xtest_stats_noti_no_err
+--source include/xplugin_drop_user.inc

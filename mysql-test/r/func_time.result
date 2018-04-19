@@ -544,8 +544,6 @@ Warning	1292	Incorrect datetime value: '0000-00-00'
 Warning	1292	Incorrect datetime value: '0000-00-00'
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 ( start datetime default NULL);
 INSERT INTO t1 VALUES ('2002-10-21 00:00:00'),('2002-10-28 00:00:00'),('2002-11-04 00:00:00');
 CREATE TABLE t2 ( ctime1 timestamp NOT NULL, ctime2 timestamp NOT NULL);
@@ -622,10 +620,10 @@ unix_timestamp('2038-01-19 07:14:07')
 0
 SELECT CHARSET(DAYNAME(19700101));
 CHARSET(DAYNAME(19700101))
-latin1
+utf8mb4
 SELECT CHARSET(MONTHNAME(19700101));
 CHARSET(MONTHNAME(19700101))
-latin1
+utf8mb4
 SELECT LOWER(DAYNAME(19700101));
 LOWER(DAYNAME(19700101))
 thursday
@@ -870,11 +868,10 @@ strcmp(date_format(utc_timestamp(),"%Y-%m-%d"), utc_date())=0
 select strcmp(concat(utc_date(),' ',utc_time()),utc_timestamp())=0;
 strcmp(concat(utc_date(),' ',utc_time()),utc_timestamp())=0
 1
-explain extended select period_add("9602",-12),period_diff(199505,"9404"),from_days(to_days("960101")),dayofmonth("1997-01-02"), month("1997-01-02"), monthname("1972-03-04"),dayofyear("0000-00-00"),HOUR("1997-03-03 23:03:22"),MINUTE("23:03:22"),SECOND(230322),QUARTER(980303),WEEK("1998-03-03"),yearweek("2000-01-01",1),week(19950101,1),year("98-02-03"),weekday(curdate())-weekday(now()),dayname("1962-03-03"),unix_timestamp(),sec_to_time(time_to_sec("0:30:47")/6.21),curtime(),utc_time(),curdate(),utc_date(),utc_timestamp(),date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w"),from_unixtime(unix_timestamp("1994-03-02 10:11:12")),"1997-12-31 23:59:59" + INTERVAL 1 SECOND,"1998-01-01 00:00:00" - INTERVAL 1 SECOND,INTERVAL 1 DAY + "1997-12-31", extract(YEAR FROM "1999-01-02 10:11:12"),date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND);
+explain select period_add("9602",-12),period_diff(199505,"9404"),from_days(to_days("960101")),dayofmonth("1997-01-02"), month("1997-01-02"), monthname("1972-03-04"),dayofyear("0000-00-00"),HOUR("1997-03-03 23:03:22"),MINUTE("23:03:22"),SECOND(230322),QUARTER(980303),WEEK("1998-03-03"),yearweek("2000-01-01",1),week(19950101,1),year("98-02-03"),weekday(curdate())-weekday(now()),dayname("1962-03-03"),unix_timestamp(),sec_to_time(time_to_sec("0:30:47")/6.21),curtime(),utc_time(),curdate(),utc_date(),utc_timestamp(),date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w"),from_unixtime(unix_timestamp("1994-03-02 10:11:12")),"1997-12-31 23:59:59" + INTERVAL 1 SECOND,"1998-01-01 00:00:00" - INTERVAL 1 SECOND,INTERVAL 1 DAY + "1997-12-31", extract(YEAR FROM "1999-01-02 10:11:12"),date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select period_add('9602',-(12)) AS `period_add("9602",-12)`,period_diff(199505,'9404') AS `period_diff(199505,"9404")`,from_days(to_days('960101')) AS `from_days(to_days("960101"))`,dayofmonth('1997-01-02') AS `dayofmonth("1997-01-02")`,month('1997-01-02') AS `month("1997-01-02")`,monthname('1972-03-04') AS `monthname("1972-03-04")`,dayofyear('0000-00-00') AS `dayofyear("0000-00-00")`,hour('1997-03-03 23:03:22') AS `HOUR("1997-03-03 23:03:22")`,minute('23:03:22') AS `MINUTE("23:03:22")`,second(230322) AS `SECOND(230322)`,quarter(980303) AS `QUARTER(980303)`,week('1998-03-03',0) AS `WEEK("1998-03-03")`,yearweek('2000-01-01',1) AS `yearweek("2000-01-01",1)`,week(19950101,1) AS `week(19950101,1)`,year('98-02-03') AS `year("98-02-03")`,(weekday(curdate()) - weekday(now())) AS `weekday(curdate())-weekday(now())`,dayname('1962-03-03') AS `dayname("1962-03-03")`,unix_timestamp() AS `unix_timestamp()`,sec_to_time((time_to_sec('0:30:47') / 6.21)) AS `sec_to_time(time_to_sec("0:30:47")/6.21)`,curtime() AS `curtime()`,utc_time() AS `utc_time()`,curdate() AS `curdate()`,utc_date() AS `utc_date()`,utc_timestamp() AS `utc_timestamp()`,date_format('1997-01-02 03:04:05','%M %W %D %Y %y %m %d %h %i %s %w') AS `date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w")`,from_unixtime(unix_timestamp('1994-03-02 10:11:12')) AS `from_unixtime(unix_timestamp("1994-03-02 10:11:12"))`,('1997-12-31 23:59:59' + interval 1 second) AS `"1997-12-31 23:59:59" + INTERVAL 1 SECOND`,('1998-01-01 00:00:00' - interval 1 second) AS `"1998-01-01 00:00:00" - INTERVAL 1 SECOND`,('1997-12-31' + interval 1 day) AS `INTERVAL 1 DAY + "1997-12-31"`,extract(year from '1999-01-02 10:11:12') AS `extract(YEAR FROM "1999-01-02 10:11:12")`,('1997-12-31 23:59:59' + interval 1 second) AS `date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND)`
 SET @TMP='2007-08-01 12:22:49';
 CREATE TABLE t1 (d DATETIME);
@@ -962,7 +959,7 @@ t1	CREATE TABLE `t1` (
   `curtime() - curtime()` int(9) NOT NULL DEFAULT '0',
   `sec_to_time(1) + 0` int(9) DEFAULT NULL,
   `from_unixtime(1) + 0` bigint(16) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SELECT SEC_TO_TIME(3300000);
 SEC_TO_TIME(3300000)
@@ -1214,18 +1211,18 @@ WHERE t1.day BETWEEN
 '2005.09.01' - INTERVAL 6 MONTH AND t2.day;
 id	day	id	day
 1	2005-06-01	1	2005-08-01
-3	2005-07-01	1	2005-08-01
 1	2005-06-01	2	2005-06-15
 1	2005-06-01	3	2005-07-15
+3	2005-07-01	1	2005-08-01
 3	2005-07-01	3	2005-07-15
 SELECT * FROM t1, t2 
 WHERE CAST(t1.day AS DATE) BETWEEN 
 '2005.09.01' - INTERVAL 6 MONTH AND t2.day;
 id	day	id	day
 1	2005-06-01	1	2005-08-01
-3	2005-07-01	1	2005-08-01
 1	2005-06-01	2	2005-06-15
 1	2005-06-01	3	2005-07-15
+3	2005-07-01	1	2005-08-01
 3	2005-07-01	3	2005-07-15
 DROP TABLE t1,t2;
 set time_zone= @@global.time_zone;
@@ -1267,8 +1264,8 @@ t1	t2	SEC_TO_TIME( TIME_TO_SEC( t2 ) - TIME_TO_SEC( t1 ) )	QUARTER(d)
 DROP TABLE t1;
 SELECT TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s") FROM (SELECT 3020399 AS a UNION SELECT 3020398 ) x GROUP BY 1;
 TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s")
-838:59:58
 838:59:59
+838:59:58
 set names latin1;
 create table t1 (a varchar(15) character set ascii not null);
 insert into t1 values ('070514-000000');
@@ -1391,8 +1388,6 @@ Warning	1411	Incorrect datetime value: '  ' for function str_to_date
 # Bug#11765216  58154: UNINITIALIZED VARIABLE FORMAT IN STR_TO_DATE FUNCTION
 #
 SET GLOBAL SQL_MODE='';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DO  STR_TO_DATE((''), FROM_DAYS(@@GLOBAL.SQL_MODE));
 Warnings:
 Warning	1411	Incorrect datetime value: '' for function str_to_date
@@ -1409,8 +1404,6 @@ Warning	1411	Incorrect datetime value: '' for function str_to_date
 # Bug#11766126  59166: ANOTHER DATETIME VALGRIND UNINITIALIZED WARNING
 #
 SET @@global.sql_mode='';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT CAST((MONTH(FROM_UNIXTIME(@@GLOBAL.SQL_MODE))) AS BINARY(1025));
 CAST((MONTH(FROM_UNIXTIME(@@GLOBAL.SQL_MODE))) AS BINARY(1025))
 NULL
@@ -1464,8 +1457,6 @@ Warning	1292	Incorrect datetime value: '0000-01-00'
 # SIMILAR TO '2009-10-00' 
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT
 DATE('20091000'),
 STR_TO_DATE('200910','%Y%m'),
@@ -1671,7 +1662,7 @@ End of 5.1 tests
 # ORDER BY DESC on date index"
 #
 CREATE TABLE t1(c1 DATE NOT NULL PRIMARY KEY, c2 DATE NULL, c3 INT,
-INDEX idx2(c2));
+INDEX idx2(c2)) ENGINE=MyISAM;
 SET TIMESTAMP=1235553613;
 INSERT INTO t1 VALUES(NOW(),NOW(),3),
 (ADDTIME(NOW(),'1 01:01:01'),ADDTIME(NOW(),'1 01:01:01'),4),
@@ -1767,9 +1758,7 @@ drop table t1;
 # BUG#13545236 - ASSERT IN SEC_SINCE_EPOCH
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
-CREATE TABLE t1 (a TIME NOT NULL);
+CREATE TABLE t1 (a TIME NOT NULL) ENGINE=MyIsam;
 INSERT INTO t1 VALUES ('04:39:24');
 INSERT INTO t1 VALUES ('00:20:09');
 SELECT a FROM t1
@@ -1781,7 +1770,7 @@ WHERE CONVERT_TZ(TIMESTAMPADD(YEAR, a, DATE('0000-00-00')),
 '+00:00','+00:00');
 a
 DROP TABLE t1;
-CREATE TABLE t1 (a TIME);
+CREATE TABLE t1 (a TIME) ENGINE=MyIsam;
 INSERT INTO t1 VALUES ('00:00:00');
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, TIMESTAMP('0000-00-01')) IS NULL;
 a
@@ -1824,18 +1813,36 @@ a	UNIX_TIMESTAMP(a)	UNIX_TIMESTAMP('5000-01-01 00:00:00')
 5000-01-01 00:00:00	0.000000	0
 DROP TABLE t1;
 #
+# Bug#23529242 CONCAT: ASSERTION FAILED: MAYBE_NULL
+#
+Disable strict mode. This affects the nullability of string
+functions, and the bug only reproduces when CONCAT's return
+type is NOT NULL.
+SET @savmode=@@SESSION.SQL_MODE;
+SET SESSION SQL_MODE='';
+SELECT UNIX_TIMESTAMP(COUNT(1));
+UNIX_TIMESTAMP(COUNT(1))
+0
+Warnings:
+Warning	1292	Incorrect datetime value: '1'
+SELECT CONCAT(UNIX_TIMESTAMP(COUNT(1)), '|');
+CONCAT(UNIX_TIMESTAMP(COUNT(1)), '|')
+0|
+Warnings:
+Warning	1292	Incorrect datetime value: '1'
+SET SESSION SQL_MODE=@savmode;
+#
 # Bug#13988413 CRASH/ASSERTION AFTER INVALID MEMORY READ 
 #              IN MY_USECONDS_TO_STR
 #
 DO MBRContains(1, if(0, coalesce(NULL), now()));
-Warnings:
-Error	3037	Invalid GIS data provided to function mbrcontains.
+ERROR 22023: Invalid GIS data provided to function mbrcontains.
 CREATE TABLE t1 AS SELECT IF(0, coalesce(NULL), now(0)) + 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `IF(0, coalesce(NULL), now(0)) + 0` decimal(21,6) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `IF(0, coalesce(NULL), now(0)) + 0` bigint(16) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Bug#13982125 BUFFER OVERFLOW OF VARIABLE BUF IN
@@ -1876,3 +1883,175 @@ LOCATE(".", SYSDATE(6)) != 0
 # Cleanup
 DROP VIEW v1, v2;
 SET @@TIMESTAMP= DEFAULT;
+#
+# Bug#26740635: DAYOFYEAR FUNC: ASSERTION FAILED: NULL_VALUE
+#
+DO DAYOFYEAR(SEC_TO_TIME((~(((RELEASE_ALL_LOCKS())-((1)))))));
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(release_all_locks() - 1)'
+DO DAYOFYEAR(((MBRDISJOINT(0xbc,1))OR(WEEK(SEC_TO_TIME(419824656)))));
+ERROR 22023: Invalid GIS data provided to function mbrdisjoint.
+DO DAYOFYEAR(SEC_TO_TIME(OCT(BIT_AND(JSON_REPLACE((23533),'key3',NULL)))));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_replace; a JSON string or JSON type is required.
+DO DAYOFYEAR(MAKETIME(((0x965a)^((@g :=(1 IS NULL)))),
+EXP(39988664861.65638662152600787509),
+((STD(@f))LIKE(1))));
+ERROR 22003: DOUBLE value is out of range in 'exp(39988664861.65638662152600787509)'
+DO DAYOFYEAR(MAKETIME('1981-06-27 11:16:09.211343',
+(((NOT(ST_DISTANCE_SPHERE(POINT(4472,28027),
+POINT(28061,-9007199254740996),-644021130))))<=>(@c)),(1)));
+ERROR 22003: Invalid radius provided to function st_distance_sphere: Radius must be greater than zero.
+DO DAYOFYEAR(MAKETIME(ROUND(-23797,'6588-01-08'),
+COERCIBILITY(BIT_COUNT(RTRIM((~(
+INET6_NTOA(0xa04810f0839d318fa075bd)))))),
+((ST_ASWKT(1))OR(1))));
+ERROR 22023: Invalid GIS data provided to function st_astext.
+# End of test for Bug#26740635
+#
+# Bug #27004699: UBSAN: ITEM_FUNC_PERIOD_ADD::VAL_INT - SIGNED INTEGER OVERFLOW:
+#
+SELECT PERIOD_ADD(-11924, 2892462180);
+ERROR HY000: Incorrect arguments to period_add
+SELECT PERIOD_DIFF(200024, 200012);
+ERROR HY000: Incorrect arguments to period_diff
+SELECT PERIOD_DIFF(200012, 200024);
+ERROR HY000: Incorrect arguments to period_diff
+#
+# Bug #27004729: UBSAN: ITEM_FUNC_MAKEDATE::GET_DATE - SIGNED INTEGER OVERFLOW
+#
+SELECT MAKEDATE(1, 8.381922e+307);
+MAKEDATE(1, 8.381922e+307)
+NULL
+#
+# Bug#27134148 UBSAN: DATE_ADD_INTERVAL - SIGNED INTEGER OVERFLOW:
+#
+SELECT
+timestampadd(year ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+timestampadd(quarter,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+timestampadd(month ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+timestampadd(week,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+timestampadd(day ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+timestampadd(hour ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+timestampadd(minute ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+timestampadd(second ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '1.212208'
+Warning	1292	Truncated incorrect DECIMAL value: '99999999999999999999999999999999999999999999999999999999999999999'
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+timestampadd(microsecond ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL '9223372036854775807-02' YEAR_MONTH) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+date_add('1995-01-05', INTERVAL '9223372036854775808-02' YEAR_MONTH) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+date_add('1995-01-05', INTERVAL '9223372036854775808-02' DAY) as result;
+result
+NULL
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9223372036854775808-02'
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+date_add('1995-01-05', INTERVAL '9223372036854775808-02' WEEK) as result;
+result
+NULL
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9223372036854775808-02'
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+date_add('1995-01-05', INTERVAL '9223372036854775808-02' SECOND) as result;
+result
+NULL
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '9223372036854775808'
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+date_add('1995-01-05', INTERVAL '9223372036854775700-02' YEAR_MONTH) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL 9223372036854775806 SECOND) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL 9223372036854775806 MINUTE) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL 9223372036854775806 HOUR) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL -9223372036854775806 SECOND) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL -9223372036854775806 MINUTE) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL -9223372036854775806 HOUR) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow

@@ -1,12 +1,7 @@
-
-# Embedded server testing does not support grants
--- source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
 set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 
 --disable_warnings
 drop tables if exists t1, t2;
@@ -27,7 +22,7 @@ delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
 create table t1 (a int, b datetime);
 create table t2 (c int, d datetime);
-
+create user mysqltest_1@localhost;
 grant all privileges on test.* to mysqltest_1@localhost;
 connect (tzuser, localhost, mysqltest_1,,);
 connection tzuser;
@@ -107,6 +102,7 @@ drop table t1, t2;
 # Let us rely on that previous tests done proper cleanups
 create table t1 (a int, b datetime);
 insert into t1 values (1, 20010101000000), (2, 20020101000000);
+create user mysqltest_1@localhost;
 grant all privileges on test.* to mysqltest_1@localhost;
 connect (tzuser3, localhost, mysqltest_1,,);
 create view v1 as select a, convert_tz(b, 'UTC', 'Europe/Moscow') as lb from t1;

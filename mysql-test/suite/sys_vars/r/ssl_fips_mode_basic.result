@@ -1,0 +1,62 @@
+# Few positive cases
+SET GLOBAL ssl_fips_mode=0;
+SELECT @@GLOBAL.ssl_fips_mode;
+@@GLOBAL.ssl_fips_mode
+OFF
+SET GLOBAL ssl_fips_mode=1;
+SELECT @@GLOBAL.ssl_fips_mode;
+@@GLOBAL.ssl_fips_mode
+ON
+SET GLOBAL ssl_fips_mode=2;
+SELECT @@GLOBAL.ssl_fips_mode;
+@@GLOBAL.ssl_fips_mode
+STRICT
+SET GLOBAL ssl_fips_mode=off;
+SELECT @@GLOBAL.ssl_fips_mode;
+@@GLOBAL.ssl_fips_mode
+OFF
+SET GLOBAL ssl_fips_mode=on;
+SELECT @@GLOBAL.ssl_fips_mode;
+@@GLOBAL.ssl_fips_mode
+ON
+SET GLOBAL ssl_fips_mode=strict;
+SELECT @@GLOBAL.ssl_fips_mode;
+@@GLOBAL.ssl_fips_mode
+STRICT
+SET GLOBAL ssl_fips_mode='oFf';
+SELECT @@GLOBAL.ssl_fips_mode;
+@@GLOBAL.ssl_fips_mode
+OFF
+SET GLOBAL ssl_fips_mode='oN';
+SELECT @@GLOBAL.ssl_fips_mode;
+@@GLOBAL.ssl_fips_mode
+ON
+SET GLOBAL ssl_fips_mode='Strict';
+SELECT @@GLOBAL.ssl_fips_mode;
+@@GLOBAL.ssl_fips_mode
+STRICT
+# Few negative cases
+SET GLOBAL ssl_fips_mode='';
+ERROR 42000: Variable 'ssl_fips_mode' can't be set to the value of ''
+SET GLOBAL ssl_fips_mode=3;
+ERROR 42000: Variable 'ssl_fips_mode' can't be set to the value of '3'
+SET GLOBAL ssl_fips_mode=-1;
+ERROR 42000: Variable 'ssl_fips_mode' can't be set to the value of '-1'
+SET SESSION ssl_fips_mode=1;
+ERROR HY000: Variable 'ssl_fips_mode' is a GLOBAL variable and should be set with SET GLOBAL
+CREATE USER u1 IDENTIFIED BY 'pwd';
+##Test: User without admin/super privilege
+SET GLOBAL ssl_fips_mode=ON;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+##Test: User with admin privilege
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1;
+SET GLOBAL ssl_fips_mode=ON;
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM u1;
+##Test: User with SUPER privilege
+GRANT SUPER ON *.* TO u1;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+SET GLOBAL ssl_fips_mode=ON;
+CLEANUP
+SET GLOBAL ssl_fips_mode=OFF;
+DROP USER u1;

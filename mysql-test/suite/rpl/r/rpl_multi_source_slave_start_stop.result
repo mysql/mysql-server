@@ -39,13 +39,13 @@ include/rpl_for_each_connection.inc [include/wait_for_slave_to_stop.inc]
 #    the threads are run. No Notes shall be emitted also.
 #
 # 3.a) Test START SLAVE IO_THREAD FOR CHANNEL
-include/start_slave_io.inc
+include/start_slave_io.inc [FOR CHANNEL 'channel_1']
 # 3.b) Test START SLAVE SQL_THREAD FOR CHANNEL
-include/start_slave_sql.inc
+include/start_slave_sql.inc [FOR CHANNEL 'channel_1']
 # 3.c) Test STOP SLAVE IO_THREAD FOR CHANNEL
-include/stop_slave_io.inc
+include/stop_slave_io.inc [FOR CHANNEL 'channel_1']
 # 3.d) Test STOP SLAVE SQL_THREAD FOR CHANNEL
-include/stop_slave_sql.inc
+include/stop_slave_sql.inc [FOR CHANNEL 'channel_1']
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL  'channel_1';
-RESET SLAVE ALL FOR CHANNEL  'channel_3';
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';

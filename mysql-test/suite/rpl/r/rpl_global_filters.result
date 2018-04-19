@@ -1,0 +1,230 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+call mtr.add_suppression("There are per-channel replication filter.s. configured for channel 'channel_1' which does not exist. The filter.s. have been discarded.");
+#
+# 0. Verify that global replication filters can be configured with
+# startup options: --replicate-* without specifying channel_name
+# and a followed 'colon' in filter variable and
+# P_S.replication_applier_global_filters can display them
+# correctly. See below.
+# Replicate_Do_DB = 'test,my_db2,my_db3'
+# Replicate_Ignore_DB = 'db1,db11,my_db6'
+# Replicate_Do_Table = 'test.t1,test.t2'
+# Replicate_Ignore_Table = 'test.t9,test.t8'
+# Replicate_Wild_Do_Table = 'test.t%,test.s%'
+# Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
+# Replicate_Rewrite_DB = '(my_db7,rewrite_db7),(my_db8,rewrite_db8)'
+#
+SELECT COUNT(*) FROM performance_schema.replication_applier_global_filters;
+COUNT(*)
+7
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters;
+FILTER_NAME	FILTER_RULE	CONFIGURED_BY
+REPLICATE_DO_DB	test,my_db2,my_db3	STARTUP_OPTIONS
+REPLICATE_IGNORE_DB	db1,db11,my_db6	STARTUP_OPTIONS
+REPLICATE_DO_TABLE	test.t1,test.t2	STARTUP_OPTIONS
+REPLICATE_IGNORE_TABLE	test.t8,test.t9	STARTUP_OPTIONS
+REPLICATE_WILD_DO_TABLE	test.t%,test.s%	STARTUP_OPTIONS
+REPLICATE_WILD_IGNORE_TABLE	test.m%,test.n%	STARTUP_OPTIONS
+REPLICATE_REWRITE_DB	(my_db7,rewrite_db7),(my_db8,rewrite_db8)	STARTUP_OPTIONS
+#
+# 1. Verify that the new channel with channel_name '' would copy
+# global replication filters to its own per-channel replication
+# filters on configuration by CHANGE MASTER TO. SHOW SLAVE STATUS
+# FOR CHANNEL '' displays the following per-channel replication
+# filters:
+# Replicate_Do_DB = 'test,my_db2,my_db3'
+# Replicate_Ignore_DB = 'db1,db11,my_db6'
+# Replicate_Do_Table = 'test.t1,test.t2'
+# Replicate_Ignore_Table = 'test.t8,test.t9'
+# Replicate_Wild_Do_Table = 'test.t%,test.s%'
+# Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
+# Replicate_Rewrite_DB = '(my_db7,rewrite_db7),(my_db8,rewrite_db8)'
+#
+Replicate_Do_DB = 'test,my_db2,my_db3'
+Replicate_Ignore_DB = 'db1,db11,my_db6'
+Replicate_Do_Table = 'test.t1,test.t2'
+Replicate_Ignore_Table = 'test.t8,test.t9'
+Replicate_Wild_Do_Table = 'test.t%,test.s%'
+Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
+Replicate_Rewrite_DB = '(my_db7,rewrite_db7),(my_db8,rewrite_db8)'
+#
+# 2. Verify that performance_schema.replication_applier_filters
+# can display correct per-channel replication filters with
+# CONFIGURED_BY 'STARTUP_OPTIONS' on default channel.
+#
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+7
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+	REPLICATE_DO_DB	test,my_db2,my_db3	STARTUP_OPTIONS	0
+	REPLICATE_IGNORE_DB	db1,db11,my_db6	STARTUP_OPTIONS	0
+	REPLICATE_DO_TABLE	test.t1,test.t2	STARTUP_OPTIONS	0
+	REPLICATE_IGNORE_TABLE	test.t8,test.t9	STARTUP_OPTIONS	0
+	REPLICATE_WILD_DO_TABLE	test.t%,test.s%	STARTUP_OPTIONS	0
+	REPLICATE_WILD_IGNORE_TABLE	test.m%,test.n%	STARTUP_OPTIONS	0
+	REPLICATE_REWRITE_DB	(my_db7,rewrite_db7),(my_db8,rewrite_db8)	STARTUP_OPTIONS	0
+[connection master]
+use test;
+CREATE TABLE test.t1 (c1 INT);
+CREATE TABLE test.t2 (c1 INT);
+INSERT INTO test.t1 VALUES (1);
+INSERT INTO test.t2 VALUES (1);
+CREATE DATABASE db1;
+CREATE DATABASE db11;
+include/sync_slave_sql_with_master.inc
+#
+# 3. Check that database test is replicated and both db1 and db11
+# are filtered out on default channel with the the following
+# global replication filters setting:
+# --replicate-do-db=test
+# --replicate-do-db=my_db2
+# --replicate-do-db=my_db3
+# --replicate-ignore-db=db1
+# --replicate-ignore-db=db11
+# --replicate-ignore-db=my_db6
+# --replicate-do-table=test.t1
+# --replicate-do-table=test.t2
+# --replicate-ignore-table=test.t8
+# --replicate-ignore-table=test.t9
+# --replicate-wild-do-table=test.t%
+# --replicate-wild-do-table=test.s%
+# --replicate-wild-ignore-table=test.m%
+# --replicate-wild-ignore-table=test.n%
+# --replicate-rewrite-db=my_db7->rewrite_db7
+# --replicate-rewrite-db=my_db8->rewrite_db8
+#
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+#
+# Stop slave.
+#
+include/stop_slave.inc
+#
+# 4. CHANGE REPLICATION FILTER filter [, filter...] with no FOR CHANNEL
+# clause does the following, both for every channel's per-channel
+# filter and for the global filters: For every filter type, if
+# the filter type is listed in the statement, then any existing
+# filter rules of that type are replaced by the filter rules
+# specified in the statement, otherwise the old value of the
+# type is retained.
+#
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(`db3`.initfilet3);
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('te%.t%');
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1,db2,`db32`,`db,3`),
+REPLICATE_DO_DB = (`:test`,my_db3,my_db4),
+REPLICATE_IGNORE_DB = (my_initfiledb3);
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(test.t3);
+#
+# 5. Verify that SHOW SLAVE STATUS FOR CHANNEL '' displays
+# the following per-channel replication filters:
+# Replicate_Do_DB = ':test,my_db3,my_db4'
+# Replicate_Ignore_DB = 'my_initfiledb3'
+# Replicate_Do_Table = 'test.t3'
+# Replicate_Ignore_Table = 'db3.initfilet3'
+# Replicate_Wild_Do_Table = 'te%.t%'
+# Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
+# Replicate_Rewrite_DB = '(my_db7,rewrite_db7),(my_db8,rewrite_db8)'
+#
+Replicate_Do_DB = ':test,my_db3,my_db4'
+Replicate_Ignore_DB = 'my_initfiledb3'
+Replicate_Do_Table = 'test.t3'
+Replicate_Ignore_Table = 'db3.initfilet3'
+Replicate_Wild_Do_Table = 'te%.t%'
+Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
+Replicate_Rewrite_DB = '(my_db7,rewrite_db7),(my_db8,rewrite_db8)'
+#
+# 6. Verify that performance_schema.replication_applier_filters can
+# display correct per-channel replication filters on default
+# channel after executing CHANGE REPLICATION FILTER with no
+# FOR CHANNEL clause.
+#
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+7
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+	REPLICATE_DO_DB	:test,my_db3,my_db4	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_IGNORE_DB	my_initfiledb3	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_DO_TABLE	test.t3	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_IGNORE_TABLE	db3.initfilet3	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_WILD_DO_TABLE	te%.t%	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_WILD_IGNORE_TABLE	test.m%,test.n%	STARTUP_OPTIONS	0
+	REPLICATE_REWRITE_DB	(my_db7,rewrite_db7),(my_db8,rewrite_db8)	STARTUP_OPTIONS	0
+#
+# 7. Verify that performance_schema.replication_applier_global_filters
+# and performance_schema.replication_applier_filters are equal on
+# on columns FILTER_NAME, FILTER_RULE and CONFIGURED_BY after
+# executing CHANGE REPLICATION FILTER with no FOR CHANNEL clause.
+#
+CREATE VIEW test.v1 AS SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_filters;
+CREATE VIEW test.v2 AS SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters;
+include/diff_tables.inc [slave:test.v1, slave:test.v2]
+#
+# 8. Verify that the "channel_2" channel would copy the global
+# replication filters to its own per-channel replication
+# filters with the same values of CONFIGURED_BY when it
+# is created by CHANGE MASTER TO ... FOR CHANNEL.
+# Upon RESET SLAVE ALL FOR CHANNEL 'channel_2', per channel FILTERS
+# will be removed from the P_S table.
+#
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12 FOR CHANNEL "channel_2";
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+14
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+	REPLICATE_DO_DB	:test,my_db3,my_db4	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_IGNORE_DB	my_initfiledb3	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_DO_TABLE	test.t3	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_IGNORE_TABLE	db3.initfilet3	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_WILD_DO_TABLE	te%.t%	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_WILD_IGNORE_TABLE	test.m%,test.n%	STARTUP_OPTIONS	0
+	REPLICATE_REWRITE_DB	(my_db7,rewrite_db7),(my_db8,rewrite_db8)	STARTUP_OPTIONS	0
+channel_2	REPLICATE_DO_DB	:test,my_db3,my_db4	CHANGE_REPLICATION_FILTER	0
+channel_2	REPLICATE_IGNORE_DB	my_initfiledb3	CHANGE_REPLICATION_FILTER	0
+channel_2	REPLICATE_DO_TABLE	test.t3	CHANGE_REPLICATION_FILTER	0
+channel_2	REPLICATE_IGNORE_TABLE	db3.initfilet3	CHANGE_REPLICATION_FILTER	0
+channel_2	REPLICATE_WILD_DO_TABLE	te%.t%	CHANGE_REPLICATION_FILTER	0
+channel_2	REPLICATE_WILD_IGNORE_TABLE	test.m%,test.n%	STARTUP_OPTIONS	0
+channel_2	REPLICATE_REWRITE_DB	(my_db7,rewrite_db7),(my_db8,rewrite_db8)	STARTUP_OPTIONS	0
+RESET SLAVE ALL FOR CHANNEL 'channel_2';
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+7
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+	REPLICATE_DO_DB	:test,my_db3,my_db4	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_IGNORE_DB	my_initfiledb3	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_DO_TABLE	test.t3	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_IGNORE_TABLE	db3.initfilet3	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_WILD_DO_TABLE	te%.t%	CHANGE_REPLICATION_FILTER	0
+	REPLICATE_WILD_IGNORE_TABLE	test.m%,test.n%	STARTUP_OPTIONS	0
+	REPLICATE_REWRITE_DB	(my_db7,rewrite_db7),(my_db8,rewrite_db8)	STARTUP_OPTIONS	0
+include/start_slave.inc
+[connection master]
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP DATABASE db1;
+DROP DATABASE db11;
+include/sync_slave_sql_with_master.inc
+#
+# 9. Verify that if the user specifies a per-channel replication filter
+# through a command-line option (or in a configuration file) for a
+# channel which does not exist as of now (i.e not present in slave
+# info tables yet), then the per-channel replication filter is
+# discarded with a warning.
+#
+include/assert_grep.inc [Found the expected warning "There are per-channel replication filter(s) configured for channel 'channel_1' which does not exist. The filter(s) have been discarded.]
+include/rpl_end.inc

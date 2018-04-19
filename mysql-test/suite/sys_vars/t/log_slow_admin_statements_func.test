@@ -7,15 +7,15 @@ SET @old_log_slow_admin_statements= @@global.log_slow_admin_statements;
 
 USE test;
 CREATE TABLE log_slow_admin_statements (
-	i INT PRIMARY KEY AUTO_INCREMENT,
-	j VARCHAR(255)
+        i INT PRIMARY KEY AUTO_INCREMENT,
+        j VARCHAR(255)
 ) ENGINE=InnoDB;
 
 # enable slow logging to table
 SET GLOBAL log_output = 'file,table';
 SET GLOBAL slow_query_log = on;
 SET SESSION long_query_time = 0;
-SET GLOBAL log_slow_admin_statements = on;
+SET GLOBAL log_slow_admin_statements = off;
 
 # test ALTER, OPTIMIZE and CHECK against the table shown up
 ALTER TABLE log_slow_admin_statements ADD COLUMN k INT DEFAULT 17;
@@ -39,17 +39,33 @@ DELIMITER ;$
 
 CALL add_rows();
 
-# OPTIMIZE TABLE
+ANALYZE TABLE log_slow_admin_statements;
 OPTIMIZE TABLE log_slow_admin_statements;
-
-# CHECK TABLE
 CHECK TABLE log_slow_admin_statements EXTENDED;
 
-# DROP TABLE
+echo Administrative sql statements must not be logged;
+SELECT count(sql_text)= 0 FROM mysql.slow_log
+       WHERE sql_text LIKE '%TABLE log_slow_admin_statements%';
+# SELECT sql_text FROM mysql.slow_log WHERE sql_text LIKE '%TABLE log_slow_admin_statements%';
+
+SET GLOBAL log_slow_admin_statements = on;
+
 DROP TABLE log_slow_admin_statements;
+CREATE TABLE log_slow_admin_statements (
+        i INT PRIMARY KEY AUTO_INCREMENT,
+        j VARCHAR(255)
+) ENGINE=InnoDB;
 
 # ALTER, OPTIMIZE, CHECK and DROP operations should be logged in slow query log.
-SELECT sql_text FROM mysql.slow_log WHERE sql_text LIKE '%TABLE log_slow_admin_statements%';
+CALL add_rows();
+
+ANALYZE TABLE log_slow_admin_statements;
+OPTIMIZE TABLE log_slow_admin_statements;
+CHECK TABLE log_slow_admin_statements EXTENDED;
+
+echo At least one administrativ sql statement must be logged in slow query log;
+SELECT count(sql_text)> 0 FROM mysql.slow_log
+       WHERE sql_text LIKE '%TABLE log_slow_admin_statements%';
 
 SET @@global.log_output=                @old_log_output;
 SET @@global.slow_query_log=            @old_slow_query_log;
@@ -57,4 +73,5 @@ SET @@session.long_query_time=          @old_long_query_time;
 SET @@global.log_slow_admin_statements= @old_log_slow_admin_statements;
 
 DROP PROCEDURE add_rows;
+DROP TABLE log_slow_admin_statements;
 TRUNCATE TABLE mysql.slow_log;

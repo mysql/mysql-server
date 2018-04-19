@@ -225,5 +225,10 @@ scp  -p  -o ConnectTimeout=1  -r  mysql@10.255.255.1:ndb_1* ndb_error_report_x/
 Please attach ndb_error_report_x.tar.bz2 to your error report
 
 #######################################################
+Running ndb_error_reporter with a junk config file
+#######################################################
+Configuration file parsing failed.
+
+#######################################################
 Cleaning up ndb_error_report_YYYYMMDDHHMMSS.tar.bz2 
 #######################################################

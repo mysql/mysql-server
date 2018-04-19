@@ -1,14 +1,21 @@
 /*
- *  Copyright (c) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
+ *  it under the terms of the GNU General Public License, version 2.0,
+ *  as published by the Free Software Foundation.
+ *
+ *  This program is also distributed with certain software (including
+ *  but not limited to OpenSSL) that is licensed under separate terms,
+ *  as designated in a particular file or component or in included license
+ *  documentation.  The authors of MySQL hereby grant you an additional
+ *  permission to link the program and your derivative works with the
+ *  separately licensed software that they have included with MySQL.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  GNU General Public License, version 2.0, for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
@@ -31,6 +38,8 @@ import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
+import com.mysql.clusterj.tie.DbImpl;
+import com.mysql.clusterj.tie.DbImpl.BufferManager;
 
 /**
  *
@@ -46,9 +55,16 @@ class ScanFilterImpl implements ScanFilter {
             .getInstance(ScanFilterImpl.class);
 
     private NdbScanFilter ndbScanFilter;
+    private DbImpl.BufferManager bufferManager;
 
-    public ScanFilterImpl(NdbScanFilter ndbScanFilter) {
+    public ScanFilterImpl(NdbScanFilter ndbScanFilter, DbImpl db) {
         this.ndbScanFilter = ndbScanFilter;
+        this.bufferManager = db.getBufferManager();
+    }
+
+    public ScanFilterImpl(NdbScanFilter ndbScanFilter, BufferManager bufferManager) {
+        this.ndbScanFilter = ndbScanFilter;
+        this.bufferManager = bufferManager;
     }
 
     public void begin() {
@@ -62,9 +78,11 @@ class ScanFilterImpl implements ScanFilter {
     }
 
     public void cmpBigInteger(BinaryCondition condition, Column storeColumn, BigInteger value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
+        ByteBuffer buffer = bufferManager.borrowBuffer(100);
+        Utility.convertValue(buffer, storeColumn, value);
         int returnCode = ndbScanFilter.cmp(convertCondition(condition),
-                storeColumn.getColumnId(), buffer, buffer.capacity());
+                storeColumn.getColumnId(), buffer, buffer.limit());
+        bufferManager.returnBuffer(100, buffer);
         handleError(returnCode, ndbScanFilter);
     }
 
@@ -74,70 +92,89 @@ class ScanFilterImpl implements ScanFilter {
     }
 
     public void cmpByte(BinaryCondition condition, Column storeColumn, byte value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
+        // Bit types can use Byte and need 4 bytes for storage
+        ByteBuffer buffer = bufferManager.borrowBuffer(4);
+        Utility.convertValue(buffer, storeColumn, value);
         int returnCode = ndbScanFilter.cmp(convertCondition(condition),
-                storeColumn.getColumnId(), buffer, buffer.capacity());
+                storeColumn.getColumnId(), buffer, buffer.limit());
+        bufferManager.returnBuffer(4, buffer);
         handleError(returnCode, ndbScanFilter);
     }
 
     public void cmpBytes(BinaryCondition condition, Column storeColumn, byte[] value) {
-        ByteBuffer buffer;
+        int columnSpace = storeColumn.getColumnSpace();
+        ByteBuffer buffer = bufferManager.borrowBuffer(columnSpace);
         if (condition == BinaryCondition.COND_LIKE) {
-            buffer = Utility.convertValueForLikeFilter(storeColumn, value);
+            Utility.convertValueForLikeFilter(buffer, storeColumn, value);
         } else {
-            buffer = Utility.convertValue(storeColumn, value);
+            Utility.convertValue(buffer, storeColumn, value);
         }
         int returnCode = ndbScanFilter.cmp(convertCondition(condition),
-                storeColumn.getColumnId(), buffer, buffer.capacity());
+                storeColumn.getColumnId(), buffer, buffer.limit());
+        bufferManager.returnBuffer(columnSpace, buffer);
         handleError(returnCode, ndbScanFilter);
     }
 
     public void cmpDecimal(BinaryCondition condition, Column storeColumn, BigDecimal value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
+        ByteBuffer buffer = bufferManager.borrowBuffer(100);
+        Utility.convertValue(buffer, storeColumn, value);
         int returnCode = ndbScanFilter.cmp(convertCondition(condition),
-                storeColumn.getColumnId(), buffer, buffer.capacity());
+                storeColumn.getColumnId(), buffer, buffer.limit());
+        bufferManager.returnBuffer(100, buffer);
         handleError(returnCode, ndbScanFilter);
     }
 
     public void cmpDouble(BinaryCondition condition, Column storeColumn, double value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
+        ByteBuffer buffer = bufferManager.borrowBuffer(8);
+        Utility.convertValue(buffer, storeColumn, value);
         int returnCode = ndbScanFilter.cmp(convertCondition(condition),
-                storeColumn.getColumnId(), buffer, buffer.capacity());
+                storeColumn.getColumnId(), buffer, buffer.limit());
+        bufferManager.returnBuffer(8, buffer);
         handleError(returnCode, ndbScanFilter);
     }
 
     public void cmpFloat(BinaryCondition condition, Column storeColumn, float value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
+        ByteBuffer buffer = bufferManager.borrowBuffer(4);
+        Utility.convertValue(buffer, storeColumn, value);
         int returnCode = ndbScanFilter.cmp(convertCondition(condition),
-                storeColumn.getColumnId(), buffer, buffer.capacity());
+                storeColumn.getColumnId(), buffer, buffer.limit());
+        bufferManager.returnBuffer(4, buffer);
         handleError(returnCode, ndbScanFilter);
     }
 
     public void cmpShort(BinaryCondition condition, Column storeColumn, short value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
+        // Bit types can use Short and need 4 bytes for storage
+        ByteBuffer buffer = bufferManager.borrowBuffer(4);
+        Utility.convertValue(buffer, storeColumn, value);
         int returnCode = ndbScanFilter.cmp(convertCondition(condition),
-                storeColumn.getColumnId(), buffer, buffer.capacity());
+                storeColumn.getColumnId(), buffer, buffer.limit());
+        bufferManager.returnBuffer(4, buffer);
         handleError(returnCode, ndbScanFilter);
     }
 
     public void cmpInt(BinaryCondition condition, Column storeColumn, int value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
+        ByteBuffer buffer = bufferManager.borrowBuffer(4);
+        Utility.convertValue(buffer, storeColumn, value);
         int returnCode = ndbScanFilter.cmp(convertCondition(condition),
-                storeColumn.getColumnId(), buffer, buffer.capacity());
+                storeColumn.getColumnId(), buffer, buffer.limit());
+        bufferManager.returnBuffer(4, buffer);
         handleError(returnCode, ndbScanFilter);
     }
 
     public void cmpLong(BinaryCondition condition, Column storeColumn, long value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
+        ByteBuffer buffer = bufferManager.borrowBuffer(8);
+        Utility.convertValue(buffer, storeColumn, value);
         if (logger.isDetailEnabled()) {
             int bufferLength = buffer.limit() - buffer.position();
             byte[] array = new byte[bufferLength];
             buffer.get(array);
             buffer.flip();
-            logger.detail("column: " + storeColumn.getName() + " condition: " + condition.toString() + " value: " + value + Arrays.toString(array) + "(" + buffer.capacity() + ")");
+            if (logger.isDetailEnabled())
+                logger.detail("column: " + storeColumn.getName() + " condition: " + condition.toString() +
+                    " value: " + value + Arrays.toString(array) + "(" + buffer.capacity() + ")");
         }
         int returnCode = ndbScanFilter.cmp(convertCondition(condition),
-                storeColumn.getColumnId(), buffer, buffer.capacity());
+                storeColumn.getColumnId(), buffer, buffer.limit());
         handleError(returnCode, ndbScanFilter);
     }
 

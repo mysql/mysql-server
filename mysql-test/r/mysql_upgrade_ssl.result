@@ -1,12 +1,17 @@
+call mtr.add_suppression("Column count of mysql.* is wrong. "
+                         "Expected .*, found .*. "
+                         "The table is probably corrupted");
 #
 # Bug#55672 mysql_upgrade dies with internal error 
 #
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
-mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
@@ -14,11 +19,11 @@ mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
-mysql.ndb_binlog_index                             OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
-mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -42,6 +47,10 @@ DROP TABLE IF EXISTS tmp_user;
 Warnings:
 Note	1051	Unknown table 'test.tmp_user'
 CREATE TEMPORARY TABLE tmp_user AS (SELECT * FROM mysql.user);
+ALTER TABLE mysql.user DROP COLUMN Drop_role_priv;
+ALTER TABLE mysql.user DROP COLUMN Create_role_priv;
+ALTER TABLE mysql.user DROP COLUMN Password_reuse_history;
+ALTER TABLE mysql.user DROP COLUMN Password_reuse_time;
 ALTER TABLE mysql.user ADD COLUMN Password
 char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL
 AFTER user;
@@ -53,20 +62,26 @@ ALTER TABLE mysql.user DROP COLUMN account_locked;
 INSERT INTO mysql.user VALUES 
 ('%','user_sha_pass_wp','','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'sha256_password','$5$J=M`}N+i=%1o6z\'$Ns0lpHRzOCs9T4n5df6ZxAYsUaK1yFMnRGlp3T48AW/','N');
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1805	Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
 #"Manualy grant" super user privileges to user_sha_pass_wp
 UPDATE mysql.user SET Select_priv='Y', Insert_priv='Y', Update_priv='Y', Delete_priv='Y', Create_priv='Y', Drop_priv='Y', Reload_priv='Y', Shutdown_priv='Y', Process_priv='Y', File_priv='Y', Grant_priv='Y', References_priv='Y', Index_priv='Y', Alter_priv='Y', Show_db_priv='Y', Super_priv='Y', Create_tmp_table_priv='Y', Lock_tables_priv='Y', Execute_priv='Y', Repl_slave_priv='Y', Repl_client_priv='Y', Create_view_priv='Y', Show_view_priv='Y', Create_routine_priv='Y', Alter_routine_priv='Y', Create_user_priv='Y', Event_priv='Y', Trigger_priv='Y', Create_tablespace_priv='Y' where user="user_sha_pass_wp";
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1805	Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
 #Run mysql_upgrade with user_sha_pass_wp -n i.e. user with sha256
 #password set. After mysql_upgrade finishes the mysql.user table should
 #have 5.7 layout thus no need to restore the dropped columns from
 #the begining of the test
 mysql_upgrade: [Warning] Using a password on the command line interface can be insecure.
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
-mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
@@ -74,11 +89,11 @@ mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
-mysql.ndb_binlog_index                             OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
-mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -98,4 +113,5 @@ sys.sys_config                                     OK
 DROP USER 'user_sha_pass_wp'@'%';
 TRUNCATE TABLE mysql.user;
 INSERT INTO mysql.user SELECT * FROM tmp_user;
+FLUSH PRIVILEGES;
 DROP TABLE tmp_user;

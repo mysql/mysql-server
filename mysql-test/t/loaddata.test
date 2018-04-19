@@ -1,5 +1,3 @@
---source include/have_utf8.inc
-
 #
 # Some simple test of load data
 #
@@ -23,7 +21,7 @@ load data infile '../../std_data/loaddata2.dat' ignore into table t1 fields term
 select concat('|',a,'|'), concat('|',b,'|') from t1;
 drop table t1;
 
-create table t1 (a int, b char(10));
+create table t1 (a int, b char(10)) charset latin1;
 load data infile '../../std_data/loaddata3.dat' ignore into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
 select * from t1;
 truncate table t1;
@@ -294,7 +292,7 @@ SELECT * FROM v2;
 DELETE FROM t1;
 
 --echo
---error ER_LOAD_DATA_INVALID_COLUMN
+--error ER_NONUPDATEABLE_COLUMN
 LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v2
   FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
@@ -519,7 +517,7 @@ select load_file(0x0A9FB76C661B409C4BEC88098C5DD71B1072F9691F2E827D7EC8F092B2998
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1);
 SET NAMES latin1;
-SET character_set_filesystem=filename;
+SET character_set_filesystem=binary;
 select @@character_set_filesystem;
 SELECT * INTO OUTFILE 't-1' FROM t1;
 DELETE FROM t1;
@@ -528,11 +526,11 @@ SELECT * FROM t1;
 DELETE FROM t1;
 SET character_set_filesystem=latin1;
 select @@character_set_filesystem;
-LOAD DATA INFILE 't@002d1' INTO TABLE t1;
+LOAD DATA INFILE 't-1' INTO TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
 let $MYSQLD_DATADIR= `select @@datadir`;
-remove_file $MYSQLD_DATADIR/test/t@002d1;
+remove_file $MYSQLD_DATADIR/test/t-1;
 SET character_set_filesystem=default;
 select @@character_set_filesystem;
 
@@ -658,15 +656,114 @@ DROP TABLE t1;
 --echo #
 SET @old_mode= @@sql_mode;
 CREATE TABLE t1 (fld1 INT);
-SET sql_mode='strict_all_tables';
+SET sql_mode=default;
 
 --copy_file $EXE_MYSQL $MYSQLTEST_VARDIR/mysql
 
 --echo # Without fix, load data hangs forever.
+# The actual error code depends on character set
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,1000
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,ER_INVALID_CHARACTER_STRING
 eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/mysql' REPLACE INTO TABLE t1
      FIELDS TERMINATED BY 't' LINES TERMINATED BY '';
 
 SET @@sql_mode= @old_mode;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#20683959 LOAD DATA INFILE IGNORES A SPECIFIC ROW SILENTLY
+--echo #              UNDER DB CHARSET IS UTF8
+--echo #
+
+CREATE DATABASE d1 CHARSET latin1;
+USE d1;
+CREATE TABLE t1 (val TEXT);
+LOAD DATA INFILE '../../std_data/bug20683959loaddata.txt' INTO TABLE t1;
+SELECT COUNT(*) FROM t1;
+SELECT HEX(val) FROM t1;
+
+CREATE DATABASE d2 CHARSET utf8;
+USE d2;
+CREATE TABLE t1 (val TEXT);
+LOAD DATA INFILE '../../std_data/bug20683959loaddata.txt' INTO TABLE t1;
+SELECT COUNT(*) FROM t1;
+SELECT HEX(val) FROM t1;
+
+
+DROP TABLE d1.t1, d2.t1;
+DROP DATABASE d1;
+DROP DATABASE d2;
+USE test;
+
+--echo # Bug#21097485 *insert_table_ref && (insert_table_ref)->is_insertable
+
+CREATE TABLE t(a INTEGER PRIMARY KEY, b INTEGER, c INTEGER);
+CREATE VIEW v AS SELECT a, b+c AS d FROM t;
+
+--error ER_NONUPDATEABLE_COLUMN
+LOAD DATA INFILE 'test.dat' INTO TABLE v(a, d);
+
+--error ER_NONUPDATEABLE_COLUMN
+LOAD DATA INFILE 'test.dat' INTO TABLE v(@a, @d) SET a= @a, d= @d;
+
+DROP VIEW v;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #25147988: LOAD DATA INFILE FAILS WITH AN ESCAPE CHARACTER
+--echo #                FOLLOWED BY A MULTI-BYTE ONE
+--echo #
+# Test escape mark followed by multibyte character
+CREATE TABLE t1(a VARCHAR(20)) CHARSET utf8mb4;
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1 CHARACTER SET utf8mb4;
+SELECT HEX(a) FROM t1;
+DROP TABLE t1;
+# Test multibyte character whose second byte is 0x5C
+CREATE TABLE t1(a VARCHAR(20)) CHARSET gb18030;
+LOAD DATA INFILE '../../std_data/loaddata7.dat' INTO TABLE t1 CHARACTER SET gb18030;
+SELECT HEX(a) FROM t1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Regression test added in WL#8063
+--echo #
+
+--error ER_TOO_LONG_IDENT
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890;
+
+CREATE TABLE t1(a VARCHAR(20));
+
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1 ();
+LOAD DATA INFILE '../../std_data/loaddata_incomplete_mb.dat' INTO TABLE t1 IGNORE 20 LINES;
+LOAD DATA INFILE '../../std_data/loaddata_incomplete_escape.dat' INTO TABLE t1 IGNORE 20 LINES;
+
+--error ER_SP_BADSTATEMENT
+CREATE PROCEDURE p1() LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
+
+
+SET @save_local_infile = @@local_infile;
+SET GLOBAL local_infile = OFF;
+
+--error ER_NOT_ALLOWED_COMMAND
+LOAD DATA LOCAL INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
+
+SET GLOBAL local_infile = @save_local_infile;
+
+
+DROP TABLE t1;
+
+CREATE TABLE t2(a BLOB);
+
+--error ER_BLOBS_AND_NO_TERMINATED
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t2 FIELDS TERMINATED BY '' LINES TERMINATED BY '';
+
+DROP TABLE t2;
+
+
+CREATE TABLE t3(a VARCHAR(20), i INT NOT NULL);
+
+--error ER_BAD_NULL_ERROR
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t3 (a) SET i = NULL;
+
+DROP TABLE t3;

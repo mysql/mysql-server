@@ -11,7 +11,7 @@ SELECT 1, 2, 3;
 1	2
 1	2
 Warnings:
-Note	1105	Query 'SELECT 1, 2, 3' rewritten to 'SELECT 1, 2' by plugin: Rewriter.
+Note	1105	Query 'SELECT 1, 2, 3' rewritten to 'SELECT 1, 2' by a query rewrite plugin
 CREATE PROCEDURE p1() SELECT 1, 2, 3//
 CREATE PROCEDURE p2()
 BEGIN
@@ -29,4 +29,6 @@ CALL p2();
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP TABLE t1;
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

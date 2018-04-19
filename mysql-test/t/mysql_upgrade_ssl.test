@@ -1,13 +1,21 @@
 
 # mysql_upgrade tests requiring SSL support
 
--- source include/have_ssl_communication.inc
+-- source include/no_valgrind_without_big.inc
+-- source include/have_ssl.inc
 -- source include/mysql_upgrade_preparation.inc
+
+call mtr.add_suppression("Column count of mysql.* is wrong. "
+                         "Expected .*, found .*. "
+                         "The table is probably corrupted");
 
 --echo #
 --echo # Bug#55672 mysql_upgrade dies with internal error 
 --echo #
---exec $MYSQL_UPGRADE --skip-verbose --ssl --force 2>&1
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --ssl-mode=REQUIRED --force 2>&1
 
 --echo #
 --echo # WL #8350 ENSURE 5.7 SUPPORTS SMOOTH LIVE UPGRADE FROM 5.6
@@ -19,6 +27,7 @@ CREATE TEMPORARY TABLE tmp_user AS (SELECT * FROM mysql.user);
 
 # Create 5.6 mysql.user table layout
 
+--source include/user_58_to_57.inc
 --source include/user_57_to_56.inc
 
 --echo # "Manualy" create user with sha256 password
@@ -36,13 +45,17 @@ FLUSH PRIVILEGES;
 --echo #password set. After mysql_upgrade finishes the mysql.user table should
 --echo #have 5.7 layout thus no need to restore the dropped columns from
 --echo #the begining of the test
---exec $MYSQL_UPGRADE --skip-verbose --force --ssl --user=user_sha_pass_wp --password=lala 2>&1
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force --ssl-mode=REQUIRED --user=user_sha_pass_wp --password=lala 2>&1
 
 DROP USER 'user_sha_pass_wp'@'%';
 #
 # Restore mysql.user content
 TRUNCATE TABLE mysql.user;
 INSERT INTO mysql.user SELECT * FROM tmp_user;
+FLUSH PRIVILEGES;
 DROP TABLE tmp_user;
 
 --source include/mysql_upgrade_cleanup.inc

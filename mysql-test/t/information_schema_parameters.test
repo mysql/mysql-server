@@ -34,11 +34,14 @@ USE INFORMATION_SCHEMA;
 --replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 SHOW CREATE TABLE INFORMATION_SCHEMA.PARAMETERS;
 
-# embedded server does not display privileges
---replace_column 19 #
+# The below query results in two difference collations like
+# 'utf8_tolower_ci' or 'utf8_bin' depending on l_c_t_n for
+# 'mysql.schemata.name' column. In order to get consistent
+# results across platforms, we replace the results below.
+--replace_result utf8_tolower_ci utf8_bin
 query_vertical SELECT * FROM information_schema.columns
 WHERE table_schema = 'information_schema'
-  AND table_name   = 'parameters'
+  AND table_name   = 'PARAMETERS'
 ORDER BY ordinal_position;
 
 DESCRIBE INFORMATION_SCHEMA.PARAMETERS;
@@ -273,7 +276,7 @@ CREATE FUNCTION test_func6 (f_p1 DATETIME(6), f_p2 TIMESTAMP(6)) RETURNS TIME(6)
 
 SELECT SPECIFIC_SCHEMA, SPECIFIC_NAME, PARAMETER_NAME, DATA_TYPE, 
 DATETIME_PRECISION from INFORMATION_SCHEMA.PARAMETERS WHERE 
-SPECIFIC_SCHEMA='i_s_parameters_test';
+SPECIFIC_SCHEMA='i_s_parameters_test' ORDER BY SPECIFIC_NAME,PARAMETER_NAME;
 
 
 # Cleanup

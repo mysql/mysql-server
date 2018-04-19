@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
 
 CREATE LOGFILE GROUP lg1
@@ -18,11 +13,9 @@ INITIAL_SIZE 12M
 ENGINE NDB;
 
 alter tablespace ts1
-drop datafile 'datafile.dat'
-engine ndb;
+drop datafile 'datafile.dat';
 
-drop tablespace ts1
-engine ndb;
+drop tablespace ts1;
 
 drop logfile group lg1
 engine ndb;

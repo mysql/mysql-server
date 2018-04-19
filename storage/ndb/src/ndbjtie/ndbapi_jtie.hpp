@@ -1,14 +1,21 @@
 /*
- Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; version 2 of the License.
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+ GNU General Public License, version 2.0, for more details.
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
@@ -282,6 +289,23 @@ Java_com_mysql_ndbjtie_ndbapi_NDBAPI_return_1ndb_1object(JNIEnv * env, jclass cl
 // ---------------------------------------------------------------------------
 
 //#include "com_mysql_ndbjtie_ndbapi_Ndb.h"
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb
+ * Method:    getAutoIncrementValue
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/TableConst;[JIJJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_mysql_ndbjtie_ndbapi_Ndb_getAutoIncrementValue
+  (JNIEnv * env, jobject obj, jobject table, jlongArray ret, jint batch, jlong step, jlong start)
+{
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_Ndb_getAutoIncrementValue__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2L__2I(JNIEnv *, jobject, jobject, jlongarray, jint, jlong, jlong)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_Ndb_t, ttrait_int, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_Uint64_r_a, ttrait_Uint32, ttrait_Uint64, ttrait_Uint64, &Ndb::getAutoIncrementValue >(env, obj, table, ret, batch, step, start);
+#else
+    return gcall_fr< ttrait_int, ttrait_c_m_n_n_Ndb_r, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_Uint64_r_a, ttrait_Uint32, ttrait_Uint64, ttrait_Uint64, &NdbApiWrapper::Ndb__getAutoIncrementValue >(env, NULL, obj, table, ret, batch, step, start);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb
@@ -1302,6 +1326,22 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024AutoGrowSpecification_delete(JN
 // ---------------------------------------------------------------------------
 
 //#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Column.h"
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Column
+ * Method:    getAutoIncrement
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Column_getAutoIncrement(JNIEnv * env, jobject obj)
+{
+    TRACE("jboolean Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Column_getAutoIncrement(JNIEnv *, jobject)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Column_ct, ttrait_bool, &NdbDictionary::Column::getAutoIncrement >(env, obj);
+#else
+    return gcall_fr< ttrait_bool, ttrait_c_m_n_n_NdbDictionary_Column_cr, &NdbApiWrapper::NdbDictionary__Column__getAutoIncrement >(env, NULL, obj);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Column
@@ -2372,6 +2412,38 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_removeCachedIndex(JN
     gcall_mfv< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, &NdbDictionary::Dictionary::removeCachedIndex >(env, obj, p0, p1);
 #else
     gcall_fv< ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, &NdbApiWrapper::NdbDictionary__Dictionary__removeCachedIndex__1 >(env, NULL, obj, p0, p1);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
+ * Method:    invalidateTable
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_invalidateTable(JNIEnv * env, jobject obj, jstring p0)
+{
+    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_invalidateTable(JNIEnv *, jobject, jstring)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    gcall_mfv< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_char_cp_jutf8null, &NdbDictionary::Dictionary::invalidateTable >(env, obj, p0);
+#else
+    gcall_fv< ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_char_cp_jutf8null, &NdbApiWrapper::NdbDictionary__Dictionary__invalidateTable__0 >(env, NULL, obj, p0);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
+ * Method:    invalidateIndex
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_invalidateIndex(JNIEnv * env, jobject obj, jstring p0, jstring p1)
+{
+    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_invalidateIndex(JNIEnv *, jobject, jstring, jstring)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    gcall_mfv< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, &NdbDictionary::Dictionary::invalidateIndex >(env, obj, p0, p1);
+#else
+    gcall_fv< ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, &NdbApiWrapper::NdbDictionary__Dictionary__invalidateIndex__1 >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
@@ -10139,6 +10211,22 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1name(JNIEnv * env, j
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    set_service_uri
+ * Signature:
+*/
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1service_1uri(JNIEnv * env, jobject obj, jstring p0, jstring p1, jint p2, jstring p3)
+{
+    TRACE("void Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1service_1uri(JNIEnv *, jobject, jstring, jstring, jint, jstring)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    gcall_mfv< ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, ttrait_int, ttrait_char_cp_jutf8null, &Ndb_cluster_connection::set_service_uri >(env, obj, p0, p1, p2, p3);
+#else
+    gcall_fv< ttrait_c_m_n_n_Ndb_cluster_connection_r, ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, ttrait_int, ttrait_char_cp_jutf8null, &NdbApiWrapper::Ndb_cluster_connection__set_service_uri >(env, NULL, obj, p0, p1, p2, p3);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
  * Method:    set_timeout
  * Signature: (I)I
  */
@@ -10219,6 +10307,70 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_unlock_1ndb_1objects(JNIE
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    set_recv_thread_activation_threshold
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1recv_1thread_1activation_1threshold (JNIEnv * env, jobject obj, jint p0)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1recv_1thread_1activation_1threshold(JNIEnv *, jobject, jint)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_int, ttrait_Uint32, &Ndb_cluster_connection::set_recv_thread_activation_threshold >(env, obj, p0);
+#else
+    return gcall_fr< ttrait_int, ttrait_c_m_n_n_Ndb_cluster_connection_r, ttrait_int, &NdbApiWrapper::Ndb_cluster_connection__set_recv_thread_activation_threshold >(env, NULL, obj, p0);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    get_recv_thread_activation_threshold
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1recv_1thread_1activation_1threshold (JNIEnv * env, jobject obj)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1recv_1thread_1activation_1threshold(JNIEnv *, jobject)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_int, &Ndb_cluster_connection::get_recv_thread_activation_threshold >(env, obj);
+#else
+    return gcall_fr< ttrait_int, ttrait_c_m_n_n_Ndb_cluster_connection_r, &NdbApiWrapper::Ndb_cluster_connection__get_recv_thread_activation_threshold >(env, NULL, obj);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    set_recv_thread_cpu
+ * Signature: (S)I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1recv_1thread_1cpu (JNIEnv * env, jobject obj, jshort p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1recv_1thread_1cpu (JNIEnv *, jobject, jshort)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_int, ttrait_Uint16, &Ndb_cluster_connection::set_recv_thread_cpu >(env, obj, p0);
+#else
+    return gcall_fr< ttrait_int, ttrait_c_m_n_n_Ndb_cluster_connection_r, ttrait_short, &NdbApiWrapper::Ndb_cluster_connection__set_recv_thread_cpu >(env, NULL, obj, p0);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    unset_recv_thread_cpu
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_unset_1recv_1thread_1cpu (JNIEnv * env, jobject obj)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_unset_1recv_1thread_1cpu (JNIEnv *, jobject)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_int, ttrait_Uint32, &Ndb_cluster_connection::unset_recv_thread_cpu >(env, obj, 0);
+#else
+    return gcall_fr< ttrait_int, ttrait_c_m_n_n_Ndb_cluster_connection_r, &NdbApiWrapper::Ndb_cluster_connection__unset_recv_thread_cpu >(env, NULL, obj);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
  * Method:    get_next_ndb_object
  * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbConst;)Lcom/mysql/ndbjtie/ndbapi/NdbConst;
  */
@@ -10230,6 +10382,22 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1next_1ndb_1object(JN
     return gcall_mfr< ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_c_m_n_n_Ndb_cp, ttrait_c_m_n_n_Ndb_cp, &Ndb_cluster_connection::get_next_ndb_object >(env, obj, p0);
 #else
     return gcall_fr< ttrait_c_m_n_n_Ndb_cp, ttrait_c_m_n_n_Ndb_cluster_connection_r, ttrait_c_m_n_n_Ndb_cp, &NdbApiWrapper::Ndb_cluster_connection__get_next_ndb_object >(env, NULL, obj, p0);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    get_system_name
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1system_1name(JNIEnv * env, jobject obj)
+{
+    TRACE("jstring Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1system_1name(JNIEnv *, jobject)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_Ndb_cluster_connection_ct, ttrait_char_cp_jutf8null, &Ndb_cluster_connection::get_system_name >(env, obj);
+#else
+    return gcall_fr< ttrait_char_cp_jutf8null, ttrait_c_m_n_n_Ndb_cluster_connection_cr, &NdbApiWrapper::Ndb_cluster_connection__get_system_name >(env, NULL, obj);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 

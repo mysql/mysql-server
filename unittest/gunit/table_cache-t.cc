@@ -1,27 +1,34 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-#include "test_utils.h"
+#include <sys/types.h>
 
-#include "table_cache.h"
-
-#include "mysqld_thd_manager.h"
-#include "ha_example.h"
+#include "lex_string.h"
+#include "my_inttypes.h"
+#include "sql/mysqld_thd_manager.h"
+#include "sql/table_cache.h"
+#include "storage/example/ha_example.h"
+#include "unittest/gunit/test_utils.h"
 
 /*
   We need example_hton to be able short-cut creation of example
@@ -34,8 +41,7 @@ namespace table_cache_unittest {
 using my_testing::Server_initializer;
 
 #ifdef SAFE_MUTEX
-static const char *assert_string=
-  ".*Assertion.*count > 0.*my_thread_equal.*";
+static const char *assert_string = ".*Assertion.*count > 0.*my_thread_equal.*";
 #endif
 
 /**
@@ -47,28 +53,23 @@ static const char *assert_string=
   necessary for testing.
 */
 
-class TableCacheBasicTest : public ::testing::Test
-{
-protected:
-  static const uint MAX_THREADS= 3;
+class TableCacheBasicTest : public ::testing::Test {
+ protected:
+  static const uint MAX_THREADS = 3;
 
-  virtual void SetUp()
-  {
-    Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  virtual void SetUp() {
+    Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
     thd_manager->set_unit_test();
     // Reset thread ID counter for each test.
     thd_manager->set_thread_id_counter(1);
-    for (uint i= 0; i < MAX_THREADS; ++i)
-    {
+    for (uint i = 0; i < MAX_THREADS; ++i) {
       initializer[i].SetUp();
     }
 
     ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   }
-  virtual void TearDown()
-  {
-    for (uint i= 0; i < MAX_THREADS; ++i)
-      initializer[i].TearDown();
+  virtual void TearDown() {
+    for (uint i = 0; i < MAX_THREADS; ++i) initializer[i].TearDown();
   }
 
   THD *get_thd(uint index) { return initializer[index].thd(); }
@@ -76,18 +77,15 @@ protected:
   Server_initializer initializer[MAX_THREADS];
 };
 
-
 /**
   A more advanced fixture that also initializes table_cache_manager
   with one Table_cache instance and TDC.
 */
 
-class TableCacheSingleCacheTest : public TableCacheBasicTest
-{
-protected:
+class TableCacheSingleCacheTest : public TableCacheBasicTest {
+ protected:
   virtual uint CachesNumber() { return 1; }
-  virtual void SetUp()
-  {
+  virtual void SetUp() {
     TableCacheBasicTest::SetUp();
 
     /*
@@ -96,91 +94,78 @@ protected:
       and be able to free TABLE objects correctly (we need LOCK_open
       initialized for this).
     */
-    table_cache_instances= CachesNumber();
-    table_cache_size_per_instance= 100;
+    table_cache_instances = CachesNumber();
+    table_cache_size_per_instance = 100;
     ASSERT_FALSE(table_def_init());
   }
-  virtual void TearDown()
-  {
+  virtual void TearDown() {
     table_def_free();
     TableCacheBasicTest::TearDown();
   }
 };
-
 
 /**
   Another advanced fixture that also initializes table_cache_manager
   with two Table_cache instances and TDC.
 */
 
-class TableCacheDoubleCacheTest : public TableCacheSingleCacheTest
-{
-protected:
+class TableCacheDoubleCacheTest : public TableCacheSingleCacheTest {
+ protected:
   virtual uint CachesNumber() { return 2; }
 };
-
 
 /**
   Class for mock TABLE_SHARE object which also allows to create
   associated TABLE objects which are usable with Table_cache.
 */
 
-class Mock_share : public TABLE_SHARE
-{
+class Mock_share : public TABLE_SHARE {
   MEM_ROOT m_mem_root;
   Table_cache_element *cache_element_arr[Table_cache_manager::MAX_TABLE_CACHES];
 
-public:
-  Mock_share(const char *key)
-  {
-    memset((TABLE_SHARE *)this, 0, sizeof(TABLE_SHARE));
+ public:
+  Mock_share(const char *key) {
     /*
       Both table_cache_key and cache_element array are used by
       Table_cache code.
     */
-    table_cache_key.str= (char*)key;
-    table_cache_key.length= strlen(key);
+    table_cache_key.str = (char *)key;
+    table_cache_key.length = strlen(key);
     memset(cache_element_arr, 0, sizeof(cache_element_arr));
-    cache_element= cache_element_arr;
+    cache_element = cache_element_arr;
     // MEM_ROOT is used for constructing ha_example() instances.
     init_alloc_root(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
     /*
       Assertion in some of Table_cache methods check that version of
       the share is up-to-date.
     */
-    version= refresh_version;
+    version = refresh_version;
     // Ensure that share is never destroyed.
-    ref_count= UINT_MAX;
+    ref_count = UINT_MAX;
   }
 
-  ~Mock_share()
-  {
-    free_root(&m_mem_root, MYF(0));
-  }
+  ~Mock_share() { free_root(&m_mem_root, MYF(0)); }
 
-  TABLE *create_table(THD *thd)
-  {
-    TABLE *result= (TABLE *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(TABLE), MYF(0));
+  TABLE *create_table(THD *thd) {
+    TABLE *result =
+        (TABLE *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(TABLE), MYF(0));
+    new (result) TABLE;
 
-    memset(result, 0, sizeof(TABLE));
-    result->s= this;
+    result->s = this;
     // We create TABLE which is already marked as used
-    result->in_use= thd;
+    result->in_use = thd;
     /*
       Assertions in some of Table_cache methods need non-NULL
       TABLE::file and TABLE::db_stat. Code that frees unused
       TABLE objects needs proper "handler" instance.
     */
-    result->file= new (&m_mem_root) ha_example(example_hton, this);
-    result->db_stat= HA_READ_ONLY;
+    result->file = new (&m_mem_root) ha_example(example_hton, this);
+    result->db_stat = HA_READ_ONLY;
 
     return result;
   }
 
-  void destroy_table(TABLE *table)
-  {
-    my_free(table);
-  }
+  void destroy_table(TABLE *table) { my_free(table); }
 };
 
 // Google Test recommends DeathTest suffix for classes used in death tests.
@@ -191,8 +176,7 @@ typedef TableCacheDoubleCacheTest TableCacheDoubleCacheDeathTest;
   Test initilization/destruction of Table_cache.
 */
 
-TEST_F(TableCacheBasicDeathTest, CacheCreateAndDestroy)
-{
+TEST_F(TableCacheBasicDeathTest, CacheCreateAndDestroy) {
   Table_cache table_cache;
 
   ASSERT_FALSE(table_cache.init());
@@ -202,27 +186,23 @@ TEST_F(TableCacheBasicDeathTest, CacheCreateAndDestroy)
 
   // Cache should be not locked after creation
 #ifdef SAFE_MUTEX
-  EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
-                            assert_string);
+  EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(), assert_string);
 #endif
   table_cache.destroy();
 }
-
 
 /*
   Test locking for Table_cache object.
 */
 
-TEST_F(TableCacheBasicDeathTest, CacheLockAndUnlock)
-{
+TEST_F(TableCacheBasicDeathTest, CacheLockAndUnlock) {
   Table_cache table_cache;
 
   ASSERT_FALSE(table_cache.init());
 
 #ifdef SAFE_MUTEX
   // Cache should not be locked after creation
-  EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
-                            assert_string);
+  EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(), assert_string);
 #endif
 
   // And get locked after we call its lock() method
@@ -232,13 +212,11 @@ TEST_F(TableCacheBasicDeathTest, CacheLockAndUnlock)
   // And get unlocked after we call its unlock() method
   table_cache.unlock();
 #ifdef SAFE_MUTEX
-  EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
-                            assert_string);
+  EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(), assert_string);
 #endif
 
   table_cache.destroy();
 }
-
 
 /*
   Tests for the rest of methods of Table_cache need to use an
@@ -248,10 +226,9 @@ TEST_F(TableCacheBasicDeathTest, CacheLockAndUnlock)
   Table_cache_manager::get_cache() method.
 */
 
-TEST_F(TableCacheBasicDeathTest, ManagerCreateAndDestroy)
-{
+TEST_F(TableCacheBasicDeathTest, ManagerCreateAndDestroy) {
   // Request two instances of Table_cache
-  table_cache_instances= 2;
+  table_cache_instances = 2;
 
   ASSERT_FALSE(table_cache_manager.init());
 
@@ -260,9 +237,9 @@ TEST_F(TableCacheBasicDeathTest, ManagerCreateAndDestroy)
 
   // There should be two different caches in the manager
   Table_cache *cache_1, *cache_2, *cache_3;
-  cache_1= table_cache_manager.get_cache(get_thd(0));
-  cache_2= table_cache_manager.get_cache(get_thd(1));
-  cache_3= table_cache_manager.get_cache(get_thd(2));
+  cache_1 = table_cache_manager.get_cache(get_thd(0));
+  cache_2 = table_cache_manager.get_cache(get_thd(1));
+  cache_3 = table_cache_manager.get_cache(get_thd(2));
   EXPECT_TRUE(cache_1 != cache_2);
   // And not three !
   EXPECT_TRUE(cache_3 == cache_1);
@@ -273,28 +250,24 @@ TEST_F(TableCacheBasicDeathTest, ManagerCreateAndDestroy)
 
   // And not locked
 #ifdef SAFE_MUTEX
-  EXPECT_DEATH_IF_SUPPORTED(cache_1->assert_owner(),
-                            assert_string);
-  EXPECT_DEATH_IF_SUPPORTED(cache_2->assert_owner(),
-                            assert_string);
+  EXPECT_DEATH_IF_SUPPORTED(cache_1->assert_owner(), assert_string);
+  EXPECT_DEATH_IF_SUPPORTED(cache_2->assert_owner(), assert_string);
 #endif
 
   table_cache_manager.destroy();
 }
 
-
 /*
   Test addition and removal of TABLE objects to/from the table cache.
 */
 
-TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove)
-{
-  THD *thd= get_thd(0);
+TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove) {
+  THD *thd = get_thd(0);
 
   Mock_share share_1("share_1");
-  TABLE *table_1= share_1.create_table(thd);
+  TABLE *table_1 = share_1.create_table(thd);
 
-  Table_cache *table_cache= table_cache_manager.get_cache(thd);
+  Table_cache *table_cache = table_cache_manager.get_cache(thd);
   table_cache->lock();
   EXPECT_FALSE(table_cache->add_used_table(thd, table_1));
 
@@ -303,15 +276,10 @@ TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove)
 
   // There should be no unused TABLE objects for the same table in the
   // cache. OTOH it should contain info about table share of table_1.
-  my_hash_value_type hash_value= my_calc_hash(&table_def_cache,
-                                   (uchar*)share_1.table_cache_key.str,
-                                   share_1.table_cache_key.length);
   TABLE *table_2;
   TABLE_SHARE *share_2;
-  table_2= table_cache->get_table(thd, hash_value,
-                                  share_1.table_cache_key.str,
-                                  share_1.table_cache_key.length,
-                                  &share_2);
+  table_2 = table_cache->get_table(thd, share_1.table_cache_key.str,
+                                   share_1.table_cache_key.length, &share_2);
   EXPECT_TRUE(table_2 == NULL);
   EXPECT_TRUE(share_2 == &share_1);
 
@@ -324,10 +292,8 @@ TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove)
   // We must be able to release TABLE into table cache and reuse it after
   // this.
   table_cache->release_table(thd, table_1);
-  table_2= table_cache->get_table(thd, hash_value,
-                                  share_1.table_cache_key.str,
-                                  share_1.table_cache_key.length,
-                                  &share_2);
+  table_2 = table_cache->get_table(thd, share_1.table_cache_key.str,
+                                   share_1.table_cache_key.length, &share_2);
   EXPECT_TRUE(table_2 == table_1);
   EXPECT_TRUE(share_2 == &share_1);
 
@@ -336,10 +302,8 @@ TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove)
   // Once TABLE is removed from the cache the latter should become empty.
   EXPECT_EQ(0U, table_cache->cached_tables());
 
-  table_2= table_cache->get_table(thd, hash_value,
-                                  share_1.table_cache_key.str,
-                                  share_1.table_cache_key.length,
-                                  &share_2);
+  table_2 = table_cache->get_table(thd, share_1.table_cache_key.str,
+                                   share_1.table_cache_key.length, &share_2);
   EXPECT_TRUE(table_2 == NULL);
   EXPECT_TRUE(share_2 == NULL);
 
@@ -356,10 +320,8 @@ TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove)
   // Once TABLE is removed from cache the latter should become empty.
   EXPECT_EQ(0U, table_cache->cached_tables());
 
-  table_2= table_cache->get_table(thd, hash_value,
-                                  share_1.table_cache_key.str,
-                                  share_1.table_cache_key.length,
-                                  &share_2);
+  table_2 = table_cache->get_table(thd, share_1.table_cache_key.str,
+                                   share_1.table_cache_key.length, &share_2);
   EXPECT_TRUE(table_2 == NULL);
   EXPECT_TRUE(share_2 == NULL);
 
@@ -368,25 +330,23 @@ TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove)
   share_1.destroy_table(table_1);
 }
 
-
 /*
   Now let us test how Table_cache handles overflows.
 */
 
-TEST_F(TableCacheSingleCacheTest, CacheOverflow)
-{
-  THD *thd= get_thd(0);
+TEST_F(TableCacheSingleCacheTest, CacheOverflow) {
+  THD *thd = get_thd(0);
 
   // Set cache size low so it will overflow quickly.
-  table_cache_size_per_instance= 2;
+  table_cache_size_per_instance = 2;
 
   Mock_share share_1("share_1");
   Mock_share share_2("share_2");
-  TABLE *table_1= share_1.create_table(thd);
-  TABLE *table_2= share_1.create_table(thd);
-  TABLE *table_3= share_2.create_table(thd);
+  TABLE *table_1 = share_1.create_table(thd);
+  TABLE *table_2 = share_1.create_table(thd);
+  TABLE *table_3 = share_2.create_table(thd);
 
-  Table_cache *table_cache= table_cache_manager.get_cache(thd);
+  Table_cache *table_cache = table_cache_manager.get_cache(thd);
 
   table_cache->lock();
   table_cache->add_used_table(thd, table_1);
@@ -407,14 +367,14 @@ TEST_F(TableCacheSingleCacheTest, CacheOverflow)
   EXPECT_EQ(2U, table_cache->cached_tables());
 
   // Old value of table_1 points to garbage thanks to expelling
-  table_1= share_1.create_table(thd);
+  table_1 = share_1.create_table(thd);
   table_cache->add_used_table(thd, table_1);
 
   // Still two TABLE instances (table_2 was expelled).
   EXPECT_EQ(2U, table_cache->cached_tables());
 
   // Old value of table_2 points to garbage thanks to expelling
-  table_2= share_1.create_table(thd);
+  table_2 = share_1.create_table(thd);
   table_cache->add_used_table(thd, table_2);
 
   /*
@@ -440,12 +400,10 @@ TEST_F(TableCacheSingleCacheTest, CacheOverflow)
   share_1.destroy_table(table_3);
 }
 
+TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease) {
+  THD *thd = get_thd(0);
 
-TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease)
-{
-  THD *thd= get_thd(0);
-
-  Table_cache *table_cache= table_cache_manager.get_cache(thd);
+  Table_cache *table_cache = table_cache_manager.get_cache(thd);
 
   table_cache->lock();
 
@@ -454,49 +412,35 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease)
   TABLE_SHARE *share_2;
 
   // There should be no TABLE in cache, nor information about share.
-  my_hash_value_type hash_value_1= my_calc_hash(&table_def_cache,
-                                     (uchar*)share_1.table_cache_key.str,
-                                     share_1.table_cache_key.length);
-  table_1= table_cache->get_table(thd, hash_value_1,
-                                  share_1.table_cache_key.str,
-                                  share_1.table_cache_key.length,
-                                  &share_2);
+  table_1 = table_cache->get_table(thd, share_1.table_cache_key.str,
+                                   share_1.table_cache_key.length, &share_2);
   EXPECT_TRUE(table_1 == NULL);
   EXPECT_TRUE(share_2 == NULL);
 
-  table_1= share_1.create_table(thd);
+  table_1 = share_1.create_table(thd);
   table_cache->add_used_table(thd, table_1);
 
   // There should be no unused TABLE in cache, but there should be
   // information about the share.
-  table_2= table_cache->get_table(thd, hash_value_1,
-                                  share_1.table_cache_key.str,
-                                  share_1.table_cache_key.length,
-                                  &share_2);
+  table_2 = table_cache->get_table(thd, share_1.table_cache_key.str,
+                                   share_1.table_cache_key.length, &share_2);
   EXPECT_TRUE(table_2 == NULL);
   EXPECT_TRUE(share_2 == &share_1);
 
   // There should be even no information about the share for which
   // TABLE was not added to cache.
-  my_hash_value_type hash_value_0= my_calc_hash(&table_def_cache,
-                                     (uchar*)share_0.table_cache_key.str,
-                                     share_0.table_cache_key.length);
-  table_2= table_cache->get_table(thd, hash_value_0,
-                                  share_0.table_cache_key.str,
-                                  share_0.table_cache_key.length,
-                                  &share_2);
+  table_2 = table_cache->get_table(thd, share_0.table_cache_key.str,
+                                   share_0.table_cache_key.length, &share_2);
   EXPECT_TRUE(table_2 == NULL);
   EXPECT_TRUE(share_2 == NULL);
 
-  table_2= share_1.create_table(thd);
+  table_2 = share_1.create_table(thd);
   table_cache->add_used_table(thd, table_2);
 
   // Still there should be no unused TABLE in cache, but there should
   // be information about the share.
-  table_3= table_cache->get_table(thd, hash_value_1,
-                                  share_1.table_cache_key.str,
-                                  share_1.table_cache_key.length,
-                                  &share_2);
+  table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
+                                   share_1.table_cache_key.length, &share_2);
   EXPECT_TRUE(table_3 == NULL);
   EXPECT_TRUE(share_2 == &share_1);
 
@@ -504,18 +448,14 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease)
 
   // After releasing one of TABLE objects it should be possible to get
   // unused TABLE from cache.
-  table_3= table_cache->get_table(thd, hash_value_1,
-                                  share_1.table_cache_key.str,
-                                  share_1.table_cache_key.length,
-                                  &share_2);
+  table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
+                                   share_1.table_cache_key.length, &share_2);
   EXPECT_TRUE(table_3 == table_1);
   EXPECT_TRUE(share_2 == &share_1);
 
   // But only once!
-  table_3= table_cache->get_table(thd, hash_value_1,
-                                  share_1.table_cache_key.str,
-                                  share_1.table_cache_key.length,
-                                  &share_2);
+  table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
+                                   share_1.table_cache_key.length, &share_2);
   EXPECT_TRUE(table_3 == NULL);
   EXPECT_TRUE(share_2 == &share_1);
 
@@ -525,30 +465,21 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease)
   table_cache->release_table(thd, table_1);
   table_cache->release_table(thd, table_2);
 
-  table_3= table_cache->get_table(thd, hash_value_0,
-                                  share_0.table_cache_key.str,
-                                  share_0.table_cache_key.length,
-                                  &share_2);
+  table_3 = table_cache->get_table(thd, share_0.table_cache_key.str,
+                                   share_0.table_cache_key.length, &share_2);
   EXPECT_TRUE(table_3 == NULL);
   EXPECT_TRUE(share_2 == NULL);
 
-
-  table_3= table_cache->get_table(thd, hash_value_1,
-                                  share_1.table_cache_key.str,
-                                  share_1.table_cache_key.length,
-                                  &share_2);
+  table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
+                                   share_1.table_cache_key.length, &share_2);
   EXPECT_TRUE(table_3 != NULL);
   EXPECT_TRUE(share_2 == &share_1);
-  table_3= table_cache->get_table(thd, hash_value_1,
-                                  share_1.table_cache_key.str,
-                                  share_1.table_cache_key.length,
-                                  &share_2);
+  table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
+                                   share_1.table_cache_key.length, &share_2);
   EXPECT_TRUE(table_3 != NULL);
   EXPECT_TRUE(share_2 == &share_1);
-  table_3= table_cache->get_table(thd, hash_value_1,
-                                  share_1.table_cache_key.str,
-                                  share_1.table_cache_key.length,
-                                  &share_2);
+  table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
+                                   share_1.table_cache_key.length, &share_2);
   EXPECT_TRUE(table_3 == NULL);
   EXPECT_TRUE(share_2 == &share_1);
 
@@ -562,18 +493,16 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease)
   table_cache->unlock();
 }
 
-
 /*
   Test for Table_cache_manager/Table_cache::free_all_unused_tables().
 */
 
-TEST_F(TableCacheDoubleCacheTest, ManagerFreeAllUnused)
-{
-  THD *thd_1= get_thd(0);
-  THD *thd_2= get_thd(1);
+TEST_F(TableCacheDoubleCacheTest, ManagerFreeAllUnused) {
+  THD *thd_1 = get_thd(0);
+  THD *thd_2 = get_thd(1);
 
-  Table_cache *table_cache_1= table_cache_manager.get_cache(thd_1);
-  Table_cache *table_cache_2= table_cache_manager.get_cache(thd_2);
+  Table_cache *table_cache_1 = table_cache_manager.get_cache(thd_1);
+  Table_cache *table_cache_2 = table_cache_manager.get_cache(thd_2);
 
   // There should be no TABLE instances in all cachea.
   EXPECT_EQ(0U, table_cache_manager.cached_tables());
@@ -581,12 +510,12 @@ TEST_F(TableCacheDoubleCacheTest, ManagerFreeAllUnused)
   Mock_share share_1("share_1");
   Mock_share share_2("share_2");
   Mock_share share_3("share_2");
-  TABLE *table_1= share_1.create_table(thd_1);
-  TABLE *table_2= share_1.create_table(thd_1);
-  TABLE *table_3= share_2.create_table(thd_1);
-  TABLE *table_4= share_2.create_table(thd_1);
-  TABLE *table_5= share_1.create_table(thd_2);
-  TABLE *table_6= share_3.create_table(thd_2);
+  TABLE *table_1 = share_1.create_table(thd_1);
+  TABLE *table_2 = share_1.create_table(thd_1);
+  TABLE *table_3 = share_2.create_table(thd_1);
+  TABLE *table_4 = share_2.create_table(thd_1);
+  TABLE *table_5 = share_1.create_table(thd_2);
+  TABLE *table_6 = share_3.create_table(thd_2);
 
   table_cache_manager.lock_all_and_tdc();
 
@@ -650,18 +579,16 @@ TEST_F(TableCacheDoubleCacheTest, ManagerFreeAllUnused)
   table_cache_manager.unlock_all_and_tdc();
 }
 
-
 /*
   Test for Table_cache_manager/Table_cache::cached_tables().
 */
 
-TEST_F(TableCacheDoubleCacheTest, ManagerCachedTables)
-{
-  THD *thd_1= get_thd(0);
-  THD *thd_2= get_thd(1);
+TEST_F(TableCacheDoubleCacheTest, ManagerCachedTables) {
+  THD *thd_1 = get_thd(0);
+  THD *thd_2 = get_thd(1);
 
-  Table_cache *table_cache_1= table_cache_manager.get_cache(thd_1);
-  Table_cache *table_cache_2= table_cache_manager.get_cache(thd_2);
+  Table_cache *table_cache_1 = table_cache_manager.get_cache(thd_1);
+  Table_cache *table_cache_2 = table_cache_manager.get_cache(thd_2);
 
   // There should be no TABLE instances in all cachea.
   EXPECT_EQ(0U, table_cache_1->cached_tables());
@@ -670,11 +597,11 @@ TEST_F(TableCacheDoubleCacheTest, ManagerCachedTables)
 
   Mock_share share_1("share_1");
   Mock_share share_2("share_2");
-  TABLE *table_1= share_1.create_table(thd_1);
-  TABLE *table_2= share_1.create_table(thd_1);
-  TABLE *table_3= share_2.create_table(thd_1);
-  TABLE *table_4= share_1.create_table(thd_2);
-  TABLE *table_5= share_2.create_table(thd_2);
+  TABLE *table_1 = share_1.create_table(thd_1);
+  TABLE *table_2 = share_1.create_table(thd_1);
+  TABLE *table_3 = share_2.create_table(thd_1);
+  TABLE *table_4 = share_1.create_table(thd_2);
+  TABLE *table_5 = share_2.create_table(thd_2);
 
   table_cache_manager.lock_all_and_tdc();
 
@@ -735,14 +662,12 @@ TEST_F(TableCacheDoubleCacheTest, ManagerCachedTables)
   share_2.destroy_table(table_5);
 }
 
-
 /*
   Coverage for lock and unlock methods of Table_cache_manager class.
 */
 
-TEST_F(TableCacheDoubleCacheDeathTest, ManagerLockAndUnlock)
-{
-  // Nor caches nor LOCK_open should not be locked after initialization
+TEST_F(TableCacheDoubleCacheDeathTest, ManagerLockAndUnlock) {
+// Nor caches nor LOCK_open should not be locked after initialization
 #ifdef SAFE_MUTEX
   EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all(),
                             assert_string);
@@ -757,8 +682,8 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerLockAndUnlock)
 
   // In addition to Table_cache_manager method we check this by
   // calling Table_cache methods and asserting state of LOCK_open.
-  Table_cache *cache_1= table_cache_manager.get_cache(get_thd(0));
-  Table_cache *cache_2= table_cache_manager.get_cache(get_thd(1));
+  Table_cache *cache_1 = table_cache_manager.get_cache(get_thd(0));
+  Table_cache *cache_2 = table_cache_manager.get_cache(get_thd(1));
 
   cache_1->assert_owner();
   cache_2->assert_owner();
@@ -775,26 +700,24 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerLockAndUnlock)
 #endif
 }
 
-
 /*
   Coverage for Table_cache_manager::free_table();
 */
 
-TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable)
-{
-  THD *thd_1= get_thd(0);
-  THD *thd_2= get_thd(1);
+TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable) {
+  THD *thd_1 = get_thd(0);
+  THD *thd_2 = get_thd(1);
 
-  Table_cache *table_cache_1= table_cache_manager.get_cache(thd_1);
-  Table_cache *table_cache_2= table_cache_manager.get_cache(thd_2);
+  Table_cache *table_cache_1 = table_cache_manager.get_cache(thd_1);
+  Table_cache *table_cache_2 = table_cache_manager.get_cache(thd_2);
 
   Mock_share share_1("share_1");
   Mock_share share_2("share_2");
-  TABLE *table_1= share_1.create_table(thd_1);
-  TABLE *table_2= share_1.create_table(thd_1);
-  TABLE *table_3= share_2.create_table(thd_1);
-  TABLE *table_4= share_1.create_table(thd_2);
-  TABLE *table_5= share_2.create_table(thd_2);
+  TABLE *table_1 = share_1.create_table(thd_1);
+  TABLE *table_2 = share_1.create_table(thd_1);
+  TABLE *table_3 = share_2.create_table(thd_1);
+  TABLE *table_4 = share_1.create_table(thd_2);
+  TABLE *table_5 = share_2.create_table(thd_2);
 
   table_cache_manager.lock_all_and_tdc();
 
@@ -814,10 +737,9 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable)
   // to free all tables for share_1, while some tables
   // are in use.
 #ifndef DBUG_OFF
-  EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.free_table(thd_1,
-                                                           TDC_RT_REMOVE_ALL,
-                                                           &share_1),
-                            ".*Assertion.*is_empty.*");
+  EXPECT_DEATH_IF_SUPPORTED(
+      table_cache_manager.free_table(thd_1, TDC_RT_REMOVE_ALL, &share_1),
+      ".*Assertion.*is_empty.*");
 #endif
 
   table_cache_1->release_table(thd_1, table_1);
@@ -833,9 +755,9 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable)
   /*
     Coverage for TDC_RT_REMOVE_NOT_OWN case.
   */
-  table_1= share_1.create_table(thd_1);
-  table_2= share_1.create_table(thd_1);
-  table_4= share_1.create_table(thd_2);
+  table_1 = share_1.create_table(thd_1);
+  table_2 = share_1.create_table(thd_1);
+  table_4 = share_1.create_table(thd_2);
 
   table_cache_1->add_used_table(thd_1, table_1);
   table_cache_1->add_used_table(thd_1, table_2);
@@ -848,10 +770,9 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable)
   // to free all not own TABLEs for share_1, while thd_2
   // has a TABLE object for it in used
 #ifndef DBUG_OFF
-  EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.free_table(thd_1,
-                                                           TDC_RT_REMOVE_NOT_OWN,
-                                                           &share_1),
-                            ".*Assertion.*0.*");
+  EXPECT_DEATH_IF_SUPPORTED(
+      table_cache_manager.free_table(thd_1, TDC_RT_REMOVE_NOT_OWN, &share_1),
+      ".*Assertion.*0.*");
 #endif
 
   table_cache_2->release_table(thd_2, table_4);
@@ -867,8 +788,8 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable)
   /*
     Coverage for TDC_RT_REMOVE_UNUSED case.
   */
-  table_2= share_1.create_table(thd_1);
-  table_4= share_1.create_table(thd_2);
+  table_2 = share_1.create_table(thd_1);
+  table_4 = share_1.create_table(thd_2);
 
   table_cache_1->add_used_table(thd_1, table_2);
   table_cache_1->release_table(thd_1, table_2);
@@ -901,15 +822,13 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable)
   table_cache_manager.unlock_all_and_tdc();
 }
 
-
 /*
   Coverage for Table_cache_iterator
 */
 
-TEST_F(TableCacheDoubleCacheTest, Iterator)
-{
-  THD *thd_1= get_thd(0);
-  THD *thd_2= get_thd(1);
+TEST_F(TableCacheDoubleCacheTest, Iterator) {
+  THD *thd_1 = get_thd(0);
+  THD *thd_2 = get_thd(1);
 
   table_cache_manager.lock_all_and_tdc();
 
@@ -923,19 +842,19 @@ TEST_F(TableCacheDoubleCacheTest, Iterator)
   // Attempt to iterate behind the end should not give anything.
   EXPECT_TRUE(it++ == NULL);
 
-  Table_cache *table_cache_1= table_cache_manager.get_cache(thd_1);
-  Table_cache *table_cache_2= table_cache_manager.get_cache(thd_2);
-  TABLE *table_1= share_1.create_table(thd_1);
-  TABLE *table_2= share_1.create_table(thd_1);
-  TABLE *table_3= share_2.create_table(thd_1);
-  TABLE *table_4= share_1.create_table(thd_2);
-  TABLE *table_5= share_2.create_table(thd_2);
+  Table_cache *table_cache_1 = table_cache_manager.get_cache(thd_1);
+  Table_cache *table_cache_2 = table_cache_manager.get_cache(thd_2);
+  TABLE *table_1 = share_1.create_table(thd_1);
+  TABLE *table_2 = share_1.create_table(thd_1);
+  TABLE *table_3 = share_2.create_table(thd_1);
+  TABLE *table_4 = share_1.create_table(thd_2);
+  TABLE *table_5 = share_2.create_table(thd_2);
 
   table_cache_2->add_used_table(thd_2, table_4);
 
   // Now the iterato should see table_4.
   it.rewind();
-  TABLE *table_r1= it++;
+  TABLE *table_r1 = it++;
   EXPECT_TRUE(table_r1 == table_4);
   // But only it.
   EXPECT_TRUE(it++ == NULL);
@@ -945,9 +864,9 @@ TEST_F(TableCacheDoubleCacheTest, Iterator)
 
   // Now we should see two tables:
   it.rewind();
-  table_r1= it++;
+  table_r1 = it++;
   EXPECT_TRUE(table_r1 != NULL);
-  TABLE *table_r2= it++;
+  TABLE *table_r2 = it++;
   EXPECT_TRUE(table_r2 != NULL);
   EXPECT_TRUE(table_r1 != table_r2);
   EXPECT_TRUE(it++ == NULL);
@@ -957,13 +876,14 @@ TEST_F(TableCacheDoubleCacheTest, Iterator)
 
   // And now three !
   it.rewind();
-  table_r1= it++;
+  table_r1 = it++;
   EXPECT_TRUE(table_r1 != NULL);
-  table_r2= it++;
+  table_r2 = it++;
   EXPECT_TRUE(table_r2 != NULL);
-  TABLE *table_r3= it++;
+  TABLE *table_r3 = it++;
   EXPECT_TRUE(table_r3 != NULL);
-  EXPECT_TRUE(table_r1 != table_r2 && table_r1 != table_r3 && table_r2 != table_r3);
+  EXPECT_TRUE(table_r1 != table_r2 && table_r1 != table_r3 &&
+              table_r2 != table_r3);
   EXPECT_TRUE(it++ == NULL);
   EXPECT_TRUE(it++ == NULL);
 
@@ -971,9 +891,9 @@ TEST_F(TableCacheDoubleCacheTest, Iterator)
 
   // We should be seeing only used TABLE objects, so two tables now
   it.rewind();
-  table_r1= it++;
+  table_r1 = it++;
   EXPECT_TRUE(table_r1 != NULL);
-  table_r2= it++;
+  table_r2 = it++;
   EXPECT_TRUE(table_r2 != NULL);
   EXPECT_TRUE(table_r1 != table_r2);
   EXPECT_TRUE(it++ == NULL);
@@ -984,9 +904,9 @@ TEST_F(TableCacheDoubleCacheTest, Iterator)
 
   // We also should not be seeing TABLE objects for share_2
   it.rewind();
-  table_r1= it++;
+  table_r1 = it++;
   EXPECT_TRUE(table_r1 != NULL);
-  table_r2= it++;
+  table_r2 = it++;
   EXPECT_TRUE(table_r2 != NULL);
   EXPECT_TRUE(table_r1 != table_r2);
   EXPECT_TRUE(it++ == NULL);
@@ -996,7 +916,7 @@ TEST_F(TableCacheDoubleCacheTest, Iterator)
 
   // Now we should se only one used TABLE
   it.rewind();
-  table_r1= it++;
+  table_r1 = it++;
   EXPECT_TRUE(table_r1 == table_4);
   EXPECT_TRUE(it++ == NULL);
   EXPECT_TRUE(it++ == NULL);
@@ -1032,4 +952,4 @@ TEST_F(TableCacheDoubleCacheTest, Iterator)
   share_2.destroy_table(table_5);
 }
 
-}
+}  // namespace table_cache_unittest

@@ -65,10 +65,10 @@ SET GLOBAL DEBUG=@old_debug;
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
 ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_recovery";
-ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
+ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
 # Assert that channels are not created for failed CHANGE MASTER command.
 # and number of channels configured must be 2
-include/assert.inc [there shall be only four rows representing 4 channels.]
+include/assert.inc [there shall be only two rows representing 2 channels.]
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL  'channel_1';
-RESET SLAVE ALL FOR CHANNEL  'channel_3';
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';

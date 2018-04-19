@@ -55,7 +55,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,2 +2,2 @@
- 1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	Using filesort
+ 1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 -1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	const	1	50.00	Using where; Using index
 +1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using index
 QUERY: SELECT * FROM t3 AS a INNER JOIN t3 AS b USING (id) WHERE a.ref < b.ref 
@@ -118,8 +118,8 @@ SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,2 +2,2 @@
  1	SIMPLE	v	NULL	ref	OXLEFT,OXRIGHT,OXROOTID	OXROOTID	34	const	5	100.00	NULL
--1	SIMPLE	s	NULL	ALL	OXLEFT,OXROOTID	NULL	NULL	NULL	6	9.26	Using where; Using join buffer (Block Nested Loop)
-+1	SIMPLE	s	NULL	ALL	OXLEFT,OXROOTID	NULL	NULL	NULL	6	83.33	Using where; Using join buffer (Block Nested Loop)
+-1	SIMPLE	s	NULL	ref	OXLEFT,OXROOTID	OXROOTID	34	const	5	16.67	Using where
++1	SIMPLE	s	NULL	ref	OXLEFT,OXROOTID	OXROOTID	34	const	5	100.00	Using where
 QUERY: SELECT * from t1 where b = (select b from t2 where t1.a = t2.a) 
 STATUS: EQUAL
 QUERY: DELETE from t1 where b = (select b from t2 where t1.a = t2.a) 
@@ -147,7 +147,19 @@ STATUS: EQUAL
 QUERY: SELECT (SELECT 1 FROM  t1 WHERE t1.a=t2.a ORDER BY t1.b LIMIT 1) AS d1 FROM t2 
 STATUS: EQUAL
 QUERY: SELECT t1.pk FROM t1 WHERE t1.col_varchar_key < ALL ( SELECT * FROM v1 ) 
-STATUS: EQUAL
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -2,5 +2,5 @@
+ 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+-3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+-4	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+-5	UNION RESULT	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
++2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
++3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
++4	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
++5	UNION RESULT	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
 QUERY: SELECT t1.a, (SELECT 1 FROM t2 WHERE t2.b=t3.c AND t2.c=t1.a ORDER BY t2.d LIMIT 1) AS incorrect FROM t1, t3 WHERE t3.b=t1.a 
 STATUS: EQUAL
 QUERY: SELECT alias2.col_varchar_nokey FROM v1 AS alias1 RIGHT JOIN t1 AS alias2 ON 1 WHERE alias2.col_varchar_key IN ( SELECT sq2_alias1.col_varchar_nokey FROM v1 AS sq2_alias1 LEFT JOIN t1 AS sq2_alias2 ON (sq2_alias2.col_int_key = sq2_alias1.pk) WHERE sq2_alias1.pk != alias1.col_int_key AND sq2_alias1.col_varchar_key > alias1.col_varchar_key ) 
@@ -158,7 +170,7 @@ Diff: EXPLAIN NORMAL vs OTHER
  1	SIMPLE	alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
 -1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	26.66	Range checked for each record (index map: 0x4)
 +1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x4)
- 1	SIMPLE	sq2_alias2	NULL	index	col_int_key	col_int_key	4	NULL	5	100.00	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
+ 1	SIMPLE	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	Using where; Using index; End temporary
 QUERY: SELECT alias2.col_varchar_nokey FROM t1 AS alias2 LEFT JOIN v1 AS alias1 ON 1 WHERE alias2.col_varchar_key IN ( SELECT sq2_alias1.col_varchar_nokey FROM v1 AS sq2_alias1 LEFT JOIN t1 AS sq2_alias2 ON (sq2_alias2.col_int_key = sq2_alias1.pk) WHERE sq2_alias1.pk != alias1.col_int_key AND sq2_alias1.col_varchar_key > alias1.col_varchar_key ) 
 STATUS:NOT_EQUAL
 SYNC_POINT:after_join_optimize
@@ -167,10 +179,26 @@ Diff: EXPLAIN NORMAL vs OTHER
  1	SIMPLE	alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
 -1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	26.66	Range checked for each record (index map: 0x4)
 +1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x4)
- 1	SIMPLE	sq2_alias2	NULL	index	col_int_key	col_int_key	4	NULL	5	100.00	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
+ 1	SIMPLE	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	Using where; Using index; End temporary
 QUERY: SELECT d FROM (SELECT * FROM t2) AS a2 RIGHT JOIN (SELECT * FROM t1) AS a1 ON c = a WHERE d LIKE '_' ORDER BY d 
 STATUS: EQUAL
 QUERY: SELECT (SELECT rs.t2_id FROM t2 rs WHERE rs.t1_id= (SELECT lt.t1_id FROM t1 lt WHERE lt.t3_id=a.t3_id) ORDER BY b DESC LIMIT 1) from t3 AS a 
 STATUS: EQUAL
 QUERY: UPDATE t1 join t2 on (t1.a=t2.a) set t1.id=t2.id 
+STATUS: EQUAL
+QUERY: SELECT DISTINCT   alias2.col_int AS field1 , alias2.col_int AS field2 FROM  a1 AS alias1 LEFT  JOIN aa1 AS alias2 ON  alias1.pk =  alias2.pk WHERE ( alias1.col_int = 8 OR alias1 .pk <= alias1.col_int ) GROUP BY field1, field2  ORDER BY field1, field2 DESC
+STATUS: EQUAL
+QUERY: SELECT DISTINCT   alias1.pk AS field1 FROM  f1 AS alias1 LEFT  JOIN a2 AS alias2 ON  alias1.col_varchar_1024_latin1_key =  alias2 .col_varchar_10_utf8_key WHERE alias1.pk  IN (5, 5) GROUP BY field1 HAVING field1 <= 3
+STATUS: EQUAL
+QUERY: SELECT alias1.pk AS field1 FROM  h2 AS alias1 LEFT  JOIN aa3 AS alias2 ON  alias1.pk =  alias2.col_int_key WHERE alias1.pk <> 9 GROUP BY field1 ORDER BY field1 LIMIT 1 OFFSET 3
+STATUS: EQUAL
+QUERY: SELECT    alias1.pk AS field1 FROM  e1 AS alias1 RIGHT  JOIN cc2 AS alias2 ON  alias1.col_int =  alias2.col_int WHERE alias1.col_int_key  IN (8) 
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -2,2 +2,2 @@
+ 1	SIMPLE	alias1	NULL	ref	col_int_key	col_int_key	5	const	1	100.00	NULL
+-1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
++1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+QUERY: SELECT DISTINCT alias2.pk AS field1, alias2.pk AS field2, alias2.pk AS field3 FROM t1 AS alias1 RIGHT JOIN t2 AS alias2  ON  alias1.col_varchar_key =  alias2.col_varchar_key WHERE alias1.col_int >alias1.col_int HAVING field3 = 7 ORDER BY field1, field2, field3 LIMIT 10 OFFSET 1
 STATUS: EQUAL

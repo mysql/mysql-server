@@ -2,9 +2,6 @@
 #
 # Check the layout of information_schema.views and the impact of
 # CREATE/ALTER/DROP TABLE/VIEW/SCHEMA ... on it.
-# Variant for the non embedded server
-#    The expected results must equal is_views_embedded except that
-#    that the privilege system works (affects some result sets).
 #
 # There is detailed information about this test within
 #    suite/funcs_1/datadict/is_views.inc
@@ -15,7 +12,11 @@
 #                   Create this script based on older scripts and new code.
 #
 
---source include/not_embedded.inc
---source include/have_innodb.inc
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
 let $engine_type       = InnoDB;
 --source suite/funcs_1/datadict/is_views.inc

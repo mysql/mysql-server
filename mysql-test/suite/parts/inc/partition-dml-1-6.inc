@@ -1,8 +1,7 @@
---source include/have_partition.inc
 SET @auto= @@global.autocommit;
 SET @@global.autocommit= off;
-SET @iso= @@global.tx_isolation;
-SET @@global.tx_isolation= 'read-uncommitted';
+SET @iso= @@global.transaction_isolation;
+SET @@global.transaction_isolation= 'read-uncommitted';
 SET @completion= @@global.completion_type;
 SET @@global.completion_type= 'no_chain';
 SET @lock_timeout= @@global.lock_wait_timeout;
@@ -53,7 +52,7 @@ DROP USER test_user_1;
 DROP USER test_user_2;
 
 SET @@global.autocommit= @auto;
-SET @@global.tx_isolation= @iso;
+SET @@global.transaction_isolation= @iso;
 SET @@global.completion_type= @completion;
 SET @@global.lock_wait_timeout= @lock_timeout;
 SET @@global.innodb_lock_wait_timeout= @innodb_lock_timeout;

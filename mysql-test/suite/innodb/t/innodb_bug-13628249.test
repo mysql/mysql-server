@@ -3,17 +3,13 @@
 # up correctly and is able to shutdown with --innodb-force-recovery >= 3
 # after a crash with active user tranactions.
 
-#
-# Restarting is not supported in embedded.
---source include/not_embedded.inc
-
-# This test case needs InnoDB.
--- source include/have_innodb.inc
-
 --disable_query_log
-call mtr.add_suppression('InnoDB: Failed to find tablespace for table `mysql`\..* in the cache');
-call mtr.add_suppression('InnoDB: Failed to find tablespace for table `test`\.`t1` in the cache');
-call mtr.add_suppression('InnoDB: Allocated tablespace [0-9]+, old maximum was [0-9]+');
+call mtr.add_suppression(' Failed to find tablespace for table `mysql`\..* in the cache');
+call mtr.add_suppression(' Failed to find tablespace for table `test`\.`t1` in the cache');
+call mtr.add_suppression(' Allocated tablespace [0-9]+, old maximum was [0-9]+');
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
 --enable_query_log
 
 --echo # Restart the server in force recovery mode (2)
@@ -34,6 +30,14 @@ SELECT @@innodb_force_recovery;
 CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=InnoDB STATS_PERSISTENT=0;
 BEGIN;
 INSERT INTO t1 VALUES(1), (2), (3), (4);
+
+# Ensure that the above data is flushed to the InnoDB redo log,
+# by committing transactions (which will force a log flush).
+connect (con1, localhost, root);
+CREATE TABLE t2(c2 INT PRIMARY KEY) ENGINE=InnoDB STATS_PERSISTENT=0;
+DROP TABLE t2;
+disconnect con1;
+connection default;
 
 --echo # Restart the server in force recovery mode (3)
 let $restart_parameters = restart: --innodb-force-recovery=3;

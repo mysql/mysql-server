@@ -1,0 +1,40 @@
+###############################################################################
+# Bug#24812958: REPLICATION ERROR OCCURS, USE XA TRANSACTION(ONE PHASE)
+#
+# Problem:
+# =======
+# Use XA transaction and execute DELETE or UPDATE statement.
+# If `0 rows affected`, replication error occurs.
+# But over 1 rows affected, replication error doesn't occur.
+# And if use `XA PREPARE` (not use `ONE PHASE`), replication error doesnot
+# occur.
+#
+# Test:
+# =====
+# 1) Start an XA transaction named 'xatest' on master.
+# 2) Execute DML operation such that '0' rows are affected.
+# 3) Execute XA COMMIT 'xatest' ONE PHASE.
+# 4) On slave wait till the above XA COMMIT 'xatest' ONE PHASE command is
+#    executed.
+# 5) Verify that slave server doesn't fail with 'ER_XAER_RMFAIL' error.
+###############################################################################
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+# Suppression of error messages
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
+
+CREATE TABLE t1 ( id int(11) NOT NULL AUTO_INCREMENT, PRIMARY KEY (id)) ENGINE=InnoDB;
+XA START 'xatest';
+--disable_warnings ONCE
+DELETE FROM t1 where id=1;
+XA END 'xatest';
+XA COMMIT 'xatest' ONE PHASE;
+--source include/sync_slave_sql_with_master.inc
+
+--let diff_tables=master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

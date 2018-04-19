@@ -1,0 +1,122 @@
+# ==== Purpose ====
+# This test case verifies that receiver threads GTID sets do not rely on
+# global SID anymore. Because of this, it is possible to have a receiver
+# thread receiving GTIDs (and adding them to its retrieved GTID set) and
+# having the server applying GTIDs from a server UUID that doesn't belong
+# to the global SID map yet.
+#
+# The test uses debug instrumentation to pause the receiver thread while
+# adding the received gtid to received_transaction_set and verifies that
+# restoring backup from a server it never applied transactions is successful.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# WL#8599: Reduce contention in IO and SQL threads
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+
+--let $rpl_skip_start_slave=1
+--let $rpl_gtid_utils=1
+--let $rpl_multi_source=1
+--let $rpl_topology=1->2,3->2,4->2
+--source include/rpl_init.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $server1_uuid=`SELECT @@global.server_uuid`
+# Create one table, populate it, then drop it
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1);
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--let $rpl_channel_name='channel_1'
+--source include/start_slave.inc
+
+# Add debug instrumentation to hold the receiver thread
+# while writing to the relay log.
+--let $debug_point=updating_received_transaction_set
+--source include/add_debug_point.inc
+
+# Execute transaction on server1
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES(2);
+
+# Wait until the receiver reached the debug point on server2
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+SET DEBUG_SYNC="now WAIT_FOR reached_updating_received_transaction_set";
+
+# Remove the debug point on server2
+--let $debug_point=updating_received_transaction_set
+--source include/remove_debug_point.inc
+
+--let $rpl_connection_name= server_4
+--source include/rpl_connection.inc
+# Create one table, populate it, then drop it
+CREATE TABLE t4 (c1 INT) ENGINE=InnoDB;
+INSERT INTO t4 VALUES(1);
+DROP TABLE t4;
+--let $server4_gtid_executed=`SELECT @@GLOBAL.gtid_executed`
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+START SLAVE FOR CHANNEL 'channel_4';
+--echo Wait until channel_4 be synchronized with master
+--let $wait_condition= SELECT RECEIVED_TRANSACTION_SET='$server4_gtid_executed' FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME = 'channel_4'
+--source include/wait_condition_or_abort.inc
+
+# Execute transactions on server3 to take backup
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+# Execute transactions on server3/master2
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES(1);
+INSERT INTO t2 VALUES(2);
+
+# Get the binlog file for backup
+--let $server3_datadir = `SELECT @@DATADIR`
+--let $server3_binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $server3_gtid = `SELECT @@GLOBAL.GTID_EXECUTED`
+--let $server3_uuid = `SELECT @@global.server_uuid`
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+# Setting the arguments to connect to server2
+--let $server2_uuid = `SELECT @@global.server_uuid`
+--let $server2_connection_args= --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_2
+# Restoring the backup file on server3 using mysqlbinlog client and the connection arguments set above
+--exec $MYSQL_BINLOG $server3_datadir/$server3_binlog_file | $MYSQL $server2_connection_args
+
+--let $assert_text= Restoring backup is successful
+--let $assert_cond= GTID_IS_EQUAL(GTID_INTERSECTION_WITH_UUID(@@GLOBAL.GTID_EXECUTED,"$server3_uuid"),"$server3_gtid")
+--source include/assert.inc
+
+# Let the receiver of server2 continue
+SET DEBUG_SYNC="now SIGNAL continue_updating_received_transaction_set";
+
+# Cleanup
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--let $rpl_channel_name= 'channel_1'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+DROP TABLE t2;
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--let $rpl_channel_name= 'channel_3'
+--source include/start_slave.inc
+
+--let $rpl_skip_sync=1
+--source include/rpl_end.inc

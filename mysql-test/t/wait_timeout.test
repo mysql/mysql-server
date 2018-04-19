@@ -7,8 +7,6 @@
 #                       - Replaced sleeps by wait condition
 #                       - Minor improvements
 ###############################################################################
-# These tests cannot run with the embedded server
--- source include/not_embedded.inc
 -- source include/one_thread_per_connection.inc
 
 # Save the initial number of concurrent sessions
@@ -60,7 +58,7 @@ while (!`select @aborted_clients`)
 --enable_query_log
 # The server has disconnected, add small sleep to make sure
 # the disconnect has reached client
-let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.processlist;
+let $wait_condition= SELECT COUNT(*)=2 FROM information_schema.processlist;
 --source include/wait_condition.inc
 --echo connection default;
 connection default;
@@ -115,7 +113,7 @@ while (!`select @aborted_clients`)
 --enable_query_log
 # The server has disconnected, add small sleep to make sure
 # the disconnect has reached client
-let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.processlist;
+let $wait_condition= SELECT COUNT(*)=2 FROM information_schema.processlist;
 --source include/wait_condition.inc
 disconnect wait_con;
 

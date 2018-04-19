@@ -1,27 +1,31 @@
-############## mysql-test\t\max_seeks_for_key_basic.test ###############
-#                                                                             #
-# Variable Name: max_seeks_for_key                                            #
-# Scope: GLOBAL | SESSION                                                     #
-# Access Type: Dynamic                                                        #
-# Data Type: numeric                                                          #
-# Default Value:  4294967295                                                  #
-# Range:  1-4294967295                                                        #
-#                                                                             #
-#                                                                             #
-# Creation Date: 2008-02-07                                                   #
-# Author:  Salman                                                             #
-#                                                                             #
-# Description: Test Cases of Dynamic System Variable max_seeks_for_key        #
-#              that checks the behavior of this variable in the following ways#
-#              * Default Value                                                #
-#              * Valid & Invalid values                                       #
-#              * Scope & Access method                                        #
-#              * Data Integrity                                               #
-#                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
-#  server-system-variables.html                                               #
-#                                                                             #
-###############################################################################
+################### mysql-test\t\max_seeks_for_key_basic.test ###################
+#                                                                               #
+# Variable Name: max_seeks_for_key                                              #
+# Scope: GLOBAL | SESSION                                                       #
+# Access Type: Dynamic                                                          #
+# Data Type: numeric                                                            #
+# Default Value: 4294967295/18446744073709551615                                #
+# Range: 1 - 4294967295/18446744073709551615                                    #
+#                                                                               #
+#                                                                               #
+# Creation Date: 2008-02-07                                                     #
+# Author:  Salman                                                               #
+#                                                                               #
+# Description: Test Cases of Dynamic System Variable max_seeks_for_key          #
+#              that checks the behavior of this variable in the following ways  #
+#              * Default Value                                                  #
+#              * Valid & Invalid values                                         #
+#              * Scope & Access method                                          #
+#              * Data Integrity                                                 #
+#                                                                               #
+# Modified:    Pavan Naik, 2015-11-24                                           #
+#              Added boundary value test cases according to the type of the     #
+#              server binary.                                                   #
+#                                                                               #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                            #
+#            server-system-variables.html                                       #
+#                                                                               #
+#################################################################################
 
 --source include/load_sysvars.inc
 
@@ -35,10 +39,30 @@
 #############################################################
 
 SET @start_global_value = @@global.max_seeks_for_key;
-SELECT @start_global_value;
-SET @start_session_value = @@session.max_seeks_for_key;
-SELECT @start_session_value;
 
+if($mach64)
+{
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  let $machine_name = `SELECT CONVERT(@@version_compile_os using latin1) IN ("Win64", "Windows")`;
+
+  if($machine_name)
+  {
+    --replace_result 4294967295 18446744073709551615
+  }
+}
+SELECT @start_global_value;
+
+SET @start_session_value = @@session.max_seeks_for_key;
+
+if($mach64)
+{
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  if($machine_name)
+  {
+    --replace_result 4294967295 18446744073709551615
+  }
+}
+SELECT @start_session_value;
 
 --echo '#--------------------FN_DYNVARS_083_01-------------------------#'
 #################################################################
@@ -47,10 +71,28 @@ SELECT @start_session_value;
 
 SET @@global.max_seeks_for_key = 100;
 SET @@global.max_seeks_for_key = DEFAULT;
+
+if($mach64)
+{
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  if($machine_name)
+  {
+    --replace_result 4294967295 18446744073709551615
+  }
+}
 SELECT @@global.max_seeks_for_key;
 
 SET @@session.max_seeks_for_key = 200;
 SET @@session.max_seeks_for_key = DEFAULT;
+
+if($mach64)
+{
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  if($machine_name)
+  {
+    --replace_result 4294967295 18446744073709551615
+  }
+}
 SELECT @@session.max_seeks_for_key;
 
 
@@ -60,9 +102,27 @@ SELECT @@session.max_seeks_for_key;
 #################################################################
 
 SET @@global.max_seeks_for_key = DEFAULT;
+
+# Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+if($mach64)
+{
+  if($machine_name)
+  {
+    --replace_result 1 0
+  }
+}
 SELECT @@global.max_seeks_for_key = 4294967295;
 
 SET @@session.max_seeks_for_key = DEFAULT;
+
+# Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+if($mach64)
+{
+  if($machine_name)
+  {
+    --replace_result 1 0
+  }
+}
 SELECT @@session.max_seeks_for_key = 4294967295;
 
 
@@ -82,6 +142,20 @@ SELECT @@global.max_seeks_for_key;
 SET @@global.max_seeks_for_key = 4294967294;
 SELECT @@global.max_seeks_for_key;
 
+# Test cases for 64-bit machines
+if($mach64)
+{
+  --disable_warnings
+  SET @@global.max_seeks_for_key = 18446744073709551615;
+  --enable_warnings
+
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  if($machine_name)
+  {
+    --replace_result 4294967295 18446744073709551615
+  }
+  SELECT @@global.max_seeks_for_key;
+}
 
 --echo '#--------------------FN_DYNVARS_083_04-------------------------#'
 ############################################################################
@@ -98,6 +172,20 @@ SELECT @@session.max_seeks_for_key;
 SET @@session.max_seeks_for_key = 65535;
 SELECT @@session.max_seeks_for_key;
 
+# Test cases for 64-bit machines
+if($mach64)
+{
+  --disable_warnings
+  SET @@session.max_seeks_for_key = 18446744073709551615;
+  --enable_warnings
+
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  if($machine_name)
+  {
+    --replace_result 4294967295 18446744073709551615
+  }
+  SELECT @@session.max_seeks_for_key;
+}
 
 --echo '#------------------FN_DYNVARS_083_05-----------------------#'
 #############################################################
@@ -108,8 +196,6 @@ SET @@global.max_seeks_for_key = 0;
 SELECT @@global.max_seeks_for_key;
 SET @@global.max_seeks_for_key = -1024;
 SELECT @@global.max_seeks_for_key;
-SET @@global.max_seeks_for_key = 4294967296;
-SELECT @@global.max_seeks_for_key;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_seeks_for_key = 65530.34;
 SELECT @@global.max_seeks_for_key;
@@ -117,19 +203,48 @@ SELECT @@global.max_seeks_for_key;
 SET @@global.max_seeks_for_key = test;
 SELECT @@global.max_seeks_for_key;
 
+if($mach32)
+{
+  SET @@global.max_seeks_for_key = 4294967296;
+  SELECT @@global.max_seeks_for_key;
+
+  SET @@global.max_seeks_for_key = 42949672950;
+  SELECT @@global.max_seeks_for_key;
+}
+
+if($mach64)
+{
+  --error ER_WRONG_TYPE_FOR_VAR
+  SET @@global.max_seeks_for_key = 18446744073709551616;
+  SELECT @@global.max_seeks_for_key;
+}
+
 SET @@session.max_seeks_for_key = 0;
 SELECT @@session.max_seeks_for_key;
 SET @@session.max_seeks_for_key = -2;
 SELECT @@session.max_seeks_for_key;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.max_seeks_for_key = 65530.34;
-SET @@session.max_seeks_for_key = 4294967296;
-SELECT @@session.max_seeks_for_key;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.max_seeks_for_key = test;
 SELECT @@session.max_seeks_for_key;
 
+if($mach32)
+{
+  SET @@session.max_seeks_for_key = 4294967296;
+  SELECT @@session.max_seeks_for_key;
+
+  SET @@session.max_seeks_for_key = 42949672950;
+  SELECT @@session.max_seeks_for_key;
+}
+
+if($mach64)
+{
+  --error ER_WRONG_TYPE_FOR_VAR
+  SET @@session.max_seeks_for_key = 18446744073709551616;
+  SELECT @@session.max_seeks_for_key;
+}
 
 --echo '#------------------FN_DYNVARS_083_06-----------------------#'
 ####################################################################
@@ -138,7 +253,7 @@ SELECT @@session.max_seeks_for_key;
 
 --disable_warnings
 SELECT @@global.max_seeks_for_key = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_seeks_for_key';
 --enable_warnings
 
@@ -149,7 +264,7 @@ WHERE VARIABLE_NAME='max_seeks_for_key';
 
 --disable_warnings
 SELECT @@session.max_seeks_for_key = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_seeks_for_key';
 --enable_warnings
 
@@ -203,8 +318,27 @@ SELECT max_seeks_for_key = @@session.max_seeks_for_key;
 ####################################
 
 SET @@global.max_seeks_for_key = @start_global_value;
+
+if($mach64)
+{
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  if($machine_name)
+  {
+    --replace_result 4294967295 18446744073709551615
+  }
+}
 SELECT @@global.max_seeks_for_key;
+
 SET @@session.max_seeks_for_key = @start_session_value;
+
+if($mach64)
+{
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  if($machine_name)
+  {
+    --replace_result 4294967295 18446744073709551615
+  }
+}
 SELECT @@session.max_seeks_for_key;
 
 

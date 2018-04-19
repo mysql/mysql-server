@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 let $engine = 'InnoDB';
 --source suite/engines/rr_trx/include/rr_init.test

@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_multi_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
 
@@ -29,13 +24,13 @@ create table t2 (a int key, b int) engine=ndb;
 insert into t1 values (1,1);
 alter table t1 add c int;
 # we should not see it in the local server
--- source include/show_binlog_events2.inc
+-- source include/show_binlog_events.inc
 reset master;
 # we should not see it in another server
 connection server2;
 use mysqltest;
 insert into t2 values (1,1);
--- source include/show_binlog_events2.inc
+-- source include/show_binlog_events.inc
 reset master;
 # but if you do stuff in "default" client setting
 connection con1;
@@ -45,10 +40,10 @@ drop table t2;
 create table t1 (d int key, e int) engine=ndb;
 create table t2 (d int key, e int) engine=ndb;
 insert into t1 values (1,1);
--- source include/show_binlog_events2.inc
+-- source include/show_binlog_events.inc
 # and in another server
 connection server2;
 use mysqltest;
 insert into t2 values (1,1);
--- source include/show_binlog_events2.inc
+-- source include/show_binlog_events.inc
 drop database mysqltest;

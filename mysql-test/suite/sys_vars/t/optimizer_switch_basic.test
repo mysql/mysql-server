@@ -14,8 +14,8 @@ select @@session.optimizer_switch;
 show global variables like 'optimizer_switch';
 show session variables like 'optimizer_switch';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='optimizer_switch';
-select * from information_schema.session_variables where variable_name='optimizer_switch';
+select * from performance_schema.global_variables where variable_name='optimizer_switch';
+select * from performance_schema.session_variables where variable_name='optimizer_switch';
 --enable_warnings
 
 #
@@ -32,8 +32,8 @@ select @@session.optimizer_switch;
 show global variables like 'optimizer_switch';
 show session variables like 'optimizer_switch';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='optimizer_switch';
-select * from information_schema.session_variables where variable_name='optimizer_switch';
+select * from performance_schema.global_variables where variable_name='optimizer_switch';
+select * from performance_schema.session_variables where variable_name='optimizer_switch';
 --enable_warnings
 set session optimizer_switch="default";
 select @@session.optimizer_switch;

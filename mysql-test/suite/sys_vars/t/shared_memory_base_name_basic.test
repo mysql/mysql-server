@@ -1,5 +1,4 @@
 --source include/windows.inc
---source include/not_embedded.inc
 #
 # only global
 #
@@ -13,9 +12,9 @@ show global variables like 'shared_memory_base_name';
 show session variables like 'shared_memory_base_name';
 --disable_warnings
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-select * from information_schema.global_variables where variable_name='shared_memory_base_name';
+select * from performance_schema.global_variables where variable_name='shared_memory_base_name';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-select * from information_schema.session_variables where variable_name='shared_memory_base_name';
+select * from performance_schema.session_variables where variable_name='shared_memory_base_name';
 --enable_warnings
 
 #

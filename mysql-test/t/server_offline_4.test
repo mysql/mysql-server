@@ -1,7 +1,6 @@
 # Created: Horst Hunger 2014-05-19
 # WL#3836:  Method to bring servers off line
 
--- source include/not_embedded.inc
 -- source include/not_threadpool.inc
 
 # Save the global value to be used to restore the original value.
@@ -11,7 +10,7 @@ let $MYSQLD_DATADIR= `SELECT @@global.datadir`;
 --enable_connect_log
 # This count may not be 1, because of the probably existing connections
 # from the previous/parallel test runs
-SELECT @user_count:=COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
+let $user_count= `SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER != 'event_scheduler'`;
 
 # test case 2.1.1 3)
 CREATE USER 'user1'@'localhost';
@@ -42,8 +41,9 @@ let $wait_condition=
 # Alter will completely be rolled back (No temp files available)
 SET GLOBAL offline_mode = ON;
 # Wait until all non super user have been disconnected (for slow machines)
-let $wait_condition=SELECT COUNT(USER) = @user_count FROM INFORMATION_SCHEMA.PROCESSLIST;
---source include/wait_condition.inc
+let $count_sessions= $user_count;
+--source include/wait_until_count_sessions.inc
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --list_files $MYSQLD_DATADIR/test t*
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 
@@ -59,18 +59,17 @@ DROP TABLE t2;
 --connection default
 SET GLOBAL offline_mode = ON;
 # Wait until all non super user have been disconnected (for slow machines)
-let $wait_condition=SELECT COUNT(USER) = @user_count FROM INFORMATION_SCHEMA.PROCESSLIST;
---source include/wait_condition.inc
+let $count_sessions= $user_count;
+--source include/wait_until_count_sessions.inc
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 
 # Clean up
 --disconnect conu1
 # Wait until all users have been disconnected (for slow machines)
-let $wait_condition=SELECT COUNT(USER) = @user_count FROM INFORMATION_SCHEMA.PROCESSLIST;
---source include/wait_condition.inc
+let $count_sessions= $user_count;
+--source include/wait_until_count_sessions.inc
 
 DROP USER 'user1'@'localhost';
 
 --echo # Restoring the original values.
 SET @@global.offline_mode = @global_saved_tmp;
-

@@ -1,0 +1,1254 @@
+## This is test file for verification of disabiling warning,password_expired,generated_insert_id,rows_affected,produced_message notices and their functionality
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/stmtexecute_query_result.tmp
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "warnings"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+-->echo check with dropping db which doesn't exists
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop database if exists mysqltest;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo check with dropping table which doesn't exists
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop table if exists test.mysqltest;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo check with dropping procedure which doesn't exists
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop procedure if exists test.test_invalid;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo check with dropping function which doesn't exists
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop function if exists test.test_signal_func;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo check with dropping view which doesn't exists
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop view if exists test.v1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo out of range values for INT,UNSIGN INT
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table test.t1 (c1 INT, c2 INT UNSIGNED);"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert ignore into test.t1 values ('21474836461','21474836461');"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert ignore into test.t1 values ('-21474836461','-21474836461');"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop table test.t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo checking double data type
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table test.t1 (grp int, a bigint unsigned, c char(10) not null, d char(10) not null);"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (1,1,\"a\",\"a\");"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (2,2,\"b\",\"a\");"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (2,3,\"c\",\"b\");"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (3,4,\"E\",\"a\");"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (3,5,\"C\",\"b\");"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (3,6,\"D\",\"b\");"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (3,7,\"d\",\"d\");"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (3,8,\"d\",\"d\");"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 values (3,9,\"D\",\"c\");"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select grp,group_concat(a order by a,d+c-ascii(c)-a) from test.t1 group by grp;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select grp,group_concat(a order by d+c-ascii(c),a) from test.t1 group by grp;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "set group_concat_max_len = 4;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select grp,group_concat(c order by c) from test.t1 group by grp;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop table test.t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo checking character data type
+-->echo Error is returned instead of warning for insert operation with xplugin
+Mysqlx.Sql.StmtExecute {
+  stmt: "SET sql_mode = 'NO_ENGINE_SUBSTITUTION';"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "prepare stmt from 'create table test.t1 (a varchar(10) character set utf8)';"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "execute stmt;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into test.t1 (a) values (repeat('a', 20));"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select length(a) from test.t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop table test.t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "execute stmt;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo checking directly from IS tables
+Mysqlx.Sql.StmtExecute {
+  stmt: "select * from performance_schema.session_variables where variable_name like 'max_join_size';"
+}
+-->recvuntil Mysqlx.Notice.Frame do_not_show_intermediate
+-->recvtype Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select * from performance_schema.session_variables where variable_name like 'concurrent_insert';"
+}
+-->recvuntil Mysqlx.Notice.Frame do_not_show_intermediate
+-->recvtype Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select * from performance_schema.session_variables where variable_name like 'default_storage_engine';"
+}
+-->recvuntil Mysqlx.Notice.Frame do_not_show_intermediate
+-->recvtype Mysqlx.Sql.StmtExecuteOk
+
+-->echo checking errors and warnings with duplicate table
+Mysqlx.Sql.StmtExecute {
+  stmt: "SET SQL_WARNINGS=1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo checking errors and warnings with duplicate table names
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table test.dup (a int);"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table test.dup (a int);"
+}
+-->recvuntil Mysqlx.Error
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "show count(*) errors;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "show errors;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop table test.dup;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo checking creating table with if not exists
+Mysqlx.Sql.StmtExecute {
+  stmt: "flush status;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table t1 (a int not null, b int, primary key (a));"
+}
+-->recvuntil Mysqlx.Error
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table if not exists t1 select 2;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select * from t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table if not exists t1 select 3 as 'a',4 as 'b';"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "show status like \"Opened_tables\";"
+}
+-->recvuntil Mysqlx.Notice.Frame do_not_show_intermediate
+-->recvtype Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select * from t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo try droping mutliplt tables with if exists and check multiple warnings
+Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop tables if exists t1, t2;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->echo try checking may warnings
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop tables if exists t1, t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28,t29,t30,a1, a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,aa1, aa2,aa3,aa4,aa5,aa6,aa7,aa8,aa9,aa10,aa11,aa12,aa13,aa14,aa15,aa16,aa17,aa18,aa19,aa20,aa21,aa22,aa23,aa24,aa25,aa26,aa27,aa28,aa29,aa30,aaaa1, aaaa2,aaaa3,aaaa4,aaaa5,aaaa6,aaaa7,aaaa8,aaaa9,aaaa10,aaaa11,aaaa12,aaaa13,aaaa14,aaaa15,aaaa16,aaaa17,aaaa18,aaaa19,aaaa20,aaaa21,aaaa22,aaaa23,aaaa24,aaaa25,aaaa26,aaaa27,aaaa28,aaaa29,aaaa30;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo try dropping same table with if exists and observe error/wrarnings
+Mysqlx.Sql.StmtExecute {
+ stmt: "drop tables if exists t1,t1;"
+}
+-->recvuntil Mysqlx.Error
+
+Mysqlx.Sql.StmtExecute {
+ stmt: "set max_error_count=65535;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo check more than 64 warnings returned
+Mysqlx.Sql.StmtExecute {
+ stmt: "drop tables if exists t1, t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28,t29,t30,a1, a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,aa1, aa2,aa3,aa4,aa5,aa6,aa7,aa8,aa9,aa10,aa11,aa12,aa13,aa14,aa15,aa16,aa17,aa18,aa19,aa20,aa21,aa22,aa23,aa24,aa25,aa26,aa27,aa28,aa29,aa30,aaaa1, aaaa2,aaaa3,aaaa4,aaaa5,aaaa6,aaaa7,aaaa8,aaaa9,aaaa10,aaaa11,aaaa12,aaaa13,aaaa14,aaaa15,aaaa16,aaaa17,aaaa18,aaaa19,aaaa20,aaaa21,aaaa22,aaaa23,aaaa24,aaaa25,aaaa26,aaaa27,aaaa28,aaaa29,aaaa30,bb1, bb2,bb3,bb4,bb5,bb6,bb7,bb8,bb9,bb10,bb11,bb12,bb13,bb14,bb15,bb16,bb17,bb18,bb19,bb20,bb21,bb22,bb23,bb24,bb25,bb26,bb27,bb28,bb29,bb30,b1, b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15,b16,b17,b18,b19,b20,b21,b22,b23,b24,b25,b26,b27,b28,b29,b30;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo check no warnings based on max_error_count parameter set
+Mysqlx.Sql.StmtExecute {
+ stmt: "set max_error_count=0;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+ stmt: "drop tables if exists t1,t2;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+ stmt: "set max_error_count=-64;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+ stmt: "show variables like 'max_error_count';"
+}
+-->recvuntil Mysqlx.Notice.Frame do_not_show_intermediate
+-->recvtype Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+ stmt: "set max_error_count=64;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo checking creating temporary table when normal and temp table exists
+Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table if not exists t1 (a int) select 2 as a;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create temporary table t1 (a int) select 2 as a;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select * from t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create temporary table if not exists t1 (a int) select 2 as a;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select * from t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop temporary table t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo checking data truncation warnings for default values
+Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "CREATE TABLE t1 SELECT 0.123456789012345678901234567890123456 AS f1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo checking data truncation warnings while creating table with expression
+Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table t1 as select 5.05 / 0.014;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo checking warnings with insert and select operations
+-->echo below insert into t1 returns 17775 warnings,checking only limited warnings as test takes more time to render the warnings
+Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table t2 (a char(1));"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t2 values ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t2 values ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table t1 (a varchar(2) character set cp932) engine=myisam;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo checking for more than default 64 warnings
+Mysqlx.Sql.StmtExecute {
+ stmt: "set max_error_count=500;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t1 select unhex(concat(t24.a, t23.a, t22.a, t21.a)) from t2 t21, t2 t22, t2 t23, t2 t24;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+ stmt: "set max_error_count=64;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop tables t1,t2;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo checking warnigns with prepare and execute statmenets
+Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "CREATE TABLE t1(f1 VARCHAR(6) NOT NULL, FULLTEXT KEY(f1), UNIQUE(f1));"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO t1 VALUES ('test');"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT 1 FROM t1 WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) against (\"\")) WHERE t1.f1 GROUP BY t1.f1)) xor f1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "PREPARE stmt FROM \'SELECT 1 FROM t1 WHERE 1 > ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a ON (MATCH(t1.f1) against (\"\")) WHERE t1.f1 GROUP BY t1.f1)) xor f1\';"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "EXECUTE stmt;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "EXECUTE stmt;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "DEALLOCATE PREPARE stmt;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "PREPARE stmt FROM \'SELECT 1 FROM t1 WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) against (\"\")) WHERE t1.f1 GROUP BY t1.f1))\';"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "EXECUTE stmt;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "EXECUTE stmt;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "DEALLOCATE PREPARE stmt;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo checking warnings with group by when sql_mode is no_engine_substitution
+Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "SET sql_mode = 'NO_ENGINE_SUBSTITUTION';"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table t1 (c1 char(3), c2 char(3));"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table t2 (c3 char(3), c4 char(3));"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t1 values ('aaa', 'bb1'), ('aaa', 'bb2');"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t2 values ('aaa', 'bb1'), ('aaa', 'bb2');"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by c2;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by t1.c1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1, t2;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo setting back to default of sql_mode
+Mysqlx.Sql.StmtExecute {
+  stmt: "SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo checking with group by where both error and warnings expected with default sql_mode
+Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table t1 (c1 char(3), c2 char(3));"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table t2 (c3 char(3), c4 char(3));"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t1 values ('aaa', 'bb1'), ('aaa', 'bb2');"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t2 values ('aaa', 'bb1'), ('aaa', 'bb2');"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by c2;"
+}
+-->recvuntil Mysqlx.Error
+-->echo expect both error and warning
+-->echo change result file once Bug#21524666 is fixed
+Mysqlx.Sql.StmtExecute {
+  stmt: "select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by t1.c1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1, t2;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo checking warnings with rollback on non-transactional tables
+Mysqlx.Sql.StmtExecute {
+  stmt: "use test;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table t1 (n int not null primary key) engine=myisam;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "begin work;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t1 values (4);"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert into t1 values (5);"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "rollback;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "show warnings;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "show errors;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select @@warning_count,@@error_count;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select * from t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "show warnings;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "select @@warning_count;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop table t1;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo expect 2 warnings for insert related to truncation and incorrect date value
+-->sql
+use test;
+set sql_mode='';
+create table t1 (
+a date not null,
+b mediumtext generated always as ((a not in (a,a))) virtual,
+c timestamp generated always as ((a not in (b,b))) stored not null
+);
+-->endsql
+Mysqlx.Sql.StmtExecute {
+  stmt: "insert t1(a) values(7777777777);"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->sql
+drop table t1;
+SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+-->endsql
+
+-->echo checking warnings while creating index which is more than row size
+-->sql
+use test;
+create table worklog5743_1(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=1;
+create table worklog5743_2(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=2;
+create table worklog5743_4(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=4;
+create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8;
+-->endsql
+
+-->echo below statement throws warning as Error and actual error is missing
+-->echo change result file once Bug#21529270 fixed
+Mysqlx.Sql.StmtExecute {
+  stmt: "create index idx1 on worklog5743_1(a2(4000));"
+}
+-->recvuntil Mysqlx.Error
+
+-->sql
+##setting back to original value
+drop table worklog5743_1;
+drop table worklog5743_2;
+drop table worklog5743_4;
+drop table worklog5743_8;
+-->endsql
+
+-->echo checking warnings with different innodb file format
+-->sql
+use test;
+-->endsql
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "set innodb_strict_mode = off;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "set global innodb_file_per_table = 0;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create temporary table t (i int) engine = innodb row_format = compressed;"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->sql
+##setting back to original value
+drop table t;
+set innodb_strict_mode = on;
+set @@global.innodb_file_per_table = 1;
+-->endsql
+
+-->echo checking warnings with different innodb row format
+-->sql
+use test;
+-->endsql
+
+-->echo expect one Error and Warning
+-->echo modify the result file once Bug#21524666 is fixed
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table t2 (id int primary key) engine = innodb key_block_size = 9;"
+}
+-->recvuntil Mysqlx.Error
+
+-->echo expect 2 warnings and 1 Error
+-->echo modify the result file once Bug#21524666 is fixed
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table t2 (id int primary key) engine = innodb key_block_size = 9 row_format = redundant;"
+}
+-->recvuntil Mysqlx.Error
+
+-->echo expect 1 warning and 2 Error
+-->echo modify the result file once Bug#21524666 is fixed
+Mysqlx.Sql.StmtExecute {
+  stmt: "create table bug46000(`id` int, key `GEN_clust_INDEX`(`id`))engine=innodb;"
+}
+-->recvuntil Mysqlx.Error
+
+## Try to disable fixed notice, should produce an error
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "account_expired"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recv
+
+EOF
+
+--write_file $MYSQL_TMP_DIR/stmtexecute_proc_warnings.tmp
+Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "warnings"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+-->echo checking warnings with procedure execution
+-->sql
+SET @start_global_value = @@global.max_error_count;
+SELECT @start_global_value;
+SET @start_session_value = @@session.max_error_count;
+SELECT @start_session_value;
+drop database if exists demo;
+create database demo;
+use demo;
+delimiter //
+create procedure proc_1()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_1';
+    call proc_2();
+end//
+
+delimiter //
+create procedure proc_2()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_2';
+    call proc_3();
+end//
+
+delimiter //
+create procedure proc_3()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_3';
+    call proc_4();
+end//
+
+delimiter //
+create procedure proc_4()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_4';
+    call proc_5();
+end//
+
+delimiter //
+create procedure proc_5()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_5';
+    call proc_6();
+end//
+
+delimiter //
+create procedure proc_6()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_6';
+    call proc_7();
+end//
+
+delimiter //
+create procedure proc_7()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_7';
+    call proc_8();
+end//
+
+delimiter //
+create procedure proc_8()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_8';
+    call proc_9();
+end//
+
+delimiter //
+create procedure proc_9()
+begin
+  declare exit handler for sqlexception
+    resignal sqlstate '45000' set message_text='Oops in proc_9';
+    ## Do something that fails, to see how errors are reported
+    drop table oops_it_is_not_here;
+end//
+
+-->endsql
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "call proc_1();"
+}
+-->recvuntil Mysqlx.Error
+
+-->sql
+SET @@session.max_error_count = 5;
+SELECT @@session.max_error_count;
+-->endsql
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "call proc_1();"
+}
+-->recvuntil Mysqlx.Error
+
+-->sql
+SET @@session.max_error_count = 7;
+SELECT @@session.max_error_count;
+-->endsql
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "call proc_1();"
+}
+-->recvuntil Mysqlx.Error
+
+-->sql
+SET @@session.max_error_count = 9;
+SELECT @@session.max_error_count;
+-->endsql
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "call proc_1();"
+}
+-->recvuntil Mysqlx.Error
+
+-->sql
+drop database demo;
+SET @@global.max_error_count = @start_global_value;
+SELECT @@global.max_error_count;
+SET @@session.max_error_count = @start_session_value;
+SELECT @@session.max_error_count;
+-->endsql
+
+-->echo checking warnings while creating index with more than row size
+-->sql
+use test;
+create table worklog5743_1(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=1;
+create table worklog5743_2(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=2;
+create table worklog5743_4(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=4;
+create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8;
+-->endsql
+
+-->echo below statement throwing warning as an Error and actual error is missing
+-->echo Change result file once Bug#21529270 fixed
+Mysqlx.Sql.StmtExecute {
+  stmt: "create index idx1 on worklog5743_1(a2(4000));"
+}
+-->recvuntil Mysqlx.Error
+
+-->sql
+##setting back to original value
+drop table worklog5743_1;
+drop table worklog5743_2;
+drop table worklog5743_4;
+drop table worklog5743_8;
+-->endsql
+
+EOF
+
+--write_file $MYSQL_TMP_DIR/disable_notices_readonly.tmp
+-->echo Try Disable warnings
+Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "warnings"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+-->echo Try Disable account_expired 
+Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "account_expired"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recv
+
+-->echo Try Disable generated_insert_id 
+Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "generated_insert_id"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recv
+
+-->echo Try Disable rows_affected 
+Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "rows_affected"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recv
+
+-->echo Try Disable produced_message 
+Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "produced_message"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recv
+
+-->echo expect Mysqlx_stmt_disable_notices=5 and remaining are 0
+-->sql
+show status like 'Mysqlx%notice%';
+-->endsql
+
+EOF
+
+--write_file $MYSQL_TMP_DIR/disable_multiple_notices.tmp
+-->echo Disable multiple notices both read-only and read-write with single StmtExecute,expect error from the first error is sees
+-->echo expect error from account_expired onwards as it is read-only though warnings returns success as it is rea-write
+Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "warnings"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "account_expired"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "generated_insert_id"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "rows_affected"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "produced_message"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->expecterror 5164
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_notices"
+  namespace: "xplugin"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+-->echo expect error as disabling account_expired returns error as expected since it is read-ony
+Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "account_expired"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "warnings"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "generated_insert_id"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "rows_affected"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "produced_message"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recv
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_notices"
+  namespace: "xplugin"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
+EOF
+
+--write_file $MYSQL_TMP_DIR/stats_disablenoti.tmp
+-->echo Disable warnings notice and observe stats
+Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "warnings"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+-->echo expect Mysqlx_notice_other_sent=0,Mysqlx_stmt_disable_notices=1 with xconnection
+-->sql
+show status like 'Mysqlx%notice%';
+-->endsql
+
+-->echo Disable account_expired notice and observe stats
+Mysqlx.Sql.StmtExecute {
+  stmt: "disable_notices"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "account_expired"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recv
+
+-->echo expect Mysqlx_notice_other_sent=0,Mysqlx_stmt_disable_notices=2 with xconnection
+-->sql
+show status like 'Mysqlx%notice%';
+-->endsql
+
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_query_result.tmp 2>&1
+
+###expect notice %s cannot be disabled related error,change result file once it is fixed
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/disable_notices_readonly.tmp 2>&1
+
+###expect notice %s cannot be disabled related error ,change result file once it is fixed with normal user
+create user xplugin@localhost identified by 'xplugin';
+--exec $MYSQLXTEST -uxplugin --password='xplugin' --file=$MYSQL_TMP_DIR/disable_notices_readonly.tmp 2>&1
+
+##change result file once Bug#21611216 is fixed
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_proc_warnings.tmp 2>&1
+
+## Disable multiple notices both read-only and read-write with single StmtExecute,expect error from the first error is sees
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/disable_multiple_notices.tmp 2>&1
+
+## Cleanup
+drop user xplugin@localhost;
+--remove_file $MYSQL_TMP_DIR/stmtexecute_query_result.tmp
+--remove_file $MYSQL_TMP_DIR/disable_notices_readonly.tmp
+--remove_file $MYSQL_TMP_DIR/stmtexecute_proc_warnings.tmp
+--remove_file $MYSQL_TMP_DIR/disable_multiple_notices.tmp
+--remove_file $MYSQL_TMP_DIR/stats_disablenoti.tmp
+--source include/xplugin_drop_user.inc

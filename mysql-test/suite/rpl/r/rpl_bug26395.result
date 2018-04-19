@@ -10,7 +10,7 @@ SHOW CREATE TABLE tinnodb;
 Table	Create Table
 tinnodb	CREATE TABLE `tinnodb` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 set @old_debug= @@debug;
 set @@debug= 'd,do_not_write_xid';
 ==== Test ====
@@ -22,13 +22,9 @@ a
 include/sync_slave_io_with_master.inc
 ==== Verify results on slave ====
 include/stop_slave.inc
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Slave_IO_State = ''
 Last_SQL_Error = ''
 Last_IO_Error = ''
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 include/assert.inc [Assert that the slave table has no rows]
 ==== Clean up ====
 [on master]

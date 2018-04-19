@@ -10,7 +10,7 @@ t1	CREATE TABLE `t1` (
   `f2` int(11) NOT NULL,
   `f3` blob,
   PRIMARY KEY (`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('a', 0, repeat('b',8102));
 select f1 from t1;
 f1
@@ -24,10 +24,10 @@ drop table t1;
 # Another test case
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (f1 char(1), f2 longblob, f3 blob, primary key(f1))
 charset=utf8 engine=innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 replace into t1 set f1=0xa3;
 Warnings:
 Warning	1366	Incorrect string value: '\xA3' for column 'f1' at row 1

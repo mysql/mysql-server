@@ -11,7 +11,7 @@ drop table if exists test.no_index_tab;
 update performance_schema.setup_consumers set enabled='YES';
 insert into marker set a = 1;
 create table test.no_index_tab
-( a varchar(255) not null, b int not null) engine = MyISAM
+( a varchar(255) not null, b int not null) engine = InnoDB
 PARTITION BY KEY (b) PARTITIONS 2;
 insert into marker set a = 1;
 show create table test.no_index_tab;
@@ -19,7 +19,7 @@ Table	Create Table
 no_index_tab	CREATE TABLE `no_index_tab` (
   `a` varchar(255) NOT NULL,
   `b` int(11) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (b)
 PARTITIONS 2 */
 insert into marker set a = 1;
@@ -51,6 +51,7 @@ bar	2
 insert into marker set a = 1;
 optimize table test.no_index_tab;
 Table	Op	Msg_type	Msg_text
+test.no_index_tab	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.no_index_tab	optimize	status	OK
 insert into marker set a = 1;
 select * from test.no_index_tab;
@@ -105,7 +106,7 @@ wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	2
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
-show global status like 'performance_schema_%';
+show global status like 'performance_schema_%_lost';
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0

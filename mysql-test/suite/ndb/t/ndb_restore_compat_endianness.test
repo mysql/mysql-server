@@ -1,14 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ######################################################################
 # Test restoring backups of different endianness
 ######################################################################
 
 -- source include/have_ndb.inc
--- source include/ndb_default_cluster.inc
 
 # Directory containing the saved backup files
 let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
@@ -160,11 +154,13 @@ DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis;
 --exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $backup_data_dir/51_data_le >> $NDB_TOOLS_OUTPUT
 --sorted_result
 SHOW TABLES;
+--disable_warnings
 SHOW CREATE TABLE t_num;
 SHOW CREATE TABLE t_datetime;
 SHOW CREATE TABLE t_string_1;
 SHOW CREATE TABLE t_string_2;
 SHOW CREATE TABLE t_gis;
+--enable_warnings
 SELECT * FROM t_datetime;
 SELECT t_pk,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num;
 SELECT t_pk,t_char,t_varchar,hex(t_binary),hex(t_varbinary) FROM t_string_1;
@@ -182,11 +178,13 @@ DROP TABLE t_num,t_datetime,t_string_1,t_string_2,t_gis;
 --exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $backup_data_dir/51_data_be >> $NDB_TOOLS_OUTPUT
 --sorted_result
 SHOW TABLES;
+--disable_warnings
 SHOW CREATE TABLE t_num;
 SHOW CREATE TABLE t_datetime;
 SHOW CREATE TABLE t_string_1;
 SHOW CREATE TABLE t_string_2;
 SHOW CREATE TABLE t_gis;
+--enable_warnings
 SELECT * FROM t_datetime;
 SELECT t_pk,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num;
 SELECT t_pk,t_char,t_varchar,hex(t_binary),hex(t_varbinary) FROM t_string_1;

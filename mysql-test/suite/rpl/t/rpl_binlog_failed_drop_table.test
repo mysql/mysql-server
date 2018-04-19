@@ -1,0 +1,79 @@
+# ==== Purpose ====
+#
+# Check that when the exectuion of a DROP TABLE command with single table
+# fails it should not be written to the binary log. Also test that when the
+# execution of DROP TABLE command with multiple tables fails then the fact
+# if it will be logged or not depends on if any non-InnoDB tables are
+# involved (as failed InnoDB-only multi-table DROP TABLE will have no
+# effect).
+#
+# The above also provides coverage for changes to binary logging of failed
+# DROP TABLES implemented as part of WL#7743 "New data dictionary: changes
+# to DDL-related parts of SE API".
+#
+# ==== Implementation ====
+# Create a database `db1` on master and ignore this database on the slave side
+# using --replicate-ignore-db=db1 --replicate-wild-ignore-table=db1.%. Now
+# execute a DROP TABLE command with single table in it and the command should
+# fail because of foreign key constraint. Check in the binlog that query should
+# not be binlogged. Slave should also be up and running without any errors.
+# Execute another DROP TABLE command with multiple InnoDB tables in the drop list
+# and this also fails because of foreign key constraint. Check that the
+# query is not binlogged in this case (as the whole statement is rolled
+# back). Finally, execute multi-table DROP TABLE command involving MyISAM
+# table which fails for the same reason. Check that query gets written into
+# the binary log and slave should not fail since query is filtered on it.
+#
+# ==== References ====
+#
+# Bug#21435502: DROP TABLE IF EXISTS MAY BRAKE REPLICATION IF SLAVE HAS
+# REPLICATION FILTERS.
+#
+################################################################################
+--source include/master-slave.inc
+
+CREATE DATABASE `db1`;
+
+USE `db1`;
+
+CREATE TABLE `t0` (`ID` bigint(20) primary key) ENGINE=MyISAM;
+
+CREATE TABLE `t1` (`ID` bigint(20) primary key) ENGINE=InnoDB;
+
+CREATE TABLE `t2` ( `ID` bigint(20) NOT NULL AUTO_INCREMENT, `DIVISION_ID` bigint(20) DEFAULT NULL, PRIMARY KEY (`ID`), KEY `FK_TABLE1_DIVISION_1` (`DIVISION_ID`), CONSTRAINT `FK_TABLE1_DIVISION_1` FOREIGN KEY (`DIVISION_ID`) REFERENCES `t1` (`ID`) ON DELETE CASCADE ) ENGINE=InnoDB;
+
+CREATE TABLE `t3` (`ID` bigint(20) primary key) ENGINE=InnoDB;
+
+# Save master position
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+
+# Test a single table drop failure
+--error ER_ROW_IS_REFERENCED
+DROP TABLE IF EXISTS `db1`.`t1`;
+--let $current_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $assert_text= Drop with single table should not be written to the binary log if the query execution fails
+--let $assert_cond= $current_master_pos = $saved_master_pos
+--source include/assert.inc
+
+# Test a multiple table InnoDB-only drop failure
+--error ER_ROW_IS_REFERENCED
+DROP TABLE `t3`, `t1`, `t2`;
+--let $current_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $assert_text= Drop with multiple InnoDB-only tables should not be written to the binary log if the query execution fails
+--let $assert_cond= $current_master_pos = $saved_master_pos
+--source include/assert.inc
+
+# Test a multiple table drop failure involving non-InnoDB table
+--error ER_ROW_IS_REFERENCED
+DROP TABLE `t0`, `t1`, `t2`;
+
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo Cleanup
+--source include/rpl_connection_master.inc
+DROP DATABASE `db1`;
+
+--source include/rpl_end.inc

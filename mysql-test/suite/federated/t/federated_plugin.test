@@ -1,0 +1,37 @@
+--source include/have_federated_plugin.inc
+
+# Uninstall will not uninstall if ps has been used
+--disable_ps_protocol
+
+connect (master,localhost,root,,test,$MASTER_MYPORT,);
+connect (slave,localhost,root,,test,$SLAVE_MYPORT,);
+
+connection master;
+CREATE TABLE t2(a int);
+
+connection slave;
+CREATE TABLE t1(a int) ENGINE=FEDERATED
+  CONNECTION='mysql://root@localhost:$MASTER_MYPORT/test/t2';
+DROP TABLE t1;
+
+--replace_result $FEDERATED_PLUGIN FEDERATED_PLUGIN
+eval INSTALL PLUGIN federated SONAME '$FEDERATED_PLUGIN';
+--replace_result $FEDERATED_PLUGIN FEDERATED_PLUGIN
+--error ER_UDF_EXISTS
+eval INSTALL PLUGIN FEDERATED SONAME '$FEDERATED_PLUGIN';
+
+UNINSTALL PLUGIN federated;
+
+--replace_result $FEDERATED_PLUGIN FEDERATED_PLUGIN
+eval INSTALL PLUGIN federated SONAME '$FEDERATED_PLUGIN';
+
+CREATE TABLE t1(a int) ENGINE=FEDERATED
+  CONNECTION='mysql://root@localhost:$MASTER_MYPORT/test/t2';
+DROP TABLE t1;
+
+UNINSTALL PLUGIN federated;
+--error ER_SP_DOES_NOT_EXIST
+UNINSTALL PLUGIN federated;
+
+connection master;
+DROP TABLE t2;

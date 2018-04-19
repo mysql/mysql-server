@@ -1,27 +1,18 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Store the time of password_last_changed column from mysql.user table
-# to restore it back later.
-let $date_to_restore=`SELECT password_last_changed from mysql.user where host='localhost'`;
-# Grant tests not performed with embedded server
--- source include/not_embedded.inc
-
+# to restore it back later for the different users.
+--disable_query_log
+create temporary table user_copy as select * from mysql.user;
+--enable_query_log
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+#Test needs MyISAM for MERGE table tests
+--source include/have_myisam.inc
 
 SET NAMES binary;
 
-#
-# Remove NO_AUTO_CREATE_USER sql mode (default from 5.7)
-#
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
 
 #
 # GRANT tests that require several connections
@@ -40,25 +31,19 @@ delete from mysql.tables_priv where user like 'mysqltest\_%';
 delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
 
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "granting/revoking privileges in databases.");
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "revoking all_privileges from a list of users.");
-
+create user mysqltest_1@localhost, mysqltest_3@localhost, mysqltest_4@localhost;
 grant all privileges on `my\_1`.* to mysqltest_1@localhost with grant option;
 grant create user on *.* to mysqltest_1@localhost;
 create user mysqltest_2@localhost;
 connect (user_a,localhost,mysqltest_1,,);
 connection user_a;
 grant select on `my\_1`.* to mysqltest_2@localhost;
---error ER_DBACCESS_DENIED_ERROR
-grant select on `my\_1`.* to mysqltest_2@localhost identified by 'pass';
 disconnect user_a;
 connection default;
 grant update on mysql.* to mysqltest_1@localhost;
 connect (user_b,localhost,mysqltest_1,,);
 connection user_b;
-grant select on `my\_1`.* to mysqltest_2@localhost identified by 'pass';
+grant select on `my\_1`.* to mysqltest_2@localhost;
 grant select on `my\_1`.* to mysqltest_3@localhost;
 disconnect user_b;
 connection default;
@@ -66,7 +51,7 @@ grant insert on mysql.* to mysqltest_1@localhost;
 connect (user_c,localhost,mysqltest_1,,);
 connection user_c;
 grant select on `my\_1`.* to mysqltest_3@localhost;
-grant select on `my\_1`.* to mysqltest_4@localhost identified by 'pass';
+grant select on `my\_1`.* to mysqltest_4@localhost;
 disconnect user_c;
 connection default;
 delete from mysql.user where user like 'mysqltest\_%';
@@ -79,6 +64,8 @@ flush privileges;
 # wild_compare fun
 #
 
+create user mysqltest_1@localhost, mysqltest_2@localhost,
+            mysqltest_3@localhost, mysqltest_4@localhost;
 grant all privileges on `my\_%`.* to mysqltest_1@localhost with grant option;
 grant create user on *.* to mysqltest_1@localhost;
 connect (user1,localhost,mysqltest_1,,);
@@ -89,23 +76,11 @@ grant all privileges on `my\_1`.* to mysqltest_2@localhost with grant option;
 grant all privileges on `my_%`.* to mysqltest_3@localhost with grant option;
 
 
-# NO_AUTO_CREATE_USER mode
-#
-set @@sql_mode='NO_AUTO_CREATE_USER';
-select @@sql_mode;
-#
-# GRANT without IDENTIFIED BY does not create new users
-#
---error ER_PASSWORD_NO_MATCH
 grant select on `my\_1`.* to mysqltest_4@localhost with grant option;
-grant select on `my\_1`.* to mysqltest_4@localhost identified by 'mypass'
-with grant option;
 disconnect user1;
 connection default;
 show grants for mysqltest_1@localhost;
 show grants for mysqltest_2@localhost;
---error ER_NONEXISTING_GRANT
-show grants for mysqltest_3@localhost;
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 flush privileges;
@@ -114,6 +89,7 @@ flush privileges;
 # wild_compare part two - acl_cache
 #
 create database mysqltest_1;
+create user mysqltest_1@localhost;
 grant all privileges on `mysqltest\_1`.* to mysqltest_1@localhost with grant option;
 connect (user2,localhost,mysqltest_1,,);
 connection user2;
@@ -134,6 +110,7 @@ flush privileges;
 #          INSERT privilege for table with primary key
 #
 create database mysqltest;
+create user mysqltest_1@localhost;
 grant INSERT, SELECT on mysqltest.* to mysqltest_1@localhost;
 flush privileges;
 use mysqltest;
@@ -159,6 +136,7 @@ flush privileges;
 #
 #
 create table t1 (a int, b int);
+create user  mysqltest_1@localhost;
 grant select (a) on t1 to mysqltest_1@localhost with grant option;
 connect (mrugly, localhost, mysqltest_1,,mysqltest);
 connection mrugly;
@@ -215,6 +193,7 @@ connection default;
 # Bug#16180 Setting SQL_LOG_OFF without SUPER privilege is silently ignored
 #
 create database mysqltest_1;
+create user mysqltest_1@localhost;
 grant select, insert, update on `mysqltest\_1`.* to mysqltest_1@localhost;
 connect (con10,localhost,mysqltest_1,,);
 connection con10;
@@ -232,7 +211,7 @@ flush privileges;
 # End of 4.1 tests
 # Create and drop user
 #
-set sql_mode='maxdb';
+set sql_mode='ANSI';
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
@@ -245,12 +224,12 @@ create user 'mysqltest_1';
 create user 'mysqltest_1';
 create user 'mysqltest_2' identified by 'Mysqltest-2';
 --error ER_PASSWORD_FORMAT
-create user 'mysqltest_3' identified by password 'fffffffffffffffffffffffffffffffffffffffff';
+create user 'mysqltest_3' identified with 'caching_sha2_password' as 'fffffffffffffffffffffffffffffffffffffffff';
 grant select on *.* to 'mysqltest_2';
 grant insert on test.* to 'mysqltest_2';
 grant update on test.t1 to 'mysqltest_2';
 grant update (c2) on test.t2 to 'mysqltest_2';
-select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest_%' order by host,db,user,table_name;
 select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
@@ -259,7 +238,7 @@ show grants for 'mysqltest_2';
 #
 # Drop
 drop user 'mysqltest_1';
-select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest_%' order by host,db,user,table_name;
 select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
@@ -268,7 +247,7 @@ show grants for 'mysqltest_1';
 #
 # Rename
 rename user 'mysqltest_2' to 'mysqltest_1';
-select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest_%' order by host,db,user,table_name;
 select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
@@ -309,7 +288,7 @@ select host,db,user,table_name,column_name from mysql.columns_priv where user = 
 # Handle multi user lists
 create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
-create user 'mysqltest_1', 'mysqltest_2' identified by 'Mysqltest-2', 'mysqltest_3' identified by password '*ffffffffffffffffffffffffffffffffffffffff';
+create user 'mysqltest_1', 'mysqltest_2' identified by 'Mysqltest-2', 'mysqltest_3' identified by 'haha';
 rename user 'mysqltest_1' to 'mysqltest_1a', 'mysqltest_2' TO 'mysqltest_2a', 'mysqltest_3' TO 'mysqltest_3a';
 --error ER_CANNOT_USER
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
@@ -319,11 +298,13 @@ drop user 'mysqltest_1a', 'mysqltest_2a', 'mysqltest_3a';
 create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 --error ER_CANNOT_USER
 create user 'mysqltest_1a', 'mysqltest_2', 'mysqltest_3a';
+create user 'mysqltest_1a', 'mysqltest_3a';
 --error ER_CANNOT_USER
 rename user 'mysqltest_1a' to 'mysqltest_1b', 'mysqltest_2a' TO 'mysqltest_2b', 'mysqltest_3a' TO 'mysqltest_3b';
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 --error ER_CANNOT_USER
 drop user 'mysqltest_1b', 'mysqltest_2b', 'mysqltest_3b';
+drop user 'mysqltest_1a', 'mysqltest_3a';
 #
 # Obsolete syntax has been dropped
 create user 'mysqltest_2' identified by 'Mysqltest-2';
@@ -349,7 +330,7 @@ grant create user on *.* to mysqltest_2@localhost;
 connect (user3,localhost,mysqltest_2,,);
 connection user3;
 --error ER_TABLEACCESS_DENIED_ERROR
-select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 create user mysqltest_A@'%';
 rename user mysqltest_A@'%' to mysqltest_B@'%';
 drop user mysqltest_B@'%';
@@ -364,7 +345,7 @@ connect (user4,localhost,mysqltest_3,,);
 connection user4;
 show grants;
 --error ER_TABLEACCESS_DENIED_ERROR
-select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+select host,user,length(authentication_string) from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 insert ignore into mysql.user set host='%', user='mysqltest_B';
 create user mysqltest_A@'%';
 rename user mysqltest_B@'%' to mysqltest_C@'%';
@@ -376,6 +357,7 @@ drop user mysqltest_3@localhost;
 #
 # Bug#3309 Test IP addresses with netmask
 set @@sql_mode='';
+create user mysqltest_1@'127.0.0.0/255.0.0.0';
 create database mysqltest_1;
 create table mysqltest_1.t1 (i int);
 insert into mysqltest_1.t1 values (1),(2),(3);
@@ -397,6 +379,7 @@ drop table mysqltest_1.t1;
 # hostname the current user is authenticated as. Note that a test for this
 # was also added to the test above.
 #
+create user mysqltest_1@'127.0.0.1';
 grant all on mysqltest_1.* to mysqltest_1@'127.0.0.1';
 connect (b12302,127.0.0.1,mysqltest_1,,mysqltest_1,$MASTER_MYPORT,);
 connection b12302;
@@ -408,6 +391,7 @@ select host, length(authentication_string) from mysql.user where user like 'mysq
 revoke all on mysqltest_1.* from mysqltest_1@'127.0.0.1';
 delete from mysql.user where user like 'mysqltest\_1';
 flush privileges;
+create user mysqltest_1@'127.0.0.0/255.0.0.0';
 grant all on mysqltest_1.* to mysqltest_1@'127.0.0.0/255.0.0.0';
 connect (b12302_2,127.0.0.1,mysqltest_1,,mysqltest_1,$MASTER_MYPORT,);
 connection b12302_2;
@@ -446,6 +430,7 @@ connect (con3root,localhost,root,,);
 # This will check that locks are taken in proper order during both
 # user/db-level and table/column-level privileges reloading.
 connection default;
+create user 'mysqltest_1'@'localhost';
 lock table mysql.user write;
 connection con2root;
 send flush privileges;
@@ -518,6 +503,7 @@ flush privileges;
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 
+CREATE USER `a@`@localhost;
 GRANT ALL PRIVILEGES ON test.* TO `a@`@localhost;
 GRANT EXECUTE ON * TO `a@`@localhost;
 connect (bug13310,localhost,'a@',,test);
@@ -555,6 +541,7 @@ drop user mysqltest_u1@localhost;
 
 create database mysqltest_1;
 create database mysqltest_2;
+create user mysqltest_u1@localhost;
 grant all on mysqltest_1.* to mysqltest_u1@localhost;
 use mysqltest_2;
 create table t1 (i int);
@@ -589,6 +576,7 @@ drop user mysqltest_u1@localhost;
 # Bug#18660 Can't grant any privileges on single table in database
 #           with underscore char
 #
+create user mysqltest_1@localhost, mysqltest_2@localhost;
 grant all on `mysqltest\_%`.* to mysqltest_1@localhost with grant option;
 grant usage on *.* to mysqltest_2@localhost;
 connect (con18600_1,localhost,mysqltest_1,,);
@@ -630,6 +618,7 @@ INSERT INTO t1 VALUES (1,1),(2,2);
 CREATE TABLE t2 (b INT, c INT);
 INSERT INTO t2 VALUES (1,100),(2,200);
 
+CREATE USER mysqltest1@localhost;
 GRANT SELECT ON t1 TO mysqltest1@localhost;
 GRANT SELECT (b) ON t2 TO mysqltest1@localhost;
 
@@ -664,23 +653,19 @@ SELECT MID(CURRENT_USER(),INSTR(CURRENT_USER(),'@')+1)  INTO @h;
 SELECT authentication_string FROM user WHERE user=@u AND host=@h INTO @pwd;
 
 # show current privs.
-SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
+SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
 
 # toggle INSERT
 UPDATE user SET insert_priv='N' WHERE user=@u AND host=@h;
-SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
+SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
 
 # show that GRANT ... TO CURRENT_USER() no longer crashes
 GRANT INSERT ON *.* TO CURRENT_USER();
-SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
+SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
 UPDATE user SET insert_priv='N' WHERE user=@u AND host=@h;
 
-# show that GRANT ... TO CURRENT_USER() IDENTIFIED BY ... works now
-GRANT INSERT ON *.* TO CURRENT_USER() IDENTIFIED BY 'keksdose';
-SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
-
 UPDATE user SET authentication_string=@pwd WHERE user=@u AND host=@h;
-SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
+SELECT user,host,length(authentication_string),insert_priv FROM user WHERE user=@u AND host=@h;
 
 FLUSH PRIVILEGES;
 
@@ -714,6 +699,9 @@ CREATE DATABASE mysqltest_db2;
 --echo # mysqltest_u1@localhost has CREATE_TMP_ACL, FILE_ACL and EXECUTE_ACL only
 --echo # (EXECUTE_ACL is needed to call p0, and FILE_ACL is needed for SELECT
 --echo # OUTFILE/LOAD DATA INFILE).
+CREATE USER mysqltest_u1@localhost, mysqltest_u2@localhost,
+            mysqltest_u3@localhost, mysqltest_u4@localhost,
+            mysqltest_u5@localhost;
 GRANT FILE ON *.* TO mysqltest_u1@localhost;
 GRANT CREATE TEMPORARY TABLES, EXECUTE ON mysqltest_db1.* TO mysqltest_u1@localhost;
 
@@ -770,9 +758,10 @@ CREATE TABLE mysqltest_db2.t2_1(a INT);
 --echo #
 --echo # Variants of CREATE TABLE.
 --echo #
-CREATE TEMPORARY TABLE t1(a INT);
+CREATE TEMPORARY TABLE t1(a INT) engine=myisam;
 CREATE TEMPORARY TABLE t2 LIKE t1;
-CREATE TEMPORARY TABLE t3(a INT, b INT, PRIMARY KEY (a));
+# MyISAM is used to create t3 to support assign_to_keycache for testing CACHE and LOAD INDEX
+CREATE TEMPORARY TABLE t3(a INT, b INT, PRIMARY KEY (a)) engine=myisam;
 CREATE TEMPORARY TABLE t4 SELECT * FROM t1;
 --echo # Check that we do *not* allow creation of MERGE table with underlying
 --echo # temporary table without additional privileges.
@@ -998,9 +987,9 @@ DROP TEMPORARY TABLE t4;
 --echo # -- connect con4, mysqltest_u5@localhost, mysqltest_db1
 --connect (con4,localhost,mysqltest_u5,,mysqltest_db1)
 
-CREATE TEMPORARY TABLE t7(a INT);
-CREATE TEMPORARY TABLE t8(a INT);
-CREATE TEMPORARY TABLE t9(a INT);
+CREATE TEMPORARY TABLE t7(a INT) engine=myisam;
+CREATE TEMPORARY TABLE t8(a INT) engine=myisam;
+CREATE TEMPORARY TABLE t9(a INT) engine=myisam;
 CREATE TEMPORARY TABLE t10(a INT) ENGINE = MERGE UNION = (t7, t8);
 
 ALTER TABLE t10 UNION = (t9);
@@ -1049,12 +1038,15 @@ DROP USER mysqltest_u3@localhost;
 DROP USER mysqltest_u4@localhost;
 DROP USER mysqltest_u5@localhost;
 
---disable_query_log ONCE
---eval UPDATE mysql.user SET password_last_changed = '$date_to_restore'
---echo # mysql.user table restored to original values.
-
 set GLOBAL sql_mode= @orig_sql_mode_global;
 set SESSION sql_mode= @orig_sql_mode_session;
+
+--disable_query_log
+delete from mysql.user;
+insert into mysql.user select * from user_copy;
+FLUSH PRIVILEGES;
+--enable_query_log
+--echo # mysql.user table restored to original values.
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

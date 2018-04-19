@@ -1,0 +1,50 @@
+#
+# Test specific macros
+#
+
+-->macro Login_failed	%SSL_MODE%	%TYPE%	%USER%	%PASS%
+echo -- Expecting failure with parameters: %SSL_MODE%	%TYPE%	%USER%	%PASS%;
+echo --;
+varlet %OPTION_SSL_MODE% %SSL_MODE%;
+expecterror ER_ACCESS_DENIED_ERROR;
+newsession_%TYPE% sess0	%USER%	%PASS%;
+-->endmacro
+
+-->macro Login_ok	%SSL_MODE%	%TYPE%	%USER%	%PASS%
+echo -- Expecting success with parameters: %SSL_MODE%	%TYPE%	%USER%	%PASS%;
+echo --;
+varlet %OPTION_SSL_MODE% %SSL_MODE%;
+newsession_%TYPE% sess0	%USER%	%PASS%;
+closesession;
+-->endmacro
+
+
+-->macro Login_ok_and_verify	%SSL_MODE%	%TYPE%	%USER%	%PASS%
+echo -- Expecting success with parameters: %SSL_MODE%	%TYPE%	%USER%	%PASS%;
+echo --;
+varlet %OPTION_SSL_MODE% %SSL_MODE%;
+newsession_%TYPE% sess0	%USER%	%PASS%;
+-->sql
+SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '');
+SHOW STATUS LIKE 'Mysqlx_ssl_active';
+-->endsql
+closesession;
+-->endmacro
+
+
+-->macro Try_to_login_all_xusers_using_memory	%LOGIN_MACRO%
+callmacro %LOGIN_MACRO%	DISABLED	memory	xuser_native	native;
+callmacro %LOGIN_MACRO%	DISABLED	memory	xuser_sha256	sha256;
+callmacro %LOGIN_MACRO%	DISABLED	memory	xuser_cache2	cache2;
+
+callmacro %LOGIN_MACRO%	REQUIRED	memory	xuser_native	native;
+callmacro %LOGIN_MACRO%	REQUIRED	memory	xuser_sha256	sha256;
+callmacro %LOGIN_MACRO%	REQUIRED	memory	xuser_cache2	cache2;
+-->endmacro
+
+
+-->macro Login_all_xusers_using_plain_to_fill_the_cache
+callmacro Login_ok_and_verify	REQUIRED	plain	xuser_native	native;
+callmacro Login_ok_and_verify	REQUIRED	plain	xuser_sha256	sha256;
+callmacro Login_ok_and_verify	REQUIRED	plain	xuser_cache2	cache2;
+-->endmacro

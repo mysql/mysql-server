@@ -1,17 +1,21 @@
-select schema_name from information_schema.schemata where schema_name not in ('sys', 'performance_schema');
-schema_name
+select schema_name from information_schema.schemata order by schema_name;
+SCHEMA_NAME
 information_schema
 mtr
 mysql
+performance_schema
+sys
 test
-show tables in mysql;
+show tables in mysql where Tables_in_mysql != 'ndb_binlog_index';
 Tables_in_mysql
 columns_priv
+component
 db
+default_roles
 engine_cost
-event
 func
 general_log
+global_grants
 gtid_executed
 help_category
 help_keyword
@@ -19,11 +23,11 @@ help_relation
 help_topic
 innodb_index_stats
 innodb_table_stats
-ndb_binlog_index
+password_history
 plugin
-proc
 procs_priv
 proxies_priv
+role_edges
 server_cost
 servers
 slave_master_info

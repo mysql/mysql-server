@@ -1,11 +1,8 @@
 # WL#6745 InnoDB R-tree support
 # This test case will test R-tree multi level split.
 
-# Restarting is not supported in embedded
---source include/not_embedded.inc
 
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 --source include/big_test.inc
 # Valgrind takes too much time on PB2 even in the --big-test runs.
 --source include/not_valgrind.inc
@@ -13,7 +10,7 @@
 SET GLOBAL innodb_file_per_table=1;
 
 # Create table with R-tree index.
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb ROW_FORMAT=COMPRESSED;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb ROW_FORMAT=COMPRESSED;
 
 # Insert enough values to let R-tree split.
 delimiter |;
@@ -39,7 +36,7 @@ truncate table t1;
 # Test crash recovery.
 #
 #
-call mtr.add_suppression("InnoDB: page [0-9]+ in the doublewrite buffer is not within space bounds.*");
+call mtr.add_suppression("page [0-9]+ in the doublewrite buffer is not within space bounds.*");
 
 # Test rtree enlarge recovery.
 START TRANSACTION;

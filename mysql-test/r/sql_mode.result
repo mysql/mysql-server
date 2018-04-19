@@ -8,8 +8,6 @@ PRIMARY KEY  (a),
 UNIQUE KEY `email` USING BTREE (`email`)
 ) ENGINE=HEAP CHARSET=latin1 ROW_FORMAT DYNAMIC;
 set @@sql_mode="";
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 show variables like 'sql_mode';
 Variable_name	Value
 sql_mode	
@@ -17,8 +15,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
-  `pseudo` varchar(35) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  `email` varchar(60) CHARACTER SET latin2 NOT NULL DEFAULT '',
+  `pseudo` varchar(35) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL DEFAULT '',
+  `email` varchar(60) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`a`),
   UNIQUE KEY `email` (`email`) USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
@@ -30,97 +28,11 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (
   "a" int(11) NOT NULL AUTO_INCREMENT,
-  "pseudo" varchar(35) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  "email" varchar(60) CHARACTER SET latin2 NOT NULL DEFAULT '',
+  "pseudo" varchar(35) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL DEFAULT '',
+  "email" varchar(60) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL DEFAULT '',
   PRIMARY KEY ("a"),
   UNIQUE KEY "email" ("email") USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-set @@sql_mode="no_table_options";
-show variables like 'sql_mode';
-Variable_name	Value
-sql_mode	NO_TABLE_OPTIONS
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `pseudo` varchar(35) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  `email` varchar(60) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  PRIMARY KEY (`a`),
-  UNIQUE KEY `email` (`email`) USING BTREE
-)
-set @@sql_mode="no_key_options";
-show variables like 'sql_mode';
-Variable_name	Value
-sql_mode	NO_KEY_OPTIONS
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `pseudo` varchar(35) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  `email` varchar(60) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  PRIMARY KEY (`a`),
-  UNIQUE KEY `email` (`email`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-set @@sql_mode="no_field_options,mysql323,mysql40";
-show variables like 'sql_mode';
-Variable_name	Value
-sql_mode	NO_FIELD_OPTIONS,MYSQL323,MYSQL40,HIGH_NOT_PRECEDENCE
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `pseudo` varchar(35) NOT NULL DEFAULT '',
-  `email` varchar(60) NOT NULL DEFAULT '',
-  PRIMARY KEY (`a`),
-  UNIQUE KEY `email` (`email`)
-) TYPE=HEAP ROW_FORMAT=DYNAMIC
-set sql_mode="postgresql,oracle,mssql,db2,maxdb";
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
-select @@sql_mode;
-@@sql_mode
-PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,POSTGRESQL,ORACLE,MSSQL,DB2,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE "t1" (
-  "a" int(11) NOT NULL,
-  "pseudo" varchar(35) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  "email" varchar(60) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  PRIMARY KEY ("a"),
-  UNIQUE KEY "email" ("email")
-)
-drop table t1;
-CREATE TABLE t1 (
-a char(10),
-b char(10) collate latin1_bin,
-c binary(10)
-) character set latin1;
-set @@sql_mode="";
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` char(10) DEFAULT NULL,
-  `b` char(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
-  `c` binary(10) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
-set @@sql_mode="mysql323";
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` char(10) DEFAULT NULL,
-  `b` char(10) binary DEFAULT NULL,
-  `c` binary(10) DEFAULT NULL
-) TYPE=ENGINE
-set @@sql_mode="mysql40";
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` char(10) DEFAULT NULL,
-  `b` char(10) binary DEFAULT NULL,
-  `c` binary(10) DEFAULT NULL
-) TYPE=ENGINE
 drop table t1;
 set session sql_mode = '';
 create table t1 ( min_num   dec(6,6)     default .000001);
@@ -128,7 +40,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `min_num` decimal(6,6) DEFAULT '0.000001'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1 ;
 set session sql_mode = 'IGNORE_SPACE';
 create table t1 ( min_num   dec(6,6)     default 0.000001);
@@ -136,14 +48,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `min_num` decimal(6,6) DEFAULT '0.000001'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1 ;
 create table t1 ( min_num   dec(6,6)     default .000001);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `min_num` decimal(6,6) DEFAULT '0.000001'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1 ;
 set @@SQL_MODE=NULL;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of 'NULL'
@@ -158,20 +70,12 @@ t1	CREATE TABLE "t1" (
   "f2" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY ("f1")
 )
-set session sql_mode=no_field_options;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`f1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='';
 show local variables like 'SQL_MODE';
 Variable_name	Value
 sql_mode	
-CREATE TABLE t1 (p int not null auto_increment, a varchar(20), primary key(p));
+CREATE TABLE t1 (p int not null auto_increment, a varchar(20), primary key(p)) charset latin1;
 INSERT t1 (a) VALUES
 ('\\'),
 ('\n'),
@@ -294,7 +198,7 @@ SET @@SQL_MODE='NO_BACKSLASH_ESCAPES';
 show local variables like 'SQL_MODE';
 Variable_name	Value
 sql_mode	NO_BACKSLASH_ESCAPES
-CREATE TABLE t1 (p int not null auto_increment, a varchar(20), primary key(p));
+CREATE TABLE t1 (p int not null auto_increment, a varchar(20), primary key(p)) charset latin1;
 INSERT t1 (a) VALUES
 ('\\'),
 ('\n'),
@@ -434,23 +338,23 @@ create function `foo` () returns int return 5;
 show create function `foo`;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo		CREATE DEFINER=`root`@`localhost` FUNCTION `foo`() RETURNS int(11)
-return 5	latin1	latin1_swedish_ci	latin1_swedish_ci
+return 5	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SET @@SQL_MODE='ANSI_QUOTES';
 show create function `foo`;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo		CREATE DEFINER=`root`@`localhost` FUNCTION `foo`() RETURNS int(11)
-return 5	latin1	latin1_swedish_ci	latin1_swedish_ci
+return 5	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop function `foo`;
 create function `foo` () returns int return 5;
 show create function `foo`;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" FUNCTION "foo"() RETURNS int(11)
-return 5	latin1	latin1_swedish_ci	latin1_swedish_ci
+return 5	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SET @@SQL_MODE='';
 show create function `foo`;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 foo	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" FUNCTION "foo"() RETURNS int(11)
-return 5	latin1	latin1_swedish_ci	latin1_swedish_ci
+return 5	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop function `foo`;
 SET @@SQL_MODE='';
 create table t1 (a int);
@@ -458,11 +362,11 @@ create table t2 (a int);
 create view v1 as select a from t1;
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 SET @@SQL_MODE='ANSI_QUOTES';
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER="root"@"localhost" SQL SECURITY DEFINER VIEW "v1" AS select "t1"."a" AS "a" from "t1"	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER="root"@"localhost" SQL SECURITY DEFINER VIEW "v1" AS select "t1"."a" AS "a" from "t1"	utf8mb4	utf8mb4_0900_ai_ci
 create view v2 as select a from t2 where a in (select a from v1);
 drop view v2, v1;
 drop table t1, t2;
@@ -470,22 +374,26 @@ select @@sql_mode;
 @@sql_mode
 ANSI_QUOTES
 set sql_mode=2097152;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 select @@sql_mode;
 @@sql_mode
 STRICT_TRANS_TABLES
 set sql_mode=4194304;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 select @@sql_mode;
 @@sql_mode
 STRICT_ALL_TABLES
-set sql_mode=16384+(65536*4);
+set sql_mode=32+(65536*4);
 select @@sql_mode;
 @@sql_mode
-REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,NO_TABLE_OPTIONS,ANSI
-set sql_mode=2147483648*2;
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '4294967296'
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+set sql_mode=4294967296*2;
+ERROR 42000: Variable 'sql_mode' can't be set to the value of '8589934592'
 select @@sql_mode;
 @@sql_mode
-REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,NO_TABLE_OPTIONS,ANSI
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 set sql_mode=PAD_CHAR_TO_FULL_LENGTH;
 create table t1 (a int auto_increment primary key, b char(5));
 insert into t1 (b) values('a'),('b\t'),('c ');
@@ -514,14 +422,10 @@ flush privileges;
 drop user mysqltest_32753@localhost;
 SET @org_mode=@@sql_mode;
 SET @@sql_mode='traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@sql_mode LIKE '%NO_ENGINE_SUBSTITUTION%';
 @@sql_mode LIKE '%NO_ENGINE_SUBSTITUTION%'
 1
 SET sql_mode=@org_mode;
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP TABLE IF EXISTS t1,t2;
 CREATE USER 'user_PCTFL'@'localhost' identified by 'PWD';
 CREATE USER 'user_no_PCTFL'@'localhost' identified by 'PWD';
@@ -757,52 +661,111 @@ SET @org_mode= @@sql_mode;
 # Setting these modes in 5.7 will give warning and have no effect.
 SET sql_mode= 'NO_ZERO_DATE';
 Warnings:
-Warning	3027	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@sql_mode;
 @@sql_mode
-
+NO_ZERO_DATE
 SET sql_mode= 'NO_ZERO_IN_DATE';
 Warnings:
-Warning	3027	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@sql_mode;
 @@sql_mode
-
+NO_ZERO_IN_DATE
 SET sql_mode= 'ERROR_FOR_DIVISION_BY_ZERO';
 Warnings:
-Warning	3027	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@sql_mode;
 @@sql_mode
-
+ERROR_FOR_DIVISION_BY_ZERO
 #
 # Restore sql mode
 #
 SET sql_mode= @org_mode;
 #
-# Check that NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
-# are removed in triggers after upgrading to 5.7.
+# Test for Bug#12601974 - STORED PROCEDURE SQL_MODE=NO_BACKSLASH_ESCAPES
+# IGNORED AND BREAKS REPLICATION
 #
-CREATE TABLE account (acct_num INT, amount DECIMAL(10,2));
-SHOW CREATE TRIGGER ins_sum;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-ins_sum	STRICT_ALL_TABLES	CREATE DEFINER=`root`@`localhost` TRIGGER ins_sum BEFORE INSERT ON account FOR EACH ROW SET @sum = @sum + NEW.amount	utf8	utf8_general_ci	latin1_swedish_ci	NULL
-# Clean-up
-DROP TABLE account;
-#
-# Check that Inserting NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
-# manually into mysql.proc table do not show up in SHOW CREATE procs/funcs OUTPUT.
-#
-INSERT INTO mysql.proc VALUES ('test','p1','PROCEDURE','p1','SQL','CONTAINS_SQL','NO','DEFINER','','','begin end','root@localhost',now(), now(),'NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'begin end');
-# NO_ZERO_* modes should not show up in the output.
-SHOW CREATE PROCEDURE p1;
-Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	STRICT_ALL_TABLES	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
-begin end	utf8	utf8_general_ci	latin1_swedish_ci
-INSERT INTO mysql.proc VALUES ('test','f1','FUNCTION','f1','SQL','CONTAINS_SQL','NO','DEFINER','','int(11)','begin return 1; end','root@localhost',now(), now(),'NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'begin return 1; end');
-# NO_ZERO_* modes should not show up in the output.
-SHOW CREATE FUNCTION f1;
-Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	STRICT_ALL_TABLES	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
-begin return 1; end	utf8	utf8_general_ci	latin1_swedish_ci
-# Clean-up.
-DROP PROCEDURE p1;
-DROP FUNCTION f1;
+SET @org_mode=@@sql_mode;
+SET @@sql_mode='';
+# USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
+CREATE USER 'user\'s_12601974'@'localhost';
+CREATE USER 'user\'s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\'s_12601974'@'localhost'
+DROP USER 'user\'s_12601974'@'localhost';
+CREATE USER 'user\"s_12601974'@'localhost';
+CREATE USER 'user\"s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\"s_12601974'@'localhost'
+DROP USER 'user\"s_12601974'@'localhost';
+CREATE USER 'user\bs_12601974'@'localhost';
+CREATE USER 'user\bs_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'users_12601974'@'localhost'
+DROP USER 'user\bs_12601974'@'localhost';
+CREATE USER 'user\ns_12601974'@'localhost';
+CREATE USER 'user\ns_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\ns_12601974'@'localhost'
+DROP USER 'user\ns_12601974'@'localhost';
+CREATE USER 'user\rs_12601974'@'localhost';
+CREATE USER 'user\rs_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\rs_12601974'@'localhost'
+DROP USER 'user\rs_12601974'@'localhost';
+CREATE USER 'user\ts_12601974'@'localhost';
+CREATE USER 'user\ts_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user	s_12601974'@'localhost'
+DROP USER 'user\ts_12601974'@'localhost';
+CREATE USER 'user\\s_12601974'@'localhost';
+CREATE USER 'user\\s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\\s_12601974'@'localhost'
+DROP USER 'user\\s_12601974'@'localhost';
+CREATE USER 'user\%s_12601974'@'localhost';
+CREATE USER 'user\%s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\\%s_12601974'@'localhost'
+DROP USER 'user\%s_12601974'@'localhost';
+CREATE USER 'user\_s_12601974'@'localhost';
+CREATE USER 'user\_s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\\_s_12601974'@'localhost'
+DROP USER 'user\_s_12601974'@'localhost';
+
+# END OF CASE - USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
+SET @@sql_mode='NO_BACKSLASH_ESCAPES';
+# USER NAME CONTAINING BACKSLASH IN DROP USER OPERATION
+CREATE USER 'user\"s_12601974'@'localhost';
+CREATE USER 'user\"s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\"s_12601974'@'localhost'
+DROP USER 'user\"s_12601974'@'localhost';
+CREATE USER 'user\bs_12601974'@'localhost';
+CREATE USER 'user\bs_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\bs_12601974'@'localhost'
+DROP USER 'user\bs_12601974'@'localhost';
+CREATE USER 'user\ns_12601974'@'localhost';
+CREATE USER 'user\ns_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\ns_12601974'@'localhost'
+DROP USER 'user\ns_12601974'@'localhost';
+CREATE USER 'user\rs_12601974'@'localhost';
+CREATE USER 'user\rs_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\rs_12601974'@'localhost'
+DROP USER 'user\rs_12601974'@'localhost';
+CREATE USER 'user\ts_12601974'@'localhost';
+CREATE USER 'user\ts_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\ts_12601974'@'localhost'
+DROP USER 'user\ts_12601974'@'localhost';
+CREATE USER 'user\\s_12601974'@'localhost';
+CREATE USER 'user\\s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\\s_12601974'@'localhost'
+DROP USER 'user\\s_12601974'@'localhost';
+CREATE USER 'user\%s_12601974'@'localhost';
+CREATE USER 'user\%s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\%s_12601974'@'localhost'
+DROP USER 'user\%s_12601974'@'localhost';
+CREATE USER 'user\%s_12601974'@'localhost';
+CREATE USER 'user\%s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\%s_12601974'@'localhost'
+DROP USER 'user\%s_12601974'@'localhost';
+CREATE USER 'user\_s_12601974'@'localhost';
+CREATE USER 'user\_s_12601974'@'localhost';
+ERROR HY000: Operation CREATE USER failed for 'user\_s_12601974'@'localhost'
+DROP USER 'user\_s_12601974'@'localhost';
+
+# END OF CASE - USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
+SET @@sql_mode= @org_mode;
+
+#End of Test for Bug#12601974

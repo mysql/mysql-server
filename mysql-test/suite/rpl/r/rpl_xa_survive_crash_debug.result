@@ -8,28 +8,25 @@ include/stop_slave.inc
 [connection master]
 call mtr.add_suppression("Found 1 prepared XA transactions");
 CREATE TABLE t1 (a INT);
-SET DEBUG="+d,crash_after_xa_rollback";
 XA START 'xid_partly_rolled_back';
 INSERT INTO t1 VALUES(1);
 XA END 'xid_partly_rolled_back';
 XA PREPARE 'xid_partly_rolled_back';
+SET @@session.debug="+d,crash_after_xa_rollback";
 XA ROLLBACK 'xid_partly_rolled_back';
-[connection master]
+ERROR HY000: Lost connection to MySQL server during query
 include/rpl_start_server.inc [server_number=1]
 [connection master]
-XA RECOVER;
-formatID	gtrid_length	bqual_length	data
-1	22	0	xid_partly_rolled_back
-SELECT * FROM t1;
-a
+include/assert.inc [Zero records in t1 is expected at master]
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_latin1'Found 1 prepared XA transactions' COLLATE 'latin1_swedish_ci'))
+master-bin.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_utf8mb4'Found 1 prepared XA transactions' COLLATE 'utf8mb4_0900_ai_ci'))
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
 master-bin.000001	#	Query	#	#	XA START X'7869645f706172746c795f726f6c6c65645f6261636b',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(1)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	XA END X'7869645f706172746c795f726f6c6c65645f6261636b',X'',1
 master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7869645f706172746c795f726f6c6c65645f6261636b',X'',1
 master-bin.000001	#	Query	#	#	XA ROLLBACK X'7869645f706172746c795f726f6c6c65645f6261636b',X'',1
@@ -39,6 +36,9 @@ XA ROLLBACK 'xid_partly_rolled_back';
 SET @@session.sql_log_bin = @save.sql_log_bin;
 [connection slave]
 include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Zero records in t1 is expected at slave]
 [connection master]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc

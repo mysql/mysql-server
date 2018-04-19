@@ -1,19 +1,48 @@
-# Copyright (c) 2014 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+# Disable specific types of warnings for current directory
+# if the compiler supports the flag
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  INCLUDE(CheckCXXCompilerFlag)
+  FOREACH(warning
+          "unused-but-set-variable"
+          "strict-aliasing"
+          "unused-parameter"
+          # Downgrade -Werror to warning for "may be used uninitialized"
+          "error=maybe-uninitialized")
+    STRING(REPLACE "-" "_" warning_ ${warning})
+    STRING(TOUPPER ${warning_} WARNING)
+    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
+    IF(HAVE_${WARNING})
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
 
 # NdbApi examples
+ADD_EXECUTABLE(ndb_ndbapi_array_simple ndbapi_array_simple/ndbapi_array_simple.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_array_using_adapter ndbapi_array_using_adapter/ndbapi_array_using_adapter.cpp)
 ADD_EXECUTABLE(ndb_ndbapi_async ndbapi_async/ndbapi_async.cpp)
 ADD_EXECUTABLE(ndb_ndbapi_async1 ndbapi_async1/ndbapi_async1.cpp)
 ADD_EXECUTABLE(ndb_ndbapi_blob ndbapi_blob/ndbapi_blob.cpp)
@@ -33,6 +62,8 @@ ADD_EXECUTABLE(ndb_mgmapi_logevent2 mgmapi_logevent2/main.cpp)
 
 # Link each example program with both ndbclient and mysql libraries
 SET(EXAMPLES
+  ndb_ndbapi_array_simple
+  ndb_ndbapi_array_using_adapter
   ndb_ndbapi_async
   ndb_ndbapi_async1
   ndb_ndbapi_blob
@@ -49,7 +80,7 @@ SET(EXAMPLES
   ndb_mgmapi_logevent2
 )
 FOREACH(EXAMPLE ${EXAMPLES})
-  TARGET_LINK_LIBRARIES(${EXAMPLE} ndbclient_so)
   TARGET_LINK_LIBRARIES(${EXAMPLE} libmysql)
+  TARGET_LINK_LIBRARIES(${EXAMPLE} ndbclient_so)
 ENDFOREACH()
 

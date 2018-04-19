@@ -1,7 +1,38 @@
 #########################################################################
+# Verify that the "ch1" and "ch2" channels would copy the global
+# replication filters to its own per-channel replication filters
+# when they are being created and configured by CHANGE MASTER TO
+# ... FOR CHANNEL.
+#
 # Verify RESET SLAVE and RESET SLAVE FOR CHANNEL
 # - deletes all relay log files of named channels.
 # - For default channel, it restart the relay log from .000001
+# - retains replication filters of the channel.
+# - retains all replication filters from all replication channels.
+#
+# Verify that "'RESET SLAVE ALL FOR CHANNEL '<channel_name>'" removes
+# the replication channel specified by 'FOR CHANNEL' clause and all
+# replication filters of the channel. There is no effect to other
+# channels.
+#
+# "RESET SLAVE ALL FOR CHANNEL ''" removes the default channel and all
+# replication filters of the channel firstly, but then create a new
+# default channel which is not configured yet. So performance_schema.
+# replication_applier_filters and SHOW SLAVE STATUS do not show it.
+#
+# Verify that default channel would copy global replication filters
+# to its per-channel replication filters if there are no per-channel
+# replication filters and there are global replication filters on the
+# filter type when it is being configured. Then performance_schema.
+# replication_applier_filters and SHOW SLAVE STATUS show it.
+#
+# Verify that "RESET SLAVE ALL" with no FOR CHANNEL clause removes all
+# replication channels, so it shall remove all per-channel replication
+# filters but does not touch all global replication filters. When the
+# new channel is being configured, it therefore uses the global filters
+# (copies all global replication filters to its own per-channel
+# replication filters).
+#
 #########################################################################
 include/master-slave.inc
 Warnings:
@@ -9,20 +40,123 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
+#
+# Verify that the "ch1" and "ch2" channels would copy the global
+# replication filters to its own per-channel replication filters
+# when they are being created and configured by CHANGE MASTER TO
+# ... FOR CHANNEL.
+#
+SELECT COUNT(*) FROM performance_schema.replication_applier_global_filters;
+COUNT(*)
+2
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters;
+FILTER_NAME	FILTER_RULE	CONFIGURED_BY
+REPLICATE_DO_DB	global_db	STARTUP_OPTIONS
+REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "ch1";
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch2";
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+6
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
+ch1	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+ch1	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
+ch2	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
 FLUSH RELAY LOGS;
 FLUSH RELAY LOGS FOR CHANNEL "ch1";
 FLUSH RELAY LOGS FOR CHANNEL "ch2";
+#
+# Show replication filters for channel 'ch1' and 'ch2' at beginning.
+#
+Replicate_Do_DB = 'global_db'
+Replicate_Ignore_DB = ''
+Replicate_Do_Table = ''
+Replicate_Ignore_Table = ''
+Replicate_Wild_Do_Table = 'global_db.t1%'
+Replicate_Wild_Ignore_Table = ''
+Replicate_Rewrite_DB = ''
+Replicate_Do_DB = 'global_db'
+Replicate_Ignore_DB = ''
+Replicate_Do_Table = ''
+Replicate_Ignore_Table = ''
+Replicate_Wild_Do_Table = 'global_db.t1%'
+Replicate_Wild_Ignore_Table = ''
+Replicate_Rewrite_DB = ''
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+6
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
+ch1	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+ch1	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
+ch2	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
 #
 # RESET SLAVE FOR CHANNEL "ch1" deletes all relay log files of ch1.
 #
 RESET SLAVE FOR CHANNEL "ch1";
 #
+# Verify that "RESET SLAVE FOR CHANNEL '<channel_name>'" retains
+# replication filters of the channel.
+#
+Replicate_Do_DB = 'global_db'
+Replicate_Ignore_DB = ''
+Replicate_Do_Table = ''
+Replicate_Ignore_Table = ''
+Replicate_Wild_Do_Table = 'global_db.t1%'
+Replicate_Wild_Ignore_Table = ''
+Replicate_Rewrite_DB = ''
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+6
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
+ch1	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+ch1	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
+ch2	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
+#
 # RESET SLAVE deletes all relay log files of ch2
 #
 include/stop_slave.inc
 RESET SLAVE;
+#
+# Verify that "RESET SLAVE" retains all replication filters from
+# all replication channels.
+#
+Replicate_Do_DB = 'global_db'
+Replicate_Ignore_DB = ''
+Replicate_Do_Table = ''
+Replicate_Ignore_Table = ''
+Replicate_Wild_Do_Table = 'global_db.t1%'
+Replicate_Wild_Ignore_Table = ''
+Replicate_Rewrite_DB = ''
+Replicate_Do_DB = 'global_db'
+Replicate_Ignore_DB = ''
+Replicate_Do_Table = ''
+Replicate_Ignore_Table = ''
+Replicate_Wild_Do_Table = 'global_db.t1%'
+Replicate_Wild_Ignore_Table = ''
+Replicate_Rewrite_DB = ''
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+6
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
+ch1	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+ch1	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
+ch2	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
 #
 # RESET SLAVE resets relay log of default channel from .000001
 #
@@ -31,11 +165,105 @@ RESET SLAVE;
 #
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "ch1";
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch2";
+RESET SLAVE ALL FOR CHANNEL 'ch1';
 #
-# RESET SLAVE ALL deletes all channels info and files.
+# Verify that "'RESET SLAVE ALL FOR CHANNEL '<channel_name>'" removes
+# the replication channel specified by 'FOR CHANNEL' clause and all
+# replication filters of the channel. There is no effect to other
+# channels.
+#
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+ERROR HY000: Slave channel 'ch1' does not exist.
+SHOW SLAVE STATUS FOR CHANNEL 'ch1';
+ERROR HY000: Slave channel 'ch1' does not exist.
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+4
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
+ch2	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
+RESET SLAVE ALL FOR CHANNEL '';
+#
+# "RESET SLAVE ALL FOR CHANNEL ''" removes the default channel and all
+# replication filters of the channel firstly, but then create a new
+# default channel which is not configured yet. So performance_schema.
+# replication_applier_filters and SHOW SLAVE STATUS do not show it.
+#
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+2
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+ch2	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
+Replicate_Do_DB = 'No such row'
+Replicate_Ignore_DB = 'No such row'
+Replicate_Do_Table = 'No such row'
+Replicate_Ignore_Table = 'No such row'
+Replicate_Wild_Do_Table = 'No such row'
+Replicate_Wild_Ignore_Table = 'No such row'
+Replicate_Rewrite_DB = 'No such row'
+#
+# Verify that default channel would copy global replication filters
+# to its per-channel replication filters if there are no per-channel
+# replication filters and there are global replication filters on the
+# filter type when it is being configured. Then performance_schema.
+# replication_applier_filters and SHOW SLAVE STATUS show it.
+#
+CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_PORT=MASTER_PORT,
+MASTER_USER="root" FOR CHANNEL '';
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+4
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
+ch2	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
+Replicate_Do_DB = 'global_db'
+Replicate_Ignore_DB = ''
+Replicate_Do_Table = ''
+Replicate_Ignore_Table = ''
+Replicate_Wild_Do_Table = 'global_db.t1%'
+Replicate_Wild_Ignore_Table = ''
+Replicate_Rewrite_DB = ''
+#
+# Verify that "RESET SLAVE ALL" with no FOR CHANNEL clause removes all
+# replication channels, so it shall remove all per-channel replication
+# filters but does not touch all global replication filters. When the
+# new channel is being configured, it therefore uses the global filters
+# (copies all global replication filters to its own per-channel
+# replication filters).
 #
 RESET SLAVE ALL;
+SHOW SLAVE STATUS FOR CHANNEL 'ch1';
+ERROR HY000: Slave channel 'ch1' does not exist.
+SHOW SLAVE STATUS FOR CHANNEL 'ch2';
+ERROR HY000: Slave channel 'ch2' does not exist.
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+0
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+SELECT COUNT(*) FROM performance_schema.replication_applier_global_filters;
+COUNT(*)
+2
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters;
+FILTER_NAME	FILTER_RULE	CONFIGURED_BY
+REPLICATE_DO_DB	global_db	STARTUP_OPTIONS
+REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS
 CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_PORT=MASTER_PORT,
 MASTER_USER="root";
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+2
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
+	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
 include/start_slave.inc
 include/rpl_end.inc

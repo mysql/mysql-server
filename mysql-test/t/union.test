@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test of unions
 #
@@ -15,6 +10,8 @@ CREATE TABLE t1 (a int not null, b char (10) not null);
 insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
 CREATE TABLE t2 (a int not null, b char (10) not null);
 insert into t2 values (3,'c'),(4,'d'),(5,'f'),(6,'e');
+analyze table t1;
+analyze table t2;
 
 select a,b from t1 union distinct select a,b from t2;
 select a,b from t1 union all select a,b from t2;
@@ -27,10 +24,12 @@ select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 g
 # Test alternate syntax for unions 
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 4;
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1);
+--replace_column 10 # 11 #
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
 --error 1250
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by t1.b;
-explain extended (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
+--replace_column 10 # 11 #
+explain (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
 select count(*) from (
 (select                      a,b from t1 limit 2)  union all (select a,b from t2 order by a)) q;
 (select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
@@ -39,15 +38,15 @@ select count(*) from (
 select                      a,b from t1  union all select a,b from t2) q;
 select sql_calc_found_rows  a,b from t1  union all select a,b from t2 limit 2;
 select found_rows();
-
-explain extended 
+--replace_column 10 # 11 #
+explain 
   select * from t1 where a in
     (select a from t1 union select a from t1 order by (select a))
   union select * from t1 order by (select a);
 #
 # Test some error conditions with UNION
 #
-
+--replace_column 10 # 11 #
 explain select a,b from t1 union all select a,b from t2;
 
 --error  1054
@@ -59,14 +58,17 @@ explain select 1 union select a,b from t1 union select 1;
 --error 1222
 explain select a,b from t1 union select 1 limit 0;
 
---error 1221
+--error ER_PARSE_ERROR
 select a,b from t1 into outfile 'skr' union select a,b from t2;
 
---error 1221
+--error ER_PARSE_ERROR
 select a,b from t1 order by a union select a,b from t2;
 
---error 1221
+--error ER_PARSE_ERROR
 insert into t3 select a from t1 order by a union select a from t2;
+
+--error ER_PARSE_ERROR
+INSERT INTO t3 SELECT a FROM t1 LIMIT 1 UNION SELECT a FROM t2;
 
 --error 1222
 create table t3 select a,b from t1 union select a from t2;
@@ -243,7 +245,7 @@ SELECT COUNT(*) FROM (
 select found_rows();
 
 # In these case found_rows() should work
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION all SELECT * FROM t2 LIMIT 2;
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION all SELECT * FROM t2) q;
@@ -263,19 +265,19 @@ SELECT COUNT(*) FROM (
 SELECT                     * FROM t1 UNION SELECT * FROM t2) q;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 100;
 select found_rows();
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 100 UNION SELECT * FROM t2;
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 100) UNION SELECT * FROM t2) q;
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 100) UNION SELECT * FROM t2;
 select found_rows();
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2;
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION SELECT * FROM t2) q;
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION SELECT * FROM t2;
 select found_rows();
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2 LIMIT 2;
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION SELECT * FROM t2) q;
@@ -285,7 +287,7 @@ SELECT COUNT(*) FROM (
 SELECT                     * FROM t1 UNION SELECT * FROM t2) q;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2,2;
 select found_rows();
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 limit 2,2 UNION SELECT * FROM t2;
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 limit 2,2) UNION SELECT * FROM t2) q;
@@ -302,6 +304,8 @@ SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a desc LIMIT 1;
 
 create temporary table t1 select a from t1 union select a from t2;
 drop temporary table t1;
+create temporary table temp1 select a from t1 union select a from t2;
+drop temporary table temp1;
 --error ER_TABLE_EXISTS_ERROR
 create table t1 select a from t1 union select a from t2;
 --error ER_TABLENAME_NOT_ALLOWED_HERE
@@ -320,6 +324,8 @@ select length(version()) > 1 as `*` UNION select 2;
 
 create table t1 (a int);
 insert into t1 values (0), (3), (1), (2);
+analyze table t1;
+--replace_column 10 # 11 #
 explain (select * from t1) union (select * from t1) order by a;
 drop table t1;
 #
@@ -347,24 +353,27 @@ create table t1 (a int not null primary key auto_increment, b int, key(b));
 create table t2 (a int not null primary key auto_increment, b int);
 insert into t1 (b) values (1),(2),(2),(3);
 insert into t2 (b) values (10),(11),(12),(13);
+analyze table t1;
 
-explain extended (select * from t1 where a=1) union (select * from t2 where a=1);
+explain (select * from t1 where a=1) union (select * from t2 where a=1);
 (select * from t1 where a=5) union (select * from t2 where a=1);
 (select * from t1 where a=5 and a=6) union (select * from t2 where a=1);
 (select t1.a,t1.b from t1,t2 where t1.a=5) union (select * from t2 where a=1);
 (select * from t1 where a=1) union (select t1.a,t2.a from t1,t2 where t1.a=t2.a);
+--replace_column 10 #
 explain (select * from t1 where a=1 and b=10) union (select straight_join t1.a,t2.a from t1,t2 where t1.a=t2.a);
+--replace_column 10 # 11 #
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 drop table t1,t2;
-create table t1 (   id int not null auto_increment, primary key (id)   ,user_name text );
-create table t2 (    id int not null auto_increment, primary key (id)   ,group_name text );
-create table t3 (    id int not null auto_increment, primary key (id)   ,user_id int   ,index user_idx (user_id)   ,foreign key (user_id) references users(id)   ,group_id int   ,index group_idx (group_id)   ,foreign key (group_id) references groups(id) );
-insert into t1 (user_name) values ('Tester');
-insert into t2 (group_name) values ('Group A');
-insert into t2 (group_name) values ('Group B');
+create table `groups` (id int not null auto_increment, primary key (id) ,user_name text );
+create table users (id int not null auto_increment, primary key (id) ,group_name text );
+create table t3 (id int not null auto_increment, primary key (id),user_id int,index user_idx (user_id),foreign key (user_id) references users(id),group_id int,index group_idx (group_id),foreign key (group_id) references `groups`(id) );
+insert into `groups` (user_name) values ('Tester');
+insert into users (group_name) values ('Group A');
+insert into users (group_name) values ('Group B');
 insert into t3 (user_id, group_id) values (1,1);
-select 1 'is_in_group', a.user_name, c.group_name, b.id from t1 a, t3 b, t2 c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from t1 a, t2 c;
-drop table t1, t2, t3;
+select 1 'is_in_group', a.user_name, c.group_name, b.id from `groups` a, t3 b, users c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from `groups` a, users c;
+drop table t3, users, `groups`;
 
 #
 # fix_fields problem
@@ -644,6 +653,8 @@ select a as a from t4 union select a from t3;
 select a as a from t1 union select a from t4;
 drop table t1,t2,t3,t4;
 
+--character_set latin1
+set names latin1;
 #
 # Bug #6139 UNION doesn't understand collate in the column of second select
 #
@@ -814,10 +825,23 @@ drop table t1;
 # Test that union with VARCHAR produces dynamic row tables
 #
 
+# Following scenario is to test the functionality of MyISAM
+
+create table t1 (a varchar(5)) engine=myisam;
+create table t2 engine=myisam select * from t1 union select 'abcdefghijkl';
+show create table t2;
+select row_format from information_schema.TABLES where table_schema="test" and table_name="t2";
+alter table t2 ROW_FORMAT=fixed;
+show create table t2;
+drop table t1,t2;
+
+# Following scenario is to test the functionality of InnoDB
+
 create table t1 (a varchar(5));
 create table t2 select * from t1 union select 'abcdefghijkl';
 show create table t2;
 select row_format from information_schema.TABLES where table_schema="test" and table_name="t2";
+--error ER_ILLEGAL_HA_CREATE_OPTION
 alter table t2 ROW_FORMAT=fixed;
 show create table t2;
 drop table t1,t2;
@@ -973,11 +997,11 @@ DROP TABLE t1;
 #
 # Bug#23345: Wrongly allowed INTO in a non-last select of a UNION.
 #
---error 1221
+--error ER_WRONG_USAGE
 (select 1 into @var) union (select 1);
 (select 1) union (select 1 into @var);
 select @var;
---error 1172
+--error ER_TOO_MANY_ROWS
 (select 2) union (select 1 into @var);
 
 #
@@ -1014,7 +1038,7 @@ SELECT a,1 FROM t1
 UNION 
 (SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP ORDER BY a);
 
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 SELECT a,1 FROM t1
 UNION ALL
 SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP ORDER BY a
@@ -1061,10 +1085,10 @@ SHOW FIELDS FROM t2;
 DROP TABLE t1, t2;
 
 #
-# Bug#43612 crash with explain extended, union, order by
+# Bug#43612 crash with explain, union, order by
 #
 CREATE TABLE t1(a INT);
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT a FROM t1
 UNION
 SELECT a FROM t1
@@ -1118,7 +1142,7 @@ DROP TABLE t1;
 remove_files_wildcard $MYSQLTEST_VARDIR/mysqld.1/data/test union.out.fil*;
 
 --echo # 
---echo # Bug #49734: Crash on EXPLAIN EXTENDED UNION ... ORDER BY 
+--echo # Bug #49734: Crash on EXPLAIN UNION ... ORDER BY 
 --echo #   <any non-const-function>
 --echo # 
 
@@ -1128,17 +1152,22 @@ CREATE TABLE t2 (b INT);
 INSERT INTO t2 VALUES (1),(2);
 
 --echo # Should not crash
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
 
 --echo # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
 
-
 --echo # Should not crash
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT * FROM t1 UNION SELECT * FROM t1
   ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
+
+--echo # Should not crash
+WITH cte AS (
+SELECT * FROM t1 UNION SELECT * FROM t1
+  ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE)
+) SELECT * FROM cte;
 
 --echo # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1
@@ -1150,7 +1179,7 @@ SELECT * FROM t1 UNION SELECT * FROM t1
 
 
 --echo # Should not crash
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT * FROM t1 UNION SELECT * FROM t1
   ORDER BY (SELECT a FROM t2 WHERE b = 12);
 
@@ -1886,3 +1915,223 @@ UNION ALL
 SELECT 1 FROM t1;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #21156155 UNION GEOMETRY TYPE: UNITIALIZED VALUE IN
+--echo # ITEM_TYPE_HOLDER::JOIN_TYPES
+--echo #
+
+SELECT NULL UNION SELECT POINT(1,1);
+
+--echo #
+--echo # Bug#22602381 FOUND_ROWS() IS NOT WORKING AS EXPECTED WITHOUT
+--echo #              SQL_CALC_FOUND_ROWS
+--echo #
+
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES(1),(2),(3);
+
+(SELECT c1 FROM t1) UNION ALL
+(SELECT c1 FROM t1) LIMIT 2;
+SELECT FOUND_ROWS();
+
+(SELECT SQL_CALC_FOUND_ROWS c1 FROM t1) UNION ALL
+(SELECT c1 FROM t1) LIMIT 2;
+SELECT FOUND_ROWS();
+
+(SELECT c1 FROM t1 LIMIT 1) UNION ALL
+(SELECT c1 FROM t1 LIMIT 3) LIMIT 2;
+SELECT FOUND_ROWS();
+
+(SELECT c1 FROM t1 LIMIT 1) UNION ALL
+(SELECT c1 FROM t1 LIMIT 1) LIMIT 3;
+SELECT FOUND_ROWS();
+
+(SELECT c1 FROM t1 LIMIT 3) UNION ALL
+(SELECT c1 FROM t1 LIMIT 3) LIMIT 1 OFFSET 4;
+SELECT FOUND_ROWS();
+
+(SELECT c1 FROM t1 LIMIT 1) UNION ALL
+(SELECT c1 FROM t1 LIMIT 1) LIMIT 1 OFFSET 2;
+SELECT FOUND_ROWS();
+
+DROP TABLE t1;
+
+--echo #End of test for Bug#22602381
+
+--echo # INSERT SELECT using UNION ALL:
+--echo # UNION should create no tmp table if not at the top level.
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 LIKE t1;
+FLUSH STATUS;
+SELECT * FROM t1 UNION ALL SELECT * FROM t1;
+SHOW STATUS LIKE "handler_write";
+FLUSH STATUS;
+INSERT INTO t2
+SELECT * FROM t1 UNION ALL SELECT * FROM t1;
+SHOW STATUS LIKE "handler_write";
+SELECT * FROM t2;
+DELETE FROM t2;
+FLUSH STATUS;
+INSERT INTO t2
+SELECT * FROM (SELECT * FROM t1 UNION ALL SELECT * FROM t1) AS dt;
+SHOW STATUS LIKE "handler_write";
+SELECT * FROM t2;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#24808970 CREATED_TMP_TABLES STATISTIC IS WRONG
+--echo #
+
+FLUSH STATUS;
+SELECT 1 UNION ALL SELECT 2;
+
+# We properly report: 0 tables
+SHOW STATUS LIKE 'Created_tmp_%tables';
+
+FLUSH STATUS;
+SELECT 1 UNION DISTINCT SELECT 2;
+
+# In normal mode, the query above creates one tmp table, so SHOW
+# STATUS reports 1;
+# in PS mode, the preparation phase creates one, and the execution
+# phase does, too. So SHOW reports 2. To have a single result in both
+# modes, we use this complex query instead of SHOW.
+
+--disable_query_log
+eval select variable_name,
+            variable_value -
+            (case when variable_name not like "%disk%" and ($PS_PROTOCOL > 0)
+             then 1 else 0 end)
+            as tweaked_value
+from performance_schema.session_status
+where variable_name like 'created_tmp_%tables';
+--enable_query_log
+
+--echo #
+--echo # Bug#11747567: INTEGER CONSTANTS CASTED TO BIGINTS BY UNIONS
+--echo #
+
+CREATE TABLE t1(
+  a tinyint(4) DEFAULT NULL,
+  b int(11) DEFAULT NULL,
+  c bigint(20) DEFAULT NULL
+);
+
+CREATE VIEW v1 AS SELECT t1.a AS a, t1.b AS b,t1.c AS c, 1 AS
+`1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
+-(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`;
+
+CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1`,
+-(1) AS `-1`, -(1) AS `My_exp_-1`, -(1) AS `My_exp_1_-1`;
+
+CREATE VIEW v3 AS SELECT t1.a AS a, t1.b AS b, t1.c AS c FROM t1;
+
+DESCRIBE v1;
+DESCRIBE v2;
+DESCRIBE v3;
+
+DROP TABLE t1;
+DROP VIEW v1,v2,v3;
+
+--echo # End of test for Bug#11747567
+
+--echo #
+--echo # Bug #27068222 CREATE TABLE USING SELECT WITH UNION
+--echo #               FAILS FOR DATE COLUMN
+--echo #
+
+CREATE TABLE `t1` (`date` date NOT NULL);
+
+INSERT INTO t1 VALUES ('2017-03-02'), ('2017-06-22');
+
+CREATE TABLE IF NOT EXISTS t2 AS
+SELECT * FROM t1
+UNION
+SELECT * FROM t1;
+
+DESC t2;
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;
+
+# Compare INT and DATE
+
+CREATE TABLE t1 (
+i1 INT NOT NULL,
+i2 INT NOT NULL DEFAULT '1234',
+# non-specified nullability => i3 is nullable
+i3 INT,
+i4 INT DEFAULT NULL,
+i5 INT DEFAULT '5678',
+d1 date NOT NULL,
+d2 date NOT NULL DEFAULT '2018-01-25',
+d3 date,
+d4 date DEFAULT NULL,
+d5 date DEFAULT '2017-11-14',
+g1 geometry NOT NULL
+);
+
+SHOW CREATE TABLE t1;
+
+# We'll test non-strict then strict mode
+let $c=2;
+
+SET SQL_MODE='';
+
+while ($c)
+{
+
+  dec $c;
+
+  SELECT @@SQL_MODE;
+
+  CREATE TEMPORARY TABLE t2 AS
+  SELECT * FROM t1;
+
+--echo # we see that with CREATE SELECT (no UNION), defaults are inherited.
+
+  SHOW CREATE TABLE t2;
+
+  DROP TEMPORARY TABLE t2;
+
+  CREATE TEMPORARY TABLE t2 AS
+  SELECT * FROM t1
+  UNION
+  SELECT * FROM t1;
+
+  SHOW CREATE TABLE t2;
+
+  DROP TEMPORARY TABLE t2;
+
+  CREATE TEMPORARY TABLE t2 AS
+  SELECT * FROM t1
+  UNION ALL
+  SELECT * FROM t1;
+
+  SHOW CREATE TABLE t2;
+
+--echo # With UNION and UNION ALL, defaults are not inherited; every
+--echo # column gets, as default, NULL (if nullable) or 0 (if not
+--echo # nullable). Exception: if strict mode and a date type,
+--echo # 0000-00-00 isn't given as default
+
+# In strict mode, t2.d1 has no DEFAULT, so cannot insert;
+# in non-strict mode, no problem.
+  if ($c)
+  {
+    INSERT INTO t2 VALUES();
+  }
+
+  SELECT * FROM t2;
+
+  DROP TEMPORARY TABLE t2;
+
+  SET SQL_MODE=DEFAULT;
+
+}
+
+DROP TABLE t1;

@@ -1,0 +1,9 @@
+--error $locking_clause_subquery_privileges_expected_error
+--eval $locking_clause_subquery_privileges_query
+--error $locking_clause_subquery_privileges_expected_error
+--eval SELECT ($locking_clause_subquery_privileges_query)
+--error $locking_clause_subquery_privileges_expected_error
+--eval SELECT 1 FROM ($locking_clause_subquery_privileges_query) a1
+--error $locking_clause_subquery_privileges_expected_error
+--eval SELECT 1 WHERE 1 IN ($locking_clause_subquery_privileges_query)
+--error $locking_clause_subquery_privileges_expected_error

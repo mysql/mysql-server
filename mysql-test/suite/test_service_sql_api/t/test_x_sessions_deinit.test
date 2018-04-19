@@ -1,0 +1,20 @@
+
+call mtr.add_suppression("Closed forcefully .* session.* left opened by plugin test_x_sessions_deinit");
+
+--echo ##########################################
+--echo # Run plugin
+--echo ##########################################
+--replace_result $TEST_X_SESSIONS_DEINIT TEST_X_SESSIONS_DEINIT
+eval INSTALL PLUGIN test_x_sessions_deinit SONAME '$TEST_X_SESSIONS_DEINIT';
+
+--echo ##########################################
+--echo # Stop plugin
+--echo ##########################################
+UNINSTALL PLUGIN test_x_sessions_deinit;
+
+--echo ##########################################
+--echo # Plugin log
+--echo ##########################################
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_x_sessions_deinit.log;
+remove_file $MYSQLD_DATADIR/test_x_sessions_deinit.log;

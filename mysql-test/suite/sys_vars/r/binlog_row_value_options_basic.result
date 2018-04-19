@@ -1,0 +1,358 @@
+#### Initialize ####
+
+SET @start_binlog_row_value_options = @@global.binlog_row_value_options;
+SET @start_binlog_row_image = @@global.binlog_row_image;
+SET @start_binlog_format = @@global.binlog_format;
+# Default value
+SELECT @start_binlog_row_value_options;
+@start_binlog_row_value_options
+
+
+#### Exists as session and global ####
+
+# Avoid warnings
+SET SESSION binlog_row_image = MINIMAL;
+SET GLOBAL binlog_row_image = MINIMAL;
+SET SESSION binlog_format = 'ROW';
+SET GLOBAL binlog_format = 'ROW';
+# Test
+SELECT @@global.binlog_row_value_options;
+@@global.binlog_row_value_options
+
+SET @@global.binlog_row_value_options = PARTIAL_JSON;
+SELECT @@binlog_row_value_options;
+@@binlog_row_value_options
+
+SET @@binlog_row_value_options= PARTIAL_JSON;
+SELECT @@session.binlog_row_value_options;
+@@session.binlog_row_value_options
+PARTIAL_JSON
+SET @@session.binlog_row_value_options = PARTIAL_JSON;
+
+#### Valid and invalid values ####
+
+SET @@global.binlog_row_value_options = PARTIAL_JSON,PARTIAL_JSON;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+SET @@session.binlog_row_value_options = PARTIAL_JSON,PARTIAL_JSON;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON,PARTIAL_JSON';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON,PARTIAL_JSON';
+SET @@global.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 0;
+SET @@session.binlog_row_value_options = 0;
+SET @@global.binlog_row_value_options = 1;
+SET @@session.binlog_row_value_options = 1;
+SET @@global.binlog_row_value_options = DEFAULT;
+SET @@session.binlog_row_value_options = DEFAULT;
+SELECT @@global.binlog_row_value_options;
+@@global.binlog_row_value_options
+
+SELECT @@session.binlog_row_value_options;
+@@session.binlog_row_value_options
+
+SET @@global.binlog_row_value_options = 2;
+ERROR 42000: Variable 'binlog_row_value_options' can't be set to the value of '2'
+SET @@session.binlog_row_value_options = 2;
+ERROR 42000: Variable 'binlog_row_value_options' can't be set to the value of '2'
+SET @@global.binlog_row_value_options = 'invalid';
+ERROR 42000: Variable 'binlog_row_value_options' can't be set to the value of 'invalid'
+SET @@session.binlog_row_value_options = 'invalid';
+ERROR 42000: Variable 'binlog_row_value_options' can't be set to the value of 'invalid'
+SET @@global.binlog_row_value_options = NULL;
+ERROR 42000: Variable 'binlog_row_value_options' can't be set to the value of 'NULL'
+SET @@session.binlog_row_value_options = NULL;
+ERROR 42000: Variable 'binlog_row_value_options' can't be set to the value of 'NULL'
+SET @@global.binlog_row_value_options = ON;
+ERROR 42000: Variable 'binlog_row_value_options' can't be set to the value of 'ON'
+SET @@session.binlog_row_value_options = ON;
+ERROR 42000: Variable 'binlog_row_value_options' can't be set to the value of 'ON'
+SET @@global.binlog_row_value_options = OFF;
+ERROR 42000: Variable 'binlog_row_value_options' can't be set to the value of 'OFF'
+SET @@session.binlog_row_value_options = OFF;
+ERROR 42000: Variable 'binlog_row_value_options' can't be set to the value of 'OFF'
+
+#### Warnings for incompatible options ####
+
+---- Setting session or default value ----
+
+SET @@global.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+
+# warning for sql_log_bin=0
+SET SESSION sql_log_bin = 0;
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+Warnings:
+Warning	3645	When the binary log is disabled, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+SET @@binlog_row_value_options = '';
+SET @@binlog_row_value_options = 'PARTIAL_JSON';
+Warnings:
+Warning	3645	When the binary log is disabled, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+SET SESSION sql_log_bin = 1;
+
+# warning for statement
+SET SESSION binlog_format = statement;
+Warnings:
+Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+Warnings:
+Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+SET @@binlog_row_value_options = '';
+SET @@binlog_row_value_options = 'PARTIAL_JSON';
+Warnings:
+Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+
+# no warning for mixed or row
+SET SESSION binlog_format = mixed;
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+SET @@binlog_row_value_options = '';
+SET @@binlog_row_value_options = 'PARTIAL_JSON';
+SET SESSION binlog_format = 'row';
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+SET @@binlog_row_value_options = '';
+SET @@binlog_row_value_options = 'PARTIAL_JSON';
+
+# warning for full
+SET SESSION binlog_row_image = FULL;
+Warnings:
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+Warnings:
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+SET @@binlog_row_value_options = '';
+SET @@binlog_row_value_options = 'PARTIAL_JSON';
+Warnings:
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+
+# no warning for NOBLOB or MINIMAL
+SET SESSION binlog_row_image = NOBLOB;
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+SET @@binlog_row_value_options = '';
+SET @@binlog_row_value_options = 'PARTIAL_JSON';
+SET SESSION binlog_row_image = MINIMAL;
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+SET @@binlog_row_value_options = '';
+SET @@binlog_row_value_options = 'PARTIAL_JSON';
+
+# warning for old format
+SET GLOBAL log_bin_use_v1_row_events = 1;
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+Warnings:
+Warning	3646	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
+
+# no warning for new format
+SET GLOBAL log_bin_use_v1_row_events = 0;
+SET @@session.binlog_row_value_options = '';
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+
+---- Setting global value ----
+
+SET @@session.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+
+# warning for statement
+SET GLOBAL binlog_format = statement;
+Warnings:
+Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+Warnings:
+Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+
+# no warning for mixed or row
+SET GLOBAL binlog_format = mixed;
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+SET GLOBAL binlog_format = 'row';
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+
+# warning for full
+SET GLOBAL binlog_row_image = FULL;
+Warnings:
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+Warnings:
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+
+# no warning for NOBLOB or MINIMAL
+SET GLOBAL binlog_row_image = NOBLOB;
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+SET GLOBAL binlog_row_image = MINIMAL;
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+
+# warning for old format
+SET GLOBAL log_bin_use_v1_row_events = 1;
+Warnings:
+Warning	3646	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+Warnings:
+Warning	3646	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
+
+# no warning for new format
+SET GLOBAL log_bin_use_v1_row_events = 0;
+SET @@global.binlog_row_value_options = '';
+SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
+
+---- Setting persistent value ----
+
+SET @@session.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+
+# warning for statement
+SET PERSIST binlog_format = statement;
+Warnings:
+Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+Warnings:
+Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+
+# no warning for mixed or row
+SET PERSIST binlog_format = mixed;
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+SET PERSIST binlog_format = 'row';
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+
+# warning for full
+SET PERSIST binlog_row_image = FULL;
+Warnings:
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+Warnings:
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+
+# no warning for NOBLOB or MINIMAL
+SET PERSIST binlog_row_image = NOBLOB;
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+SET PERSIST binlog_row_image = MINIMAL;
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+
+# warning for old format
+SET PERSIST log_bin_use_v1_row_events = 1;
+Warnings:
+Warning	3646	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+Warnings:
+Warning	3646	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
+
+# no warning for new format
+SET PERSIST log_bin_use_v1_row_events = 0;
+SET @@persist.binlog_row_value_options = '';
+SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+
+#### Can't set in transaction, sp, sf, or trigger, or without root ####
+
+---- transaction ----
+
+BEGIN;
+SET GLOBAL binlog_row_value_options = '';
+ERROR HY000: The system variable binlog_row_value_options cannot be set when there is an ongoing transaction.
+SET GLOBAL binlog_row_value_options = 'PARTIAL_JSON';
+ERROR HY000: The system variable binlog_row_value_options cannot be set when there is an ongoing transaction.
+SET SESSION binlog_row_value_options = '';
+ERROR HY000: The system variable binlog_row_value_options cannot be set when there is an ongoing transaction.
+SET SESSION binlog_row_value_options = 'PARTIAL_JSON';
+ERROR HY000: The system variable binlog_row_value_options cannot be set when there is an ongoing transaction.
+COMMIT;
+
+---- SP ----
+
+create procedure sp1 () set @@global.binlog_row_value_options = 'PARTIAL_JSON';
+create procedure sp2 () set @@session.binlog_row_value_options = 'PARTIAL_JSON';
+create procedure sp3 () set @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+create procedure sp4 () set @@binlog_row_value_options = 'PARTIAL_JSON';
+call sp1();
+ERROR HY000: The system variable binlog_row_value_options cannot be set in stored procedures.
+call sp2();
+ERROR HY000: The system variable binlog_row_value_options cannot be set in stored procedures.
+call sp3();
+ERROR HY000: The system variable binlog_row_value_options cannot be set in stored procedures.
+call sp4();
+ERROR HY000: The system variable binlog_row_value_options cannot be set in stored procedures.
+
+---- SF ----
+
+create function sf1 () returns int begin set @@global.binlog_row_value_options = 'PARTIAL_JSON'; return 1; end;
+create function sf2 () returns int begin set @@session.binlog_row_value_options = 'PARTIAL_JSON'; return 1; end;
+create function sf3 () returns int begin set @@persist.binlog_row_value_options = 'PARTIAL_JSON'; return 1; end;
+create function sf4 () returns int begin set @@binlog_row_value_options = 'PARTIAL_JSON'; return 1; end;
+select sf1();
+ERROR HY000: The system variable binlog_row_value_options cannot be set in stored functions or triggers.
+select sf2();
+ERROR HY000: The system variable binlog_row_value_options cannot be set in stored functions or triggers.
+select sf3();
+ERROR HY000: The system variable binlog_row_value_options cannot be set in stored functions or triggers.
+select sf4();
+ERROR HY000: The system variable binlog_row_value_options cannot be set in stored functions or triggers.
+
+---- Trigger ----
+
+create table t1 (a int);
+create table t2 (a int);
+create table t3 (a int);
+create table t4 (a int);
+create trigger trig1 after insert on t1 for each row set @@global.binlog_row_value_options = 'PARTIAL_JSON';
+create trigger trig2 before insert on t2 for each row set @@session.binlog_row_value_options = 'PARTIAL_JSON';
+create trigger trig3 after insert on t3 for each row set @@persist.binlog_row_value_options = 'PARTIAL_JSON';
+create trigger trig4 before insert on t4 for each row set @@binlog_row_value_options = 'PARTIAL_JSON';
+insert into t1 values (1);
+ERROR HY000: The system variable binlog_row_value_options cannot be set in stored functions or triggers.
+insert into t2 values (1);
+ERROR HY000: The system variable binlog_row_value_options cannot be set in stored functions or triggers.
+insert into t3 values (1);
+ERROR HY000: The system variable binlog_row_value_options cannot be set in stored functions or triggers.
+insert into t4 values (1);
+ERROR HY000: The system variable binlog_row_value_options cannot be set in stored functions or triggers.
+
+---- Non-super ----
+
+CREATE USER user@localhost;
+SET @@global.binlog_row_value_options = '';
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET @@session.binlog_row_value_options = '';
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET @@persist.binlog_row_value_options = '';
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET @@binlog_row_value_options = '';
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+
+#### Clean up ####
+
+DROP USER user@localhost;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP FUNCTION sf1;
+DROP FUNCTION sf2;
+DROP FUNCTION sf3;
+DROP FUNCTION sf4;
+DROP PROCEDURE sp1;
+DROP PROCEDURE sp2;
+DROP PROCEDURE sp3;
+DROP PROCEDURE sp4;
+SET @@global.binlog_row_value_options = @start_binlog_row_value_options;
+SET @@global.binlog_row_image = @start_binlog_row_image;
+SET @@global.binlog_format = @start_binlog_format;
+RESET PERSIST;

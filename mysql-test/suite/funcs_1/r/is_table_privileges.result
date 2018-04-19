@@ -55,6 +55,8 @@ IS_GRANTABLE	varchar(3)	NO
 SELECT table_catalog, table_schema, table_name, privilege_type
 FROM information_schema.table_privileges WHERE table_catalog IS NOT NULL;
 table_catalog	table_schema	table_name	privilege_type
+def	mysql	user	SELECT
+def	sys	sys_config	SELECT
 ######################################################################
 # Testcase 3.2.11.2+3.2.11.3+3.2.11.4:
 #          INFORMATION_SCHEMA.TABLE_PRIVILEGES accessible information
@@ -84,9 +86,9 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'testuser1'@'localhost'	def	db_datadict	tb1	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
-GRANT USAGE ON *.* TO 'testuser1'@'localhost'
-GRANT SELECT, CREATE ON `db_datadict`.* TO 'testuser1'@'localhost' WITH GRANT OPTION
-GRANT SELECT ON `db_datadict`.`tb1` TO 'testuser1'@'localhost'
+GRANT USAGE ON *.* TO `testuser1`@`localhost`
+GRANT SELECT, CREATE ON `db_datadict`.* TO `testuser1`@`localhost` WITH GRANT OPTION
+GRANT SELECT ON `db_datadict`.`tb1` TO `testuser1`@`localhost`
 # Establish connection testuser2 (user=testuser3)
 SELECT * FROM information_schema.table_privileges
 WHERE table_name LIKE 'tb%'
@@ -106,8 +108,8 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'testuser2'@'localhost'	def	db_datadict	tb1	UPDATE	YES
 SHOW GRANTS FOR 'testuser2'@'localhost';
 Grants for testuser2@localhost
-GRANT USAGE ON *.* TO 'testuser2'@'localhost'
-GRANT ALL PRIVILEGES ON `db_datadict`.`tb1` TO 'testuser2'@'localhost' WITH GRANT OPTION
+GRANT USAGE ON *.* TO `testuser2`@`localhost`
+GRANT ALL PRIVILEGES ON `db_datadict`.`tb1` TO `testuser2`@`localhost` WITH GRANT OPTION
 # Establish connection testuser3 (user=testuser3)
 SELECT * FROM information_schema.table_privileges
 WHERE table_name LIKE 'tb%'
@@ -116,8 +118,8 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'testuser3'@'localhost'	def	db_datadict	tb3	SELECT	NO
 SHOW GRANTS FOR 'testuser3'@'localhost';
 Grants for testuser3@localhost
-GRANT USAGE ON *.* TO 'testuser3'@'localhost'
-GRANT SELECT ON `db_datadict`.`tb3` TO 'testuser3'@'localhost'
+GRANT USAGE ON *.* TO `testuser3`@`localhost`
+GRANT SELECT ON `db_datadict`.`tb3` TO `testuser3`@`localhost`
 # Switch to connection default and close the other connections
 SELECT * FROM information_schema.table_privileges
 WHERE table_name LIKE 'tb%'
@@ -139,17 +141,17 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'testuser3'@'localhost'	def	db_datadict	tb3	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
-GRANT USAGE ON *.* TO 'testuser1'@'localhost'
-GRANT SELECT, CREATE ON `db_datadict`.* TO 'testuser1'@'localhost' WITH GRANT OPTION
-GRANT SELECT ON `db_datadict`.`tb1` TO 'testuser1'@'localhost'
+GRANT USAGE ON *.* TO `testuser1`@`localhost`
+GRANT SELECT, CREATE ON `db_datadict`.* TO `testuser1`@`localhost` WITH GRANT OPTION
+GRANT SELECT ON `db_datadict`.`tb1` TO `testuser1`@`localhost`
 SHOW GRANTS FOR 'testuser2'@'localhost';
 Grants for testuser2@localhost
-GRANT USAGE ON *.* TO 'testuser2'@'localhost'
-GRANT ALL PRIVILEGES ON `db_datadict`.`tb1` TO 'testuser2'@'localhost' WITH GRANT OPTION
+GRANT USAGE ON *.* TO `testuser2`@`localhost`
+GRANT ALL PRIVILEGES ON `db_datadict`.`tb1` TO `testuser2`@`localhost` WITH GRANT OPTION
 SHOW GRANTS FOR 'testuser3'@'localhost';
 Grants for testuser3@localhost
-GRANT USAGE ON *.* TO 'testuser3'@'localhost'
-GRANT SELECT ON `db_datadict`.`tb3` TO 'testuser3'@'localhost'
+GRANT USAGE ON *.* TO `testuser3`@`localhost`
+GRANT SELECT ON `db_datadict`.`tb3` TO `testuser3`@`localhost`
 DROP USER 'testuser1'@'localhost';
 DROP USER 'testuser2'@'localhost';
 DROP USER 'testuser3'@'localhost';
@@ -219,9 +221,9 @@ SHOW GRANTS FOR 'testuser1'@'localhost';
 ERROR 42000: There is no such grant defined for user 'testuser1' on host 'localhost'
 SHOW GRANTS FOR 'the_user'@'localhost';
 Grants for the_user@localhost
-GRANT USAGE ON *.* TO 'the_user'@'localhost'
-GRANT ALL PRIVILEGES ON `test`.`t1_view` TO 'the_user'@'localhost'
-GRANT ALL PRIVILEGES ON `test`.`t1_table` TO 'the_user'@'localhost'
+GRANT ALL PRIVILEGES ON `test`.`t1_table` TO `the_user`@`localhost`
+GRANT ALL PRIVILEGES ON `test`.`t1_view` TO `the_user`@`localhost`
+GRANT USAGE ON *.* TO `the_user`@`localhost`
 SELECT DISTINCT table_schema,table_name FROM information_schema.table_privileges
 WHERE table_name LIKE 't1_%'
 ORDER BY table_schema,table_name;
@@ -239,9 +241,9 @@ test	t1_table
 test	t1_view
 SHOW GRANTS FOR 'the_user'@'localhost';
 Grants for the_user@localhost
-GRANT USAGE ON *.* TO 'the_user'@'localhost'
-GRANT ALL PRIVILEGES ON `test`.`t1_view` TO 'the_user'@'localhost'
-GRANT ALL PRIVILEGES ON `test`.`t1_table` TO 'the_user'@'localhost'
+GRANT ALL PRIVILEGES ON `test`.`t1_table` TO `the_user`@`localhost`
+GRANT ALL PRIVILEGES ON `test`.`t1_view` TO `the_user`@`localhost`
+GRANT USAGE ON *.* TO `the_user`@`localhost`
 REVOKE ALL PRIVILEGES ON test.t1_table FROM 'the_user'@'localhost';
 REVOKE ALL PRIVILEGES ON test.t1_view  FROM 'the_user'@'localhost';
 DROP VIEW test.t1_view;

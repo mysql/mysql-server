@@ -1,0 +1,31 @@
+
+############################################################
+# 1. Prepare the data for the test.
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+
+############################################################
+# 2. Execute a XA PREPARE with id '1'.
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA PREPARE 'xid1';
+
+############################################################
+# 3. Force a local failure in before_commit listener on the
+#    XA COMMIT.
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,simulate_failure_in_before_commit_hook';
+XA COMMIT 'xid1';
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+SHOW ERRORS;
+Level	Code	Message
+Error	3100	Error on observer while running replication hook 'before_commit'.
+Error	1401	XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+SET @@GLOBAL.DEBUG= @debug_save;
+
+############################################################
+# 4. Clean up.
+DROP TABLE t1;
+# restart
+CALL mtr.add_suppression("Found 1 prepared XA transactions");
+XA ROLLBACK 'xid1';

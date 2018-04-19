@@ -1,0 +1,40 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT FOR CHANNEL 'ch1';
+CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='dummyhost', MASTER_PORT=MASTER_PORT FOR CHANNEL 'ch2';
+include/start_slave.inc [FOR CHANNEL 'ch1']
+include/start_slave_sql.inc [FOR CHANNEL 'ch2']
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'ch1']
+[connection slave1]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+[connection master]
+INSERT INTO t1 VALUES (1);
+include/sync_slave_io_with_master.inc [FOR CHANNEL 'ch1']
+STOP SLAVE SQL_THREAD FOR CHANNEL 'ch1';
+[connection server_2_2]
+include/assert.inc [SQL thread for ch1 is running]
+include/assert.inc [SQL thread for ch1 running state is "System lock" or "Waiting for workers to exit" or "Applying batch of row changes (write)"]
+Stop ch2 SQL thread while stopping ch1 SQL thread
+STOP SLAVE SQL_THREAD FOR CHANNEL 'ch2';
+include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'ch2']
+include/assert.inc [SQL thread for ch1 is still running]
+[connection slave1]
+ROLLBACK;
+[connection slave]
+include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'ch1']
+STOP SLAVE IO_THREAD FOR CHANNEL 'ch1';
+RESET SLAVE ALL;
+RESET MASTER;
+DROP TABLE t1;
+CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT;
+include/start_slave.inc
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

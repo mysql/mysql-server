@@ -1,0 +1,470 @@
+#
+# Skip this test when MySQL has been built with other storage engines
+# than InnoDB, it is because dumping SDI from mysql.ibd
+# causes extra output when for example the ndbcluster storage engine is
+# included and additional system tables are added to the MySQL data dictionary
+# It is hard to separate this output
+# from mysql.json
+--source include/have_only_innodb.inc
+
+#########################
+#  how to record this test JSON result content mismatch
+#  If required fix regex patterns in mysql-test/include/ibd2sdi.pl
+#  and mysql-test/suite/innodb/include/ibd2sdi_replace_pattern.inc
+#  1) change the record value from 0 to 1. it should be "--let $RECORD=1"
+#  2) run the test, it will fail (this is expected). The zip files are updated
+#  3) change the line to "--let $RECORD=0" and run test
+#########################
+--let $RECORD=0
+
+# Extract saved JSON to tmp dir
+--let $SRC_DIR=$MYSQL_TMP_DIR/sdi_src
+--error 0,1
+--force-rmdir $SRC_DIR
+--mkdir $SRC_DIR
+--copy_file $MYSQLTEST_VARDIR/std_data/innodb_sdi_jsons.zip $SRC_DIR/innodb_sdi_jsons.zip
+# Unzip the JSONs zip file
+--exec unzip -qo $SRC_DIR/innodb_sdi_jsons.zip -d $SRC_DIR
+
+# Create a directory to store json generated
+--let $DEST_DIR=$MYSQL_TMP_DIR/sdi_dest/
+--error 0,1
+--force-rmdir $DEST_DIR
+--mkdir $DEST_DIR
+
+let $MYSQLD_BASEDIR= `select @@basedir`;
+let $START_PAGE_SIZE= `select @@innodb_page_size`;
+let $LOG_FILE_SIZE= `select @@innodb_log_file_size`;
+
+# Set path for --datadir
+let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/datadir;
+--mkdir $MYSQLD_DATADIR
+
+let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+# Set the bootstrap parameters with undo log encryption enabled
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --secure-file-priv="" --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_undo_tablespaces=2 --datadir=$MYSQLD_DATADIR --init-file=$BOOTSTRAP_SQL  </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+
+--echo # Stop the MTR default DB server
+--source include/shutdown_mysqld.inc
+
+--echo # Run the bootstrap command
+--exec $NEW_CMD
+
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR --innodb_log_file_size=$LOG_FILE_SIZE --innodb_log_files_in_group=2 --innodb_undo_tablespaces=2"
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $LOG_FILE_SIZE LOG_FILE_SIZE
+--source include/start_mysqld.inc
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT PRIMARY KEY, b BLOB);
+CREATE TABLE t3 (a INT PRIMARY KEY, b SMALLINT, c TEXT, d JSON, UNIQUE KEY k1(b), KEY k2(b, c(20)));
+CREATE TABLE t4 (a INT PRIMARY KEY, b TINYINT, c MEDIUMINT, d BIGINT);
+CREATE TABLE t5 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a,b), c DECIMAL(5,2), d FLOAT(7,4), e DOUBLE);
+create table `t6` (
+  `c0291` char(140) not null,
+  `c0292` int(10) unsigned zerofill not null,
+  `c0293` time(3) default null,
+  `c0294` int(11) not null,
+  `c0295` binary(1) not null,
+  `c0296` datetime(6) not null,
+  `c0297` date default null,
+  `c0298` mediumtext not null,
+  `c0299` int(10) unsigned zerofill not null,
+  `c0300` decimal(54,6) not null,
+  primary key (`c0296`,`c0298`(186)),
+  unique key `i0002` (`c0294`),
+  unique key `i0005` (`c0298`(102)),
+  unique key `i0007` (`c0299`,`c0292`,`c0297`),
+  unique key `i0008` (`c0296`,`c0293`),
+  unique key `i0001` (`c0297`,`c0298`(240),`c0296`,`c0293`,`c0294`),
+  unique key `i0004` (`c0296`,`c0295`,`c0293`,`c0291`(95),`c0298`(215)),
+  key `i0003` (`c0296`,`c0291`(26)),
+  key `i0006` (`c0297`,`c0296`,`c0293`,`c0294`),
+  key `i0009` (`c0299`,`c0292`,`c0300`) using btree
+) engine=innodb default charset=latin1 row_format=compact;
+
+CREATE TABLE t7(
+	a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	b INT NOT NULL DEFAULT '123',
+	c TIMESTAMP NOT NULL DEFAULT '2000-01-01 00:00:00'
+) ROW_FORMAT=REDUNDANT ENGINE=InnoDB;
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLE t8(fld1 INT NOT NULL PRIMARY KEY) TABLESPACE=ts1 ENGINE=InnoDB;
+CREATE TABLE t9(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+                FOREIGN KEY(fld1) REFERENCES t8(fld1) ON UPDATE CASCADE) TABLESPACE=ts1 ENGINE=InnoDB;
+
+CREATE TABLE t10(a INT PRIMARY KEY, b JSON, c BLOB, d LONGBLOB, e MEDIUMBLOB, f TINYBLOB);
+
+CREATE TABLE t11 (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10),
+j INT, m INT  GENERATED ALWAYS AS(b + x), n VARCHAR(10),
+p VARCHAR(20) GENERATED ALWAYS AS(CONCAT(n, y)),
+x INT, y CHAR(20), z INT, INDEX idx1(c), INDEX idx2 (m), INDEX idx3(p)) ENGINE=InnoDB;
+
+CREATE TABLE t12 (
+    id INT NOT NULL,
+    store_id INT NOT NULL,
+    x INT GENERATED ALWAYS AS (id + store_id)
+) ENGINE=InnoDB
+PARTITION BY RANGE (store_id) (
+    PARTITION p0 VALUES LESS THAN (6),
+    PARTITION p1 VALUES LESS THAN (11),
+    PARTITION p2 VALUES LESS THAN (16),
+    PARTITION p3 VALUES LESS THAN (21)
+);
+
+CREATE TABLE t13 (
+  FTS_DOC_ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  id int(10) not null ,
+  first_name varchar(50) NOT NULL,
+  last_name varchar(50) NOT NULL,
+  PRIMARY KEY (FTS_DOC_ID),
+  UNIQUE KEY idx_1 (first_name, last_name),
+  FULLTEXT KEY `idx_2` (first_name)
+) ENGINE=InnoDB;
+
+CREATE TABLE t14 (
+  i int(10) unsigned not null auto_increment primary key,
+  a varchar(255) not null,
+  FULLTEXT KEY (a)
+) ENGINE = INNODB;
+
+create table t15 (c1 int, c2 geometry not null SRID 0, spatial index (c2)) engine=innodb;
+
+CREATE TABLE t16 (
+        a INT,
+        b INT,
+        c INT,
+        d INT,
+        e INT,
+        f INT,
+        PRIMARY KEY (a),
+        INDEX i1 (b),
+        INDEX i2 (c),
+        INDEX i3 (d),
+        INDEX i4 (e)
+) ENGINE=INNODB TABLESPACE=`innodb_system`;
+
+SET GLOBAL innodb_file_per_table=OFF;
+
+CREATE TABLE t17(
+        c1 iNT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+
+SET GLOBAL innodb_file_per_table=default;
+
+SET NAMES UTF8;
+CREATE TABLE t18(హి  INT, శరెెనిక BLOB);
+
+#--let $table_id=`select HEX(se_private_id) from mysql.tables where name = 't14'`
+#--echo "table_id is $table_id"
+#--let $count = `select count(*) from mysql.tablespace_files where file_name like './test/fts_%$table_id%'`
+#--echo "count is $count"
+#--let $val = 1
+#--expr $count = $count - $val
+#--echo "count is $count"
+#while ($count >= 0)
+#{
+#--let $file_name$count = `select file_name from mysql.tablespace_files where file_name like './test/fts_%$table_id%' LIMIT $count,1`
+#--echo "file_name is $file_name$count"
+#dec $count;
+#}
+
+--source include/shutdown_mysqld.inc
+
+--echo # Check SDI from mysql.ibd
+--let JSON_FILE_PATH = $DEST_DIR/mysql.json
+--exec $IBD2SDI $MYSQLD_DATADIR/mysql.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace_mysql.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/mysql.json $JSON_FILE_PATH
+}
+
+--echo # Check SDI from t1.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t1.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t1.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t1.json $JSON_FILE_PATH
+}
+
+--echo # Check SDI from t2.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t2.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t2.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t2.json $JSON_FILE_PATH
+}
+
+--echo # Check SDI from t3.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t3.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t3.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t3.json $JSON_FILE_PATH
+}
+
+--echo # Check SDI from t4.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t4.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t4.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t4.json $JSON_FILE_PATH
+}
+
+--echo # Check SDI from t5.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t5.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t5.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t5.json $JSON_FILE_PATH
+}
+
+--echo # Check SDI from t6.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t6.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t6.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t6.json $JSON_FILE_PATH
+}
+
+--echo # Check SDI from t7.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t7.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t7.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t7.json $JSON_FILE_PATH
+}
+
+--echo # Check SDI from ts1.ibd(holds t8 & t9)
+--let JSON_FILE_PATH = $DEST_DIR/ts1.json
+--exec $IBD2SDI $MYSQLD_DATADIR/ts1.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/ts1.json $JSON_FILE_PATH
+}
+
+--echo # Check SDI from t10.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t10.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t10.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t10.json $JSON_FILE_PATH
+}
+
+--echo # Check SDI from t11.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t11.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t11.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t11.json $JSON_FILE_PATH
+}
+
+--echo # Check SDI from partition tables t12.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t12#p#p0.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t12#P#p0.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t12#p#p0.json $JSON_FILE_PATH
+}
+
+--let JSON_FILE_PATH = $DEST_DIR/t12#p#p1.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t12#P#p1.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t12#p#p1.json $JSON_FILE_PATH
+}
+
+--echo # Check SDI from t13.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t13.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t13.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t13.json $JSON_FILE_PATH
+}
+
+--echo # Check SDI from t14.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t14.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t14.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t14.json $JSON_FILE_PATH
+}
+
+# This seems very hard
+#--echo # Check SDI from FTS .ibd files
+
+--echo # Check SDI from t15.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t15.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t15.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t15.json $JSON_FILE_PATH
+}
+
+--echo # Check SDI from system tablespace(has 16,17)
+--let JSON_FILE_PATH = $DEST_DIR/ibdata1.json
+--exec $IBD2SDI $MYSQLD_DATADIR/ibdata1 -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace_system.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/ibdata1.json $JSON_FILE_PATH
+}
+
+--echo # Check SDI from t18.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t18.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t18.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t18.json $JSON_FILE_PATH
+}
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $LOG_FILE_SIZE LOG_FILE_SIZE
+--source include/start_mysqld.inc
+--echo # ALTER TABLE t1, ADD COLUMN. Verify SDI shows the newly added column
+ALTER TABLE t1 ADD COLUMN b INT;
+
+--echo # ALTER TABLE t2, ADD INDEX, Verify SDI shows the newly added index
+ALTER TABLE t2 ADD INDEX k1(b(10));
+
+--echo # ALTER TABLE t3, DROP INDEX, Verify SDI doesn't show dropped index
+ALTER TABLE t3 DROP INDEX k2;
+
+--echo # ALTER TABLE t4, DROP column, Verify SDI doesn't show dropped column
+ALTER TABLE t4 DROP COLUMN d;
+
+--echo # ALTER TABLE RENAME column
+ALTER TABLE t10 CHANGE a pk INT;
+
+--echo # Drop virtual column, verify SDI is updated
+ALTER TABLE t11 DROP COLUMN m;
+
+--echo # Create and drop tables in general tablespace
+CREATE TABLE t19(a INT) TABLESPACE=`ts1`;
+CREATE TABLE t20(a INT, b INT) TABLESPACE=`ts1`;
+DROP TABLE t19;
+DROP TABLE t20;
+
+--source include/shutdown_mysqld.inc
+--echo # ALTER TABLE t1, ADD COLUMN. Verify SDI shows the newly added column 'b'
+--echo # Check SDI from t1.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t1_altered.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t1.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t1_altered.json $JSON_FILE_PATH
+}
+
+--echo # ALTER TABLE t2, ADD INDEX, Verify SDI shows the newly added index 'k1'
+--echo # Check SDI from t2.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t2_altered.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t2.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t2_altered.json $JSON_FILE_PATH
+}
+
+--echo # ALTER TABLE t3, DROP INDEX, Verify SDI doesn't show dropped index 'k2'
+--echo # Check SDI from t3.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t3_altered.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t3.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t3_altered.json $JSON_FILE_PATH
+}
+
+--echo # ALTER TABLE t4, DROP column, Verify SDI doesn't show dropped column 'd'
+--echo # Check SDI from t4.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t4_altered.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t4.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t4_altered.json $JSON_FILE_PATH
+}
+
+--echo # ALTER TABLE t10 RENAME column from 'a' to 'pk'. Verify column name is 'pk'
+--echo # Check SDI from t10.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t10_altered.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t10.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t10_altered.json $JSON_FILE_PATH
+}
+
+--echo # Drop virtual column of t11, verify SDI doesn't show clumn 'm'
+--echo # Check SDI from t11.ibd
+--let JSON_FILE_PATH = $DEST_DIR/t11_altered.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t11.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t11_altered.json $JSON_FILE_PATH
+}
+
+--echo # Create and drop tables in general tablespace. Shouldn't show t19, t20
+--let JSON_FILE_PATH = $DEST_DIR/ts1_altered.json
+--exec $IBD2SDI $MYSQLD_DATADIR/ts1.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/ts1_altered.json $JSON_FILE_PATH
+}
+
+if ($RECORD == 0) {
+--force-rmdir $DEST_DIR
+}
+
+if ($RECORD == 1) {
+--exec zip -r -j $MYSQL_TMP_DIR/sdi.zip $DEST_DIR 2>&1 > /dev/null
+--move_file $MYSQL_TMP_DIR/sdi.zip $MYSQL_TEST_DIR/std_data/innodb_sdi_jsons.zip
+--force-rmdir $DEST_DIR
+}
+
+--force-rmdir $SRC_DIR
+--force-rmdir $MYSQLD_DATADIR
+--remove_file $BOOTSTRAP_SQL
+--remove_file $MYSQLTEST_VARDIR/tmp/bootstrap.log
+
+--let $restart_parameters=
+--source include/start_mysqld.inc
+
+if ($RECORD == 1) {
+--echo "Recorded JSONs. Please remove the record mode inside test and re-run the test"
+}
+
+--echo #
+--echo # Bug#27151163 - INNODB: ASSERTION FAILURE: DICT0SDI.CC:.*
+--echo #
+--disable_query_log
+call mtr.add_suppression("Operating system error number 2 in a file operation.");
+call mtr.add_suppression("The error means the system cannot find the path specified.");
+call mtr.add_suppression("Cannot open datafile for read-only:");
+call mtr.add_suppression("Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("Tablespace .*, name 'ts1', file 'ts1.ibd' is missing!");
+call mtr.add_suppression("Cannot find tablespace for 'ts1' in the tablespace memory cache");
+
+--enable_query_log
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE DATABASE sdi;
+
+CREATE TABLE sdi.t1(i int) TABLESPACE ts1;
+
+--echo # Shutdown the server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove ts1.ibd file
+--remove_file $MYSQLD_DATADIR/ts1.ibd
+
+--source include/start_mysqld.inc
+
+--error ER_TABLESPACE_MISSING
+ALTER TABLE sdi.t1 ADD COLUMN j INT;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE sdi.t1 RENAME COLUMN i to j;
+--error ER_TABLESPACE_MISSING
+ALTER TABLESPACE ts1 RENAME to ts2;
+DROP DATABASE sdi;
+DROP TABLESPACE ts1;

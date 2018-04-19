@@ -34,7 +34,7 @@ select * from t1;
 # or that the is_free_lock() we're playing returned 0 etc.
 # But here all we do is test these functions outside of replication.
 select is_free_lock("lock"), is_used_lock("lock") = connection_id();
-explain extended select is_free_lock("lock"), is_used_lock("lock");
+explain select is_free_lock("lock"), is_used_lock("lock");
 # Check lock functions
 select is_free_lock("lock2");
 connection master1;

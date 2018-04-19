@@ -1,0 +1,130 @@
+--echo #
+--echo # Bug 23333990	PERSISTENT INDEX STATISTICS UPDATE BEFORE
+--echo #		TRANSACTION IS COMMITTED
+--echo #
+
+--source include/big_test.inc
+--source include/not_valgrind.inc
+
+--echo "Test 1:- Uncommited delete test"
+CREATE TABLE t1 (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+		 val INT UNSIGNED NOT NULL,
+		 INDEX (val)) ENGINE=INNODB
+		 STATS_PERSISTENT=1,STATS_AUTO_RECALC=1;
+
+
+INSERT INTO t1 (val) VALUES (4);
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+SELECT COUNT(*) FROM t1;
+
+connect(con1, localhost, root,,);
+
+--echo Connection 1
+connection con1;
+START TRANSACTION;
+DELETE FROM t1;
+send SELECT COUNT(*) FROM t1;
+
+--echo Connection Default
+connection default;
+# To make test determinstic in case stats calculation is not
+# triggered we will call analyze table
+analyze table t1;
+let $row_count= query_get_value(EXPLAIN SELECT * FROM t1 WHERE val=4, rows,1);
+if ($row_count > 20000)
+{
+--echo Test correctly estimates the number of rows as > 20000
+--echo even when in other uncommitted transaction
+--echo all rows have been deleted.
+}
+
+if ($row_count < 20000)
+{
+--echo FAIL row count is $row_count
+}
+--echo Connection 1
+connection con1;
+reap;
+commit;
+
+--echo Connection deafult
+connection default;
+
+--echo Test 2:- Insert and rollback test
+CREATE TABLE t2 (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+		 val INT UNSIGNED NOT NULL,
+		 INDEX (val)) ENGINE=INNODB
+		 STATS_PERSISTENT=1,STATS_AUTO_RECALC=1;
+
+--echo Connection 1
+connection con1;
+
+START TRANSACTION;
+
+INSERT INTO t2 (val) VALUES (4);
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+send SELECT COUNT(*) FROM t2;
+
+--echo Connection default
+connection default;
+select count(*) from t2;
+analyze table t2;
+let $row_count= query_get_value(EXPLAIN SELECT * FROM t2 WHERE val=4, rows,1);
+if ($row_count > 20000)
+{
+--echo Test correctly estimates the number of rows as > 20000
+--echo even when in other uncommitted transaction
+--echo many rows are inserted.
+}
+
+--echo Connection 1
+connection con1;
+reap;
+--echo Rollback the insert
+rollback;
+
+--echo Connection default
+connection default;
+let $row_count= query_get_value(EXPLAIN SELECT * FROM t2 WHERE val=4, rows,1);
+if ($row_count <= 1)
+{
+--echo Test correctly estimates the number of rows as $row_count
+--echo after rollback.
+}
+
+disconnect con1;
+DROP TABLE t1,t2;

@@ -1,6 +1,6 @@
 # Creating the spatial Geometry object
 USE test;
-CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
 SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
 SET @star_center= 'POINT(15 10)';
@@ -117,8 +117,7 @@ SELECT ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_horizontal))
 0
 SELECT ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))'));
-ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'));
 ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'))
 0
@@ -140,14 +139,14 @@ ST_AREA(ST_GEOMFROMTEXT(@star))
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_elem_vertical));
 ST_AREA(ST_GEOMFROMTEXT(@star_elem_vertical))
 200
-SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5))'));
-ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5, 0 0))'));
+ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5, 0 0))'))
 12.5
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
 ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'))
 100
-SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))'));
-ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10, 0 0))'));
+ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10, 0 0))'))
 0
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))'));
 ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))'))
@@ -170,20 +169,20 @@ ST_AREA(g)
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_of_elems));
 ST_AREA(ST_GEOMFROMTEXT(@star_of_elems))
 377.5
-SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5)))'));
-ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5, 0 0)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5, 0 0)))'))
 12.5
-SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))'));
-ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0, 0 10)),((0 0,10 10,10 0, 0 0)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0, 0 10)),((0 0,10 10,10 0, 0 0)))'))
 100
-SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))'));
-ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10, 0 0)),((10 10,10 15,15 15,10 10)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10, 0 0)),((10 10,10 15,15 15,10 10)))'))
 62.5
-SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))'));
-ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4, 4 4)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4, 4 4)))'))
 104
-SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))'));
-ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4, 4 4)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4, 4 4)))'))
 96
 SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))'));
 ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))'))
@@ -200,8 +199,8 @@ ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10
 SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))'));
 ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))'))
 100
-SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))'));
-ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6, 4 4)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6, 4 4)))'))
 98
 SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=103;
 ST_AREA(g)
@@ -230,33 +229,33 @@ ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'
 SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))'));
 ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))'))
 0
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'));
-ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10)))'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10)))'))
 0
 SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),'
                                                   'MULTIPOINT(0 0,10 10),'
                                                   'LINESTRING(1 1,2 2,3 3),'
-                                                  'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'));
+                                                  'MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10)))'));
 ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),'
                                                   'MULTIPOINT(0 0,10 10),'
                                                   'LINESTRING(1 1,2 2,3 3),'
                                             
 0
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))'));
-ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0, 0 0)))'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0, 0 0)))'))
 100
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))'));
-ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0, 0 0)))))'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0, 0 0)))))'))
 100
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),'
-                                                  'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))'));
-ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),'
-                                                  'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4, 4 4)),'
+                                                  'MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0)),((10 10,10 15,15 15,15 10,10 10))))'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4, 4 4)),'
+                                                  'MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0)),((10 10,10 15,15 15,15 10,10 10))))'))
 221
 SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                      'MULTIPOINT(0 0,10 10)),'
                                                   'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
-                                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))'));
+                                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10))))'));
 ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                      'MULTIPOINT(0 0,10 10)),'
                                                   'GEOMETRYCOLLECTION(LINESTRING(1
@@ -264,9 +263,9 @@ ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
 SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                      'MULTIPOINT(0 0,10 10)),'
                                                   'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
-                                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),'
-                                                  'GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),'
-                                                                     'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10)))))'));
+                                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10))),'
+                                                  'GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4, 4 4)),'
+                                                                     'MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0)),((10 10,10 15,15 15,15 10,10 10)))))'));
 ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                      'MULTIPOINT(0 0,10 10)),'
                                                   'GEOMETRYCOLLECTION(LINESTRING(1
@@ -274,7 +273,7 @@ ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
 SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                      'MULTIPOINT(0 0,10 10)),'
                                                   'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
-                                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),'
+                                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10))),'
                                                   'GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
 ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                      'MULTIPOINT(0 0,10 10)),'
@@ -287,29 +286,16 @@ ST_AREA(g)
 # ST_AREA(geometry) with different SRID values
 #####################################################################################
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_center,-1024));
-ST_AREA(ST_GEOMFROMTEXT(@star_center,-1024))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_all_points,-1));
-ST_AREA(ST_GEOMFROMTEXT(@star_all_points,-1))
-0
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_top_to_center,0));
 ST_AREA(ST_GEOMFROMTEXT(@star_top_to_center,0))
 0
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_vertical,1000));
-ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_vertical,1000))
-0
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star,123456789));
-ST_AREA(ST_GEOMFROMTEXT(@star,123456789))
-287.5
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295));
-ST_AREA(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295))
-200
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_of_elems,4294967296));
-ST_AREA(ST_GEOMFROMTEXT(@star_of_elems,4294967296))
-377.5
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000));
-ST_AREA(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000))
-665
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################
@@ -319,53 +305,53 @@ SELECT ST_AREA(NULL);
 ST_AREA(NULL)
 NULL
 SELECT ST_AREA(ST_GEOMFROMTEXT('POINT()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOINT()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON((()))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(a 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(! 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('POINT('!' 0)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'))' at line 1
 SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(12,34 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'))' at line 1
 SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'))' at line 1
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_area.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,5 5))'));
-ERROR 22023: Invalid GIS data provided to function st_area.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,5 5,10 10))'));
-ERROR 22023: Invalid GIS data provided to function st_area.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,10 10),(0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_area.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10)))'));
-ERROR 22023: Invalid GIS data provided to function st_area.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(0x000000000200000000000000000000000000000000);
 ERROR HY000: Geometry byte string must be little endian.
 SELECT ST_AREA(0x010100000001000000010100000000000000000000);
@@ -382,3 +368,23 @@ SELECT ST_AREA(0x010400000002000000010100000000000000000000);
 ERROR HY000: Geometry byte string must be little endian.
 # Clean up
 DROP TABLE gis_geometrycollection;
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 0));
+ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 0))
+0
+# Projected SRS (should pass)
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
+ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 2000))
+0
+# Geographic SRS (should fail)
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
+ERROR 22S00: st_area(POINT) has not been implemented for geographic spatial reference systems.
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_AREA(x'0A000000010100000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.

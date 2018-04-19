@@ -1,6 +1,8 @@
 ###########################################################
 #
-# Test cases for wl#7593: Don't hold LOCK_open...
+# Test cases for wl#7593: Don't hold LOCK_open... and
+# bug #19881395 "FREEZE OF SERVER, FLUSH TABLE VERSUS
+# CONCURRENT DDL/DML".
 #
 # 1) The first basic scenario is based on concurrency and
 # sequencing of three threads: Let thread TA1 open table ta,
@@ -13,7 +15,8 @@
 # thread TB1 and TB2 open table tb, while thread TA1 issues a
 # FLUSH TABLES in order to flush the cache while a share is
 # being initialized. The three last test cases are variants of
-# this scenario, referred to as (2) below.
+# this scenario, referred to as (2) below. One of them covers
+# scenario in which bug #19881395 has occurred.
 #
 # 3) The third scenario is based on two threads: One thread
 # doing CREATE TABLE while another issues LOCK TABLE on the
@@ -46,6 +49,9 @@ connection default;
 # Create two tables:
 CREATE TABLE ta (pk integer primary key);
 CREATE TABLE tb (pk integer primary key);
+#
+# Warm-up data-dictionary cache but keep Table Definition Cache intact.
+#
 #
 connection con_TA1;
 # Wait after releasing LOCK_open for ta, and make sure we never
@@ -121,6 +127,9 @@ connection default;
 CREATE TABLE ta (pk integer primary key);
 CREATE TABLE tb (pk integer primary key);
 #
+# Warm-up data-dictionary cache but keep Table Definition Cache intact.
+#
+#
 connection con_TA1;
 # Wait after releasing LOCK_open for ta, and make sure we never
 # end up at the 'found_share' sync point:
@@ -189,6 +198,9 @@ connection default;
 # Create one table:
 CREATE TABLE tb (pk integer primary key);
 #
+# Warm-up data-dictionary cache but keep Table Definition Cache intact.
+#
+#
 connection con_TB1;
 # Wait after releasing LOCK_open when opening table tb.
 # Set up a debug label to make the code simulate an error when
@@ -254,6 +266,9 @@ connection default;
 # Create one table:
 CREATE TABLE tb (pk integer primary key);
 #
+# Warm-up data-dictionary cache but keep Table Definition Cache intact.
+#
+#
 connection con_TB1;
 # Do an insert, wait after releasing LOCK_open for tb. Due to
 # a concurrent pending FLUSH TABLES, the first share will be
@@ -294,11 +309,15 @@ DROP TABLE tb;
 # This case is similar to 2.1, but we simulate an error in
 # open_table_def. We also do 'FLUSH TABLES tb' to test
 # another variant of the FLUSH TABLES statement.
-#
+# This test also covers bug #19881395 "FREEZE OF SERVER,
+# FLUSH TABLE VERSUS CONCURRENT DDL/DML".
 #
 connection default;
 # Create one table:
 CREATE TABLE tb (pk integer primary key);
+#
+# Warm-up data-dictionary cache but keep Table Definition Cache intact.
+#
 #
 connection con_TB1;
 # Do an insert, wait after releasing LOCK_open for tb. 
@@ -318,23 +337,20 @@ INSERT INTO tb VALUES(1);
 #
 connection con_TA1;
 # Wait for TB1 to signal 'open_TB1', then issue a 'FLUSH TABLES'
-# command, and signal 'wait_TB1' right before doing cond_wait:
+# command.
 SET DEBUG_SYNC= 'now WAIT_FOR open_TB1';
-SET DEBUG_SYNC= 'get_cached_share_cond_wait SIGNAL wait_TA1';
 FLUSH TABLES tb;
 #
 connection default;
 # Wait until the flush has started waiting for the share,
-# we cannot use I_S.processlist for this purpose here because
-# get_cached_table_share() waits for COND_open, and at that
-# point has locked all table caches (done in close_cached_tables).
-# Thus, we use a DEBUG_SYNC point instead:
-SET DEBUG_SYNC= 'now WAIT_FOR wait_TA1';
+# use I_S.processlist for this purpose (not logged here):
 #
 # Then we know TA1 is waiting for TB1 to finish. Next, we signal
-# TB1 to continue. Since we simulate a failing open, TB1 should
-# end up signalling 'del_TB1'. We tell it to continue, and then
-# we're done:
+# TB1 to continue. It should be able to do so because "FLUSH TABLE
+# tb" is not supposed to hold any lock on table cache (as it did
+# before bug#19881395 was fixed). Since we simulate a failing open,
+# TB1 should end up signalling 'del_TB1'. We tell it to continue,
+# and then we're done:
 SET DEBUG_SYNC= 'now SIGNAL cont_TB1';
 SET DEBUG_SYNC= 'now WAIT_FOR del_TB1';
 #
@@ -361,6 +377,9 @@ DROP TABLE tb;
 connection default;
 # Create one table:
 CREATE TABLE tb (pk integer primary key);
+#
+# Warm-up data-dictionary cache but keep Table Definition Cache intact.
+#
 #
 connection con_TB1;
 # Do an insert, wait after releasing LOCK_open for tb. After
@@ -418,6 +437,7 @@ SET DEBUG_SYNC= 'now SIGNAL cont_retry_TB1';
 # and we know it's stopped at 'open_table_share_found'.
 # The only issue left then is to make sure TB1 drops by the
 # 'found_share' sync point, then signal TB2 to finish, and we're done:
+SET DEBUG_SYNC= 'now SIGNAL finish_TB2';
 SET DEBUG_SYNC= 'now WAIT_FOR found_TB1';
 SET DEBUG_SYNC= 'now SIGNAL finish_TB2';
 #
@@ -425,6 +445,10 @@ SET DEBUG_SYNC= 'now SIGNAL finish_TB2';
 connection con_TA1;
 connection con_TB1;
 connection con_TB2;
+connection con_TB1;
+SET DEBUG_SYNC= 'RESET';
+connection con_TB2;
+SET DEBUG_SYNC= 'RESET';
 connection default;
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE tb;
@@ -433,10 +457,9 @@ DROP TABLE tb;
 # Test case 3.1: Let thread TB1 issue LOCK TABLES tb
 # while thread TB2 issues CREATE TABLE tb. Do LOCK TABLES
 # first, and stop in get_share_before_open. Then run CREATE
-# TABLE, which does check_if_table_exists, which again calls
-# get_cached_table_share, and sees the share for tb that TB1
-# is trying to create. Verify that get_cached_table_share
-# waits for COND_open until tb is created.
+# TABLE, which does check_if_table_exists. The latter called
+# get_cached_table_share in the past, so could have been
+# confused by presence of open-in-progress share.
 #
 # If the CREATE mistakenly does conclude that tb
 # exists, it will bypass the MDL lock upgrade from S to X,
@@ -456,20 +479,16 @@ LOCK TABLES tb WRITE;;
 #
 connection con_TB2;
 # Create the table which is being locked by TB1. The execution
-# will do check_if_table_exists() before create, calling
-# get_cached_share(), which does a search in the TDC. Here, we
-# will see the share being opened by TB1, but this situation
-# should be handled, allowing the CREATE to proceed. Set sync
-# points in get_table_share to verify we don't get there:
+# will do check_if_table_exists() before create. This function
+# should not be confused by share being opened by TB1. It should
+# detect that able is absent and proceed to upgrading metadata
+# lock on the table to X.
 SET DEBUG_SYNC= 'now WAIT_FOR open_TB1';
-SET DEBUG_SYNC= 'get_share_before_open HIT_LIMIT 1';
-SET DEBUG_SYNC= 'get_share_found_share HIT_LIMIT 1';
 CREATE TABLE tb (pk integer primary key);;
 #
 connection default;
 # Wait until the CREATE TABLE execution is waiting for
-# COND_open in get_cached_table_share for tb, then signal TB1
-# to continue:
+# metadata lock upgrade.
 SET DEBUG_SYNC='now SIGNAL cont_TB1';
 #
 # Reap the connections, reset DEBUG_SYNC and drop tables:
@@ -491,6 +510,9 @@ connection default;
 CREATE TABLE ta (pk integer primary key);
 CREATE TABLE tb (pk integer primary key);
 #
+# Warm-up data-dictionary cache but keep Table Definition Cache intact.
+#
+#
 # Insert into ta to make sure it is open and in the cache:
 INSERT INTO ta VALUES(0);
 #
@@ -505,9 +527,8 @@ connection default;
 # Wait for open_TB1, then issue a SHOW OPEN TABLES command
 # where tb should not be included:
 SET DEBUG_SYNC= 'now WAIT_FOR open_TB1';
-SHOW OPEN TABLES;
+SHOW OPEN TABLES FROM test;
 Database	Table	In_use	Name_locked
-performance_schema	events_waits_current	0	0
 test	ta	0	0
 #
 # Next up is to let TB1 read the share, and do the insert:
@@ -517,10 +538,9 @@ SET DEBUG_SYNC= 'now SIGNAL cont_TB1';
 # where tb should now be included:
 connection con_TB1;
 connection default;
-SHOW OPEN TABLES;
+SHOW OPEN TABLES FROM test;
 Database	Table	In_use	Name_locked
 test	tb	0	0
-performance_schema	events_waits_current	0	0
 test	ta	0	0
 #
 # Connection TB1 has already been reaped. Reset DEBUG_SYNC

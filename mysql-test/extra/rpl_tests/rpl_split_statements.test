@@ -35,26 +35,24 @@
 #
 #  2. DROP TABLE: when a single statement drops multiple tables, then
 #     there will be a separate statement for all dropped non-temporary
-#     tables, a separate statement for all dropped transactional
-#     temporary tables, and a separate statement for all dropped
-#     non-transactional tables.
+#     tables, with statement binlog format a separate statement for all
+#     dropped transactional temporary tables, and a separate statement
+#     for all dropped non-transactional temporary tables. Moreover,
+#     statement for all dropped non-temporary tables can be split
+#     further. If no GTID is assigned then there will be individual
+#     DROP TABLE statements for each dropped table in SEs which don't
+#     support atomic DDL and single statement for all dropped tables in
+#     SEs supporting atomic DDL. If original DROP TABLE statement is
+#     supposed to be executed under single GTID then all dropped base
+#     tables (both supporting atomic DDL and not) are combined in a
+#     single statement. Execution of statements which drop both
+#     temporary and non-temporary tables or two kinds of temporary
+#     tables under single GTID is not allowed.
 #
-#  3. DROP DATABASE: this statement will first drop all non-temporary
-#     tables in the database, and then try to remove the database
-#     directory.  If removing the directory fails (e.g., because there
-#     is an unrelated file in the directory), then the statement will
-#     be logged as a single DROP TABLE statement listing all tables.
-#     If there are many tables, the statement becomes big.  To avoid
-#     too big statements, the statement is split into multiple DROP
-#     TABLE statements, each with length at most 1024 bytes.
-#
-#     If GTID_NEXT='UUID:NUMBER', the statement will not be logged and
-#     the gtid will not be added to GTID_EXECUTED, if the statement
-#     fails. This is regardless of whether it would result in multiple
-#     DROP statements or just one.
+#  3. DROP DATABASE: See details in rpl_split_statements_debug.test
 #
 #  4. CREATE TABLE ... SELECT: this statement contains both DDL and
-#     DML.  When binlog_format=ROW, all DML must be logged in row
+#     DML.  When binlog_format='ROW', all DML must be logged in row
 #     format, but at the same time DDL can only be logged in statement
 #     format.  Therefore this statement is logged as a CREATE TABLE
 #     followed by row events.  This statement is not allowed when
@@ -74,10 +72,11 @@
 #     - Not on slave. Since CALL does not get logged as CALL, there is
 #       no way to get it in the binary log.
 #
-#  2. DROP TABLE. We drop all combinations of two or three tables,
-#     from the different categories non-temporary, temporary
-#     transactional, and temporary non-transactional.  This is done in
-#     three ways:
+#  2. DROP TABLE.
+#
+#     First, we drop all combinations of two or three tables, from the
+#     different categories non-temporary, temporary transactional, and
+#     temporary non-transactional.  This is done in three ways:
 #
 #     - On master with GTID_MODE='AUTOMATIC'
 #     - On master with GTID_MODE!='AUTOMATIC' ('ANONYMOUS'/'UUID:NUMBER',
@@ -91,28 +90,27 @@
 #       stored procedure on master that creates a temporary table with
 #       the same name *only* when it executes on the slave.
 #
-#  3. DROP DATABASE. We try five different error scenarios:
+#     Second, we drop group of 4 tables, where 2 tables are in SE which
+#     do not support atomic DDL and 2 in SE which support it. We do it
+#     in both GTID_MODE='AUTOMATIC' and GTID_MODE='UUID:NUMBER' to see
+#     if they are split into several/combined into single statement
+#     according to GTID_MODE.
 #
-#     3.1. Database exists and is empty.
-#     3.2. Database exists and contains one table.
-#     3.3. Database exists and contains many tables with long names, so
-#          that the statement gets split into multiple transactions in
-#          the binary log.
-#     3.4. Database has not been created, but the directory exists.
-#     3.5. Database has not created and the directory does not exist.
+#     Third, we drop group of 4 tables, where 2 tables are in SE which
+#     do not support atomic DDL and 2 in SE which support it and the
+#     last table from the latter group can't be dropped. This triggers
+#     different code path in DROP TABLE implementation. Again this is
+#     done for both GTID_MODE='AUTOMATIC' and GTID_MODE='UUID:NUMBER'
+#     to see difference in splitting/combining. Notice that with GTID
+#     assigned even such failed DROP TABLE will consume GTID.
 #
-#     We run these five scenarios in three ways:
+#     Note that two last tests also provide coverage for changes to binary
+#     logging and GTID handling for normal and failed DROP TABLES, which
+#     were implemented as part of WL#7743 "New data dictionary: changes to
+#     DDL-related parts of SE API".
 #
-#     - On master with GTID_MODE='AUTOMATIC'
-#     - On master with GTID_MODE!='AUTOMATIC' ('ANONYMOUS'/'UUID:NUMBER',
-#       depending on GTID_MODE).
-#     - On slave.
-#
-#     In scenarios 3.1-3.4, we create an extra file in the database
-#     directory to trigger the error: to trigger the error on master
-#     we create the file in master's database directory; to trigger on
-#     slave we create it in slave's database directory. In scenario
-#     3.5 we create the directory on master
+#  3. DROP DATABASE. Tests for this statement were moved into
+#     rpl_split_statements_debug.test.
 #
 #  4. CREATE TABLE ... SELECT.  This is tested in a different test
 #     (rpl_gtid_create_select.test), since the statement cannot be
@@ -183,7 +181,7 @@ DELETE FROM t;
 if ($gtid_mode_on)
 {
   --replace_result $server_1_uuid MASTER_UUID
-  --error ER_GTID_NEXT_TYPE_UNDEFINED_GROUP
+  --error ER_GTID_NEXT_TYPE_UNDEFINED_GTID
   CALL proc();
 }
 if (!$gtid_mode_on)
@@ -272,10 +270,6 @@ END|
 --echo ---- GTID_MODE=AUTOMATIC ----
 
 --let $automatic= 1
-if ($gtid_mode_on)
-{
-  --let $expect_slave_error= 1
-}
 --let $transaction_count= 1
 --source extra/rpl_tests/rpl_drop_multiple_tables_in_multiple_ways.inc
 
@@ -286,332 +280,149 @@ DROP PROCEDURE create_tables;
 DROP PROCEDURE drop_tables;
 DROP TABLE dummy;
 
---echo ==== Case 3: DROP DATABASE ====
+--echo ==== Case 2C: DROP TABLES for base tables in engines with and without atomic DDL support ====
 
---echo ---- Initialize ----
-
---echo # db1, db2, db3: no tables.
-CREATE DATABASE db1;
-CREATE DATABASE db2;
-CREATE DATABASE db3;
---source include/rpl_sync.inc
---write_file $server_1_datadir/db1/file.txt
-EOF
---write_file $server_1_datadir/db2/file.txt
-EOF
---write_file $server_2_datadir/db3/file.txt
-EOF
-
---echo # db4, db5, db6: one table.
-CREATE DATABASE db4;
-CREATE DATABASE db5;
-CREATE DATABASE db6;
-CREATE TABLE db4.t1 (a INT);
-CREATE TABLE db5.t1 (a INT);
-CREATE TABLE db6.t1 (a INT);
---source include/rpl_sync.inc
---write_file $server_1_datadir/db4/file.txt
-EOF
---write_file $server_1_datadir/db5/file.txt
-EOF
---write_file $server_2_datadir/db6/file.txt
-EOF
-
---echo # db7, db8, db9: many tables with long names.
-CREATE DATABASE db7;
-CREATE DATABASE db8;
-CREATE DATABASE db9;
-let $i= 0;
---let $long_text= `SELECT REPEAT('a', 60)`
---disable_query_log
-while ($i < 20)
-{
-  # This is very slow for some reason, so do three tables in parallel.
-  eval CREATE TABLE db7.$long_text$i (a INT);
-  eval CREATE TABLE db8.$long_text$i (a INT);
-  eval CREATE TABLE db9.$long_text$i (a INT);
-  --inc $i
-}
---enable_query_log
---source include/rpl_sync.inc
---write_file $server_1_datadir/db7/file.txt
-EOF
---write_file $server_1_datadir/db8/file.txt
-EOF
---write_file $server_2_datadir/db9/file.txt
-EOF
-
---echo # db10, db11, db12: not a database, but the directory exists.
---mkdir $server_1_datadir/db10
---mkdir $server_1_datadir/db11
---mkdir $server_1_datadir/db12
---mkdir $server_2_datadir/db12
---write_file $server_1_datadir/db10/file.txt
-EOF
---write_file $server_1_datadir/db11/file.txt
-EOF
---write_file $server_2_datadir/db12/file.txt
-EOF
-
---echo # db13, db14, db15: not a database. db15 is a database on master.
---mkdir $server_1_datadir/db15
+CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
+CREATE TABLE base_4_a (a INT) ENGINE = InnoDB;
 
 --source include/rpl_sync.inc
 
---echo ---- DROP DATABASE is split on master; GTID_NEXT=AUTOMATIC ----
+--echo ---- GTID_MODE=AUTOMATIC ----
 
---echo # db1: no table.
---source include/save_binlog_position.inc
-SET GTID_NEXT = 'AUTOMATIC';
+--source include/gtid_step_reset.inc
 
---replace_result \\ /
---error ER_DB_DROP_RMDIR
-DROP DATABASE db1;
+DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
 
---let $event_sequence= ()
---source include/assert_binlog_events.inc
+--echo # In AUTOMATIC mode the above statement should be split into three:
+--echo # two statements for each of MyISAM tables and single statement
+--echo # dropping both of InnoDB tables.
+--let $gtid_step_count= 3
+--source include/gtid_step_assert.inc
 
---echo # db4: one table.
---source include/save_binlog_position.inc
-SET GTID_NEXT = 'AUTOMATIC';
+CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
+CREATE TABLE base_4_a (a INT) ENGINE = InnoDB;
 
---replace_result \\ /
---error ER_DB_DROP_RMDIR
-DROP DATABASE db4;
+--source include/rpl_sync.inc
 
-if ($gtid_mode_on)
-{
-  --let $event_sequence= Gtid # !Q(DROP TABLE.*)
-}
-if (!$gtid_mode_on)
-{
-  --let $event_sequence= Anonymous_Gtid # !Q(DROP TABLE.*)
-}
---source include/assert_binlog_events.inc
+--echo ---- GTID_NEXT=non-automatic ----
 
---echo # db7: many tables with long names.
---source include/save_binlog_position.inc
-SET GTID_NEXT = 'AUTOMATIC';
+--source include/gtid_step_reset.inc
 
---replace_result \\ /
---error ER_DB_DROP_RMDIR
-DROP DATABASE db7;
-
-if ($gtid_mode_on)
-{
-  --let $event_sequence= Gtid # !Q(DROP TABLE.*) # Gtid # !Q(DROP TABLE.*)
-}
-if (!$gtid_mode_on)
-{
-  --let $event_sequence= Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP TABLE.*)
-}
---source include/assert_binlog_events.inc
-
---echo # db10: not a database, but directory exists.
---source include/save_binlog_position.inc
-SET GTID_NEXT = 'AUTOMATIC';
-
---replace_result \\ /
---error ER_DB_DROP_RMDIR
-DROP DATABASE db10;
-
---let $event_sequence= ()
---source include/assert_binlog_events.inc
-
---echo # db13: not a database.
---source include/save_binlog_position.inc
-SET GTID_NEXT = 'AUTOMATIC';
-
---replace_result \\ /
---error ER_DB_DROP_EXISTS
-DROP DATABASE db13;
-
---let $event_sequence= ()
---source include/assert_binlog_events.inc
-
---echo ---- DROP DATABASE is split on master; GTID_NEXT=non-automatic ----
-
---echo # db2: no table.
---source include/save_binlog_position.inc
 --source include/set_gtid_next_gtid_mode_agnostic.inc
-if (!$gtid_mode_on)
-{
-  --replace_result \\ /
-  --error ER_DB_DROP_RMDIR
-  DROP DATABASE db2;
 
-  --let $event_sequence= ()
-  --source include/assert_binlog_events.inc
-}
+DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
+
+SET GTID_NEXT= 'AUTOMATIC';
+
 if ($gtid_mode_on)
 {
-  --replace_result $server_1_uuid MASTER_UUID \\ /
-  --error ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID
-  DROP DATABASE db2;
-
-  --let $event_sequence= ()
-  --source include/assert_binlog_events.inc
+--echo # With GTID assigned the above statement should not be split.
+--let $gtid_step_count= 1
+--source include/gtid_step_assert.inc
 }
-SET GTID_NEXT = 'AUTOMATIC';
+if (!$gtid_mode_on)
+{
+--echo # Without GTID assigned the above statement should be split into
+--echo # three as in AUTOMATIC mode.
+--let $gtid_step_count= 3
+--source include/gtid_step_assert.inc
+}
 
---echo # db5: one table.
---source include/save_binlog_position.inc
+--echo ==== Case 2D: Failing DROP TABLES for base tables with and without atomic DDL support ====
+
+CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
+CREATE TABLE base_4_a (pk INT PRIMARY KEY) ENGINE = InnoDB;
+CREATE TABLE base_5_a (fk INT, FOREIGN KEY (fk) REFERENCES base_4_a(pk)) ENGINE = InnoDB;
+
+--source include/rpl_sync.inc
+
+--echo ---- GTID_MODE=AUTOMATIC ----
+
+--source include/gtid_step_reset.inc
+
+--error ER_ROW_IS_REFERENCED
+DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
+
+--echo # In AUTOMATIC mode the above statement should be split into
+--echo # two statements for each of MyISAM tables.
+--echo # There should be no statement for dropping base_3_a as its
+--echo # removal is rolled back.
+--let $gtid_step_count= 2.
+--source include/gtid_step_assert.inc
+
+--echo # base_3_a and base_4_a should still be there on master
+SHOW CREATE TABLE base_3_a;
+SHOW CREATE TABLE base_4_a;
+
+--source include/rpl_sync.inc
+
+--connection slave
+
+--echo # base_3_a and base_4_a should still be there on master
+SHOW CREATE TABLE base_3_a;
+SHOW CREATE TABLE base_4_a;
+
+--connection master
+
+CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
+
+--source include/rpl_sync.inc
+
+--echo ---- GTID_NEXT=non-automatic ----
+
+--source include/gtid_step_reset.inc
+
 --source include/set_gtid_next_gtid_mode_agnostic.inc
-if (!$gtid_mode_on)
-{
-  --replace_result \\ /
-  --error ER_DB_DROP_RMDIR
-  DROP DATABASE db5;
 
-  --let $event_sequence= Anonymous_Gtid # !Q(DROP TABLE.*)
-  --source include/assert_binlog_events.inc
-}
+--error ER_ROW_IS_REFERENCED
+DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
+
+SET GTID_NEXT= 'AUTOMATIC';
+
 if ($gtid_mode_on)
 {
-  --replace_result $server_1_uuid MASTER_UUID \\ /
-  --error ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID
-  DROP DATABASE db5;
-
-  --let $event_sequence= ()
-  --source include/assert_binlog_events.inc
+--echo # With GTID assigned the above statement should not be split.
+--let $gtid_step_count= 1
+--source include/gtid_step_assert.inc
 }
-SET GTID_NEXT = 'AUTOMATIC';
-
---echo # db8: many tables with long names.
---source include/save_binlog_position.inc
---source include/set_gtid_next_gtid_mode_agnostic.inc
 if (!$gtid_mode_on)
 {
-  --replace_result \\ /
-  --error ER_DB_DROP_RMDIR
-  DROP DATABASE db8;
-
-  --let $event_sequence= Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_Gtid # !Q(DROP TABLE.*)
-  --source include/assert_binlog_events.inc
-}
-if ($gtid_mode_on)
-{
-  --replace_result $server_1_uuid MASTER_UUID \\ /
-  --error ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID
-  DROP DATABASE db8;
-
-  --let $event_sequence= ()
-  --source include/assert_binlog_events.inc
-}
-SET GTID_NEXT = 'AUTOMATIC';
-
---echo # db11: not a database, but directory exists.
---source include/save_binlog_position.inc
---source include/set_gtid_next_gtid_mode_agnostic.inc
-if (!$gtid_mode_on)
-{
-  --replace_result \\ /
-  --error ER_DB_DROP_RMDIR
-  DROP DATABASE db11;
-}
-if ($gtid_mode_on)
-{
-  --replace_result $server_1_uuid MASTER_UUID \\ /
-  --error ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID
-  DROP DATABASE db11;
-}
---let $event_sequence= ()
---source include/assert_binlog_events.inc
-SET GTID_NEXT = 'AUTOMATIC';
-
---echo # db14: not a database.
---source include/save_binlog_position.inc
---source include/set_gtid_next_gtid_mode_agnostic.inc
- --error ER_DB_DROP_EXISTS
-DROP DATABASE db14;
---let $event_sequence= ()
---source include/assert_binlog_events.inc
-SET GTID_NEXT = 'AUTOMATIC';
-
---echo ---- DROP DATABASE is split on slave ----
-
-SET GTID_NEXT = 'AUTOMATIC';
-
-if (!$gtid_mode_on)
-{
-  --let $slave_sql_errno= convert_error(ER_DB_DROP_RMDIR)
-}
-if ($gtid_mode_on)
-{
-  --let $slave_sql_errno= convert_error(ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID)
+--echo # Without GTID assigned the above statement should be split into
+--echo # two as in AUTOMATIC mode.
+--let $gtid_step_count= 2
+--source include/gtid_step_assert.inc
 }
 
---echo # db3: no table.
-DROP DATABASE db3;
---source include/sync_slave_io_with_master.inc
---source include/wait_for_slave_sql_error.inc
---source include/rpl_skip_to_end_of_relay_log.inc
---let $rpl_connection_name= master
---source include/rpl_connection.inc
+--echo # base_3_a and base_4_a should still be there on master
+SHOW CREATE TABLE base_3_a;
+SHOW CREATE TABLE base_4_a;
 
---echo # db6: one table.
-DROP DATABASE db6;
---source include/sync_slave_io_with_master.inc
---source include/wait_for_slave_sql_error.inc
---source include/rpl_skip_to_end_of_relay_log.inc
---let $rpl_connection_name= master
---source include/rpl_connection.inc
+--source include/rpl_sync.inc
 
---echo # db9: many tables with long names.
-DROP DATABASE db9;
---source include/sync_slave_io_with_master.inc
---source include/wait_for_slave_sql_error.inc
---source include/rpl_skip_to_end_of_relay_log.inc
---let $rpl_connection_name= master
---source include/rpl_connection.inc
+--connection slave
 
---echo # db12: not a database, but directory exists.
-DROP DATABASE db12;
---source include/sync_slave_io_with_master.inc
---source include/wait_for_slave_sql_error.inc
---source include/rpl_skip_to_end_of_relay_log.inc
---let $rpl_connection_name= master
---source include/rpl_connection.inc
+--echo # base_3_a and base_4_a should still be there on master
+SHOW CREATE TABLE base_3_a;
+SHOW CREATE TABLE base_4_a;
 
---echo # db15: not a database (on slave).
---let $slave_sql_errno= convert_error(ER_DB_DROP_EXISTS)
-DROP DATABASE db15;
---source include/sync_slave_io_with_master.inc
---source include/wait_for_slave_sql_error.inc
---source include/rpl_skip_to_end_of_relay_log.inc
---let $rpl_connection_name= master
---source include/rpl_connection.inc
+--connection master
 
 --echo ---- Clean up ----
 
---remove_file $server_1_datadir/db1/file.txt
---remove_file $server_1_datadir/db2/file.txt
---remove_file $server_2_datadir/db3/file.txt
---remove_file $server_1_datadir/db4/file.txt
---remove_file $server_1_datadir/db5/file.txt
---remove_file $server_2_datadir/db6/file.txt
---remove_file $server_1_datadir/db7/file.txt
---remove_file $server_1_datadir/db8/file.txt
---remove_file $server_2_datadir/db9/file.txt
---remove_file $server_1_datadir/db10/file.txt
---remove_file $server_1_datadir/db11/file.txt
---remove_file $server_2_datadir/db12/file.txt
-
-DROP DATABASE db1;
-DROP DATABASE db2;
-DROP DATABASE IF EXISTS db3;
-DROP DATABASE db4;
-DROP DATABASE db5;
-DROP DATABASE IF EXISTS db6;
-DROP DATABASE db7;
-DROP DATABASE db8;
-DROP DATABASE IF EXISTS db9;
-DROP DATABASE IF EXISTS db10;
-DROP DATABASE IF EXISTS db11;
-DROP DATABASE IF EXISTS db12;
-DROP DATABASE IF EXISTS db15;
+DROP TABLE base_5_a, base_4_a, base_3_a;
 
 --source include/rpl_sync.inc
+
+--echo ==== Case 3: DROP DATABASE ====
+
+--echo See rpl_split_statements_debug.test
 
 --echo ==== Case 4: CREATE TABLE ... SELECT ====
 

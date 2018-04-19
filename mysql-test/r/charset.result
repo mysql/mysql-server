@@ -1,0 +1,58 @@
+#
+#Bug#21958734: INNODB: FAILING ASSERTION: *MBMAXLEN < 5 IN
+#              FILE HA_INNODB.CC LINE 1803
+#
+SHOW CHARACTER SET LIKE '%filename%';
+Charset	Description	Default collation	Maxlen
+SHOW COLLATION LIKE '%filename%';
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+SELECT _filename'abcd';
+ERROR 42S22: Unknown column '_filename' in 'field list'
+SELECT CONVERT(_latin1'abcd' USING filename);
+ERROR 42000: Unknown character set: 'filename'
+SELECT CAST(_latin1'abcd' AS CHAR CHARACTER SET filename);
+ERROR 42000: Unknown character set: 'filename'
+SET NAMES 'filename';
+ERROR 42000: Unknown character set: 'filename'
+SET NAMES 'utf8';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SET CHARACTER_SET_CLIENT=17;
+ERROR 42000: Unknown character set: '17'
+SET CHARACTER_SET_CLIENT=33;
+DROP DATABASE IF EXISTS db21958734;
+CREATE DATABASE db21958734 CHARACTER SET filename;
+ERROR 42000: Unknown character set: 'filename'
+CREATE DATABASE db21958734 COLLATE filename;
+ERROR HY000: Unknown collation: 'filename'
+CREATE DATABASE db21958734 CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER DATABASE db21958734 CHARACTER SET filename;
+ERROR 42000: Unknown character set: 'filename'
+ALTER DATABASE db21958734 COLLATE filename;
+ERROR HY000: Unknown collation: 'filename'
+ALTER DATABASE db21958734 CHARACTER SET latin1;
+USE db21958734;
+CREATE TABLE t1(a VARCHAR(10)) CHARACTER SET filename;
+ERROR 42000: Unknown character set: 'filename'
+CREATE TABLE t1(a VARCHAR(10)) COLLATE filename;
+ERROR HY000: Unknown collation: 'filename'
+CREATE TABLE t1(a VARCHAR(10) CHARACTER SET filename);
+ERROR 42000: Unknown character set: 'filename'
+CREATE TABLE t1(a VARCHAR(10) COLLATE filename);
+ERROR HY000: Unknown collation: 'filename'
+CREATE TABLE t1(a VARCHAR(10) CHARACTER SET utf8) CHARACTER SET latin1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE t1 CHARACTER SET filename;
+ERROR 42000: Unknown character set: 'filename'
+ALTER TABLE t1 COLLATE filename;
+ERROR HY000: Unknown collation: 'filename'
+ALTER TABLE t1 CHARACTER SET gbk;
+ALTER TABLE t1 MODIFY a VARCHAR(10) CHARACTER SET filename;
+ERROR 42000: Unknown character set: 'filename'
+ALTER TABLE t1 MODIFY a VARCHAR(10) COLLATE filename;
+ERROR HY000: Unknown collation: 'filename'
+ALTER TABLE t1 MODIFY a VARCHAR(10) CHARACTER SET cp932;
+DROP DATABASE db21958734;

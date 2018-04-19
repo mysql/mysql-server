@@ -1,0 +1,68 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+## Create table with Range Column Partition ##
+CREATE TABLE t1 ( c1 int, c2 int, PRIMARY KEY (c1, c2))
+CHARSET=utf8mb4
+PARTITION BY RANGE COLUMNS(c1, c2)
+(
+PARTITION t1p1 VALUES LESS THAN (5, 10),
+PARTITION t1p2 VALUES LESS THAN (MAXVALUE, MAXVALUE)
+);
+## Create table with list Column Partition ##
+CREATE TABLE t2 ( c1 int, c2 char(5), PRIMARY KEY (c1, c2))
+CHARSET=utf8mb4
+PARTITION BY LIST COLUMNS(c1, c2)
+(
+PARTITION t2p1 VALUES in ( (1, 'aa'), (2, 'ab') ),
+PARTITION t2p2 VALUES in ( (1, 'cc'), (2, 'cd') )
+);
+include/rpl_sync.inc
+[connection server2]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY RANGE  COLUMNS(c1,c2)
+(PARTITION t1p1 VALUES LESS THAN (5,10) ENGINE = InnoDB,
+ PARTITION t1p2 VALUES LESS THAN (MAXVALUE,MAXVALUE) ENGINE = InnoDB) */
+INSERT INTO t1 VALUES (05, 2);
+INSERT INTO t1 VALUES (10, 5);
+INSERT INTO t1 VALUES (03, 1);
+INSERT INTO t1 VALUES (100, 50);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(c1,c2)
+(PARTITION t2p1 VALUES IN ((1,'aa'),(2,'ab')) ENGINE = InnoDB,
+ PARTITION t2p2 VALUES IN ((1,'cc'),(2,'cd')) ENGINE = InnoDB) */
+INSERT INTO t2 VALUES (1, 'ab');
+ERROR HY000: Table has no partition for value from column_list
+INSERT INTO t2 VALUES (2, 'ab');
+INSERT INTO t2 VALUES (1, 'cc');
+include/rpl_sync.inc
+[connection server1]
+INSERT INTO t1 VALUES (11, 5);
+DELETE FROM t1 WHERE c1= 5;
+DELETE FROM t2 WHERE c2= 'ab';
+INSERT INTO t2 VALUES (2, 'cd');
+include/rpl_sync.inc
+[connection server3]
+include/assert.inc ['Check that partition t1p1 on table t1 has 1 row']
+include/assert.inc ['Check that partition t1p2 on table t1 has 3 rows']
+include/assert.inc ['Check that partition t2p1 on table t2 has 0 rows']
+include/assert.inc ['Check that partition t2p2 on table t2 has 2 rows']
+DROP TABLE t1;
+DROP TABLE t2;
+include/rpl_sync.inc
+include/group_replication_end.inc

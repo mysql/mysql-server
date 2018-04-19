@@ -1,0 +1,177 @@
+--source include/load_sysvars.inc
+
+--echo #
+--echo # WL#9636: Rename tx_{isolation,isolation} variables to transaction_*
+--echo #
+
+
+--echo #############################################################
+--echo #                 Save initial value                        #
+--echo #############################################################
+
+SET @start_global_value = @@global.transaction_read_only;
+SELECT @start_global_value;
+SET @start_session_value = @@session.transaction_read_only;
+SELECT @start_session_value;
+
+
+--echo ########################################################################
+--echo #     Display the DEFAULT value of transaction_read_only               #
+--echo ########################################################################
+
+SET @@global.transaction_read_only = ON;
+SET @@global.transaction_read_only = DEFAULT;
+SELECT @@global.transaction_read_only;
+
+SET @@session.transaction_read_only = ON;
+SET @@session.transaction_read_only = DEFAULT;
+SELECT @@session.transaction_read_only;
+
+
+--echo ##############################################################################
+--echo # Change the value of transaction_read_only to a valid value for GLOBAL Scope#
+--echo ##############################################################################
+
+SET @@global.transaction_read_only = ON;
+SELECT @@global.transaction_read_only;
+SET @@global.transaction_read_only = OFF;
+SELECT @@global.transaction_read_only;
+SET @@global.transaction_read_only = 0;
+SELECT @@global.transaction_read_only;
+SET @@global.transaction_read_only = 1;
+SELECT @@global.transaction_read_only;
+SET @@global.transaction_read_only = TRUE;
+SELECT @@global.transaction_read_only;
+SET @@global.transaction_read_only = FALSE;
+SELECT @@global.transaction_read_only;
+
+
+
+--echo ###############################################################################
+--echo # Change the value of transaction_read_only to a valid value for SESSION Scope#
+--echo ###############################################################################
+ 
+SET @@session.transaction_read_only = ON;
+SELECT @@session.transaction_read_only;
+SET @@session.transaction_read_only = OFF;
+SELECT @@session.transaction_read_only;
+SET @@session.transaction_read_only = 0;
+SELECT @@session.transaction_read_only;
+SET @@session.transaction_read_only = 1;
+SELECT @@session.transaction_read_only;
+SET @@session.transaction_read_only = TRUE;
+SELECT @@session.transaction_read_only;
+SET @@session.transaction_read_only = FALSE;
+SELECT @@session.transaction_read_only;
+
+
+--echo ################################################################
+--echo # Change the value of transaction_read_only to an invalid value#
+--echo ################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.transaction_read_only = 'ONN';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.transaction_read_only = "OFFF";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.transaction_read_only = TTRUE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.transaction_read_only = FELSE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.transaction_read_only = -1024;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.transaction_read_only = 65536;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.transaction_read_only = 65530.34;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.transaction_read_only = test;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.transaction_read_only = ONN;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.transaction_read_only = ONF;
+--error ER_PARSE_ERROR
+SET @@session.transaction_read_only = OF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.transaction_read_only = 'OFN';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.transaction_read_only = -2;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.transaction_read_only = 65530.34;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.transaction_read_only = 65550;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.transaction_read_only = test;
+SELECT @@session.transaction_read_only;
+
+
+--echo ####################################################################
+--echo #   Check if the value in GLOBAL Table matches value in variable   #
+--echo ####################################################################
+
+
+--disable_warnings
+SELECT IF(@@global.transaction_read_only, "ON", "OFF") = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='transaction_read_only';
+--enable_warnings
+
+--echo ####################################################################
+--echo #  Check if the value in SESSION Table matches value in variable   #
+--echo ####################################################################
+
+--disable_warnings
+SELECT IF(@@session.transaction_read_only, "ON", "OFF") = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='transaction_read_only';
+--enable_warnings
+
+
+--echo ###############################################################################
+--echo #  Check if accessing variable with and without GLOBAL point to same variable #
+--echo ###############################################################################
+
+SET @@transaction_read_only = OFF;
+SET @@global.transaction_read_only = ON;
+SELECT @@transaction_read_only = @@global.transaction_read_only;
+
+
+--echo ##############################################################################
+--echo #    Check if accessing variable with SESSION,LOCAL and without SCOPE points #
+--echo #    to same session variable                                                #
+--echo ##############################################################################
+
+SET @@transaction_read_only = ON;
+SELECT @@transaction_read_only = @@local.transaction_read_only;
+SELECT @@local.transaction_read_only = @@session.transaction_read_only;
+
+
+--echo ###############################################################################
+--echo #   Check if transaction_read_only can be accessed with and without @@ sign   #
+--echo ###############################################################################
+
+--echo # @@session is synonym for SESSION
+SET @@session.transaction_read_only= 0;
+
+--echo # Without modifier, SET changes session variable
+SET transaction_read_only = 1;
+SELECT @@transaction_read_only;
+
+--echo # name1.name2 refers to database_name.table_name
+--Error ER_UNKNOWN_TABLE
+SELECT session.transaction_read_only;
+
+--echo ####################################
+--echo #     Restore initial value        #
+--echo ####################################
+
+SET @@global.transaction_read_only = @start_global_value;
+SELECT @@global.transaction_read_only;
+SET @@session.transaction_read_only = @start_session_value;
+SELECT @@session.transaction_read_only;
+
+
+--echo #########################################################
+--echo #                 END OF transaction_read_only TESTS    #
+--echo #########################################################

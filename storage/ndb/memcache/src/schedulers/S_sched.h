@@ -1,21 +1,25 @@
 /*
- Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
- reserved.
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- as published by the Free Software Foundation; version 2 of
- the License.
- 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU General Public License for more details.
- 
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License, version 2.0, for more details.
+
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 #ifndef NDBMEMCACHE_S_SCHEDULER_H
@@ -31,9 +35,8 @@
 
 #include "ndbmemcache_config.h"
 #include "Scheduler.h"
-#include "KeyPrefix.h"
-#include "ConnQueryPlanSet.h"
 #include "Queue.h"
+#include "GlobalConfigManager.h"
 
 /* 
  *
@@ -57,24 +60,21 @@ public:
 
 /* The SchedulerGlobal singleton
 */ 
-class S::SchedulerGlobal {
+class S::SchedulerGlobal : public GlobalConfigManager {
+  friend class S::Cluster;
+  friend class S::Connection;
+
 public:
-  SchedulerGlobal(Configuration *);
+  SchedulerGlobal(int);
   ~SchedulerGlobal() {};
   void init(const scheduler_options *options);
   void add_stats(const char *, ADD_STAT, const void *);
-  void reconfigure(Configuration *);
   void shutdown();
   WorkerConnection ** getWorkerConnectionPtr(int thd, int cluster) const {
-    return & workerConnections[(thd * nclusters) + cluster];
+    return (WorkerConnection **) getSchedulerConfigManagerPtr(thd, cluster);
   }
 
-  Configuration *conf;
-  int generation;
-  int nthreads;
-  int nclusters;
   const char * config_string;
-  struct ndb_engine *engine;  
   Cluster ** clusters;
   
   struct {
@@ -87,7 +87,6 @@ public:
   } options;
 
 private:
-  WorkerConnection ** workerConnections;
   void parse_config_string(int threads, const char *config_string);
   bool running;
 };
@@ -100,12 +99,13 @@ private:
 class S::SchedulerWorker : public Scheduler {  
 public:  
   SchedulerWorker() {};
-  ~SchedulerWorker() {};
+  ~SchedulerWorker();
   void init(int threadnum, const scheduler_options * sched_opts);
-  void attach_thread(thread_identifier *);
+  void attach_thread(thread_identifier *) {};
   ENGINE_ERROR_CODE schedule(workitem *);
   void prepare(NdbTransaction *, NdbTransaction::ExecType, 
                NdbAsynchCallback, workitem *, prepare_flags);
+  void close(NdbTransaction *, workitem *);
   void release(workitem *);
   void add_stats(const char *, ADD_STAT, const void *);
   void shutdown();
@@ -187,7 +187,7 @@ private:
 
 /* For each {connection, worker} tuple there is a WorkerConnection 
 */
-class S::WorkerConnection {
+class S::WorkerConnection : public SchedulerConfigManager {
 public:
   WorkerConnection(SchedulerGlobal *, int thd_id, int cluster_id);
   ~WorkerConnection();
@@ -207,7 +207,6 @@ public:
     int max;
   } instances;
   S::Connection *conn;
-  ConnQueryPlanSet *plan_set, *old_plan_set;
   NdbInstance *freelist;
   Queue<NdbInstance> * sendqueue;
 };

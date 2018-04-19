@@ -1,9 +1,7 @@
 #
 # Test for persistent corrupt bit for corrupted index and table
 #
--- source include/have_innodb.inc
---source include/not_embedded.inc
-
+--source include/no_valgrind_without_big.inc
 # This test needs debug server
 --source include/have_debug.inc
 
@@ -37,7 +35,6 @@ select count(*) from corrupt_bit_test_ā;
 SET SESSION debug="+d,dict_set_index_corrupted";
 check table corrupt_bit_test_ā;
 SET SESSION debug="-d,dict_set_index_corrupted";
-
 # Cannot create new indexes while corrupted indexes exist
 --error ER_CHECK_NO_SUCH_TABLE
 CREATE INDEX idx3 ON corrupt_bit_test_ā(b, c);
@@ -96,3 +93,311 @@ select z from corrupt_bit_test_ā limit 10;
 
 # Drop table
 drop table corrupt_bit_test_ā;
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Load table `corrupted`\\.`t[16]` failed, the table contains a corrupted clustered index");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot open table corrupted/t[16]");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table `corrupted`\\.`t[56]` in the cache");
+--enable_query_log
+
+CREATE DATABASE corrupted;
+use corrupted;
+
+CREATE TABLE t1 (
+	a INT NOT NULL PRIMARY KEY,
+	b INT,
+	c CHAR(10),
+	v VARCHAR(100),
+	t TEXT,
+	p POINT NOT NULL);
+
+CREATE TABLE t2 LIKE t1;
+CREATE TEMPORARY TABLE t3 LIKE t2;
+
+CREATE FULLTEXT INDEX ft ON t2(t);
+CREATE INDEX idx_c ON t3(c);
+
+INSERT INTO t1 VALUES (1, 2, 'aaa', 'abcdefghij', 'This is a', st_pointfromtext('POINT(0 0)')),
+(2, 4, 'bb', 'qwerty', 'test case', st_pointfromtext('POINT(1 1)')),
+(3, 6, 'ccccc', 'poiuy', 'for corrupted index', st_pointfromtext('POINT(2 2)'));
+
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t1;
+
+SELECT count(*) FROM t1;
+SELECT count(*) FROM t2;
+SELECT count(*) FROM t3;
+
+--echo # Marking clustered index as corrupted results in ER_NO_SUCH_TABLE
+set debug = "+d, dict_set_clust_index_corrupted";
+CHECK TABLE t1;
+set debug = "-d, dict_set_clust_index_corrupted";
+
+--error ER_NO_SUCH_TABLE
+CREATE INDEX b ON t1(b);
+
+--echo # Mark the secondary index as corrupted
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t2;
+set debug = "-d, dict_set_index_corrupted";
+
+--error ER_TABLE_HAS_NO_FT
+SELECT * FROM t2 WHERE MATCH(t) AGAINST('corrupted');
+SELECT a, b, c FROM t2 WHERE ST_Equals(p, st_pointfromtext('POINT(2 2)'));
+
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t3;
+set debug = "-d, dict_set_index_corrupted";
+
+--error ER_INDEX_CORRUPT
+SELECT c FROM t3 WHERE c = 'bb';
+
+--source include/restart_mysqld.inc
+
+--echo # Make sure the corrupted indexes are still corrupted
+use corrupted;
+SHOW TABLES;
+
+--error ER_CHECK_NO_SUCH_TABLE
+CREATE INDEX b ON t1(b);
+
+--error ER_TABLE_HAS_NO_FT
+SELECT t FROM t2 WHERE MATCH(t) AGAINST('corrupted');
+
+# Re-create the fulltext indee
+DROP INDEX ft ON t2;
+
+--error ER_CHECK_NO_SUCH_TABLE
+ALTER TABLE t2 ADD FULLTEXT INDEX(t);
+--echo # Have to use ALTER TABLE ... COPY, in case 'Incorrect key file for table...'
+--echo # would be reported
+ALTER TABLE t2 ADD FULLTEXT INDEX(t), ALGORITHM=COPY;
+--echo # This should be fine
+SELECT t FROM t2 WHERE MATCH(t) AGAINST('corrupted');
+
+CHECK TABLE t1;
+CHECK TABLE t2;
+
+--echo # We can drop the corrupted table t1 directly here
+DROP TABLE t1, t2;
+
+use corrupted;
+
+CREATE TABLE t3 (
+        a INT NOT NULL PRIMARY KEY,
+        b INT,
+        c CHAR(10),
+        v VARCHAR(100),
+        t TEXT,
+        p POINT NOT NULL SRID 0);
+
+CREATE INDEX idx_b ON t3(b);
+
+INSERT INTO t3 VALUES (1, 2, 'aaa', 'abcdefghij', 'This is a', st_pointfromtext('POINT(0 0)')),
+(2, 4, 'bb', 'qwerty', 'test case', st_pointfromtext('POINT(1 1)')),
+(3, 6, 'ccccc', 'poiuy', 'for corrupted index', st_pointfromtext('POINT(2 2)'));
+
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t3;
+set debug = "-d, dict_set_index_corrupted";
+
+--error ER_INDEX_CORRUPT
+SELECT b FROM t3 WHERE b > 2;
+
+CREATE TABLE t4 LIKE t3;
+CREATE INDEX idx_c ON t4(c);
+CREATE INDEX idx_v ON t4(v);
+
+INSERT INTO t4 SELECT * FROM t3;
+
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t4;
+set debug = "-d, dict_set_index_corrupted";
+
+--error ER_INDEX_CORRUPT
+SELECT b FROM t4 WHERE b > 3;
+show warnings;
+--error ER_INDEX_CORRUPT
+SELECT c FROM t4 WHERE c = 'bb';
+--error ER_INDEX_CORRUPT
+SELECT v FROM t4 WHERE v = 'abcdefg';
+
+CREATE TABLE t5 LIKE t3;
+CREATE SPATIAL INDEX idx_p ON t5(p);
+
+INSERT INTO t5 SELECT * FROM t3;
+
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t5;
+set debug = "-d, dict_set_index_corrupted";
+
+--error ER_INDEX_CORRUPT
+SELECT b FROM t5 WHERE b > 5;
+
+--source include/kill_and_restart_mysqld.inc
+
+use corrupted;
+
+--echo # Check that all corrupted indexes are still marked as corrupted,
+--echo # and non-corrupted indexes are still good.
+CHECK TABLE t3;
+--error ER_INDEX_CORRUPT
+SELECT b FROM t3 WHERE b > 2;
+
+CHECK TABLE t4;
+--error ER_INDEX_CORRUPT
+SELECT b FROM t4 WHERE b > 3;
+--error ER_INDEX_CORRUPT
+SELECT c FROM t4 WHERE c = 'bb';
+--error ER_INDEX_CORRUPT
+SELECT v FROM t4 WHERE v = 'abcdefg';
+
+CHECK TABLE t5;
+--error ER_INDEX_CORRUPT
+SELECT b FROM t5 WHERE b > 5;
+
+--echo # Let's just fix corrupted index for t5
+DROP INDEX idx_b ON t5;
+DROP INDEX idx_p ON t5;
+CREATE INDEX idx_b ON t5(b);
+
+--source include/restart_mysqld.inc
+
+use corrupted;
+
+CHECK TABLE t3;
+--error ER_INDEX_CORRUPT
+SELECT b FROM t3 WHERE b > 2;
+
+CHECK TABLE t4;
+--error ER_INDEX_CORRUPT
+SELECT b FROM t4 WHERE b > 3;
+--error ER_INDEX_CORRUPT
+SELECT c FROM t4 WHERE c = 'bb';
+--error ER_INDEX_CORRUPT
+SELECT v FROM t4 WHERE v = 'abcdefg';
+
+CHECK TABLE t5;
+SELECT b FROM t5 WHERE b > 5;
+
+--echo # Based on these tables, let's test more on checkpoint
+CREATE TABLE t6 LIKE t3;
+
+CREATE INDEX idx_c ON t6(c);
+
+INSERT INTO t6 SELECT * FROM t3;
+
+--echo # Corrupt new table indexes
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t6;
+set debug = "-d, dict_set_index_corrupted";
+
+SET @start_global_value = @@global.innodb_log_checkpoint_now;
+SELECT @start_global_value;
+
+--echo # Invoke a checkpoint, which would persist the corrupted bits
+--echo # of t6 into DD Table Buffer
+set global innodb_log_checkpoint_now=ON;
+
+--echo # Then mark the clustered index as corrupted, make sure that new
+--echo # corruption bits would take effect as well
+set debug = "+d, dict_set_clust_index_corrupted";
+CHECK TABLE t6;
+set debug = "-d, dict_set_clust_index_corrupted";
+
+--echo # Corrupt old table indexes
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t5;
+set debug = "-d, dict_set_index_corrupted";
+
+SELECT @start_global_value;
+SET @@global.innodb_log_checkpoint_now = @start_global_value;
+SELECT @@global.innodb_log_checkpoint_now;
+
+--echo # This crash would leave latest corruption bits un-persisted
+--source include/kill_and_restart_mysqld.inc
+
+use corrupted;
+
+CHECK TABLE t3;
+
+CHECK TABLE t4;
+
+CHECK TABLE t5;
+--error ER_INDEX_CORRUPT
+SELECT b FROM t5 WHERE b > 5;
+
+CHECK TABLE t6;
+--error ER_CHECK_NO_SUCH_TABLE
+CREATE INDEX idx_v ON t6(v);
+
+--echo # Invoke checkpoint to persist the latest corruption bits again
+SET @start_global_value = @@global.innodb_log_checkpoint_now;
+SELECT @start_global_value;
+set global innodb_log_checkpoint_now=ON;
+SELECT @start_global_value;
+SET @@global.innodb_log_checkpoint_now = @start_global_value;
+SELECT @@global.innodb_log_checkpoint_now;
+
+--source include/restart_mysqld.inc
+
+use corrupted;
+
+--echo # After a shutdown and restart, the corrupted bits should be persisted
+--echo # to DD Table Buffer, and we can get them correctly.
+CHECK TABLE t5;
+CHECK TABLE t6;
+
+--echo # An IN-PLACE 'ALTER TABLE' would not recover the table
+ALTER TABLE t5 CHANGE c c1 CHAR(10), ALGORITHM = INPLACE;
+CHECK TABLE t5;
+
+--echo # An 'ALTER TABLE' requiring rebuild would recover the table
+ALTER TABLE t5 ADD COLUMN d INT NOT NULL;
+CHECK TABLE t5;
+SELECT a, b, c1, v, t, st_astext(p) FROM t5 WHERE b > 2;
+
+--echo # Re-create the table should recover the table
+DROP TABLE t6;
+CREATE TABLE t6 LIKE t3;
+INSERT INTO t6 SELECT * FROM t3;
+
+CHECK TABLE t6;
+
+--source include/kill_and_restart_mysqld.inc
+
+use corrupted;
+
+CHECK TABLE t5;
+SELECT a, b, c1, v, t, st_astext(p) FROM t5 WHERE b > 2;
+CHECK TABLE t6;
+
+--source include/restart_mysqld.inc
+
+use corrupted;
+
+CHECK TABLE t5;
+CHECK TABLE t6;
+
+# Uncomment these after WL#6795.
+#--echo # Truncate table should recover the corrupted indexes
+#set debug = "+d, dict_set_sec_index_corrupted";
+#CHECK TABLE t5;
+#set debug = "-d, dict_set_sec_index_corrupted";
+
+#--error ER_INDEX_CORRUPT
+#SELECT b FROM t5 WHERE b > 5;
+
+#TRUNCATE TABLE t5;
+#CHECK TABLE t5;
+
+#INSERT INTO t5 SELECT * FROM t3;
+
+#--source include/restart_mysqld.inc
+
+#use corrupted;
+#CHECK TABLE t5;
+#SELECT b FROM t5 WHERE b > 5;
+
+DROP TABLE t3, t4, t5, t6;
+DROP DATABASE corrupted;

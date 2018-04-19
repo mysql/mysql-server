@@ -1,46 +1,3 @@
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-
-================================================================================
-SHOW_COMPATIBILITY_56 = ON
-================================================================================
-set global show_compatibility_56 = ON;
-
-# TEST 1
-# Handling of SHOW STATUS/VARIABLES...WHERE, expect ERR_WARN_DEPRECATED_SYNTAX
-#
-SHOW GLOBAL STATUS WHERE VARIABLE_NAME LIKE "foo";
-Variable_name	Value
-Warnings:
-Warning	1287	'SHOW GLOBAL STATUS WHERE' is deprecated and will be removed in a future release. Please use SHOW GLOBAL STATUS [LIKE] instead
-
-SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
-Variable_name	Value
-Warnings:
-Warning	1287	'SHOW SESSION STATUS WHERE' is deprecated and will be removed in a future release. Please use SHOW SESSION STATUS [LIKE] instead
-
-SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
-Variable_name	Value
-Warnings:
-Warning	1287	'SHOW GLOBAL VARIABLES WHERE' is deprecated and will be removed in a future release. Please use SHOW GLOBAL VARIABLES [LIKE] instead
-
-SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
-Variable_name	Value
-Warnings:
-Warning	1287	'SHOW SESSION VARIABLES WHERE' is deprecated and will be removed in a future release. Please use SHOW SESSION VARIABLES [LIKE] instead
-
-# TEST 2
-# CREATE..SELECT -- Expect correct ERR_WARN_DEPRECATED_SYNTAX
-#
-USE test;
-CREATE TABLE t0 SELECT * FROM information_schema.global_status WHERE variable_name = 'COM_SELECT';
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
-DROP TABLE t0;
-
-================================================================================
-SHOW_COMPATIBILITY_56 = OFF
-================================================================================
-set global show_compatibility_56 = OFF;
 
 # TEST 3
 # Select status and system variable tables using ORDER BY to exercise the
@@ -58,19 +15,25 @@ select * from status_by_host order by variable_name;
 select * from status_by_account order by variable_name;
 
 # TEST 4
-# Handling of SHOW STATUS/VARIABLES...WHERE, expect usage error.
+# Handling of SHOW STATUS/VARIABLES ... WHERE
 #
-SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
-ERROR HY000: Incorrect usage of SHOW STATUS and WHERE
+SHOW STATUS WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW GLOBAL STATUS WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
 
 SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
-ERROR HY000: Incorrect usage of SHOW STATUS and WHERE
+Variable_name	Value
+
+SHOW VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
 
 SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
-ERROR HY000: Incorrect usage of SHOW VARIABLES and WHERE
+Variable_name	Value
 
 SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
-ERROR HY000: Incorrect usage of SHOW VARIABLES and WHERE
+Variable_name	Value
 
 # TEST 5
 # Confirm FLUSH STATUS resets counters for all threads.
@@ -106,6 +69,3 @@ SELECT @bytes_before > @bytes_after;
 SELECT @bytes_after;
 @bytes_after
 0
-
-# CLEANUP
-set @@global.show_compatibility_56 = @show_compatibility_56_save;

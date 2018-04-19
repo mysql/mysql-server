@@ -1,0 +1,156 @@
+# ==== Purpose ====
+#
+# BUG#16741603: MYSQLD SCANS ALL BINARY LOGS ON CRASH RECOVERY
+#
+# Verify that the server does not scan more than one binary log
+# in every iteration when initializing GTID sets on server start
+# if binlog-gtid-simple-recovery is enabled. See implementation
+# step 1-8.
+#
+# Bug #20075721  ASSERTION `LOST_GTIDS->IS_EMPTY()' AT BINLOG.CC:3637
+# ON PURGE BINLOG CMD
+#
+# We are hitting the assertion when purging binary logs and the first
+# left binary log just contains a Previous_gtids_log_event. The problem
+# is caused by making GOT_PREVIOUS_GTIDS case to execute the assertion.
+# This change is added after fixing Bug#16741603, but missed to
+# remove the assertion.
+#
+# Removing the assertion to fix the problem.
+#
+# See implementation step 9-10.
+#
+# ==== Implementation ====
+#
+# 1) Start server and generate four binary logs with gtid_mode off.
+# 2) Move binlog.000002 to binlog.000002.bkp and
+#    binlog.000003 to binlog.000003.bkp
+# 3) Only binlog.000001 and binlog.000004 remain, others are moved
+#    , restart the server with enabled binlog-gtid-simple-recovery
+#    and gtid_mode on. If the server scans more than one binary log in
+#    every iteration, it will cause read error on the 2nd and 3rd files.
+# 4) Verify that GLOBAL.GTID_EXECUTED and GLOBAL.GTID_PURGED are empty
+#    after server restarts.
+# 5) Move binlog.000004 to binlog.000004.bkp
+# 6) Only binlog.000001 and binlog.000005 remain, others are moved
+#    , restart the server with enabled binlog-gtid-simple-recovery
+#    and gtid_mode on again. If the server scans more than one binary
+#    log in every iteration, it will cause read error on the 2nd and
+#    4th files.
+# 7) Verify that GLOBAL.GTID_EXECUTED contains committed gtid MASTER_UUID:1
+#    and GLOBAL.GTID_PURGED is empty after server restarts again.
+# 8) Move binary logs back.
+#
+# 9) PURGE BINARY LOGS TO the last binary log binlog.000006, which
+#    just contains a Previous_gtids_log_event. This will not cause an
+#    assertion failure any more.
+# 10) Assert that the set of purged gtids is not empty (it is MASTER_UUID:1),
+#     since a gtid event is written into binlog.000004.
+#
+
+# Test in this file is binlog format agnostic, thus no need
+# to rerun them for every format.
+--source include/have_binlog_format_row.inc
+--source include/force_restart.inc
+
+RESET MASTER;
+--let $MYSQLD_DATADIR= `select @@datadir`
+--let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+CREATE TABLE t1 (
+  c1 INT NOT NULL PRIMARY KEY
+);
+
+--echo # Generate binlog.000002
+FLUSH LOGS;
+INSERT INTO t1 VALUES (1);
+--let $binlog_file2= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo # Generate binlog.000003
+FLUSH LOGS;
+INSERT INTO t1 VALUES (2);
+--let $binlog_file3= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo # Generate binlog.000004
+FLUSH LOGS;
+INSERT INTO t1 VALUES (3);
+--let $binlog_file4= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo # Move binlog.000002 to binlog.000002.bkp and
+--echo # binlog.000003 to binlog.000003.bkp
+--move_file $MYSQLD_DATADIR/$binlog_file2 $MYSQLD_DATADIR/$binlog_file2.bkp
+--move_file $MYSQLD_DATADIR/$binlog_file3 $MYSQLD_DATADIR/$binlog_file3.bkp
+
+--echo #
+--echo # Only binlog.000001 and binlog.000004 remain, others are moved
+--echo # , restart the server with enabled binlog-gtid-simple-recovery
+--echo # and gtid_mode on. If the server scans more than one binary log in
+--echo # every iteration, it will cause read error on the 2nd and 3rd files.
+--echo #
+--let $restart_parameters=restart:--gtid-mode=on --enforce-gtid-consistency --log-slave-updates --binlog-gtid-simple-recovery=ON
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # Verify that GLOBAL.GTID_EXECUTED and GLOBAL.GTID_PURGED are empty
+--echo # after server restarts.
+--echo #
+--let $assert_text= GLOBAL.GTID_EXECUTED must be empty.
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+--let $assert_text= GLOBAL.GTID_PURGED must be empty.
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = ""
+--source include/assert.inc
+
+--echo #
+--echo # Write one gtid event into binlog.000004
+--echo #
+DROP TABLE t1;
+--echo # Move binlog.000004 to binlog.000004.bkp
+--move_file $MYSQLD_DATADIR/$binlog_file4 $MYSQLD_DATADIR/$binlog_file4.bkp
+
+--echo #
+--echo # Only binlog.000001 and binlog.000005 remain, others are moved
+--echo # , restart the server with enabled binlog-gtid-simple-recovery
+--echo # and gtid_mode on again. If the server scans more than one binary
+--echo # log in every iteration, it will cause read error on the 2nd and
+--echo # 4th files.
+--echo #
+--let $restart_parameters=restart:--gtid-mode=on --enforce-gtid-consistency --log-slave-updates --binlog-gtid-simple-recovery=ON
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # Verify that GLOBAL.GTID_EXECUTED contains committed gtid MASTER_UUID:1
+--echo # and GLOBAL.GTID_PURGED is empty after server restarts again.
+--echo #
+--let $assert_text= committed gtid MASTER_UUID:1
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1"
+--source include/assert.inc
+--let $assert_text= GLOBAL.GTID_PURGED is empty
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = ""
+--source include/assert.inc
+
+--echo #
+--echo # Move binary logs back.
+--echo #
+--move_file $MYSQLD_DATADIR/$binlog_file2.bkp $MYSQLD_DATADIR/$binlog_file2
+--move_file $MYSQLD_DATADIR/$binlog_file3.bkp $MYSQLD_DATADIR/$binlog_file3
+--move_file $MYSQLD_DATADIR/$binlog_file4.bkp $MYSQLD_DATADIR/$binlog_file4
+
+--let $binlog_file6= query_get_value(SHOW MASTER STATUS, File, 1)
+--echo #
+--echo # PURGE BINARY LOGS TO binlog.000006
+--echo #
+--eval PURGE BINARY LOGS TO '$binlog_file6'
+
+--let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+--let $assert_text= purged gtids MASTER_UUID:1
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = "$master_uuid:1"
+--source include/assert.inc
+
+# clean up
+--let $MYSQLD_DATADIR=
+--let $master_uuid=
+--let $restart_parameters=
+--let $binlog_file2=
+--let $binlog_file3=
+--let $binlog_file4=
+--let $binlog_file6=

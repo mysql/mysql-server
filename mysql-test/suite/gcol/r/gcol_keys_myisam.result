@@ -6,61 +6,49 @@ SET @@session.default_storage_engine = 'MyISAM';
 #            - FOREIGN INDEX (partially supported)
 #            - CHECK (allowed but not used)
 # UNIQUE
-create table t1 (a int, b int generated always as (a*2) virtual unique);
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
 create table t1 (a int, b int generated always as (a*2) stored unique);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
+  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   UNIQUE KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 b	int(11)	YES	UNI	NULL	STORED GENERATED
 drop table t1;
-create table t1 (a int, b int generated always as (a*2) virtual, unique key (b));
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
 create table t1 (a int, b int generated always as (a*2) stored, unique (b));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
+  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   UNIQUE KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 b	int(11)	YES	UNI	NULL	STORED GENERATED
 drop table t1;
-create table t1 (a int, b int generated always as (a*2) virtual);
-alter table t1 add unique key (b);
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
-drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored);
 alter table t1 add unique key (b);
 drop table t1;
-# Testing data manipulation operations involving UNIQUE keys 
+# Testing data manipulation operations involving UNIQUE keys
 # on generated columns can be found in:
 #  - gcol_ins_upd.inc
 #  - gcol_select.inc
-# 
+#
 # INDEX
-create table t1 (a int, b int generated always as (a*2) virtual, index (b));
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
-create table t1 (a int, b int generated always as (a*2) virtual, index (a,b));
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
 create table t1 (a int, b int generated always as (a*2) stored, index (b));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
+  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -71,19 +59,13 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
+  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   KEY `a` (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES	MUL	NULL	
 b	int(11)	YES		NULL	STORED GENERATED
-drop table t1;
-create table t1 (a int, b int generated always as (a*2) virtual);
-alter table t1 add index (b);
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
-alter table t1 add index (a,b);
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored);
 alter table t1 add index (b);
@@ -125,13 +107,6 @@ ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a genera
 alter table t1 add foreign key (b) references t2(a) on delete set null;
 ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a generated column.
 drop table t1;
-create table t1 (a int, b int generated always as (a+1) virtual,
-foreign key (b) references t2(a));
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
-create table t1 (a int, b int generated always as (a+1) virtual);
-alter table t1 add foreign key (b) references t2(a);
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
-drop table t1;
 # Allowed FK options.
 create table t2 (a int primary key, b char(5));
 create table t1 (a int, b int generated always as (a % 10) stored,
@@ -148,14 +123,1006 @@ foreign key (b) references t2(a) on delete cascade);
 drop table t1;
 create table t1 (a int, b int generated always as (a % 10) stored,
 foreign key (b) references t2(a) on delete no action);
-drop table t1;
+drop table t1,t2;
 
-# Testing data manipulation operations involving FOREIGN KEY 
+# Testing data manipulation operations involving FOREIGN KEY
 # on generated columns can be found in:
 #  - gcol_ins_upd.inc
 #  - gcol_select.inc
 #
 # TODO: CHECK
+#
+# Test how optimizer picks indexes defined on a GC
+#
+SET optimizer_trace_max_mem_size=1048576;
+SET optimizer_trace="enabled=on,one_line=off";
+SET end_markers_in_json="on";
+CREATE TABLE t1 (f1 int, gc int AS (f1 + 1) STORED PRIMARY KEY);
+INSERT INTO t1(f1) VALUES (1),(2),(0),(9),(3),(4),(8),(7),(5),(6);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Should use index
+SELECT * FROM t1 WHERE f1 + 1 > 7;
+f1	gc
+7	8
+8	9
+9	10
+EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` where (`test`.`t1`.`gc` > 7)
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`f1` AS `f1`,`t1`.`gc` AS `gc` from `t1` where ((`t1`.`f1` + 1) > 7)"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "((`t1`.`f1` + 1) > 7)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "((`t1`.`f1` + 1) > 7)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "((`t1`.`f1` + 1) > 7)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "((`t1`.`f1` + 1) > 7)"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+              "resulting_condition": "(`t1`.`gc` > 7)"
+            } /* substitute_generated_columns */
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 10,
+                    "cost": 3.6055
+                  } /* table_scan */,
+                  "potential_range_indexes": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": true,
+                      "key_parts": [
+                        "gc"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indexes */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  } /* group_index_range */,
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                      {
+                        "index": "PRIMARY",
+                        "ranges": [
+                          "7 < gc"
+                        ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
+                        "index_only": false,
+                        "rows": 4,
+                        "cost": 1.66,
+                        "chosen": true
+                      }
+                    ] /* range_scan_alternatives */,
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    } /* analyzing_roworder_intersect */
+                  } /* analyzing_range_alternatives */,
+                  "chosen_range_access_summary": {
+                    "range_access_plan": {
+                      "type": "range_scan",
+                      "index": "PRIMARY",
+                      "rows": 4,
+                      "ranges": [
+                        "7 < gc"
+                      ] /* ranges */
+                    } /* range_access_plan */,
+                    "rows_for_plan": 4,
+                    "cost_for_plan": 1.66,
+                    "chosen": true
+                  } /* chosen_range_access_summary */
+                } /* range_analysis */
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 4,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
+                      "access_type": "range",
+                      "range_details": {
+                        "used_index": "PRIMARY"
+                      } /* range_details */,
+                      "resulting_rows": 4,
+                      "cost": 2.06,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 4,
+                "cost_for_plan": 2.06,
+                "chosen": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(`t1`.`gc` > 7)",
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "(`t1`.`gc` > 7)"
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`",
+                "pushed_index_condition": "(`t1`.`gc` > 7)",
+                "table_condition_attached": null
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_explain */
+    }
+  ] /* steps */
+}	0	0
+SELECT * FROM t1 WHERE f1 + 1 = 7;
+f1	gc
+6	7
+EXPLAIN SELECT * FROM t1 WHERE f1 + 1 = 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '6' AS `f1`,'7' AS `gc` from `test`.`t1` where ('7' = 7)
+SELECT * FROM t1 WHERE f1 + 1 IN (7,5);
+f1	gc
+4	5
+6	7
+EXPLAIN SELECT * FROM t1 WHERE f1 + 1 IN(7,5);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` where (`test`.`t1`.`gc` in (7,5))
+SELECT * FROM t1 WHERE f1 + 1 BETWEEN 5 AND 7;
+f1	gc
+4	5
+5	6
+6	7
+EXPLAIN SELECT * FROM t1 WHERE f1 + 1 BETWEEN 5 AND 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` where (`test`.`t1`.`gc` between 5 and 7)
+# Check that expression isn't transformed for a disabled key
+SELECT * FROM t1 IGNORE KEY FOR JOIN(PRIMARY) WHERE f1 + 1 BETWEEN 5 AND 7;
+f1	gc
+4	5
+5	6
+6	7
+EXPLAIN SELECT * FROM t1 IGNORE KEY FOR JOIN(PRIMARY) WHERE f1 + 1 BETWEEN 5 AND 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` IGNORE INDEX FOR JOIN (PRIMARY) where ((`test`.`t1`.`f1` + 1) between 5 and 7)
+# Check that ORDER BY could be optimized
+SELECT * FROM t1 ORDER BY f1 + 1;
+f1	gc
+0	1
+1	2
+2	3
+3	4
+4	5
+5	6
+6	7
+7	8
+8	9
+9	10
+EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` order by `test`.`t1`.`gc`
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`f1` AS `f1`,`t1`.`gc` AS `gc` from `t1` order by (`t1`.`f1` + 1)"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "substitute_generated_columns": {
+              "resulting_ORDER_BY": "`t1`.`gc`"
+            } /* substitute_generated_columns */
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 10,
+                  "cost": 0.5055
+                } /* table_scan */
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 10,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
+                      "access_type": "scan",
+                      "resulting_rows": 10,
+                      "cost": 1.5055,
+                      "chosen": true,
+                      "use_tmp_table": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 10,
+                "cost_for_plan": 1.5055,
+                "sort_cost": 10,
+                "new_cost_for_plan": 11.505,
+                "chosen": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": null
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`gc`",
+                "items": [
+                  {
+                    "item": "`t1`.`gc`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`gc`"
+              } /* simplifying_order_by */
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
+            "reconsidering_access_paths_for_index_ordering": {
+              "clause": "ORDER BY",
+              "index_order_summary": {
+                "table": "`t1`",
+                "index_provides_order": false,
+                "order_direction": "undefined",
+                "index": "unknown",
+                "plan_changed": false
+              } /* index_order_summary */
+            } /* reconsidering_access_paths_for_index_ordering */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
+              } /* filesort */
+            ] /* considering_tmp_tables */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_explain */
+    }
+  ] /* steps */
+}	0	0
+EXPLAIN SELECT * FROM t1 IGNORE KEY FOR ORDER BY(PRIMARY) ORDER BY f1 + 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` IGNORE INDEX FOR ORDER BY (PRIMARY) order by (`test`.`t1`.`f1` + 1)
+# Check that GROUP BY could be optimized
+SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
+f1 + 1	MAX(GC)
+1	1
+10	10
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	10	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t1`.`f1` + 1) AS `f1 + 1`,max(`test`.`t1`.`gc`) AS `MAX(GC)` from `test`.`t1` group by `test`.`t1`.`gc`
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select (`t1`.`f1` + 1) AS `f1 + 1`,max(`t1`.`gc`) AS `MAX(GC)` from `t1` group by (`t1`.`f1` + 1)"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "substitute_generated_columns": {
+              "resulting_GROUP_BY": "`t1`.`gc`"
+            } /* substitute_generated_columns */
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "const_keys_added": {
+                  "keys": [
+                    "PRIMARY"
+                  ] /* keys */,
+                  "cause": "group_by"
+                } /* const_keys_added */,
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 10,
+                    "cost": 3.6055
+                  } /* table_scan */,
+                  "potential_range_indexes": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": true,
+                      "key_parts": [
+                        "gc"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indexes */,
+                  "group_index_range": {
+                    "potential_group_range_indexes": [
+                      {
+                        "index": "PRIMARY",
+                        "usable": false,
+                        "cause": "not_covering"
+                      }
+                    ] /* potential_group_range_indexes */
+                  } /* group_index_range */
+                } /* range_analysis */
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 10,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
+                      "access_type": "scan",
+                      "resulting_rows": 10,
+                      "cost": 1.5055,
+                      "chosen": true,
+                      "use_tmp_table": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 10,
+                "cost_for_plan": 1.5055,
+                "sort_cost": 10,
+                "new_cost_for_plan": 11.505,
+                "chosen": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": null
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_group_by": {
+                "original_clause": "`t1`.`gc`",
+                "items": [
+                  {
+                    "item": "`t1`.`gc`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`gc`"
+              } /* simplifying_group_by */
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
+            "reconsidering_access_paths_for_index_ordering": {
+              "clause": "GROUP BY",
+              "index_order_summary": {
+                "table": "`t1`",
+                "index_provides_order": true,
+                "order_direction": "asc",
+                "index": "PRIMARY",
+                "plan_changed": true,
+                "access_type": "index"
+              } /* index_order_summary */
+            } /* reconsidering_access_paths_for_index_ordering */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_explain */
+    }
+  ] /* steps */
+}	0	0
+EXPLAIN SELECT f1 + 1, MAX(GC)
+FROM t1 IGNORE KEY FOR GROUP BY(PRIMARY) GROUP BY f1 + 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t1`.`f1` + 1) AS `f1 + 1`,max(`test`.`t1`.`gc`) AS `MAX(GC)` from `test`.`t1` IGNORE INDEX FOR GROUP BY (PRIMARY) group by (`test`.`t1`.`f1` + 1)
+# Shouldn't use index
+SELECT * FROM t1 WHERE f1 + 1 > 7.0;
+f1	gc
+7	8
+8	9
+9	10
+EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7.0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` where ((`test`.`t1`.`f1` + 1) > 7.0)
+DROP TABLE t1;
+# Pick index with proper type
+CREATE TABLE t1 (f1 int,
+gc_int int AS (f1 + 1) STORED,
+gc_date DATE AS (f1 + 1) STORED,
+KEY gc_int_idx(gc_int),
+KEY gc_date_idx(gc_date));
+INSERT INTO t1(f1) VALUES
+(030303),(040404),
+(050505),(060606),
+(010101),(020202),
+(030303),(040404),
+(050505),(060606),
+(010101),(020202),
+(090909),(101010),
+(010101),(020202),
+(070707),(080808);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT * FROM t1 WHERE f1 + 1 > 070707;
+f1	gc_int	gc_date
+101010	101011	2010-10-11
+70707	70708	2007-07-08
+80808	80809	2008-08-09
+90909	90910	2009-09-10
+# INT column & index should be picked
+EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 070707;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_int_idx	gc_int_idx	5	NULL	5	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc_int` AS `gc_int`,`test`.`t1`.`gc_date` AS `gc_date` from `test`.`t1` where (`test`.`t1`.`gc_int` > 70707)
+SELECT * FROM t1 WHERE f1 + 1 > CAST(070707 AS DATE);
+f1	gc_int	gc_date
+101010	101011	2010-10-11
+70707	70708	2007-07-08
+80808	80809	2008-08-09
+90909	90910	2009-09-10
+# DATE column & index should be picked
+EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > CAST(070707 AS DATE);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_date_idx	gc_date_idx	4	NULL	5	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc_int` AS `gc_int`,`test`.`t1`.`gc_date` AS `gc_date` from `test`.`t1` where (`test`.`t1`.`gc_date` > <cache>(cast(70707 as date)))
+DROP TABLE t1;
+#
+# BUG#21229846: WL8170: SIGNAL 11 IN JOIN::MAKE_SUM_FUNC_LIST
+#
+CREATE TABLE t1 (
+pk int primary key auto_increment,
+col_int_key INTEGER ,
+col_int_gc_key INT GENERATED ALWAYS AS (col_int_key + 1) STORED,
+KEY col_int_gc_key(col_int_gc_key)
+);
+INSERT INTO t1 ( col_int_key) VALUES (7);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT  table1.col_int_key + 1 AS field1, table2.col_int_key AS field2
+FROM (t1 AS table1  JOIN t1 AS table2 ON (table2.pk = table1.pk))
+ORDER BY field1, field2;
+field1	field2
+8	7
+EXPLAIN SELECT  table1.col_int_key + 1 AS field1, table2.col_int_key AS field2
+FROM (t1 AS table1  JOIN t1 AS table2 ON (table2.pk = table1.pk))
+ORDER BY field1, field2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	table2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select ('7' + 1) AS `field1`,'7' AS `field2` from dual where 1 order by `col_int_gc_key`,`field2`
+SELECT  table1.col_int_key + 1 AS field1, table2.col_int_key AS field2
+FROM (t1 AS table1  JOIN t1 AS table2 ON (table2.pk = table1.pk))
+GROUP BY field1, field2;
+field1	field2
+8	7
+EXPLAIN SELECT  table1.col_int_key + 1 AS field1, table2.col_int_key AS field2
+FROM (t1 AS table1  JOIN t1 AS table2 ON (table2.pk = table1.pk))
+GROUP BY field1, field2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	table2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select ('7' + 1) AS `field1`,'7' AS `field2` from dual where 1 group by `col_int_gc_key`,`field2`
+DROP TABLE t1;
+#
+# Bug#21770798 OPTIMIZER DOES NOT USE INDEX FOR GENERATED EXPRESSIONS
+#              WITH LOGICAL OPERATORS
+#
+CREATE TABLE t (a INT, b INT,
+gc_and INT GENERATED ALWAYS AS (a AND b) STORED,
+gc_or INT GENERATED ALWAYS AS (a OR b) STORED,
+gc_xor INT GENERATED ALWAYS AS (a XOR b) STORED,
+gc_not INT GENERATED ALWAYS AS (NOT a) STORED,
+gc_case INT GENERATED ALWAYS AS
+(CASE WHEN (a AND b) THEN a ELSE b END) STORED,
+INDEX(gc_and), INDEX(gc_or), INDEX(gc_xor), INDEX(gc_not),
+INDEX(gc_case));
+INSERT INTO t (a, b) VALUES (0, 0), (0, 1), (1, 0), (1, 1);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT a, b FROM t WHERE (a AND b) = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	gc_and	gc_and	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_and` = 1)
+SELECT a, b FROM t WHERE (a AND b) = 1;
+a	b
+1	1
+EXPLAIN SELECT a, b FROM t WHERE 1 = (a AND b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	gc_and	gc_and	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = `test`.`t`.`gc_and`)
+SELECT a, b FROM t WHERE 1 = (a AND b);
+a	b
+1	1
+EXPLAIN SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	gc_and	gc_and	5	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_and` in (1,2,3))
+SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);
+a	b
+1	1
+EXPLAIN SELECT a, b FROM t WHERE (a OR b) = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	gc_or	gc_or	5	const	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_or` = 1)
+SELECT a, b FROM t WHERE (a OR b) = 1;
+a	b
+0	1
+1	0
+1	1
+EXPLAIN SELECT a, b FROM t WHERE (a OR b) BETWEEN 1 AND 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	gc_or	gc_or	5	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_or` between 1 and 10)
+SELECT a, b FROM t WHERE (a OR b) BETWEEN 1 AND 10;
+a	b
+0	1
+1	0
+1	1
+EXPLAIN SELECT a, b FROM t WHERE (a XOR b) = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	gc_xor	gc_xor	5	const	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_xor` = 1)
+SELECT a, b FROM t WHERE (a XOR b) = 1;
+a	b
+0	1
+1	0
+EXPLAIN SELECT a FROM t WHERE (NOT a) = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	gc_not	gc_not	5	const	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where (`test`.`t`.`gc_not` = 1)
+SELECT a FROM t WHERE (NOT a) = 1;
+a
+0
+0
+EXPLAIN SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	gc_case	gc_case	5	const	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where (`test`.`t`.`gc_case` = 1)
+SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
+a
+0
+1
+EXPLAIN SELECT a, b FROM t WHERE 1 = (b AND a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = (`test`.`t`.`b` and `test`.`t`.`a`))
+SELECT a, b FROM t WHERE 1 = (b AND a);
+a	b
+1	1
+EXPLAIN SELECT a, b FROM t WHERE 1 = (b OR a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = (`test`.`t`.`b` or `test`.`t`.`a`))
+Warnings:
+SELECT a, b FROM t WHERE 1 = (b OR a);
+a	b
+0	1
+1	0
+1	1
+DROP TABLE t;
+#
+# Bug#21854241: QUERY USING JSON_EXTRACT() RETURNS WRONG RESULT
+#               AFTER ADDING VIRTUAL INDEX
+#
+CREATE TABLE employees (
+data JSON,
+name1 VARCHAR(30) AS (JSON_EXTRACT(data, "$.name")) STORED,
+name2 VARCHAR(30) AS (JSON_UNQUOTE(JSON_EXTRACT(data, "$.name"))) STORED
+);
+INSERT INTO employees (data) VALUES('{"id": 1, "name": "Jane"}');
+INSERT INTO employees (data) VALUES('{"id": 2, "name": "Joe"}');
+ANALYZE TABLE employees;
+Table	Op	Msg_type	Msg_text
+test.employees	analyze	status	OK
+EXPLAIN SELECT * FROM employees WHERE JSON_EXTRACT(data, '$.name') = 'Jane';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	employees	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`employees`.`data` AS `data`,`test`.`employees`.`name1` AS `name1`,`test`.`employees`.`name2` AS `name2` from `test`.`employees` where (json_extract(`test`.`employees`.`data`,'$.name') = 'Jane')
+SELECT * FROM employees WHERE JSON_EXTRACT(data, '$.name') = 'Jane';
+data	name1	name2
+{"id": 1, "name": "Jane"}	"Jane"	Jane
+ALTER TABLE employees ADD INDEX name_idx1(name1);
+ANALYZE TABLE employees;
+Table	Op	Msg_type	Msg_text
+test.employees	analyze	status	OK
+EXPLAIN SELECT * FROM employees WHERE JSON_EXTRACT(data, '$.name') = 'Jane';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	employees	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`employees`.`data` AS `data`,`test`.`employees`.`name1` AS `name1`,`test`.`employees`.`name2` AS `name2` from `test`.`employees` where (json_extract(`test`.`employees`.`data`,'$.name') = 'Jane')
+SELECT * FROM employees WHERE JSON_EXTRACT(data, '$.name') = 'Jane';
+data	name1	name2
+{"id": 1, "name": "Jane"}	"Jane"	Jane
+ALTER TABLE employees ADD INDEX name_idx2(name2);
+ANALYZE TABLE employees;
+Table	Op	Msg_type	Msg_text
+test.employees	analyze	status	OK
+EXPLAIN SELECT * FROM employees WHERE JSON_EXTRACT(data, '$.name') = 'Jane';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	employees	NULL	ref	name_idx2	name_idx2	123	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`employees`.`data` AS `data`,`test`.`employees`.`name1` AS `name1`,`test`.`employees`.`name2` AS `name2` from `test`.`employees` where (`test`.`employees`.`name2` = 'Jane')
+SELECT * FROM employees WHERE JSON_EXTRACT(data, '$.name') = 'Jane';
+data	name1	name2
+{"id": 1, "name": "Jane"}	"Jane"	Jane
+DROP TABLE employees;
+#
+# Bug#22077611 UPDATE .. WHERE JSON_EXTRACT(..) = '..' NOT USING
+#              VIRTUAL COL INDEX
+#
+CREATE TABLE t(a INT, b INT, gc INT GENERATED ALWAYS AS (a+1) STORED, KEY(gc));
+INSERT INTO t(a) VALUES (1), (2), (3), (4), (5), (1), (2), (3), (4), (5);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN UPDATE t SET b = 10 WHERE (a+1) = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t	NULL	range	gc	gc	5	const	2	100.00	Using where
+UPDATE t SET b = 10 WHERE (a+1) = 3;
+SELECT * FROM t ORDER BY a, b;
+a	b	gc
+1	NULL	2
+1	NULL	2
+2	10	3
+2	10	3
+3	NULL	4
+3	NULL	4
+4	NULL	5
+4	NULL	5
+5	NULL	6
+5	NULL	6
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN UPDATE t SET b = 9 ORDER BY (a+1) LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t	NULL	index	NULL	gc	5	NULL	1	100.00	Using temporary
+UPDATE t SET b = 9 ORDER BY (a+1) LIMIT 1;
+SELECT * FROM t ORDER BY a, b;
+a	b	gc
+1	NULL	2
+1	9	2
+2	10	3
+2	10	3
+3	NULL	4
+3	NULL	4
+4	NULL	5
+4	NULL	5
+5	NULL	6
+5	NULL	6
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN DELETE FROM t WHERE (a+1) = 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t	NULL	range	gc	gc	5	const	2	100.00	Using where
+DELETE FROM t WHERE (a+1) = 2;
+SELECT * FROM t ORDER BY a, b;
+a	b	gc
+2	10	3
+2	10	3
+3	NULL	4
+3	NULL	4
+4	NULL	5
+4	NULL	5
+5	NULL	6
+5	NULL	6
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN DELETE FROM t ORDER BY (a+1) LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t	NULL	index	NULL	gc	5	NULL	1	100.00	NULL
+DELETE FROM t ORDER BY (a+1) LIMIT 1;
+SELECT * FROM t ORDER BY a, b;
+a	b	gc
+2	10	3
+3	NULL	4
+3	NULL	4
+4	NULL	5
+4	NULL	5
+5	NULL	6
+5	NULL	6
+DROP TABLE t;
+#
+# Bug#22810883: ASSERTION FAILED:
+#               !(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))
+#
+CREATE TABLE t1 (a1 INTEGER GENERATED ALWAYS AS (1 AND 0) STORED,
+a2 INTEGER, KEY (a1));
+INSERT INTO t1 VALUES ();
+CREATE TABLE t2 (b INTEGER);
+INSERT INTO t2 VALUES (1);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+# Used to choose the index on a1 and get wrong results.
+EXPLAIN SELECT * FROM t1 WHERE (a2 AND a2) = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Note	1003	/* select#1 */ select '0' AS `a1`,NULL AS `a2` from dual where ((NULL and NULL) = 0)
+SELECT * FROM t1 WHERE (a2 AND a2) = 0;
+a1	a2
+# Used to get assertion or wrong results.
+EXPLAIN SELECT * FROM t1 STRAIGHT_JOIN t2 ON b WHERE (b AND b) = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '0' AS `a1`,NULL AS `a2`,'1' AS `b` from `test`.`t2` where ((('1' and '1') = 1) and '1')
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON b WHERE (b AND b) = 1;
+a1	a2	b
+0	NULL	1
+DROP TABLE t1, t2;
+#
+# Bug#27403367: GENERATED COLUMN EXPRESSIONS IGNORED WITH PREFIX INDEX
+#
+CREATE TABLE t (vc VARCHAR(100),
+gc VARCHAR(100) GENERATED ALWAYS AS (REVERSE(vc)) STORED,
+KEY (gc(3)));
+INSERT INTO t(vc) VALUES ('a'), ('abc'), ('abcabc'), ('abcdef');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT * FROM t WHERE REVERSE(vc) = 'cba';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	gc	gc	15	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (`test`.`t`.`gc` = 'cba')
+SELECT * FROM t WHERE REVERSE(vc) = 'cba';
+vc	gc
+abc	cba
+EXPLAIN SELECT * FROM t WHERE REVERSE(vc) = 'cbacba';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	gc	gc	15	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (`test`.`t`.`gc` = 'cbacba')
+SELECT * FROM t WHERE REVERSE(vc) = 'cbacba';
+vc	gc
+abcabc	cbacba
+EXPLAIN SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	gc	gc	15	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (`test`.`t`.`gc` between 'c' and 'e')
+SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';
+vc	gc
+abc	cba
+abcabc	cbacba
+DROP TABLE t;
+#
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

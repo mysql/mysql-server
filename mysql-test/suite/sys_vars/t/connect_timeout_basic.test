@@ -107,7 +107,7 @@ SELECT @@session.connect_timeout;
 
 --disable_warnings
 SELECT @@global.connect_timeout = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='connect_timeout';
 --enable_warnings
 

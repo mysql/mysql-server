@@ -1,17 +1,24 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef PFS_STATEMENT_PROVIDER_H
 #define PFS_STATEMENT_PROVIDER_H
@@ -21,38 +28,40 @@
   Performance schema instrumentation (declarations).
 */
 
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#include <sys/types.h>
+
+#include "my_psi_config.h"
+
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
 #ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
-#include "mysql/psi/psi.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "mysql/psi/psi_statement.h"
+#include "sql/sql_digest.h"
 
-#define PSI_STATEMENT_CALL(M) pfs_ ## M ## _v1
-#define PSI_DIGEST_CALL(M) pfs_ ## M ## _v1
+struct PSI_digest_locker;
+struct sql_digest_storage;
 
-C_MODE_START
+#define PSI_STATEMENT_CALL(M) pfs_##M##_v1
+#define PSI_DIGEST_CALL(M) pfs_##M##_v1
 
 void pfs_register_statement_v1(const char *category,
-                               PSI_statement_info_v1 *info,
-                               int count);
+                               PSI_statement_info_v1 *info, int count);
 
-PSI_statement_locker*
-pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
-                                   PSI_statement_key key,
-                                   const void *charset,
-                                   PSI_sp_share *sp_share);
+PSI_statement_locker *pfs_get_thread_statement_locker_v1(
+    PSI_statement_locker_state *state, PSI_statement_key key,
+    const void *charset, PSI_sp_share *sp_share);
 
-PSI_statement_locker*
-pfs_refine_statement_v1(PSI_statement_locker *locker,
-                        PSI_statement_key key);
+PSI_statement_locker *pfs_refine_statement_v1(PSI_statement_locker *locker,
+                                              PSI_statement_key key);
 
-void pfs_start_statement_v1(PSI_statement_locker *locker,
-                            const char *db, uint db_len,
-                            const char *src_file, uint src_line);
+void pfs_start_statement_v1(PSI_statement_locker *locker, const char *db,
+                            uint db_len, const char *src_file, uint src_line);
 
-void pfs_set_statement_text_v1(PSI_statement_locker *locker,
-                               const char *text, uint text_len);
+void pfs_set_statement_text_v1(PSI_statement_locker *locker, const char *text,
+                               uint text_len);
 
 void pfs_set_statement_lock_time_v1(PSI_statement_locker *locker,
                                     ulonglong count);
@@ -87,14 +96,11 @@ void pfs_inc_statement_select_scan_v1(PSI_statement_locker *locker,
 void pfs_inc_statement_sort_merge_passes_v1(PSI_statement_locker *locker,
                                             ulong count);
 
-void pfs_inc_statement_sort_range_v1(PSI_statement_locker *locker,
-                                     ulong count);
+void pfs_inc_statement_sort_range_v1(PSI_statement_locker *locker, ulong count);
 
-void pfs_inc_statement_sort_rows_v1(PSI_statement_locker *locker,
-                                    ulong count);
+void pfs_inc_statement_sort_rows_v1(PSI_statement_locker *locker, ulong count);
 
-void pfs_inc_statement_sort_scan_v1(PSI_statement_locker *locker,
-                                    ulong count);
+void pfs_inc_statement_sort_scan_v1(PSI_statement_locker *locker, ulong count);
 
 void pfs_set_statement_no_index_used_v1(PSI_statement_locker *locker);
 
@@ -107,12 +113,8 @@ PSI_digest_locker *pfs_digest_start_v1(PSI_statement_locker *locker);
 void pfs_digest_end_v1(PSI_digest_locker *locker,
                        const sql_digest_storage *digest);
 
-C_MODE_END
-
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_SERVER */
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+#endif /* HAVE_PSI_STATEMENT_INTERFACE */
 
 #endif
-

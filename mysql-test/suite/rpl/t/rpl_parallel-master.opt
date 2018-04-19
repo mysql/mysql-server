@@ -1,1 +1,1 @@
---log-warnings=0
+--log-error-verbosity=1

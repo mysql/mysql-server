@@ -1,0 +1,11 @@
+########### suite/json/t/json_gcol_innodb.test                       #
+# Tests generated columns with json using the innodb storage engine  #
+#                                                                    #
+# This test copies some tests originally in json.test                #
+######################################################################
+# Set the session storage engine
+--source include/no_ps_protocol.inc
+set default_storage_engine=innodb;
+
+# Run the test
+--source suite/json/inc/json_gcol.inc

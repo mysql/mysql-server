@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -18,9 +25,9 @@
 #ifndef NDB_COMPONENT_H
 #define NDB_COMPONENT_H
 
-#include <my_global.h>
-#include <thr_cond.h>
-#include <thr_mutex.h>
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_thread.h"
 
 extern "C" void * Ndb_component_run_C(void *);
 
@@ -40,6 +47,13 @@ public:
   virtual int start();
   virtual int stop();
   virtual int deinit();
+
+  /*
+    Set the server as started, this means that the Ndb_component
+    can continue processing and use parts of the MySQL Server which are
+    not available unilt it's been fully started
+  */
+  void set_server_started();
 
 protected:
   /**
@@ -77,13 +91,22 @@ protected:
 
 protected:
   void log_verbose(unsigned verbose_level, const char* fmt, ...)
-    __attribute__((format(printf, 3, 4)));
-  void log_error(const char *fmt, ...)
-    __attribute__((format(printf, 2, 3)));
-  void log_warning(const char *fmt, ...)
-    __attribute__((format(printf, 2, 3)));
-  void log_info(const char *fmt, ...)
-    __attribute__((format(printf, 2, 3)));
+    const MY_ATTRIBUTE((format(printf, 3, 4)));
+  void log_error(const char *fmt, ...) const
+    MY_ATTRIBUTE((format(printf, 2, 3)));
+  void log_warning(const char *fmt, ...) const
+    MY_ATTRIBUTE((format(printf, 2, 3)));
+  void log_info(const char *fmt, ...) const
+    MY_ATTRIBUTE((format(printf, 2, 3)));
+
+  /*
+    Wait for the server started. The Ndb_component(and its thread(s))
+    are normally started before the MySQL Server is fully operational
+    and some functionality which the Ndb_component depend on isn't
+    yet initialized fully. This function will wait until the server
+    has reported started or shutdown has been requested.
+   */
+  bool wait_for_server_started(void);
 
 private:
 
@@ -99,8 +122,9 @@ private:
 
   ThreadState m_thread_state;
   my_thread_handle m_thread;
-  native_mutex_t m_start_stop_mutex;
-  native_cond_t m_start_stop_cond;
+  mysql_mutex_t m_start_stop_mutex;
+  mysql_cond_t m_start_stop_cond;
+  bool m_server_started; // Protected by m_start_stop_mutex
 
   const char* m_name;
 

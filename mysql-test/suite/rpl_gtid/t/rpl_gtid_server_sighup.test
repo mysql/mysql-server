@@ -1,0 +1,143 @@
+###############################################################################
+# Bug #17026898 PREVIOUS GTID EVENT IS NOT WRITTEN WHEN BINLOG IS ROTATED VIA
+# SIGHUP
+
+# Problem: When Bin(Relay)log is rotated via SIGHUP signal, the newly generated
+# binlog does not contain previous gtid event which is very important
+# for processing that bin(relay)log's gtid events later.
+
+# Fix: If reload_acl_and_cache() (which does rotation of Bin(Relay) log)
+# is called from SIGHUP handler, then allocate temporary THD for
+# execution of rotate bin(relay)log.
+
+# Steps to reproduce the issue:
+# 1) Get the server pid
+# 2) Send Kill -1 signal (SIGHUP) signal to server pid
+# 3) Wait until rotation is done
+# 4) Verify the newly generated log contains prev_gtid_event
+# 5) Restart the server to see the processing of the new log is not an issue.
+# 6) Verify that Replication works fine at the end of the scenario
+
+# Execute the same steps on both Master and Slave do prove that
+#   a) no problem in binary log rotation (i.e., prev_gtids_event exists)
+#   b) no problem in relay log rotation (i.e., prev_gtids event exists)
+#   c) no problem in restarting master
+#   d) no problem in restarting slave
+#   e) Replication works fine after receiving SIGHUP.
+###############################################################################
+
+# Test involves sending SIGHUP signal using kill linux cmd
+--source include/linux.inc
+
+# Problem appears only with gtid
+
+# Testing SIGHUP behaviour with one mode is enough
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+# Bug#23297190 :RPL_GTID_SERVER_SIGHUP AND RPL_MASTER_POS_WAIT_AFTER_STARTUP FAILS
+# IN VALGRIND : Increased the time interval between the connection retries.
+--connection slave
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_CONNECT_RETRY=30, MASTER_RETRY_COUNT=30;
+--source include/start_slave.inc
+
+--connection master
+CREATE TABLE pid_table(pid_no INT);
+
+
+# Execute above mentioned steps in two iterations
+# Iteration 1 : Master and Iteration 2: Slave
+--let $_rpl_server= 1
+while ($_rpl_server <= 2)
+{
+  --let $rpl_connection_name= server_$_rpl_server
+  --source include/rpl_connection.inc
+  --let $pid_file=`SELECT @@pid_file`
+  --replace_result $pid_file pid_file
+  --eval LOAD DATA LOCAL INFILE '$pid_file' INTO TABLE pid_table
+  # Step1: Get server pid
+  --let $server_pid=`SELECT pid_no FROM pid_table`
+
+  # Get current master binlog name
+  if ($_rpl_server == 1)
+  {
+    --let $before_sighup_log_name=query_get_value(SHOW MASTER STATUS, File, 1)
+  }
+  if ($_rpl_server == 2)
+  {
+    --let $before_sighup_log_name=query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+  }
+
+  # Step2: send SIGHUP(signal 1) to server which will rotate bin(relay)log
+  --exec kill -1 $server_pid
+
+  # Step3: Wait until signal handler does required work
+  # (i.e., completes rotation of binary/relay log) after receiving SIGHUP signal.
+  if ($_rpl_server == 1)
+  {
+    --let $show_statement=SHOW MASTER STATUS
+    --let $field=File
+  }
+  if ($_rpl_server == 2)
+  {
+    --let $show_statement=SHOW SLAVE STATUS
+    --let $field=Relay_Log_File
+  }
+  --let $condition= <> '$before_sighup_log_name'
+  --source include/wait_show_condition.inc
+
+  # Write something to newly generated binary log/relay log
+  if ($_rpl_server == 2)
+  {
+    --let $rpl_connection_name= server_1
+    --source include/rpl_connection.inc
+  }
+  DELETE FROM pid_table;
+  --source include/sync_slave_sql_with_master.inc
+  if ($_rpl_server == 1)
+  {
+    --let $rpl_connection_name= server_1
+    --source include/rpl_connection.inc
+  }
+  # Step 4:Show that newly generated binary/relaylog has previous gtid event as well
+  --let $keep_gtid_events= 1
+  --let $binlog_file= LAST
+  if ($_rpl_server == 1)
+  {
+    --source include/show_binlog_events.inc
+  }
+  if ($_rpl_server == 2)
+  {
+    --source include/show_relaylog_events.inc
+  }
+  # Step5: Restart server to make sure that
+  # newly generated binary log/relay log does not cause any issues
+  --let $rpl_server_number= $_rpl_server
+  --source include/rpl_stop_server.inc
+  --let $rpl_start_with_gtids= 1
+  --source include/rpl_start_server.inc
+  if ($_rpl_server == 2)
+  {
+    --source include/rpl_start_slaves.inc
+  }
+  if ($_rpl_server == 1)
+  {
+    # We must be sure that the IO thread has connected again with the master
+    # that has just restarted, or else the results of the test case may vary.
+    # As no new GTID was generated since last sync, we will force the use of
+    # positions on the sync.
+    --let $ignore_gtids_on_sync= 1
+    --source include/sync_slave_sql_with_master.inc
+    --let $ignore_gtids_on_sync= 0
+  }
+  --inc $_rpl_server
+}
+
+# Now just make sure replication works fine
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+DROP TABLE pid_table;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

@@ -1,0 +1,156 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source suite/federated/include/federated.inc
+--enable_connect_log
+
+--echo ###########################################################
+--echo #
+--echo # Test cases for wl#7593: Don't hold LOCK_open...
+--echo #
+--echo # Most of the tests related to this wl are in a different
+--echo # test file main.get_table_share.test. One scenario is relevant
+--echo # for the federated storage engine, which is why it is put into
+--echo # this file.
+--echo #
+--echo # This test case is based on two threads: One thread master
+--echo # opening table tb, being paused while opening the share,
+--echo # while another thread issues a ALTER and DROP SERVER commands
+--echo # to make sure the tables related to the dropped server are
+--echo # being closed.
+--echo #
+--echo # Please note that the include files federated.inc and
+--echo # federated_cleanup.inc creates an cleans up various resources
+--echo # related to the federated engine (connections, schemas, etc).
+--echo #
+
+--echo #
+--connection slave
+--echo # Create a database and the tables on the slave:
+CREATE DATABASE new_federated;
+CREATE TABLE federated.ta (pk integer primary key);
+CREATE TABLE federated.tb (pk integer primary key);
+CREATE TABLE new_federated.ta (pk integer primary key);
+CREATE TABLE new_federated.tb (pk integer primary key);
+
+--echo #
+--connection master
+--echo # Create one server and two local, federated tables on the master:
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE SERVER s FOREIGN DATA WRAPPER 'mysql' OPTIONS
+  (USER 'root', HOST '127.0.0.1', PORT $SLAVE_MYPORT, DATABASE 'federated');
+CREATE TABLE federated.ta (pk integer primary key)
+  ENGINE= FEDERATED CONNECTION= 's';
+CREATE TABLE federated.tb (pk integer primary key)
+  ENGINE= FEDERATED CONNECTION= 's';
+
+--echo #
+--echo # Check that the server is created, and do an insert into ta to make
+--echo # sure it is open and in the cache, then show open federated tables:
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+SELECT * from mysql.servers;
+INSERT INTO federated.ta VALUES(0);
+SELECT * from federated.ta;
+SHOW OPEN TABLES IN federated;
+
+--echo #
+--echo # Wait after releasing LOCK_open for tb, and make sure we never
+--echo # end up at the 'found_share' sync point:
+SET DEBUG_SYNC= 'get_share_before_open SIGNAL open_master WAIT_FOR cont_master';
+SET DEBUG_SYNC= 'get_share_found_share HIT_LIMIT 1';
+--send INSERT INTO federated.tb VALUES(1)
+
+--echo #
+--connection default
+--echo # Wait for open_master, then issue an ALTER SERVER command, which will
+--echo # close the tables for the server being altered. The table ta is open,
+--echo # and will be closed, while tb is in the process of being opened, and
+--echo # will therefore be skipped (i.e. not closed):
+SET DEBUG_SYNC= 'now WAIT_FOR open_master';
+ALTER SERVER s OPTIONS (DATABASE 'new_federated');
+
+--echo #
+--echo # Then, we show open federated tables to verify that neither tb nor
+--echo # ta are open, then we let the master open the tb share and insert,
+--echo # then we reap the master to be sure it is done with the insert:
+SHOW OPEN TABLES IN federated;
+SET DEBUG_SYNC= 'now SIGNAL cont_master';
+--connection master
+--reap
+
+--echo #
+--connection default
+--echo # Now, tb should be open:
+SHOW OPEN TABLES IN federated;
+
+--echo #
+--echo # A select from tb will show the inserted data since the
+--echo # actual server information from after the ALTER SERVER is used
+--echo # to open the table:
+SELECT * from federated.tb;
+
+--echo #
+--echo # A select from ta will now be empty since we switched
+--echo # remote table:
+SELECT * from federated.ta;
+
+--echo #
+--echo # Now, both ta and tb should be open:
+--sorted_result
+SHOW OPEN TABLES IN federated;
+
+--echo #
+--connection master
+--echo # Back to the master, we flush table tb and do a new insert,
+--echo # pausing before opening the share, just like we did above:
+FLUSH TABLE federated.tb;
+SHOW OPEN TABLES IN federated;
+SET DEBUG_SYNC= 'get_share_before_open SIGNAL open_master WAIT_FOR cont_master';
+SET DEBUG_SYNC= 'get_share_found_share HIT_LIMIT 1';
+--send INSERT INTO federated.tb VALUES(2)
+
+--echo #
+--connection default
+--echo # Wait for open_master, then issue a DROP SERVER command:
+SET DEBUG_SYNC= 'now WAIT_FOR open_master';
+DROP SERVER s;
+
+--echo #
+--echo # Let the master finish opening the tb share, and then reap it, which
+--echo # will fail since the server has been deleted:
+SET DEBUG_SYNC= 'now SIGNAL cont_master';
+--connection master
+--error ER_FOREIGN_DATA_STRING_INVALID_CANT_CREATE
+--reap
+# Not resetting DEBUG_SYNC for "master" was resulting in failure of subsequent
+# statement execution.
+# Reason is, when table_open_cache_instances <> 1 then tables accessed including
+# mysql.* may not exists in the table open cache instance of "master". So while
+# opening those tables DEBUG_SYNC='get_share_found_share HIT_LIMIT 1' was hit
+# more than once and subsequent statements execution was failing. 
+# This worked well with table_open_cache_instances=1 as tables opened by other
+# connections also exists in the single cache.
+SET DEBUG_SYNC= 'RESET';
+
+--echo #
+--connection default
+--echo # Then, we show open tables to verify that tb is left opened,
+--echo # while ta is not open anymore:
+SHOW OPEN TABLES IN federated;
+
+--echo #
+--connection slave
+--echo # Drop remote tables and database:
+DROP TABLE federated.ta, federated.tb;
+DROP TABLE new_federated.ta, new_federated.tb;
+DROP DATABASE new_federated;
+
+--echo #
+--connection default
+--echo # Reset DEBUG_SYNC and drop local tables:
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE federated.ta, federated.tb;
+
+--echo #
+--echo # Disconnecting slave and master is handled in federated_cleanup.inc
+--disable_connect_log
+--source suite/federated/include/federated_cleanup.inc

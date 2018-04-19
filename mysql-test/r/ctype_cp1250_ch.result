@@ -1,8 +1,8 @@
 drop table if exists t1;
 DROP TABLE IF EXISTS t1;
 SHOW COLLATION LIKE 'cp1250_czech_cs';
-Collation	Charset	Id	Default	Compiled	Sortlen
-cp1250_czech_cs	cp1250	34		Yes	2
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+cp1250_czech_cs	cp1250	34		Yes	2	PAD SPACE
 SET @test_character_set= 'cp1250';
 SET @test_collation= 'cp1250_general_ci';
 SET @safe_character_set_server= @@character_set_server;
@@ -76,6 +76,8 @@ select 1 from t1 order by cast(a as char(1));
 1
 drop table t1;
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (
 name varchar(10),
 level smallint unsigned);
@@ -169,6 +171,8 @@ select 1 from t1 order by cast(a as char(1));
 1
 drop table t1;
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (
 name varchar(10),
 level smallint unsigned);
@@ -291,7 +295,7 @@ hex(weight_string('abc'))
 A4A5A6020202
 select hex(weight_string('abc' as char(2)));
 hex(weight_string('abc' as char(2)))
-A4A5A6020202
+A4A50202
 select hex(weight_string('abc' as char(3)));
 hex(weight_string('abc' as char(3)))
 A4A5A6020202
@@ -306,16 +310,16 @@ hex(weight_string('abc', 2, 2, 0xC0))
 A4A5
 select hex(weight_string('abc', 3, 2, 0xC0));
 hex(weight_string('abc', 3, 2, 0xC0))
-A4A5A6
+A4A502
 select hex(weight_string('abc', 4, 2, 0xC0));
 hex(weight_string('abc', 4, 2, 0xC0))
-A4A5A602
+A4A50202
 select hex(weight_string('abc', 5, 2, 0xC0));
 hex(weight_string('abc', 5, 2, 0xC0))
-A4A5A60202
+A4A5020200
 select hex(weight_string('abc',25, 2, 0xC0));
 hex(weight_string('abc',25, 2, 0xC0))
-A4A5A602020200000000000000000000000000000000000000
+A4A50202000000000000000000000000000000000000000000
 select hex(weight_string('abc', 1, 3, 0xC0));
 hex(weight_string('abc', 1, 3, 0xC0))
 A4
@@ -363,7 +367,7 @@ hex(weight_string(cast(_latin1 0x808080 as char)))
 818181232323
 select hex(weight_string(cast(_latin1 0x808080 as char) as char(2)));
 hex(weight_string(cast(_latin1 0x808080 as char) as char(2)))
-818181232323
+81812323
 select hex(weight_string(cast(_latin1 0x808080 as char) as char(3)));
 hex(weight_string(cast(_latin1 0x808080 as char) as char(3)))
 818181232323
@@ -378,16 +382,16 @@ hex(weight_string(cast(_latin1 0x808080 as char), 2, 2, 0xC0))
 8181
 select hex(weight_string(cast(_latin1 0x808080 as char), 3, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 3, 2, 0xC0))
-818181
+818123
 select hex(weight_string(cast(_latin1 0x808080 as char), 4, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 4, 2, 0xC0))
-81818123
+81812323
 select hex(weight_string(cast(_latin1 0x808080 as char), 5, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 5, 2, 0xC0))
-8181812323
+8181232300
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 2, 0xC0))
-81818123232300000000000000000000000000000000000000
+81812323000000000000000000000000000000000000000000
 select hex(weight_string(cast(_latin1 0x808080 as char), 1, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 1, 3, 0xC0))
 81
@@ -456,10 +460,10 @@ hex(weight_string(cast(_latin1 0x6368DF as char)))
 ADBB0301
 select hex(weight_string(cast(_latin1 0x6368DF as char) as char(1)));
 hex(weight_string(cast(_latin1 0x6368DF as char) as char(1)))
-ADBB0301
+A602
 select hex(weight_string(cast(_latin1 0x6368DF as char) as char(2)));
 hex(weight_string(cast(_latin1 0x6368DF as char) as char(2)))
-ADBB0301
+AD03
 select hex(weight_string(cast(_latin1 0x6368DF as char) as char(3)));
 hex(weight_string(cast(_latin1 0x6368DF as char) as char(3)))
 ADBB0301
@@ -471,10 +475,10 @@ hex(weight_string(cast(_latin1 0xDF6368 as char)))
 BBAD0103
 select hex(weight_string(cast(_latin1 0xDF6368 as char) as char(1)));
 hex(weight_string(cast(_latin1 0xDF6368 as char) as char(1)))
-BBAD0103
+BB01
 select hex(weight_string(cast(_latin1 0xDF6368 as char) as char(2)));
 hex(weight_string(cast(_latin1 0xDF6368 as char) as char(2)))
-BBAD0103
+BBA60102
 select hex(weight_string(cast(_latin1 0xDF6368 as char) as char(3)));
 hex(weight_string(cast(_latin1 0xDF6368 as char) as char(3)))
 BBAD0103
@@ -486,16 +490,16 @@ hex(weight_string(cast(_latin1 0x6368DF as char), 1, 2, 0xC0))
 AD
 select hex(weight_string(cast(_latin1 0x6368DF as char), 2, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 2, 2, 0xC0))
-ADBB
+AD03
 select hex(weight_string(cast(_latin1 0x6368DF as char), 3, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 3, 2, 0xC0))
-ADBB03
+AD0300
 select hex(weight_string(cast(_latin1 0x6368DF as char), 4, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 4, 2, 0xC0))
-ADBB0301
+AD030000
 select hex(weight_string(cast(_latin1 0x6368DF as char),25, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char),25, 2, 0xC0))
-ADBB0301000000000000000000000000000000000000000000
+AD030000000000000000000000000000000000000000000000
 select hex(weight_string(cast(_latin1 0x6368DF as char), 1, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 1, 3, 0xC0))
 AD
@@ -531,16 +535,16 @@ hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 2,0xC0))
 BB
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 2, 2,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 2, 2,0xC0))
-BBAD
+BBA6
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 3, 2,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 3, 2,0xC0))
-BBAD01
+BBA601
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 4, 2,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 4, 2,0xC0))
-BBAD0103
+BBA60102
 select hex(weight_string(cast(_latin1 0xDF6368 as char),25, 2,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char),25, 2,0xC0))
-BBAD0103000000000000000000000000000000000000000000
+BBA60102000000000000000000000000000000000000000000
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 3,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 3,0xC0))
 BB
@@ -571,72 +575,6 @@ BBAD0103
 select hex(weight_string(cast(_latin1 0xDF6368 as char),25, 4,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char),25, 4,0xC0))
 BBAD0103000000000000000000000000000000000000000000
-select @@collation_connection;
-@@collation_connection
-cp1250_czech_cs
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-A4
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-A4
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-A4A5A6
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-A4A5A6
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-A4A5A6
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-A4A5A6
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-A4A5A6
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-A4A5A6
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-A4A5A6
-select @@collation_connection;
-@@collation_connection
-cp1250_czech_cs
-select hex(weight_string('a' LEVEL 2));
-hex(weight_string('a' LEVEL 2))
-02
-select hex(weight_string('A' LEVEL 2));
-hex(weight_string('A' LEVEL 2))
-01
-select hex(weight_string('abc' LEVEL 2));
-hex(weight_string('abc' LEVEL 2))
-020202
-select hex(weight_string('abc' as char(2) LEVEL 2));
-hex(weight_string('abc' as char(2) LEVEL 2))
-020202
-select hex(weight_string('abc' as char(3) LEVEL 2));
-hex(weight_string('abc' as char(3) LEVEL 2))
-020202
-select hex(weight_string('abc' as char(5) LEVEL 2));
-hex(weight_string('abc' as char(5) LEVEL 2))
-020202
-select @@collation_connection;
-@@collation_connection
-cp1250_czech_cs
-select hex(weight_string('a' LEVEL 1,2));
-hex(weight_string('a' LEVEL 1,2))
-A402
-select hex(weight_string('a' LEVEL 1-2));
-hex(weight_string('a' LEVEL 1-2))
-A402
-select hex(weight_string('A' LEVEL 1,2));
-hex(weight_string('A' LEVEL 1,2))
-A401
-select hex(weight_string('A' LEVEL 1-2));
-hex(weight_string('A' LEVEL 1-2))
-A401
 #
 # Bugs#12635232: VALGRIND WARNINGS: IS_IPV6, IS_IPV4, INET6_ATON,
 # INET6_NTOA + MULTIBYTE CHARSET.
@@ -654,16 +592,22 @@ inet6_aton(inet_ntoa('1'))
 SELECT inet6_ntoa(inet_ntoa('1'));
 inet6_ntoa(inet_ntoa('1'))
 NULL
+Warnings:
+Warning	1411	Incorrect string value: 'inet_ntoa('1')' for function inet6_ntoa
 #
 # Bug#14040277 UNINITIALIZED VALUE REFERENCED IN STR_TO_IPV6
 #
 SELECT inet6_aton(soundex('a'));
 inet6_aton(soundex('a'))
 NULL
+Warnings:
+Warning	1411	Incorrect string value: 'soundex('a')' for function inet6_aton
 #
 # Bug#19047425 UNINITIALISED VALUE IN STR_TO_IPV6
 #
 do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using cp1250)));
+Warnings:
+Warning	1411	Incorrect string value: 'convert(_ascii'a:' using cp1250)' for function inet6_aton
 #
 # End of 5.6 tests
 #

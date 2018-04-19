@@ -1,6 +1,7 @@
 # The include statement below is a temp one for tests that are yet to
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
+# Run the test with InnoDB engine once Bug #27422448 fixed.
 --source include/force_myisam_default.inc
 
 #
@@ -62,14 +63,14 @@ CREATE TABLE t2(a INT, b INT, c INT, d INT, INDEX(a, b, c));
 INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 
 FLUSH STATUS;
-SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 7;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 12;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 
 let $cnt = `SELECT COUNT(*) FROM t2 WHERE b = 10`;
 
 FLUSH STATUS;
-DELETE FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 7;
+DELETE FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 12;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 --echo ## should be 5 (previous LIMIT)
@@ -88,17 +89,17 @@ INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 
 FLUSH STATUS;
-SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 7;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 12;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 
 let $cnt = `SELECT COUNT(*) FROM t2 WHERE b = 10`;
 
 FLUSH STATUS;
-DELETE FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 7;
+DELETE FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 12;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
---echo ## should be 7 (previous LIMIT)
+--echo ## should be 12 (previous LIMIT)
 eval SELECT $cnt - COUNT(*) FROM t2 WHERE b = 10;
 
 DROP TABLE t2;
@@ -155,7 +156,7 @@ SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 --replace_column 1 x 2 x 3 x 5 x 6 x 7 x 8 x 9 x 10 x 11 x
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+EXPLAIN SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 
 FLUSH STATUS;
 DELETE FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
@@ -163,7 +164,7 @@ SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 --replace_column 1 x 2 x 3 x 5 x 6 x 7 x 8 x 9 x 10 x 11 x
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+EXPLAIN SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 DROP TABLE t2;
 
 --echo #
@@ -288,14 +289,14 @@ CREATE TABLE t2(a INT, b INT, c INT, d INT, INDEX(a, b, c));
 INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 
 FLUSH STATUS;
-SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 7;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 12;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 
 let $cnt = `SELECT COUNT(*) FROM t2 WHERE b = 10`;
 
 FLUSH STATUS;
-UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 7;
+UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 12;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 --echo ## should be 5 (previous LIMIT)
@@ -314,17 +315,17 @@ INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 
 FLUSH STATUS;
-SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 7;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 12;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 
 let $cnt = `SELECT COUNT(*) FROM t2 WHERE b = 10`;
 
 FLUSH STATUS;
-UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 7;
+UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 12;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
---echo ## should be 7 (previous LIMIT)
+--echo ## should be 12 (previous LIMIT)
 SELECT COUNT(*) FROM t2 WHERE b = 10 AND d = 10 ORDER BY a, c;
 
 DROP TABLE t2;
@@ -382,7 +383,7 @@ SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 --replace_column 1 x 2 x 3 x 5 x 6 x 7 x 8 x 9 x 10 x 11 x
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+EXPLAIN SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 
 FLUSH STATUS;
 UPDATE t2 SET i = 123 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
@@ -390,7 +391,7 @@ SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 --replace_column 1 x 2 x 3 x 5 x 6 x 7 x 8 x 9 x 10 x 11 x
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+EXPLAIN SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 
 DROP TABLE t2;
 

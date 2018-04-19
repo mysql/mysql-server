@@ -1,0 +1,33 @@
+--source suite/federated/include/federated.inc
+
+--echo #
+--echo # Bug #16555730: FEDERATED SHOULD DEFINE CONNECTION ATTRIBUTES 
+--echo #  TO IDENTIFY ITSELF
+--echo #
+
+connection slave;
+CREATE TABLE federated.t1 (a int, b int) DEFAULT CHARSET=latin1;
+INSERT INTO federated.t1 VALUES (1,1),(2,2);
+
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (a int, b int)
+  ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+  CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+
+SELECT * FROM federated.t1 ORDER BY a;
+
+connection slave;
+--echo # must be non-zero
+SELECT COUNT(*) FROM performance_schema.session_account_connect_attrs
+   WHERE ATTR_NAME='program_name' AND ATTR_VALUE='mysqld';
+
+connection master;
+DROP TABLE federated.t1;
+
+connection slave;
+DROP TABLE federated.t1;
+
+connection default;
+
+source suite/federated/include/federated_cleanup.inc;

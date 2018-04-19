@@ -20,8 +20,9 @@
 
 
 # Requires statement-based logging since temporary tables are not
-# logged in row-based logging
--- source include/have_binlog_format_mixed_or_statement.inc
+# logged in row-based logging. Same now goes for mixed, valid for statement
+# only replication as a result of 72475
+-- source include/have_binlog_format_statement.inc
 
 source include/master-slave.inc;
 

@@ -3,16 +3,20 @@ In the following tests we change the order of letter "b"
 making it equal to letter "a", and check that it works
 with all Unicode character sets
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show variables like 'character_sets_dir%';
 Variable_name	Value
 character_sets_dir	MYSQL_TEST_DIR/std_data/
 show collation like 'utf8_phone_ci';
-Collation	Charset	Id	Default	Compiled	Sortlen
-utf8_phone_ci	utf8	352			8
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+utf8_phone_ci	utf8	352			8	PAD SPACE
 CREATE TABLE t1 (
 name VARCHAR(64),
 phone VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_phone_ci
 );
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('Svoj','+7 912 800 80 02');
 INSERT INTO t1 VALUES ('Hf','+7 (912) 800 80 04');
 INSERT INTO t1 VALUES ('Bar','+7-912-800-80-01');
@@ -36,17 +40,19 @@ name	phone
 Bar	+7-912-800-80-01
 DROP TABLE t1;
 show collation like 'utf8_test_ci';
-Collation	Charset	Id	Default	Compiled	Sortlen
-utf8_test_ci	utf8	353			8
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+utf8_test_ci	utf8	353			8	PAD SPACE
 create table t1 (c1 char(1) character set utf8 collate utf8_test_ci);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('a');
 select * from t1 where c1='b';
 c1
 a
 drop table t1;
 show collation like 'ucs2_test_ci';
-Collation	Charset	Id	Default	Compiled	Sortlen
-ucs2_test_ci	ucs2	358			8
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+ucs2_test_ci	ucs2	358			8	PAD SPACE
 create table t1 (c1 char(1) character set ucs2 collate ucs2_test_ci);
 insert into t1 values ('a');
 select * from t1 where c1='b';
@@ -54,8 +60,8 @@ c1
 a
 drop table t1;
 show collation like 'utf8mb4_test_ci';
-Collation	Charset	Id	Default	Compiled	Sortlen
-utf8mb4_test_ci	utf8mb4	326			8
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+utf8mb4_test_ci	utf8mb4	326			8	PAD SPACE
 create table t1 (c1 char(1) character set utf8mb4 collate utf8mb4_test_ci);
 insert into t1 values ('a');
 select * from t1 where c1='b';
@@ -63,8 +69,8 @@ c1
 a
 drop table t1;
 show collation like 'utf16_test_ci';
-Collation	Charset	Id	Default	Compiled	Sortlen
-utf16_test_ci	utf16	327			8
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+utf16_test_ci	utf16	327			8	PAD SPACE
 create table t1 (c1 char(1) character set utf16 collate utf16_test_ci);
 insert into t1 values ('a');
 select * from t1 where c1='b';
@@ -72,8 +78,8 @@ c1
 a
 drop table t1;
 show collation like 'utf32_test_ci';
-Collation	Charset	Id	Default	Compiled	Sortlen
-utf32_test_ci	utf32	391			8
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+utf32_test_ci	utf32	391			8	PAD SPACE
 create table t1 (c1 char(1) character set utf32 collate utf32_test_ci);
 insert into t1 values ('a');
 select * from t1 where c1='b';
@@ -128,6 +134,8 @@ hex(weight_string(convert(_ucs2 0x0044017d using utf8mb4) collate utf8mb4_test_c
 CREATE TABLE t1 (
 col1 varchar(100) character set utf8 collate utf8_test_ci
 );
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (col1) VALUES ('abcd'),('efgh'),('ijkl');
 ALTER TABLE t1 ADD FULLTEXT INDEX (col1);
 Warnings:
@@ -150,6 +158,8 @@ DROP TABLE t1;
 # Bug#45645 Mysql server close all connection and restart using lower function
 #
 CREATE TABLE t1 (a VARCHAR(10)) CHARACTER SET utf8 COLLATE utf8_test_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (a) VALUES ('hello!');
 SELECT * FROM t1 WHERE LOWER(a)=LOWER('N');
 a
@@ -158,6 +168,8 @@ DROP TABLE t1;
 # Bug#51976 LDML collations issue (cyrillic example)
 #
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_test_ci);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (a) VALUES ('Hello');
 SELECT a, UPPER(a), LOWER(a) FROM t1;
 a	UPPER(a)	LOWER(a)
@@ -167,14 +179,16 @@ DROP TABLE t1;
 # Bug#43827 Server closes connections and restarts
 #
 CREATE TABLE t1 (c1 VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_test_ci);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT IGNORE INTO t1 SELECT REPEAT('a',11);
 Warnings:
 Warning	1265	Data truncated for column 'c1' at row 1
 DROP TABLE t1;
 Vietnamese experimental collation
 show collation like 'ucs2_vn_ci';
-Collation	Charset	Id	Default	Compiled	Sortlen
-ucs2_vn_ci	ucs2	359			8
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+ucs2_vn_ci	ucs2	359			8	PAD SPACE
 create table t1 (c1 char(1) character set ucs2 collate ucs2_vn_ci);
 insert into t1 values (0x0061),(0x0041),(0x00E0),(0x00C0),(0x1EA3),(0x1EA2),
 (0x00E3),(0x00C3),(0x00E1),(0x00C1),(0x1EA1),(0x1EA0);
@@ -448,43 +462,88 @@ drop table t1;
 Bug#46448 trailing spaces are not ignored when user collation maps space != 0x20
 set names latin1;
 show collation like 'latin1_test';
-Collation	Charset	Id	Default	Compiled	Sortlen
-latin1_test	latin1	99		Yes	1
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+latin1_test	latin1	99		Yes	1	PAD SPACE
 select "foo" = "foo " collate latin1_test;
 "foo" = "foo " collate latin1_test
 1
 The following tests check that two-byte collation IDs work
-select * from information_schema.collations where id>256 order by id;
-COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
-utf8mb4_test_ci	utf8mb4	326			8
-utf16_test_ci	utf16	327			8
-utf8mb4_test_400_ci	utf8mb4	328			8
-utf8_bengali_standard_ci	utf8	336			8
-utf8_bengali_traditional_ci	utf8	337			8
-utf8_phone_ci	utf8	352			8
-utf8_test_ci	utf8	353			8
-utf8_5624_1	utf8	354			8
-utf8_5624_2	utf8	355			8
-utf8_5624_3	utf8	356			8
-utf8_5624_4	utf8	357			8
-ucs2_test_ci	ucs2	358			8
-ucs2_vn_ci	ucs2	359			8
-ucs2_5624_1	ucs2	360			8
-utf8_5624_5	utf8	368			8
-utf32_test_ci	utf32	391			8
-utf8_maxuserid_ci	utf8	2047			8
+select collation_name, character_set_name, id from information_schema.collations where id>256 order by id;
+collation_name	character_set_name	id
+utf8mb4_is_0900_ai_ci	utf8mb4	257
+utf8mb4_lv_0900_ai_ci	utf8mb4	258
+utf8mb4_ro_0900_ai_ci	utf8mb4	259
+utf8mb4_sl_0900_ai_ci	utf8mb4	260
+utf8mb4_pl_0900_ai_ci	utf8mb4	261
+utf8mb4_et_0900_ai_ci	utf8mb4	262
+utf8mb4_es_0900_ai_ci	utf8mb4	263
+utf8mb4_sv_0900_ai_ci	utf8mb4	264
+utf8mb4_tr_0900_ai_ci	utf8mb4	265
+utf8mb4_cs_0900_ai_ci	utf8mb4	266
+utf8mb4_da_0900_ai_ci	utf8mb4	267
+utf8mb4_lt_0900_ai_ci	utf8mb4	268
+utf8mb4_sk_0900_ai_ci	utf8mb4	269
+utf8mb4_es_trad_0900_ai_ci	utf8mb4	270
+utf8mb4_la_0900_ai_ci	utf8mb4	271
+utf8mb4_eo_0900_ai_ci	utf8mb4	273
+utf8mb4_hu_0900_ai_ci	utf8mb4	274
+utf8mb4_hr_0900_ai_ci	utf8mb4	275
+utf8mb4_vi_0900_ai_ci	utf8mb4	277
+utf8mb4_0900_as_cs	utf8mb4	278
+utf8mb4_de_pb_0900_as_cs	utf8mb4	279
+utf8mb4_is_0900_as_cs	utf8mb4	280
+utf8mb4_lv_0900_as_cs	utf8mb4	281
+utf8mb4_ro_0900_as_cs	utf8mb4	282
+utf8mb4_sl_0900_as_cs	utf8mb4	283
+utf8mb4_pl_0900_as_cs	utf8mb4	284
+utf8mb4_et_0900_as_cs	utf8mb4	285
+utf8mb4_es_0900_as_cs	utf8mb4	286
+utf8mb4_sv_0900_as_cs	utf8mb4	287
+utf8mb4_tr_0900_as_cs	utf8mb4	288
+utf8mb4_cs_0900_as_cs	utf8mb4	289
+utf8mb4_da_0900_as_cs	utf8mb4	290
+utf8mb4_lt_0900_as_cs	utf8mb4	291
+utf8mb4_sk_0900_as_cs	utf8mb4	292
+utf8mb4_es_trad_0900_as_cs	utf8mb4	293
+utf8mb4_la_0900_as_cs	utf8mb4	294
+utf8mb4_eo_0900_as_cs	utf8mb4	296
+utf8mb4_hu_0900_as_cs	utf8mb4	297
+utf8mb4_hr_0900_as_cs	utf8mb4	298
+utf8mb4_vi_0900_as_cs	utf8mb4	300
+utf8mb4_ja_0900_as_cs	utf8mb4	303
+utf8mb4_ja_0900_as_cs_ks	utf8mb4	304
+utf8mb4_0900_as_ci	utf8mb4	305
+utf8mb4_ru_0900_ai_ci	utf8mb4	306
+utf8mb4_ru_0900_as_cs	utf8mb4	307
+utf8mb4_test_ci	utf8mb4	326
+utf16_test_ci	utf16	327
+utf8mb4_test_400_ci	utf8mb4	328
+utf8_bengali_standard_ci	utf8	336
+utf8_bengali_traditional_ci	utf8	337
+utf8_phone_ci	utf8	352
+utf8_test_ci	utf8	353
+utf8_5624_1	utf8	354
+utf8_5624_2	utf8	355
+utf8_5624_3	utf8	356
+utf8_5624_4	utf8	357
+ucs2_test_ci	ucs2	358
+ucs2_vn_ci	ucs2	359
+ucs2_5624_1	ucs2	360
+utf8_5624_5	utf8	368
+utf32_test_ci	utf32	391
+utf8_maxuserid_ci	utf8	2047
 show collation like '%test%';
-Collation	Charset	Id	Default	Compiled	Sortlen
-latin1_test	latin1	99		Yes	1
-utf8_test_ci	utf8	353			8
-ucs2_test_ci	ucs2	358			8
-utf8mb4_test_ci	utf8mb4	326			8
-utf8mb4_test_400_ci	utf8mb4	328			8
-utf16_test_ci	utf16	327			8
-utf32_test_ci	utf32	391			8
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+latin1_test	latin1	99		Yes	1	PAD SPACE
+ucs2_test_ci	ucs2	358			8	PAD SPACE
+utf16_test_ci	utf16	327			8	PAD SPACE
+utf32_test_ci	utf32	391			8	PAD SPACE
+utf8mb4_test_400_ci	utf8mb4	328			8	PAD SPACE
+utf8mb4_test_ci	utf8mb4	326			8	PAD SPACE
+utf8_test_ci	utf8	353			8	PAD SPACE
 show collation like 'ucs2_vn_ci';
-Collation	Charset	Id	Default	Compiled	Sortlen
-ucs2_vn_ci	ucs2	359			8
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+ucs2_vn_ci	ucs2	359			8	PAD SPACE
 create table t1 (c1 char(1) character set ucs2 collate ucs2_vn_ci);
 insert into t1 values (0x0061);
 set @@character_set_results=NULL;
@@ -495,6 +554,8 @@ c1
  a
 drop table t1;
 CREATE TABLE t1 (s1 char(10) character set utf8 collate utf8_maxuserid_ci);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('a'),('b');
 SELECT * FROM t1 WHERE s1='a' ORDER BY BINARY s1;
 s1
@@ -502,10 +563,14 @@ a
 b
 DROP TABLE t1;
 SET NAMES utf8 COLLATE utf8_phone_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW COLLATION LIKE 'utf8_phone_ci';
-Collation	Charset	Id	Default	Compiled	Sortlen
-utf8_phone_ci	utf8	352			8
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+utf8_phone_ci	utf8	352			8	PAD SPACE
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(weight_string(_utf8mb4'a' collate utf8mb4_test_400_ci));
 hex(weight_string(_utf8mb4'a' collate utf8mb4_test_400_ci))
 0E33
@@ -528,6 +593,8 @@ E2B0B0	E2B0B0
 # WL#5624 Collation customization improvements
 #
 SET NAMES utf8 COLLATE utf8_5624_1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 AS SELECT REPEAT(' ', 16) AS a LIMIT 0;
 INSERT INTO t1 VALUES ('012345'),('001234'),('000123'),('000012'),('000001');
 INSERT INTO t1 VALUES ('12345'),('01234'),('00123'),('00012'),('00001');
@@ -820,6 +887,7 @@ SET NAMES utf8 COLLATE utf8_5624_2;
 ERROR HY000: Unknown collation: 'utf8_5624_2'
 SHOW WARNINGS;
 Level	Code	Message
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Error	1273	Unknown collation: 'utf8_5624_2'
 Warning	1273	Syntax error at '[strength tertiary]' for COLLATION : utf8_5624_2
 #
@@ -829,12 +897,15 @@ SET NAMES utf8 COLLATE utf8_5624_3;
 ERROR HY000: Unknown collation: 'utf8_5624_3'
 SHOW WARNINGS;
 Level	Code	Message
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Error	1273	Unknown collation: 'utf8_5624_3'
 Warning	1273	Can't reset before a primary ignorable character U+A48C
 #
 # WL#5624, \u without hex digits is equal to {'\', 'u'}
 #
 SET NAMES utf8 COLLATE utf8_5624_4;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 AS SELECT REPEAT(' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES ('\\'),('u'),('x'),('X');
 SELECT a, HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, LENGTH(a), BINARY(a);
@@ -848,6 +919,8 @@ DROP TABLE t1;
 # WL#5624, testing Bengali collations
 #
 SET NAMES utf8, collation_connection=utf8_bengali_standard_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 AS SELECT REPEAT (' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES (_ucs2 0x09FA), (_ucs2 0x09F8), (_ucs2 0x09F9), (_ucs2 0x09F2);
 INSERT INTO t1 VALUES (_ucs2 0x09DC), (_ucs2 0x09A109BC);
@@ -868,6 +941,8 @@ HEX(WEIGHT_STRING(a))	HEX(CONVERT(a USING ucs2))	HEX(a)
 0377	09A3	E0A6A3
 DROP TABLE t1;
 SET NAMES utf8, collation_connection=utf8_bengali_traditional_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 AS SELECT REPEAT (' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES
 (_ucs2 0x0985),(_ucs2 0x0986),(_ucs2 0x0987),(_ucs2 0x0988),
@@ -1059,6 +1134,8 @@ DROP TABLE t1;
 # WL#5624, shift after, using expansion
 #
 SET NAMES utf8 COLLATE utf8_5624_5;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 AS SELECT REPEAT(' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES ('0'),('1'),('0z'),(_ucs2 0x0030FF9D);
 INSERT INTO t1 VALUES ('a'),('b'),('c'),('d'),('e'),('f'),('g'),('h'),('i');

@@ -8,8 +8,6 @@
 # and verifies that it does not affect the slave,
 # and that it does not add anything to the binlog.
 
---source include/not_embedded.inc
---source include/have_log_bin.inc
 # Dynamic loading of Example does not work on Windows currently.
 --source include/not_windows.inc
 --source include/have_example_plugin.inc

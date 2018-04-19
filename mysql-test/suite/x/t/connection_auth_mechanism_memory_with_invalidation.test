@@ -1,0 +1,109 @@
+## Test cases for authorization plugins
+
+--source include/have_ssl.inc
+--source include/xplugin_preamble.inc
+
+#
+## Setup
+#
+
+--write_file $MYSQL_TMP_DIR/change_passwords_and_login_using_memory.tmp
+-->import connection_auth_mechanism_memory_helpers.macro
+
+-->echo
+-->echo #######################################################################
+-->echo ## Fill cache with all xuser_* accounts
+-->echo #
+-->callmacro Login_all_xusers_using_plain_to_fill_the_cache
+
+-->echo
+-->echo #######################################################################
+-->echo ## Check if the account entries are removed after changing the account.
+-->echo #
+-->callmacro Login_ok	DISABLED	memory	xuser_native	native
+-->stmtsql ALTER USER xuser_native@localhost IDENTIFIED BY 'native2';
+-->recvresult
+-->callmacro Login_failed	DISABLED	memory	xuser_native	native
+-->callmacro Login_failed	DISABLED	memory	xuser_native	native2
+
+-->callmacro Login_ok	DISABLED	memory	xuser_sha256	sha256
+-->stmtsql RENAME USER xuser_sha256@localhost TO xuser_sha2@localhost;
+-->recvresult
+-->callmacro Login_failed	DISABLED	memory	xuser_sha2	sha256
+-->callmacro Login_failed	DISABLED	memory	xuser_sha256	sha256
+
+-->callmacro Login_ok	DISABLED	memory	xuser_cache2	cache2
+-->stmtsql DROP USER xuser_cache2@localhost;
+-->recvresult
+-->callmacro Login_failed	DISABLED	memory	xuser_cache2	cache2
+
+-->echo
+-->echo #######################################################################
+-->echo ## Go back to orginal settings
+-->echo #
+-->sql
+ALTER USER xuser_native@localhost IDENTIFIED BY 'native';
+RENAME USER xuser_sha2@localhost TO xuser_sha256@localhost;
+CREATE USER xuser_cache2@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'cache2';
+GRANT ALL ON *.* TO xuser_cache2@localhost;
+-->endsql
+
+
+-->echo
+-->echo #######################################################################
+-->echo ## Fill cache again
+-->echo #
+-->callmacro Login_all_xusers_using_plain_to_fill_the_cache
+
+-->callmacro Login_ok	DISABLED	memory	xuser_native	native
+-->stmtsql SET PASSWORD FOR 'xuser_native'@'localhost' = 'native3';
+-->recvresult
+-->callmacro Login_failed	DISABLED	memory	xuser_native	native3
+-->callmacro Login_failed	DISABLED	memory	xuser_native	native
+
+-->callmacro Login_ok	DISABLED	memory	xuser_sha256	sha256
+-->sql
+GRANT SELECT,LOCK TABLES ON *.* TO xuser_sha256@'localhost';
+SET PASSWORD FOR 'xuser_sha256'@'localhost' = 'sha256_new';
+-->endsql
+-->callmacro Login_failed	DISABLED	memory	xuser_sha256	sha256
+-->callmacro Login_failed	DISABLED	memory	xuser_sha256	sha256_new
+EOF
+
+--let $MYSQLXTEST=$MYSQLXTEST -uroot --ssl-cipher='AES256-SHA'
+
+# Create and configure xuser_* accounts that use native, sha256 and
+# cache_sha2 authentication plugins.
+
+--source ../include/create_mysql_accounts_for_xplugin_tests.inc
+
+GRANT ALL ON *.* TO xuser_native@localhost;
+GRANT ALL ON *.* TO xuser_sha256@localhost;
+GRANT ALL ON *.* TO xuser_cache2@localhost;
+
+
+#
+## Test starts here
+#
+
+--echo
+--echo #######################################################################
+--echo ## 1. Memory mechanism fails after altering an account
+--echo ##
+--echo ## when:
+--echo ##  * plain auth is going to fill the cache
+--echo ##  * next test is going that ALTER USER, RENAME USER, DROP USER
+--echo ##    clears the case
+--echo ##
+--echo ## Requirements: CI1, CI3, CI4, CI5
+--echo #
+
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/change_passwords_and_login_using_memory.tmp 2>&1;
+
+
+#
+# Postamble
+#
+--remove_file $MYSQL_TMP_DIR/change_passwords_and_login_using_memory.tmp
+
+--source ../include/remove_mysql_accounts_for_xplugin_tests.inc

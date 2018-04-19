@@ -17,7 +17,6 @@
 #                   Create this script based on older scripts and new code.
 # Last Change:
 # 2008-06-11 mleich Move t/is_tables.test to this file and
-#                   create variants for embedded/non embedded server.
 #
 
 let $is_table = TABLES;
@@ -100,7 +99,7 @@ FROM information_schema.tables WHERE table_catalog IS NULL OR table_catalog <> '
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 
 --error 0,ER_CANNOT_USER
 DROP   USER 'testuser1'@'localhost';
@@ -118,6 +117,7 @@ CREATE USER 'testuser3'@'localhost';
 eval
 CREATE TABLE db_datadict.tb1 (f1 INT, f2 INT, f3 INT)
 ENGINE = $engine_type;
+ANALYZE TABLE db_datadict.tb1;
 
 GRANT SELECT ON db_datadict.tb1 TO 'testuser1'@'localhost';
 GRANT ALL    ON db_datadict.tb1 TO 'testuser2'@'localhost' WITH GRANT OPTION;
@@ -134,10 +134,12 @@ connect (testuser1, localhost, testuser1, , db_datadict);
 eval
 CREATE TABLE tb2 (f1 DECIMAL)
 ENGINE = $engine_type;
+ANALYZE TABLE tb2;
 --replace_result $engine_type <engine_type>
 eval
 CREATE TABLE tb3 (f1 VARCHAR(200))
 ENGINE = $engine_type;
+ANALYZE TABLE tb3;
 GRANT SELECT ON db_datadict.tb3 to 'testuser3'@'localhost';
 GRANT INSERT ON db_datadict.tb3 to 'testuser2'@'localhost';
 CREATE VIEW v3 AS SELECT * FROM tb3;
@@ -246,7 +248,7 @@ DROP DATABASE db_datadict;
 DROP TABLE IF EXISTS test.t1_my_table;
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 
 SELECT table_name FROM information_schema.tables
 WHERE table_name LIKE 't1_my_table%';
@@ -255,6 +257,7 @@ eval
 CREATE TABLE test.t1_my_table (f1 BIGINT)
 DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci
 COMMENT = 'Initial Comment' ENGINE = $engine_type;
+ANALYZE TABLE test.t1_my_table;
 # Settings used in CREATE TABLE must be visible in information_schema.tables.
 --vertical_results
 --replace_column 5 "#ENG#"  7 "#RF#"  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "#CRT"  16 "#UT#" 17 "#CT#"  19 "#CS#"
@@ -266,6 +269,7 @@ WHERE table_name = 't1_my_table';
 SELECT table_name FROM information_schema.tables
 WHERE table_name LIKE 't1_my_table%';
 RENAME TABLE test.t1_my_table TO test.t1_my_tablex;
+ANALYZE TABLE test.t1_my_tablex;
 SELECT table_name FROM information_schema.tables
 WHERE table_name LIKE 't1_my_table%';
 #
@@ -284,6 +288,7 @@ WHERE table_name = 't1_my_tablex';
 eval
 ALTER TABLE db_datadict.t1_my_tablex
 ENGINE = $other_engine_type;
+ANALYZE TABLE db_datadict.t1_my_tablex;
 --replace_result $other_engine_type <other_engine_type>
 SELECT table_name, engine FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
@@ -292,6 +297,7 @@ WHERE table_name = 't1_my_tablex';
 SELECT table_name, table_rows FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 INSERT INTO db_datadict.t1_my_tablex VALUES(1),(2);
+ANALYZE TABLE db_datadict.t1_my_tablex;
 SELECT table_name, table_rows FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 #
@@ -321,6 +327,7 @@ SELECT table_name, AUTO_INCREMENT FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 ALTER TABLE db_datadict.t1_my_tablex
 ADD f2 BIGINT AUTO_INCREMENT, ADD PRIMARY KEY (f2);
+ANALYZE TABLE db_datadict.t1_my_tablex;
 SELECT table_name, AUTO_INCREMENT FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 #
@@ -328,6 +335,7 @@ WHERE table_name = 't1_my_tablex';
 SELECT table_name, ROW_FORMAT FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 ALTER TABLE db_datadict.t1_my_tablex ROW_FORMAT = dynamic;
+ANALYZE TABLE db_datadict.t1_my_tablex;
 SELECT table_name, ROW_FORMAT FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 #
@@ -335,6 +343,7 @@ WHERE table_name = 't1_my_tablex';
 SELECT table_name, checksum FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 ALTER TABLE db_datadict.t1_my_tablex CHECKSUM = 1;
+ANALYZE TABLE db_datadict.t1_my_tablex;
 SELECT table_name, checksum IS NOT NULL FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 SELECT UPDATE_TIME, checksum INTO @UPDATE_TIME, @checksum
@@ -344,6 +353,7 @@ WHERE table_name = 't1_my_tablex';
 --real_sleep 1.1
 INSERT INTO db_datadict.t1_my_tablex SET f1 = 3;
 FLUSH TABLES;
+ANALYZE TABLE db_datadict.t1_my_tablex;
 SELECT UPDATE_TIME > @UPDATE_TIME
     AS "Is current UPDATE_TIME bigger than before last INSERT?"
 FROM information_schema.tables
@@ -369,6 +379,7 @@ WHERE table_name LIKE 't1_my_table%';
 eval
 CREATE TABLE test.t1_my_tablex (f1 BIGINT)
 ENGINE = $other_engine_type;
+ANALYZE TABLE test.t1_my_tablex;
 SELECT CREATE_TIME > @CREATE_TIME
     AS "Is current CREATE_TIME bigger than for the old dropped table?"
 FROM information_schema.tables
@@ -377,7 +388,9 @@ DROP TABLE test.t1_my_tablex;
 #
 # Check a VIEW
 CREATE VIEW test.t1_my_tablex AS SELECT 1;
+ANALYZE TABLE test.t1_my_tablex;
 --vertical_results
+--replace_column 15 "#CRT"
 SELECT * FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 --horizontal_results
@@ -403,6 +416,7 @@ eval
 CREATE TABLE db_datadict.t1_my_tablex
 ENGINE = $engine_type AS
 SELECT 1;
+ANALYZE TABLE db_datadict.t1_my_tablex;
 SELECT table_name FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 DROP DATABASE db_datadict;
@@ -433,19 +447,37 @@ WHERE table_name = 't1_my_tablex';
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 --replace_result $engine_type <engine_type>
 eval
 CREATE TABLE db_datadict.t1 (f1 BIGINT)
 ENGINE = $engine_type;
+ANALYZE TABLE db_datadict.t1;
 
 --error ER_DBACCESS_DENIED_ERROR
 INSERT INTO information_schema.tables
 SELECT * FROM information_schema.tables;
 
---error ER_DBACCESS_DENIED_ERROR
+# Note:
+# 1. We can get different error messages here.
+# 2. We do not want to unify the individual messages to the far to unspecific
+#    'Got one of the listed errors'.
+let $my_error_message =
+##### The previous statement must fail ######
+# Server type  | expected error name      | expected error message
+# --------------------------------------------------------------------------------------------------------------------
+# MySQL  | ER_DBACCESS_DENIED_ERROR | ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+;
+--disable_abort_on_error
 UPDATE information_schema.tables SET table_schema = 'test'
 WHERE table_name = 't1';
+if (!$mysql_errno)
+{
+   --echo $my_error_message
+   exit;
+}
+--enable_abort_on_error
+
 
 --error ER_DBACCESS_DENIED_ERROR
 DELETE FROM information_schema.tables WHERE table_name = 't1';

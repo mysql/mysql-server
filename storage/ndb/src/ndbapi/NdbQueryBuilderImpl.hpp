@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -45,7 +52,8 @@
 #define QRY_BATCH_SIZE_TOO_SMALL 4825
 #define QRY_EMPTY_PROJECTION 4826
 
-#ifdef __cplusplus
+// We do not need this when building the 'perror' utility
+#if defined(__cplusplus) && !defined(PERROR_VERSION)
 #include <Vector.hpp>
 #include <Bitmask.hpp>
 #include "NdbQueryBuilder.hpp"
@@ -53,6 +61,7 @@
 #include "ndb_limits.h"
 
 // Forward declared
+class Ndb;
 class NdbTableImpl;
 class NdbIndexImpl;
 class NdbColumnImpl;
@@ -400,7 +409,8 @@ public:
    * the struct QueryNode type.
    * @return Possible error code.
    */
-  virtual int serializeOperation(Uint32Buffer& serializedTree) = 0;
+  virtual int serializeOperation(const Ndb *ndb,
+                                 Uint32Buffer& serializedTree) = 0;
 
   /** Find the projection that should be sent to the SPJ block. This should
    * contain the attributes needed to instantiate all child operations.
@@ -525,7 +535,8 @@ public:
   { return true; }
 
 protected:
-  int serialize(Uint32Buffer& serializedDef,
+  int serialize(const Ndb *ndb,
+                Uint32Buffer& serializedDef,
                 const NdbTableImpl& tableOrIndex);
 
   // Append pattern for creating complete range bounds to serialized code 
@@ -546,7 +557,8 @@ public:
   virtual const NdbIndexImpl* getIndex() const
   { return &m_index; }
 
-  virtual int serializeOperation(Uint32Buffer& serializedDef);
+  virtual int serializeOperation(const Ndb *ndb,
+                                 Uint32Buffer& serializedDef);
 
   virtual const NdbQueryIndexScanOperationDef& getInterface() const
   { return m_interface; }
@@ -611,7 +623,8 @@ class NdbQueryDefImpl
   friend class NdbQueryDef;
 
 public:
-  explicit NdbQueryDefImpl(const Vector<NdbQueryOperationDefImpl*>& operations,
+  explicit NdbQueryDefImpl(const Ndb *ndb,
+                           const Vector<NdbQueryOperationDefImpl*>& operations,
                            const Vector<NdbQueryOperandImpl*>& operands,
                            int& error);
   ~NdbQueryDefImpl();
@@ -661,7 +674,7 @@ public:
   ~NdbQueryBuilderImpl();
   explicit NdbQueryBuilderImpl();
 
-  const NdbQueryDefImpl* prepare();
+  const NdbQueryDefImpl* prepare(const Ndb *ndb);
 
   const NdbError& getNdbError() const;
 

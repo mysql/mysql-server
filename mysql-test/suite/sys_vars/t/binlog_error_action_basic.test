@@ -45,7 +45,7 @@ SELECT @@GLOBAL.binlog_error_action;
 
 --disable_warnings
 SELECT @@GLOBAL.binlog_error_action = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_error_action';
 --echo 1 Expected
 
@@ -53,7 +53,7 @@ SELECT COUNT(@@GLOBAL.binlog_error_action);
 --echo 1 Expected
 
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_error_action';
 --echo 1 Expected
 --enable_warnings

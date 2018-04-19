@@ -21,20 +21,26 @@ memory_by_thread_by_current_bytes
 memory_by_user_by_current_bytes
 memory_global_by_current_bytes
 memory_global_total
+metrics
 processlist
 ps_check_lost_instrumentation
+schema_auto_increment_columns
 schema_index_statistics
 schema_object_overview
-schema_tables_with_full_table_scans
+schema_redundant_indexes
+schema_table_lock_waits
 schema_table_statistics
 schema_table_statistics_with_buffer
+schema_tables_with_full_table_scans
 schema_unused_indexes
+session
+session_ssl_status
+statement_analysis
 statements_with_errors_or_warnings
 statements_with_full_table_scans
 statements_with_runtimes_in_95th_percentile
 statements_with_sorting
 statements_with_temp_tables
-statement_analysis
 sys_config
 user_summary
 user_summary_by_file_io
@@ -43,11 +49,11 @@ user_summary_by_stages
 user_summary_by_statement_latency
 user_summary_by_statement_type
 version
+wait_classes_global_by_avg_latency
+wait_classes_global_by_latency
 waits_by_host_by_latency
 waits_by_user_by_latency
 waits_global_by_latency
-wait_classes_global_by_avg_latency
-wait_classes_global_by_latency
 x$host_summary
 x$host_summary_by_file_io
 x$host_summary_by_file_io_type
@@ -72,27 +78,30 @@ x$processlist
 x$ps_digest_95th_percentile_by_avg_us
 x$ps_digest_avg_latency_distribution
 x$ps_schema_table_statistics_io
+x$schema_flattened_keys
 x$schema_index_statistics
-x$schema_tables_with_full_table_scans
+x$schema_table_lock_waits
 x$schema_table_statistics
 x$schema_table_statistics_with_buffer
+x$schema_tables_with_full_table_scans
+x$session
+x$statement_analysis
 x$statements_with_errors_or_warnings
 x$statements_with_full_table_scans
 x$statements_with_runtimes_in_95th_percentile
 x$statements_with_sorting
 x$statements_with_temp_tables
-x$statement_analysis
 x$user_summary
 x$user_summary_by_file_io
 x$user_summary_by_file_io_type
 x$user_summary_by_stages
 x$user_summary_by_statement_latency
 x$user_summary_by_statement_type
+x$wait_classes_global_by_avg_latency
+x$wait_classes_global_by_latency
 x$waits_by_host_by_latency
 x$waits_by_user_by_latency
 x$waits_global_by_latency
-x$wait_classes_global_by_avg_latency
-x$wait_classes_global_by_latency
 SELECT ROUTINE_NAME, ROUTINE_TYPE FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' ORDER BY ROUTINE_TYPE, ROUTINE_NAME;
 ROUTINE_NAME	ROUTINE_TYPE
 extract_schema_from_file_name	FUNCTION
@@ -101,15 +110,25 @@ format_bytes	FUNCTION
 format_path	FUNCTION
 format_statement	FUNCTION
 format_time	FUNCTION
+list_add	FUNCTION
+list_drop	FUNCTION
 ps_is_account_enabled	FUNCTION
 ps_is_consumer_enabled	FUNCTION
 ps_is_instrument_default_enabled	FUNCTION
 ps_is_instrument_default_timed	FUNCTION
 ps_is_thread_instrumented	FUNCTION
+ps_thread_account	FUNCTION
 ps_thread_id	FUNCTION
 ps_thread_stack	FUNCTION
+ps_thread_trx_info	FUNCTION
+quote_identifier	FUNCTION
 sys_get_config	FUNCTION
+version_major	FUNCTION
+version_minor	FUNCTION
+version_patch	FUNCTION
 create_synonym_db	PROCEDURE
+diagnostics	PROCEDURE
+execute_prepared_stmt	PROCEDURE
 ps_setup_disable_background_threads	PROCEDURE
 ps_setup_disable_consumer	PROCEDURE
 ps_setup_disable_instrument	PROCEDURE
@@ -131,10 +150,12 @@ ps_statement_avg_latency_histogram	PROCEDURE
 ps_trace_statement_digest	PROCEDURE
 ps_trace_thread	PROCEDURE
 ps_truncate_all_tables	PROCEDURE
+statement_performance_analyzer	PROCEDURE
+table_exists	PROCEDURE
 SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys' ORDER BY TRIGGER_NAME;
 TRIGGER_NAME
 sys_config_insert_set_user
 sys_config_update_set_user
 SELECT sys_version FROM sys.version;
 sys_version
-1.4.0
+2.0.0

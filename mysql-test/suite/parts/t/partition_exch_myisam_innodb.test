@@ -1,8 +1,6 @@
 # Author: Horst Hunger
 # Created: 2010-07-05
 
---source include/have_innodb.inc
---source include/have_partition.inc
 
 let $engine_table= MYISAM;
 let $engine_part= InnoDB;

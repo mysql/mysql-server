@@ -1,5 +1,3 @@
--- source include/have_innodb.inc
--- source include/have_innodb_16k.inc
 --echo #
 --echo # Bug#15923864 (Bug#67718):
 --echo #  INNODB DRASTICALLY UNDER-FILLS PAGES IN CERTAIN CONDITIONS
@@ -26,10 +24,12 @@ INSERT INTO t1 VALUES (2, REPEAT('a', 4096));
 # | 0, 1, 2 | 1000, 1001, 1002|
 
 SELECT page_number, number_records
-FROM information_schema.innodb_sys_tablespaces s1,
-information_schema.innodb_buffer_page s2
-WHERE s1.space = s2.space AND name = 'test/t1'
-AND page_type = "INDEX" ORDER BY page_number;
+FROM information_schema.innodb_tablespaces s1,
+information_schema.innodb_buffer_page s2,
+information_schema.innodb_tables s3
+WHERE s1.space = s2.space AND s3.name = 'test/t1'
+AND page_type = "INDEX" AND s1.space = s3.space
+ORDER BY page_number;
 
 INSERT INTO t1 VALUES (999, REPEAT('a', 4096));
 
@@ -38,10 +38,12 @@ INSERT INTO t1 VALUES (999, REPEAT('a', 4096));
 # | 0, 1, 2 | 999 | 1000, 1001, 1002|
 
 SELECT page_number, number_records
-FROM information_schema.innodb_sys_tablespaces s1,
-information_schema.innodb_buffer_page s2
-WHERE s1.space = s2.space AND name = 'test/t1'
-AND page_type = "INDEX" ORDER BY page_number;
+FROM information_schema.innodb_tablespaces s1,
+information_schema.innodb_buffer_page s2,
+information_schema.innodb_tables s3
+WHERE s1.space = s2.space AND s3.name = 'test/t1'
+AND page_type = "INDEX" AND s1.space = s3.space
+ORDER BY page_number;
 
 
 INSERT INTO t1 VALUES (998, REPEAT('a', 4096));
@@ -51,10 +53,12 @@ INSERT INTO t1 VALUES (998, REPEAT('a', 4096));
 # | 0, 1, 2 | 998, 999 | 1000, 1001, 1002|
 
 SELECT page_number, number_records
-FROM information_schema.innodb_sys_tablespaces s1,
-information_schema.innodb_buffer_page s2
-WHERE s1.space = s2.space AND name = 'test/t1'
-AND page_type = "INDEX" ORDER BY page_number;
+FROM information_schema.innodb_tablespaces s1,
+information_schema.innodb_buffer_page s2,
+information_schema.innodb_tables s3
+WHERE s1.space = s2.space AND s3.name = 'test/t1'
+AND page_type = "INDEX" AND s1.space = s3.space
+ORDER BY page_number;
 
 INSERT INTO t1 VALUES (997, REPEAT('a', 4096));
 
@@ -62,10 +66,12 @@ INSERT INTO t1 VALUES (997, REPEAT('a', 4096));
 # | 0, 1, 2 | 997, 998, 999 | 1000, 1001, 1002|
 
 SELECT page_number, number_records
-FROM information_schema.innodb_sys_tablespaces s1,
-information_schema.innodb_buffer_page s2
-WHERE s1.space = s2.space AND name = 'test/t1'
-AND page_type = "INDEX" ORDER BY page_number;
+FROM information_schema.innodb_tablespaces s1,
+information_schema.innodb_buffer_page s2,
+information_schema.innodb_tables s3
+WHERE s1.space = s2.space AND s3.name = 'test/t1'
+AND page_type = "INDEX" AND s1.space = s3.space
+ORDER BY page_number;
 
 DROP TABLE t1;
 

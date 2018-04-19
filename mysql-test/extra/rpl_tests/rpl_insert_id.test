@@ -62,8 +62,8 @@ insert into t2 values (5,0);
 insert into t2 values (null,last_insert_id());
 SET FOREIGN_KEY_CHECKS=1;
 --source include/sync_slave_sql_with_master.inc
-select * from t1;
-select * from t2;
+select * from t1 ORDER BY a;
+select * from t2 ORDER BY b;
 connection master;
 
 --echo #
@@ -118,10 +118,10 @@ insert into t1 (a) values (null);
 insert into t2 (a) select a from t1 where a is null;
 insert into t2 (a) select a from t1 where a is null;
 --enable_warnings
-select * from t2;
+select * from t2 ORDER BY a;
 --source include/sync_slave_sql_with_master.inc
 connection slave;
-select * from t2;
+select * from t2 ORDER by a;
 connection master;
 drop table t1;
 drop table t2;
@@ -203,11 +203,11 @@ end|
 delimiter ;|
 call foo();
 
-select * from t1;
-select * from t2;
+select * from t1 ORDER BY last_id;
+select * from t2 ORDER BY last_id;
 --source include/sync_slave_sql_with_master.inc
-select * from t1;
-select * from t2;
+select * from t1 ORDER BY last_id;
+select * from t2 ORDER BY last_id;
 connection master;
 
 drop function bug15728;
@@ -301,14 +301,14 @@ drop table t1;
 eval CREATE TABLE t1 (
   id bigint(20) unsigned NOT NULL auto_increment,
   field_1 int(10) unsigned NOT NULL,
-  field_2 varchar(255) NOT NULL,
+  field_2 varchar(249) NOT NULL,
   field_3 varchar(255) NOT NULL,
   PRIMARY KEY (id),
   UNIQUE KEY field_1 (field_1, field_2)
 ) ENGINE=$engine_type;
 eval CREATE TABLE t2 (
   field_a int(10) unsigned NOT NULL,
-  field_b varchar(255) NOT NULL,
+  field_b varchar(249) NOT NULL,
   field_c varchar(255) NOT NULL
 ) ENGINE=$engine_type;
 INSERT INTO t2 (field_a, field_b, field_c) VALUES (1, 'a', '1a');
@@ -464,8 +464,8 @@ SELECT * FROM t1 ORDER BY i;
 SELECT * FROM t2 ORDER BY i;
 
 --source include/sync_slave_sql_with_master.inc
-SELECT * FROM t1;
-SELECT * FROM t2;
+SELECT * FROM t1 ORDER BY i;
+SELECT * FROM t2 ORDER BY i;
 
 connection master;
 DROP PROCEDURE p1;

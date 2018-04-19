@@ -6,36 +6,48 @@
 
 --source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
 
+--echo
 SELECT enabled INTO @original_setting
 FROM performance_schema.setup_consumers
 WHERE NAME = 'statements_digest';
 
+--echo
 UPDATE performance_schema.setup_consumers
 SET enabled = 'NO'
 WHERE NAME = 'statements_digest';
 
+--echo
 SELECT 'original';
 
+--echo
 --echo # The digest column is now NULL since no digest was asked for.
 SELECT sql_text, digest
 FROM performance_schema.events_statements_history
 WHERE sql_text = "SELECT 'original'";
 
+--echo
 --source suite/query_rewrite_plugins/include/install_rewriter.inc
 
+--echo
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT "original"', 'SELECT "rewritten"' );
 
+--echo
 CALL query_rewrite.flush_rewrite_rules();
 
+--echo
 SELECT 'original';
 
+--echo
+--echo # Statements history displays queries after they've been parsed and rewritten
 SELECT sql_text, digest
 FROM performance_schema.events_statements_history
-WHERE sql_text LIKE 'SELECT %';
+WHERE sql_text LIKE 'SELECT %' order by event_id;
 
+--echo
 UPDATE performance_schema.setup_consumers
 SET enabled = @original_setting
 WHERE NAME = 'statements_digest';
 
+--echo
 --source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

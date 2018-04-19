@@ -20,12 +20,12 @@ profiling	OFF
 show session variables like 'profiling';
 Variable_name	Value
 profiling	OFF
-select * from information_schema.global_variables where variable_name='profiling';
+select * from performance_schema.global_variables where variable_name='profiling';
 VARIABLE_NAME	VARIABLE_VALUE
-PROFILING	OFF
-select * from information_schema.session_variables where variable_name='profiling';
+profiling	OFF
+select * from performance_schema.session_variables where variable_name='profiling';
 VARIABLE_NAME	VARIABLE_VALUE
-PROFILING	OFF
+profiling	OFF
 set global profiling=1;
 Warnings:
 Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
@@ -48,12 +48,12 @@ profiling	ON
 show session variables like 'profiling';
 Variable_name	Value
 profiling	ON
-select * from information_schema.global_variables where variable_name='profiling';
+select * from performance_schema.global_variables where variable_name='profiling';
 VARIABLE_NAME	VARIABLE_VALUE
-PROFILING	ON
-select * from information_schema.session_variables where variable_name='profiling';
+profiling	ON
+select * from performance_schema.session_variables where variable_name='profiling';
 VARIABLE_NAME	VARIABLE_VALUE
-PROFILING	ON
+profiling	ON
 set global profiling=0;
 Warnings:
 Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
@@ -76,12 +76,12 @@ profiling	OFF
 show session variables like 'profiling';
 Variable_name	Value
 profiling	OFF
-select * from information_schema.global_variables where variable_name='profiling';
+select * from performance_schema.global_variables where variable_name='profiling';
 VARIABLE_NAME	VARIABLE_VALUE
-PROFILING	OFF
-select * from information_schema.session_variables where variable_name='profiling';
+profiling	OFF
+select * from performance_schema.session_variables where variable_name='profiling';
 VARIABLE_NAME	VARIABLE_VALUE
-PROFILING	OFF
+profiling	OFF
 set global profiling=1.1;
 ERROR 42000: Incorrect argument type to variable 'profiling'
 set global profiling=1e1;

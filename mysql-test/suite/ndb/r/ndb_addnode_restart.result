@@ -1,0 +1,14 @@
+CREATE DATABASE TEST_DB;
+CREATE TABLE TEST_DB.T1(
+col1 INT PRIMARY KEY,
+col2 FLOAT,
+col3 CHAR(10),
+col4 VARCHAR(100),
+col5 BINARY(10),
+col6 VARBINARY(10),
+col7 INT UNSIGNED,
+col8 INT UNSIGNED
+)ENGINE=NDBCLUSTER;
+Running 'testSystemRestart -nMTR_AddNodesAndRestart1 -l1 --noddl -v T1'
+Result of 'testSystemRestart -nMTR_AddNodesAndRestart1 -l1 --noddl -v T1': 0
+DROP DATABASE TEST_DB;

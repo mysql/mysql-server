@@ -27,6 +27,7 @@ call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .
 call mtr.add_suppression("Slave I/O: .* failed with error: Lost connection to MySQL server at 'reading initial communication packet'");
 call mtr.add_suppression("Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; .*");
 call mtr.add_suppression("Slave I/O thread .* register on master");
+call mtr.add_suppression("Unknown system variable 'SERVER_UUID' on master");
 
 #Test case 1: Try to get the value of the UNIX_TIMESTAMP from master under network disconnection
 let $debug_saved= `select @@global.debug`;
@@ -68,11 +69,11 @@ eval change master to master_port=$SLAVE_MYPORT;
 start slave;
 
 --echo *** must be having the replicate-same-server-id IO thread error ***
-let $slave_io_errno= 1593;
+let $slave_io_errno= 13117;
 let $show_slave_io_error= 1;
 source include/wait_for_slave_io_error.inc;
 
-# cleanup
+#  Bug#45214 cleanup
 
 # is not really necessary but avoids mtr post-run env check warnings
 SET DEBUG_SYNC= 'RESET';
@@ -80,6 +81,22 @@ SET DEBUG_SYNC= 'RESET';
 # clear slave_io_error
 --source include/stop_slave_sql.inc
 RESET SLAVE;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_PORT=$MASTER_MYPORT;
+
+#
+# Bug #22748612 MYSQL-57 AND MYSQL-TRUNK(SLAVE) FAILS TO CONNECT TO MYSQL-55(MASTER)
+#
+--connection slave
+--let $debug_point=dbug.simulate_no_such_var_server_uuid
+--source include/add_debug_point.inc
+--source include/start_slave_io.inc
+--let $assert_text= Master_uuid must be empty string
+--let $assert_cond= "[SHOW SLAVE STATUS, Master_UUID, 1]" = ""
+--source include/assert.inc
+
+--source include/stop_slave_io.inc
+--source include/remove_debug_point.inc
 
 # End of tests
 --let $rpl_only_running_threads= 1

@@ -1,4 +1,5 @@
--- require r/openssl.require
-disable_query_log;
-show variables like "have_openssl";
-enable_query_log;
+let $have_openssl= `SELECT @@have_openssl LIKE 'YES%'`;
+if (!$have_openssl)
+{
+  --skip Needs OpenSSL
+}

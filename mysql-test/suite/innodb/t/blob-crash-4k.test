@@ -1,8 +1,5 @@
---source include/not_embedded.inc
 --source include/not_crashrep.inc
 --source include/have_debug.inc
---source include/have_innodb.inc
---source include/have_innodb_4k.inc
 
 --echo #
 --echo # Bug #16963396 INNODB: USE OF LARGE EXTERNALLY-STORED FIELDS MAKES

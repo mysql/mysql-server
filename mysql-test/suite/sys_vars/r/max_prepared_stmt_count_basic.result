@@ -92,12 +92,12 @@ SELECT @@session.max_prepared_stmt_count;
 ERROR HY000: Variable 'max_prepared_stmt_count' is a GLOBAL variable
 '#----------------------FN_DYNVARS_081_06------------------------#'
 SELECT @@global.max_prepared_stmt_count = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_prepared_stmt_count';
 @@global.max_prepared_stmt_count = VARIABLE_VALUE
 1
 SELECT @@max_prepared_stmt_count = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_prepared_stmt_count';
 @@max_prepared_stmt_count = VARIABLE_VALUE
 1

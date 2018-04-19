@@ -1,0 +1,60 @@
+# Tests for PERFORMANCE_SCHEMA
+
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+--echo
+--echo ================================================================================
+--echo SETUP
+--echo ================================================================================
+
+# Create a new connection, to get clean statistics
+connect(con1, localhost, root,,);
+
+# Create a table
+CREATE TABLE test.t1 (c1 INT);
+
+#prepare a statement
+PREPARE stmt1 FROM "SELECT c1 FROM test.t1";
+
+#execute prepared statement;
+EXECUTE stmt1;
+
+# Check status from SHOW STATUS
+SHOW SESSION STATUS LIKE "%com_stmt_%prepare%";
+
+#check the statistics
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE "%com_stmt%";
+
+SELECT VARIABLE_VALUE FROM performance_schema.global_status
+  WHERE VARIABLE_NAME LIKE "Com_stmt_reprepare"
+  INTO @count_global_reprepare_before;
+
+# Alter table to make server reprepare the statement
+ALTER TABLE test.t1 ADD COLUMN c2 INTEGER;
+
+#execute prepared statement;
+EXECUTE stmt1;
+
+# Check status from SHOW STATUS
+SHOW SESSION STATUS LIKE "%com_stmt_%prepare%";
+
+#check the statistics
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE "%com_stmt%";
+
+SELECT VARIABLE_VALUE FROM performance_schema.global_status
+  WHERE VARIABLE_NAME LIKE "Com_stmt_reprepare"
+  INTO @count_global_reprepare_after;
+
+# Should increment by 1
+SELECT @count_global_reprepare_after - @count_global_reprepare_before;
+
+--echo
+--echo ================================================================================
+--echo CLEANUP
+--echo ================================================================================
+
+DROP TABLE test.t1;
+
+--disconnect con1
+--connection default

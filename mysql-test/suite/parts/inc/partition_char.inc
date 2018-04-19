@@ -1,6 +1,7 @@
 --echo ---- Partitioning and char data type
 
 eval create table t1 (a char(255) not null, primary key(a)) engine=$engine 
+charset latin1
 partition by key (a) (
 partition pa1 max_rows=20 min_rows=2,
 partition pa2 max_rows=30 min_rows=3,
@@ -16,6 +17,7 @@ select * from t1;
 drop table t1;
 
 eval create table t2 (a char(255) not null, primary key(a)) engine=$engine 
+charset latin1
 partition by key (a) partitions 27;
 show create table t2;
 let $count=26;
@@ -36,6 +38,7 @@ drop table t2;
 if (0)
 {
 eval create table t3 (a char(255) not null, primary key(a)) engine=$engine 
+charset latin1
 partition by range (ascii(a)) subpartition by key (a) subpartitions 4 (
 partition pa16 values less than (16),
 partition pa32 values less than (32),
@@ -59,6 +62,7 @@ select a from t3;
 drop table t3;
 
 eval create table t4 (a char(255) not null, primary key(a)) engine=$engine 
+charset latin1
 partition by list (ascii(a)) subpartition by key (a) subpartitions 4 (
 partition pa16 values in (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16),
 partition pa32 values in (17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32),

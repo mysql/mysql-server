@@ -4,9 +4,6 @@
 # test cases for TRIGGER privilege on db, table and column level
 #======================================================================
 
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "storing table level and column level grants "
-                         "in the privilege tables.");
 --disable_abort_on_error
 
 #########################################################

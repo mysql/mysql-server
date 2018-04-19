@@ -1,0 +1,4 @@
+--ssl-mode=VERIFY_CA
+--ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem
+--ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem
+--ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem

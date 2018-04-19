@@ -1,0 +1,214 @@
+#########
+# SETUP #
+#########
+INSTALL COMPONENT 'file://component_pfs_example_component_population';;
+show tables in performance_schema
+where Tables_in_performance_schema like "%pfs_example%";
+Tables_in_performance_schema
+pfs_example_continent
+pfs_example_country
+select TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE
+from information_schema.tables
+where TABLE_NAME like "pfs_example%" AND
+TABLE_SCHEMA= "performance_schema";
+TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE
+performance_schema	pfs_example_continent	BASE TABLE	PERFORMANCE_SCHEMA
+performance_schema	pfs_example_country	BASE TABLE	PERFORMANCE_SCHEMA
+##############
+# Operations #
+##############
+-------------------------------------------------------------
+Displaying records inserted from component code itself
+-------------------------------------------------------------
+select * from performance_schema.pfs_example_continent;
+NAME
+bar1
+bar2
+select * from performance_schema.pfs_example_country;
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
+foo1	bar1	2016	10000	1.11
+foo2	bar2	2016	1000	2.22
+----------------------------------
+Inserting rows in component tables
+----------------------------------
+insert into performance_schema.pfs_example_continent
+values ("bar3");
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'pfs_example_continent'
+insert into performance_schema.pfs_example_country
+values ("foo3", "bar3", 2016, 100, 3.33);
+select * from performance_schema.pfs_example_continent;
+NAME
+bar1
+bar2
+select * from performance_schema.pfs_example_country;
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
+foo1	bar1	2016	10000	1.11
+foo2	bar2	2016	1000	2.22
+foo3	bar3	2016	100	3.33
+--------------------------------------
+Fetching records from component tables
+--------------------------------------
+select performance_schema.pfs_example_continent.NAME as CONTINENT_NAME,
+performance_schema.pfs_example_country.NAME as COUNTRY_NAME,
+YEAR, POPULATION, GROWTH_FACTOR
+from performance_schema.pfs_example_continent,
+performance_schema.pfs_example_country
+where pfs_example_country.CONTINENT=pfs_example_continent.NAME;
+CONTINENT_NAME	COUNTRY_NAME	YEAR	POPULATION	GROWTH_FACTOR
+bar1	foo1	2016	10000	1.11
+bar2	foo2	2016	1000	2.22
+---------------------------------
+Updating rows in component tables
+---------------------------------
+update performance_schema.pfs_example_continent
+set NAME="bar3"
+  where NAME="bar1";
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'pfs_example_continent'
+update performance_schema.pfs_example_country
+set GROWTH_FACTOR=8.88
+where NAME="foo1";
+select * from performance_schema.pfs_example_continent;
+NAME
+bar1
+bar2
+select * from performance_schema.pfs_example_country;
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
+foo1	bar1	2016	10000	8.88
+foo2	bar2	2016	1000	2.22
+foo3	bar3	2016	100	3.33
+--------------------------------------
+Fetching records from component tables
+--------------------------------------
+select performance_schema.pfs_example_continent.NAME as CONTINENT_NAME,
+performance_schema.pfs_example_country.NAME as COUNTRY_NAME,
+YEAR, POPULATION, GROWTH_FACTOR
+from performance_schema.pfs_example_continent,
+performance_schema.pfs_example_country
+where pfs_example_country.CONTINENT=pfs_example_continent.NAME;
+CONTINENT_NAME	COUNTRY_NAME	YEAR	POPULATION	GROWTH_FACTOR
+bar1	foo1	2016	10000	8.88
+bar2	foo2	2016	1000	2.22
+-----------------------------------
+Verify indexes usage
+-----------------------------------
+explain select * from performance_schema.pfs_example_continent
+where NAME="bar1";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	pfs_example_continent	NULL	const	PRIMARY	PRIMARY	80	const	1	100.00	NULL
+-------------------------------------------------
+Verify stats collection in PFS stats tables
+-------------------------------------------------
+update performance_schema.setup_consumers set ENABLED='YES';
+update performance_schema.setup_instruments set ENABLED='YES', TIMED='YES';
+insert into performance_schema.setup_objects values
+('TABLE', "performance_schema", "pfs_example_country", 'YES', 'YES');
+select * from performance_schema.pfs_example_country;
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
+foo1	bar1	2016	10000	8.88
+foo2	bar2	2016	1000	2.22
+foo3	bar3	2016	100	3.33
+truncate table performance_schema.table_io_waits_summary_by_table;
+truncate table performance_schema.table_io_waits_summary_by_index_usage;
+---------- table I/O stat by table name ----------
+select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+from performance_schema.table_io_waits_summary_by_table
+where OBJECT_NAME="pfs_example_country";
+COUNT_STAR	COUNT_FETCH	COUNT_INSERT	COUNT_UPDATE	COUNT_DELETE
+0	0	0	0	0
+---------- table I/O stat by index usage ----------
+select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_NAME="pfs_example_country";
+INDEX_NAME	COUNT_STAR	COUNT_FETCH	COUNT_INSERT	COUNT_UPDATE	COUNT_DELETE
+NAME	0	0	0	0	0
+NULL	0	0	0	0	0
+---------- insert query ----------
+insert into performance_schema.pfs_example_country
+values ("foo4", "bar4", 2016, 100, 4.44);
+---------- table I/O stat by table name ----------
+select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+from performance_schema.table_io_waits_summary_by_table
+where OBJECT_NAME="pfs_example_country";
+COUNT_STAR	COUNT_FETCH	COUNT_INSERT	COUNT_UPDATE	COUNT_DELETE
+1	0	1	0	0
+---------- table I/O stat by index usage ----------
+select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_NAME="pfs_example_country";
+INDEX_NAME	COUNT_STAR	COUNT_FETCH	COUNT_INSERT	COUNT_UPDATE	COUNT_DELETE
+NAME	0	0	0	0	0
+NULL	1	0	1	0	0
+---------- update query with NAME ----------
+update performance_schema.pfs_example_country
+set GROWTH_FACTOR=5.55
+where NAME="foo4" and CONTINENT="bar4";
+---------- table I/O stat by table name ----------
+select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+from performance_schema.table_io_waits_summary_by_table
+where OBJECT_NAME="pfs_example_country";
+COUNT_STAR	COUNT_FETCH	COUNT_INSERT	COUNT_UPDATE	COUNT_DELETE
+3	1	1	1	0
+---------- table I/O stat by index usage ----------
+select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_NAME="pfs_example_country";
+INDEX_NAME	COUNT_STAR	COUNT_FETCH	COUNT_INSERT	COUNT_UPDATE	COUNT_DELETE
+NAME	2	1	0	1	0
+NULL	1	0	1	0	0
+---------- update query with NAME ----------
+update performance_schema.pfs_example_country
+set GROWTH_FACTOR=6.66
+where NAME="foo4" and CONTINENT="bar4";
+---------- table I/O stat by table name ----------
+select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+from performance_schema.table_io_waits_summary_by_table
+where OBJECT_NAME="pfs_example_country";
+COUNT_STAR	COUNT_FETCH	COUNT_INSERT	COUNT_UPDATE	COUNT_DELETE
+5	2	1	2	0
+---------- table I/O stat by index usage ----------
+select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_NAME="pfs_example_country";
+INDEX_NAME	COUNT_STAR	COUNT_FETCH	COUNT_INSERT	COUNT_UPDATE	COUNT_DELETE
+NAME	4	2	0	2	0
+NULL	1	0	1	0	0
+---------- delete query ----------
+delete from performance_schema.pfs_example_country
+where NAME="foo4" and CONTINENT="bar4";
+---------- table I/O stat by table name ----------
+select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+from performance_schema.table_io_waits_summary_by_table
+where OBJECT_NAME="pfs_example_country";
+COUNT_STAR	COUNT_FETCH	COUNT_INSERT	COUNT_UPDATE	COUNT_DELETE
+7	3	1	2	1
+---------- table I/O stat by index usage ----------
+select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_NAME="pfs_example_country";
+INDEX_NAME	COUNT_STAR	COUNT_FETCH	COUNT_INSERT	COUNT_UPDATE	COUNT_DELETE
+NAME	6	3	0	2	1
+NULL	1	0	1	0	0
+delete from performance_schema.setup_objects
+where OBJECT_NAME="pfs_example_country";
+-------------------------------------------------------
+Fetching from component table after component uninstall
+-------------------------------------------------------
+UNINSTALL COMPONENT 'file://component_pfs_example_component_population';;
+select * from performance_schema.pfs_example_continent;
+ERROR 42S02: Table 'performance_schema.pfs_example_continent' doesn't exist
+select * from performance_schema.pfs_example_country;
+ERROR 42S02: Table 'performance_schema.pfs_example_country' doesn't exist
+show tables in performance_schema
+where Tables_in_performance_schema like "%pfs_example%";
+Tables_in_performance_schema
+###########
+# CLEANUP #
+###########
+pfs_example_component_population init:
+Passed add_tables()
+End of init
+
+pfs_example_component_population_deinit:
+Passed delete_tables()
+End of deinit
+

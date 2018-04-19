@@ -1,35 +1,58 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _SP_RCONTEXT_H_
 #define _SP_RCONTEXT_H_
 
-#include "sql_class.h"                    // Query_result_interceptor
-#include "sp_pcontext.h"                  // sp_condition_value
-#include "sql_array.h"
-#include "prealloced_array.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "prealloced_array.h"  // Prealloced_array
+#include "sql/item.h"
+#include "sql/query_result.h"  // Query_result_interceptor
+#include "sql/sql_array.h"
+#include "sql/sql_error.h"
+#include "sql/table.h"
+
+class Field;
+class Query_arena;
+class SELECT_LEX_UNIT;
+class Server_side_cursor;
+class THD;
+class sp_cursor;
+class sp_handler;
+class sp_head;
+class sp_instr;
+class sp_instr_cpush;
+class sp_pcontext;
+class sp_variable;
+template <class T>
+class List;
 
 ///////////////////////////////////////////////////////////////////////////
 // sp_rcontext declaration.
 ///////////////////////////////////////////////////////////////////////////
-
-class sp_cursor;
-class sp_instr_cpush;
-class Query_arena;
-class sp_head;
-class Item_cache;
 
 /*
   This class is a runtime context of a Stored Routine. It is used in an
@@ -50,9 +73,8 @@ class Item_cache;
   runtime context needs a reference to the parsing context.
 */
 
-class sp_rcontext : public Sql_alloc
-{
-public:
+class sp_rcontext {
+ public:
   /// Construct and properly initialize a new sp_rcontext instance. The static
   /// create-function is needed because we need a way to return an error from
   /// the constructor.
@@ -63,27 +85,24 @@ public:
   ///                         (for stored functions only).
   ///
   /// @return valid sp_rcontext object or NULL in case of OOM-error.
-  static sp_rcontext *create(THD *thd,
-                             const sp_pcontext *root_parsing_ctx,
+  static sp_rcontext *create(THD *thd, const sp_pcontext *root_parsing_ctx,
                              Field *return_value_fld);
 
   ~sp_rcontext();
 
-private:
-  sp_rcontext(const sp_pcontext *root_parsing_ctx,
-              Field *return_value_fld,
+ private:
+  sp_rcontext(const sp_pcontext *root_parsing_ctx, Field *return_value_fld,
               bool in_sub_stmt);
 
   // Prevent use of copying constructor and operator.
   sp_rcontext(const sp_rcontext &);
   void operator=(sp_rcontext &);
 
-private:
+ private:
   /// This is an auxillary class to store entering instruction pointer for an
   /// SQL-handler.
-  class sp_handler_entry
-  {
-  public:
+  class sp_handler_entry {
+   public:
     /// Handler definition (from parsing context).
     const sp_handler *handler;
 
@@ -95,17 +114,15 @@ private:
     /// @param _handler   sp_handler object.
     /// @param _first_ip  first instruction pointer.
     sp_handler_entry(const sp_handler *_handler, uint _first_ip)
-     :handler(_handler), first_ip(_first_ip)
-    { }
+        : handler(_handler), first_ip(_first_ip) {}
   };
 
-public:
+ public:
   /// This class represents a call frame of SQL-handler (one invocation of a
   /// handler). Basically, it's needed to store continue instruction pointer for
   /// CONTINUE SQL-handlers.
-  class Handler_call_frame
-  {
-  public:
+  class Handler_call_frame {
+   public:
     /// Handler definition (from parsing context).
     const sp_handler *handler;
 
@@ -122,19 +139,18 @@ public:
 
     /// The constructor.
     ///
+    /// @param _handler       SQL-handler
     /// @param _sql_condition SQL-condition, triggered handler activation.
     /// @param _continue_ip   Continue instruction pointer.
     Handler_call_frame(const sp_handler *_handler,
-                       Sql_condition *_sql_condition,
-                       uint _continue_ip)
-     :handler(_handler),
-      sql_condition(_sql_condition),
-      continue_ip(_continue_ip),
-      handler_da(false)
-    { }
- };
+                       Sql_condition *_sql_condition, uint _continue_ip)
+        : handler(_handler),
+          sql_condition(_sql_condition),
+          continue_ip(_continue_ip),
+          handler_da(false) {}
+  };
 
-public:
+ public:
   /// Arena used to (re) allocate items on. E.g. reallocate INOUT/OUT
   /// SP-variables when they don't fit into prealloced items. This is common
   /// situation with String items. It is used mainly in sp_eval_func_item().
@@ -152,19 +168,19 @@ public:
   // SP-variables.
   /////////////////////////////////////////////////////////////////////////
 
-  bool set_variable(THD *thd, uint var_idx, Item **value)
-  { return set_variable(thd, m_var_table->field[var_idx], value); }
+  bool set_variable(THD *thd, uint var_idx, Item **value) {
+    return set_variable(thd, m_var_table->field[var_idx], value);
+  }
 
-  Item *get_item(uint var_idx) const
-  { return m_var_items[var_idx]; }
+  Item *get_item(uint var_idx) const { return m_var_items[var_idx]; }
 
-  Item **get_item_addr(uint var_idx) const
-  { return m_var_items.array() + var_idx; }
+  Item **get_item_addr(uint var_idx) const {
+    return m_var_items.array() + var_idx;
+  }
 
   bool set_return_value(THD *thd, Item **return_value_item);
 
-  bool is_return_value_set() const
-  { return m_return_value_set; }
+  bool is_return_value_set() const { return m_return_value_set; }
 
   /////////////////////////////////////////////////////////////////////////
   // SQL-handlers.
@@ -188,10 +204,8 @@ public:
   void pop_handlers(sp_pcontext *current_scope);
 
   /// Get the Handler_call_frame representing the currently active handler.
-  Handler_call_frame *current_handler_frame() const
-  {
-    return m_activated_handlers.size() ?
-      m_activated_handlers.back() : NULL;
+  Handler_call_frame *current_handler_frame() const {
+    return m_activated_handlers.size() ? m_activated_handlers.back() : NULL;
   }
 
   /// Handle current SQL condition (if any).
@@ -200,7 +214,7 @@ public:
   /// stored routines.
   ///
   /// @param thd            Thread handle.
-  /// @param ip[out]        Instruction pointer to the first handler
+  /// @param [out] ip       Instruction pointer to the first handler
   ///                       instruction.
   /// @param cur_spi        Current SP instruction.
   ///
@@ -214,23 +228,19 @@ public:
   /// semantics.
   ///
   /// @retval false otherwise.
-  bool handle_sql_condition(THD *thd,
-                            uint *ip,
-                            const sp_instr *cur_spi);
+  bool handle_sql_condition(THD *thd, uint *ip, const sp_instr *cur_spi);
 
   /// Handle return from SQL-handler.
   ///
   /// @param thd            Thread handle.
   /// @param target_scope   The BEGIN..END block, containing
   ///                       the target (next) instruction.
-  void exit_handler(THD *thd,
-                    sp_pcontext *target_scope);
+  void exit_handler(THD *thd, sp_pcontext *target_scope);
 
   /// @return the continue instruction pointer of the last activated CONTINUE
   /// handler. This function must not be called for the EXIT handlers.
-  uint get_last_handler_continue_ip() const
-  {
-    uint ip= m_activated_handlers.back()->continue_ip;
+  uint get_last_handler_continue_ip() const {
+    uint ip = m_activated_handlers.back()->continue_ip;
     DBUG_ASSERT(ip != 0);
 
     return ip;
@@ -242,23 +252,22 @@ public:
 
   /// Create a new sp_cursor instance and push it to the cursor stack.
   ///
+  /// @param thd        Thread handle
   /// @param i          Cursor-push instruction.
   ///
   /// @return error flag.
   /// @retval false on success.
   /// @retval true on error.
-  bool push_cursor(sp_instr_cpush *i);
+  bool push_cursor(THD *thd, sp_instr_cpush *i);
 
   /// Pop and delete given number of sp_cursor instance from the cursor stack.
   ///
   /// @param count Number of cursors to pop & delete.
   void pop_cursors(uint count);
 
-  void pop_all_cursors()
-  { pop_cursors(m_ccount); }
+  void pop_all_cursors() { pop_cursors(m_ccount); }
 
-  sp_cursor *get_cursor(uint i) const
-  { return m_cstack[i]; }
+  sp_cursor *get_cursor(uint i) const { return m_cstack[i]; }
 
   /////////////////////////////////////////////////////////////////////////
   // CASE expressions.
@@ -268,7 +277,7 @@ public:
   ///
   /// @param thd             Thread handler.
   /// @param case_expr_id    The CASE expression identifier.
-  /// @param case_expr_item  The CASE expression value
+  /// @param case_expr_item_ptr  The CASE expression value
   ///
   /// @return error flag.
   /// @retval false on success.
@@ -291,13 +300,15 @@ public:
   ///   Item.  This also can (should?) be optimized.
   bool set_case_expr(THD *thd, int case_expr_id, Item **case_expr_item_ptr);
 
-  Item *get_case_expr(int case_expr_id) const
-  { return m_case_expr_holders[case_expr_id]; }
+  Item *get_case_expr(int case_expr_id) const {
+    return m_case_expr_holders[case_expr_id];
+  }
 
-  Item ** get_case_expr_addr(int case_expr_id) const
-  { return (Item**) m_case_expr_holders.array() + case_expr_id; }
+  Item **get_case_expr_addr(int case_expr_id) const {
+    return (Item **)m_case_expr_holders.array() + case_expr_id;
+  }
 
-private:
+ private:
   /// Internal function to allocate memory for arrays.
   ///
   /// @param thd Thread handle.
@@ -341,7 +352,7 @@ private:
   /// Also pop the matching Diagnostics Area and transfer conditions.
   void pop_handler_frame(THD *thd);
 
-private:
+ private:
   /// Top-level (root) parsing context for this runtime context.
   const sp_pcontext *m_root_parsing_ctx;
 
@@ -377,65 +388,58 @@ private:
 
   /// Array of CASE expression holders.
   Bounds_checked_array<Item_cache *> m_case_expr_holders;
-}; // class sp_rcontext : public Sql_alloc
+};
 
 ///////////////////////////////////////////////////////////////////////////
 // sp_cursor declaration.
 ///////////////////////////////////////////////////////////////////////////
 
-class Server_side_cursor;
-typedef class st_select_lex_unit SELECT_LEX_UNIT;
-
 /* A mediator between stored procedures and server side cursors */
 
-class sp_cursor
-{
-private:
-  /// An interceptor of cursor result set used to implement
-  /// FETCH <cname> INTO <varlist>.
-  class Query_fetch_into_spvars: public Query_result_interceptor
-  {
+class sp_cursor {
+ private:
+  /**
+    An interceptor of cursor result set used to implement
+    FETCH @<cname@> INTO @<varlist@>.
+  */
+  class Query_fetch_into_spvars : public Query_result_interceptor {
     List<sp_variable> *spvar_list;
     uint field_count;
-  public:
-    Query_fetch_into_spvars() {}               /* Remove gcc warning */
+
+   public:
+    Query_fetch_into_spvars(THD *thd) : Query_result_interceptor(thd) {}
     uint get_field_count() { return field_count; }
-    void set_spvar_list(List<sp_variable> *vars) { spvar_list= vars; }
+    void set_spvar_list(List<sp_variable> *vars) { spvar_list = vars; }
 
-    virtual bool send_eof() { return FALSE; }
+    virtual bool send_eof() { return false; }
     virtual bool send_data(List<Item> &items);
-    virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-};
+    virtual bool prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+  };
 
-public:
-  sp_cursor(sp_instr_cpush *i)
-   :m_server_side_cursor(NULL),
-    m_push_instr(i)
-  { }
+ public:
+  sp_cursor(THD *thd, sp_instr_cpush *i)
+      : m_result(thd), m_server_side_cursor(NULL), m_push_instr(i) {}
 
-  virtual ~sp_cursor()
-  { destroy(); }
+  virtual ~sp_cursor() { destroy(); }
 
   bool open(THD *thd);
 
-  bool close(THD *thd);
+  bool close();
 
-  bool is_open() const
-  { return MY_TEST(m_server_side_cursor); }
+  bool is_open() const { return m_server_side_cursor != nullptr; }
 
-  bool fetch(THD *thd, List<sp_variable> *vars);
+  bool fetch(List<sp_variable> *vars);
 
-  sp_instr_cpush *get_push_instr()
-  { return m_push_instr; }
+  sp_instr_cpush *get_push_instr() { return m_push_instr; }
 
-private:
+ private:
   Query_fetch_into_spvars m_result;
 
   Server_side_cursor *m_server_side_cursor;
   sp_instr_cpush *m_push_instr;
 
-private:
+ private:
   void destroy();
-}; // class sp_cursor
+};  // class sp_cursor
 
 #endif /* _SP_RCONTEXT_H_ */

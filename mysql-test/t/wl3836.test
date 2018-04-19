@@ -1,7 +1,6 @@
 # Created: Atanu Ghosh 2014-05-07
 # WL#3836: Method to bring servers off line
  
---source include/not_embedded.inc
 --source include/not_threadpool.inc
 	  
 --echo #

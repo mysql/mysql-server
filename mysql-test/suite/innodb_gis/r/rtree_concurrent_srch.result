@@ -1,4 +1,4 @@
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 insert into t1 values(1, Point(1,1));
 insert into t1 values(2, Point(2,2));
 insert into t1 values(3, Point(3,3));
@@ -14,6 +14,7 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
+SET SESSION debug="+d,rtr_pcur_move_to_next_return";
 set session transaction isolation level serializable;
 set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
 SET DEBUG_SYNC = 'RESET';
@@ -53,8 +54,8 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 set session transaction isolation level serializable;
-select @@tx_isolation;
-@@tx_isolation
+select @@transaction_isolation;
+@@transaction_isolation
 SERIALIZABLE
 start transaction;
 set @g1 = ST_GeomFromText('Polygon((100 100, 100 110, 110 110, 110 100, 100 100))');
@@ -63,8 +64,8 @@ count(*)
 0
 set session transaction isolation level serializable;
 set session innodb_lock_wait_timeout = 1;
-select @@tx_isolation;
-@@tx_isolation
+select @@transaction_isolation;
+@@transaction_isolation
 SERIALIZABLE
 insert into t1 select * from t1;
 insert into t1 select * from t1;
@@ -82,8 +83,8 @@ count(*)
 select @@innodb_lock_wait_timeout;
 @@innodb_lock_wait_timeout
 1
-select @@tx_isolation;
-@@tx_isolation
+select @@transaction_isolation;
+@@transaction_isolation
 SERIALIZABLE
 insert into t1 select * from t1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
@@ -107,8 +108,8 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 set session transaction isolation level serializable;
-select @@tx_isolation;
-@@tx_isolation
+select @@transaction_isolation;
+@@transaction_isolation
 SERIALIZABLE
 start transaction;
 set @g1 = ST_GeomFromText('Polygon((100 100, 100 110, 110 110, 110 100, 100 100))');
@@ -117,8 +118,8 @@ count(*)
 0
 set session transaction isolation level serializable;
 set session innodb_lock_wait_timeout = 1;
-select @@tx_isolation;
-@@tx_isolation
+select @@transaction_isolation;
+@@transaction_isolation
 SERIALIZABLE
 insert into t1 select * from t1;
 insert into t1 select * from t1;
@@ -140,8 +141,8 @@ count(*)
 select @@innodb_lock_wait_timeout;
 @@innodb_lock_wait_timeout
 1
-select @@tx_isolation;
-@@tx_isolation
+select @@transaction_isolation;
+@@transaction_isolation
 SERIALIZABLE
 INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(8 105, 200 105)'));
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
@@ -200,8 +201,8 @@ end while;
 end|
 CALL insert_t1(0, 1000);
 set session transaction isolation level serializable;
-select @@tx_isolation;
-@@tx_isolation
+select @@transaction_isolation;
+@@transaction_isolation
 SERIALIZABLE
 start transaction;
 set @g1 = ST_GeomFromText('Polygon((800 800, 800 1000, 1000 1000, 1000 800, 800 800))');
@@ -217,9 +218,10 @@ select sleep(2);
 sleep(2)
 0
 commit;
+SET SESSION debug="-d,rtr_pcur_move_to_next_return";
 drop table t1;
 drop procedure insert_t1;
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(2 2, 150 150)'));
 INSERT INTO t1  VALUES (2, ST_GeomFromText('LineString(3 3, 160 160)'));
 INSERT INTO t1  VALUES (2, ST_GeomFromText('LineString(4 4, 170 170)'));
@@ -227,6 +229,7 @@ INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(5 5, 180 180)'));
 INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(6 6, 190 190)'));
 INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(7 7, 200 200)'));
 INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(8 8, 210 210)'));
+SET SESSION debug="+d,rtr_pcur_move_to_next_return";
 set transaction isolation level serializable;
 start transaction;
 set @g1 = ST_GeomFromText('Polygon((100 100, 100 110, 110 110, 110 100, 100 100))');
@@ -247,7 +250,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
 drop table t1;
 SET DEBUG_SYNC= 'RESET';
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 start transaction;
 insert into t1 values(1, Point(1,1));
 insert into t1 values(2, Point(2,2));
@@ -284,7 +287,7 @@ count(*)
 0
 DROP TABLE t1;
 SET DEBUG_SYNC = 'RESET';
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 create procedure insert_t1(IN total int)
 begin
 declare i int default 1;
@@ -305,4 +308,5 @@ count(*)
 0
 drop procedure insert_t1;
 DROP TABLE t1;
+SET SESSION debug="-d,rtr_pcur_move_to_next_return";
 SET DEBUG_SYNC = 'RESET';

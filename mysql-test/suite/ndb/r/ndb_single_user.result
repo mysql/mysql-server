@@ -1,4 +1,3 @@
-drop table if exists t1,t2;
 create table t1 (a int key, b int unique, c int) engine ndb;
 ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
 CREATE LOGFILE GROUP lg1
@@ -40,25 +39,21 @@ USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M
 ENGINE NDB;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE NDB;
+DROP DATAFILE 'datafile.dat';
 ERROR HY000: Failed to alter:  DROP DATAFILE
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 299 'Operation not allowed or aborted due to single user mode' from NDB
 Error	1533	Failed to alter:  DROP DATAFILE
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE NDB;
-DROP TABLESPACE ts1
-ENGINE NDB;
+DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts1;
 ERROR HY000: Failed to drop TABLESPACE
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 299 'Operation not allowed or aborted due to single user mode' from NDB
 Error	1529	Failed to drop TABLESPACE
-DROP TABLESPACE ts1
-ENGINE NDB;
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
 insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0),(6,6,0),(7,7,0),(8,8,0),(9,9,0),(10,10,0);
@@ -86,7 +81,7 @@ insert into t1 select * from t2;
 create unique index new_index on t1 (b,c);
 drop table t2;
 drop table t1;
-ERROR 42S02: Unknown table 'test.t1'
+ERROR HY000: Storage engine can't drop table 'test.t1'
 create index new_index_fail on t1 (c);
 ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
 insert into t1 values (21,21,0),(22,22,0),(23,23,0),(24,24,0),(25,25,0),(26,26,0),(27,27,0),(28,28,0),(29,29,0),(210,210,0);

@@ -1,6 +1,5 @@
 
 -- source include/force_binlog_format_statement.inc
--- source include/have_gbk.inc
 
 RESET MASTER;
 SET NAMES gbk;
@@ -29,16 +28,16 @@ DROP PROCEDURE p1;
 RENAME TABLE t1 to t2;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
-copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.saved;
+copy_file $MYSQLD_DATADIR/binlog.000001 $MYSQLD_DATADIR/binlog.saved;
 # Reset GTIDs
 RESET MASTER;
---exec $MYSQL_BINLOG --force-if-open --short-form $MYSQLD_DATADIR/master-bin.saved | $MYSQL
+--exec $MYSQL_BINLOG --force-if-open --short-form $MYSQLD_DATADIR/binlog.saved | $MYSQL
 SELECT hex(f1) FROM t2;
 SELECT hex(f1) FROM t1;
 
 DROP PROCEDURE p1;
 DROP TABLE t1;
 DROP TABLE t2;
---remove_file $MYSQLD_DATADIR/master-bin.saved
+--remove_file $MYSQLD_DATADIR/binlog.saved
 
 --source include/restore_default_binlog_format.inc

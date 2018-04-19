@@ -2,9 +2,6 @@
 ================================================================================
 SETUP
 ================================================================================
-# Save current SHOW_COMPATIBILITY_56 setting
-SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
-SET @@global.show_compatibility_56=OFF;
 SET @@session.sql_log_bin=OFF;
 
 # CREATE 3 CLIENTS, 3 CONNECTIONS, RESULTS TABLE
@@ -28,22 +25,10 @@ INSERT INTO t1 VALUES (1), (2), (2), (3), (3), (3);
 CREATE TABLE t2 (s1 int) ENGINE=InnoDB;
 CREATE TABLE t3 (s1 int) ENGINE=InnoDB;
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+CREATE USER 'user1'@localhost, 'user2'@localhost, 'user3'@localhost;
 GRANT ALL ON *.* to 'user1'@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT ALL ON *.* to 'user2'@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT ALL ON *.* to 'user3'@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 ================================================================================
 CONNECTION 1: DELETE 1, ROLLBACK x 1
@@ -519,6 +504,3 @@ DROP TABLE test.status_results;
 DROP USER 'user1'@localhost;
 DROP USER 'user2'@localhost;
 DROP USER 'user3'@localhost;
-
-# Restore SHOW_COMPATIBILITY_56 setting
-SET @@global.show_compatibility_56 = @show_compatibility_56_save;

@@ -20,7 +20,6 @@
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 --source include/have_debug.inc
---source include/have_innodb.inc
 --source include/have_debug_sync.inc
 
 --echo # Let master and slave synced with t1 table created
@@ -55,6 +54,9 @@ query_vertical SHOW SLAVE STATUS;
 --enable_result_log
 UNLOCK TABLES;
 SET @@GLOBAL.DEBUG= '$debug_saved';
+
+--echo # Restart SQL thread so that it notices debug has changed
+--source include/restart_slave_sql.inc
 
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc

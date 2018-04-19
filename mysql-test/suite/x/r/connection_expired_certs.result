@@ -1,0 +1,10 @@
+call mtr.add_suppression("SSL_CTX_set_default_verify_paths failed");
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key");
+Variable_name	Value
+Mysqlx_ssl_server_not_after	
+Mysqlx_ssl_server_not_before	
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

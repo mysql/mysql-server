@@ -1,6 +1,8 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 
+-- source include/have_innodb_max_16k.inc
+
 #######################################################################
 #                                                                     #
 # Please, DO NOT TOUCH this file as well as the innodb.result file.   #
@@ -16,9 +18,6 @@
 #                                                                     #
 #######################################################################
 
--- source include/have_innodb.inc
--- source include/have_innodb_max_16k.inc
-
 let $MYSQLD_DATADIR= `select @@datadir`;
 # Save the original values of some variables in order to be able to
 # estimate how much they have changed during the tests. Previously this
@@ -30,22 +29,22 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 # See Bug#43309 Test main.innodb can't be run twice
 -- disable_query_log
 call mtr.add_suppression("Cannot add field .* in table .* because after adding it, the row size is");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: in ALTER TABLE `test`.`t1`");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: in RENAME TABLE table `test`.`t1`");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* in ALTER TABLE `test`.`t1`");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* in RENAME TABLE table `test`.`t1`");
 
 SET @innodb_thread_sleep_delay_orig = @@innodb_thread_sleep_delay;
 
 SET @innodb_thread_concurrency_orig = @@innodb_thread_concurrency;
 
 --disable_warnings
-SET @innodb_rows_deleted_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted');
-SET @innodb_rows_inserted_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted');
-SET @innodb_rows_updated_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated');
-SET @innodb_row_lock_waits_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits');
-SET @innodb_row_lock_current_waits_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_current_waits');
-SET @innodb_row_lock_time_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time');
-SET @innodb_row_lock_time_max_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_max');
-SET @innodb_row_lock_time_avg_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg');
+SET @innodb_rows_deleted_orig = (SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted');
+SET @innodb_rows_inserted_orig = (SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted');
+SET @innodb_rows_updated_orig = (SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated');
+SET @innodb_row_lock_waits_orig = (SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits');
+SET @innodb_row_lock_current_waits_orig = (SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_current_waits');
+SET @innodb_row_lock_time_orig = (SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time');
+SET @innodb_row_lock_time_max_orig = (SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_max');
+SET @innodb_row_lock_time_avg_orig = (SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg');
 --enable_warnings
 -- enable_query_log
 
@@ -730,7 +729,7 @@ create table t1 (id int unsigned not null auto_increment, code tinyint unsigned 
 
 BEGIN;
 SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-SELECT @@tx_isolation,@@global.tx_isolation;
+SELECT @@transaction_isolation,@@global.transaction_isolation;
 insert into t1 (code, name) values (1, 'Tim'), (1, 'Monty'), (2, 'David');
 select id, code, name from t1 order by id;
 COMMIT;
@@ -1057,81 +1056,19 @@ DROP TABLE t2,t1;
 #
 # test for FK cascade depth limit
 #
-call mtr.add_suppression("Cannot delete/update rows with cascading foreign key constraints that exceed max depth of 255. Please drop excessive foreign constraints and try again");
+call mtr.add_suppression("Cannot delete/update rows with cascading foreign key constraints that exceed max depth of 15. Please drop excessive foreign constraints and try again");
 
 create table t1(
 	id int primary key,
 	pid int,
 	index(pid),
 	foreign key(pid) references t1(id) on delete cascade) engine=innodb;
-insert into t1 values
-(  0,   0), (  1,   0), (  2,   1), (  3,   2),
-(  4,   3), (  5,   4), (  6,   5), (  7,   6),
-(  8,   7), (  9,   8), ( 10,   9), ( 11,  10),
-( 12,  11), ( 13,  12), ( 14,  13), ( 15,  14),
-( 16,  15), ( 17,  16), ( 18,  17), ( 19,  18),
-( 20,  19), ( 21,  20), ( 22,  21), ( 23,  22),
-( 24,  23), ( 25,  24), ( 26,  25), ( 27,  26),
-( 28,  27), ( 29,  28), ( 30,  29), ( 31,  30),
-( 32,  31), ( 33,  32), ( 34,  33), ( 35,  34),
-( 36,  35), ( 37,  36), ( 38,  37), ( 39,  38),
-( 40,  39), ( 41,  40), ( 42,  41), ( 43,  42),
-( 44,  43), ( 45,  44), ( 46,  45), ( 47,  46),
-( 48,  47), ( 49,  48), ( 50,  49), ( 51,  50),
-( 52,  51), ( 53,  52), ( 54,  53), ( 55,  54),
-( 56,  55), ( 57,  56), ( 58,  57), ( 59,  58),
-( 60,  59), ( 61,  60), ( 62,  61), ( 63,  62),
-( 64,  63), ( 65,  64), ( 66,  65), ( 67,  66),
-( 68,  67), ( 69,  68), ( 70,  69), ( 71,  70),
-( 72,  71), ( 73,  72), ( 74,  73), ( 75,  74),
-( 76,  75), ( 77,  76), ( 78,  77), ( 79,  78),
-( 80,  79), ( 81,  80), ( 82,  81), ( 83,  82),
-( 84,  83), ( 85,  84), ( 86,  85), ( 87,  86),
-( 88,  87), ( 89,  88), ( 90,  89), ( 91,  90),
-( 92,  91), ( 93,  92), ( 94,  93), ( 95,  94),
-( 96,  95), ( 97,  96), ( 98,  97), ( 99,  98),
-(100,  99), (101, 100), (102, 101), (103, 102),
-(104, 103), (105, 104), (106, 105), (107, 106),
-(108, 107), (109, 108), (110, 109), (111, 110),
-(112, 111), (113, 112), (114, 113), (115, 114),
-(116, 115), (117, 116), (118, 117), (119, 118),
-(120, 119), (121, 120), (122, 121), (123, 122),
-(124, 123), (125, 124), (126, 125), (127, 126),
-(128, 127), (129, 128), (130, 129), (131, 130),
-(132, 131), (133, 132), (134, 133), (135, 134),
-(136, 135), (137, 136), (138, 137), (139, 138),
-(140, 139), (141, 140), (142, 141), (143, 142),
-(144, 143), (145, 144), (146, 145), (147, 146),
-(148, 147), (149, 148), (150, 149), (151, 150),
-(152, 151), (153, 152), (154, 153), (155, 154),
-(156, 155), (157, 156), (158, 157), (159, 158),
-(160, 159), (161, 160), (162, 161), (163, 162),
-(164, 163), (165, 164), (166, 165), (167, 166),
-(168, 167), (169, 168), (170, 169), (171, 170),
-(172, 171), (173, 172), (174, 173), (175, 174),
-(176, 175), (177, 176), (178, 177), (179, 178),
-(180, 179), (181, 180), (182, 181), (183, 182),
-(184, 183), (185, 184), (186, 185), (187, 186),
-(188, 187), (189, 188), (190, 189), (191, 190),
-(192, 191), (193, 192), (194, 193), (195, 194),
-(196, 195), (197, 196), (198, 197), (199, 198),
-(200, 199), (201, 200), (202, 201), (203, 202),
-(204, 203), (205, 204), (206, 205), (207, 206),
-(208, 207), (209, 208), (210, 209), (211, 210),
-(212, 211), (213, 212), (214, 213), (215, 214),
-(216, 215), (217, 216), (218, 217), (219, 218),
-(220, 219), (221, 220), (222, 221), (223, 222),
-(224, 223), (225, 224), (226, 225), (227, 226),
-(228, 227), (229, 228), (230, 229), (231, 230),
-(232, 231), (233, 232), (234, 233), (235, 234),
-(236, 235), (237, 236), (238, 237), (239, 238),
-(240, 239), (241, 240), (242, 241), (243, 242),
-(244, 243), (245, 244), (246, 245), (247, 246),
-(248, 247), (249, 248), (250, 249), (251, 250),
-(252, 251), (253, 252), (254, 253), (255, 254);
+insert into t1 values(0,0),(1,0),(2,1),(3,2),(4,3),(5,4),(6,5),(7,6),
+(8,7),(9,8),(10,9),(11,10),(12,11),(13,12),(14,13),(15,14);
+
 --error ER_FK_DEPTH_EXCEEDED
 delete from t1 where id=0;
-delete from t1 where id=255;
+delete from t1 where id=15;
 delete from t1 where id=0;
 
 drop table t1;
@@ -1258,8 +1195,6 @@ drop table t2;
 
 # Test error handling
 
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
 --error ER_WRONG_FK_DEF
 create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = innodb;
 
@@ -1395,21 +1330,21 @@ drop table t1;
 # uses previous ones(pages_created, rows_deleted, ...).
 --disable_warnings
 --replace_result 1535 {checked_valid} 1536 {checked_valid} 3071 {checked_valid} 3072 {checked_valid} 6144 {checked_valid}
-SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
+SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 --replace_result 4096 {checked_valid} 8192 {checked_valid} 16384 {checked_valid}
-SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
-SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
-SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
-SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
+SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
+SELECT variable_value - @innodb_rows_deleted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
+SELECT variable_value - @innodb_rows_inserted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
+SELECT variable_value - @innodb_rows_updated_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 --enable_warnings
 
 # Test for row locks InnoDB status variables.
 --disable_warnings
-SELECT variable_value - @innodb_row_lock_waits_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits';
-SELECT variable_value - @innodb_row_lock_current_waits_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_current_waits';
-SELECT variable_value - @innodb_row_lock_time_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time';
-SELECT variable_value - @innodb_row_lock_time_max_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_max';
-SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
+SELECT variable_value - @innodb_row_lock_waits_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits';
+SELECT variable_value - @innodb_row_lock_current_waits_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_current_waits';
+SELECT variable_value - @innodb_row_lock_time_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time';
+SELECT variable_value - @innodb_row_lock_time_max_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_max';
+SELECT variable_value - @innodb_row_lock_time_avg_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
 --enable_warnings
 
 # Test for innodb_sync_spin_loops variable
@@ -1465,12 +1400,8 @@ set session old_alter_table=0;
 # Some errors/warnings on create
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
-SET GLOBAL innodb_large_prefix=OFF;
-create table t1 (v varchar(65530), key(v));
-SET GLOBAL innodb_large_prefix=default;
-drop table t1;
+--error ER_TOO_LONG_KEY,ER_INDEX_COLUMN_TOO_LONG
+create table t1 (v varchar(65530), key(v)) charset latin1 ROW_FORMAT=COMPACT;
 create table t1 (v varchar(65536));
 show create table t1;
 drop table t1;
@@ -1481,7 +1412,7 @@ SET sql_mode = default;
 eval set default_storage_engine=$default;
 
 # InnoDB specific varchar tests
-create table t1 (v varchar(16384)) engine=innodb;
+create table t1 (v varchar(16384)) charset latin1 engine=innodb;
 drop table t1;
 
 #
@@ -1520,15 +1451,18 @@ select * from t1;
 drop table t1;
 
 #
-# Test that update does not change internal auto-increment value
+# Test that update does change internal auto-increment value
 #
 
 create table t1 (a int not null auto_increment primary key, val int) engine=InnoDB;
 insert into t1 (val) values (1);
 update t1 set a=2 where a=1;
-# We should get the following error because InnoDB does not update the counter
+# This should insert 3, since the counter has been updated to 2 already
+insert into t1 (val) values (3);
+select * from t1;
+# We should get the following error because InnoDB does update the counter
 --error ER_DUP_ENTRY
-insert into t1 (val) values (1);
+insert into t1 values (2, 2);
 select * from t1;
 drop table t1;
 #
@@ -1619,39 +1553,7 @@ create table t8 (col1 blob, index(col1(767)))
 # multi-column tests can be found in innodb_16k, innodb_8k & innodb_4k
 
 drop table t1, t2, t3, t4, t5, t6, t7, t8;
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-SET GLOBAL innodb_large_prefix=OFF;
-# these should have their index length trimmed
-create table t1 (col1 varchar(768), index(col1))
- character set = latin1 engine = innodb;
-create table t2 (col1 varbinary(768), index(col1))
- character set = latin1 engine = innodb;
-create table t3 (col1 text, index(col1(768)))
- character set = latin1 engine = innodb;
-create table t4 (col1 blob, index(col1(768)))
- character set = latin1 engine = innodb;
-SET GLOBAL innodb_large_prefix=default;
 
-show create table t1;
-
-drop table t1, t2, t3, t4;
-
-# these should be refused
-set global innodb_large_prefix=OFF;
---error ER_TOO_LONG_KEY
-create table t1 (col1 varchar(768) primary key)
- character set = latin1 engine = innodb;
---error ER_TOO_LONG_KEY
-create table t2 (col1 varbinary(768) primary key)
- character set = latin1 engine = innodb;
---error ER_TOO_LONG_KEY
-create table t3 (col1 text, primary key(col1(768)))
- character set = latin1 engine = innodb;
---error ER_TOO_LONG_KEY
-create table t4 (col1 blob, primary key(col1(768)))
- character set = latin1 engine = innodb;
-SET sql_mode = default;
-set global innodb_large_prefix=default;
 #
 # Test improved foreign key error messages (bug #3443)
 #
@@ -1734,13 +1636,13 @@ disconnect b;
 # tests for bugs #9802 and #13778
 
 # test that FKs between invalid types are not accepted
-
-set foreign_key_checks=0;
-create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
--- error ER_CANNOT_ADD_FOREIGN
-create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
-set foreign_key_checks=1;
-drop table t2;
+# NewDD TODO: Enable following test case once WL#6049 is done
+#set foreign_key_checks=0;
+#create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
+#-- error ER_CANNOT_ADD_FOREIGN
+#create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
+#set foreign_key_checks=1;
+#drop table t2;
 
 # test that FKs between different charsets are not accepted in CREATE even
 # when f_k_c is 0
@@ -1754,13 +1656,16 @@ drop table t1;
 
 # test that invalid datatype conversions with ALTER are not allowed
 
-set foreign_key_checks=0;
-create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb;
-create table t1(a varchar(10) primary key) engine = innodb;
--- error 1025,1025
-alter table t1 modify column a int;
-set foreign_key_checks=1;
-drop table t2,t1;
+--echo NewDD_FK: Re-enabel this test after fixing Bug 25722927 - NEWDD
+--echo FK: ALTER TABLE CHANGE COLUMN TYPE SHOULD CHECK FK CONSTRAINT"
+
+#set foreign_key_checks=0;
+#create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb;
+#create table t1(a varchar(10) primary key) engine = innodb;
+#-- error 1025,1025
+#alter table t1 modify column a int;
+#set foreign_key_checks=1;
+#drop table t2,t1;
 
 # test that charset conversions with ALTER are allowed when f_k_c is 0
 
@@ -1773,15 +1678,17 @@ drop table t2,t1;
 
 # test that RENAME does not allow invalid charsets when f_k_c is 0
 
-set foreign_key_checks=0;
-create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
-create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
+--echo NewDD_FK: Re-enabel this test after fixing Bug 25722927 - NEWDD
+--echo FK: ALTER TABLE CHANGE COLUMN TYPE SHOULD CHECK FK CONSTRAINT"
+#set foreign_key_checks=0;
+#create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
+#create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
 # Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
--- error 1025
-rename table t3 to t1;
-set foreign_key_checks=1;
-drop table t2,t3;
+#--replace_result $MYSQLD_DATADIR ./ master-data/ ''
+#-- error 1025
+#rename table t3 to t1;
+#set foreign_key_checks=1;
+#drop table t2,t3;
 
 # test that foreign key errors are reported correctly (Bug #15550)
 
@@ -2408,11 +2315,8 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
 # NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.
-set @old_sql_mode = @@sql_mode;
-set @@sql_mode = 'STRICT_TRANS_TABLES';
 --error ER_FK_COLUMN_NOT_NULL
 ALTER TABLE t2 MODIFY a INT NOT NULL;
-set @@sql_mode = @old_sql_mode;
 DELETE FROM t1;
 DROP TABLE t2,t1;
 
@@ -2463,7 +2367,7 @@ CREATE TABLE t1 (
 	c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
 	c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
 	c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
-	) ENGINE = InnoDB;
+	) charset latin1 ENGINE = InnoDB;
 SET innodb_strict_mode=OFF;
 
 #
@@ -2486,53 +2390,6 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 #
-# Bug #21409 Incorrect result returned when in READ-COMMITTED with
-# query_cache ON
-#
-CONNECT (c1,localhost,root,,);
-CONNECT (c2,localhost,root,,);
-CONNECTION c1;
-SET binlog_format='MIXED';
-SET TX_ISOLATION='read-committed';
-SET AUTOCOMMIT=0;
-DROP TABLE IF EXISTS t1, t2;
-CREATE TABLE t1 ( a int ) ENGINE=InnoDB;
-CREATE TABLE t2 LIKE t1;
-SELECT * FROM t2;
-CONNECTION c2;
-SET binlog_format='MIXED';
-SET TX_ISOLATION='read-committed';
-SET AUTOCOMMIT=0;
-INSERT INTO t1 VALUES (1);
-COMMIT;
-CONNECTION c1;
-SELECT * FROM t1 WHERE a=1;
-DISCONNECT c1;
-DISCONNECT c2;
-CONNECT (c1,localhost,root,,);
-CONNECT (c2,localhost,root,,);
-CONNECTION c1;
-SET binlog_format='MIXED';
-SET TX_ISOLATION='read-committed';
-SET AUTOCOMMIT=0;
-SELECT * FROM t2;
-CONNECTION c2;
-SET binlog_format='MIXED';
-SET TX_ISOLATION='read-committed';
-SET AUTOCOMMIT=0;
-INSERT INTO t1 VALUES (2);
-COMMIT;
-CONNECTION c1;
-# The result set below should be the same for both selects
-SELECT * FROM t1 WHERE a=2;
-SELECT * FROM t1 WHERE a=2;
-DROP TABLE t1;
-DROP TABLE t2;
-DISCONNECT c1;
-DISCONNECT c2;
-CONNECTION default;
-
-#
 # Bug #29157 UPDATE, changed rows incorrect
 #
 create table t1 (i int, j int) engine=innodb;
@@ -2547,6 +2404,7 @@ drop table t1;
 # I_S
 #
 create table t1 (id int) comment='this is a comment' engine=innodb;
+analyze table t1;
 select table_comment, data_free > 0 as data_free_is_set
   from information_schema.tables
   where table_schema='test' and table_name = 't1';
@@ -2568,8 +2426,10 @@ CREATE TABLE t2 (
 	PRIMARY KEY(c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=200;
 
+ANALYZE TABLE t2;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
 ALTER TABLE t2 ADD CONSTRAINT t1_t2_1 FOREIGN KEY(c1) REFERENCES t1(c1);
+ANALYZE TABLE t2;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
 DROP TABLE t2;
 DROP TABLE t1;
@@ -2634,6 +2494,12 @@ DROP TABLE bug58912;
 # HANDLER_READ_KEY) when it should not.
 #
 create table t1 (f1 integer primary key) engine=innodb;
+# Warm-up data-dictionary cache
+--disable_query_log
+--disable_result_log
+show create table t1;
+--enable_result_log
+--enable_query_log
 flush status;
 show status like "handler_read_key";
 select f1 from t1;
@@ -2727,3 +2593,44 @@ DROP TABLE t2;
 # (otherwise your changes may be erased).                             #
 #                                                                     #
 #######################################################################
+
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+
+#
+# BUG#11238 - in prelocking mode SELECT .. FOR UPDATE is changed to
+# non-blocking SELECT
+#
+SET GLOBAL log_bin_trust_function_creators = 1;
+create table t1 (col1 integer primary key, col2 integer) engine=innodb;
+insert t1 values (1,100);
+delimiter |;
+create function f1 () returns integer begin
+declare var1 int;
+select col2 into var1 from t1 where col1=1 for update;
+return var1;
+end|
+delimiter ;|
+start transaction;
+select f1();
+connection b;
+send update t1 set col2=0 where col1=1;
+connection a;
+select * from t1;
+rollback;
+connection b;
+reap;
+rollback;
+
+# Cleanup
+connection a;
+disconnect a;
+--source include/wait_until_disconnected.inc
+connection b;
+disconnect b;
+--source include/wait_until_disconnected.inc
+connection default;
+drop table t1;
+drop function f1;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;

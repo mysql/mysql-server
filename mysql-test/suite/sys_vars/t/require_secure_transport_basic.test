@@ -1,0 +1,173 @@
+############## mysql-test\t\require_secure_transport_basic.test ###############
+#                                                                             #
+# Variable Name: require_secure_transport                                     #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value: 0                                                            #
+# Range: -                                                                    #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2015-06-12                                                   #
+# Author:  Todd Farmer                                                        #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable require_secure_transport #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.7/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+--source include/load_sysvars.inc
+
+
+###############################################################################
+#                    START OF require_secure_transport TESTS                  #
+###############################################################################
+
+
+###############################################################################
+# Saving initial value of require_secure_transport in a temporary variable    #
+###############################################################################
+
+SET @start_value = @@global.require_secure_transport;
+SELECT @start_value;
+
+
+--echo '#--------------------FN_DYNVARS_139_01------------------------#'
+###############################################################################
+#              Display the DEFAULT value of require_secure_transport          #
+###############################################################################
+
+SET @@global.require_secure_transport = 1;
+SET @@global.require_secure_transport = DEFAULT;
+SELECT @@global.require_secure_transport;
+
+
+--echo '#---------------------FN_DYNVARS_139_02-------------------------#'
+###############################################
+#     Verify default value of variable        #
+###############################################
+
+SET @@global.require_secure_transport = @start_value;
+SELECT @@global.require_secure_transport = 0;
+
+
+--echo '#--------------------FN_DYNVARS_139_03------------------------#'
+################################################################################
+#        Change the value of require_secure_transport to a valid value         #
+################################################################################
+
+SET @@global.require_secure_transport = 0;
+SELECT @@global.require_secure_transport;
+SET @@global.require_secure_transport = 1;
+SELECT @@global.require_secure_transport;
+SET @@global.require_secure_transport = TRUE;
+SELECT @@global.require_secure_transport;
+SET @@global.require_secure_transport = FALSE;
+SELECT @@global.require_secure_transport;
+SET @@global.require_secure_transport = ON;
+SELECT @@global.require_secure_transport;
+SET @@global.require_secure_transport = OFF;
+SELECT @@global.require_secure_transport;
+
+--echo '#--------------------FN_DYNVARS_139_04-------------------------#'
+###################################################################################
+#         Change the value of require_secure_transport to invalid value           #
+###################################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.require_secure_transport = -1;
+SELECT @@global.require_secure_transport;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.require_secure_transport = 4294967296;
+SELECT @@global.require_secure_transport;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.require_secure_transport = 10240022115;
+SELECT @@global.require_secure_transport;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.require_secure_transport = 10000.01;
+SELECT @@global.require_secure_transport;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.require_secure_transport = -1024;
+SELECT @@global.require_secure_transport;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.require_secure_transport = 42949672950;
+SELECT @@global.require_secure_transport;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.require_secure_transport = 'test';
+SELECT @@global.require_secure_transport;
+
+
+--echo '#-------------------FN_DYNVARS_139_05----------------------------#'
+###################################################################################
+#       Test if accessing session require_secure_transport gives error            #
+###################################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.require_secure_transport = 0;
+SELECT @@require_secure_transport;
+
+
+--echo '#----------------------FN_DYNVARS_139_06------------------------#'
+##############################################################################
+# Check if the value in GLOBAL & SESSION Tables matches values in variable   #
+##############################################################################
+
+--disable_warnings
+SELECT IF(@@global.require_secure_transport, "ON", "OFF") = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='require_secure_transport';
+
+SELECT IF(@@require_secure_transport, "ON", "OFF") = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='require_secure_transport';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_139_07----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@global.require_secure_transport = 1;
+SELECT @@require_secure_transport = @@global.require_secure_transport;
+
+
+--echo '#---------------------FN_DYNVARS_139_08----------------------#'
+##################################################################################
+#   Check if require_secure_transport can be accessed with and without @@ sign   #
+##################################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET require_secure_transport = 1;
+SELECT @@require_secure_transport;
+--Error ER_PARSE_ERROR
+SET local.require_secure_transport = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT local.require_secure_transport;
+--Error ER_PARSE_ERROR
+SET global.require_secure_transport = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT global.require_secure_transport;
+--Error ER_BAD_FIELD_ERROR
+SELECT require_secure_transport = @@session.require_secure_transport;
+
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@global.require_secure_transport = @start_value;
+SELECT @@global.require_secure_transport;
+
+
+################################################################################
+#              END OF require_secure_transport TESTS                           #
+################################################################################
+

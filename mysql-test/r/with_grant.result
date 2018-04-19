@@ -1,0 +1,53 @@
+# privileges
+create database mysqltest1;
+use mysqltest1;
+create table t1(pub int, priv int);
+insert into t1 values(1,2);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+mysqltest1.t1	analyze	status	OK
+CREATE USER user1@localhost;
+GRANT SELECT (pub) ON mysqltest1.t1 TO user1@localhost;
+use mysqltest1;
+select pub from t1;
+pub
+1
+select priv from t1;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'priv' in table 't1'
+select * from (select pub from t1) as dt;
+pub
+1
+explain select * from (select pub from t1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `mysqltest1`.`t1`.`pub` AS `pub` from `mysqltest1`.`t1`
+select /*+ merge(dt) */ * from (select priv from t1) as dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'priv' in table 't1'
+select /*+ no_merge(dt) */ * from (select priv from t1) as dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'priv' in table 't1'
+explain select * from (select priv from t1) as dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'priv' in table 't1'
+with qn as (select pub from t1) select * from qn;
+pub
+1
+explain with qn as (select pub from t1) select * from qn;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `mysqltest1`.`t1`.`pub` AS `pub` from `mysqltest1`.`t1`
+with qn as (select priv from t1) select /*+ merge(qn) */ * from qn;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'priv' in table 't1'
+with qn as (select priv from t1) select /*+ no_merge(qn) */ * from qn;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'priv' in table 't1'
+explain with qn as (select priv from t1) select * from qn;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'priv' in table 't1'
+with qn2 as (with qn as (select pub from t1) select * from qn)
+select * from qn2;
+pub
+1
+with qn2 as (with qn as (select priv from t1) select * from qn)
+select * from qn2;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'priv' in table 't1'
+drop user user1@localhost;
+drop database mysqltest1;

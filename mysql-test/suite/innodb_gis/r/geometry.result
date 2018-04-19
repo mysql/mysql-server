@@ -5,7 +5,9 @@ SHOW VARIABLES LIKE '%engine%';
 Variable_name	Value
 default_storage_engine	InnoDB
 default_tmp_storage_engine	InnoDB
-internal_tmp_disk_storage_engine	TMP_TABLE_ENGINE
+disabled_storage_engines	
+internal_tmp_disk_storage_engine	InnoDB
+internal_tmp_mem_storage_engine	TempTable
 USE test;
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon;
 DROP TABLE IF EXISTS gis_multi_point, gis_multi_line, gis_multi_polygon;
@@ -50,7 +52,7 @@ g	multipolygon	YES		NULL
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	NO	PRI	NULL	
-g	geometrycollection	YES		NULL	
+g	geomcollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	NO	PRI	NULL	
@@ -114,9 +116,9 @@ fid	ST_AsText(g)
 110	POLYGON((0 0,30 0,30 30,0 0))
 SELECT fid, ST_AsText(g) FROM gis_multi_point;
 fid	ST_AsText(g)
-111	MULTIPOINT(0 0,10 10,10 20,20 20)
-112	MULTIPOINT(1 1,11 11,11 21,21 21)
-113	MULTIPOINT(3 6,4 10)
+111	MULTIPOINT((0 0),(10 10),(10 20),(20 20))
+112	MULTIPOINT((1 1),(11 11),(11 21),(21 21))
+113	MULTIPOINT((3 6),(4 10))
 SELECT fid, ST_AsText(g) FROM gis_multi_line;
 fid	ST_AsText(g)
 114	MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))
@@ -144,9 +146,9 @@ fid	ST_AsText(g)
 108	POLYGON((10 10,20 10,20 20,10 20,10 10))
 109	POLYGON((0 0,50 0,50 50,0 50,0 0),(10 10,20 10,20 20,10 20,10 10))
 110	POLYGON((0 0,30 0,30 30,0 0))
-111	MULTIPOINT(0 0,10 10,10 20,20 20)
-112	MULTIPOINT(1 1,11 11,11 21,21 21)
-113	MULTIPOINT(3 6,4 10)
+111	MULTIPOINT((0 0),(10 10),(10 20),(20 20))
+112	MULTIPOINT((1 1),(11 11),(11 21),(21 21))
+113	MULTIPOINT((3 6),(4 10))
 114	MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))
 115	MULTILINESTRING((10 48,10 21,10 0))
 116	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))
@@ -161,8 +163,8 @@ CREATE TABLE tab(c1 POINT,c2 LINESTRING,c3 POLYGON,C4 MULTIPOINT,c5 MULTILINESTR
 c6 MULTIPOLYGON,c7 GEOMETRYCOLLECTION ,c8 GEOMETRY) ENGINE=InnoDB;
 #check information schema for all the columns refer to 14, except POINT which is 15
 SELECT sc.name, sc.pos, sc.mtype
-FROM information_schema.innodb_sys_columns sc
-INNER JOIN information_schema.innodb_sys_tables st
+FROM information_schema.innodb_columns sc
+INNER JOIN information_schema.innodb_tables st
 ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/tab'
 ORDER BY sc.name;
@@ -196,21 +198,21 @@ WHERE c2=ST_LineFromText('LINESTRING(10 10,20 20,30 30)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab	NULL	ref	idx1	idx1	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c2` = <cache>(st_geometryfromtext('LINESTRING(10 10,20 20,30 30)')))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c2` = <cache>(st_linefromtext('LINESTRING(10 10,20 20,30 30)')))
 #check index with  WKB function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
 FROM tab WHERE c2=ST_LineStringFromWKB(ST_AsWKB(ST_LineFromText('LINESTRING(10 10,20 20,30 30)')));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab	NULL	ref	idx1	idx1	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c2` = <cache>(st_geometryfromwkb(st_aswkb(st_geometryfromtext('LINESTRING(10 10,20 20,30 30)')))))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c2` = <cache>(st_linestringfromwkb(st_aswkb(st_linefromtext('LINESTRING(10 10,20 20,30 30)')))))
 #check index with  WKT function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab
 WHERE c3=ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab	NULL	ref	idx3	idx3	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c3` = <cache>(st_geometryfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c3` = <cache>(st_polyfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))
 #check index with  WKB function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
 FROM tab
@@ -218,7 +220,7 @@ WHERE c3=ST_PolyFromWKB(ST_AsWkB(ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab	NULL	ref	idx3	idx3	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c3` = <cache>(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab`.`c8`) AS `ST_AsText(c8)` from `test`.`tab` where (`test`.`tab`.`c3` = <cache>(st_polyfromwkb(st_aswkb(st_polyfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))))
 #check index with  WKT function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab
 WHERE c8=ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
@@ -261,7 +263,7 @@ ST_AsText(c3)
 POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))
 SELECT ST_AsText(c4) FROM tab;
 ST_AsText(c4)
-MULTIPOINT(0 0,5 5,10 10,20 20)
+MULTIPOINT((0 0),(5 5),(10 10),(20 20))
 SELECT ST_AsText(c5) FROM tab;
 ST_AsText(c5)
 MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))
@@ -305,7 +307,7 @@ ST_AsText(c3)
 POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))
 SELECT ST_AsText(c4) FROM tab;
 ST_AsText(c4)
-MULTIPOINT(0 0,5 5,10 10,20 20)
+MULTIPOINT((0 0),(5 5),(10 10),(20 20))
 SELECT ST_AsText(c5) FROM tab;
 ST_AsText(c5)
 MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))
@@ -335,7 +337,7 @@ c3	polygon	YES	MUL	NULL
 c4	multipoint	YES		NULL	
 c5	multilinestring	YES		NULL	
 c6	multipolygon	YES		NULL	
-c7	geometrycollection	YES		NULL	
+c7	geomcollection	YES		NULL	
 c8	geometry	YES	UNI	NULL	
 #check the data after modify
 SELECT ST_AsText(c1) FROM tab;
@@ -349,7 +351,7 @@ ST_AsText(c3)
 POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))
 SELECT ST_AsText(c4) FROM tab;
 ST_AsText(c4)
-MULTIPOINT(0 0,5 5,10 10,20 20)
+MULTIPOINT((0 0),(5 5),(10 10),(20 20))
 SELECT ST_AsText(c5) FROM tab;
 ST_AsText(c5)
 MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))
@@ -374,12 +376,12 @@ tab	CREATE TABLE `tab` (
   `c4` multipoint DEFAULT NULL,
   `c5` multilinestring DEFAULT NULL,
   `c6` multipolygon DEFAULT NULL,
-  `c7` geometrycollection DEFAULT NULL,
+  `c7` geomcollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL,
   UNIQUE KEY `idx2` (`c8`(5)),
-  KEY `idx1` (`c2`(5)) USING BTREE,
+  KEY `idx1` (`c2`(5) DESC) USING BTREE,
   KEY `idx3` (`c3`(5)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #check the data after modify
 SELECT ST_AsText(c1) FROM tab;
 ST_AsText(c1)
@@ -395,7 +397,7 @@ c3	polygon	YES	MUL	NULL
 c4	multipoint	YES		NULL	
 c5	multilinestring	YES		NULL	
 c6	multipolygon	YES		NULL	
-c7	geometrycollection	YES		NULL	
+c7	geomcollection	YES		NULL	
 c8	geometry	YES	UNI	NULL	
 #add primary key
 ALTER TABLE tab ADD PRIMARY KEY pk2(c8(5));
@@ -408,7 +410,7 @@ c3	polygon	YES	MUL	NULL
 c4	multipoint	YES		NULL	
 c5	multilinestring	YES		NULL	
 c6	multipolygon	YES		NULL	
-c7	geometrycollection	YES		NULL	
+c7	geomcollection	YES		NULL	
 c8	geometry	NO	PRI	NULL	
 #drop key
 ALTER TABLE tab DROP PRIMARY KEY;
@@ -421,7 +423,7 @@ c3	polygon	YES	MUL	NULL
 c4	multipoint	YES		NULL	
 c5	multilinestring	YES		NULL	
 c6	multipolygon	YES		NULL	
-c7	geometrycollection	YES		NULL	
+c7	geomcollection	YES		NULL	
 c8	geometry	NO	UNI	NULL	
 #cleanup the table
 TRUNCATE TABLE tab;
@@ -456,7 +458,7 @@ ST_AsText(c3)
 POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))
 SELECT ST_AsText(c4) FROM tab;
 ST_AsText(c4)
-MULTIPOINT(0 0,5 5,10 10,20 20)
+MULTIPOINT((0 0),(5 5),(10 10),(20 20))
 SELECT ST_AsText(c5) FROM tab;
 ST_AsText(c5)
 MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))
@@ -499,9 +501,9 @@ tab2	CREATE TABLE `tab2` (
   `c4` multipoint DEFAULT NULL,
   `c5` multilinestring DEFAULT NULL,
   `c6` multipolygon DEFAULT NULL,
-  `c7` geometrycollection DEFAULT NULL,
+  `c7` geomcollection DEFAULT NULL,
   `c8` geometry NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #create a tigger and populate the values into tab2
 CREATE TRIGGER geom_trigger AFTER INSERT ON tab
 FOR EACH ROW
@@ -531,7 +533,7 @@ ST_AsText(c3)
 POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))
 SELECT ST_AsText(c4) FROM tab2;
 ST_AsText(c4)
-MULTIPOINT(0 0,5 5,10 10,20 20)
+MULTIPOINT((0 0),(5 5),(10 10),(20 20))
 SELECT ST_AsText(c5) FROM tab2;
 ST_AsText(c5)
 MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))
@@ -620,7 +622,7 @@ AVG(ST_AsText(g))
 #here it show some string value no meaning
 SELECT MAX(ST_AsText(g)) FROM gis_multi_point;
 MAX(ST_AsText(g))
-MULTIPOINT(3 6,4 10)
+MULTIPOINT((3 6),(4 10))
 #here it show some string value no meaning
 SELECT MIN(ST_AsText(g)) FROM gis_multi_line;
 MIN(ST_AsText(g))
@@ -648,9 +650,9 @@ tab3	CREATE TABLE `tab3` (
   `C4` multipoint DEFAULT NULL,
   `c5` multilinestring DEFAULT NULL,
   `c6` multipolygon DEFAULT NULL,
-  `c7` geometrycollection DEFAULT NULL,
+  `c7` geomcollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=key_block_size
 ALTER TABLE tab3 KEY_BLOCK_SIZE=16 ROW_FORMAT=Dynamic;
 #check file format
 SHOW CREATE TABLE tab3;
@@ -662,13 +664,13 @@ tab3	CREATE TABLE `tab3` (
   `C4` multipoint DEFAULT NULL,
   `c5` multilinestring DEFAULT NULL,
   `c6` multipolygon DEFAULT NULL,
-  `c7` geometrycollection DEFAULT NULL,
+  `c7` geomcollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=16
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 #check information schema for all the columns refer to 14, except POINT which is 15
 SELECT sc.name, sc.pos, sc.mtype
-FROM information_schema.innodb_sys_columns sc
-INNER JOIN information_schema.innodb_sys_tables st
+FROM information_schema.innodb_columns sc
+INNER JOIN information_schema.innodb_tables st
 ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/tab3'
 ORDER BY sc.name;
@@ -702,21 +704,21 @@ WHERE c2=ST_LineFromText('LINESTRING(10 10,20 20,30 30)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab3	NULL	ref	idx1	idx1	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c2` = <cache>(st_geometryfromtext('LINESTRING(10 10,20 20,30 30)')))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c2` = <cache>(st_linefromtext('LINESTRING(10 10,20 20,30 30)')))
 #check index with  WKB function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
 FROM tab3 WHERE c2=ST_LineStringFromWKB(ST_AsWKB(ST_LineFromText('LINESTRING(10 10,20 20,30 30)')));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab3	NULL	ref	idx1	idx1	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c2` = <cache>(st_geometryfromwkb(st_aswkb(st_geometryfromtext('LINESTRING(10 10,20 20,30 30)')))))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c2` = <cache>(st_linestringfromwkb(st_aswkb(st_linefromtext('LINESTRING(10 10,20 20,30 30)')))))
 #check index with  WKT function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab3
 WHERE c3=ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab3	NULL	ref	idx3	idx3	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c3` = <cache>(st_geometryfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c3` = <cache>(st_polyfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))
 #check index with  WKB function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
 FROM tab3
@@ -724,7 +726,7 @@ WHERE c3=ST_PolyFromWKB(ST_AsWkB(ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab3	NULL	ref	idx3	idx3	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c3` = <cache>(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c3` = <cache>(st_polyfromwkb(st_aswkb(st_polyfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))))
 #check index with  WKT function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab3
 WHERE c8=ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
@@ -767,7 +769,7 @@ ST_AsText(c3)
 POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))
 SELECT ST_AsText(c4) FROM tab3;
 ST_AsText(c4)
-MULTIPOINT(0 0,5 5,10 10,20 20)
+MULTIPOINT((0 0),(5 5),(10 10),(20 20))
 SELECT ST_AsText(c5) FROM tab3;
 ST_AsText(c5)
 MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))
@@ -792,26 +794,26 @@ tab3	CREATE TABLE `tab3` (
   `C4` multipoint DEFAULT NULL,
   `c5` multilinestring DEFAULT NULL,
   `c6` multipolygon DEFAULT NULL,
-  `c7` geometrycollection DEFAULT NULL,
+  `c7` geomcollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL,
   UNIQUE KEY `idx2` (`c8`(5)),
-  KEY `idx1` (`c2`(5)) USING BTREE,
+  KEY `idx1` (`c2`(5) DESC) USING BTREE,
   KEY `idx3` (`c3`(5)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=16
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 #check index with  WKB function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
 FROM tab3 WHERE c2=ST_LineStringFromWKB(ST_AsWKB(ST_LineFromText('LINESTRING(10 10,20 20,30 30)')));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab3	NULL	ref	idx1	idx1	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c2` = <cache>(st_geometryfromwkb(st_aswkb(st_geometryfromtext('LINESTRING(10 10,20 20,30 30)')))))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c2` = <cache>(st_linestringfromwkb(st_aswkb(st_linefromtext('LINESTRING(10 10,20 20,30 30)')))))
 #check index with  WKT function
 EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab3
 WHERE c3=ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab3	NULL	ref	idx3	idx3	8	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c3` = <cache>(st_geometryfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))
+Note	1003	/* select#1 */ select st_astext(`test`.`tab3`.`c1`) AS `ST_ASText(c1)`,st_astext(`test`.`tab3`.`c2`) AS `ST_AsText(c2)`,st_astext(`test`.`tab3`.`c8`) AS `ST_AsText(c8)` from `test`.`tab3` where (`test`.`tab3`.`c3` = <cache>(st_polyfromtext('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')))
 #check the Geometry property functions
 SELECT fid, ST_Dimension(g) FROM gis_geometry;
 fid	ST_Dimension(g)
@@ -858,9 +860,9 @@ fid	ST_GeometryType(g)
 117	MULTIPOLYGON
 118	MULTIPOLYGON
 119	MULTIPOLYGON
-120	GEOMETRYCOLLECTION
-121	GEOMETRYCOLLECTION
-122	GEOMETRYCOLLECTION
+120	GEOMCOLLECTION
+121	GEOMCOLLECTION
+122	GEOMCOLLECTION
 SELECT fid, ST_IsEmpty(g) FROM gis_geometry;
 fid	ST_IsEmpty(g)
 101	0
@@ -887,13 +889,13 @@ fid	ST_IsEmpty(g)
 122	0
 SELECT fid, ST_AsText(ST_Envelope(g)) FROM gis_geometry;
 fid	ST_AsText(ST_Envelope(g))
-101	POLYGON((10 10,10 10,10 10,10 10,10 10))
-102	POLYGON((20 10,20 10,20 10,20 10,20 10))
-103	POLYGON((20 20,20 20,20 20,20 20,20 20))
-104	POLYGON((10 20,10 20,10 20,10 20,10 20))
+101	POINT(10 10)
+102	POINT(20 10)
+103	POINT(20 20)
+104	POINT(10 20)
 105	POLYGON((0 0,10 0,10 10,0 10,0 0))
 106	POLYGON((10 10,20 10,20 20,10 20,10 10))
-107	POLYGON((10 10,40 10,40 10,10 10,10 10))
+107	LINESTRING(10 10,40 10)
 108	POLYGON((10 10,20 10,20 20,10 20,10 10))
 109	POLYGON((0 0,50 0,50 50,0 50,0 0))
 110	POLYGON((0 0,30 0,30 30,0 30,0 0))
@@ -901,7 +903,7 @@ fid	ST_AsText(ST_Envelope(g))
 112	POLYGON((1 1,21 1,21 21,1 21,1 1))
 113	POLYGON((3 6,4 6,4 10,3 10,3 6))
 114	POLYGON((10 0,16 0,16 48,10 48,10 0))
-115	POLYGON((10 0,10 0,10 48,10 48,10 0))
+115	LINESTRING(10 0,10 48)
 116	POLYGON((1 2,21 2,21 8,1 8,1 2))
 117	POLYGON((28 0,84 0,84 42,28 42,28 0))
 118	POLYGON((28 0,84 0,84 42,28 42,28 0))
@@ -909,11 +911,10 @@ fid	ST_AsText(ST_Envelope(g))
 120	POLYGON((0 0,10 0,10 10,0 10,0 0))
 121	POLYGON((10 10,20 10,20 20,10 20,10 10))
 122	POLYGON((3 6,44 6,44 9,3 9,3 6))
-explain extended select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
+explain select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_geometry	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_dimension(`test`.`gis_geometry`.`g`) AS `ST_Dimension(g)`,st_geometrytype(`test`.`gis_geometry`.`g`) AS `ST_GeometryType(g)`,st_isempty(`test`.`gis_geometry`.`g`) AS `ST_IsEmpty(g)`,st_astext(st_envelope(`test`.`gis_geometry`.`g`)) AS `ST_AsText(ST_Envelope(g))` from `test`.`gis_geometry`
 #check Geometry point functions
 SELECT fid, ST_X(g) FROM gis_point;
@@ -928,11 +929,10 @@ fid	ST_Y(g)
 102	10
 103	20
 104	20
-explain extended select ST_X(g),ST_Y(g) FROM gis_point;
+explain select ST_X(g),ST_Y(g) FROM gis_point;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_point	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_x(`test`.`gis_point`.`g`) AS `ST_X(g)`,st_y(`test`.`gis_point`.`g`) AS `ST_Y(g)` from `test`.`gis_point`
 SELECT fid, ST_AsText(ST_StartPoint(g)) FROM gis_line;
 fid	ST_AsText(ST_StartPoint(g))
@@ -964,12 +964,11 @@ fid	ST_IsClosed(g)
 105	0
 106	1
 107	0
-explain extended select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),
+explain select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),
 ST_Length(g),ST_NumPoints(g),ST_AsText(ST_PointN(g, 2)),ST_IsClosed(g) FROM gis_line;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_line	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_astext(st_startpoint(`test`.`gis_line`.`g`)) AS `ST_AsText(ST_StartPoint(g))`,st_astext(st_endpoint(`test`.`gis_line`.`g`)) AS `ST_AsText(ST_EndPoint(g))`,st_length(`test`.`gis_line`.`g`) AS `ST_Length(g)`,st_numpoints(`test`.`gis_line`.`g`) AS `ST_NumPoints(g)`,st_astext(st_pointn(`test`.`gis_line`.`g`,2)) AS `ST_AsText(ST_PointN(g, 2))`,st_isclosed(`test`.`gis_line`.`g`) AS `ST_IsClosed(g)` from `test`.`gis_line`
 SELECT fid, ST_AsText(ST_Centroid(g)) FROM gis_polygon;
 fid	ST_AsText(ST_Centroid(g))
@@ -996,12 +995,11 @@ fid	ST_AsText(ST_InteriorRingN(g, 1))
 108	NULL
 109	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 110	NULL
-explain extended select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),
+explain select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),
 ST_NumInteriorRings(g),ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_polygon	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_astext(st_centroid(`test`.`gis_polygon`.`g`)) AS `ST_AsText(ST_Centroid(g))`,st_area(`test`.`gis_polygon`.`g`) AS `ST_Area(g)`,st_astext(st_exteriorring(`test`.`gis_polygon`.`g`)) AS `ST_AsText(ST_ExteriorRing(g))`,st_numinteriorrings(`test`.`gis_polygon`.`g`) AS `ST_NumInteriorRings(g)`,st_astext(st_interiorringn(`test`.`gis_polygon`.`g`,1)) AS `ST_AsText(ST_InteriorRingN(g, 1))` from `test`.`gis_polygon`
 SELECT fid, ST_IsClosed(g) FROM gis_multi_line;
 fid	ST_IsClosed(g)
@@ -1038,11 +1036,10 @@ fid	ST_NumGeometries(g)
 120	2
 121	2
 122	2
-explain extended SELECT fid, ST_NumGeometries(g) from gis_multi_point;
+explain SELECT fid, ST_NumGeometries(g) from gis_multi_point;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_multi_point	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`gis_multi_point`.`fid` AS `fid`,st_numgeometries(`test`.`gis_multi_point`.`g`) AS `ST_NumGeometries(g)` from `test`.`gis_multi_point`
 SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
 fid	ST_AsText(ST_GeometryN(g, 2))
@@ -1069,11 +1066,10 @@ fid	ST_AsText(ST_GeometryN(g, 1))
 120	POINT(0 0)
 121	POINT(10 10)
 122	POINT(44 6)
-explain extended SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
+explain SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_multi_point	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`gis_multi_point`.`fid` AS `fid`,st_astext(st_geometryn(`test`.`gis_multi_point`.`g`,2)) AS `ST_AsText(ST_GeometryN(g, 2))` from `test`.`gis_multi_point`
 SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
@@ -1082,15 +1078,15 @@ MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 first	second	w	c	o	e	d	t	i	r
 120	120	1	1	0	1	0	0	1	0
-120	121	0	0	0	0	0	0	1	0
+120	121	0	0	0	0	0	1	1	0
 120	122	0	0	1	0	0	0	1	0
-121	120	0	0	0	0	0	0	1	0
+121	120	0	0	0	0	0	1	1	0
 121	121	1	1	0	1	0	0	1	0
 121	122	0	0	0	0	1	0	0	0
 122	120	0	0	1	0	0	0	1	0
 122	121	0	0	0	0	1	0	0	0
 122	122	1	1	0	1	0	0	1	0
-explain extended SELECT g1.fid as first, g2.fid as second,
+explain SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
 MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g) as t,
 MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
@@ -1099,7 +1095,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	g1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using temporary; Using filesort
 1	SIMPLE	g2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,mbrwithin(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,mbrcontains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,mbroverlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,mbrequals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,mbrdisjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,st_touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,mbrintersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,st_crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `first`,`second`
 # check support of Foreign Key constraint
 CREATE TABLE parent (id GEOMETRY NOT NULL,PRIMARY KEY (id(10))) ENGINE=INNODB;

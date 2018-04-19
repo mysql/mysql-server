@@ -310,7 +310,7 @@ create temporary table `\E4\F6\FC\C4\D6\DC` (a int);
 insert into `\E4\F6\FC\C4\D6\DC` values (1);
 insert into t1 select * from `\E4\F6\FC\C4\D6\DC`
 EOF
---exec $MYSQL --character-sets-dir=../sql/share/charsets/ --default-character-set=latin1 test < $MYSQLTEST_VARDIR/tmp/bug14157.sql
+--exec $MYSQL --character-sets-dir=../share/charsets/ --default-character-set=latin1 test < $MYSQLTEST_VARDIR/tmp/bug14157.sql
 
 sync_slave_with_master;
 #connection slave;
@@ -347,8 +347,7 @@ source include/delete_anonymous_users.inc;
 connection slave;
 
 FLUSH PRIVILEGES;
-GRANT USAGE   ON *.* TO user43748@127.0.0.1 IDENTIFIED BY 'meow';
-GRANT PROCESS ON *.* TO user43748@127.0.0.1;
+CREATE USER user43748@127.0.0.1 IDENTIFIED BY 'meow';
 
 --echo -- try to KILL system-thread as that non-privileged user (on slave).
 connect (cont43748,127.0.0.1,user43748,meow,test,$SLAVE_MYPORT,);

@@ -1,63 +1,82 @@
-# test case for BUG#4680 -- if there are extra files in the db directory
+# Test case for BUG#4680 -- if there are extra files in the db directory
 # dropping the db on the master causes replication problems
 
 -- source include/not_group_replication_plugin.inc
 -- source include/master-slave.inc
-connection master;
 
 --disable_warnings
-drop database if exists mysqltest1;
+DROP DATABASE IF EXISTS test1;
+DROP DATABASE IF EXISTS test2;
 --enable_warnings
-create database mysqltest1;
-create table mysqltest1.t1 (n int);
-insert into mysqltest1.t1 values (1);
-select * from mysqltest1.t1 into outfile 'mysqltest1/f1.txt';
-create table mysqltest1.t2 (n int);
-create table mysqltest1.t3 (n int);
---replace_result \\ /
---error 1010
-drop database mysqltest1;
-use mysqltest1;
-show tables;
+CREATE DATABASE test1;
+CREATE DATABASE test2;
 
-# test the branch of the code that deals with the query buffer overflow
+CREATE TABLE test1.t1 (n INT);
+INSERT INTO test1.t1 VALUES(1);
+# Create an extra file in database directory
+SELECT * FROM test1.t1 INTO OUTFILE 'test1/f1.txt';
 
---disable_query_log
-let $1=50;
-while ($1)
-{
-  eval create table mysqltest1.mysqltest_long_table_name$1 (n int);
-  dec $1;
-}
---enable_query_log
+CREATE TABLE test1.t2 (n INT);
+CREATE TABLE test1.t3 (n INT);
 
 --replace_result \\ /
---error 1010
-drop database mysqltest1;
-use mysqltest1;
-show tables;
-use test;
-create table t1 (n int);
-insert into t1 values (1234);
-sync_slave_with_master;
+--error ER_DB_DROP_RMDIR
+DROP DATABASE test1;
 
-connection slave;
-use mysqltest1;
-show tables;
-use test;
-select * from t1;
+# No tables should be dropped after WL#7743.
+--let assert_text= Tables in test1 database are not dropped
+--let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=3
+--source include/assert.inc
+
+# Case when we fail while dropping table and there are InnoDB tables only.
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test1/f1.txt;
+
+CREATE TABLE test1.t4 (pk INT PRIMARY KEY);
+--echo  Wait until test1.t4 is created on slave
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE test2.t2 (fk INT, FOREIGN KEY (fk) REFERENCES test1.t4(pk));
+
+--error ER_ROW_IS_REFERENCED
+DROP DATABASE test1;
+USE test1;
+# No tables should be dropped after WL#9536.
+--let assert_text= Tables in test1 database are not dropped
+--let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=4
+--source include/assert.inc
+
+# Finally, case when we fail while dropping table and there are both InnoDB and MyISAM tables.
+CREATE TABLE test1.t5(n INT) ENGINE=MyISAM;
+
+--error ER_ROW_IS_REFERENCED
+DROP DATABASE test1;
+
+--let assert_text= MyISAM table t5 is dropped
+--let assert_cond="[SHOW TABLES LIKE "t5"]"=""
+--source include/assert.inc
+
+--let assert_text= InnoDB tables in test1 database are not dropped
+--let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=4
+--source include/assert.inc
+
+# Ensuring that replication is successful
+USE test2;
+CREATE TABLE t1 (n INT);
+INSERT INTO t1 VALUES (1234);
+
+# Cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo Wait until test2.t2 is deleted on slave
+--source include/sync_slave_sql_with_master.inc
 
 #cleanup
-connection master;
+--source include/rpl_connection_master.inc
 
-# Remove the "extra" file created above
-let $MYSQLD_DATADIR= `select @@datadir`;
-remove_file $MYSQLD_DATADIR/mysqltest1/f1.txt;
-
-use test;
-drop table t1;
-drop database mysqltest1;
-
-sync_slave_with_master;
+DROP DATABASE test1;
+DROP DATABASE test2;
 
 --source include/rpl_end.inc

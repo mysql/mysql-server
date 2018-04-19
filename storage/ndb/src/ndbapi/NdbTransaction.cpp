@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -90,12 +97,13 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   m_firstActiveQuery(NULL),
   m_scanningQuery(NULL),
   //
-  m_tcRef(numberToRef(DBTC, 0))
+  m_tcRef(numberToRef(DBTC, 0)),
+  m_enable_schema_obj_owner_check(false)
 {
   theListState = NotInList;
   theError.code = 0;
   //theId = NdbObjectIdMap::InvalidId;
-  theId = theNdb->theImpl->theNdbObjectIdMap.map(this);
+  theId = theNdb->theImpl->mapRecipient(this);
 
 #define CHECK_SZ(mask, sz) assert((sizeof(mask)/sizeof(mask[0])) == sz)
 
@@ -111,7 +119,7 @@ Remark:        Deletes the connection object.
 NdbTransaction::~NdbTransaction()
 {
   DBUG_ENTER("NdbTransaction::~NdbTransaction");
-  theNdb->theImpl->theNdbObjectIdMap.unmap(theId, this);
+  theNdb->theImpl->unmapRecipient(theId, this);
   DBUG_VOID_RETURN;
 }//NdbTransaction::~NdbTransaction()
 
@@ -153,7 +161,7 @@ NdbTransaction::init()
   theReleaseOnClose       = false;
   theSimpleState          = true;
   theSendStatus           = InitState;
-  theMagicNumber          = 0x37412619;
+  theMagicNumber          = getMagicNumber();
 
   // Query operations
   m_firstQuery            = NULL;
@@ -175,7 +183,7 @@ NdbTransaction::init()
   pendingBlobWriteBytes = 0;
   if (theId == NdbObjectIdMap::InvalidId)
   {
-    theId = theNdb->theImpl->theNdbObjectIdMap.map(this);
+    theId = theNdb->theImpl->mapRecipient(this);
     if (theId == NdbObjectIdMap::InvalidId)
     {
       theError.code = 4000;
@@ -521,12 +529,6 @@ NdbTransaction::execute(ExecType aTypeOfExec,
     if (theCompletedLastOp == NULL)
       theCompletedLastOp = tCompletedLastOp;
   }
-#if ndb_api_count_completed_ops_after_blob_execute
-  { NdbOperation* tOp; unsigned n = 0;
-    for (tOp = theCompletedFirstOp; tOp != NULL; tOp = tOp->next()) n++;
-    ndbout << "completed ops: " << n << endl;
-  }
-#endif
 
   /* Sometimes the original error is trampled by 'Trans already aborted',
    * detect this case and attempt to restore the original error
@@ -779,6 +781,16 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
     }
     DBUG_VOID_RETURN;
   }//if
+
+  /**
+   * Perform scan finalisation here
+   */
+  NdbScanOperation* tScanOp = m_theFirstScanOperation;
+  while (tScanOp)
+  {
+    tScanOp->finaliseScan();
+    tScanOp = (NdbScanOperation*)tScanOp->next();
+  }
 
   NdbQueryImpl* const lastLookupQuery = getLastLookupQuery(m_firstQuery);
 
@@ -1253,7 +1265,7 @@ NdbTransaction::release(){
   theMagicNumber = 0xFE11DC;
   theInUseState = false;
 #ifdef VM_TRACE
-  if (theListState != NotInList) {
+  if (theListState != NotInList && theListState != InPreparedList) {
     theNdb->printState("release %lx", (long)this);
     abort();
   }
@@ -1295,8 +1307,6 @@ NdbTransaction::releaseOperations()
   theFirstExecOpInList = NULL;
   theLastOpInList = NULL;
   theLastExecOpInList = NULL;
-  theScanningOp = NULL;
-  m_scanningQuery = NULL;
   m_theFirstScanOperation = NULL;
   m_theLastScanOperation = NULL;
   m_firstExecutedScanOp = NULL;
@@ -1470,8 +1480,71 @@ NdbTransaction::getNdbOperation(const char* aTableName)
 }//NdbTransaction::getNdbOperation()
 
 /*****************************************************************************
-NdbOperation* getNdbOperation(const NdbTableImpl* tab, NdbOperation* aNextOp,
-                              bool useRec)
+NdbTransaction::checkSchemaObjects(const NdbTableImpl *tab,
+                                   const NdbIndexImpl *idx)
+Return value:    true if objects are all valid, false otherwise
+Parameters:      table, optional index 
+Remark:          If the schema object ownership check is enabled while creating 
+                 the Ndb_cluster_connection, check that the connection is not
+                 using schema objects which have been acquired by another 
+                 connection. 
+*****************************************************************************/
+bool
+NdbTransaction::checkSchemaObjects(const NdbTableImpl *tab,
+                                   const NdbIndexImpl *idx)
+{
+  bool ret = true;
+  if(m_enable_schema_obj_owner_check)
+  {
+    if(tab->m_indexType != NdbDictionary::Object::TypeUndefined)
+      return ret; // skip index table passed by getNdbIndexScanOperation
+
+    // check that table and index objects are owned by current connection - get 
+    // dict objects from current connection and compare.
+    char db[MAX_TAB_NAME_SIZE];
+    tab->getDbName(db, sizeof(db));
+
+    const char *old_db= theNdb->getDatabaseName();
+
+    bool change_db= false; 
+    if(strcmp(db, old_db) != 0)
+      change_db = true;
+    if(change_db && (strcmp(db, "") != 0)) // switch to db of current table if not blank
+      theNdb->setDatabaseName(db);
+
+    NdbDictionary::Table *dictTab = NULL;
+    NdbDictionary::Index *dictIdx = NULL;
+ 
+    dictTab = theNdb->theDictionary->getTable(tab->getName());
+    if(idx)
+      dictIdx = theNdb->theDictionary->getIndex(idx->getName(), tab->getName());
+     
+    if(change_db && strcmp(old_db, "") != 0) // restore original value of db if not blank
+      theNdb->setDatabaseName(old_db);
+
+    if(dictTab && (dictTab->getObjectId() == tab->getObjectId())
+               && (dictTab->getObjectVersion() == tab->getObjectVersion())
+               && (tab != &(NdbTableImpl::getImpl(*dictTab))))
+    {
+      ndbout << "Schema object ownership check failed: table " << tab->getName() 
+             << " not owned by connection" << endl;
+      ret = false;
+    }
+    if(idx && dictIdx && (dictTab->getObjectId() == idx->getObjectId())
+               && (dictIdx->getObjectVersion() == idx->getObjectVersion())
+               && (idx != &(NdbIndexImpl::getImpl(*dictIdx))))
+    {
+      ndbout << "Schema object ownership check failed: index " 
+             << idx->getName() << " not owned by connection" << endl;
+      ret = false;
+    }
+  }
+  return ret;
+} //NdbTransaction::checkSchemaObjects
+
+
+/*****************************************************************************
+NdbOperation* getNdbOperation(const NdbTableImpl* tab, NdbOperation* aNextOp)
 
 Return Value    Return a pointer to a NdbOperation object if getNdbOperation 
                 was succesful.
@@ -1485,19 +1558,22 @@ Remark:         Get an operation from NdbOperation object idlelist and
 *****************************************************************************/
 NdbOperation*
 NdbTransaction::getNdbOperation(const NdbTableImpl * tab,
-                                NdbOperation* aNextOp,
-                                bool useRec)
+                                NdbOperation* aNextOp)
 { 
-  NdbOperation* tOp;
-
   if (theScanningOp != NULL || m_scanningQuery != NULL){
     setErrorCode(4607);
     return NULL;
   }
+  if (!checkSchemaObjects(tab))
+  {
+    setErrorCode(1231);
+    return NULL;
+  }
   
-  tOp = theNdb->getOperation();
+  NdbOperation* tOp = theNdb->getOperation();
   if (tOp == NULL)
     goto getNdbOp_error1;
+
   if (aNextOp == NULL) {
     if (theLastOpInList != NULL) {
        theLastOpInList->next(tOp);
@@ -1520,7 +1596,7 @@ NdbTransaction::getNdbOperation(const NdbTableImpl * tab,
     }
     tOp->next(aNextOp);
   }
-  if (tOp->init(tab, this, useRec) != -1) {
+  if (tOp->init(tab, this) != -1) {
     return tOp;
   } else {
     theNdb->releaseOperation(tOp);
@@ -1608,6 +1684,11 @@ NdbTransaction::getNdbIndexScanOperation(const NdbIndexImpl* index,
   if (theCommitStatus == Started){
     const NdbTableImpl * indexTable = index->getIndexTable();
     if (indexTable != 0){
+      if (!checkSchemaObjects(table, index))
+      {
+        setErrorCode(1231);
+        return NULL;
+      } 
       NdbIndexScanOperation* tOp = getNdbScanOperation(indexTable);
       if(tOp)
       {
@@ -1669,12 +1750,16 @@ Remark:         Get an operation from NdbScanOperation object idlelist and get t
 NdbIndexScanOperation*
 NdbTransaction::getNdbScanOperation(const NdbTableImpl * tab)
 { 
-  NdbIndexScanOperation* tOp;
+  if (!checkSchemaObjects(tab))
+  {
+    setErrorCode(1231);
+    return NULL;
+  } 
   
-  tOp = theNdb->getScanOperation();
+  NdbIndexScanOperation* tOp = theNdb->getScanOperation();
   if (tOp == NULL)
     goto getNdbOp_error1;
-  
+
   if (tOp->init(tab, this) != -1) {
     define_scan_op(tOp);
     // Mark that this NdbIndexScanOperation is used as NdbScanOperation
@@ -1794,14 +1879,17 @@ Remark:         Get an operation from NdbIndexOperation object idlelist and get 
 NdbIndexOperation*
 NdbTransaction::getNdbIndexOperation(const NdbIndexImpl * anIndex, 
                                      const NdbTableImpl * aTable,
-                                     NdbOperation* aNextOp,
-                                     bool useRec)
+                                     NdbOperation* aNextOp)
 { 
-  NdbIndexOperation* tOp;
-  
-  tOp = theNdb->getIndexOperation();
+  if (!checkSchemaObjects(aTable, anIndex))
+  {
+    setErrorCode(1231);
+    return NULL;
+  } 
+  NdbIndexOperation* tOp = theNdb->getIndexOperation();
   if (tOp == NULL)
     goto getNdbOp_error1;
+
   if (aNextOp == NULL) {
     if (theLastOpInList != NULL) {
        theLastOpInList->next(tOp);
@@ -1824,7 +1912,7 @@ NdbTransaction::getNdbIndexOperation(const NdbIndexImpl * anIndex,
     }
     tOp->next(aNextOp);
   }
-  if (tOp->indxInit(anIndex, aTable, this, useRec)!= -1) {
+  if (tOp->indxInit(anIndex, aTable, this)!= -1) {
     return tOp;
   } else {
     theNdb->releaseOperation(tOp);
@@ -2155,7 +2243,7 @@ from other transactions.
     Uint32 tNoComp = theNoOfOpCompleted;
     for (Uint32 i = 0; i < tNoOfOperations ; i++) {
       NdbReceiver* const tReceiver = 
-        theNdb->void2rec(theNdb->int2void(*tPtr++));
+        NdbImpl::void2rec(theNdb->theImpl->int2void(*tPtr++));
       const Uint32 tAttrInfoLen = *tPtr++;
       if(tReceiver && tReceiver->checkMagicNumber()){
         Uint32 done;
@@ -2491,7 +2579,7 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
   if (key_record->flags & NdbRecord::RecIsIndex)
   {
     op= getNdbIndexOperation(key_record->table->m_index,
-                             attribute_record->table, NULL, true);
+                             attribute_record->table, NULL);
   }
   else
   {
@@ -2500,7 +2588,7 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
       setOperationErrorCodeAbort(4287);
       return NULL;
     }
-    op= getNdbOperation(attribute_record->table, NULL, true);
+    op= getNdbOperation(attribute_record->table, NULL);
   }
   if(!op)
     return NULL;
@@ -2584,6 +2672,7 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
                           const NdbOperation::OperationOptions *opts,
                           Uint32 sizeOfOptions)
 {
+  bool upgraded_lock = false;
   /* Check that the NdbRecord specifies the full primary key. */
   if (!(key_rec->flags & NdbRecord::RecHasAllKeys))
   {
@@ -2591,10 +2680,12 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
     return NULL;
   }
 
-  /* It appears that unique index operations do no support readCommitted. */
   if (key_rec->flags & NdbRecord::RecIsIndex &&
       lock_mode == NdbOperation::LM_CommittedRead)
+  {
     lock_mode= NdbOperation::LM_Read;
+    upgraded_lock = true;
+  }
 
   NdbOperation::OperationType opType=
     (lock_mode == NdbOperation::LM_Exclusive ?
@@ -2608,6 +2699,11 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
   if (!op)
     return NULL;
 
+  if (upgraded_lock)
+  {
+    DBUG_PRINT("info", ("Set ReadCommittedBase true"));
+    op->setReadCommittedBase();
+  }
   if (op->theLockMode == NdbOperation::LM_CommittedRead)
   {
     op->theDirtyIndicator= 1;
@@ -2787,6 +2883,13 @@ NdbTransaction::refreshTuple(const NdbRecord *key_rec, const char *key_row,
   if (!(key_rec->flags & NdbRecord::RecHasAllKeys))
   {
     setOperationErrorCodeAbort(4292);
+    return NULL;
+  }
+
+  if (key_rec->flags & NdbRecord::RecTableHasBlob)
+  {
+    // Table with blobs does not support refreshTuple()
+    setOperationErrorCodeAbort(4343);
     return NULL;
   }
 

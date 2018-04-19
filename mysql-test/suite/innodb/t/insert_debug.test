@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 --echo #
@@ -14,3 +13,35 @@ DROP TABLE t1;
 
 SET GLOBAL innodb_change_buffering_debug=0;
 SET GLOBAL innodb_limit_optimistic_insert_debug=0;
+
+--echo #
+--echo # Bug#25082593 FOREIGN KEY VALIDATION DOESN'T NEED
+--echo # TO ACQUIRE GAP LOCK IN READ COMMITTED
+--echo #
+
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+
+CREATE TABLE t1(col1 INT PRIMARY KEY) ENGINE=INNODB;
+
+CREATE TABLE t2(col1 INT PRIMARY KEY, col2 INT NOT NULL,
+FOREIGN KEY(col2) REFERENCES t1(col1)) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES(1), (3), (4);
+
+connect (con1,localhost,root);
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+INSERT INTO t2 VALUES(1, 3);
+
+connection default;
+START TRANSACTION;
+
+INSERT INTO t1 VALUES(2);
+
+disconnect con1;
+
+SET GLOBAL innodb_limit_optimistic_insert_debug=0;
+
+DROP TABLE t2;
+DROP TABLE t1;

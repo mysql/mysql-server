@@ -9,21 +9,13 @@ flush privileges;
 delete from mysql.user where user=_binary'rpl_ignore_grant';
 delete from mysql.db where user=_binary'rpl_ignore_grant';
 flush privileges;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+create user rpl_ignore_grant@localhost;
 grant select on *.* to rpl_ignore_grant@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 grant drop on test.* to rpl_ignore_grant@localhost;
 show grants for rpl_ignore_grant@localhost;
 Grants for rpl_ignore_grant@localhost
-GRANT SELECT ON *.* TO 'rpl_ignore_grant'@'localhost'
-GRANT DROP ON `test`.* TO 'rpl_ignore_grant'@'localhost'
+GRANT SELECT ON *.* TO `rpl_ignore_grant`@`localhost`
+GRANT DROP ON `test`.* TO `rpl_ignore_grant`@`localhost`
 show grants for rpl_ignore_grant@localhost;
 ERROR 42000: There is no such grant defined for user 'rpl_ignore_grant' on host 'localhost'
 select count(*) from mysql.user where user=_binary'rpl_ignore_grant';
@@ -32,16 +24,8 @@ count(*)
 select count(*) from mysql.db where user=_binary'rpl_ignore_grant';
 count(*)
 0
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+create user rpl_ignore_grant@localhost;
 grant select on *.* to rpl_ignore_grant@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 set password for rpl_ignore_grant@localhost="does it work?";
 select authentication_string<>_binary'' from mysql.user where user=_binary'rpl_ignore_grant';
 authentication_string<>_binary''

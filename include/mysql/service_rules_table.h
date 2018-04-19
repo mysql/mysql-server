@@ -1,34 +1,38 @@
-#ifdef __cplusplus
 #ifndef SERVICE_RULES_TABLE_INCLUDED
 #define SERVICE_RULES_TABLE_INCLUDED
 
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
-    This program is free software; you can redistribute it and/or
-    modify it under the terms of the GNU General Public License as
-    published by the Free Software Foundation; version 2 of the
-    License.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License, version 2.0,
+    as published by the Free Software Foundation.
+
+    This program is also distributed with certain software (including
+    but not limited to OpenSSL) that is licensed under separate terms,
+    as designated in a particular file or component or in included license
+    documentation.  The authors of MySQL hereby grant you an additional
+    permission to link the program and your derivative works with the
+    separately licensed software that they have included with MySQL.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU General Public License for more details.
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License, version 2.0, for more details.
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
-#include <my_dbug.h>
 #include <string>
+
+#include "my_dbug.h"
 
 #ifndef MYSQL_ABI_CHECK
 #include <stdlib.h>
 #endif
 
-
 /**
-  @file service_rules_table.h
+  @file include/mysql/service_rules_table.h
 
   Plugin service that provides access to the rewrite rules table that is used
   by the Rewriter plugin. No other use intended.
@@ -38,9 +42,7 @@ class THD;
 struct TABLE_LIST;
 class Field;
 
-namespace rules_table_service
-{
-
+namespace rules_table_service {
 
 /**
   There must be one function of this kind in order for the symbols in the
@@ -48,24 +50,21 @@ namespace rules_table_service
 */
 int dummy_function_to_ensure_we_are_linked_into_the_server();
 
-
 /**
   Frees a const char pointer allocated in the server's dynamic library using
   new[].
 */
 void free_string(const char *str);
 
-
 /**
   Writable cursor that allows reading and updating of rows in a persistent
   table.
 */
-class Cursor
-{
-public:
+class Cursor {
+ public:
   typedef int column_id;
 
-  static const column_id ILLEGAL_COLUMN_ID= -1;
+  static const column_id ILLEGAL_COLUMN_ID = -1;
 
   /**
     Creates a cursor to an already-opened table. The constructor is kept
@@ -74,13 +73,10 @@ public:
   explicit Cursor(THD *thd);
 
   /// Creates a past-the-end cursor.
-  Cursor() :
-    m_thd(NULL), m_table_list(NULL), m_is_finished(true)
-  {}
+  Cursor() : m_thd(NULL), m_table_list(NULL), m_is_finished(true) {}
 
   column_id pattern_column() const { return m_pattern_column; }
-  column_id pattern_database_column() const
-  {
+  column_id pattern_database_column() const {
     return m_pattern_database_column;
   }
   column_id replacement_column() const { return m_replacement_column; }
@@ -115,8 +111,7 @@ public:
     Equality operator. The only cursors that are equal are past-the-end
     cursors.
   */
-  bool operator== (const Cursor &other)
-  {
+  bool operator==(const Cursor &other) {
     return (m_is_finished == other.m_is_finished);
   }
 
@@ -124,16 +119,14 @@ public:
     Inequality operator. All cursors are considered different except
     past-the-end cursors.
   */
-  bool operator!= (const Cursor &other) { return !(*this == other); }
+  bool operator!=(const Cursor &other) { return !(*this == other); }
 
   /**
     Advances this Cursor. Read errors are kept, and had_serious_read_error()
     will tell if there was an unexpected error (e.g. not EOF) while reading.
   */
-  Cursor &operator++ ()
-  {
-    if (!m_is_finished)
-      read();
+  Cursor &operator++() {
+    if (!m_is_finished) read();
     return *this;
   }
 
@@ -147,7 +140,7 @@ public:
     @param str The string.
     @param length The string's length.
   */
-  void set(int colno, const char* str, size_t length);
+  void set(int colno, const char *str, size_t length);
 
   /// Writes the row in the write buffer to the table at the current row.
   int write();
@@ -158,7 +151,7 @@ public:
   /// Closes the table scan if initiated and commits the transaction.
   ~Cursor();
 
-private:
+ private:
   int field_index(const char *field_name);
 
   int m_pattern_column;
@@ -179,14 +172,12 @@ private:
   int read();
 };
 
-
 /**
   A past-the-end Cursor. All past-the-end cursors are considered equal
   when compared with operator ==.
 */
 Cursor end();
 
-}
+}  // namespace rules_table_service
 
-#endif // SERVICE_RULES_TABLE_INCLUDED
-#endif // __cplusplus
+#endif  // SERVICE_RULES_TABLE_INCLUDED

@@ -1,8 +1,6 @@
 drop table if exists t1, t2;
 drop function if exists f1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (ts timestamp);
 set time_zone='+00:00';
 select unix_timestamp(utc_timestamp())-unix_timestamp(current_timestamp());
@@ -342,4 +340,38 @@ SET time_zone=DEFAULT;
 SET sql_mode = default;
 #
 # End of 5.6 tests
+#
+#
+# Bug #21459795 "ASSERTION FAILURE WHEN PREVIOUSLY UNUSED TIME
+#                ZONE IS USED IN FUNCTION/TRIGGER".
+#
+CREATE FUNCTION f1() RETURNS DATETIME RETURN CONVERT_TZ('2015-01-01 00:00:00', 'UTC', 'No-such-time-zone');
+# Below statement caused assertion failure.
+SELECT f1();
+f1()
+NULL
+DROP FUNCTION f1;
+#
+# Bug #21840241 "IMPROPER SE REFERENCE COUNTING IN ATTACHABLE TRANSACTIONS"
+#
+CREATE TABLE t1 (i INT PRIMARY KEY) ENGINE=MyISAM;
+CREATE TABLE t2 (i INT PRIMARY KEY) ENGINE=MyISAM;
+# Decrease Table Cache size and fill it with MyISAM tables.
+SET @save_table_open_cache= @@global.table_open_cache;
+SET @@GLOBAL.table_open_cache=32;
+SELECT * FROM t1;
+i
+SELECT * FROM t2;
+i
+# Usage of non-existent time zone will start attachable transaction
+# which will access time zone tables. This will expel MyISAM tables
+# from the Table Cache and creation of MyISAM specific connection
+# local data. Without proper cleanup at the end of attachable
+# transaction this data was reported as leaked memory by valgrind.
+SELECT CONVERT_TZ('2015-01-01 00:00:00', 'UTC', 'No-such-time-zone');
+CONVERT_TZ('2015-01-01 00:00:00', 'UTC', 'No-such-time-zone')
+NULL
+SET @@global.table_open_cache= @save_table_open_cache;
+DROP TABLES t1, t2;
+# End of 5.7 tests
 #

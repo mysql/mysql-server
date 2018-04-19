@@ -92,16 +92,59 @@ COUNT(f1(a))
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
 DROP TABLES t0, t1;
-#
-# test for bug#11756013
-#
-DROP SCHEMA IF EXISTS s1;
-CREATE SCHEMA s1;
-CREATE PROCEDURE s1.p1() BEGIN END;
-SET DEBUG_SYNC='before_db_dir_check SIGNAL check_db WAIT_FOR dropped_schema';
-CALL s1.p1;
-SET DEBUG_SYNC='now WAIT_FOR check_db';
-DROP SCHEMA s1;
-SET DEBUG_SYNC='now SIGNAL dropped_schema';
-ERROR 42000: Unknown database 's1'
-SET DEBUG_SYNC = 'RESET';
+# Case 1: Test case to verify MDL locking from concurrent SELECT and
+#         DROP FUNCTION operation with case insensitive routine name.
+CREATE FUNCTION mIxEdCaSe() RETURNS INT RETURN 1;
+SET DEBUG_SYNC='after_shared_lock_pname SIGNAL locked WAIT_FOR continue';
+SELECT mIxEdCaSe();
+# At this point we have a shared lock on 'mIxEdCaSe'
+CONNECT  con1, localhost, root;
+SET DEBUG_SYNC='now WAIT_FOR locked';
+DROP FUNCTION mixedcase;;
+# Without fix the shared lock does not prevent us from dropping the SF
+# since the case used in this statement is different. This statement
+# takes exclusive metadata lock on 'mixedcase', not 'mIxEdCaSe'.
+# Drop function mIxEdCaSe will be blocked properly.
+CONNECT  con2, localhost, root;
+SET DEBUG_SYNC='now SIGNAL continue';
+connection default;
+mIxEdCaSe()
+1
+connection con1;
+# Case 2: Test case to verify MDL locking from concurrent SHOW FUNCTION
+#         and DROP FUNCTION operation with case insensitive routine name.
+connection default;
+CREATE FUNCTION mIxEdCaSe() RETURNS INT RETURN 1;
+SET DEBUG_SYNC='after_acquiring_mdl_lock_on_routine SIGNAL locked WAIT_FOR continue';
+DROP FUNCTION mIxEdCaSe;;
+# At this point we have a exclusive lock on 'mIxEdCaSe'
+connection con1;
+SET DEBUG_SYNC='now WAIT_FOR locked';
+SHOW CREATE FUNCTION MiXeDcAsE;
+# This statement request for shared lock and it is blocked till DROP
+# statement releases lock.
+connection con2;
+SET DEBUG_SYNC='now SIGNAL continue';
+connection default;
+connection con1;
+ERROR 42000: FUNCTION MiXeDcAsE does not exist
+# Case 3: Test case to verify MDL locking from concurrent DDL operations
+#         with case insensitive routine name.
+connection default;
+CREATE FUNCTION mIxEdCaSe() RETURNS INT RETURN 1;
+SET DEBUG_SYNC='after_acquiring_mdl_lock_on_routine SIGNAL locked WAIT_FOR continue';
+DROP FUNCTION miXEDCAse;
+# At this point we have a exclusive lock on 'miXEDCAse'
+connection con1;
+SET DEBUG_SYNC='now WAIT_FOR locked';
+ALTER FUNCTION mixedcase COMMENT "comment_string";;
+# This statement request for exclusive lock and it is blocked till DROP
+# statement releases lock.
+connection con2;
+SET DEBUG_SYNC='now SIGNAL continue';
+connection default;
+connection con1;
+ERROR 42000: FUNCTION test.mixedcase does not exist
+connection default;
+disconnect con1;
+disconnect con2;

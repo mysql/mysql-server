@@ -1,4 +1,6 @@
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE ① (
 c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2))
 ENGINE = InnoDB;
@@ -22,5 +24,34 @@ t1ć	CREATE TABLE `t1ć` (
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`),
   CONSTRAINT `t1c2` FOREIGN KEY (`c2`) REFERENCES `①` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1ć, ①;
+#
+# Bug #21364096	THE BOGUS DUPLICATE KEY ERROR IN ONLINE DDL
+#		WITH INCORRECT KEY NAME
+create table t1 (id int auto_increment primary key,
+a int,
+unique key uk(a))engine=innodb;
+insert into t1 select 1, 1;
+insert into t1 select 2, 2;
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL s1 WAIT_FOR s2';
+alter table t1 add b int, ALGORITHM=inplace;
+/* connection con1 */
+SET DEBUG_SYNC = 'now WAIT_FOR s1';
+insert into t1 select NULL, 1;
+ERROR 23000: Duplicate entry '1' for key 'uk'
+SET DEBUG_SYNC = 'now SIGNAL s2';
+/* connection default */
+/* reap */ alter table t1 add b int, ALGORITHM=inplace;
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL s1 WAIT_FOR s2';
+alter table t1 add b int, ALGORITHM=inplace;;
+/* connection con1 */
+set DEBUG_SYNC = 'now WAIT_FOR s1';
+update t1 set a=1 where id=2;
+ERROR 23000: Duplicate entry '1' for key 'uk'
+SET DEBUG_SYNC = 'now SIGNAL s2';
+/* connection default */
+/* reap */ alter table t1 add b int, ALGORITHM=inplace;
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+drop table t1;

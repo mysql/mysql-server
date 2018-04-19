@@ -1,4 +1,4 @@
-SET @tx_isolation= @@global.tx_isolation;
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 "innodb_only", "innodb_only", "innodb_only");
@@ -16,6 +16,8 @@ c24 VARCHAR(40),
 c25 VARCHAR(40),
 c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB DEFAULT CHARSET UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City','1', 'dddddddddddddd', '1234', '2012', 0, 0, 0);
 INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', '2', 'bbbbbbbbbbbbbb', '2345', '2012', 0, 0, 0);
 INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', '3', 'cccccccccccccc', '3456', '2012', 0, 0 ,0);
@@ -48,7 +50,7 @@ SLEEP(2)
 Here the memcached results with D,B,M,C:
 Darmstadt|City|1|dddddddddddddd|1234|2012
 Berlin|Mitte|2|bbbbbbbbbbbbbb|2345|2012
-MÃ¼nchen|SÃ¼d|4|ÃœÃ–Ã„ÃŸÃ¼Ã¶Ã¤|4567|2012
+München|Süd|4|ÜÖÄßüöä|4567|2012
 Cottbus|West|3|cccccccccccccc|3456|2012
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
@@ -70,7 +72,7 @@ C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 M	München	Süd	4	ÜÖÄßüöä	4567	2012
 _	Beijing	City	6	fffffffff	6789	2012
-�	�lzen	City	5	�������	5678	2012
+Ü	Ülzen	City	5	üöäßÜÖÄ	5678	2012
 DROP TABLE t1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP TABLE IF EXISTS t1;
@@ -83,6 +85,8 @@ c24 CHAR(40),
 c25 CHAR(40),
 c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB DEFAULT CHARSET UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City','1', 'dddddddddddddd', '1234', '2012', 0, 0, 0);
 INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', '2', 'bbbbbbbbbbbbbb', '2345', '2012', 0, 0, 0);
 INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', '3', 'cccccccccccccc', '3456', '2012', 0, 0 ,0);
@@ -115,7 +119,7 @@ SLEEP(2)
 Here the memcached results with D,B,M,C:
 Darmstadt                               |City                                    |1                                       |dddddddddddddd                          |1234                                    |2012                                    
 Berlin                                  |Mitte                                   |2                                       |bbbbbbbbbbbbbb                          |2345                                    |2012                                    
-MÃ¼nchen                              |SÃ¼d                                  |4                                       |ÃœÃ–Ã„ÃŸÃ¼Ã¶Ã¤          |4567                                    |2012                                    
+München                                |Süd                                    |4                                       |ÜÖÄßüöä                          |4567                                    |2012                                    
 Cottbus                                 |West                                    |3                                       |cccccccccccccc                          |3456                                    |2012                                    
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
@@ -137,8 +141,8 @@ C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 M	München	Süd	4	ÜÖÄßüöä	4567	2012
 _	Beijing	City	6	fffffffff	6789	2012
-�	�lzen	City	5	�������	5678	2012
+Ü	Ülzen	City	5	üöäßÜÖÄ	5678	2012
 DROP TABLE t1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
-SET @@global.tx_isolation= @tx_isolation;
+SET @@global.transaction_isolation= @transaction_isolation;

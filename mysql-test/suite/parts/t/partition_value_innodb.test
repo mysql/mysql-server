@@ -45,14 +45,10 @@ SET @max_row = 20;
 let $more_trigger_tests= 0;
 let $more_pk_ui_tests= 0;
 
-# The server must support partitioning.
---source include/have_partition.inc
-
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
---source include/have_innodb.inc
 let $engine= 'InnoDB';
 
 ##### Execute the test of "table" files

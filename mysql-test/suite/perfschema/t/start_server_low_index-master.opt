@@ -1,2 +1,2 @@
 --loose-enable-performance-schema
---loose-performance_schema_max_index_stat=1
+--loose-performance_schema_max_index_stat=197

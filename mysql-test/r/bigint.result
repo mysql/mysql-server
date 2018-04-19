@@ -1,7 +1,5 @@
 drop table if exists t1, t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select 0,256,00000000000000065536,2147483647,-2147483648,2147483648,+4294967296;
 0	256	00000000000000065536	2147483647	-2147483648	2147483648	4294967296
 0	256	65536	2147483647	-2147483648	2147483648	4294967296
@@ -184,14 +182,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(1) NOT NULL DEFAULT '0'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 select 9223372036854775809 as 'a';
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(19) unsigned NOT NULL DEFAULT '0'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t1;
 a
 9223372036854775809
@@ -420,28 +418,24 @@ INSERT INTO t1 (a) VALUES
 (CAST(0xFFFFFFFFFFFFFFFF AS UNSIGNED));
 UPDATE t1 SET b = a;
 # FFFFFFFFFFFFFFFF
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 18446744073709551615 AND TRIM(a) = b;
+EXPLAIN SELECT 1 FROM t1 WHERE a = 18446744073709551615 AND TRIM(a) = b;
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 18446744073709551615) and ('18446744073709551615' = `test`.`t1`.`b`))
 # 8000000000000000
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 9223372036854775808 AND TRIM(a) = b;
+EXPLAIN SELECT 1 FROM t1 WHERE a = 9223372036854775808 AND TRIM(a) = b;
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 9223372036854775808) and ('9223372036854775808' = `test`.`t1`.`b`))
 # 7FFFFFFFFFFFFFFF
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 9223372036854775807 AND TRIM(a) = b;
+EXPLAIN SELECT 1 FROM t1 WHERE a = 9223372036854775807 AND TRIM(a) = b;
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 9223372036854775807) and ('9223372036854775807' = `test`.`t1`.`b`))
 # 0
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 0 AND TRIM(a) = b;
+EXPLAIN SELECT 1 FROM t1 WHERE a = 0 AND TRIM(a) = b;
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 0) and ('0' = `test`.`t1`.`b`))
 DROP TABLE t1;
 # End of 5.1 tests
@@ -550,4 +544,34 @@ SELECT 184467440737095 >= 0;
 SELECT 0 <= 18446744073709551500;
 0 <= 18446744073709551500
 1
+#
+# Bug#22501606 SELECT CAST(100 AS UNSIGNED) BETWEEN 1 AND -1 RETURNS TRUE
+# Bug#79857 select cast(100 as unsigned) between 1 and -1 returns true
+#
+SELECT CAST(100 AS UNSIGNED) BETWEEN 1 AND -1;
+CAST(100 AS UNSIGNED) BETWEEN 1 AND -1
+0
+SELECT CAST(100 AS UNSIGNED) NOT BETWEEN 1 AND -1;
+CAST(100 AS UNSIGNED) NOT BETWEEN 1 AND -1
+1
+SELECT CAST(0 AS UNSIGNED) BETWEEN 0 AND -1;
+CAST(0 AS UNSIGNED) BETWEEN 0 AND -1
+0
+SELECT CAST(0 AS UNSIGNED) NOT BETWEEN 0 AND -1;
+CAST(0 AS UNSIGNED) NOT BETWEEN 0 AND -1
+1
 SET sql_mode = default;
+#
+# Bug #27008075: UBSAN: MY_STRNTOLL_8BIT - NEGATION OF XYZ CANNOT BE REPRESENTED IN TYPE
+#
+DO TRIM(-9223372036854775808) XOR '.D-';
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '.D-'
+DO OCT(-9223372036854775808);
+#
+# Bug#27451113 UBSAN: ITEM_FUNC_MOD::INT_OP
+#              NEGATION OF -9223372036854775808 !
+#
+select -9223372036854775808 mod 9223372036854775810 as result;
+result
+-9223372036854775808

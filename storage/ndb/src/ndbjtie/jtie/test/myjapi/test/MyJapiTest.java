@@ -1,14 +1,21 @@
 /*
- Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; version 2 of the License.
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+ GNU General Public License, version 2.0, for more details.
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
@@ -139,51 +146,6 @@ public class MyJapiTest {
         out.println("\ncalling MyJapiCtypes functions: fxx(0) ...");
 
         for (int i = 0; i < 2; i++) {
-            out.println("\ncalling f11()");
-            final boolean nf11 = MyJapiCtypes.f11(false);
-            assert (nf11 == false);
-            out.println("\ncalling f12()");
-            final byte nf12 = MyJapiCtypes.f12((byte)0);
-            assert (nf12 == (byte)0);
-            out.println("\ncalling f13()");
-            final byte nf13 = MyJapiCtypes.f13((byte)0);
-            assert (nf13 == (byte)0);
-            out.println("\ncalling f14()");
-            final byte nf14 = MyJapiCtypes.f14((byte)0);
-            assert (nf14 == (byte)0);
-            out.println("\ncalling f15()");
-            final short nf15 = MyJapiCtypes.f15((short)0);
-            assert (nf15 == (short)0);
-            out.println("\ncalling f16()");
-            final short nf16 = MyJapiCtypes.f16((short)0);
-            assert (nf16 == (short)0);
-            out.println("\ncalling f17()");
-            final int nf17 = MyJapiCtypes.f17((int)0);
-            assert (nf17 == (int)0);
-            out.println("\ncalling f18()");
-            final int nf18 = MyJapiCtypes.f18((int)0);
-            assert (nf18 == (int)0);
-            out.println("\ncalling f19()");
-            final int nf19 = MyJapiCtypes.f19((int)0);
-            assert (nf19 == (int)0);
-            out.println("\ncalling f20()");
-            final int nf20 = MyJapiCtypes.f20((int)0);
-            assert (nf20 == (int)0);
-            out.println("\ncalling f21()");
-            final long nf21 = MyJapiCtypes.f21((long)0);
-            assert (nf21 == (long)0);
-            out.println("\ncalling f22()");
-            final long nf22 = MyJapiCtypes.f22((long)0);
-            assert (nf22 == (long)0);
-            out.println("\ncalling f23()");
-            final float nf23 = MyJapiCtypes.f23((float)0);
-            assert (nf23 == (float)0);
-            out.println("\ncalling f24()");
-            final double nf24 = MyJapiCtypes.f24((double)0);
-            assert (nf24 == (double)0);
-            out.println("\ncalling f25()");
-            final double nf25 = MyJapiCtypes.f25((double)0);
-            assert (nf25 == (double)0);
 
             out.println("\ncalling f31()");
             final boolean nf31 = MyJapiCtypes.f31(false);
@@ -246,30 +208,6 @@ public class MyJapiTest {
         MyJapi.f0();
 
         for (int i = 0; i < 2; i++) {
-            out.println("\ncalling f111(f011())");
-            MyJapi.f111(MyJapi.f011());
-            out.println("\ncalling f112(f012())");
-            MyJapi.f112(MyJapi.f012());
-            out.println("\ncalling f113(f013())");
-            MyJapi.f113(MyJapi.f013());
-            out.println("\ncalling f114(f014())");
-            MyJapi.f114(MyJapi.f014());
-            out.println("\ncalling f115(f015())");
-            MyJapi.f115(MyJapi.f015());
-            out.println("\ncalling f116(f016())");
-            MyJapi.f116(MyJapi.f016());
-            out.println("\ncalling f117(f017())");
-            MyJapi.f117(MyJapi.f017());
-            out.println("\ncalling f118(f018())");
-            MyJapi.f118(MyJapi.f018());
-            out.println("\ncalling f121(f021())");
-            MyJapi.f121(MyJapi.f021());
-            out.println("\ncalling f122(f022())");
-            MyJapi.f122(MyJapi.f022());
-            out.println("\ncalling f123(f023())");
-            MyJapi.f123(MyJapi.f023());
-            out.println("\ncalling f124(f024())");
-            MyJapi.f124(MyJapi.f024());
 
             out.println("\ncalling f131(f031())");
             MyJapi.f131(MyJapi.f031());
@@ -796,78 +734,6 @@ public class MyJapiTest {
 
             out.println("\ncalling f544bb0(f444bb0())");
             MyJapi.f544bb0(MyJapi.f444bb0());
-
-            out.println("\ncalling f551bb0(f451bb0())");
-            MyJapi.f551bb0(MyJapi.f451bb0());
-
-            out.println("\ncalling f552bb0(f452bb0())");
-            MyJapi.f552bb0(MyJapi.f452bb0());
-
-            out.println("\ncalling f553bb0(f453bb0())");
-            MyJapi.f553bb0(MyJapi.f453bb0());
-
-            out.println("\ncalling f554bb0(f454bb0())");
-            MyJapi.f554bb0(MyJapi.f454bb0());
-
-            out.println("\ncalling f555bb0(f455bb0())");
-            MyJapi.f555bb0(MyJapi.f455bb0());
-
-            out.println("\ncalling f556bb0(f456bb0())");
-            MyJapi.f556bb0(MyJapi.f456bb0());
-
-            out.println("\ncalling f557bb0(f457bb0())");
-            MyJapi.f557bb0(MyJapi.f457bb0());
-
-            out.println("\ncalling f558bb0(f458bb0())");
-            MyJapi.f558bb0(MyJapi.f458bb0());
-
-            out.println("\ncalling f561bb0(f461bb0())");
-            MyJapi.f561bb0(MyJapi.f461bb0());
-
-            out.println("\ncalling f562bb0(f462bb0())");
-            MyJapi.f562bb0(MyJapi.f462bb0());
-
-            out.println("\ncalling f563bb0(f463bb0())");
-            MyJapi.f563bb0(MyJapi.f463bb0());
-
-            out.println("\ncalling f564bb0(f464bb0())");
-            MyJapi.f564bb0(MyJapi.f464bb0());
-
-            out.println("\ncalling f571bb0(f471bb0())");
-            MyJapi.f571bb0(MyJapi.f471bb0());
-
-            out.println("\ncalling f572bb0(f472bb0())");
-            MyJapi.f572bb0(MyJapi.f472bb0());
-
-            out.println("\ncalling f573bb0(f473bb0())");
-            MyJapi.f573bb0(MyJapi.f473bb0());
-
-            out.println("\ncalling f574bb0(f474bb0())");
-            MyJapi.f574bb0(MyJapi.f474bb0());
-
-            out.println("\ncalling f575bb0(f475bb0())");
-            MyJapi.f575bb0(MyJapi.f475bb0());
-
-            out.println("\ncalling f576bb0(f476bb0())");
-            MyJapi.f576bb0(MyJapi.f476bb0());
-
-            out.println("\ncalling f577bb0(f477bb0())");
-            MyJapi.f577bb0(MyJapi.f477bb0());
-
-            out.println("\ncalling f578bb0(f478bb0())");
-            MyJapi.f578bb0(MyJapi.f478bb0());
-
-            out.println("\ncalling f581bb0(f481bb0())");
-            MyJapi.f581bb0(MyJapi.f481bb0());
-
-            out.println("\ncalling f582bb0(f482bb0())");
-            MyJapi.f582bb0(MyJapi.f482bb0());
-
-            out.println("\ncalling f583bb0(f483bb0())");
-            MyJapi.f583bb0(MyJapi.f483bb0());
-
-            out.println("\ncalling f584bb0(f484bb0())");
-            MyJapi.f584bb0(MyJapi.f484bb0());
         }
 
         out.println();
@@ -1065,174 +931,6 @@ public class MyJapiTest {
             final double nf444bb = f444bb.asDoubleBuffer().get();
             MyJapi.f544bb1(f444bb);
             assert (nf444bb + 1 == f444bb.asDoubleBuffer().get());
-
-            out.println("\ncalling f551bb1(f451bb1())");
-            final ByteBuffer f451bb = MyJapi.f451bb1().order(ByteOrder.nativeOrder());
-            final byte nf451bb = f451bb.asReadOnlyBuffer().get();
-            MyJapi.f551bb1(f451bb);
-            assert (nf451bb == f451bb.asReadOnlyBuffer().get());
-            MyJapi.f551bb1(MyJapi.f451bb1());
-            assert (nf451bb != f451bb.asReadOnlyBuffer().get());
-
-            out.println("\ncalling f552bb1(f452bb1())");
-            final ByteBuffer f452bb = MyJapi.f452bb1().order(ByteOrder.nativeOrder());
-            final byte nf452bb = f452bb.asReadOnlyBuffer().get();
-            MyJapi.f552bb1(f452bb);
-            assert (nf452bb == f452bb.asReadOnlyBuffer().get());
-            MyJapi.f552bb1(MyJapi.f452bb1());
-            assert (nf452bb + 1 == f452bb.asReadOnlyBuffer().get());
-
-            out.println("\ncalling f553bb1(f453bb1())");
-            final ByteBuffer f453bb = MyJapi.f453bb1().order(ByteOrder.nativeOrder());
-            final byte nf453bb = f453bb.asReadOnlyBuffer().get();
-            MyJapi.f553bb1(f453bb);
-            assert (nf453bb == f453bb.asReadOnlyBuffer().get());
-            MyJapi.f553bb1(MyJapi.f453bb1());
-            assert (nf453bb + 1 == f453bb.asReadOnlyBuffer().get());
-
-            out.println("\ncalling f554bb1(f454bb1())");
-            final ByteBuffer f454bb = MyJapi.f454bb1().order(ByteOrder.nativeOrder());
-            final byte nf454bb = f454bb.asReadOnlyBuffer().get();
-            MyJapi.f554bb1(f454bb);
-            assert (nf454bb == f454bb.asReadOnlyBuffer().get());
-            MyJapi.f554bb1(MyJapi.f454bb1());
-            assert (nf454bb + 1 == f454bb.asReadOnlyBuffer().get());
-
-            out.println("\ncalling f555bb1(f455bb1())");
-            final ByteBuffer f455bb = MyJapi.f455bb1().order(ByteOrder.nativeOrder());
-            final short nf455bb = f455bb.asShortBuffer().get();
-            MyJapi.f555bb1(f455bb);
-            assert (nf455bb == f455bb.asShortBuffer().get());
-            MyJapi.f555bb1(MyJapi.f455bb1());
-            assert (nf455bb + 1 == f455bb.asShortBuffer().get());
-
-            out.println("\ncalling f556bb1(f456bb1())");
-            final ByteBuffer f456bb = MyJapi.f456bb1().order(ByteOrder.nativeOrder());
-            final short nf456bb = f456bb.asShortBuffer().get();
-            MyJapi.f556bb1(f456bb);
-            assert (nf456bb == f456bb.asShortBuffer().get());
-            MyJapi.f556bb1(MyJapi.f456bb1());
-            assert (nf456bb + 1 == f456bb.asShortBuffer().get());
-
-            out.println("\ncalling f557bb1(f457bb1())");
-            final ByteBuffer f457bb = MyJapi.f457bb1().order(ByteOrder.nativeOrder());
-            final int nf457bb = f457bb.asIntBuffer().get();
-            MyJapi.f557bb1(f457bb);
-            assert (nf457bb == f457bb.asIntBuffer().get());
-            MyJapi.f557bb1(MyJapi.f457bb1());
-            assert (nf457bb + 1 == f457bb.asIntBuffer().get());
-
-            out.println("\ncalling f558bb1(f458bb1())");
-            final ByteBuffer f458bb = MyJapi.f458bb1().order(ByteOrder.nativeOrder());
-            final int nf458bb = f458bb.asIntBuffer().get();
-            MyJapi.f558bb1(f458bb);
-            assert (nf458bb == f458bb.asIntBuffer().get());
-            MyJapi.f558bb1(MyJapi.f458bb1());
-            assert (nf458bb + 1 == f458bb.asIntBuffer().get());
-
-            out.println("\ncalling f561bb1(f461bb1())");
-            final ByteBuffer f461bb = MyJapi.f461bb1().order(ByteOrder.nativeOrder());
-            final long nf461bb = f461bb.asLongBuffer().get();
-            MyJapi.f561bb1(f461bb);
-            assert (nf461bb == f461bb.asLongBuffer().get());
-            MyJapi.f561bb1(MyJapi.f461bb1());
-            assert (nf461bb + 1 == f461bb.asLongBuffer().get());
-
-            out.println("\ncalling f562bb1(f462bb1())");
-            final ByteBuffer f462bb = MyJapi.f462bb1().order(ByteOrder.nativeOrder());
-            final long nf462bb = f462bb.asLongBuffer().get();
-            MyJapi.f562bb1(f462bb);
-            assert (nf462bb == f462bb.asLongBuffer().get());
-            MyJapi.f562bb1(MyJapi.f462bb1());
-            assert (nf462bb + 1 == f462bb.asLongBuffer().get());
-
-            out.println("\ncalling f563bb1(f463bb1())");
-            final ByteBuffer f463bb = MyJapi.f463bb1().order(ByteOrder.nativeOrder());
-            final float nf463bb = f463bb.asFloatBuffer().get();
-            MyJapi.f563bb1(f463bb);
-            assert (nf463bb == f463bb.asFloatBuffer().get());
-            MyJapi.f563bb1(MyJapi.f463bb1());
-            assert (nf463bb + 1 == f463bb.asFloatBuffer().get());
-
-            out.println("\ncalling f564bb1(f464bb1())");
-            final ByteBuffer f464bb = MyJapi.f464bb1().order(ByteOrder.nativeOrder());
-            final double nf464bb = f464bb.asDoubleBuffer().get();
-            MyJapi.f564bb1(f464bb);
-            assert (nf464bb == f464bb.asDoubleBuffer().get());
-            MyJapi.f564bb1(MyJapi.f464bb1());
-            assert (nf464bb + 1 == f464bb.asDoubleBuffer().get());
-
-            out.println("\ncalling f571bb1(f471bb1())");
-            final ByteBuffer f471bb = MyJapi.f471bb1().order(ByteOrder.nativeOrder());
-            final byte nf471bb = f471bb.asReadOnlyBuffer().get();
-            MyJapi.f571bb1(f471bb);
-            assert (nf471bb != f471bb.asReadOnlyBuffer().get());
-
-            out.println("\ncalling f572bb1(f472bb1())");
-            final ByteBuffer f472bb = MyJapi.f472bb1().order(ByteOrder.nativeOrder());
-            final byte nf472bb = f472bb.asReadOnlyBuffer().get();
-            MyJapi.f572bb1(f472bb);
-            assert (nf472bb + 1 == f472bb.asReadOnlyBuffer().get());
-
-            out.println("\ncalling f573bb1(f473bb1())");
-            final ByteBuffer f473bb = MyJapi.f473bb1().order(ByteOrder.nativeOrder());
-            final byte nf473bb = f473bb.asReadOnlyBuffer().get();
-            MyJapi.f573bb1(f473bb);
-            assert (nf473bb + 1 == f473bb.asReadOnlyBuffer().get());
-
-            out.println("\ncalling f574bb1(f474bb1())");
-            final ByteBuffer f474bb = MyJapi.f474bb1().order(ByteOrder.nativeOrder());
-            final byte nf474bb = f474bb.asReadOnlyBuffer().get();
-            MyJapi.f574bb1(f474bb);
-            assert (nf474bb + 1 == f474bb.asReadOnlyBuffer().get());
-
-            out.println("\ncalling f575bb1(f475bb1())");
-            final ByteBuffer f475bb = MyJapi.f475bb1().order(ByteOrder.nativeOrder());
-            final short nf475bb = f475bb.asShortBuffer().get();
-            MyJapi.f575bb1(f475bb);
-            assert (nf475bb + 1 == f475bb.asShortBuffer().get());
-
-            out.println("\ncalling f576bb1(f476bb1())");
-            final ByteBuffer f476bb = MyJapi.f476bb1().order(ByteOrder.nativeOrder());
-            final short nf476bb = f476bb.asShortBuffer().get();
-            MyJapi.f576bb1(f476bb);
-            assert (nf476bb + 1 == f476bb.asShortBuffer().get());
-
-            out.println("\ncalling f577bb1(f477bb1())");
-            final ByteBuffer f477bb = MyJapi.f477bb1().order(ByteOrder.nativeOrder());
-            final int nf477bb = f477bb.asIntBuffer().get();
-            MyJapi.f577bb1(f477bb);
-            assert (nf477bb + 1 == f477bb.asIntBuffer().get());
-
-            out.println("\ncalling f578bb1(f478bb1())");
-            final ByteBuffer f478bb = MyJapi.f478bb1().order(ByteOrder.nativeOrder());
-            final int nf478bb = f478bb.asIntBuffer().get();
-            MyJapi.f578bb1(f478bb);
-            assert (nf478bb + 1 == f478bb.asIntBuffer().get());
-
-            out.println("\ncalling f581bb1(f481bb1())");
-            final ByteBuffer f481bb = MyJapi.f481bb1().order(ByteOrder.nativeOrder());
-            final long nf481bb = f481bb.asLongBuffer().get();
-            MyJapi.f581bb1(f481bb);
-            assert (nf481bb + 1 == f481bb.asLongBuffer().get());
-
-            out.println("\ncalling f582bb1(f482bb1())");
-            final ByteBuffer f482bb = MyJapi.f482bb1().order(ByteOrder.nativeOrder());
-            final long nf482bb = f482bb.asLongBuffer().get();
-            MyJapi.f582bb1(f482bb);
-            assert (nf482bb + 1 == f482bb.asLongBuffer().get());
-
-            out.println("\ncalling f583bb1(f483bb1())");
-            final ByteBuffer f483bb = MyJapi.f483bb1().order(ByteOrder.nativeOrder());
-            final float nf483bb = f483bb.asFloatBuffer().get();
-            MyJapi.f583bb1(f483bb);
-            assert (nf483bb + 1 == f483bb.asFloatBuffer().get());
-
-            out.println("\ncalling f584bb1(f484bb1())");
-            final ByteBuffer f484bb = MyJapi.f484bb1().order(ByteOrder.nativeOrder());
-            final double nf484bb = f484bb.asDoubleBuffer().get();
-            MyJapi.f584bb1(f484bb);
-            assert (nf484bb + 1 == f484bb.asDoubleBuffer().get());
         }
 
         out.println();
@@ -1438,166 +1136,6 @@ public class MyJapiTest {
             assert (nf444v1[0] == nf444v0[0]);
         }
 
-        for (int i = 0; i < 2; i++) {
-            out.println("\ncalling f551v1(f451v1()); f551v1(f451v1())");
-            final boolean[] nf451v0 = MyJapi.f451v1();
-            MyJapi.f551v1(nf451v0);
-            final boolean[] nf451v1 = MyJapi.f451v1();
-            MyJapi.f551v1(nf451v1);
-            assert (!nf451v0[0] == nf451v1[0]);
-
-            out.println("\ncalling f552v1(f452v1()); f552v1(f452v1())");
-            final byte[] nf452v0 = MyJapi.f452v1();
-            MyJapi.f552v1(nf452v0);
-            final byte[] nf452v1 = MyJapi.f452v1();
-            MyJapi.f552v1(nf452v1);
-            assert (nf452v0[0] + 1 == nf452v1[0]);
-
-            out.println("\ncalling f553v1(f453v1()); f553v1(f453v1())");
-            final byte[] nf453v0 = MyJapi.f453v1();
-            MyJapi.f553v1(nf453v0);
-            final byte[] nf453v1 = MyJapi.f453v1();
-            MyJapi.f553v1(nf453v1);
-            assert (nf453v0[0] + 1 == nf453v1[0]);
-
-            out.println("\ncalling f554v1(f454v1()); f554v1(f454v1())");
-            final byte[] nf454v0 = MyJapi.f454v1();
-            MyJapi.f554v1(nf454v0);
-            final byte[] nf454v1 = MyJapi.f454v1();
-            MyJapi.f554v1(nf454v1);
-            assert (nf454v0[0] + 1 == nf454v1[0]);
-
-            out.println("\ncalling f555v1(f455v1()); f555v1(f455v1())");
-            final short[] nf455v0 = MyJapi.f455v1();
-            MyJapi.f555v1(nf455v0);
-            final short[] nf455v1 = MyJapi.f455v1();
-            MyJapi.f555v1(nf455v1);
-            assert (nf455v0[0] + 1 == nf455v1[0]);
-
-            out.println("\ncalling f556v1(f456v1()); f556v1(f456v1())");
-            final short[] nf456v0 = MyJapi.f456v1();
-            MyJapi.f556v1(nf456v0);
-            final short[] nf456v1 = MyJapi.f456v1();
-            MyJapi.f556v1(nf456v1);
-            assert (nf456v0[0] + 1 == nf456v1[0]);
-
-            out.println("\ncalling f557v1(f457v1()); f557v1(f457v1())");
-            final int[] nf457v0 = MyJapi.f457v1();
-            MyJapi.f557v1(nf457v0);
-            final int[] nf457v1 = MyJapi.f457v1();
-            MyJapi.f557v1(nf457v1);
-            assert (nf457v0[0] + 1 == nf457v1[0]);
-
-            out.println("\ncalling f558v1(f458v1()); f558v1(f458v1())");
-            final int[] nf458v0 = MyJapi.f458v1();
-            MyJapi.f558v1(nf458v0);
-            final int[] nf458v1 = MyJapi.f458v1();
-            MyJapi.f558v1(nf458v1);
-            assert (nf458v0[0] + 1 == nf458v1[0]);
-
-            out.println("\ncalling f561v1(f461v1()); f561v1(f461v1())");
-            final long[] nf461v0 = MyJapi.f461v1();
-            MyJapi.f561v1(nf461v0);
-            final long[] nf461v1 = MyJapi.f461v1();
-            MyJapi.f561v1(nf461v1);
-            assert (nf461v0[0] + 1 == nf461v1[0]);
-
-            out.println("\ncalling f562v1(f462v1()); f562v1(f462v1())");
-            final long[] nf462v0 = MyJapi.f462v1();
-            MyJapi.f562v1(nf462v0);
-            final long[] nf462v1 = MyJapi.f462v1();
-            MyJapi.f562v1(nf462v1);
-            assert (nf462v0[0] + 1 == nf462v1[0]);
-
-            out.println("\ncalling f563v1(f463v1()); f563v1(f463v1())");
-            final float[] nf463v0 = MyJapi.f463v1();
-            MyJapi.f563v1(nf463v0);
-            final float[] nf463v1 = MyJapi.f463v1();
-            MyJapi.f563v1(nf463v1);
-            assert (nf463v0[0] + 1 == nf463v1[0]);
-
-            out.println("\ncalling f564v1(f464v1()); f564v1(f464v1())");
-            final double[] nf464v0 = MyJapi.f464v1();
-            MyJapi.f564v1(nf464v0);
-            final double[] nf464v1 = MyJapi.f464v1();
-            MyJapi.f564v1(nf464v1);
-            assert (nf464v0[0] + 1 == nf464v1[0]);
-        }
-
-        for (int i = 0; i < 2; i++) {
-            out.println("\ncalling f571v1(f471v1()); f471v1()");
-            final boolean[] nf471v0 = MyJapi.f471v1();
-            MyJapi.f571v1(nf471v0);
-            final boolean[] nf471v1 = MyJapi.f471v1();
-            assert (nf471v1[0] == nf471v0[0]);
-
-            out.println("\ncalling f572v1(f472v1()); f472v1()");
-            final byte[] nf472v0 = MyJapi.f472v1();
-            MyJapi.f572v1(nf472v0);
-            final byte[] nf472v1 = MyJapi.f472v1();
-            assert (nf472v1[0] == nf472v0[0]);
-
-            out.println("\ncalling f573v1(f473v1()); f473v1()");
-            final byte[] nf473v0 = MyJapi.f473v1();
-            MyJapi.f573v1(nf473v0);
-            final byte[] nf473v1 = MyJapi.f473v1();
-            assert (nf473v1[0] == nf473v0[0]);
-
-            out.println("\ncalling f574v1(f474v1()); f474v1()");
-            final byte[] nf474v0 = MyJapi.f474v1();
-            MyJapi.f574v1(nf474v0);
-            final byte[] nf474v1 = MyJapi.f474v1();
-            assert (nf474v1[0] == nf474v0[0]);
-
-            out.println("\ncalling f575v1(f475v1()); f475v1()");
-            final short[] nf475v0 = MyJapi.f475v1();
-            MyJapi.f575v1(nf475v0);
-            final short[] nf475v1 = MyJapi.f475v1();
-            assert (nf475v1[0] == nf475v0[0]);
-
-            out.println("\ncalling f576v1(f476v1()); f476v1()");
-            final short[] nf476v0 = MyJapi.f476v1();
-            MyJapi.f576v1(nf476v0);
-            final short[] nf476v1 = MyJapi.f476v1();
-            assert (nf476v1[0] == nf476v0[0]);
-
-            out.println("\ncalling f577v1(f477v1()); f477v1()");
-            final int[] nf477v0 = MyJapi.f477v1();
-            MyJapi.f577v1(nf477v0);
-            final int[] nf477v1 = MyJapi.f477v1();
-            assert (nf477v1[0] == nf477v0[0]);
-
-            out.println("\ncalling f578v1(f478v1()); f478v1()");
-            final int[] nf478v0 = MyJapi.f478v1();
-            MyJapi.f578v1(nf478v0);
-            final int[] nf478v1 = MyJapi.f478v1();
-            assert (nf478v1[0] == nf478v0[0]);
-
-            out.println("\ncalling f581v1(f481v1()); f481v1()");
-            final long[] nf481v0 = MyJapi.f481v1();
-            MyJapi.f581v1(nf481v0);
-            final long[] nf481v1 = MyJapi.f481v1();
-            assert (nf481v1[0] == nf481v0[0]);
-
-            out.println("\ncalling f582v1(f482v1()); f482v1()");
-            final long[] nf482v0 = MyJapi.f482v1();
-            MyJapi.f582v1(nf482v0);
-            final long[] nf482v1 = MyJapi.f482v1();
-            assert (nf482v1[0] == nf482v0[0]);
-
-            out.println("\ncalling f583v1(f483v1()); f483v1()");
-            final float[] nf483v0 = MyJapi.f483v1();
-            MyJapi.f583v1(nf483v0);
-            final float[] nf483v1 = MyJapi.f483v1();
-            assert (nf483v1[0] == nf483v0[0]);
-
-            out.println("\ncalling f584v1(f484v1()); f484v1()");
-            final double[] nf484v0 = MyJapi.f484v1();
-            MyJapi.f584v1(nf484v0);
-            final double[] nf484v1 = MyJapi.f484v1();
-            assert (nf484v1[0] == nf484v0[0]);
-        }
-
         out.println();
         out.println("<-- MyJapiTest.test4v1()");
     }
@@ -1693,78 +1231,6 @@ public class MyJapiTest {
 
             out.println("\ncalling f744bb0(f644bb0())");
             MyJapi.f744bb0(MyJapi.f644bb0());
-
-            out.println("\ncalling f751bb0(f651bb0())");
-            MyJapi.f751bb0(MyJapi.f651bb0());
-
-            out.println("\ncalling f752bb0(f652bb0())");
-            MyJapi.f752bb0(MyJapi.f652bb0());
-
-            out.println("\ncalling f753bb0(f653bb0())");
-            MyJapi.f753bb0(MyJapi.f653bb0());
-
-            out.println("\ncalling f754bb0(f654bb0())");
-            MyJapi.f754bb0(MyJapi.f654bb0());
-
-            out.println("\ncalling f755bb0(f655bb0())");
-            MyJapi.f755bb0(MyJapi.f655bb0());
-
-            out.println("\ncalling f756bb0(f656bb0())");
-            MyJapi.f756bb0(MyJapi.f656bb0());
-
-            out.println("\ncalling f757bb0(f657bb0())");
-            MyJapi.f757bb0(MyJapi.f657bb0());
-
-            out.println("\ncalling f758bb0(f658bb0())");
-            MyJapi.f758bb0(MyJapi.f658bb0());
-
-            out.println("\ncalling f761bb0(f661bb0())");
-            MyJapi.f761bb0(MyJapi.f661bb0());
-
-            out.println("\ncalling f762bb0(f662bb0())");
-            MyJapi.f762bb0(MyJapi.f662bb0());
-
-            out.println("\ncalling f763bb0(f663bb0())");
-            MyJapi.f763bb0(MyJapi.f663bb0());
-
-            out.println("\ncalling f764bb0(f664bb0())");
-            MyJapi.f764bb0(MyJapi.f664bb0());
-
-            out.println("\ncalling f771bb0(f671bb0())");
-            MyJapi.f771bb0(MyJapi.f671bb0());
-
-            out.println("\ncalling f772bb0(f672bb0())");
-            MyJapi.f772bb0(MyJapi.f672bb0());
-
-            out.println("\ncalling f773bb0(f673bb0())");
-            MyJapi.f773bb0(MyJapi.f673bb0());
-
-            out.println("\ncalling f774bb0(f674bb0())");
-            MyJapi.f774bb0(MyJapi.f674bb0());
-
-            out.println("\ncalling f775bb0(f675bb0())");
-            MyJapi.f775bb0(MyJapi.f675bb0());
-
-            out.println("\ncalling f776bb0(f676bb0())");
-            MyJapi.f776bb0(MyJapi.f676bb0());
-
-            out.println("\ncalling f777bb0(f677bb0())");
-            MyJapi.f777bb0(MyJapi.f677bb0());
-
-            out.println("\ncalling f778bb0(f678bb0())");
-            MyJapi.f778bb0(MyJapi.f678bb0());
-
-            out.println("\ncalling f781bb0(f681bb0())");
-            MyJapi.f781bb0(MyJapi.f681bb0());
-
-            out.println("\ncalling f782bb0(f682bb0())");
-            MyJapi.f782bb0(MyJapi.f682bb0());
-
-            out.println("\ncalling f783bb0(f683bb0())");
-            MyJapi.f783bb0(MyJapi.f683bb0());
-
-            out.println("\ncalling f784bb0(f684bb0())");
-            MyJapi.f784bb0(MyJapi.f684bb0());
         }
 
         out.println();
@@ -1862,78 +1328,6 @@ public class MyJapiTest {
 
             out.println("\ncalling f744bb1(f644bb1())");
             MyJapi.f744bb1(MyJapi.f644bb1());
-
-            out.println("\ncalling f751bb1(f651bb1())");
-            MyJapi.f751bb1(MyJapi.f651bb1());
-
-            out.println("\ncalling f752bb1(f652bb1())");
-            MyJapi.f752bb1(MyJapi.f652bb1());
-
-            out.println("\ncalling f753bb1(f653bb1())");
-            MyJapi.f753bb1(MyJapi.f653bb1());
-
-            out.println("\ncalling f754bb1(f654bb1())");
-            MyJapi.f754bb1(MyJapi.f654bb1());
-
-            out.println("\ncalling f755bb1(f655bb1())");
-            MyJapi.f755bb1(MyJapi.f655bb1());
-
-            out.println("\ncalling f756bb1(f656bb1())");
-            MyJapi.f756bb1(MyJapi.f656bb1());
-
-            out.println("\ncalling f757bb1(f657bb1())");
-            MyJapi.f757bb1(MyJapi.f657bb1());
-
-            out.println("\ncalling f758bb1(f658bb1())");
-            MyJapi.f758bb1(MyJapi.f658bb1());
-
-            out.println("\ncalling f761bb1(f661bb1())");
-            MyJapi.f761bb1(MyJapi.f661bb1());
-
-            out.println("\ncalling f762bb1(f662bb1())");
-            MyJapi.f762bb1(MyJapi.f662bb1());
-
-            out.println("\ncalling f763bb1(f663bb1())");
-            MyJapi.f763bb1(MyJapi.f663bb1());
-
-            out.println("\ncalling f764bb1(f664bb1())");
-            MyJapi.f764bb1(MyJapi.f664bb1());
-
-            out.println("\ncalling f771bb1(f671bb1())");
-            MyJapi.f771bb1(MyJapi.f671bb1());
-
-            out.println("\ncalling f772bb1(f672bb1())");
-            MyJapi.f772bb1(MyJapi.f672bb1());
-
-            out.println("\ncalling f773bb1(f673bb1())");
-            MyJapi.f773bb1(MyJapi.f673bb1());
-
-            out.println("\ncalling f774bb1(f674bb1())");
-            MyJapi.f774bb1(MyJapi.f674bb1());
-
-            out.println("\ncalling f775bb1(f675bb1())");
-            MyJapi.f775bb1(MyJapi.f675bb1());
-
-            out.println("\ncalling f776bb1(f676bb1())");
-            MyJapi.f776bb1(MyJapi.f676bb1());
-
-            out.println("\ncalling f777bb1(f677bb1())");
-            MyJapi.f777bb1(MyJapi.f677bb1());
-
-            out.println("\ncalling f778bb1(f678bb1())");
-            MyJapi.f778bb1(MyJapi.f678bb1());
-
-            out.println("\ncalling f781bb1(f681bb1())");
-            MyJapi.f781bb1(MyJapi.f681bb1());
-
-            out.println("\ncalling f782bb1(f682bb1())");
-            MyJapi.f782bb1(MyJapi.f682bb1());
-
-            out.println("\ncalling f783bb1(f683bb1())");
-            MyJapi.f783bb1(MyJapi.f683bb1());
-
-            out.println("\ncalling f784bb1(f684bb1())");
-            MyJapi.f784bb1(MyJapi.f684bb1());
         }
 
         out.println();
@@ -2031,78 +1425,6 @@ public class MyJapiTest {
 
             out.println("\ncalling f744v0(f644v0())");
             MyJapi.f744v0(MyJapi.f644v0());
-
-            out.println("\ncalling f751v0(f651v0())");
-            MyJapi.f751v0(MyJapi.f651v0());
-
-            out.println("\ncalling f752v0(f652v0())");
-            MyJapi.f752v0(MyJapi.f652v0());
-
-            out.println("\ncalling f753v0(f653v0())");
-            MyJapi.f753v0(MyJapi.f653v0());
-
-            out.println("\ncalling f754v0(f654v0())");
-            MyJapi.f754v0(MyJapi.f654v0());
-
-            out.println("\ncalling f755v0(f655v0())");
-            MyJapi.f755v0(MyJapi.f655v0());
-
-            out.println("\ncalling f756v0(f656v0())");
-            MyJapi.f756v0(MyJapi.f656v0());
-
-            out.println("\ncalling f757v0(f657v0())");
-            MyJapi.f757v0(MyJapi.f657v0());
-
-            out.println("\ncalling f758v0(f658v0())");
-            MyJapi.f758v0(MyJapi.f658v0());
-
-            out.println("\ncalling f761v0(f661v0())");
-            MyJapi.f761v0(MyJapi.f661v0());
-
-            out.println("\ncalling f762v0(f662v0())");
-            MyJapi.f762v0(MyJapi.f662v0());
-
-            out.println("\ncalling f763v0(f663v0())");
-            MyJapi.f763v0(MyJapi.f663v0());
-
-            out.println("\ncalling f764v0(f664v0())");
-            MyJapi.f764v0(MyJapi.f664v0());
-
-            out.println("\ncalling f771v0(f671v0())");
-            MyJapi.f771v0(MyJapi.f671v0());
-
-            out.println("\ncalling f772v0(f672v0())");
-            MyJapi.f772v0(MyJapi.f672v0());
-
-            out.println("\ncalling f773v0(f673v0())");
-            MyJapi.f773v0(MyJapi.f673v0());
-
-            out.println("\ncalling f774v0(f674v0())");
-            MyJapi.f774v0(MyJapi.f674v0());
-
-            out.println("\ncalling f775v0(f675v0())");
-            MyJapi.f775v0(MyJapi.f675v0());
-
-            out.println("\ncalling f776v0(f676v0())");
-            MyJapi.f776v0(MyJapi.f676v0());
-
-            out.println("\ncalling f777v0(f677v0())");
-            MyJapi.f777v0(MyJapi.f677v0());
-
-            out.println("\ncalling f778v0(f678v0())");
-            MyJapi.f778v0(MyJapi.f678v0());
-
-            out.println("\ncalling f781v0(f681v0())");
-            MyJapi.f781v0(MyJapi.f681v0());
-
-            out.println("\ncalling f782v0(f682v0())");
-            MyJapi.f782v0(MyJapi.f682v0());
-
-            out.println("\ncalling f783v0(f683v0())");
-            MyJapi.f783v0(MyJapi.f683v0());
-
-            out.println("\ncalling f784v0(f684v0())");
-            MyJapi.f784v0(MyJapi.f684v0());
         }
 
         out.println();
@@ -2199,78 +1521,6 @@ public class MyJapiTest {
 
             out.println("\ncalling f744v1(f644v1())");
             MyJapi.f744v1(MyJapi.f644v1());
-
-            out.println("\ncalling f751v1(f651v1())");
-            MyJapi.f751v1(MyJapi.f651v1());
-
-            out.println("\ncalling f752v1(f652v1())");
-            MyJapi.f752v1(MyJapi.f652v1());
-
-            out.println("\ncalling f753v1(f653v1())");
-            MyJapi.f753v1(MyJapi.f653v1());
-
-            out.println("\ncalling f754v1(f654v1())");
-            MyJapi.f754v1(MyJapi.f654v1());
-
-            out.println("\ncalling f755v1(f655v1())");
-            MyJapi.f755v1(MyJapi.f655v1());
-
-            out.println("\ncalling f756v1(f656v1())");
-            MyJapi.f756v1(MyJapi.f656v1());
-
-            out.println("\ncalling f757v1(f657v1())");
-            MyJapi.f757v1(MyJapi.f657v1());
-
-            out.println("\ncalling f758v1(f658v1())");
-            MyJapi.f758v1(MyJapi.f658v1());
-
-            out.println("\ncalling f761v1(f661v1())");
-            MyJapi.f761v1(MyJapi.f661v1());
-
-            out.println("\ncalling f762v1(f662v1())");
-            MyJapi.f762v1(MyJapi.f662v1());
-
-            out.println("\ncalling f763v1(f663v1())");
-            MyJapi.f763v1(MyJapi.f663v1());
-
-            out.println("\ncalling f764v1(f664v1())");
-            MyJapi.f764v1(MyJapi.f664v1());
-
-            out.println("\ncalling f771v1(f671v1())");
-            MyJapi.f771v1(MyJapi.f671v1());
-
-            out.println("\ncalling f772v1(f672v1())");
-            MyJapi.f772v1(MyJapi.f672v1());
-
-            out.println("\ncalling f773v1(f673v1())");
-            MyJapi.f773v1(MyJapi.f673v1());
-
-            out.println("\ncalling f774v1(f674v1())");
-            MyJapi.f774v1(MyJapi.f674v1());
-
-            out.println("\ncalling f775v1(f675v1())");
-            MyJapi.f775v1(MyJapi.f675v1());
-
-            out.println("\ncalling f776v1(f676v1())");
-            MyJapi.f776v1(MyJapi.f676v1());
-
-            out.println("\ncalling f777v1(f677v1())");
-            MyJapi.f777v1(MyJapi.f677v1());
-
-            out.println("\ncalling f778v1(f678v1())");
-            MyJapi.f778v1(MyJapi.f678v1());
-
-            out.println("\ncalling f781v1(f681v1())");
-            MyJapi.f781v1(MyJapi.f681v1());
-
-            out.println("\ncalling f782v1(f682v1())");
-            MyJapi.f782v1(MyJapi.f682v1());
-
-            out.println("\ncalling f783v1(f683v1())");
-            MyJapi.f783v1(MyJapi.f683v1());
-
-            out.println("\ncalling f784v1(f684v1())");
-            MyJapi.f784v1(MyJapi.f684v1());
         }
 
         out.println();
@@ -2514,22 +1764,6 @@ public class MyJapiTest {
         out.println("\ncalling A.take_ref()...");
         A.take_ref(ra);
 
-        out.println("\ncalling A.deliver_null_ref()...");
-        try {
-            A.deliver_null_ref();
-            throw new RuntimeException("Expected exception not thrown.");
-        } catch (AssertionError e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling A.take_null_ref()...");
-        try {
-            A.take_null_ref(null);
-            assert (false);
-        } catch (IllegalArgumentException e) {
-            out.println("... successfully caught: " + e);
-        }
-
         out.println();
         out.println("<-- MyJapiTest.test6()");
     };
@@ -2543,26 +1777,16 @@ public class MyJapiTest {
         out.println("\ncalling s112s(s012s())");
         MyJapi.s112s(MyJapi.s012s());
 
-        out.println("\ncalling s112s(s052s())");
-        MyJapi.s112s(MyJapi.s052s());
 
         out.println("\ncalling s112s(s032s())");
         MyJapi.s112s(MyJapi.s032s());
 
-        out.println("\ncalling s112s(s072s())");
-        MyJapi.s112s(MyJapi.s072s());
 
         out.println("\ncalling s152s(s012s())");
         MyJapi.s152s(MyJapi.s012s());
 
-        out.println("\ncalling s152s(s052s())");
-        MyJapi.s152s(MyJapi.s052s());
-
         out.println("\ncalling s152s(s032s())");
         MyJapi.s152s(MyJapi.s032s());
-
-        out.println("\ncalling s152s(s072s())");
-        MyJapi.s152s(MyJapi.s072s());
 
         out.println();
         out.println("<-- MyJapiTest.test7s()");
@@ -2586,18 +1810,6 @@ public class MyJapiTest {
         out.println("\ncalling s110bb0(s032bb0())");
         MyJapi.s110bb0(MyJapi.s032bb0());
 
-        out.println("\ncalling s110bb0(s050bb0())");
-        MyJapi.s110bb0(MyJapi.s050bb0());
-
-        out.println("\ncalling s110bb0(s052bb0())");
-        MyJapi.s110bb0(MyJapi.s052bb0());
-
-        out.println("\ncalling s110bb0(s070bb0())");
-        MyJapi.s110bb0(MyJapi.s070bb0());
-
-        out.println("\ncalling s110bb0(s072bb0())");
-        MyJapi.s110bb0(MyJapi.s072bb0());
-
         // ------------------------------------------------------------
 
         out.println("\ncalling s112bb0(s010bb0())");
@@ -2611,18 +1823,6 @@ public class MyJapiTest {
 
         out.println("\ncalling s112bb0(s032bb0())");
         MyJapi.s112bb0(MyJapi.s032bb0());
-
-        out.println("\ncalling s112bb0(s050bb0())");
-        MyJapi.s112bb0(MyJapi.s050bb0());
-
-        out.println("\ncalling s112bb0(s052bb0())");
-        MyJapi.s112bb0(MyJapi.s052bb0());
-
-        out.println("\ncalling s112bb0(s070bb0())");
-        MyJapi.s112bb0(MyJapi.s070bb0());
-
-        out.println("\ncalling s112bb0(s072bb0())");
-        MyJapi.s112bb0(MyJapi.s072bb0());
 
         // ------------------------------------------------------------
 
@@ -2648,28 +1848,6 @@ public class MyJapiTest {
         out.println("\ncalling s130bb0(s030bb0())");
         MyJapi.s130bb0(MyJapi.s030bb0());
 
-        out.println("\ncalling s130bb0(s052bb0())");
-        try {
-            MyJapi.s130bb0(MyJapi.s052bb0());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s130bb0(s050bb0())");
-        try {
-            MyJapi.s130bb0(MyJapi.s050bb0());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s130bb0(s070bb0())");
-        MyJapi.s130bb0(MyJapi.s070bb0());
-
-        out.println("\ncalling s130bb0(s072bb0())");
-        MyJapi.s130bb0(MyJapi.s072bb0());
-
         // ------------------------------------------------------------
 
         out.println("\ncalling s132bb0(s010bb0())");
@@ -2694,28 +1872,6 @@ public class MyJapiTest {
         out.println("\ncalling s132bb0(s030bb0())");
         MyJapi.s132bb0(MyJapi.s030bb0());
 
-        out.println("\ncalling s132bb0(s052bb0())");
-        try {
-            MyJapi.s132bb0(MyJapi.s052bb0());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s132bb0(s050bb0())");
-        try {
-            MyJapi.s132bb0(MyJapi.s050bb0());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s132bb0(s070bb0())");
-        MyJapi.s132bb0(MyJapi.s070bb0());
-
-        out.println("\ncalling s132bb0(s072bb0())");
-        MyJapi.s132bb0(MyJapi.s072bb0());
-
         // ------------------------------------------------------------
 
         out.println("\ncalling s150bb0(s010bb0())");
@@ -2730,18 +1886,6 @@ public class MyJapiTest {
         out.println("\ncalling s150bb0(s032bb0())");
         MyJapi.s150bb0(MyJapi.s032bb0());
 
-        out.println("\ncalling s150bb0(s050bb0())");
-        MyJapi.s150bb0(MyJapi.s050bb0());
-
-        out.println("\ncalling s150bb0(s052bb0())");
-        MyJapi.s150bb0(MyJapi.s052bb0());
-
-        out.println("\ncalling s150bb0(s070bb0())");
-        MyJapi.s150bb0(MyJapi.s070bb0());
-
-        out.println("\ncalling s150bb0(s072bb0())");
-        MyJapi.s150bb0(MyJapi.s072bb0());
-
         // ------------------------------------------------------------
 
         out.println("\ncalling s152bb0(s010bb0())");
@@ -2755,18 +1899,6 @@ public class MyJapiTest {
 
         out.println("\ncalling s152bb0(s032bb0())");
         MyJapi.s152bb0(MyJapi.s032bb0());
-
-        out.println("\ncalling s152bb0(s050bb0())");
-        MyJapi.s152bb0(MyJapi.s050bb0());
-
-        out.println("\ncalling s152bb0(s052bb0())");
-        MyJapi.s152bb0(MyJapi.s052bb0());
-
-        out.println("\ncalling s152bb0(s070bb0())");
-        MyJapi.s152bb0(MyJapi.s070bb0());
-
-        out.println("\ncalling s152bb0(s072bb0())");
-        MyJapi.s152bb0(MyJapi.s072bb0());
 
         // ------------------------------------------------------------
 
@@ -2792,28 +1924,6 @@ public class MyJapiTest {
         out.println("\ncalling s170bb0(s030bb0())");
         MyJapi.s170bb0(MyJapi.s030bb0());
 
-        out.println("\ncalling s170bb0(s052bb0())");
-        try {
-            MyJapi.s170bb0(MyJapi.s052bb0());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s170bb0(s050bb0())");
-        try {
-            MyJapi.s170bb0(MyJapi.s050bb0());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s170bb0(s070bb0())");
-        MyJapi.s170bb0(MyJapi.s070bb0());
-
-        out.println("\ncalling s170bb0(s072bb0())");
-        MyJapi.s170bb0(MyJapi.s072bb0());
-
         // ------------------------------------------------------------
 
         out.println("\ncalling s172bb0(s010bb0())");
@@ -2837,28 +1947,6 @@ public class MyJapiTest {
 
         out.println("\ncalling s172bb0(s030bb0())");
         MyJapi.s172bb0(MyJapi.s030bb0());
-
-        out.println("\ncalling s172bb0(s052bb0())");
-        try {
-            MyJapi.s172bb0(MyJapi.s052bb0());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s172bb0(s050bb0())");
-        try {
-            MyJapi.s172bb0(MyJapi.s050bb0());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s172bb0(s070bb0())");
-        MyJapi.s172bb0(MyJapi.s070bb0());
-
-        out.println("\ncalling s172bb0(s072bb0())");
-        MyJapi.s172bb0(MyJapi.s072bb0());
 
         // ------------------------------------------------------------
 
@@ -2884,18 +1972,6 @@ public class MyJapiTest {
         out.println("\ncalling s110bb1(s032bb1())");
         MyJapi.s110bb1(MyJapi.s032bb1());
 
-        out.println("\ncalling s110bb1(s050bb1())");
-        MyJapi.s110bb1(MyJapi.s050bb1());
-
-        out.println("\ncalling s110bb1(s052bb1())");
-        MyJapi.s110bb1(MyJapi.s052bb1());
-
-        out.println("\ncalling s110bb1(s070bb1())");
-        MyJapi.s110bb1(MyJapi.s070bb1());
-
-        out.println("\ncalling s110bb1(s072bb1())");
-        MyJapi.s110bb1(MyJapi.s072bb1());
-
         // ------------------------------------------------------------
 
         out.println("\ncalling s112bb1(s010bb1())");
@@ -2909,18 +1985,6 @@ public class MyJapiTest {
 
         out.println("\ncalling s112bb1(s032bb1())");
         MyJapi.s112bb1(MyJapi.s032bb1());
-
-        out.println("\ncalling s112bb1(s050bb1())");
-        MyJapi.s112bb1(MyJapi.s050bb1());
-
-        out.println("\ncalling s112bb1(s052bb1())");
-        MyJapi.s112bb1(MyJapi.s052bb1());
-
-        out.println("\ncalling s112bb1(s070bb1())");
-        MyJapi.s112bb1(MyJapi.s070bb1());
-
-        out.println("\ncalling s112bb1(s072bb1())");
-        MyJapi.s112bb1(MyJapi.s072bb1());
 
         // ------------------------------------------------------------
 
@@ -2946,28 +2010,6 @@ public class MyJapiTest {
         out.println("\ncalling s130bb1(s030bb1())");
         MyJapi.s130bb1(MyJapi.s030bb1());
 
-        out.println("\ncalling s130bb1(s052bb1())");
-        try {
-            MyJapi.s130bb1(MyJapi.s052bb1());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s130bb1(s050bb1())");
-        try {
-            MyJapi.s130bb1(MyJapi.s050bb1());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s130bb1(s070bb1())");
-        MyJapi.s130bb1(MyJapi.s070bb1());
-
-        out.println("\ncalling s130bb1(s072bb1())");
-        MyJapi.s130bb1(MyJapi.s072bb1());
-
         // ------------------------------------------------------------
 
         out.println("\ncalling s132bb1(s010bb1())");
@@ -2992,28 +2034,6 @@ public class MyJapiTest {
         out.println("\ncalling s132bb1(s030bb1())");
         MyJapi.s132bb1(MyJapi.s030bb1());
 
-        out.println("\ncalling s132bb1(s052bb1())");
-        try {
-            MyJapi.s132bb1(MyJapi.s052bb1());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s132bb1(s050bb1())");
-        try {
-            MyJapi.s132bb1(MyJapi.s050bb1());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s132bb1(s070bb1())");
-        MyJapi.s132bb1(MyJapi.s070bb1());
-
-        out.println("\ncalling s132bb1(s072bb1())");
-        MyJapi.s132bb1(MyJapi.s072bb1());
-
         // ------------------------------------------------------------
 
         out.println("\ncalling s150bb1(s010bb1())");
@@ -3028,18 +2048,6 @@ public class MyJapiTest {
         out.println("\ncalling s150bb1(s032bb1())");
         MyJapi.s150bb1(MyJapi.s032bb1());
 
-        out.println("\ncalling s150bb1(s050bb1())");
-        MyJapi.s150bb1(MyJapi.s050bb1());
-
-        out.println("\ncalling s150bb1(s052bb1())");
-        MyJapi.s150bb1(MyJapi.s052bb1());
-
-        out.println("\ncalling s150bb1(s070bb1())");
-        MyJapi.s150bb1(MyJapi.s070bb1());
-
-        out.println("\ncalling s150bb1(s072bb1())");
-        MyJapi.s150bb1(MyJapi.s072bb1());
-
         // ------------------------------------------------------------
 
         out.println("\ncalling s152bb1(s010bb1())");
@@ -3053,18 +2061,6 @@ public class MyJapiTest {
 
         out.println("\ncalling s152bb1(s032bb1())");
         MyJapi.s152bb1(MyJapi.s032bb1());
-
-        out.println("\ncalling s152bb1(s050bb1())");
-        MyJapi.s152bb1(MyJapi.s050bb1());
-
-        out.println("\ncalling s152bb1(s052bb1())");
-        MyJapi.s152bb1(MyJapi.s052bb1());
-
-        out.println("\ncalling s152bb1(s070bb1())");
-        MyJapi.s152bb1(MyJapi.s070bb1());
-
-        out.println("\ncalling s152bb1(s072bb1())");
-        MyJapi.s152bb1(MyJapi.s072bb1());
 
         // ------------------------------------------------------------
 
@@ -3090,28 +2086,6 @@ public class MyJapiTest {
         out.println("\ncalling s170bb1(s030bb1())");
         MyJapi.s170bb1(MyJapi.s030bb1());
 
-        out.println("\ncalling s170bb1(s052bb1())");
-        try {
-            MyJapi.s170bb1(MyJapi.s052bb1());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s170bb1(s050bb1())");
-        try {
-            MyJapi.s170bb1(MyJapi.s050bb1());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s170bb1(s070bb1())");
-        MyJapi.s170bb1(MyJapi.s070bb1());
-
-        out.println("\ncalling s170bb1(s072bb1())");
-        MyJapi.s170bb1(MyJapi.s072bb1());
-
         // ------------------------------------------------------------
 
         out.println("\ncalling s172bb1(s010bb1())");
@@ -3135,28 +2109,6 @@ public class MyJapiTest {
 
         out.println("\ncalling s172bb1(s030bb1())");
         MyJapi.s172bb1(MyJapi.s030bb1());
-
-        out.println("\ncalling s172bb1(s052bb1())");
-        try {
-            MyJapi.s172bb1(MyJapi.s052bb1());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s172bb1(s050bb1())");
-        try {
-            MyJapi.s172bb1(MyJapi.s050bb1());
-            assert (false);
-        } catch (ReadOnlyBufferException e) {
-            out.println("... successfully caught: " + e);
-        }
-
-        out.println("\ncalling s172bb1(s070bb1())");
-        MyJapi.s172bb1(MyJapi.s070bb1());
-
-        out.println("\ncalling s172bb1(s072bb1())");
-        MyJapi.s172bb1(MyJapi.s072bb1());
 
         // ------------------------------------------------------------
 
@@ -3183,18 +2135,6 @@ public class MyJapiTest {
 
         out.println("\ncalling s332bb(s232bb())");
         MyJapi.s332bb(MyJapi.s232bb());
-
-        out.println("\ncalling s350bb(s250bb())");
-        MyJapi.s350bb(MyJapi.s250bb());
-
-        out.println("\ncalling s352bb(s252bb())");
-        MyJapi.s352bb(MyJapi.s252bb());
-
-        out.println("\ncalling s370bb(s270bb())");
-        MyJapi.s370bb(MyJapi.s270bb());
-
-        out.println("\ncalling s372bb(s272bb())");
-        MyJapi.s372bb(MyJapi.s272bb());
 
         // ------------------------------------------------------------
 
@@ -3785,15 +2725,11 @@ public class MyJapiTest {
         out.println("\nE.take_EE1(e)...");
         E.take_EE1(e);
 
-        out.println("\nE.take_EE1c(E.deliver_EE1c())...");
-        E.take_EE1c(E.deliver_EE1c());
-
-        out.println("\nE.deliver_EE1c()...");
-        final int ec = E.deliver_EE1c();
-        assert (ec == E.EE1);
+        out.println("\nE.take_EE1c(E.deliver_EE1())...");
+        E.take_EE1c(E.deliver_EE1());
 
         out.println("\nE.take_EE1c(ec)...");
-        E.take_EE1c(ec);
+        E.take_EE1c(e);
 
         out.println();
         out.println("<-- MyJapiTest.test12()");

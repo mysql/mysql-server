@@ -1,0 +1,12 @@
+#
+# only global
+#
+select @@global.tablespace_definition_cache;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.tablespace_definition_cache;
+show global variables like 'tablespace_definition_cache';
+show session variables like 'tablespace_definition_cache';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='tablespace_definition_cache';
+select * from performance_schema.session_variables where variable_name='tablespace_definition_cache';
+--enable_warnings

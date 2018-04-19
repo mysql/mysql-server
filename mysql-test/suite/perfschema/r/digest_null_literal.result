@@ -16,12 +16,12 @@ NULL	NULL	NULL	1	2	3	NULL	NULL
 SELECT SCHEMA_NAME, DIGEST_TEXT, COUNT_STAR
 FROM performance_schema.events_statements_summary_by_digest;
 SCHEMA_NAME	DIGEST_TEXT	COUNT_STAR
-test	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest 	1
-test	SELECT ? 	1
-test	SELECT ? FROM DUAL 	1
-test	SELECT ?, ... 	2
-test	SELECT ? IS NULL 	1
-test	SELECT ? IS NOT NULL 	1
-test	SELECT ? IS NULL , ? IS NULL , ? IS NOT NULL , ? IS NOT NULL 	1
-test	CREATE TABLE foo ( a INTEGER DEFAULT ? , b INTEGER NOT NULL DEFAULT ? , c INTEGER NOT NULL ) 	1
-test	DROP TABLE foo 	1
+test	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest`	1
+test	SELECT ?	1
+test	SELECT ? FROM DUAL	1
+test	SELECT ?, ...	2
+test	SELECT ? IS NULL	1
+test	SELECT ? IS NOT NULL	1
+test	SELECT ? IS NULL , ? IS NULL , ? IS NOT NULL , ? IS NOT NULL	1
+test	CREATE TABLE `foo` ( `a` INTEGER DEFAULT ? , `b` INTEGER NOT NULL DEFAULT ? , `c` INTEGER NOT NULL )	1
+test	DROP TABLE `foo`	1

@@ -1,0 +1,15 @@
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarily.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#
+#  Do not use any TAB characters for whitespace.
+#
+##############################################################################
+
+gcol_non_stored_columns_ndb: Bug#25957586 BINLOGGING OF GENERATED NON STORED COLUMNS FAILS
+
+gcol_column_def_options_ndb : Bug#26609059 2017-08-10 Bin, PB2 failures.

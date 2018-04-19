@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -49,8 +56,9 @@ public:
     T_WD    = 5, /* SocketServer, Socket Client, Watchdog */
     T_TC    = 6, /* TC+SPJ */
     T_SEND  = 7, /* No blocks */
+    T_IXBLD = 8, /* File thread during offline index build */
 
-    T_END  = 8
+    T_END  = 9
   };
 
   THRConfig();
@@ -85,8 +93,16 @@ protected:
   {
     unsigned m_type;
     unsigned m_no; // within type
-    enum BType { B_UNBOUND, B_CPU_BOUND, B_CPUSET_BOUND } m_bind_type;
+    enum BType
+    {
+      B_UNBOUND,
+      B_CPU_BIND,
+      B_CPU_BIND_EXCLUSIVE,
+      B_CPUSET_BIND,
+      B_CPUSET_EXCLUSIVE_BIND
+    } m_bind_type;
     unsigned m_bind_no; // cpu_no/cpuset_no
+    unsigned m_thread_prio; // Between 0 and 10, 11 means not used
     unsigned m_realtime; //0 = no realtime, 1 = realtime
     unsigned m_spintime; //0 = no spinning, > 0 spintime in microseconds
   };
@@ -94,6 +110,7 @@ protected:
   SparseBitmask m_LockExecuteThreadToCPU;
   SparseBitmask m_LockIoThreadsToCPU;
   Vector<SparseBitmask> m_cpu_sets;
+  Vector<unsigned> m_perm_cpu_sets;
   Vector<T_Thread> m_threads[T_END];
 
   BaseString m_err_msg;
@@ -102,11 +119,9 @@ protected:
   BaseString m_print_string;
 
   void add(T_Type, unsigned realtime, unsigned spintime);
-  Uint32 find_type(char *&);
-  int find_spec(char *&, T_Type, unsigned real_time, unsigned spin_time);
-  int find_next(char *&);
+  int handle_spec(char *ptr, unsigned real_time, unsigned spin_time);
 
-  unsigned createCpuSet(const SparseBitmask&);
+  unsigned createCpuSet(const SparseBitmask&, bool permanent);
   int do_bindings(bool allow_too_few_cpus);
   int do_validate();
 
@@ -116,16 +131,11 @@ protected:
 public:
   struct Entries
   {
-    const char * m_name;
     unsigned m_type;
     unsigned m_min_cnt;
     unsigned m_max_cnt;
-  };
-
-  struct Param
-  {
-    const char * name;
-    enum { S_UNSIGNED, S_BITMASK } type;
+    bool     m_is_exec_thd; /* Is this a non-blocking execution thread type */
+    bool     m_is_permanent;/* Is this a fixed thread type */
   };
 };
 
@@ -139,10 +149,26 @@ public:
   const char * getName(const unsigned short list[], unsigned cnt) const;
   void appendInfo(BaseString&, const unsigned short list[], unsigned cnt) const;
   void appendInfoSendThread(BaseString&, unsigned instance_no) const;
+
+  int do_thread_prio_io(NdbThread*, unsigned &thread_prio);
+  int do_thread_prio_watchdog(NdbThread*, unsigned &thread_prio);
+  int do_thread_prio_send(NdbThread*,
+                          unsigned instance,
+                          unsigned &thread_prio);
+  int do_thread_prio(NdbThread*,
+                     const unsigned short list[],
+                     unsigned cnt,
+                     unsigned &thread_prio);
+  int do_thread_prio(NdbThread*,
+                     const T_Thread* thr,
+                     unsigned &thread_prio);
+
   int do_bind(NdbThread*, const unsigned short list[], unsigned cnt);
   int do_bind_io(NdbThread*);
+  int do_bind_idxbuild(NdbThread*);
   int do_bind_watchdog(NdbThread*);
   int do_bind_send(NdbThread*, unsigned);
+  int do_unbind(NdbThread*);
   bool do_get_realtime_io() const;
   bool do_get_realtime_wd() const;
   bool do_get_realtime_send(unsigned) const;
@@ -151,14 +177,27 @@ public:
                        unsigned cnt) const;
   unsigned do_get_spintime(const unsigned short list[],
                            unsigned cnt) const;
-
 protected:
   const T_Thread* find_thread(const unsigned short list[], unsigned cnt) const;
   void appendInfo(BaseString&, const T_Thread*) const;
   int do_bind(NdbThread*, const T_Thread*);
 };
 
+/**
+ * This class is used to temporarily change the thread
+ * type during some task
+ */
+class THRConfigRebinder
+{
+public:
+  THRConfigRebinder(THRConfigApplier*, THRConfig::T_Type, NdbThread*);
+  ~THRConfigRebinder();
+private:
+  THRConfigApplier* m_config_applier;
+  int m_state;
+  NdbThread* m_thread;
+};
 
 #undef JAM_FILE_ID
 
-#endif // IPCConfig_H
+#endif // THRConfig_H

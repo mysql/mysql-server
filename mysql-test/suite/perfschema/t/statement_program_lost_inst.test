@@ -15,9 +15,6 @@
 # These additional stored programs which will be added might cause 
 # result content mismatch failure. 
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
 --shutdown_server 

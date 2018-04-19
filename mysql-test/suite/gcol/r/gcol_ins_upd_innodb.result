@@ -32,7 +32,7 @@ select * from t1;
 a	b	c
 # INSERT INTO tbl_name (<non_gcol_list>) VALUES...
 insert into t1 (a) values (1), (2);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -98,7 +98,9 @@ a	b	c
 # INSERT INTO new_table SELECT * from old_table
 create table t2 like t1;
 insert into t2 select * from t1;
-select * from t1;
+ERROR HY000: The value specified for generated column 'b' in table 't2' is not allowed.
+insert into t2(a) select a from t1;
+select * from t2;
 a	b	c
 2	-2	-2
 drop table t2;
@@ -107,14 +109,16 @@ drop table t2;
 insert into t1 values (1,default,default);
 select * from t1;
 a	b	c
-2	-2	-2
 1	-1	-1
+2	-2	-2
 create table t2 like t1;
 insert into t2 (a,b) select a,b from t1;
-select * from t2;
+ERROR HY000: The value specified for generated column 'b' in table 't2' is not allowed.
+insert into t2 (a) select a from t1;
+select * from t2 order by a;
 a	b	c
-2	-2	-2
 1	-1	-1
+2	-2	-2
 drop table t2;
 drop table t1;
 #
@@ -125,12 +129,12 @@ create table t1 (a int,
 b int generated always as (-a) virtual,
 c int generated always as (-a) stored);
 insert into t1 (a) values (1), (2);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
 update t1 set a=3 where a=2;
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 3	-3	-3
@@ -188,7 +192,7 @@ create table t1 (a int,
 b int generated always as (-a) virtual,
 c int generated always as (-a) stored unique);
 insert into t1 (a) values (1), (2);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -245,11 +249,11 @@ update t1 set a=6 where c between -1 and 0
 order by c;
 select * from t1;
 a	b	c
-6	-6	-6
 2	-2	-2
 3	-3	-3
 4	-4	-4
 5	-5	-5
+6	-6	-6
 delete from t1 where c between -6 and 0;
 select * from t1;
 a	b	c
@@ -257,7 +261,7 @@ a	b	c
 # UPDATE tbl_name SET non-gcol=expr 
 # WHERE gcol=between const1 and const2 ORDER BY gcol LIMIT 2
 insert into t1 (a) values (1), (2), (3), (4), (5);
-select * from t1;
+select * from t1 order by a;
 a	b	c
 1	-1	-1
 2	-2	-2
@@ -268,18 +272,18 @@ update t1 set a=6 where c between -1 and 0
 order by c limit 2;
 select * from t1;
 a	b	c
-6	-6	-6
 2	-2	-2
 3	-3	-3
 4	-4	-4
 5	-5	-5
-delete from t1 where c between -2 and 0 order by c;
-select * from t1;
-a	b	c
 6	-6	-6
+delete from t1 where c between -2 and 0 order by c;
+select * from t1 order by a;
+a	b	c
 3	-3	-3
 4	-4	-4
 5	-5	-5
+6	-6	-6
 delete from t1;
 # INDEX created on gcol 
 # UPDATE tbl_name SET non-gcol=expr
@@ -295,11 +299,11 @@ a	b	c
 update t1 set a=6 where (c between -2 and 0) and (b=-1);
 select * from t1;
 a	b	c
-6	-6	-6
 2	-2	-2
 3	-3	-3
 4	-4	-4
 5	-5	-5
+6	-6	-6
 delete from t1;
 # INDEX created on gcol 
 # UPDATE tbl_name SET non-gcol=expr
@@ -316,11 +320,11 @@ a	b	c
 update t1 set a=6 where (c between -2 and 0) and (b=-1) order by c;
 select * from t1;
 a	b	c
-6	-6	-6
 2	-2	-2
 3	-3	-3
 4	-4	-4
 5	-5	-5
+6	-6	-6
 delete from t1;
 drop table t1;
 #
@@ -329,17 +333,17 @@ create table t2 (a int primary key, name varchar(10));
 create table t1 (a int primary key, b int generated always as (a % 10) stored);
 insert into t2 values (1, 'value1'), (2,'value2'), (3,'value3');
 insert into t1 (a) values (1),(2),(3);
-select * from t1;
+select * from t1 order by a;
 a	b
 1	1
 2	2
 3	3
-select * from t2;
+select * from t2 order by a;
 a	name
 1	value1
 2	value2
 3	value3
-select t1.a, t1.b, t2.name from t1,t2 where t1.b=t2.a;
+select t1.a, t1.b, t2.name from t1,t2 where t1.b=t2.a order by t1.a;
 a	b	name
 1	1	value1
 2	2	value2
@@ -395,12 +399,12 @@ b int generated always as (-a) virtual,
 c int generated always as (-a) stored unique,
 d varchar(16));
 insert into t1 (a,d) values (1,'a'), (2,'b');
-select * from t1;
+select * from t1 order by a;
 a	b	c	d
 1	-1	-1	a
 2	-2	-2	b
 replace t1 (a,d) values (1,'c');
-select * from t1;
+select * from t1 order by a;
 a	b	c	d
 1	-1	-1	c
 2	-2	-2	b
@@ -425,6 +429,350 @@ UPDATE t1 SET col1 = 2;
 UPDATE t1 SET col7 = DEFAULT;
 UPDATE t1 SET col8 = DEFAULT;
 DROP TABLE t1;
+Bug#20797344: WL#8149: ALLOCATED SPACE FOR INDEXED BLOB VGC CAN BE
+OVERWRITTEN FOR UPDATE
+#
+CREATE TABLE t (a varchar(100), b blob,
+c blob GENERATED ALWAYS AS (concat(a,b)) VIRTUAL,
+d blob GENERATED ALWAYS AS (b) VIRTUAL,
+e int(11) GENERATED ALWAYS AS (10) VIRTUAL,
+h int(11) NOT NULL, PRIMARY KEY (h), key(c(20)));
+INSERT INTO t(a,b,h) VALUES('aaaaaaa','1111111', 11);
+INSERT INTO t(a,b,h) VALUES('bbbbbbb','2222222', 22);
+SELECT c FROM t;
+c
+aaaaaaa1111111
+bbbbbbb2222222
+UPDATE t SET a='ccccccc';
+SELECT c FROM t;
+c
+ccccccc1111111
+ccccccc2222222
+DROP TABLE t;
+# Bug#21081742: ASSERTION !TABLE || (!TABLE->WRITE_SET || 
+# BITMAP_IS_SET(TABLE->WRITE_SET
+#
+CREATE TABLE b ( 
+pk INTEGER AUTO_INCREMENT,
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk)
+);
+INSERT INTO b (col_varchar_nokey) VALUES ('v'),('v');
+CREATE TABLE d (
+pk INTEGER AUTO_INCREMENT,
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk)
+) ;
+INSERT INTO d (col_varchar_nokey) VALUES ('q'),('g'),('e'),('l'),(NULL),('v'),('c'),('u'),('x');
+CREATE TABLE bb (
+pk INTEGER AUTO_INCREMENT,
+col_varchar_nokey VARCHAR(1) /*! NULL */,
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk)
+);
+INSERT INTO bb (col_varchar_nokey) VALUES ('j'),('h');
+EXPLAIN UPDATE
+d AS OUTR1, b AS OUTR2
+SET OUTR1.col_varchar_nokey = NULL
+WHERE
+( 't', 'b' )  IN
+(
+SELECT
+INNR1.col_varchar_nokey AS x,
+INNR1.col_varchar_key AS y
+FROM bb AS INNR1
+WHERE OUTR1.pk = 1
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	INNR1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(OUTR1)
+1	SIMPLE	OUTR2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.OUTR1.pk' of SELECT #2 was resolved in SELECT #1
+DROP TABLE IF EXISTS b,bb,d;
+#
+# Bug#21216067 ASSERTION FAILED ROW_UPD_SEC_INDEX_ENTRY (INNOBASE/ROW/ROW0UPD.CC:2103)
+#
+CREATE TABLE t (
+x INT, y INT, gc INT GENERATED ALWAYS AS (x+1) STORED
+);
+INSERT INTO t VALUES ();
+UPDATE t t1, t t2 SET t2.y = 1, t1.x = 2;
+SELECT * FROM t;
+x	y	gc
+2	1	3
+DROP TABLE t;
+CREATE TABLE t (
+x INT, y INT, gc INT GENERATED ALWAYS AS (x+1), KEY (x,gc)
+);
+INSERT INTO t VALUES ();
+UPDATE t t1, t t2 SET t1.x = 1, t2.y = 2;
+SELECT * FROM t;
+x	y	gc
+1	2	2
+SELECT gc FROM t;
+gc
+2
+DROP TABLE t;
+# stored
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED
+);
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	OUTR2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+SELECT * from C;
+col_varchar_nokey	col_varchar_key
+a	aa
+DROP TABLE C;
+# stored, indexed
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED,
+KEY (col_varchar_key, col_varchar_nokey)
+);
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	OUTR2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+SELECT * from C;
+col_varchar_nokey	col_varchar_key
+a	aa
+DROP TABLE C;
+# virtual
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL
+);
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	OUTR2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+SELECT * from C;
+col_varchar_nokey	col_varchar_key
+a	aa
+DROP TABLE C;
+# virtual, indexed
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL,
+KEY (col_varchar_key, col_varchar_nokey)
+);
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	OUTR2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+SELECT * from C;
+col_varchar_nokey	col_varchar_key
+a	aa
+DROP TABLE C;
+#
+# Bug #21530366 CRASH/ASSERTION, CORRUPTION WITH INDEXES + 
+#               VIRTUAL COLUMNS, BLOB
+#
+CREATE TABLE t (
+a INTEGER,
+b BLOB GENERATED ALWAYS AS (a) VIRTUAL,
+INDEX (b(57))
+);
+INSERT INTO t (a) VALUES (9);
+UPDATE t SET a = 10;
+DELETE FROM t WHERE a = 10;
+DROP TABLE t;
+# Bug#21807818: Generated columns not updated with empty insert list
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+CREATE TABLE t (
+a BLOB GENERATED ALWAYS AS ('') VIRTUAL,
+b TIMESTAMP(4) GENERATED ALWAYS AS ('') VIRTUAL NOT NULL,
+KEY (a(183),b)
+);
+INSERT INTO t VALUES(), (), ();
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'b' at row 2
+Warning	1265	Data truncated for column 'b' at row 3
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+DROP TABLE t;
+#
+# Bug#22195458:GCOLS: ASSERTION 0 AND CORRUPTION...
+#
+CREATE TABLE t (
+a INT,
+b YEAR GENERATED ALWAYS AS ('a') VIRTUAL,
+c YEAR GENERATED ALWAYS AS ('aaaa') VIRTUAL,
+b1 YEAR GENERATED ALWAYS AS ('a') STORED,
+c1 YEAR GENERATED ALWAYS AS ('aaaa') STORED,
+UNIQUE(b),
+UNIQUE(b1)
+);
+INSERT INTO t VALUES();
+SELECT b from t;
+b
+0000
+SELECT b1 from t;
+b1
+0000
+SELECT * from t;
+a	b	c	b1	c1
+NULL	0000	0000	0000	0000
+DELETE FROM t;
+CHECK TABLE t EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Bug#22195364:GCOLS: FAILING ASSERTION:
+#              DFIELD_IS_NULL(DFIELD2) || DFIELD2->DATA
+CREATE TABLE t (
+a INT,
+c BLOB GENERATED ALWAYS AS ('') VIRTUAL NOT NULL,
+UNIQUE KEY(c(1),a)
+);
+INSERT INTO t(a) VALUES(1) ON DUPLICATE KEY UPDATE a=2;
+SELECT * FROM t;
+a	c
+1	
+INSERT INTO t(a) VALUES(1) ON DUPLICATE KEY UPDATE a=2;
+SELECT * FROM t;
+a	c
+2	
+SELECT GROUP_CONCAT(c ORDER BY c) FROM t;
+GROUP_CONCAT(c ORDER BY c)
+
+DROP TABLE t;
+#Bug#21929967:GCOLS:GCOL VALUE CHANGES WHEN SESSION CHANGES SQL_MODE
+CREATE TABLE t(c1 INT GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
+c2 INT GENERATED ALWAYS AS(2) STORED NOT NULL);
+INSERT INTO t VALUES(DEFAULT, DEFAULT);
+SELECT * FROM t;
+c1	c2
+1	2
+CREATE TABLE t1(c1 INT, c2 INT GENERATED ALWAYS AS(c1 + 1) STORED);
+INSERT INTO t1(c2) VALUES(DEFAULT);
+SELECT * FROM t1;
+c1	c2
+NULL	NULL
+CREATE TABLE t2(c1 INT DEFAULT 1, c2 INT GENERATED ALWAYS AS(c1 + 1) STORED NOT NULL);
+INSERT INTO t2(c2) VALUES(DEFAULT);
+SELECT * FROM t2;
+c1	c2
+1	2
+DROP TABLE t, t1, t2;
+# Bug#22179637: INSERT INTO TABLE FROM SELECT ACCEPTS TO INSERT INTO
+#              GENERATED COLUMNS
+CREATE TABLE t1 (
+i1 INTEGER,
+i2 INTEGER GENERATED ALWAYS AS (i1 + i1)
+);
+INSERT INTO t1 (i1, i2) SELECT 5, 6;
+ERROR HY000: The value specified for generated column 'i2' in table 't1' is not allowed.
+INSERT INTO t1 (i1) SELECT 5;
+INSERT INTO t1 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= 4;
+ERROR HY000: The value specified for generated column 'i2' in table 't1' is not allowed.
+INSERT INTO t1 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= DEFAULT;
+SELECT * FROM t1;
+i1	i2
+5	10
+5	10
+CREATE TABLE t2 (
+i1 INTEGER,
+i2 INTEGER GENERATED ALWAYS AS (i1 + i1) STORED
+);
+INSERT INTO t2 (i1, i2) SELECT 5, 6;
+ERROR HY000: The value specified for generated column 'i2' in table 't2' is not allowed.
+INSERT INTO t2 (i1, i2) SELECT * FROM t1;
+ERROR HY000: The value specified for generated column 'i2' in table 't2' is not allowed.
+INSERT INTO t2 (i1) SELECT 5;
+INSERT INTO t2 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= 4;
+ERROR HY000: The value specified for generated column 'i2' in table 't2' is not allowed.
+INSERT INTO t2 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= DEFAULT;
+SELECT * FROM t2;
+i1	i2
+5	10
+5	10
+DROP TABLE t1,t2;
+#
+# Bug#22070021 GCOL:ASSERTION `!TABLE || (!TABLE->WRITE_SET ||
+#              BITMAP_IS_SET(TABLE->WRITE_SET,
+#
+CREATE TABLE t1(
+c1 INT,
+c2 INT GENERATED ALWAYS AS (c1 + c1) VIRTUAL,
+KEY(c2)
+);
+INSERT INTO t1(c1) VALUES(0);
+DELETE O1.* FROM t1 AS O1, t1 AS O2;
+SELECT * FROM t1;
+c1	c2
+DROP TABLE t1;
+#
+# Bug#21944199 SIMPLE DELETE QUERY CAUSES INNODB: FAILING ASSERTION: 0
+#              & DATA CORRUPTION
+#
+CREATE TEMPORARY TABLE t1 (
+a INTEGER NOT NULL,
+b INTEGER GENERATED ALWAYS AS (a+1) VIRTUAL
+);
+INSERT INTO t1 (a) VALUES (0), (0), (0);
+ALTER TABLE t1 ADD INDEX idx (b);
+DELETE FROM t1;
+DROP TEMPORARY TABLE t1;
+#
+#  WL#6599 - Add test case for SHOW COLUMNS/KEYS on a temporary table.
+#
+CREATE TEMPORARY TABLE t1 (
+a INTEGER NOT NULL,
+b INTEGER GENERATED ALWAYS AS (a+1) VIRTUAL
+);
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+a	int(11)	NULL	NO		NULL	NULL	#	
+b	int(11)	NULL	YES		NULL	VIRTUAL GENERATED	#	
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+DROP TEMPORARY TABLE t1;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

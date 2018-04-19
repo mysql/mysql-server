@@ -2,7 +2,6 @@
 # Simple test for blackhole example
 # Taken from the select test
 #
--- source include/not_embedded.inc
 -- source include/have_blackhole.inc
 -- source include/have_log_bin.inc
 
@@ -94,12 +93,13 @@ INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
                           ('Only MyISAM tables','support collections'),
              ('Function MATCH ... AGAINST()','is used to do a search'),
         ('Full-text search in MySQL', 'implements vector space model');
+ANALYZE TABLE t1;
 SHOW INDEX FROM t1;
 
 # nl search
 
 select * from t1 where MATCH(a,b) AGAINST ("collections");
-explain extended select * from t1 where MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 select * from t1 where MATCH(a,b) AGAINST ("only");
@@ -194,6 +194,5 @@ source include/show_binlog_events.inc;
 
 # cleanup
 drop table t1;
-
 
 # End of tests

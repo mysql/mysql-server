@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -44,6 +51,8 @@ int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
   if (hugoTrans.loadTable(GETNDB(step), records) != 0){
     return NDBT_FAILED;
   }
+  g_err << "loadTable with latest GCI = " << hugoTrans.get_high_latest_gci()
+        << endl;
   return NDBT_OK;
 }
 
@@ -71,6 +80,7 @@ int runDropAllTablesExceptTestTable(NDBT_Context* ctx, NDBT_Step* step){
 int runLoadAllTables(NDBT_Context* ctx, NDBT_Step* step){
   
   int records = ctx->getNumRecords();
+  Uint32 max_gci = 0;
   for (int i=0; i < NDBT_Tables::getNumTables(); i++){
 
     const NdbDictionary::Table* tab = getTable(GETNDB(step), i);
@@ -81,8 +91,10 @@ int runLoadAllTables(NDBT_Context* ctx, NDBT_Step* step){
     HugoTransactions hugoTrans(*tab);
     if (hugoTrans.loadTable(GETNDB(step), records) != 0){
       return NDBT_FAILED;
-    }    
+    }
+    max_gci = hugoTrans.get_high_latest_gci();
   }
+  g_err << "loadAllTables with latest GCI = " << max_gci << endl;
   return NDBT_OK;
 }
 
@@ -242,6 +254,8 @@ int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
   if (utilTrans.clearTable2(GETNDB(step),  records) != 0){
     return NDBT_FAILED;
   }
+  g_err << "ClearTable with latest GCI = " << utilTrans.get_high_latest_gci()
+        << endl;
   return NDBT_OK;
 }
 
@@ -263,6 +277,7 @@ int runScanDelete(NDBT_Context* ctx, NDBT_Step* step){
     }
     i++;
   }  
+  g_err << "Latest GCI = " << hugoTrans.get_high_latest_gci() << endl;
   return NDBT_OK;
 }
 
@@ -285,6 +300,7 @@ int runScanDelete2(NDBT_Context* ctx, NDBT_Step* step){
     }
     i++;
   }
+  g_err << "Latest GCI = " << hugoTrans.get_high_latest_gci() << endl;
   return NDBT_OK;
 }
 
@@ -455,6 +471,8 @@ int runScanReadError(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+#include "../../src/ndbapi/ndb_internal.hpp"
+
 int runScanReadExhaust(NDBT_Context* ctx, NDBT_Step* step)
 {
   int result = NDBT_OK;
@@ -463,12 +481,16 @@ int runScanReadExhaust(NDBT_Context* ctx, NDBT_Step* step)
   int parallelism = 240; // Max parallelism
   int error = 8093;
   NdbRestarter restarter;
+  Ndb *pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
   
   /* First take a TC resource snapshot */
   int savesnapshot= DumpStateOrd::TcResourceSnapshot;
-  int checksnapshot= DumpStateOrd::TcResourceCheckLeak;
+  Uint32 checksnapshot= DumpStateOrd::TcResourceCheckLeak;
   
   restarter.dumpStateAllNodes(&savesnapshot, 1);
+  Ndb_internal::set_TC_COMMIT_ACK_immediate(pNdb, true);
+
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
   hugoTrans.setRetryMax(1);
@@ -491,8 +513,11 @@ int runScanReadExhaust(NDBT_Context* ctx, NDBT_Step* step)
   }
   
   restarter.insertErrorInAllNodes(0);
-
-  restarter.dumpStateAllNodes(&checksnapshot, 1);
+  pDict->forceGCPWait(1);
+  if (Ndb_internal::send_dump_state_all(pNdb, &checksnapshot, 1) != 0)
+  {
+    return NDBT_FAILED;
+  }
   return result;
 }
 
@@ -551,6 +576,7 @@ int runScanReadErrorOneNode(NDBT_Context* ctx, NDBT_Step* step){
       g_err << "Cluster failed to restart" << endl;
       result = NDBT_FAILED;
     }
+    CHK_NDB_READY(GETNDB(step));
     restarter.insertErrorInAllNodes(0);
     
     i++;
@@ -1181,6 +1207,12 @@ runScanVariants(NDBT_Context* ctx, NDBT_Step* step)
 		 << endl;
 	  
 	  NdbConnection* pCon = pNdb->startTransaction();
+          if (pCon == NULL)
+          {
+            NDB_ERR(pNdb->getNdbError());
+            return NDBT_FAILED;
+          }
+
 	  NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
 	  if (pOp == NULL) {
 	    NDB_ERR(pCon->getNdbError());
@@ -1239,6 +1271,12 @@ runBug36124(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table*  pTab = ctx->getTab();
 
   NdbTransaction* pCon = pNdb->startTransaction();
+  if (pCon == NULL)
+  {
+    NDB_ERR(pNdb->getNdbError());
+    return NDBT_FAILED;
+  }
+
   NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
   if (pOp == NULL) {
     NDB_ERR(pCon->getNdbError());
@@ -1328,6 +1366,12 @@ int runBug42545(NDBT_Context* ctx, NDBT_Step* step){
   {
     g_info << i << ": ";
     NdbTransaction* pTrans = pNdb->startTransaction();
+    if (pTrans == NULL)
+    {
+      NDB_ERR(pNdb->getNdbError());
+      return NDBT_FAILED;
+    }
+
     int nodeId = pTrans->getConnectedNodeId();
     
     {
@@ -1396,10 +1440,12 @@ finalizeBug42559(NDBT_Context* ctx, NDBT_Step* step){
 
 int takeResourceSnapshot(NDBT_Context* ctx, NDBT_Step* step)
 {
+  Ndb *pNdb = GETNDB(step);
   NdbRestarter restarter;
   
   int checksnapshot = DumpStateOrd::TcResourceSnapshot;
   restarter.dumpStateAllNodes(&checksnapshot, 1);
+  Ndb_internal::set_TC_COMMIT_ACK_immediate(pNdb, true);
 
   /* TODO : Check other block's resources? */
   return NDBT_OK;
@@ -1599,11 +1645,15 @@ int runScanReadIndexWithBounds(NDBT_Context* ctx, NDBT_Step* step){
 
 int checkResourceSnapshot(NDBT_Context* ctx, NDBT_Step* step)
 {
-  NdbRestarter restarter;
+  Ndb *pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
   
-  int checksnapshot = DumpStateOrd::TcResourceCheckLeak;
-  restarter.dumpStateAllNodes(&checksnapshot, 1);
-
+  Uint32 checksnapshot = DumpStateOrd::TcResourceCheckLeak;
+  pDict->forceGCPWait(1);
+  if (Ndb_internal::send_dump_state_all(pNdb, &checksnapshot, 1) != 0)
+  {
+    return NDBT_FAILED;
+  }
   /* TODO : Check other block's resources? */
   return NDBT_OK;
 }
@@ -1652,19 +1702,26 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
     for (int i = 0; i< 25; i++)
     {
       NdbTransaction* pCon = pNdb->startTransaction();
-      NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
-      if (pOp == NULL) {
-        NDB_ERR(pCon->getNdbError());
+      if (pCon == NULL)
+      {
+        NDB_ERR(pNdb->getNdbError());
         return NDBT_FAILED;
       }
-      
-      if( pOp->readTuples(NdbOperation::LM_Read) != 0) 
+
+      NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
+      if (pOp == NULL)
       {
         NDB_ERR(pCon->getNdbError());
         return NDBT_FAILED;
       }
       
-      if( pOp->getValue(NdbDictionary::Column::ROW_COUNT) == 0)
+      if (pOp->readTuples(NdbOperation::LM_Read) != 0) 
+      {
+        NDB_ERR(pCon->getNdbError());
+        return NDBT_FAILED;
+      }
+      
+      if (pOp->getValue(NdbDictionary::Column::ROW_COUNT) == 0)
       {
         NDB_ERR(pCon->getNdbError());
         return NDBT_FAILED;
@@ -1678,6 +1735,8 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
       res.waitNodesNoStart(&node, 1);
       res.startAll();
       res.waitClusterStarted();
+      if (pNdb->waitUntilReady() != 0)
+        return NDBT_FAILED;
     }
   }
 
@@ -1703,6 +1762,12 @@ runCloseRefresh(NDBT_Context* ctx, NDBT_Step* step)
 
   const NdbDictionary::Table*  pTab = ctx->getTab();
   NdbTransaction* pTrans = pNdb->startTransaction();
+  if (pTrans == NULL)
+  {
+    NDB_ERR(pNdb->getNdbError());
+    return NDBT_FAILED;
+  }
+
   NdbScanOperation* pOp = pTrans->getNdbScanOperation(pTab->getName());
   if (pOp == NULL)
   {
@@ -1941,6 +2006,11 @@ namespace TupErr
     const NdbRecord* const record = tab->getDefaultRecord();
 
     NdbTransaction* const trans = ndb->startTransaction();
+    if (trans == NULL)
+    {
+      NDB_ERR(ndb->getNdbError());
+      return NDBT_FAILED;
+    }
 
     for (int i = 0; i<totalRowCount; i++)
     {
@@ -1981,6 +2051,11 @@ namespace TupErr
 
   
     NdbTransaction* const trans = ndb->startTransaction();
+    if (trans == NULL)
+    {
+      NDB_ERR(ndb->getNdbError());
+      return NDBT_FAILED;
+    }
 
     NdbScanOperation* const scanOp = trans->scanTable(record);
     require(scanOp != NULL);
@@ -2044,6 +2119,11 @@ namespace TupErr
     const NdbRecord* const record = tab->getDefaultRecord();
 
     NdbTransaction* const trans = ndb->startTransaction();
+    if (trans == NULL)
+    {
+      NDB_ERR(ndb->getNdbError());
+      return NDBT_FAILED;
+    }
 
     NdbInterpretedCode code(tab);
 
@@ -2229,6 +2309,490 @@ runExtraNextResult(NDBT_Context* ctx, NDBT_Step* step)
   require(UtilTransactions(*ctx->getTab()).clearTable(ndb) == 0);
   return result;
 }
+
+/**
+ * populateFragment0 - load a table with rows until fragment 0 contains a
+ * given number of rows.
+ */
+static int
+populateFragment0(Ndb* ndb, const NdbDictionary::Table* tab, Uint32 rows, Uint32 dbaccBuckets = 0)
+{
+  NdbRestarter restarter;
+  require(restarter.insertError2InAllNodes(3004, dbaccBuckets) == 0);
+
+  HugoTransactions hugoTrans(*tab);
+
+  const NdbRecord* const record = tab->getDefaultRecord();
+  require(record != NULL);
+
+  NdbScanOperation::ScanOptions scanOptions;
+  scanOptions.optionsPresent = scanOptions.SO_PARALLEL |
+                               scanOptions.SO_BATCH |
+                               scanOptions.SO_GETVALUE;
+  scanOptions.parallel = 1;
+  scanOptions.batch = 1;
+
+  NdbOperation::GetValueSpec extraCols[2];
+
+  Uint32 fragment;
+  extraCols[0].column = NdbDictionary::Column::FRAGMENT;
+  extraCols[0].appStorage = &fragment;
+  extraCols[0].recAttr = NULL;
+
+  Uint64 row_count = 0;
+  extraCols[1].column = NdbDictionary::Column::ROW_COUNT;
+  extraCols[1].appStorage = &row_count;
+  extraCols[1].recAttr = NULL;
+
+  scanOptions.extraGetValues = &extraCols[0];
+  scanOptions.numExtraGetValues = 2;
+
+  int start_row = 0;
+  while (row_count < rows)
+  {
+    const int missing_rows = rows - row_count;
+    hugoTrans.loadTableStartFrom(ndb, start_row, missing_rows);
+    start_row += missing_rows;
+
+    NdbTransaction* trans;
+    NdbScanOperation* scanOp;
+    trans = ndb->startTransaction();
+    require(trans != NULL);
+    scanOp = trans->scanTable(record,
+                              NdbOperation::LM_Read,
+                              NULL,
+                              &scanOptions,
+                              sizeof(scanOptions));
+    require(scanOp != NULL);
+    require(trans->execute(Commit) == 0);
+    const char* resRow;
+    int queryRes = scanOp->nextResult(&resRow,
+                                      true,
+                                      false);
+    require(queryRes == 0);
+    require(fragment == 0);
+
+    scanOp->close();
+    trans->close();
+  }
+  return 0;
+}
+
+/**
+ * sizeFragment0DbaccHashTable - triggers Dbacc to change the hash table size
+ * of fragment 0 to have given number of buckets.  The error insert (3004)
+ * used can have effect on any tables fragment 0.  The resizing is triggered
+ * on table given by the NdbRecord argument by deleting and re-insert a given
+ * row.  That row must exist and be unlocked.
+ */
+static int
+sizeFragment0DbaccHashTable(Ndb* ndb,
+                            const NdbRecord* record,
+                            const char* row,
+                            Uint32 bucketCount)
+{
+  NdbRestarter restarter;
+
+  // Set wanted bucket count for fragment 0
+  require(restarter.insertError2InAllNodes(3004, bucketCount) == 0);
+
+  NdbTransaction* trans = ndb->startTransaction();
+  require(NULL != trans->deleteTuple(record, row, record));
+  require(NULL != trans->insertTuple(record, row, record, row));
+  require(0 == trans->execute(Commit));
+  trans->close();
+  sleep(1);
+
+  return 0;
+}
+
+/**
+ * runScanDuringShrinkAndExpandBack - test case demonstrating
+ * Bug#22926938 ACC TABLE SCAN MAY SCAN SAME ROW TWICE
+ *
+ * 1. Start with table with just below 2^n buckets in fragment 0.
+ * 2. Start scan and read a few rows.
+ * 3. Shrink table, due to 1) top buckets will be merged to just below middle
+ *    buckets, and shrink will not be hindered by the scan near bottom of
+ *    table.
+ * 4. Scan beyond middle buckets.
+ * 5. Expand table back to original size.  The top buckets will now contain
+ *    scanned elements.  But before bug fix top buckets was marked as
+ *    unscanned.
+ * 6. Complete scan on fragment 0.  Before bug fix some rows was scanned twice.
+ */
+static int
+runScanDuringShrinkAndExpandBack(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  Ndb* const ndb = GETNDB(step);
+  const NdbRecord* const record = pTab->getDefaultRecord();
+  require(record != NULL);
+  NdbScanOperation::ScanOptions scanOptions;
+  scanOptions.optionsPresent = scanOptions.SO_PARALLEL |
+                               scanOptions.SO_BATCH |
+                               scanOptions.SO_GETVALUE;
+  scanOptions.parallel = 1;
+  scanOptions.batch = 1;
+
+  Uint32 fragment;
+  NdbOperation::GetValueSpec extraCols[1];
+  extraCols[0].column = NdbDictionary::Column::FRAGMENT;
+  extraCols[0].appStorage = &fragment;
+  extraCols[0].recAttr = NULL;
+
+  scanOptions.extraGetValues = &extraCols[0];
+  scanOptions.numExtraGetValues = 1;
+
+  const size_t rowlen = NdbDictionary::getRecordRowLength(record);
+  char* firstRow = new char[rowlen];
+
+  const Uint32 high_bucket = 100; // top = 100, maxp = 63, p = 37
+  const Uint32 low_bucket = 70;   // top = 70, maxp = 63, p = 7
+  const Uint32 fragment_rows = 1000;
+
+  // 1. Start with table with just below 2^n buckets in fragment 0.
+  require(0 == populateFragment0(ndb, pTab, fragment_rows, high_bucket));
+
+  // 2. Start scan and read a few rows.
+
+  // Scan one row to delete later, and a second
+  NdbTransaction* trans;
+  NdbScanOperation* scanOp;
+
+  trans = ndb->startTransaction();
+  require(trans != NULL);
+  scanOp = trans->scanTable(record,
+                            NdbOperation::LM_Read,
+                            NULL,
+                            &scanOptions,
+                            sizeof(scanOptions));
+  require(scanOp != NULL);
+  require(trans->execute(Commit) == 0);
+
+  const char* anyRow;
+
+  Uint32 scanned_rows = 0;
+  int queryRes = scanOp->nextResult(&anyRow,
+                                    true,
+                                    false);
+  require(queryRes == 0);
+  memcpy(firstRow, anyRow, rowlen);
+  scanned_rows ++;
+
+  queryRes = scanOp->nextResult(&anyRow,
+                                true,
+                                false);
+  require(queryRes == 0);
+  scanned_rows ++;
+
+  // 3. Shrink table.
+  sizeFragment0DbaccHashTable(ndb, record, firstRow, low_bucket);
+
+  // 4. Scan beyond middle buckets.
+  while (scanned_rows < fragment_rows / 2)
+  {
+    queryRes = scanOp->nextResult(&anyRow, true, false);
+    require(queryRes == 0);
+    scanned_rows ++;
+  }
+
+  // 5. Expand table back to original size.
+  sizeFragment0DbaccHashTable(ndb, record, firstRow, high_bucket);
+
+  // 6. Complete scan on fragment 0.
+  for(;;)
+  {
+    queryRes = scanOp->nextResult(&anyRow, true, false);
+    require(queryRes == 0);
+    if (fragment != 0)
+    {
+      break;
+    }
+    scanned_rows ++;
+  }
+  g_err << "Scanned " << scanned_rows << " rows." << endl;
+
+  delete[] firstRow;
+  scanOp->close();
+  trans->close();
+
+  if (scanned_rows < fragment_rows ||
+      scanned_rows > fragment_rows + 2)
+  {
+    /**
+     * Fragment 0 only have fragment_rows rows.
+     * First row was deleted and re-inserted twice.
+     * So it could legally been seen three times.
+     * If scanned more than fragment_rows + 2 rows it is definitely an error.
+     */
+    return NDBT_FAILED;
+  }
+
+  /**
+   * Reset error insert.
+   */
+  NdbRestarter restarter;
+  require(restarter.insertErrorInAllNodes(0) == 0);
+
+  return NDBT_OK;
+}
+
+/**
+ * runScanDuringExpandAndShrinkBack - test case demonstrating
+ * Bug#22926938 ACC TABLE SCAN MAY SCAN SAME ROW TWICE
+ *
+ * 1. Start with table with just above 2^n buckets in fragment 0.
+ * 2. Start scan and read about half of the rows in fragment 0.
+ * 3. Expand table, due to 1) the scanned buckets in bottom of table are
+ *    splitted to top buckets.  And since scan is at about middle of the
+ *    table it will not hinder expansion.
+ * 4. Shrink table back to original size.  The scanned top buckets will now
+ *    be merged back to bottom of table.  But before bug fix top buckets was
+ *    marked as unscanned before merge.
+ * 5. Complete scan on fragment 0.  Before bug fix some rows was scanned twice.
+ */
+static int
+runScanDuringExpandAndShrinkBack(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  Ndb* const ndb = GETNDB(step);
+  const NdbRecord* const record = pTab->getDefaultRecord();
+  require(record != NULL);
+  NdbScanOperation::ScanOptions scanOptions;
+  scanOptions.optionsPresent = scanOptions.SO_PARALLEL |
+                               scanOptions.SO_BATCH |
+                               scanOptions.SO_GETVALUE;
+  scanOptions.parallel = 1;
+  scanOptions.batch = 1;
+
+  Uint32 fragment;
+  NdbOperation::GetValueSpec extraCols[1];
+  extraCols[0].column = NdbDictionary::Column::FRAGMENT;
+  extraCols[0].appStorage = &fragment;
+  extraCols[0].recAttr = NULL;
+
+  scanOptions.extraGetValues = &extraCols[0];
+  scanOptions.numExtraGetValues = 1;
+
+  const size_t rowlen = NdbDictionary::getRecordRowLength(record);
+  char* firstRow = new char[rowlen];
+
+  const Uint32 low_bucket = 129;   // top = 129, maxp = 127, p = 2
+  const Uint32 high_bucket = 150;  // top = 150, maxp = 127, p = 23
+  const Uint32 fragment_rows = 1000;
+
+  // 1. Start with table with just above 2^n buckets in fragment 0.
+  require(0 == populateFragment0(ndb, pTab, fragment_rows, low_bucket));
+  sleep(1);
+
+  // 2. Start scan and read about half of the rows in fragment 0.
+
+  // Scan one row to delete later, and a second
+  NdbTransaction* trans;
+  NdbScanOperation* scanOp;
+
+  trans = ndb->startTransaction();
+  require(trans != NULL);
+  scanOp = trans->scanTable(record,
+                            NdbOperation::LM_Read,
+                            NULL,
+                            &scanOptions,
+                            sizeof(scanOptions));
+  require(scanOp != NULL);
+  require(trans->execute(Commit) == 0);
+
+  const char* anyRow;
+
+  Uint32 scanned_rows = 0;
+  int queryRes = scanOp->nextResult(&anyRow,
+                                    true,
+                                    false);
+  require(queryRes == 0);
+  memcpy(firstRow, anyRow, rowlen);
+  scanned_rows ++;
+
+  while (scanned_rows < fragment_rows / 2)
+  {
+    queryRes = scanOp->nextResult(&anyRow, true, false);
+    require(queryRes == 0);
+    scanned_rows++;
+  }
+
+  // 3. Expand table.
+  sizeFragment0DbaccHashTable(ndb, record, firstRow, high_bucket);
+
+  // 4. Shrink table back to original size.
+  sizeFragment0DbaccHashTable(ndb, record, firstRow, low_bucket);
+
+  // 5. Complete scan on fragment 0.
+  for(;;)
+  {
+    queryRes = scanOp->nextResult(&anyRow, true, false);
+    require(queryRes == 0);
+    if (fragment != 0)
+    {
+      break;
+    }
+    scanned_rows ++;
+  }
+  g_info << "Scanned " << scanned_rows << " rows." << endl;
+
+  delete[] firstRow;
+  scanOp->close();
+  trans->close();
+
+  if (scanned_rows < fragment_rows ||
+      scanned_rows > fragment_rows + 2)
+  {
+    /**
+     * Fragment 0 only have fragment_rows rows.
+     * First row was deleted and re-inserted twice.
+     * So it could legally been seen three times.
+     * If scanned more than fragment_rows + 2 rows it is definitely an error.
+     */
+    return NDBT_FAILED;
+  }
+
+  /**
+   * Reset error insert.
+   */
+  NdbRestarter restarter;
+  require(restarter.insertErrorInAllNodes(0) == 0);
+
+  return NDBT_OK;
+}
+
+
+int
+runScanOperation(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb * pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  NdbTransaction* pTrans = pNdb->startTransaction();
+  if (pTrans == NULL)
+  {
+    NDB_ERR(pNdb->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  NdbScanOperation* pOp = pTrans->getNdbScanOperation(pTab->getName());
+  if (pOp == NULL)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    return NDBT_FAILED;
+  }
+  if (pOp->readTuples(NdbOperation::LM_CommittedRead) != 0)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  if (pTrans->execute(NdbTransaction::NoCommit) != 0)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  const int acceptError = ctx->getProperty("AcceptError");
+  if (pOp->nextResult(true) < 0)
+  {
+    NDB_ERR(pOp->getNdbError());
+    const NdbError err = pOp->getNdbError();
+    if (err.code != acceptError)
+    {
+      ndbout << "Expected error: " << acceptError << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  pOp->close();
+  pTrans->close();
+  return NDBT_OK;
+}
+
+
+int
+runScanUsingMultipleNdbObjects(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbScanOperation* pOp = NULL;
+  NdbTransaction* pTrans = NULL;
+  const char* tab_name = ctx->getTab()->getName();
+  Ndb_cluster_connection* pCC = &ctx->m_cluster_connection;
+
+  int numOfNdbObjects = 1000;
+  Vector<Ndb*> ndbList;
+  for (int i = 0; i < numOfNdbObjects; i++)
+  {
+    Ndb * pNdb = new Ndb(pCC, "TEST_DB");
+    ndbList.push_back(pNdb);
+    if (pNdb->init() != 0 &&
+        pNdb->waitUntilReady(30) != 0)
+    {
+      NDB_ERR(pNdb->getNdbError());
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+
+    pTrans = pNdb->startTransaction();
+    if (pTrans == NULL)
+    {
+      NDB_ERR(pNdb->getNdbError());
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+
+    pOp = pTrans->getNdbScanOperation(tab_name);
+    if (pOp == NULL)
+    {
+      NDB_ERR(pTrans->getNdbError());
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+    if (pOp->readTuples(NdbOperation::LM_Exclusive) != 0)
+    {
+      NDB_ERR(pTrans->getNdbError());
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+
+    if (pTrans->execute(NdbTransaction::NoCommit) != 0)
+    {
+      NDB_ERR(pTrans->getNdbError());
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+
+    if (pOp->nextResult(true) < 0)
+    {
+      NDB_ERR(pOp->getNdbError());
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+
+    pOp->close();
+    pOp = NULL;
+    pTrans->close();
+    pTrans = NULL;
+  }
+
+  cleanup:
+  if (pOp != NULL)
+  {
+    pOp->close();
+  }
+  if (pTrans != NULL)
+  {
+    pTrans->close();
+  }
+  for (uint i = 0; i < ndbList.size(); i++)
+  {
+    delete ndbList[i];
+  }
+  return result;
+}
+
 
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
@@ -2627,9 +3191,18 @@ TESTCASE("ScanReadError5025",
   FINALIZER(runClearTable);
 }
 TESTCASE("ScanReadError8081",
-	 "Scan and insert error 8081"){
+         "Scan and insert error 8081."\
+         "Check scanError() return from 'sendDihGetNodesLab'"){
   INITIALIZER(runLoadTable);
   TC_PROPERTY("ErrorCode", 8081);
+  STEP(runScanReadError);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ScanReadError8115",
+         "Scan and insert error 8115."\
+         "Check scanError() return from 'sendFragScansLab'"){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 8115);
   STEP(runScanReadError);
   FINALIZER(runClearTable);
 }
@@ -2658,6 +3231,17 @@ TESTCASE("ScanReadError7234",
   INITIALIZER(runLoadTable);
   TC_PROPERTY("ErrorCode", 7234);
   STEP(runScanReadError);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ScanDihError7240",
+         "Check that any error from DIH->TC "
+         "is correctly returned by TC"){
+  TC_PROPERTY("ErrorCode", 7240);
+  TC_PROPERTY("AcceptError", 311);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runInsertError); //Set 'ErrorCode'
+  STEP(runScanOperation);
+  FINALIZER(runInsertError);   //Reset ErrorCode
   FINALIZER(runClearTable);
 }
 TESTCASE("ScanReadRestart", 
@@ -2785,9 +3369,9 @@ TESTCASE("CloseRefresh", "")
 {
   INITIALIZER(runCloseRefresh);
 }
-TESTCASE("Bug54945", "")
+TESTCASE("Bug54945", "Need --skip-ndb-optimized-node-selection")
 {
-  INITIALIZER(runBug54945);
+  STEP(runBug54945);
 }
 TESTCASE("ScanFragRecExhaust", 
          "Test behaviour when TC scan frag recs exhausted")
@@ -2864,17 +3448,39 @@ TESTCASE("ScanKeyInfoExhaust",
   FINALIZER(createOrderedPkIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("Bug16402744", 
-	 "Test scan behaviour with multiple DIH_SCAN_GET_NODES_REQ "\
-         "and _CONF handling possible delayed/incomplete due to "\
-         "CONTINUEB(ZSTART_FRAG_SCAN)"){
+TESTCASE("Bug16402744",
+         "Test scan behaviour with multiple SCAN_FRAGREQ possibly "
+         "delayed/incomplete due to a CONTINUEB(ZSEND_FRAG_SCANS) break.")
+{
   INITIALIZER(runLoadTable);
   TC_PROPERTY("Parallelism", 240);
   TC_PROPERTY("ErrorCode", 8097);
   STEP(runScanReadError);
   FINALIZER(runClearTable);
 }
-  
+
+TESTCASE("ScanDuringShrinkAndExpandBack",
+         "Verify that dbacc scan do not scan rows twice if table shrinks and then "
+         "expands back.  See bug#22926938.")
+{
+  STEP(runScanDuringShrinkAndExpandBack);
+}
+
+TESTCASE("ScanDuringExpandAndShrinkBack",
+         "Verify that dbacc scan do not scan rows twice if table expands and then "
+         "shrinks back.  See bug#22926938.")
+{
+  STEP(runScanDuringExpandAndShrinkBack);
+}
+
+TESTCASE("ScanUsingMultipleNdbObjects",
+         "Run scan operations in a loop creating a new Ndb"
+         "object for every run.")
+{
+  INITIALIZER(runLoadTable);
+  STEP(runScanUsingMultipleNdbObjects);
+  FINALIZER(runClearTable);
+}
 
 
 NDBT_TESTSUITE_END(testScan);

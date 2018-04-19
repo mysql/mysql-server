@@ -1,12 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Various tests for SUM(DISTINCT ...)
 #
 
+--source include/not_sparc_debug.inc
 --source include/big_test.inc
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;

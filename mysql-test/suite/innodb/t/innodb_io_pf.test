@@ -1,0 +1,12 @@
+
+USE test;
+CREATE TABLE t1(id INT);
+INSERT INTO t1 VALUES(1),(2),(3),(4),(5);
+SELECT * FROM t1;
+
+USE performance_schema;
+--replace_column 2 5
+SELECT EVENT_NAME,COUNT_STAR FROM performance_schema.file_summary_by_event_name
+               WHERE EVENT_NAME like "%inno%";
+USE test;
+DROP table t1;

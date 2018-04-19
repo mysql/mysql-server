@@ -1,0 +1,198 @@
+################################################################################
+# Validate that when a server joins a group and is not able to find
+# a suitable donor it errors out and does not block on join.
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Create a group with three members and schedule a periodic event to create
+#    some load in the group on M1.
+# 2. Add suppressions.
+# 3. Stop applier channel on M1 so that joinining members that will recover
+#    from it will be blocked on recovery waiting for the View_change_log_event.
+# 4. Stop and start M2 and M3. M2 and M3 will be in recovery.
+# 5. Stop and start M1. M1 will be in recovery since all existent group members
+#    are RECOVERING.
+# 6. Clean up.
+################################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Create a group with 1 member and schedule a periodic
+--echo #    event to create some load in the group.
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Error leaving the group");
+call mtr.add_suppression("All donors left. Aborting group replication recovery.");
+call mtr.add_suppression("This member has more executed transactions *.*");
+call mtr.add_suppression("The member contains transactions not present in the group. It is only allowed to *.*");
+call mtr.add_suppression("The member is already leaving or joining a group.");
+call mtr.add_suppression("Skipping leave operation: member already left the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
+call mtr.add_suppression("Transaction cannot be executed while Group Replication is stopping.");
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+SET SESSION sql_log_bin= 1;
+
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
+SET @old_event_scheduler= @@global.event_scheduler;
+SET GLOBAL EVENT_SCHEDULER= ON;
+delimiter //;
+CREATE EVENT IF NOT EXISTS e1
+ ON SCHEDULE
+  EVERY 1 SECOND
+   STARTS CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+   ENDS CURRENT_TIMESTAMP + INTERVAL 40 SECOND
+ ON COMPLETION PRESERVE
+ ENABLE
+ COMMENT 'Test with events'
+ DO
+ BEGIN
+  DECLARE v INTEGER;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+
+  SET v=0;
+
+  WHILE v < 10
+  DO
+   INSERT INTO test.t1 values (NULL);
+   SET v = v+1;
+  END WHILE;
+END//
+
+delimiter ;//
+
+
+--echo
+--echo ############################################################
+--echo # 2. Add error suppressions.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Error leaving the group");
+call mtr.add_suppression("All donors left. Aborting group replication recovery.");
+call mtr.add_suppression("The member is already leaving or joining a group.");
+call mtr.add_suppression("Skipping leave operation: member already left the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Error leaving the group");
+call mtr.add_suppression("All donors left. Aborting group replication recovery.");
+call mtr.add_suppression("The member is already leaving or joining a group.");
+call mtr.add_suppression("Skipping leave operation: member already left the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+
+
+--echo
+--echo ############################################################
+--echo # 3. Stop applier channel on member 1 so that joinining
+--echo #    members that will recover from it will be blocked on
+--echo #    recovery waiting for the View_change_log_event on which
+--echo #    them joined.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Stop and start members 2 and 3 without waiting for
+--echo #    member status.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+STOP GROUP_REPLICATION;
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+STOP GROUP_REPLICATION;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication_command.inc
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication_command.inc
+
+# Member 2 and 3 will be on recovery
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $group_replication_member_state= RECOVERING
+--source include/gr_wait_for_member_state.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $group_replication_member_state= RECOVERING
+--source include/gr_wait_for_member_state.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Stop and start member 1 without waiting for member
+--echo #    status.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @group_replication_recovery_reconnect_interval_save= @@GLOBAL.group_replication_recovery_reconnect_interval;
+SET GLOBAL group_replication_recovery_reconnect_interval= 1;
+
+# Remove all M1 data and force a RESET MASTER to allow server1 to
+# join, despite intentionally has more transactions than the group.
+ALTER EVENT e1 DISABLE;
+--let $wait_condition= SELECT status="DISABLED" FROM information_schema.events WHERE event_schema='test' AND event_name="e1"
+--source include/wait_condition_or_abort.inc
+SET GLOBAL EVENT_SCHEDULER= @old_event_scheduler;
+DROP EVENT e1;
+DROP TABLE t1;
+
+STOP GROUP_REPLICATION;
+RESET MASTER;
+
+--source include/start_group_replication_command.inc
+
+# Member 1 will be on recovery, since all existent group members
+# are RECOVERING.
+--let $group_replication_member_state= RECOVERING
+--source include/gr_wait_for_member_state.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+SET GLOBAL group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_save;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+--disable_warnings
+DROP EVENT IF EXISTS e1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+--disable_warnings
+DROP EVENT IF EXISTS e1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--source include/group_replication_end.inc

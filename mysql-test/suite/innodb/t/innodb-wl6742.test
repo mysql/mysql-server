@@ -5,7 +5,19 @@
 --echo # to the transaction's selected isolation level.
 --echo #
 
---source include/have_innodb.inc
+# InnoDB is limited to row-logging when transaction isolation level is READ
+# COMMITTED or READ UNCOMMITTED, thus skipping it when binlog_format=STATEMENT.
+--source include/not_binlog_format_statement.inc
+
+# The test fails with log_bin ON and binlog_format=ROW due to Bug#22286170.
+# Temporarily, overriding binlog_format to MIXED when log_bin is ON.
+if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
+{
+  --disable_query_log
+  SET @saved_binlog_format= @@SESSION.binlog_format;
+  SET SESSION binlog_format= MIXED;
+  --enable_query_log
+}
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -351,3 +363,36 @@ disconnect con3;
 eval set global innodb_lock_wait_timeout=$initial_timeout;
 --enable_query_log
 
+--echo #
+--echo # Bug #23596760: FORCE INDEX IS SKIPPED WHILE EXECUTING SELECT COUNT(*)
+--echo #
+
+CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY,
+                c2 INT NOT NULL DEFAULT 1,
+                c3 char(20) DEFAULT '',
+                KEY c2_idx (c2));
+
+INSERT INTO t1(c1) VALUES (1), (2), (3);
+INSERT INTO t1(c1) SELECT c1 + 10 FROM t1;
+INSERT INTO t1(c1) SELECT c1 + 100 FROM t1;
+
+CREATE TABLE t2 SELECT * FROM t1;
+
+let query1= SELECT COUNT(*) FROM t1;
+let query2= SELECT COUNT(*) FROM t1 FORCE INDEX(c2_idx);
+let query3= SELECT COUNT(*) FROM t1, t2;
+let query4= SELECT COUNT(*) FROM t1 FORCE INDEX(c2_idx), t2;
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+eval EXPLAIN $query3;
+eval EXPLAIN $query4;
+
+DROP TABLE t1, t2;
+
+if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
+{
+  --disable_query_log
+  SET SESSION binlog_format= @saved_binlog_format;
+  --enable_query_log
+}

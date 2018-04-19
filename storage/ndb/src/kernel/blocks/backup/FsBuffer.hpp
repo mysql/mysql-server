@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -113,6 +120,8 @@ public:
   
   Uint32 getFreeSize() const { return m_free; }
 
+  Uint32 getFreeLwm() const { return m_freeLwm; }
+
   /**
    * reset
    */
@@ -133,6 +142,7 @@ private:
   Uint32 * m_buffer;
   Uint32 m_bufSize;
   Uint32 m_blockSize;
+  Uint32 m_freeLwm;
 
   void clear();
 };
@@ -148,6 +158,7 @@ void
 FsBuffer::clear(){
   m_minRead = m_maxRead = m_maxWrite = m_size = m_bufSize = m_free = 0;
   m_buffer = m_start = 0;
+  m_freeLwm = 0;
 }
 
 static 
@@ -203,13 +214,14 @@ FsBuffer::setup(Uint32 * Buffer,
   ndbout_c("Block = %d MinRead = %d -> %d", Block*4, MinRead*4, m_minRead*4);
   ndbout_c("Block = %d MaxRead = %d -> %d", Block*4, MaxRead*4, m_maxRead*4);
   
-  ndbout_c("Buffer = %d -> %d", Buffer, m_start);
-  ndbout_c("Buffer = %d Size = %d MaxWrite = %d -> %d",
+  ndbout_c("Buffer = %p -> %p", Buffer, m_start);
+  ndbout_c("Buffer = %p Size = %d MaxWrite = %d -> %d",
 	   Buffer, Size*4, MaxWrite*4, m_size*4);
 #endif
 
   m_readIndex = m_writeIndex = m_eof = 0;
   m_free = m_size;
+  m_freeLwm = m_free;
   return valid();
 }
 
@@ -219,6 +231,7 @@ FsBuffer::reset()
 {
   m_readIndex = m_writeIndex = 0;
   m_free = m_size;
+  m_freeLwm = m_free;
   m_eof = 0;
 }
 
@@ -343,6 +356,8 @@ FsBuffer::updateWritePtr(Uint32 sz){
   
   const Uint32 Tnew = (Tw + sz);
   m_free -= sz;
+  m_freeLwm = MIN(m_free, m_freeLwm);
+
   if(Tnew < Ts){
     m_writeIndex = Tnew;
     DEBUG(ndbout_c("updateWritePtr(%d) m_writeIndex: %d",

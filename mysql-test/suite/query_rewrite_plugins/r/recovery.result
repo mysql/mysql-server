@@ -8,18 +8,18 @@ SELECT plugin_name, plugin_type
 FROM information_schema.plugins
 WHERE plugin_name = 'Rewriter';
 plugin_name	plugin_type
-Rewriter	QUERY REWRITE POST PARSE
+Rewriter	AUDIT
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT "Rewrite"', 'SELECT "Rewritten"' );
 CALL query_rewrite.flush_rewrite_rules();
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	SELECT "Rewrite"	NULL	SELECT "Rewritten"	Y	NULL
+1	SELECT "Rewrite"	NULL	SELECT "Rewritten"	YES	NULL
 SELECT 'Rewrite';
 Rewritten
 Rewritten
 Warnings:
-Note	1105	Query 'SELECT 'Rewrite'' rewritten to 'SELECT "Rewritten"' by plugin: Rewriter.
+Note	1105	Query 'SELECT 'Rewrite'' rewritten to 'SELECT "Rewritten"' by a query rewrite plugin
 #
 # Restart the server
 #
@@ -27,5 +27,7 @@ SELECT 'Rewrite';
 Rewritten
 Rewritten
 Warnings:
-Note	1105	Query 'SELECT 'Rewrite'' rewritten to 'SELECT "Rewritten"' by plugin: Rewriter.
-# Query rewrite plugin was uninstalled.
+Note	1105	Query 'SELECT 'Rewrite'' rewritten to 'SELECT "Rewritten"' by a query rewrite plugin
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

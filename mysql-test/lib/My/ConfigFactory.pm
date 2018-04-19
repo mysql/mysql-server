@@ -1,25 +1,32 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU Library General Public
-# License as published by the Free Software Foundation; version 2
-# of the License.
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# Library General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 package My::ConfigFactory;
 
 use strict;
 use warnings;
 use Carp;
+use Cwd qw(abs_path);
 
 use My::Config;
 use My::Find;
@@ -34,9 +41,6 @@ use File::Basename;
 my @pre_rules=
 (
 );
-
-
-my @share_locations= ("share/mysql", "sql/share", "share");
 
 
 sub get_basedir {
@@ -66,18 +70,37 @@ sub get_bindir {
 sub fix_charset_dir {
   my ($self, $config, $group_name, $group)= @_;
   return my_find_dir($self->get_basedir($group),
-		     \@share_locations, "charsets");
+		     \@::share_locations, "charsets");
 }
 
 sub fix_language {
   my ($self, $config, $group_name, $group)= @_;
   return my_find_dir($self->get_bindir($group),
-		     \@share_locations);
+		     \@::share_locations);
 }
 
 sub fix_datadir {
   my ($self, $config, $group_name)= @_;
   my $vardir= $self->{ARGS}->{vardir};
+  return "$vardir/$group_name/data";
+}
+
+# Resolve the symbolic path and return the absolute path
+# to the datadir it is pointing to.
+sub fix_abs_datadir {
+  my ($self, $config, $group_name)= @_;
+
+  my $vardir;
+  if ($::opt_mem)
+  {
+    # Resolve the symbolic path
+    $vardir= abs_path($self->{ARGS}->{vardir});
+  }
+  else
+  {
+    $vardir= $self->{ARGS}->{vardir};
+  }
+
   return "$vardir/$group_name/data";
 }
 
@@ -91,6 +114,11 @@ sub fix_port {
   my ($self, $config, $group_name, $group)= @_;
   my $hostname= $group->value('#host');
   return $self->{HOSTS}->{$hostname}++;
+}
+
+sub fix_x_port {
+  my ($self, $config, $group_name, $group)= @_;
+  return $self->{ARGS}->{mysqlxbaseport}++;
 }
 
 sub fix_host {
@@ -134,11 +162,29 @@ sub fix_server_id {
   return $server_id;
 }
 
+sub fix_x_socket {
+  my $result = fix_socket(@_);
+  $result =~ s/mysqld\.([0-9]+)\.sock$/mysqlx\.$1\.sock/;
+
+  return $result;
+}
+
 sub fix_socket {
   my ($self, $config, $group_name, $group)= @_;
   # Put socket file in tmpdir
   my $dir= $self->{ARGS}->{tmpdir};
-  return "$dir/$group_name.sock";
+  my $socket = "$dir/$group_name.sock";
+ 
+  # Make sure the socket path does not become longer then the path
+  # which mtr uses to test if a new tmpdir should be created
+  if (length($socket) > length("$dir/mysql_testsocket.sock"))
+  {
+    # Too long socket path, generate shorter based on port
+    my $port = $group->value('port');
+    $socket = "$dir/mysqld-$port.sock"; 
+  }
+
+  return $socket;
 }
 
 sub fix_tmpdir {
@@ -187,11 +233,12 @@ sub ssl_supported {
   return $self->{ARGS}->{ssl};
 }
 
-sub fix_skip_ssl {
+sub fix_ssl_disabled {
   return if !ssl_supported(@_);
-  # Add skip-ssl if ssl is supported to avoid
+
+  # Add ssl-mode=DISABLED to avoid
   # that mysqltest connects with SSL by default
-  return 1;
+  return "DISABLED";
 }
 
 sub fix_ssl_ca {
@@ -206,24 +253,21 @@ sub fix_ssl_server_cert {
   return "$std_data/server-cert.pem"
 }
 
-sub fix_ssl_client_cert {
-  return if !ssl_supported(@_);
-  my $std_data= fix_std_data(@_);
-  return "$std_data/client-cert.pem"
-}
-
 sub fix_ssl_server_key {
   return if !ssl_supported(@_);
   my $std_data= fix_std_data(@_);
   return "$std_data/server-key.pem"
 }
 
-sub fix_ssl_client_key {
-  return if !ssl_supported(@_);
+sub fix_rsa_private_key {
   my $std_data= fix_std_data(@_);
-  return "$std_data/client-key.pem"
+  return "$std_data/rsa_private_key.pem"
 }
 
+sub fix_rsa_public_key {
+  my $std_data= fix_std_data(@_);
+  return "$std_data/rsa_public_key.pem"
+}
 
 #
 # Rules to run for each mysqld in the config
@@ -231,15 +275,17 @@ sub fix_ssl_client_key {
 #
 my @mysqld_rules=
   (
- { 'basedir' => sub { return shift->{ARGS}->{basedir}; } },
+ { '#mtr_basedir' => sub { return shift->{ARGS}->{basedir}; } },
  { 'tmpdir' => \&fix_tmpdir },
  { 'character-sets-dir' => \&fix_charset_dir },
- { 'lc-messages-dir' => \&fix_language },
  { 'datadir' => \&fix_datadir },
+ { '#abs_datadir' => \&fix_abs_datadir },
  { 'pid-file' => \&fix_pidfile },
  { '#host' => \&fix_host },
  { 'port' => \&fix_port },
  { 'socket' => \&fix_socket },
+ { 'loose-mysqlx-port' => \&fix_x_port },
+ { 'loose-mysqlx-socket' => \&fix_x_socket },
  { '#log-error' => \&fix_log_error },
  { 'general_log' => 1 },
  { 'general_log_file' => \&fix_log },
@@ -254,7 +300,11 @@ my @mysqld_rules=
  { 'ssl-cert' => \&fix_ssl_server_cert },
  { 'ssl-key' => \&fix_ssl_server_key },
  { 'loose-sha256_password_auto_generate_rsa_keys' => "0"},
+ { 'loose-caching_sha2_password_auto_generate_rsa_keys' => "0"},
+ { 'caching_sha2_password_private_key_path' => \&fix_rsa_private_key },
+ { 'caching_sha2_password_public_key_path' => \&fix_rsa_public_key },
   );
+
 
 if (IS_WINDOWS)
 {
@@ -347,10 +397,8 @@ my @client_rules=
 #
 my @mysqltest_rules=
 (
- { 'ssl-ca' => \&fix_ssl_ca },
- { 'ssl-cert' => \&fix_ssl_client_cert },
- { 'ssl-key' => \&fix_ssl_client_key },
- { 'skip-ssl' => \&fix_skip_ssl },
+ { 'ssl-mode' => \&fix_ssl_disabled },
+ { 'server-public-key-path' => \&fix_rsa_public_key },
 );
 
 
@@ -361,6 +409,7 @@ my @mysqltest_rules=
 my @mysqlbinlog_rules=
 (
  { 'character-sets-dir' => \&fix_charset_dir },
+ { 'local-load' => sub { return shift->{ARGS}->{tmpdir}; } },
 );
 
 
@@ -400,19 +449,6 @@ sub post_check_client_group {
     }
     $config->insert($client_group_name, $name_to, $option->value())
   }
-  
-  if (IS_WINDOWS)
-  {
-    if (! $self->{ARGS}->{embedded})
-    {
-      # Shared memory base may or may not be defined (e.g not defined in embedded)
-      my $shm = $group_to_copy_from->option("shared-memory-base-name");
-      if (defined $shm)
-      {
-        $config->insert($client_group_name,"shared-memory-base-name", $shm->value());
-      }
-    }
-  }
 }
 
 
@@ -439,39 +475,6 @@ sub post_check_client_groups {
 }
 
 
-#
-# Generate [embedded] by copying the values
-# needed from the default [mysqld] section
-# and from first [mysqld.<suffix>]
-#
-sub post_check_embedded_group {
-  my ($self, $config)= @_;
-
-  return unless $self->{ARGS}->{embedded};
-
-  my $mysqld= $config->group('mysqld') or
-    croak "Can't run with embedded, config has no default mysqld section";
-
-  my $first_mysqld= $config->first_like('mysqld.') or
-    croak "Can't run with embedded, config has no mysqld";
-
-  my @no_copy =
-    (
-     '#log-error', # Embedded server writes stderr to mysqltest's log file
-     'slave-net-timeout', # Embedded server are not build with replication
-     'shared-memory-base-name', # No shared memory for embedded
-    );
-
-  foreach my $option ( $mysqld->options(), $first_mysqld->options() ) {
-    # Don't copy options whose name is in "no_copy" list
-    next if grep ( $option->name() eq $_, @no_copy);
-
-    $config->insert('embedded', $option->name(), $option->value())
-  }
-
-}
-
-
 sub resolve_at_variable {
   my ($self, $config, $group, $option)= @_;
 
@@ -481,12 +484,21 @@ sub resolve_at_variable {
   my $group_name=  join('.', @parts);
 
   $group_name =~ s/^\@//; # Remove at
-
-  my $from_group= $config->group($group_name)
-    or croak "There is no group named '$group_name' that ",
-      "can be used to resolve '$option_name'";
-
-  my $from= $from_group->value($option_name);
+  my $from;
+  
+  if ($group_name =~ "env")
+  {
+    $from = $ENV{$option_name};
+  } 
+  else
+  {
+    my $from_group= $config->group($group_name)
+      or croak "There is no group named '$group_name' that ",
+        "can be used to resolve '$option_name'";
+  
+    $from= $from_group->value($option_name);
+   }
+   
   $config->insert($group->name(), $option->name(), $from)
 }
 
@@ -548,7 +560,6 @@ my @post_rules=
  \&post_check_client_groups,
  \&post_fix_mysql_cluster_section,
  \&post_fix_resolve_at_variables,
- \&post_check_embedded_group,
 );
 
 

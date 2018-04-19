@@ -40,13 +40,13 @@ insert into t2 values (5,0);
 insert into t2 values (null,last_insert_id());
 SET FOREIGN_KEY_CHECKS=1;
 include/sync_slave_sql_with_master.inc
-select * from t1;
+select * from t1 ORDER BY a;
 a
 10
 11
 12
 13
-select * from t2;
+select * from t2 ORDER BY b;
 b	c
 5	0
 6	11
@@ -106,11 +106,11 @@ create table t2(a int) engine=myisam;
 insert into t1 (a) values (null);
 insert into t2 (a) select a from t1 where a is null;
 insert into t2 (a) select a from t1 where a is null;
-select * from t2;
+select * from t2 ORDER BY a;
 a
 1
 include/sync_slave_sql_with_master.inc
-select * from t2;
+select * from t2 ORDER by a;
 a
 1
 drop table t1;
@@ -175,29 +175,29 @@ insert into t2 (last_id) values (bug15728());
 insert into t1 (last_id) values (bug15728());
 end|
 call foo();
-select * from t1;
+select * from t1 ORDER BY last_id;
 id	last_id
 1	0
 2	1
-3	2
 4	1
-5	4
+3	2
 6	3
-select * from t2;
+5	4
+select * from t2 ORDER BY last_id;
 id	last_id
 1	3
 2	4
 3	5
 include/sync_slave_sql_with_master.inc
-select * from t1;
+select * from t1 ORDER BY last_id;
 id	last_id
 1	0
 2	1
-3	2
 4	1
-5	4
+3	2
 6	3
-select * from t2;
+5	4
+select * from t2 ORDER BY last_id;
 id	last_id
 1	3
 2	4
@@ -293,14 +293,14 @@ drop table t1;
 CREATE TABLE t1 (
 id bigint(20) unsigned NOT NULL auto_increment,
 field_1 int(10) unsigned NOT NULL,
-field_2 varchar(255) NOT NULL,
+field_2 varchar(249) NOT NULL,
 field_3 varchar(255) NOT NULL,
 PRIMARY KEY (id),
 UNIQUE KEY field_1 (field_1, field_2)
 ) ENGINE=myisam;
 CREATE TABLE t2 (
 field_a int(10) unsigned NOT NULL,
-field_b varchar(255) NOT NULL,
+field_b varchar(249) NOT NULL,
 field_c varchar(255) NOT NULL
 ) ENGINE=myisam;
 INSERT INTO t2 (field_a, field_b, field_c) VALUES (1, 'a', '1a');
@@ -447,7 +447,7 @@ i
 6
 16
 include/sync_slave_sql_with_master.inc
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY i;
 i	j
 1	-1
 2	0
@@ -466,7 +466,7 @@ i	j
 15	13
 16	0
 17	0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY i;
 i
 2
 3

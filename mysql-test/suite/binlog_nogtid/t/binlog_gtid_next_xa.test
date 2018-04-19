@@ -1,0 +1,7 @@
+# ==== Purpose ====
+#
+# The test is binlog-on specialization of the included
+# 'binlog_next_gtid_xa.inc' to check execution of XA transactions
+# identified with explicit GTID_NEXT values.
+
+--source extra/binlog_tests/binlog_gtid_next_xa.inc

@@ -1,0 +1,23 @@
+use test;
+Create a table with some heavy indexing
+create table t1 (a int primary key, b int, c varchar(100), d int,
+key (a,b,c,d),
+key (b,a),
+key (b,c),
+key (b,d),
+key (c,a),
+key (c,d),
+key (d,c,b,a),
+key (c,b,a),
+key (c,b,a,d),
+key (b,a,d,c),
+key (a,d,c,b))
+engine = ndb;
+Insert some rows
+select count(1) from test.t1;
+count(1)
+48192
+Generate a backup
+drop table test.t1;
+Restore with offline (parallel) rebuild
+drop table test.t1;

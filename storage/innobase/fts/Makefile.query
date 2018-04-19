@@ -1,3 +1,27 @@
+# Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+# Usage: make -f Makefile.query
+
 LEX=flex
 YACC=bison
 PREFIX=fts
@@ -9,23 +33,7 @@ fts0blex.cc: fts0blex.l
 fts0tlex.cc: fts0tlex.l
 
 .l.cc:
-	$(LEX) -P$(subst lex,,$*) -o $*.cc --header-file=../include/$*.h $<
-
-.y.cc:
-	$(YACC) -p $(PREFIX) -o $*.cc -d $<
-	mv $*.h ../include
-LEX=flex
-YACC=bison
-PREFIX=fts
-
-all:	fts0pars.cc fts0blex.cc fts0tlex.cc
-
-fts0par.cc: fts0pars.y
-fts0blex.cc: fts0blex.l
-fts0tlex.cc: fts0tlex.l
-
-.l.cc:
-	$(LEX) -P$(subst lex,,$*) -o $*.cc --header-file=../include/$*.h $<
+	$(LEX) -P$(subst lex,,$*) -o $*.cc --stdout --header-file=../include/$*.h $< | sed -e 's/^\(static.*void.*yy_fatal_error.*msg.*,\)\(.*yyscanner\)/\1 \2 MY_ATTRIBUTE((unused))/;s/^\(static.*void.*yy_flex_strncpy.*n.*,\)\(.*yyscanner\)/\1 \2 MY_ATTRIBUTE((unused))/;s/^\(static.*int.*yy_flex_strlen.*s.*,\)\(.*yyscanner\)/\1 \2 MY_ATTRIBUTE((unused))/;s/^\(\(static\|void\).*fts0[bt]alloc.*,\)\(.*yyscanner\)/\1 \3 MY_ATTRIBUTE((unused))/;s/^\(\(static\|void\).*fts0[bt]realloc.*,\)\(.*yyscanner\)/\1 \3 MY_ATTRIBUTE((unused))/;s/^\(\(static\|void\).*fts0[bt]free.*,\)\(.*yyscanner\)/\1 \3 MY_ATTRIBUTE((unused))/;s/\<register\> *//;' > $*.cc
 
 .y.cc:
 	$(YACC) -p $(PREFIX) -o $*.cc -d $<

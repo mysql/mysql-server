@@ -1,0 +1,1533 @@
+check with dropping db which doesn't exists
+
+0 rows affected
+Warnings generated:
+NOTE | 1008 | Can't drop database 'mysqltest'; database doesn't exist
+check with dropping table which doesn't exists
+
+0 rows affected
+Warnings generated:
+NOTE | 1051 | Unknown table 'test.mysqltest'
+check with show variables like version
+Variable_name	Value
+0 rows affected
+check with dropping procedure which doesn't exists
+
+0 rows affected
+Warnings generated:
+NOTE | 1305 | PROCEDURE test.test_invalid does not exist
+check with dropping function which doesn't exists
+
+0 rows affected
+Warnings generated:
+NOTE | 1305 | FUNCTION test.test_signal_func does not exist
+check with dropping view which doesn't exists
+
+0 rows affected
+Warnings generated:
+NOTE | 1051 | Unknown table 'test.v1'
+out of range values for INT,UNSIGN INT
+
+0 rows affected
+
+1 rows affected
+Warnings generated:
+WARNING | 1264 | Out of range value for column 'c1' at row 1
+WARNING | 1264 | Out of range value for column 'c2' at row 1
+
+1 rows affected
+Warnings generated:
+WARNING | 1264 | Out of range value for column 'c1' at row 1
+WARNING | 1264 | Out of range value for column 'c2' at row 1
+
+0 rows affected
+checking double data type
+
+0 rows affected
+
+1 rows affected
+
+1 rows affected
+
+1 rows affected
+
+1 rows affected
+
+1 rows affected
+
+1 rows affected
+
+1 rows affected
+
+1 rows affected
+
+1 rows affected
+grp	group_concat(a order by a,d-ascii(c)-a)
+1	1
+2	2,3
+3	4,5,6,7,8,9
+0 rows affected
+Warnings generated:
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'a'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'a'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'b'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'a'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'b'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'b'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'd'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'd'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'c'
+grp	group_concat(a order by c-ascii(c),a)
+1	1
+2	3,2
+3	7,8,4,6,9,5
+0 rows affected
+Warnings generated:
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'a'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'b'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'c'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'E'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'C'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'D'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'd'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'd'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'D'
+
+0 rows affected
+grp	group_concat(c order by c)
+1	a
+2	b,c
+3	C,D,
+0 rows affected
+Warnings generated:
+WARNING | 1260 | Row 6 was cut by GROUP_CONCAT()
+
+0 rows affected
+checking character data type
+Error is returned instead of warning for insert operation with xplugin
+
+0 rows affected
+
+0 rows affected
+Statement prepared
+Warnings generated:
+WARNING | 3719 | 'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+
+0 rows affected
+
+1 rows affected
+Warnings generated:
+WARNING | 1265 | Data truncated for column 'a' at row 1
+length(a)
+10
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+checking directly from IS tables
+Variable_name	Value
+max_join_size	18446744073709551615
+0 rows affected
+Variable_name	Value
+concurrent_insert	AUTO
+0 rows affected
+Variable_name	Value
+default_storage_engine	InnoDB
+0 rows affected
+checking errors and warnings with duplicate table
+
+0 rows affected
+checking errors and warnings with duplicate table names
+
+0 rows affected
+Got expected error: Table 'dup' already exists (code 1050)
+@@session.error_count
+1
+0 rows affected
+Level	Code	Message
+Error	1050	Table 'dup' already exists
+0 rows affected
+
+0 rows affected
+checking creating table with if not exists
+
+0 rows affected
+
+0 rows affected
+Got expected error: Table 't1' already exists (code 1050)
+
+0 rows affected
+Warnings generated:
+NOTE | 1050 | Table 't1' already exists
+a
+0 rows affected
+
+0 rows affected
+Warnings generated:
+NOTE | 1050 | Table 't1' already exists
+Variable_name	Value
+Opened_tables	1
+0 rows affected
+a
+0 rows affected
+
+0 rows affected
+try droping mutliplt tables with if exists and check multiple warnings
+
+0 rows affected
+
+0 rows affected
+Warnings generated:
+NOTE | 1051 | Unknown table 'test.t1'
+NOTE | 1051 | Unknown table 'test.t2'
+try checking may warnings
+
+0 rows affected
+Warnings generated:
+NOTE | 1051 | Unknown table 'test.t1'
+NOTE | 1051 | Unknown table 'test.t2'
+NOTE | 1051 | Unknown table 'test.t3'
+NOTE | 1051 | Unknown table 'test.t4'
+NOTE | 1051 | Unknown table 'test.t5'
+NOTE | 1051 | Unknown table 'test.t6'
+NOTE | 1051 | Unknown table 'test.t7'
+NOTE | 1051 | Unknown table 'test.t8'
+NOTE | 1051 | Unknown table 'test.t9'
+NOTE | 1051 | Unknown table 'test.t10'
+NOTE | 1051 | Unknown table 'test.t11'
+NOTE | 1051 | Unknown table 'test.t12'
+NOTE | 1051 | Unknown table 'test.t13'
+NOTE | 1051 | Unknown table 'test.t14'
+NOTE | 1051 | Unknown table 'test.t15'
+NOTE | 1051 | Unknown table 'test.t16'
+NOTE | 1051 | Unknown table 'test.t17'
+NOTE | 1051 | Unknown table 'test.t18'
+NOTE | 1051 | Unknown table 'test.t19'
+NOTE | 1051 | Unknown table 'test.t20'
+NOTE | 1051 | Unknown table 'test.t21'
+NOTE | 1051 | Unknown table 'test.t22'
+NOTE | 1051 | Unknown table 'test.t23'
+NOTE | 1051 | Unknown table 'test.t24'
+NOTE | 1051 | Unknown table 'test.t25'
+NOTE | 1051 | Unknown table 'test.t26'
+NOTE | 1051 | Unknown table 'test.t27'
+NOTE | 1051 | Unknown table 'test.t28'
+NOTE | 1051 | Unknown table 'test.t29'
+NOTE | 1051 | Unknown table 'test.t30'
+NOTE | 1051 | Unknown table 'test.a1'
+NOTE | 1051 | Unknown table 'test.a2'
+NOTE | 1051 | Unknown table 'test.a3'
+NOTE | 1051 | Unknown table 'test.a4'
+NOTE | 1051 | Unknown table 'test.a5'
+NOTE | 1051 | Unknown table 'test.a6'
+NOTE | 1051 | Unknown table 'test.a7'
+NOTE | 1051 | Unknown table 'test.a8'
+NOTE | 1051 | Unknown table 'test.a9'
+NOTE | 1051 | Unknown table 'test.a10'
+NOTE | 1051 | Unknown table 'test.a11'
+NOTE | 1051 | Unknown table 'test.a12'
+NOTE | 1051 | Unknown table 'test.a13'
+NOTE | 1051 | Unknown table 'test.a14'
+NOTE | 1051 | Unknown table 'test.a15'
+NOTE | 1051 | Unknown table 'test.a16'
+NOTE | 1051 | Unknown table 'test.a17'
+NOTE | 1051 | Unknown table 'test.a18'
+NOTE | 1051 | Unknown table 'test.a19'
+NOTE | 1051 | Unknown table 'test.a20'
+NOTE | 1051 | Unknown table 'test.a21'
+NOTE | 1051 | Unknown table 'test.a22'
+NOTE | 1051 | Unknown table 'test.a23'
+NOTE | 1051 | Unknown table 'test.a24'
+NOTE | 1051 | Unknown table 'test.a25'
+NOTE | 1051 | Unknown table 'test.a26'
+NOTE | 1051 | Unknown table 'test.a27'
+NOTE | 1051 | Unknown table 'test.a28'
+NOTE | 1051 | Unknown table 'test.a29'
+NOTE | 1051 | Unknown table 'test.a30'
+NOTE | 1051 | Unknown table 'test.aa1'
+NOTE | 1051 | Unknown table 'test.aa2'
+NOTE | 1051 | Unknown table 'test.aa3'
+NOTE | 1051 | Unknown table 'test.aa4'
+NOTE | 1051 | Unknown table 'test.aa5'
+NOTE | 1051 | Unknown table 'test.aa6'
+NOTE | 1051 | Unknown table 'test.aa7'
+NOTE | 1051 | Unknown table 'test.aa8'
+NOTE | 1051 | Unknown table 'test.aa9'
+NOTE | 1051 | Unknown table 'test.aa10'
+NOTE | 1051 | Unknown table 'test.aa11'
+NOTE | 1051 | Unknown table 'test.aa12'
+NOTE | 1051 | Unknown table 'test.aa13'
+NOTE | 1051 | Unknown table 'test.aa14'
+NOTE | 1051 | Unknown table 'test.aa15'
+NOTE | 1051 | Unknown table 'test.aa16'
+NOTE | 1051 | Unknown table 'test.aa17'
+NOTE | 1051 | Unknown table 'test.aa18'
+NOTE | 1051 | Unknown table 'test.aa19'
+NOTE | 1051 | Unknown table 'test.aa20'
+NOTE | 1051 | Unknown table 'test.aa21'
+NOTE | 1051 | Unknown table 'test.aa22'
+NOTE | 1051 | Unknown table 'test.aa23'
+NOTE | 1051 | Unknown table 'test.aa24'
+NOTE | 1051 | Unknown table 'test.aa25'
+NOTE | 1051 | Unknown table 'test.aa26'
+NOTE | 1051 | Unknown table 'test.aa27'
+NOTE | 1051 | Unknown table 'test.aa28'
+NOTE | 1051 | Unknown table 'test.aa29'
+NOTE | 1051 | Unknown table 'test.aa30'
+NOTE | 1051 | Unknown table 'test.aaaa1'
+NOTE | 1051 | Unknown table 'test.aaaa2'
+NOTE | 1051 | Unknown table 'test.aaaa3'
+NOTE | 1051 | Unknown table 'test.aaaa4'
+NOTE | 1051 | Unknown table 'test.aaaa5'
+NOTE | 1051 | Unknown table 'test.aaaa6'
+NOTE | 1051 | Unknown table 'test.aaaa7'
+NOTE | 1051 | Unknown table 'test.aaaa8'
+NOTE | 1051 | Unknown table 'test.aaaa9'
+NOTE | 1051 | Unknown table 'test.aaaa10'
+NOTE | 1051 | Unknown table 'test.aaaa11'
+NOTE | 1051 | Unknown table 'test.aaaa12'
+NOTE | 1051 | Unknown table 'test.aaaa13'
+NOTE | 1051 | Unknown table 'test.aaaa14'
+NOTE | 1051 | Unknown table 'test.aaaa15'
+NOTE | 1051 | Unknown table 'test.aaaa16'
+NOTE | 1051 | Unknown table 'test.aaaa17'
+NOTE | 1051 | Unknown table 'test.aaaa18'
+NOTE | 1051 | Unknown table 'test.aaaa19'
+NOTE | 1051 | Unknown table 'test.aaaa20'
+NOTE | 1051 | Unknown table 'test.aaaa21'
+NOTE | 1051 | Unknown table 'test.aaaa22'
+NOTE | 1051 | Unknown table 'test.aaaa23'
+NOTE | 1051 | Unknown table 'test.aaaa24'
+NOTE | 1051 | Unknown table 'test.aaaa25'
+NOTE | 1051 | Unknown table 'test.aaaa26'
+NOTE | 1051 | Unknown table 'test.aaaa27'
+NOTE | 1051 | Unknown table 'test.aaaa28'
+NOTE | 1051 | Unknown table 'test.aaaa29'
+NOTE | 1051 | Unknown table 'test.aaaa30'
+dropping same table with if exists and observe error/wrarnings
+Got expected error: Not unique table/alias: 't1' (code 1066)
+
+0 rows affected
+check more than 64 warnings returned
+
+0 rows affected
+Warnings generated:
+NOTE | 1051 | Unknown table 'test.t1'
+NOTE | 1051 | Unknown table 'test.t2'
+NOTE | 1051 | Unknown table 'test.t3'
+NOTE | 1051 | Unknown table 'test.t4'
+NOTE | 1051 | Unknown table 'test.t5'
+NOTE | 1051 | Unknown table 'test.t6'
+NOTE | 1051 | Unknown table 'test.t7'
+NOTE | 1051 | Unknown table 'test.t8'
+NOTE | 1051 | Unknown table 'test.t9'
+NOTE | 1051 | Unknown table 'test.t10'
+NOTE | 1051 | Unknown table 'test.t11'
+NOTE | 1051 | Unknown table 'test.t12'
+NOTE | 1051 | Unknown table 'test.t13'
+NOTE | 1051 | Unknown table 'test.t14'
+NOTE | 1051 | Unknown table 'test.t15'
+NOTE | 1051 | Unknown table 'test.t16'
+NOTE | 1051 | Unknown table 'test.t17'
+NOTE | 1051 | Unknown table 'test.t18'
+NOTE | 1051 | Unknown table 'test.t19'
+NOTE | 1051 | Unknown table 'test.t20'
+NOTE | 1051 | Unknown table 'test.t21'
+NOTE | 1051 | Unknown table 'test.t22'
+NOTE | 1051 | Unknown table 'test.t23'
+NOTE | 1051 | Unknown table 'test.t24'
+NOTE | 1051 | Unknown table 'test.t25'
+NOTE | 1051 | Unknown table 'test.t26'
+NOTE | 1051 | Unknown table 'test.t27'
+NOTE | 1051 | Unknown table 'test.t28'
+NOTE | 1051 | Unknown table 'test.t29'
+NOTE | 1051 | Unknown table 'test.t30'
+NOTE | 1051 | Unknown table 'test.a1'
+NOTE | 1051 | Unknown table 'test.a2'
+NOTE | 1051 | Unknown table 'test.a3'
+NOTE | 1051 | Unknown table 'test.a4'
+NOTE | 1051 | Unknown table 'test.a5'
+NOTE | 1051 | Unknown table 'test.a6'
+NOTE | 1051 | Unknown table 'test.a7'
+NOTE | 1051 | Unknown table 'test.a8'
+NOTE | 1051 | Unknown table 'test.a9'
+NOTE | 1051 | Unknown table 'test.a10'
+NOTE | 1051 | Unknown table 'test.a11'
+NOTE | 1051 | Unknown table 'test.a12'
+NOTE | 1051 | Unknown table 'test.a13'
+NOTE | 1051 | Unknown table 'test.a14'
+NOTE | 1051 | Unknown table 'test.a15'
+NOTE | 1051 | Unknown table 'test.a16'
+NOTE | 1051 | Unknown table 'test.a17'
+NOTE | 1051 | Unknown table 'test.a18'
+NOTE | 1051 | Unknown table 'test.a19'
+NOTE | 1051 | Unknown table 'test.a20'
+NOTE | 1051 | Unknown table 'test.a21'
+NOTE | 1051 | Unknown table 'test.a22'
+NOTE | 1051 | Unknown table 'test.a23'
+NOTE | 1051 | Unknown table 'test.a24'
+NOTE | 1051 | Unknown table 'test.a25'
+NOTE | 1051 | Unknown table 'test.a26'
+NOTE | 1051 | Unknown table 'test.a27'
+NOTE | 1051 | Unknown table 'test.a28'
+NOTE | 1051 | Unknown table 'test.a29'
+NOTE | 1051 | Unknown table 'test.a30'
+NOTE | 1051 | Unknown table 'test.aa1'
+NOTE | 1051 | Unknown table 'test.aa2'
+NOTE | 1051 | Unknown table 'test.aa3'
+NOTE | 1051 | Unknown table 'test.aa4'
+NOTE | 1051 | Unknown table 'test.aa5'
+NOTE | 1051 | Unknown table 'test.aa6'
+NOTE | 1051 | Unknown table 'test.aa7'
+NOTE | 1051 | Unknown table 'test.aa8'
+NOTE | 1051 | Unknown table 'test.aa9'
+NOTE | 1051 | Unknown table 'test.aa10'
+NOTE | 1051 | Unknown table 'test.aa11'
+NOTE | 1051 | Unknown table 'test.aa12'
+NOTE | 1051 | Unknown table 'test.aa13'
+NOTE | 1051 | Unknown table 'test.aa14'
+NOTE | 1051 | Unknown table 'test.aa15'
+NOTE | 1051 | Unknown table 'test.aa16'
+NOTE | 1051 | Unknown table 'test.aa17'
+NOTE | 1051 | Unknown table 'test.aa18'
+NOTE | 1051 | Unknown table 'test.aa19'
+NOTE | 1051 | Unknown table 'test.aa20'
+NOTE | 1051 | Unknown table 'test.aa21'
+NOTE | 1051 | Unknown table 'test.aa22'
+NOTE | 1051 | Unknown table 'test.aa23'
+NOTE | 1051 | Unknown table 'test.aa24'
+NOTE | 1051 | Unknown table 'test.aa25'
+NOTE | 1051 | Unknown table 'test.aa26'
+NOTE | 1051 | Unknown table 'test.aa27'
+NOTE | 1051 | Unknown table 'test.aa28'
+NOTE | 1051 | Unknown table 'test.aa29'
+NOTE | 1051 | Unknown table 'test.aa30'
+NOTE | 1051 | Unknown table 'test.aaaa1'
+NOTE | 1051 | Unknown table 'test.aaaa2'
+NOTE | 1051 | Unknown table 'test.aaaa3'
+NOTE | 1051 | Unknown table 'test.aaaa4'
+NOTE | 1051 | Unknown table 'test.aaaa5'
+NOTE | 1051 | Unknown table 'test.aaaa6'
+NOTE | 1051 | Unknown table 'test.aaaa7'
+NOTE | 1051 | Unknown table 'test.aaaa8'
+NOTE | 1051 | Unknown table 'test.aaaa9'
+NOTE | 1051 | Unknown table 'test.aaaa10'
+NOTE | 1051 | Unknown table 'test.aaaa11'
+NOTE | 1051 | Unknown table 'test.aaaa12'
+NOTE | 1051 | Unknown table 'test.aaaa13'
+NOTE | 1051 | Unknown table 'test.aaaa14'
+NOTE | 1051 | Unknown table 'test.aaaa15'
+NOTE | 1051 | Unknown table 'test.aaaa16'
+NOTE | 1051 | Unknown table 'test.aaaa17'
+NOTE | 1051 | Unknown table 'test.aaaa18'
+NOTE | 1051 | Unknown table 'test.aaaa19'
+NOTE | 1051 | Unknown table 'test.aaaa20'
+NOTE | 1051 | Unknown table 'test.aaaa21'
+NOTE | 1051 | Unknown table 'test.aaaa22'
+NOTE | 1051 | Unknown table 'test.aaaa23'
+NOTE | 1051 | Unknown table 'test.aaaa24'
+NOTE | 1051 | Unknown table 'test.aaaa25'
+NOTE | 1051 | Unknown table 'test.aaaa26'
+NOTE | 1051 | Unknown table 'test.aaaa27'
+NOTE | 1051 | Unknown table 'test.aaaa28'
+NOTE | 1051 | Unknown table 'test.aaaa29'
+NOTE | 1051 | Unknown table 'test.aaaa30'
+NOTE | 1051 | Unknown table 'test.bb1'
+NOTE | 1051 | Unknown table 'test.bb2'
+NOTE | 1051 | Unknown table 'test.bb3'
+NOTE | 1051 | Unknown table 'test.bb4'
+NOTE | 1051 | Unknown table 'test.bb5'
+NOTE | 1051 | Unknown table 'test.bb6'
+NOTE | 1051 | Unknown table 'test.bb7'
+NOTE | 1051 | Unknown table 'test.bb8'
+NOTE | 1051 | Unknown table 'test.bb9'
+NOTE | 1051 | Unknown table 'test.bb10'
+NOTE | 1051 | Unknown table 'test.bb11'
+NOTE | 1051 | Unknown table 'test.bb12'
+NOTE | 1051 | Unknown table 'test.bb13'
+NOTE | 1051 | Unknown table 'test.bb14'
+NOTE | 1051 | Unknown table 'test.bb15'
+NOTE | 1051 | Unknown table 'test.bb16'
+NOTE | 1051 | Unknown table 'test.bb17'
+NOTE | 1051 | Unknown table 'test.bb18'
+NOTE | 1051 | Unknown table 'test.bb19'
+NOTE | 1051 | Unknown table 'test.bb20'
+NOTE | 1051 | Unknown table 'test.bb21'
+NOTE | 1051 | Unknown table 'test.bb22'
+NOTE | 1051 | Unknown table 'test.bb23'
+NOTE | 1051 | Unknown table 'test.bb24'
+NOTE | 1051 | Unknown table 'test.bb25'
+NOTE | 1051 | Unknown table 'test.bb26'
+NOTE | 1051 | Unknown table 'test.bb27'
+NOTE | 1051 | Unknown table 'test.bb28'
+NOTE | 1051 | Unknown table 'test.bb29'
+NOTE | 1051 | Unknown table 'test.bb30'
+NOTE | 1051 | Unknown table 'test.b1'
+NOTE | 1051 | Unknown table 'test.b2'
+NOTE | 1051 | Unknown table 'test.b3'
+NOTE | 1051 | Unknown table 'test.b4'
+NOTE | 1051 | Unknown table 'test.b5'
+NOTE | 1051 | Unknown table 'test.b6'
+NOTE | 1051 | Unknown table 'test.b7'
+NOTE | 1051 | Unknown table 'test.b8'
+NOTE | 1051 | Unknown table 'test.b9'
+NOTE | 1051 | Unknown table 'test.b10'
+NOTE | 1051 | Unknown table 'test.b11'
+NOTE | 1051 | Unknown table 'test.b12'
+NOTE | 1051 | Unknown table 'test.b13'
+NOTE | 1051 | Unknown table 'test.b14'
+NOTE | 1051 | Unknown table 'test.b15'
+NOTE | 1051 | Unknown table 'test.b16'
+NOTE | 1051 | Unknown table 'test.b17'
+NOTE | 1051 | Unknown table 'test.b18'
+NOTE | 1051 | Unknown table 'test.b19'
+NOTE | 1051 | Unknown table 'test.b20'
+NOTE | 1051 | Unknown table 'test.b21'
+NOTE | 1051 | Unknown table 'test.b22'
+NOTE | 1051 | Unknown table 'test.b23'
+NOTE | 1051 | Unknown table 'test.b24'
+NOTE | 1051 | Unknown table 'test.b25'
+NOTE | 1051 | Unknown table 'test.b26'
+NOTE | 1051 | Unknown table 'test.b27'
+NOTE | 1051 | Unknown table 'test.b28'
+NOTE | 1051 | Unknown table 'test.b29'
+NOTE | 1051 | Unknown table 'test.b30'
+check no warnings based on max_error_count parameter set
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+Variable_name	Value
+max_error_count	0
+0 rows affected
+
+0 rows affected
+checking creating temporary table when normal and temp table exists
+
+0 rows affected
+
+1 rows affected
+Records: 1  Duplicates: 0  Warnings: 0
+
+1 rows affected
+Records: 1  Duplicates: 0  Warnings: 0
+a
+2
+0 rows affected
+
+0 rows affected
+Warnings generated:
+NOTE | 1050 | Table 't1' already exists
+a
+2
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+checking data truncation warnings for default values
+
+0 rows affected
+
+1 rows affected
+Records: 1  Duplicates: 0  Warnings: 1
+Warnings generated:
+NOTE | 1265 | Data truncated for column 'f1' at row 1
+
+0 rows affected
+checking data truncation warnings while creating table with expression
+
+0 rows affected
+
+1 rows affected
+Records: 1  Duplicates: 0  Warnings: 1
+Warnings generated:
+NOTE | 1265 | Data truncated for column '5.05 / 0.014' at row 1
+
+0 rows affected
+checking warnings with insert and select operations
+below insert into t1 returns 17775 warnings,checking only limited warnings as test takes more time to render the warnings
+
+0 rows affected
+
+0 rows affected
+
+8 rows affected
+Records: 8  Duplicates: 0  Warnings: 0
+
+8 rows affected
+Records: 8  Duplicates: 0  Warnings: 0
+
+0 rows affected
+checking for more than default 64 warnings
+
+0 rows affected
+
+65536 rows affected
+Records: 65536  Duplicates: 0  Warnings: 17775
+Warnings generated:
+WARNING | 1366 | Incorrect string value: '\x80' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x81' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x82' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x83' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x84' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x85' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x86' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x87' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x88' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x89' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x90' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x91' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x92' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x93' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x94' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x95' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x96' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x97' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x98' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x99' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xA0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE1' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE2' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE3' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE4' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE5' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE6' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE7' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE8' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE9' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEA' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEB' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEC' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xED' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEE' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEF' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF1' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF2' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF3' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF4' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF5' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF6' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF7' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF8' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF9' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFA' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFB' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFC' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFD' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFE' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFF' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x80' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x81' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x82' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x83' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x84' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x85' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x86' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x87' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x88' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x89' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x90' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x91' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x92' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x93' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x94' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x95' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x96' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x97' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x98' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x99' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xA0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE1' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE2' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE3' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE4' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE5' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE6' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE7' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE8' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE9' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEA' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEB' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEC' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xED' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEE' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEF' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF1' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF2' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF3' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF4' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF5' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF6' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF7' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF8' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF9' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFA' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFB' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFC' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFD' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFE' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFF' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x80' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x81' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x82' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x83' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x84' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x85' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x86' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x87' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x88' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x89' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x90' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x91' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x92' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x93' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x94' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x95' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x96' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x97' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x98' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x99' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xA0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE1' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE2' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE3' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE4' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE5' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE6' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE7' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE8' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE9' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEA' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEB' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEC' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xED' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEE' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEF' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF1' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF2' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF3' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF4' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF5' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF6' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF7' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF8' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF9' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFA' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFB' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFC' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFD' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFE' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFF' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x80' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x81' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x82' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x83' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x84' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x85' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x86' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x87' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x88' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x89' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x90' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x91' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x92' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x93' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x94' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x95' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x96' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x97' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x98' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x99' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xA0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE1' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE2' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE3' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE4' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE5' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE6' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE7' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE8' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE9' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEA' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEB' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEC' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xED' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEE' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEF' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF1' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF2' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF3' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF4' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF5' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF6' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF7' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF8' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF9' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFA' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFB' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFC' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFD' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFE' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFF' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x80' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x81' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x82' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x83' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x84' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x85' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x86' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x87' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x88' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x89' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x90' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x91' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x92' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x93' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x94' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x95' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x96' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x97' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x98' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x99' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xA0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE1' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE2' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE3' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE4' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE5' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE6' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE7' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE8' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE9' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEA' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEB' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEC' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xED' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEE' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEF' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF1' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF2' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF3' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF4' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF5' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF6' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF7' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF8' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF9' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFA' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFB' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFC' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFD' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFE' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFF' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x80' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x81' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x82' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x83' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x84' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x85' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x86' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x87' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x88' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x89' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x90' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x91' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x92' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x93' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x94' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x95' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x96' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x97' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x98' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x99' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xA0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE1' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE2' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE3' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE4' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE5' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE6' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE7' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE8' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE9' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEA' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEB' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEC' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xED' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEE' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEF' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF1' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF2' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF3' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF4' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF5' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF6' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF7' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF8' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF9' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFA' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFB' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFC' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFD' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFE' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFF' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x80' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x81' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x82' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x83' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x84' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x85' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x86' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x87' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x88' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x89' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x90' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x91' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x92' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x93' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x94' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x95' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x96' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x97' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x98' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x99' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xA0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE1' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE2' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE3' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE4' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE5' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE6' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE7' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE8' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE9' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEA' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEB' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEC' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xED' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEE' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEF' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF1' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF2' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF3' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF4' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF5' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF6' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF7' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF8' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xF9' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFA' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFB' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFC' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFD' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFE' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xFF' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x80' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x81' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x82' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x83' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x84' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x85' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x86' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x87' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x88' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x89' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x8F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x90' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x91' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x92' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x93' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x94' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x95' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x96' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x97' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x98' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x99' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9A' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9B' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9C' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9D' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9E' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\x9F' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xA0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE0' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE1' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE2' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE3' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE4' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE5' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE6' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE7' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE8' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xE9' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEA' for column 'a' at row 17
+WARNING | 1366 | Incorrect string value: '\xEB' for column 'a' at row 17
+
+0 rows affected
+
+0 rows affected
+checking warnings with prepare and execute statmenets
+
+0 rows affected
+
+0 rows affected
+
+1 rows affected
+1
+1
+0 rows affected
+Warnings generated:
+WARNING | 1292 | Truncated incorrect INTEGER value: 'test'
+
+0 rows affected
+Statement prepared
+1
+1
+0 rows affected
+Warnings generated:
+WARNING | 1292 | Truncated incorrect INTEGER value: 'test'
+1
+1
+0 rows affected
+Warnings generated:
+WARNING | 1292 | Truncated incorrect INTEGER value: 'test'
+
+0 rows affected
+
+0 rows affected
+Statement prepared
+1
+1
+0 rows affected
+1
+1
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+checking warnings with group by when sql_mode is no_engine_substitution
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+c2
+aaa
+aaa
+0 rows affected
+Warnings generated:
+WARNING | 1052 | Column 'c2' in group statement is ambiguous
+c2
+aaa
+0 rows affected
+
+0 rows affected
+setting back to default of sql_mode
+
+0 rows affected
+Warnings generated:
+WARNING | 3135 | 'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+checking with group by where both error and warnings expected with default sql_mode
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+Got expected error: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.c1' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by (code 1055)
+expect both error and warning
+change result file once Bug#21524666 is fixed
+c2
+aaa
+0 rows affected
+
+0 rows affected
+checking warnings with rollback on non-transactional tables
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+1 rows affected
+
+1 rows affected
+
+0 rows affected
+Warnings generated:
+WARNING | 1196 | Some non-transactional changed tables couldn't be rolled back
+Level	Code	Message
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+0 rows affected
+Level	Code	Message
+0 rows affected
+@@warning_count	@@error_count
+1	0
+0 rows affected
+n
+4
+5
+0 rows affected
+Level	Code	Message
+0 rows affected
+@@warning_count
+0
+0 rows affected
+
+0 rows affected
+expect 2 warnings for insert related to truncation and incorrect date value
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+1 rows affected
+Records: 1  Duplicates: 0  Warnings: 2
+Warnings generated:
+WARNING | 1265 | Data truncated for column 'a' at row 1
+WARNING | 1292 | Incorrect date value: '0' for column 'a' at row 1
+
+0 rows affected
+
+0 rows affected
+checking warnings while creating index which is more than row size
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+below statement throws warning as Error and actual error is missing
+change result file once Bug#21529270 fixed
+Got expected error: Specified key was too long; max key length is 3072 bytes (code 1071)
+While executing set global innodb_large_prefix=1:
+Got expected error: Unknown system variable 'innodb_large_prefix' (code 1193)
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+checking warnings with different innodb file format
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+Warnings generated:
+WARNING | 1478 | InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
+WARNING | 1478 | InnoDB: assuming ROW_FORMAT=DYNAMIC.
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+checking warnings with different innodb row format
+
+0 rows affected
+expect one Error and Warning
+modify the result file once Bug#21524666 is fixed
+Got expected error: Table storage engine for 't2' doesn't have this option (code 1031)
+expect 2 warnings and 1 Error
+modify the result file once Bug#21524666 is fixed
+Got expected error: Table storage engine for 't2' doesn't have this option (code 1031)
+expect 1 warning and 2 Error
+modify the result file once Bug#21524666 is fixed
+Got expected error: Incorrect index name 'GEN_CLUST_INDEX' (code 1280)
+check with show variables like versio and expect warning related to GTID session
+Variable_name	Value
+0 rows affected
+check with show variables like versio and expect warning related to GTID session
+Variable_name	Value
+max_join_size	18446744073709551615
+0 rows affected
+Variable_name	Value
+concurrent_insert	AUTO
+0 rows affected
+Variable_name	Value
+default_storage_engine	InnoDB
+0 rows affected
+Try to enable fixed notice, should be ok
+
+command ok
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 167]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 857]
+Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+checking warnings with procedure execution
+
+0 rows affected
+@start_global_value
+1024
+0 rows affected
+
+0 rows affected
+@start_session_value
+1024
+0 rows affected
+
+0 rows affected
+
+1 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+Got expected error: Oops in proc_1 (code 1644)
+
+0 rows affected
+@@session.max_error_count
+5
+0 rows affected
+Got expected error: Oops in proc_1 (code 1644)
+
+0 rows affected
+@@session.max_error_count
+7
+0 rows affected
+Got expected error: Oops in proc_1 (code 1644)
+
+0 rows affected
+@@session.max_error_count
+9
+0 rows affected
+Got expected error: Oops in proc_1 (code 1644)
+
+0 rows affected
+
+0 rows affected
+@@global.max_error_count
+1024
+0 rows affected
+
+0 rows affected
+@@session.max_error_count
+1024
+0 rows affected
+checking warnings while creating index with more than row size
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+below statement throwing warning as an Error and actual error is missing
+change result file once Bug#21529270 is fixed
+Got expected error: Specified key was too long; max key length is 3072 bytes (code 1071)
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+
+0 rows affected
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 37]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 32]
+Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Try enable warnings
+
+command ok
+Try enable account_expired
+
+command ok
+Try enable generated_insert_id
+
+command ok
+Try enable rows_affected
+
+command ok
+Try enable produced_message
+
+command ok
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 5]
+Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+create user xplugin@localhost identified by 'xplugin';
+Try enable warnings
+
+command ok
+Try enable account_expired
+
+command ok
+Try enable generated_insert_id
+
+command ok
+Try enable rows_affected
+
+command ok
+Try enable produced_message
+
+command ok
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 5]
+Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Enable multiple notices both read-only and read-write with single StmtExecute,expect success
+
+command ok
+notice	enabled
+warnings	1
+account_expired	1
+generated_insert_id	1
+rows_affected	1
+produced_message	1
+command ok
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 1]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+0 rows affected
+
+0 rows affected
+Warnings generated:
+NOTE | 1051 | Unknown table 'mysql.t1'
+expect Mysqlx_notice_other_sent=8 and Mysqlx_notice_warning_sent=3
+seems like some problem with these stats, need to change values once issues fixed
+disable warnings notice and observe stats
+
+command ok
+enable account_expired notice and check stats
+
+command ok
+enable account_expired notice and check stats
+
+command ok
+listing notices after enabling warnings,account_expired notices
+notice	enabled
+warnings	1
+account_expired	1
+generated_insert_id	1
+rows_affected	1
+produced_message	1
+command ok
+listing notices with mixed case
+notice	enabled
+warnings	1
+account_expired	1
+generated_insert_id	1
+rows_affected	1
+produced_message	1
+command ok
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 2]
+Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 2]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# restart: 
+
+0 rows affected
+
+0 rows affected
+Warnings generated:
+NOTE | 1051 | Unknown table 'mysql.t1'
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 1]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# restart: 
+create user noti@localhost identified by 'noti';
+While executing use mysql:
+Got expected error: Access denied for user 'noti'@'localhost' to database 'mysql' (code 1044)
+Got expected error: No database selected (code 1046)
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+drop user noti@localhost;
+drop user xplugin@localhost;

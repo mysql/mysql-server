@@ -1,0 +1,144 @@
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testNdbApi
+args: -n BadColNameHandling T6
+max-time: 180
+
+cmd: testLimits
+args: -n ExhaustSegmentedSectionPk WIDE_2COL
+max-time: 180
+
+cmd: testBasic
+args: -n NoCommit626 T6 D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -n GetValueInUpdate T6
+max-time: 180
+
+cmd: testBasic
+args: -n NoCommitAndClose T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n ImplicitRollbackDelete T1 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n OnlyOneOpBeforeOpenScan T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n NoCloseTransaction T6 D1 D2
+max-time: 180
+
+cmd: test_event
+args: -n Bug35208 T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n MaxEqual
+max-time: 180
+
+cmd: testNdbApi
+args: -n Bug44065
+max-time: 180
+
+cmd: testNdbApi
+args: -l 100 -n Bug37158
+max-time: 180
+
+cmd: testBasicAsynch
+args: -n PkReadAsynch
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug20185 T1
+max-time: 360
+
+cmd: testIndex
+args: -n BuildDuring T6
+max-time: 180
+
+cmd: testScan
+args: -n ScanUpdate
+max-time: 360
+
+cmd: testScan
+args: -n ScanRead488T -l 10 T6 D1 D2
+max-time: 360
+
+cmd: testScan
+args: -n ScanParallelism
+max-time: 360
+
+cmd: testSystemRestart
+args: -l 1 -n SR9 T1
+max-time: 360
+
+cmd: testDict
+args: -n FragmentTypeAllLarge T1 T6
+max-time: 360
+
+cmd: test_event
+args: -n Bug31701 T1
+max-time: 720
+
+cmd: testDict
+args: -r 2500 -n TableAddAttrs
+max-time: 1800
+
+cmd: test_event
+args: -n Bug33793 T1
+max-time: 720
+
+cmd: atrt-testBackup
+args: -n NFSlave T1
+max-time: 900
+
+cmd: testMgm
+args:
+max-time: 900
+
+cmd: testNodeRestart
+args: -n FiftyPercentFail T6 T13
+max-time: 1800
+
+cmd: testSystemRestart
+args: -n SR_DD_1_LCP D1
+max-time: 3960
+
+cmd: testScan
+args: -n ScanReadRestart T1 T6 T13
+max-time: 2160
+
+cmd: testSystemRestart
+args: -n SR2 T6
+max-time: 3600
+
+cmd: testSystemRestart
+args: -n SR1 T6
+max-time: 4320
+

@@ -19,11 +19,7 @@ SELECT * FROM t7;
 c1
 DROP TABLE t7;
 SET SQL_MODE='';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t7(c1 ENUM('a','b','c') NULL);
 INSERT INTO t7(c1) VALUES('abc');
 ERROR 01000: Data truncated for column 'c1' at row 1
@@ -43,5 +39,3 @@ SELECT * FROM t7;
 c1
 DROP TABLE t7;
 SET SQL_MODE='';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.

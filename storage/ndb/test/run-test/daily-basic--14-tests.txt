@@ -1,0 +1,106 @@
+# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testIndex
+args: -n MixedTransaction T1
+max-time: 180
+
+cmd: testBasic
+args: -n DoubleUnlock T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n UpdateWithoutValues T6 D1 D2
+max-time: 180
+
+cmd: testIndex
+args: -n FireTrigOverload T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n NdbRecordRowLength
+max-time: 180
+
+cmd: testNdbApi
+args: -n MgmdSendbufferExhaust T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n CloseBeforeExecute T1
+max-time: 60
+
+cmd: testBasic
+args: -r 10 -n Bug59496_case1 T2
+max-time: 180
+
+cmd: test_event_merge
+args: --no-implicit-nulls --no-multiops --blob-version 1
+max-time: 180
+
+cmd: testBasic
+args: -n PkSimpleRead
+max-time: 360
+
+cmd: testBasic
+args: -n Bug25090 T1
+max-time: 180
+
+cmd: testBasic
+args: -n MassiveRollback T1 T6 D1 D2
+max-time: 1080
+
+cmd: testIndex
+args: --forceshortreqs -n InsertDelete T2
+max-time: 720
+
+cmd: atrt-testBackup
+args: -n NFMaster T1
+max-time: 1080
+
+cmd: testSystemRestart
+args: -n to T1
+max-time: 1800
+
+# OJA: Test case has never been stable.
+#      Had several failed attempts of fixing it.
+#      Giving up for now and suspend it.
+#cmd: testSpj
+#args: -n bug#23048816
+#max-time: 180
+#
+cmd: testSpj
+args: -n ScanJoinError
+max-time: 1200
+
+cmd: testSpj
+args: -n LookupJoinError T6 I1 I3
+max-time: 600
+
+cmd: testDict
+args: -n DropWithTakeover T1 T2
+max-time: 1800
+
+cmd: testScan
+args: -n ScanUsingMultipleNdbObjects T1
+max-time: 30

@@ -312,6 +312,7 @@ static enum test_return test_safe_strtof(void) {
  *                 listening on
  * @param daemon set to true if you want to run the memcached server
  *               as a daemon process
+ * @param timeout
  * @return the pid of the memcached server
  */
 static pid_t start_server(in_port_t *port_out, bool daemon, int timeout) {

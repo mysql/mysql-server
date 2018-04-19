@@ -1,0 +1,147 @@
+# Tests for PERFORMANCE_SCHEMA
+
+select connection_id() into @conid;
+
+select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = @conid
+  into @tid;
+
+select thread_os_id from performance_schema.threads
+  where PROCESSLIST_ID = @conid
+  into @osid;
+
+# Debug
+# select @conid, @tid, @osid;
+
+# Test index on THREAD_ID
+
+explain select THREAD_ID, NAME from performance_schema.threads
+  where thread_id = 1;
+
+explain select * from performance_schema.threads
+  where thread_id > 1;
+
+explain select * from performance_schema.threads
+  where thread_id < 1;
+
+select processlist_id = @conid, name, processlist_info
+  from performance_schema.threads
+  where thread_id = @tid;
+
+# Test index on PROCESSLIST_ID
+
+# The explain output depends on the value of @osid
+--disable_warnings
+explain select THREAD_ID, NAME from performance_schema.threads
+  where processlist_id = @conid;
+--enable_warnings
+
+explain select * from performance_schema.threads
+  where processlist_id > 99999;
+
+explain select * from performance_schema.threads
+  where processlist_id < 99999;
+
+select thread_id = @tid, name, processlist_info
+  from performance_schema.threads
+  where processlist_id = @conid;
+
+# Test index on THREAD_OS_ID
+
+# The explain output depends on the value of @osid
+--disable_warnings
+explain select THREAD_ID, NAME from performance_schema.threads
+  where thread_os_id = @osid;
+--enable_warnings
+
+explain select * from performance_schema.threads
+  where thread_os_id > 99999;
+
+explain select * from performance_schema.threads
+  where thread_os_id < 99999;
+
+select thread_id - @tid, name, processlist_info
+  from performance_schema.threads
+  where thread_os_id = @osid;
+
+# Test index on NAME
+
+explain select THREAD_ID from performance_schema.threads
+  where NAME = "impossible";
+
+explain select THREAD_ID from performance_schema.threads
+  where NAME = "thread/sql/main";
+
+explain select * from performance_schema.threads
+  where NAME > "foo";
+
+explain select * from performance_schema.threads
+  where NAME < "bar";
+
+explain select * from performance_schema.threads
+  where NAME like "thread/sql/%";
+
+select thread_id, name, processlist_state, processlist_info
+  from performance_schema.threads
+  where NAME = "thread/sql/main";
+
+# Test index on PROCESSLIST_USER, PROCESSLIST_HOST
+
+explain select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_USER = "impossible";
+
+explain select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_USER = "root";
+
+explain select * from performance_schema.threads
+  where PROCESSLIST_USER > "foo";
+
+explain select * from performance_schema.threads
+  where PROCESSLIST_USER < "bar";
+
+explain select * from performance_schema.threads
+  where PROCESSLIST_USER like "ro%";
+
+select thread_id = @tid, name, processlist_state, processlist_info
+  from performance_schema.threads
+  where PROCESSLIST_USER = "root";
+
+explain select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_USER = "impossible" and PROCESSLIST_HOST = "impossible";
+
+explain select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_USER = "root" and PROCESSLIST_HOST = "localhost";
+
+explain select * from performance_schema.threads
+  where PROCESSLIST_USER = "foo" and PROCESSLIST_HOST < "foo";
+
+explain select * from performance_schema.threads
+  where PROCESSLIST_USER = "foo" and PROCESSLIST_HOST > "bar";
+
+explain select * from performance_schema.threads
+  where PROCESSLIST_USER = "foo" and PROCESSLIST_HOST like "bar%";
+
+select thread_id = @tid, name, processlist_state, processlist_info
+  from performance_schema.threads
+  where PROCESSLIST_USER = "root" and PROCESSLIST_HOST = "localhost";
+
+# Test index on PROCESSLIST_HOST
+
+explain select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_HOST = "impossible";
+
+explain select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_HOST = "localhost";
+
+explain select * from performance_schema.threads
+  where PROCESSLIST_HOST > "foo";
+
+explain select * from performance_schema.threads
+  where PROCESSLIST_HOST < "bar";
+
+explain select * from performance_schema.threads
+  where PROCESSLIST_HOST like "local%";
+
+select thread_id = @tid, name, processlist_state, processlist_info
+  from performance_schema.threads
+  where PROCESSLIST_HOST = "localhost";

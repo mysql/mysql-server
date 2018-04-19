@@ -1,18 +1,25 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 package My::Platform;
 
@@ -21,35 +28,57 @@ use File::Basename;
 use File::Path;
 
 use base qw(Exporter);
-our @EXPORT= qw(IS_CYGWIN IS_WINDOWS IS_WIN32PERL
+our @EXPORT= qw(IS_CYGWIN IS_MAC IS_WINDOWS IS_WIN32PERL
 		native_path posix_path mixed_path
                 check_socket_path_length process_alive);
 
-BEGIN {
-  if ($^O eq "cygwin") {
+BEGIN
+{
+  if ($^O eq "cygwin")
+  {
     # Make sure cygpath works
-    if ((system("cygpath > /dev/null 2>&1") >> 8) != 1){
+    if ((system("cygpath > /dev/null 2>&1") >> 8) != 1)
+    {
       die "Could not execute 'cygpath': $!";
     }
     eval 'sub IS_CYGWIN { 1 }';
   }
-  else {
+  else
+  {
     eval 'sub IS_CYGWIN { 0 }';
   }
-  if ($^O eq "MSWin32") {
+
+  if ($^O eq "MSWin32")
+  {
     eval 'sub IS_WIN32PERL { 1 }';
   }
-  else {
+  else
+  {
     eval 'sub IS_WIN32PERL { 0 }';
   }
 }
 
-BEGIN {
-  if (IS_CYGWIN or IS_WIN32PERL) {
+BEGIN
+{
+  if (IS_CYGWIN or IS_WIN32PERL)
+  {
     eval 'sub IS_WINDOWS { 1 }';
   }
-  else {
+  else
+  {
     eval 'sub IS_WINDOWS { 0 }';
+  }
+}
+
+BEGIN
+{
+  if ($^O eq "darwin")
+  {
+    eval 'sub IS_MAC { 1 }';
+  }
+  else
+  {
+    eval 'sub IS_MAC { 0 }';
   }
 }
 
@@ -103,7 +132,7 @@ sub posix_path {
 use File::Temp qw /tempdir/;
 
 sub check_socket_path_length {
-  my ($path)= @_;
+  my ($path,$parallel)= @_;
 
   return 0 if IS_WINDOWS;
 
@@ -111,6 +140,13 @@ sub check_socket_path_length {
 
   my $truncated= undef;
 
+  ##append extra chars if --parallel because $opt_tmpdir will be longer
+  if ( $parallel > 9 || $parallel eq "auto" ) {
+    $path=$path."xxx";
+  }
+  elsif ( $parallel > 1 ) {
+    $path=$path."xx" ;
+  }
   # Create a tempfile name with same length as "path"
   my $tmpdir = tempdir( CLEANUP => 0);
   my $len = length($path) - length($tmpdir) - 1;

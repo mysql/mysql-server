@@ -1,0 +1,587 @@
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
+# Test create table crash/recovery rollback.
+set global innodb_ddl_log_crash_reset_debug = 1;
+set session debug = '+d, ddl_log_crash_after_free_tree_log_2';
+CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b));
+show create table t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
+# Test create table crash/recovery.
+set global innodb_ddl_log_crash_reset_debug = 1;
+set session debug = '+d, ddl_log_before_post_ddl';
+CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  KEY `a` (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
+# Test drop table crash/recovery rollback.
+set global innodb_ddl_log_crash_reset_debug = 1;
+set session debug = '+d, ddl_log_crash_before_drop_log_1';
+drop table t1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  KEY `a` (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
+# Test drop table crash/recovery.
+set global innodb_ddl_log_crash_reset_debug = 1;
+set session debug = '+d, ddl_log_before_post_ddl';
+drop table t1;
+show create table t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
+# Test rename table crash/recovery rollback 1.
+set global innodb_ddl_log_crash_reset_debug = 1;
+CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b));
+set session debug = '+d, ddl_log_crash_before_rename_space_log_1';
+rename table t1 to t2;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  KEY `a` (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
+# Test rename table crash/recovery rollback 2.
+set global innodb_ddl_log_crash_reset_debug = 1;
+set session debug = '+d, ddl_log_crash_after_rename_space_log_1';
+rename table t1 to t2;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  KEY `a` (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
+# Test rename table crash/recovery.
+set global innodb_ddl_log_crash_reset_debug = 1;
+set session debug = '+d, ddl_log_before_post_ddl';
+rename table t1 to t2;
+show create table t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  KEY `a` (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
+drop table t2;
+# Test truncate table crash/recovery.
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_1';
+TRUNCATE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_2';
+TRUNCATE TABLE t1;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_1';
+TRUNCATE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_2';
+TRUNCATE TABLE t1;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_1';
+TRUNCATE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_2';
+TRUNCATE TABLE t1;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_1';
+TRUNCATE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_2';
+TRUNCATE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_3';
+TRUNCATE TABLE t1;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_1';
+TRUNCATE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_2';
+TRUNCATE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_3';
+TRUNCATE TABLE t1;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_delete_1';
+TRUNCATE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_delete_2';
+TRUNCATE TABLE t1;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_1';
+TRUNCATE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_2';
+TRUNCATE TABLE t1;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_1';
+TRUNCATE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_2';
+TRUNCATE TABLE t1;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_1';
+TRUNCATE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_2';
+TRUNCATE TABLE t1;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_drop_log_1';
+TRUNCATE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_drop_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_drop_log_2';
+TRUNCATE TABLE t1;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_drop_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_before_post_ddl';
+TRUNCATE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_before_post_ddl';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_1';
+TRUNCATE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_2';
+TRUNCATE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_3';
+TRUNCATE TABLE t1;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_3';
+DROP TABLE t1;
+# Test optimize table crash/recovery.
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_1';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_2';
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_1';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_2';
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_1';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_2';
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_1';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_2';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_3';
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_1';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_2';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_3';
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_delete_1';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_delete_2';
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_1';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_2';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_3';
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_1';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_2';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_3';
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_1';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_2';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_3';
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_drop_log_1';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_drop_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_drop_log_2';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_drop_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_drop_log_3';
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_drop_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_before_post_ddl';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_before_post_ddl';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_1';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_2';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_3';
+OPTIMIZE TABLE t1;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_4';
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_4';
+DROP TABLE t1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 0;
+#
+# Bug#26832347 - INNODB: CANNOT FIND SPACE FOR TBS_.*_RENAME IN TABLESPACE MEMO
+#
+SHOW VARIABLES LIKE 'log_bin';
+Variable_name	Value
+log_bin	ON
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+SET DEBUG='+d, ib_trx_commit_crash_rseg_updated';
+ALTER TABLESPACE ts1 RENAME TO ts1_renamed;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+ALTER TABLESPACE ts1_renamed RENAME TO ts1;
+DROP TABLESPACE ts1;

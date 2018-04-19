@@ -1,27 +1,34 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <!--
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 -->
 
 <html dir="ltr">
     <head>
         <meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1">
         <title>MySQL Cluster Configuration User Guide</title>
-        <link href="img/favicon.ico" rel="icon" type="image/x-icon">
         <link rel="stylesheet" type="text/css" href="../css/help.css">
+        <link rel="icon" type="image/x-icon" href="../../img/favicon.ico">
 
         <script  type="text/javascript" src="../../dojo/dojo/dojo.js" djConfig="parseOnLoad: true"></script>
 
@@ -50,10 +57,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 -->
 
 <h2><a name="introduction">Introduction</a></h2>
-<p>This is the user guide for the MySQL Cluster configuration tool. You can read 
-    the user guide sequentially, or you can get help regarding the wizard page 
-    you are currently at by choosing the proper entry in the Help menu. This 
-    user guide is divided into the following main parts: </p>
+<p>This is the user guide for the MySQL Cluster configuration tool. The aim of this
+    tool is to help you configure and deploy NDB Cluster quickly using GUI. It is 
+    also a great learning tool. You can read the user guide sequentially, or you can 
+    get help regarding the wizard page you are currently at by choosing the proper 
+    entry in the Help menu. This user guide is divided into the following main parts: </p>
 
 <ul>
 <li><i>Installing and Starting</i> will describe what the system requirements 
@@ -74,8 +82,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 <h3>Tool Name</h3>
 <p>The configuration tool is a part of the MySQL Cluster Software, and hence, it 
     does not have a particular name. In this user guide, we refer to the 
-    <i>installer</i>, <i>configurator</i>, <i>configuration tool</i>, 
-    <i>configuration wizard</i> or simply <i>wizard</i>. </p>
+    <i>(Auto)installer</i>, <i>configurator</i>, <i>configuration tool</i>, 
+    <i>configuration wizard</i>, <i>MCC</i> or simply <i>wizard</i>. </p>
 
 
 <!--
@@ -100,6 +108,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 <p>The configuration tool may end up in various locations depending on the 
     context (note that the default paths may be overridden at install time for 
     some package formats). </p>
+
+<h3><a name="limitations">Limitations</a></h3>
+<p><ul>
+    <li>The tool works at least with MySQL NDB Cluster version 7.6 and up.</li>
+    <li>We do not support installing Cluster processes on hosts. Please make sure 
+        each host in the cluster has proper installation of MySQL software. This is 
+        the limitation in the current version.</li>
+    <li>You can not mix your local box with remote hosts. If you still wish to use 
+        your local box, please enter proper external IP address for HOST::Name and 
+        avoid using 127.0.0.1/localhost.</li>
+    <li>We are constantly updating configurable parameters but there is always a 
+        chance the tool is missing some of them.</li>
+</ul></p>
 
 <!--
 <ul>
@@ -142,6 +163,7 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     debug level (DEBUG, INFO, WARNING, ERROR or CRITICAL). [default: WARNING]</li>
 <li><b>-o SERVER_LOG_FILE, --server-log-file=SERVER_LOG_FILE </b> log requests to 
     this file. The value - means log to stderr: [default: ndb_setup-1541.log]</li>
+<li><b>-H, --use-http </b> use http for communication with browser.</li>
 <li><b>-S, --use-https </b> use https to secure communication with browser</li>
 <li><b>-c CERT_FILE, --cert-file=CERT_FILE </b> file containing X509 certificate 
     which identifies the server (possibly self-signed): [default: cfg.pem]</li>
@@ -151,7 +173,10 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     of client certificates allowed to connect to the server [default: none (no 
     client authentication)]</li>
 </ul>
-
+<p>If no options are given, we default to HTTPS (-S) using self-signed certificate provided 
+with the software. If you want to use HTTP you have to add -H (or --use-http) to command
+line.
+</p>
 <!-- ====================== Starting the wizard ============================ -->
 
 <h3><a name="startingTheWizard">Starting the Wizard</a></h3>
@@ -166,6 +191,9 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
 <li><b>Double clicking the appropriate icon: </b> Open the file browser, go to 
     the appropriate directory, identify the <tt>ndb_setup</tt> executable, and 
     double click it. </li>
+<li><b>Note: </b> Web server is Python process started in shell. Please refer
+    to on-screen instructions on how to stop it properly. If you exit the shell 
+    abruptly, you might need to manually remove mcc.pid file before retrying. </li>
 </ul>
 
 <!-- ====================== Supported platforms ============================ -->
@@ -176,11 +204,11 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
 
 <ul>
 <li>Generic Linux</li>
-<li>Linux OL6</li>
-<li>SUSE Linux 11</li>
+<li>Oracle Linux 6 and 7</li>
+<li>SUSE Linux</li>
+<li>Windows 2016</li>
+<li>Windows 10</li>
 <li>Windows 7</li>
-<li>Windows 2008</li>
-<li>Windows XP</li>
 </ul>
 
 <p>Additionally, the tool will attempt, as far as possible, to support the 
@@ -202,16 +230,26 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
 
 <ul>
 <li>Firefox</li>
-<li>Microsoft Internet Explorer</li>
+<li>Chrome</li>
+<li>Safari</li>
 </ul>
 
 <p>Additionally, the following browsers are supported as far as possible: </p>
 
 <ul>
-<li>Chrome</li>
 <li>Opera</li>
-<li>Safari</li>
+<li>Microsoft Internet Explorer</li>
+<li>Microsoft Edge</li>
 </ul>
+
+<p>There have been no issues detected with Microsoft Edge browser. However, IE insists 
+   on parsing DOJO requirements too early in the process which effectively disables 
+   loading DIJIT templates from cache thus forcing load from different domain. As cross-
+   domain scripting is disabled in IE by default, should the problem occur you will have 
+   to change Internet options/Security/Miscellaneous/Access datasources across domains 
+   to ENABLE or PROMPT for MCC to work. Also, local sites can trigger "compatibility 
+   mode" in IE thus rendering happens with some decade old engine. In such case, uncheck 
+   Internet options/Advanced/Go to an intranet site for...</p>
 
 <!-- ======================== Required software ============================ -->
 
@@ -225,17 +263,17 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     Version 2.6 or higher is required, and can be downloaded from 
     <a href="http://python.org/download/">http://python.org/download/</a></li>
 <li><b>Paramiko: </b> SSH implementation required to communicate with remote hosts. 
-    Version 1.7.7.1 or higher is required, and can be downloaded from 
+    Version 2 or higher is required, and can be downloaded from 
     <a href="http://www.lag.net/paramiko/">http://www.lag.net/paramiko/</a></li>
-<li><b>Pycrypto: </b> Cryptography module required by Paramiko. Version 2.6 or 
-    higher is required, and can be downloaded from 
-    <a href="https://www.dlitz.net/software/pycrypto/">https://www.dlitz.net/software/pycrypto/</a></li>
+<li><b>Cryptography: </b> Cryptography module required by Paramiko. Version 1.9 or 
+    higher is required, and can be installed with $ pip install cryptography.</li>
+<li>For development, we use Python 2.7.13, Paramiko 2.1.2 and cryptography 1.9.</li>
 </ul>
 
 <p>If you install the Windows version of the configuration tool, the above 
     software comes bundled and is installed automatically. If you intend to 
     deploy MySQL Cluster only on the same host as the configuration tool is 
-    running, you will not need the Paramiko and Pycrypto software. </p>
+    running, you will not need Paramiko. </p>
 
 <p>The following software must be installed on the remote hosts that will be 
     used to deploy the MySQL Cluster: </p>
@@ -246,7 +284,7 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     for an overview of SSH servers. </li>
 <li><b>User authentication: </b> This is no particular software, of course, but 
     the user wanting to access the remote host must be able to authenticate 
-    himself through SSH by means of user credentials or keys. </li>
+    through SSH by means of user credentials or keys. </li>
 </ul>
 
 <!-- ============================ Security ================================= -->
@@ -267,7 +305,9 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     The easiest way to enable this is to issue a <i>self signed certificate</i>. 
     After the certificate is issued, it must be made available to, and used by, 
     the back end. This can be done by starting the wizard with the options 
-    <tt>--use-https</tt> and <tt>--cert-file=&lt;certificate file name&gt;</tt>.</li>
+    <tt>--use-https</tt> and <tt>--cert-file=&lt;certificate file name&gt;</tt>.
+    We provide sample certificate in root directory (cfg.pem) so using just
+    <tt>-S</tt> should suffice to get you going.</li>
 <li><b>Authentication: </b>The back end process can execute commands on its 
     local host as well as remote hosts. Thus, anyone connecting to the back end 
     can take charge of how commands are executed. To reject unwanted connections 
@@ -276,6 +316,11 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     and made available to the back end for authentication purposes. This can be 
     done by starting the back end with the option 
     <tt>--ca-certs-file=&lt;certificate list file name&gt;</tt>.</li>
+<li><b>Configuration file: </b>Configuration is saved to file with extension .mcc
+    in current users HOME directory. File is encrypted with Fernet. Passphrase,
+    provided by user, is used to generate SHA256 key for AES 128 encryption.
+    Beware that, much like above, passphrase is sent plain text from front end to
+    back end so HTTPS is highly recommended.</li>
 </ul>
 
 
@@ -295,7 +340,7 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
 <li>The <i>back end</i> is a server implemented in Python, running on your desktop or on another host. 
 </ul>
 
-<p>The two main components communicate using messages wrapped in http. The back 
+<p>The two main components communicate using messages wrapped in http(s). The back 
     end can manage MySQL cluster software on any host. If the software is on the 
     same host as the back end itself, the Python interfaces are used for file 
     system operations, process manipulation, etc. If the MySQL Cluster software 
@@ -346,21 +391,20 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
 <p>The various menu entries in the Settings menu are: </p>
 
 <ul>
-<li><i>Clear configuration and restart: </i> This will remove all hosts and 
-    processes, reset parameter values to the default, and start the wizard over 
-    at the first page. </li>
-<li><i>Automatically save configuration as cookies: </i>This will save your 
-    configuration information (host names, processes, parameter values etc.) as 
-    a cookie in the browser you are using. All information <b>except the SSH password</b> 
-    will be saved. Hence, you can quit and restart you browser, and continue 
-    working on the same configuration. </li>
+<li><i>Automatically save configuration as cookies: </i>This option is now always
+    on saving general information such as items for drop down lists and such. </li>
 <li><i>Show advanced configuration options: </i>This setting means that advanced 
     configuration parameters will be visible in the wizard and editable for the 
     user. The advanced parameters will always be used in the configuration file, 
     this setting just controls whether they are visible in the wizard. </li>
 <li><i>Automatically get resource information for new hosts: </i>With this setting 
     checked, new hosts that are added will be queried automatically for hardware 
-    resource information. The information can be overridden afterwards if desired. </li>
+    resource information. The information can be overridden afterwards if desired.
+    We recommend leaving this option ON for simple Cluster (i.e. one where same set
+    credentials works for all hosts) skipping need to refresh host information. On 
+    Cluster where each host has it's own credentials worst thing that can happen is
+    an alert window saying we were unable to collect host info. Once you provide
+    proper credentials on Hosts list page, you can refresh it.</li>
 </ul>
 
 <p>Some of the entries in the menu might be disabled if they are irrelevant due 
@@ -413,47 +457,78 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
 <h3><a name="welcome">Welcome</a></h3>
 
 <p>The first page displayed after the <tt>ndb_setup</tt> command is invoked is 
-    the <i>welcome</i> page. Here, you get two alternatives: </p>
+    the <i>welcome</i> page. Here, you have three major areas: </p>
 
 <ul>
-<li><b>Create New MySQL Cluster: </b> Start the wizard with a new cluster configuration</li>
-<li><b>Continue Previous Cluster Configuration: </b> Start the wizard, continuing 
-    where you left the last time. </li>
+<li><b>Radio box with configurations: </b> Upon startup, backend lists all non empty
+    .mcc files from current user HOME and sends the list to front end in URL. Front end
+    then appends NEW CONFIGURATION (default item). This is the first choice to make. If
+    you choose "NEW CONFIGURATION" and leave Radio box (say, by clicking to PASSPHRASE box),
+    you will be prompted to enter the name for new configuration. You can omit .mcc part. </li>
+<li><b>PASSPHRASE/CONFIRM PP: </b> Passphrase is used to secure your configuration file.
+    If you choose "NEW CONFIGURATION", you will have to confirm the passphrase. If you
+    choose existing configuration, you will be moved to PASSPHRASE box immediately and 
+    you will not need to confirm it.</li>
+<li><b>VIEW CFG: </b> The button is disabled until all the requirements are met:
+    - Configuration is picked, passphrase is provided.
+    The validation code is triggered when you leave PASSPHRASE/CONFIRM PP boxes either
+    by pressing ENTER or TAB.</li>
+<li><b>CONTINUE: </b> The button is disabled until all the requirements are met:
+    - Configuration is picked.
+    - In case you picked existing configuration, passphrase is provided.
+    - In case you picked "NEW CONFIGURATION", passphrase is provided as well as
+    matching confirmation.
+    The validation code is triggered when you leave PASSPHRASE/CONFIRM PP boxes either
+    by pressing ENTER or TAB.</li>
 </ul>
-
-<p>It is worth noticing that in the latter case, you must use the same web 
-    browser as you did the last time you were using the wizard. Additionally, 
-    the <tt>ndb_setup</tt> tool must run at the same host as it did the last 
-    time. The reason for this is that the configuration details are stored in 
-    the web browser as cookies. </p>
 
 <p style="text-align: center">
     <img src="../img/welcome.png" width="800" alt="Welcome page">
 </p>
 
+<p>Once you click CONTINUE button, the back end server will get contacted to read from
+    chosen configuration and pass decrypted data back. This information, including your
+    credentials for Cluster/host(s) will then get attached to window.name environment
+    variable and passed to next page where it will be loaded into in-memory stores.
+    <br/>Providing existing configuration name when prompted for "NEW CONFIGURATION" name is 
+    not treated as error. MCC will simply read the existing configuration and proceed.
+    <br/>VIEW CFG button displays pop-up window with configuration details. Can be blocked by 
+    browser's pop-up blocker.
+</p>
+
 <!-- ======================== Define cluster =============================== -->
 
 <h3><a name="configWizardDefineCluster">Define Cluster</a></h3>
-<p>Once you select one of the alternatives on the welcome page, you will be 
-    taken to the <i>define cluster</i> page. Here, you can decide on overall 
-    settings for the cluster you are going to configure. </p>
+<p>On <i>define cluster</i> page you can decide on overall settings for the
+    cluster you are going to configure. Setting provided here are "Cluster-wide"
+    meaning for every host added, if there are no per-host entries, these will
+    be used. This allows for quick deployment of simple configurations where
+    there is just localhost or where, for example, credentials are the same for
+    every host in Cluster. There are also receipts for various Cluster settings
+    depending on what you want (see below).
+    Please note that you can override any of the settings here later in the process.
+</p>
 
 <p style="text-align: center">
     <img src="../img/define_cluster.png" width="800" alt="Define cluster">
 </p>
 
-<p>The page contains the following input fields: </p>
+<p>The page contains the following fields: </p>
 
 <ul>
-<li><b>Cluster name: </b>This field can be used as a label reflecting the purpose 
-    of the cluster you are configuring. </li>
+<li><b>Cluster name: </b>This field reflects loaded cluster configuration
+    name and so it can't be changed. </li>
 <li><b>Host list: </b>Here, a comma separated list of host names can be added. 
     The default is to list only <i>127.0.0.1</i>, which means the host where 
     the <tt>ndb_setup</tt> command was issued. Host names can be added to or 
     deleted from this list. If a host name is deleted, the processes configured 
-    to run on that host will also be deleted. </li>
+    to run on that host will also be deleted. This is convenient way to add host(s)
+    especially if they all use same basic credentials (unencrypted PK or user 
+    /password combination). If you want more control over your hosts definition, 
+    or you have hosts in Cluster with different credentials, you can leave this box 
+    completely empty.</li>
 <li><b>Application area: </b>This describes the overall way the cluster will be 
-    used. You can choose between the following three alternatives: 
+    used. You can choose between the following three receipts: 
     <ul>
     <li><b>Simple testing: </b>Here, the cluster will require little hardware 
         resources, but this will also make the cluster performance suffer greatly. 
@@ -467,7 +542,7 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
         processes faster. </li>
     </ul>
     </li>
-<li><b>Write load: </b>You get to choose among the following settings: 
+<li><b>Write load: </b>You get to choose among the following receipts: 
     <ul>
     <li><b>Low: </b>This is assumed to be less than 100 write transactions per 
         second for the entire cluster. </li>
@@ -477,48 +552,86 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
         per second for the entire cluster. </li>
     </ul>
     </li>
-<li><b>SSH Property: </b>Here you can specify the SSH credentials needed to 
-    access a remote host. If your host list (see above) only contains <i>127.0.0.1</i>, 
+<li><b>SSH Property: </b>Here you can specify the use of SSH credentials to 
+    access remote host(s). If your host list (see above) only contains <i>127.0.0.1</i>, 
     no SSH credentials are required. The credentials that can be specified are: 
     <ul>
     <li><b>Key based SSH: </b>Check this box if you have enabled key based login 
-        on the remote host. This will disable the two fields below. </li>
+        on the remote host. This will disable the two fields below. The private
+        key must reside in ~/.ssh and must not be encrypted. </li>
     <li><b>User name: </b>Submit your remote SSH user name here. </li>
-    <li><b>Password: </b>Submit your remote SSH password here. The password will 
-        not be stored by the configurator except in main memory, so if the 
-        configuration tool is restarted, continuing with the same configuration, 
-        the password must be re-entered. </li>
+    <li><b>Password: </b>Submit your remote SSH password here. </li>
+    <li><b>The credentials entered here are the same for every host, unless overridden 
+        with Edit Host, meaning they are kept on Cluster level. If you have per host 
+        credentials or specific requirements on your PK(s), please use Add Host on next page.</b></li>
     </ul>
     </li>
+<li><b>Install properties: </b>Here you define Cluster installation parameters as well
+    as firewall manipulation.
+    <ul>
+    <li><b>Install MySQL Cluster:</b> Option for installing Cluster on hosts
+        <ul>
+        <li><b>NONE: </b>No installation of Cluster will take place (default). </li>
+        <li><b>BOTH: </b>Both DOCKER and installation from REPO will be considered 
+            depending on OS and available images. Should both installation mechanisms
+            be available on certain host, we will prefer REPO over DOCKER.</li>
+        <li><b>REPO: </b>For every host in Cluster, the attempt will be made to install
+            Cluster SW from the repository URL.</li>
+        <li><b>DOCKER: </b>For every host in Cluster, the attempt will be made to install
+            Cluster SW DOCKER image.</li>
+        </ul>
+    </li>
+    <li><b>Open FW ports:</b> Check if you need the tool to try to open necessary ports
+        for Cluster processes on every hosts. </li>
+    </ul>
+</li>
 </ul>
+
+<p>The <b>Save&amp;Next</b> button sends asynchronous request for your changes to be saved into
+    chosen configuration file in your HOME and advances to next page. If you close the
+    wizard here, no changes you made will be saved.</p>
 
 <!-- ========================= Define hosts ================================ -->
 
 <h3><a name="configWizardDefineHosts">Define Hosts</a></h3>
 <p>After the overall cluster properties have been defined, you can refine the 
-    host details. The wizard page is shown below: </p>
+    host details as well as define new hosts. The wizard page is shown below: </p>
 
 <p style="text-align: center">
     <img src="../img/define_hosts.png" width="800" alt="Define hosts">
 </p>
 
 <p>Here, hosts can be added by pressing the <i>Add hosts</i> button and entering 
-    a list of comma separated host names or ip addresses. This works in the same 
-    way as the host list on the <i>define cluster</i> page. The hosts currently 
-    entered are displayed in the grid with various pieces of information. A host, 
-    or a selection of several hosts, can be removed from the configuration by 
-    pressing the <i>Remove selected host(s)</i> button. If processes have been 
-    configured to run on these hosts, the processes will be removed from the 
-    configuration too. </p>
+    host name or Host external ip address as well as credentials. Field <i>Key_file<i> 
+    should point to private key file to be used with selected host
+    (i.e. C:\Users\user\.ssh\key_file_name). If the key has default name (id_rsa),
+    it will be automatically picked up by Paramiko.
+    <br><b>Host external ip address:</b> IP address making host accessible from the box MCC is 
+    running on.
+    <br><b>Host internal ip address:</b> Imagine you have five hosts Cluster running on Oracle
+    Cloud then, in this field, you would enter the IP address used inside cloud service 
+    for safer and faster communication between hosts.
+    <br>The hosts currently entered are displayed in the grid with various pieces of
+    information. A host, or a selection of hosts, can be removed from the 
+    configuration by pressing <i>Remove selected host(s)</i> button. If processes 
+    have been configured to run on these hosts, the processes will be removed from 
+    the configuration too: </p>
+
+<p style="text-align: center">
+    <img src="../img/add_host.png" width="240" alt="Define hosts">
+</p>
 
 <p>If the setting <i>Automatically get resource information for new hosts</i> is 
     checked in the settings menu (see previous section), the platform name, RAM 
     size and number of CPU cores will be filled in automatically and displayed 
     in the grid. Otherwise, an ellipsis in the grid will indicate that the 
-    information was not obtained. The status of the automated resourced 
+    information was not obtained. The status of the automated resource 
     information fetching is displayed in the <i>Resource info</i> column. Please 
-    note that fetching the information may take some time, particularly on remote 
-    Windows hosts. </p>
+    note that fetching the information may take some time, particularly on  
+    Windows hosts. Should the automatic resource fetch fail, correct the host 
+    information by clicking <i>Edit selected host</i> button and refetch by clicking 
+    <i>Refresh selected host(s)</i> button.
+</p>
 
 <p>If the SSH user credentials on the <i>define cluster</i> page are changed, 
     the tool will try to re-fetch the hardware information for hosts where a 
@@ -526,16 +639,89 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     various fields will be updated. If a field has been edited by the user, the 
     information will <i>not</i> be overwritten by the re-fetched value.</p>
 
-<p>The hardware resource information, platform name, install directory and data 
-    directory  can be edited by the user by clicking the appropriate cell in the 
-    grid. It is also possible to select a set of hosts and press the button 
-    <i>Edit selected host(s)</i>. Then, a dialog will appear where the various 
-    fields can be edited. The edited values will be applied to all hosts that 
-    were selected: </p>
+<p>The hardware resource information, platform name, install directory, data 
+    directory and free disk space can be edited by the user by clicking the 
+    appropriate cell in the grid. It is also possible to select a host and press 
+    the button <i>Edit selected host(s)</i>. Then, a dialog will appear where various 
+    fields can be edited. The edited values will be applied to selected host: </p>
 
 <p style="text-align: center">
-    <img src="../img/edit_selected_hosts.png" width="800" alt="Edit selected hosts">
+    <img src="../img/edit_selected_hosts.png" width="600" alt="Edit selected hosts">
 </p>
+
+<p>Please note that REPO/DOCKER install details are available for editing only on
+    this screen.<br>
+    Turning your attention to two more things: I do not have "user" supplied but
+    just Passphrase. This is indicative of my key being id_rsa and placed in ~/.ssh.<br>
+    Also, I am deploying Cluster in VPN so instead of "supra07.no...." I have proper 
+    IP address, not accessible from the outside, in "Host internal IP" box. This will 
+    allow Cluster to skip resolving names.
+</p>
+
+<h4>Details on hosts naming</h4>
+<p>One should always keep in mind the goal, i.e. deployment of the Cluster processes 
+    over any number of hosts. Thus it is best to refer to Hosts via their external IP 
+    address. I.e., for anything other than simple deployment just on localhost, you 
+    should follow these rules:
+    <ul>
+    <li><b>HOST::Name: </b> 
+        External IP address of the host making it possible for MCC to reach it via SSH tunnel. </li>
+    <li><b>HOST::FQDN: </b>
+        Internal field to be used when forming connection string (see below). </li>
+    <li><b>HOST::InternalIP: </b>
+        When processes run inside cloud/VPN, put internal IP address of the environment here.
+        This way you will allow processes on hosts to communicate in fastest way.</li>
+    <li><b>Initial values: </b>
+        HOST::Name is propagated to both HOST::FQDN and HOST::InternalIP members.</li>
+    </ul><br/>
+    The nodes are governed by config.ini file, distributed to each one, containing hosts 
+    designation on per process basis as well as connection strings. It might look like this:<br/>
+    <code>[NDB_MGMD]
+    <br/>NodeId=49
+    <br/>HostName=10.172.165.190
+    <br/>DataDir=C:/Users/user/MySQL_Cluster/49/
+    <br/>Portnumber=1186
+    <br/>[NDBD]
+    <br/>NodeId=2
+    <br/>HostName=10.172.162.24
+    <br/>DataDir=C:/Users/user/MySQL_Cluster/2/</code><br/>
+    In this particular case, HostName=10.172.162.24 is actually localhost. The reason
+    to define it as 10.172.162.24 and not "localhost" lies in that when config.ini is 
+    distributed to second host, 127.0.0.1 will point to that host (10.172.165.190) and 
+    the Cluster will not start. This is why you cannot mix 127.0.0.1/localhost with
+    remote hosts.<br/>
+    It is necessary for you to also enter Internal IP when adding/editing hosts if Cluster 
+    is running inside VPN (say Cloud deployment).<br/>
+    Let's recapitulate various scenarios:
+    <ul>
+    <li><b>Small localhost deployment: </b> 
+        Enter 127.0.0.1 or localhost in HostList on 1st page. </li>
+    <li><b>Small deployment, home or office network: </b>
+        Enter proper IP address of your localhost into HostList on 1st page, add other 
+        hosts using "Add Host" button on next page. Ignore InternalIP member. </li>
+    <li><b>Deployment to Cloud/other VPN environment: </b>
+        When adding hosts on 2nd page, fill in Internal IP member. Name hosts by their 
+        external IP address. </li>
+    </ul>
+    MCC will always use <b>FQDN</b> member to connect, distribute configuration and start processes.
+    Configuration files and Cluster processes will always use <b>Internal IP</b> member.
+    This way the communication between nodes will be as fast as possible and bypassing any 
+    errors on DNS level.
+</p>
+
+<p>Finally, HostGrid can have two states, collapsed (default): </p>
+<p style="text-align: center">
+    <img src="../img/hostgrid-collapsed.png" width="600" alt="HostGrid collapsed">
+</p>
+<p>and expanded: </p>
+<p style="text-align: center">
+    <img src="../img/hostgrid-expanded.png" width="600" alt="HostGrid collapsed">
+</p>
+<p>toggled by Show/Hide extended info button. </p>
+
+<p>The <b>Save&amp;Next</b> button sends asynchronous request for your changes to be saved into
+    chosen configuration file in your HOME and advances to next page. If you close the
+    wizard here, no changes you made will be saved.</p>
 
 <!-- ======================= Define processes ============================== -->
 
@@ -589,7 +775,7 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     suggestion:  </p>
 
 <p style="text-align: center">
-    <img src="../img/add_process.png" width="800" alt="Add process">
+    <img src="../img/add_process.png" width="400" alt="Add process">
 </p>
 
 <p>In the tree, you can also right click a process and select <i>delete process</i> 
@@ -601,6 +787,10 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     the two variants of the data node; single threaded or multi threaded. If you 
     want to change to an entirely different type, you need to delete the process 
     first, and then add a new process with the desired type. </p>
+
+<p>The <b>Save&amp;Next</b> button sends asynchronous request for your changes to be saved into
+    chosen configuration file in your HOME and advances to next page. If you close the
+    wizard here, no changes you made will be saved.</p>
 
 <!-- ======================= Define parameters ============================= -->
 
@@ -679,6 +869,11 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
 <p>Now, if you press this red X, the change is reverted, and the parameter is 
     reset to the predefined value. </p>
 
+<p>The <b>Save&amp;Next</b> button sends asynchronous request for your changes to be saved into
+    chosen configuration file in your HOME and advances to next page. If you close the
+    wizard here, no changes you made will be saved.</p>
+
+
 <!-- ======================== Deploy configuration ========================= -->
 
 <h3><a name="configWizardDeployConfig">Deploy Configuration</a></h3>
@@ -686,7 +881,8 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     inspect the startup commands and actual configuration files that will be 
     applied, you can distribute the configuration files and create the necessary 
     files and directories on the hosts involved, and you can start and stop the 
-    cluster you have configured. The page looks similar to the previous one: </p>
+    cluster you have configured. Currently, "Install" button is not in effect. The 
+    page looks similar to the previous one: </p>
 
 <p style="text-align: center">
     <img src="../img/deploy.png" width="800" alt="Deploy configuration">
@@ -708,9 +904,10 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     green (running). This status information is based on querying the management 
     daemon. </p>
 
-<p>Below the process three, you will find three buttons: </p>
+<p>Below the process three, you will find four buttons: </p>
 
 <ul>
+<li><b>Install cluster: </b>Not available in this version. </li>
 <li><b>Deploy cluster: </b>First, the configuration is verified, e.g., if you 
     have specified the same value for two different data directories, you will 
     not be allowed to deploy the configuration. Secondly, the required directories 

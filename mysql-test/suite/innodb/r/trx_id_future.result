@@ -1,0 +1,12 @@
+#
+# Bug #20445525	ADD A CONSISTENCY CHECK AGAINST DB_TRX_ID BEING
+#		IN THE FUTURE
+#
+CREATE TABLE t1(a INT) row_format=redundant engine=innoDB;
+INSERT INTO t1 VALUES(1);
+# restart
+SELECT * FROM t1;
+a
+Warnings:
+Warning	1642	InnoDB: Transaction id in a record of table `test`.`t1` is newer than system-wide maximum.
+DROP TABLE t1;

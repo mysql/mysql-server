@@ -2,19 +2,16 @@
 # WL#6915: InnoDB: Undo logs for temp-tables (and related objects) should
 # reside in temp-tablespace
 #
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 # Valgrind can hang or return spurious messages on DBUG_SUICIDE
 --source include/not_valgrind.inc
-# Embedded server does not support crashing
---source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
 # In the test scenario, there can be orphaned .frm files.
 # These are expected.  So suppressing the associated warnings.
-call mtr.add_suppression("\\[ERROR\\] InnoDB: table .* does not exist "
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* table .* does not exist "
 			 "in the InnoDB internal");
 call mtr.add_suppression("Found .* prepared XA transactions");
 
@@ -23,7 +20,7 @@ call mtr.add_suppression("Found .* prepared XA transactions");
 # Will test following scenarios:
 # 1. Hitting crash while preparing xa trx.
 # 2. Hitting crash while committing normal trx involving temp/non-temp tables.
-# 3. try to start server with different values of innodb_undo_logs.
+# 3. try to start server with different values of innodb_rollback_segments.
 #    (try scenario such that a rollback segment is shared by multiple trxs).
 #
 ################################################################################
@@ -93,12 +90,22 @@ update t1 set a = a + 1;
 update t2 set a = a + 1;
 select count(*) from t1;
 select count(*) from t2;
+--source include/expect_crash.inc
 set session debug="+d,ib_trx_crash_during_commit";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# With bin-log enabled, COMMIT prepares the transaction before doing SE commit.
+# So on restart, the prepared trx is recovered. Without bin-log, the trx would
+# have been rolled back. Hence, crashing before commit.
+--disable_query_log
+if (`SELECT @@log_bin = 1`)
+{
+set session debug="+d,crash_commit_before";
+}
+--enable_query_log
 --error 2013
 commit;
 #
 --enable_reconnect
+--source include/start_mysqld.inc
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 #
@@ -108,10 +115,10 @@ drop procedure populate_t1_t2;
 
 #-----------------------------------------------------------------------------
 #
-# 3. try to start server with different values of innodb_undo_logs.
+# 3. try to start server with different values of innodb_rollback_segments.
 #    (try scenario such that a rollback segment is shared by multiple trxs).
 #
-let $restart_parameters = restart: --innodb_undo_logs=1;
+let $restart_parameters = restart: --innodb_rollback_segments=1;
 --source include/restart_mysqld.inc
 #
 create table t (i int) engine=innodb;
@@ -160,9 +167,9 @@ connection default;
 drop table t2;
 drop procedure populate_t1_t2;
 #
-# trying with value innodb_undo_logs = 10 (so only slot-0 redo rseg is active)
+# trying with value innodb_rollback_segments = 1 (so only slot-0 redo rseg is active)
 #
-let $restart_parameters = restart: --innodb_undo_logs=10;
+let $restart_parameters = restart: --innodb_rollback_segments=1;
 --source include/restart_mysqld.inc
 #
 create table t (i int) engine=innodb;
@@ -174,9 +181,9 @@ insert into t values (2);
 drop table t;
 drop table t2;
 #
-# trying with value innodb_undo_logs = 40 (this will make 8 redo rseg active).
+# trying with value innodb_rollback_segments = 8 (this will make 8 redo rseg active).
 #
-let $restart_parameters = restart: --innodb_undo_logs=40;
+let $restart_parameters = restart: --innodb_rollback_segments=8;
 --source include/restart_mysqld.inc
 #
 create table t (i int) engine=innodb;

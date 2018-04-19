@@ -2,21 +2,17 @@
 # Test what happens when a record is inserted or updated so that some
 # columns are stored off-page.
 
---source include/have_innodb.inc
 # The 7000 in this test is a bit less than half the innodb_page_size.
---source include/have_innodb_16k.inc
 
 # DEBUG_SYNC must be compiled in.
 --source include/have_debug_sync.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
-# Embedded server does not support crashing
---source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
-call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles!");
+call mtr.add_suppression("The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles!");
 
 CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
 CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=InnoDB;
@@ -64,7 +60,7 @@ INSERT INTO t1 VALUES (3,REPEAT('c',50000));
 connection con1;
 SET DEBUG_SYNC='now WAIT_FOR rec_not_blob';
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-SELECT @@tx_isolation;
+SELECT @@transaction_isolation;
 
 # this one should see (3,NULL_BLOB)
 SELECT a, RIGHT(b,20) FROM t1;
@@ -102,7 +98,7 @@ UPDATE t3 SET c=REPEAT('f',3000) WHERE a=1;
 connect (con1,localhost,root,,);
 SET DEBUG_SYNC='now WAIT_FOR go_sel';
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-SELECT @@tx_isolation;
+SELECT @@transaction_isolation;
 SELECT a, RIGHT(b,20), RIGHT(c,20) FROM t3;
 set debug_sync='now SIGNAL go_upd';
 

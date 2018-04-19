@@ -2,13 +2,7 @@
 # suite/funcs_1/t/storedproc.test
 #
 # Check general properties of stored procedures.
-# 
-# Last Modification:
-# 2008-08-27 mleich - Fix Bug#37744 Expected result of "<engine>_storedproc"
-#                                   test is inconsistent
-#                   - remove variation of storage engines
-#                   - restore global sort_buffer_size after some subtest
-#                  
+#
 ############################################################################
 
 # Bug#37746 - Arithmetic range ("int") is smaller than expected
@@ -22,18 +16,16 @@ if(`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win64")`)
 
 
 
-# This test cannot be used for the embedded server because we check here
-# privileges.
---source include/not_embedded.inc
 
 # It is assumed that the storage engine used for some tables has no impact on
 # the outcome of this test.
---source include/have_innodb.inc
 let $engine_type= InnoDB;
 
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
+# Set names can be removed after Bug#25974249 is fixed
+set names latin1;
 # ==============================================================================
 echo;
 echo
@@ -709,39 +701,39 @@ drop procedure;
 --source include/show_msg80.inc
 
 --sorted_result
---replace_column 13 created 14 modified
-SELECT * from mysql.proc where specific_name='sp9';
+--replace_column 24 <created> 25 <modified>
+SELECT * from information_schema.routines where specific_name='sp9';
 
 --disable_warnings ONCE
 DROP PROCEDURE IF EXISTS sp9;
 
 --sorted_result
---replace_column 13 created 14 modified
-SELECT * from mysql.proc where specific_name='sp9';
+--replace_column 24 <created> 25 <modified>
+SELECT * from information_schema.routines where specific_name='sp9';
 
 CREATE PROCEDURE sp9()SELECT * from t1;
 
 --sorted_result
---replace_column 13 created 14 modified
-SELECT * from mysql.proc where specific_name='sp9';
+--replace_column 24 <created> 25 <modified>
+SELECT * from information_schema.routines where specific_name='sp9';
 
 DROP PROCEDURE sp9;
 
 --sorted_result
---replace_column 13 created 14 modified
-SELECT * from mysql.proc where specific_name='sp9';
+--replace_column 24 <created> 25 <modified>
+SELECT * from information_schema.routines where specific_name='sp9';
 
 CREATE PROCEDURE sp9()SELECT * from t1;
 
 --sorted_result
---replace_column 13 created 14 modified
-SELECT * from mysql.proc where specific_name='sp9';
+--replace_column 24 <created> 25 <modified>
+SELECT * from information_schema.routines where specific_name='sp9';
 
 DROP PROCEDURE IF EXISTS sp9;
 
 --sorted_result
---replace_column 13 created 14 modified
-SELECT * from mysql.proc where specific_name='sp9';
+--replace_column 24 <created> 25 <modified>
+SELECT * from information_schema.routines where specific_name='sp9';
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 4.1.10:
@@ -749,35 +741,35 @@ let $message= Testcase 4.1.10:
 DROP FUNCTION;
 --source include/show_msg80.inc
 
---replace_column 13 created 14 modified
-SELECT * from mysql.proc where specific_name='fn10' and type='function';
+--replace_column 24 <created> 25 <modified>
+SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 
 --disable_warnings ONCE
 DROP FUNCTION IF EXISTS fn10;
 
---replace_column 13 created 14 modified
-SELECT * from mysql.proc where specific_name='fn10' and type='function';
+--replace_column 24 <created> 25 <modified>
+SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 
 
 CREATE FUNCTION fn10() returns int return 100;
 
---replace_column 13 created 14 modified
-SELECT * from mysql.proc where specific_name='fn10' and type='function';
+--replace_column 24 <created> 25 <modified>
+SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 
 DROP FUNCTION fn10;
 
---replace_column 13 created 14 modified
-SELECT * from mysql.proc where specific_name='fn10' and type='function';
+--replace_column 24 <created> 25 <modified>
+SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 
 CREATE FUNCTION fn10() returns int return 100;
 
---replace_column 13 created 14 modified
-SELECT * from mysql.proc where specific_name='fn10' and type='function';
+--replace_column 24 <created> 25 <modified>
+SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 
 DROP FUNCTION IF EXISTS fn10;
 
---replace_column 13 created 14 modified
-SELECT * from mysql.proc where specific_name='fn10' and type='function';
+--replace_column 24 <created> 25 <modified>
+SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 
 
 # ------------------------------------------------------------------------------
@@ -794,8 +786,7 @@ drop table IF EXISTS mysql.t1;
 create table mysql.t1( f1 char );
 DROP PROCEDURE IF EXISTS sp11;
 CREATE PROCEDURE sp11() insert into mysql.t1 values('a');
---replace_column 13 created 14 modified
-SELECT security_type from mysql.proc where specific_name='sp11';
+SELECT security_type from information_schema.routines where specific_name='sp11';
 
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (u_1, localhost, user_1, , db_storedproc);
@@ -808,8 +799,7 @@ USE db_storedproc;
 --source suite/funcs_1/include/show_connection.inc
 
 alter procedure sp11 sql security invoker;
---replace_column 13 created 14 modified
-SELECT security_type from mysql.proc where specific_name='sp11';
+SELECT security_type from information_schema.routines where specific_name='sp11';
 
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connection u_1;
@@ -825,8 +815,7 @@ connection default;
 --source suite/funcs_1/include/show_connection.inc
 
 alter procedure sp11 sql security DEFINER;
---replace_column 13 created 14 modified
-SELECT security_type from mysql.proc where specific_name='sp11';
+SELECT security_type from information_schema.routines where specific_name='sp11';
 CALL sp11();
 
 # cleanup
@@ -844,18 +833,15 @@ alter function;
 
 CREATE FUNCTION fn12() returns int
  return 100;
-SELECT security_type from mysql.proc where specific_name='fn12';
---replace_column 13 created 14 modified
+SELECT security_type from information_schema.routines where specific_name='fn12';
 SELECT fn12();
 
 alter function fn12 sql security invoker;
-SELECT security_type from mysql.proc where specific_name='fn12';
---replace_column 13 created 14 modified
+SELECT security_type from information_schema.routines where specific_name='fn12';
 SELECT fn12();
 
 alter function fn12 sql security DEFINER;
-SELECT security_type from mysql.proc where specific_name='fn12';
---replace_column 13 created 14 modified
+SELECT security_type from information_schema.routines where specific_name='fn12';
 SELECT fn12();
 
 # cleanup
@@ -873,11 +859,9 @@ DROP PROCEDURE IF EXISTS sp11;
 CREATE PROCEDURE sp11()
    SELECT * from t1;
 
-SELECT comment from mysql.proc where specific_name='sp11';
---replace_column 13 created 14 modified
+SELECT comment from information_schema.routines where specific_name='sp11';
 alter procedure sp11 comment 'this is simple';
-SELECT comment from mysql.proc where specific_name='sp11';
---replace_column 13 created 14 modified
+SELECT comment from information_schema.routines where specific_name='sp11';
 
 # cleanup
 DROP PROCEDURE sp11;
@@ -892,12 +876,10 @@ alter function;
 DROP FUNCTION IF EXISTS fn12;
 CREATE FUNCTION fn12() returns int
     return 100;
-  SELECT comment from mysql.proc where specific_name='fn12';
---replace_column 13 created 14 modified
+  SELECT routine_comment from information_schema.routines where specific_name='fn12';
 
   alter function fn12 comment 'this is simple';
-  SELECT comment from mysql.proc where specific_name='fn12';
---replace_column 13 created 14 modified
+  SELECT routine_comment from information_schema.routines where specific_name='fn12';
 
 # cleanup
 DROP FUNCTION fn12;
@@ -919,9 +901,9 @@ DROP PROCEDURE sp1;
 CREATE PROCEDURE !_sp1( f1 char(20) )
 SELECT * from t1 where f2 = f1;
 
-CREATE PROCEDURE function()
+CREATE PROCEDURE `function`()
    SELECT * from t1 where f2=f1;
-DROP PROCEDURE function;
+DROP PROCEDURE `function`;
 
 --error ER_PARSE_ERROR
 CREATE PROCEDURE accessible()
@@ -2536,11 +2518,13 @@ CREATE DATABASE db1;
 USE db1;
 alter procedure db_storedproc.sp1 sql security invoker;
 --sorted_result
-SELECT name, type, security_type from mysql.proc where db LIKE 'db_storedproc%' and specific_name='sp1';
+SELECT routine_name, routine_type, security_type from information_schema.routines
+       where routine_schema like 'db_storedproc%' and routine_name='sp1';
 
 alter function db_storedproc.sp1 sql security invoker;
 --sorted_result
-SELECT name, type, security_type from mysql.proc where db LIKE 'db_storedproc%' and specific_name='sp1';
+SELECT routine_name, routine_type, security_type from information_schema.routines
+       where routine_schema like 'db_storedproc%' and routine_name='sp1';
 
 CALL db_storedproc.sp1();
 
@@ -2554,7 +2538,8 @@ SELECT db_storedproc.sp1();
 
 alter function sp1 sql security DEFINER;
 --sorted_result
-SELECT name, type, security_type from mysql.proc where db LIKE 'db_storedproc%' and specific_name='sp1';
+SELECT routine_name, routine_type, security_type from information_schema.routines
+       where routine_schema like 'db_storedproc%' and routine_name='sp1';
 CALL db_storedproc.sp1();
 
 SELECT db_storedproc.sp1();
@@ -2615,7 +2600,8 @@ ALTER PROCEDURE db_storedproc_3122.sp1 SQL SECURITY INVOKER;
 ALTER FUNCTION sp1 SQL SECURITY INVOKER;
 
 --sorted_result
-SELECT db, name, type, security_type FROM mysql.proc WHERE db LIKE 'db_storedproc%' AND specific_name='sp1';
+SELECT routine_name, routine_type, security_type from information_schema.routines
+       where routine_schema like 'db_storedproc%' and routine_name='sp1';
 
 CALL db_storedproc.sp1();
 
@@ -18875,8 +18861,8 @@ DROP DATABASE IF EXISTS d1;
 CREATE PROCEDURE d1.sp4()
    SELECT * from d1.t43;
 
---replace_column 13 modified 14 created
-  SELECT * from mysql.proc where specific_name = 'sp4';
+--replace_column 24 modified 25 created
+  SELECT * from information_schema.routines where specific_name = 'sp4';
 
   USE db_storedproc;
 DROP DATABASE d1;
@@ -18885,8 +18871,8 @@ DROP DATABASE d1;
   USE d1;
   create table t44(a char(5), b char(10));
 
---replace_column 13 modified 14 created
-  SELECT * from mysql.proc where specific_name = 'sp4';
+--replace_column 24 modified 25 created
+  SELECT * from information_schema.routines where specific_name = 'sp4';
 
 # cleanup
   USE db_storedproc;
@@ -18909,7 +18895,7 @@ DROP PROCEDURE IF EXISTS sp5;
 CREATE PROCEDURE sp5()
   SELECT * from db_storedproc.t4 limit 0, 10;
 
-  SELECT db from mysql.proc where specific_name = 'sp5';
+  SELECT routine_schema from information_schema.routines where specific_name = 'sp5';
 
 # cleanup
 DROP PROCEDURE sp5;
@@ -18935,7 +18921,7 @@ DROP PROCEDURE IF EXISTS sp6;
 CREATE PROCEDURE db_storedproc.sp6()
   SELECT * from db_storedproc.t4 limit 0, 10;
 
-  SELECT db from mysql.proc where specific_name = 'sp6';
+  SELECT routine_schema from information_schema.routines where specific_name = 'sp6';
 
 # cleanup
 drop table t46;
@@ -18964,8 +18950,8 @@ CREATE PROCEDURE sp8 ( n char(20) ) sql security DEFINER comment 'initial'
 
   USE d2;
   alter procedure d1.sp8 sql security DEFINER comment 'updated';
---replace_column 13 modified 14 created
-  SELECT * from mysql.proc where specific_name='sp8' and db='d1';
+--replace_column 24 modified 25 created
+  SELECT * from information_schema.routines where specific_name = 'sp8' and routine_schema = 'd1';
 
 
 # ------------------------------------------------------------------------------
@@ -18993,8 +18979,8 @@ delimiter ;//
 
   USE d2;
   alter function d1.fn2 sql security DEFINER comment 'updated';
---replace_column 13 modified 14 created
-  SELECT * from mysql.proc where specific_name='fn2' and db='d1';
+--replace_column 24 modified 25 created
+  SELECT * from information_schema.routines where specific_name = 'fn2' and routine_schema = 'd1';
 
 
 # ------------------------------------------------------------------------------
@@ -19011,8 +18997,9 @@ CREATE PROCEDURE sp9 ( n char(20) )
   SELECT * from t1 where t1.f1 = n;
 
   USE d2;
-DROP PROCEDURE d1.sp9; --replace_column 13 modified 14 created
-  SELECT * from mysql.proc where specific_name='sp9' and db='d1';
+DROP PROCEDURE d1.sp9;
+--replace_column 24 modified 25 created
+  SELECT * from information_schema.routines where specific_name = 'sp9' and routine_schema = 'd1';
 
 
 # ------------------------------------------------------------------------------
@@ -19036,8 +19023,8 @@ delimiter ;//
 
   USE d2;
 DROP FUNCTION d1.fn3;
---replace_column 13 modified 14 created
-  SELECT * from mysql.proc where specific_name='fn3' and db='d1';
+--replace_column 24 modified 25 created
+  SELECT * from information_schema.routines where specific_name = 'fn3' and routine_schema = 'd1';
 
 # cleanup
 
@@ -26978,6 +26965,7 @@ BEGIN
     insert into res_t9 values (@a, @b, @c);
     SELECT * from res_t9;
     create index index_1 on res_t9 (f1 (5));
+    analyze table res_t9;
     show index from res_t9;
 END//
 delimiter ;//

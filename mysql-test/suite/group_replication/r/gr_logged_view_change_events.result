@@ -1,0 +1,44 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Setup a new group with two servers.
+# Check that server 2 receives a view event and writes another one
+#
+server1
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+server2
+include/start_group_replication.inc
+include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+#
+# Make server 2 leave and enter generating one more view change event
+# Check that only one view change transaction is written to the binlog
+#
+server2
+include/stop_group_replication.inc
+include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/start_group_replication.inc
+include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+#
+# Make server 3 join and leave while server 2 was away
+# Server 2 should receive 1 view change transaction from recovery and
+# write another
+#
+server2
+include/stop_group_replication.inc
+server3
+include/start_group_replication.inc
+include/stop_group_replication.inc
+server2
+include/start_group_replication.inc
+include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+#
+# Cleaning up
+#
+server3
+include/start_group_replication.inc
+DROP TABLE t1;
+include/group_replication_end.inc

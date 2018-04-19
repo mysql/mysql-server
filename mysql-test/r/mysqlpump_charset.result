@@ -1,0 +1,478 @@
+#
+# WL#7755  mysqlpump: Extend mysqldump functionalities
+#
+CREATE DATABASE db1_std_csets;
+USE db1_std_csets;
+SET NAMES cp1251;
+CREATE TABLE t_cp1251 (a VARCHAR(30) CHARACTER SET cp1251 COLLATE cp1251_bin) CHARACTER SET cp1251 COLLATE cp1251_bin;
+INSERT INTO t_cp1251 VALUES (_cp1251'MYSQLPUMP'), (_cp1251'cāt?기?會意');
+SELECT HEX(a) , CHAR_LENGTH(a) FROM db1_std_csets.t_cp1251 ORDER BY 1;
+HEX(a)	CHAR_LENGTH(a)
+4D5953514C50554D50	9
+63C481743FEAB8B03FE69C83E6848F	15
+DROP DATABASE db1_std_csets;
+CREATE DATABASE db1_std_csets;
+SET NAMES cp1251;
+SELECT HEX(a) , CHAR_LENGTH(a) FROM db1_std_csets.t_cp1251 ORDER BY 1;
+HEX(a)	CHAR_LENGTH(a)
+4D5953514C50554D50	9
+63C481743FEAB8B03FE69C83E6848F	15
+DROP DATABASE db1_std_csets;
+CREATE DATABASE db1_std_csets;
+USE db1_std_csets;
+SET NAMES euckr;
+CREATE TABLE t_euckr (a VARCHAR(30) CHARACTER SET euckr COLLATE euckr_bin) CHARACTER SET euckr COLLATE euckr_bin;
+INSERT INTO t_euckr VALUES (_euckr'MYSQLPUMP'), (_euckr'cāt?기?會意');
+Warnings:
+Warning	1300	Invalid euckr character string: 'B03FE6'
+Warning	1366	Incorrect string value: '\xB0?\xE6\x9C\x83\xE6...' for column 'a' at row 2
+SELECT HEX(a) , CHAR_LENGTH(a) FROM db1_std_csets.t_euckr ORDER BY 1;
+HEX(a)	CHAR_LENGTH(a)
+4D5953514C50554D50	9
+63C481743FEAB8	5
+DROP DATABASE db1_std_csets;
+CREATE DATABASE db1_std_csets;
+SET NAMES euckr;
+SELECT HEX(a) , CHAR_LENGTH(a) FROM db1_std_csets.t_euckr ORDER BY 1;
+HEX(a)	CHAR_LENGTH(a)
+4D5953514C50554D50	9
+63C481743FEAB8	5
+DROP DATABASE db1_std_csets;
+CREATE DATABASE db1_std_csets;
+USE db1_std_csets;
+SET NAMES eucjpms;
+CREATE TABLE t_eucjpms (a VARCHAR(30) CHARACTER SET eucjpms COLLATE eucjpms_bin) CHARACTER SET eucjpms COLLATE eucjpms_bin;
+INSERT INTO t_eucjpms VALUES (_eucjpms'MYSQLPUMP'), (_eucjpms'cāt?기?會意');
+Warnings:
+Warning	1300	Invalid eucjpms character string: 'C48174'
+Warning	1366	Incorrect string value: '\xC4\x81t?\xEA\xB8...' for column 'a' at row 2
+SELECT HEX(a) , CHAR_LENGTH(a) FROM db1_std_csets.t_eucjpms ORDER BY 1;
+HEX(a)	CHAR_LENGTH(a)
+4D5953514C50554D50	9
+63	1
+DROP DATABASE db1_std_csets;
+CREATE DATABASE db1_std_csets;
+SET NAMES eucjpms;
+SELECT HEX(a) , CHAR_LENGTH(a) FROM db1_std_csets.t_eucjpms ORDER BY 1;
+HEX(a)	CHAR_LENGTH(a)
+4D5953514C50554D50	9
+63	1
+DROP DATABASE db1_std_csets;
+CREATE DATABASE db1_std_csets;
+USE db1_std_csets;
+SET NAMES gb18030;
+CREATE TABLE t_gb18030 (a VARCHAR(30) CHARACTER SET gb18030 COLLATE gb18030_bin) CHARACTER SET gb18030 COLLATE gb18030_bin;
+INSERT INTO t_gb18030 VALUES (_gb18030'MYSQLPUMP'), (_gb18030'cāt?기?會意');
+Warnings:
+Warning	1300	Invalid gb18030 character string: 'B03FE6'
+Warning	1366	Incorrect string value: '\xB0?\xE6\x9C\x83\xE6...' for column 'a' at row 2
+SELECT HEX(a) , CHAR_LENGTH(a) FROM db1_std_csets.t_gb18030 ORDER BY 1;
+HEX(a)	CHAR_LENGTH(a)
+4D5953514C50554D50	9
+63C481743FEAB8	5
+DROP DATABASE db1_std_csets;
+CREATE DATABASE db1_std_csets;
+SET NAMES gb18030;
+SELECT HEX(a) , CHAR_LENGTH(a) FROM db1_std_csets.t_gb18030 ORDER BY 1;
+HEX(a)	CHAR_LENGTH(a)
+4D5953514C50554D50	9
+63C481743FEAB8	5
+DROP DATABASE db1_std_csets;
+CREATE DATABASE db1_std_csets;
+USE db1_std_csets;
+SET NAMES cp932;
+CREATE TABLE t_cp932 (a VARCHAR(30) CHARACTER SET cp932 COLLATE cp932_bin) CHARACTER SET cp932 COLLATE cp932_bin;
+INSERT INTO t_cp932 VALUES (_cp932'MYSQLPUMP'), (_cp932'cāt?기?會意');
+SELECT HEX(a) , CHAR_LENGTH(a) FROM db1_std_csets.t_cp932 ORDER BY 1;
+HEX(a)	CHAR_LENGTH(a)
+4D5953514C50554D50	9
+63C481743FEAB8B03FE69C83E6848F	10
+DROP DATABASE db1_std_csets;
+CREATE DATABASE db1_std_csets;
+SET NAMES cp932;
+SELECT HEX(a) , CHAR_LENGTH(a) FROM db1_std_csets.t_cp932 ORDER BY 1;
+HEX(a)	CHAR_LENGTH(a)
+4D5953514C50554D50	9
+63C481743F3FB03FE69C3F848F	10
+DROP DATABASE db1_std_csets;
+CREATE DATABASE db1_ucs2_csets CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+USE db1_ucs2_csets;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t_ucs2 (a CHAR(4) CHARACTER SET utf8) CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t_ucs2;
+ALTER TABLE t_ucs2 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_bin;
+SELECT COUNT(*) FROM t_ucs2;
+COUNT(*)
+2526
+RENAME TABLE t_ucs2 TO old_t_ucs2;
+SELECT COUNT(*) FROM t_ucs2;
+COUNT(*)
+2526
+DROP DATABASE db1_ucs2_csets;
+CREATE DATABASE db1_ucs2_csets CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+USE db1_ucs2_csets;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t_ucs2 (a CHAR(4) CHARACTER SET utf8) CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t_ucs2;
+ALTER TABLE t_ucs2 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci;
+SELECT COUNT(*) FROM t_ucs2;
+COUNT(*)
+2526
+RENAME TABLE t_ucs2 TO old_t_ucs2;
+SELECT COUNT(*) FROM t_ucs2;
+COUNT(*)
+2526
+DROP DATABASE db1_ucs2_csets;
+CREATE DATABASE db1_utf8_csets CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+USE db1_utf8_csets;
+CREATE TABLE t_utf8 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_bin) CHARACTER SET utf8 COLLATE utf8_bin;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t_utf8;
+SELECT COUNT(*) FROM t_utf8;
+COUNT(*)
+2526
+RENAME TABLE t_utf8 TO old_t_utf8;
+SELECT COUNT(*) FROM t_utf8;
+COUNT(*)
+2526
+DROP DATABASE db1_utf8_csets;
+CREATE DATABASE db1_utf8_csets CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+USE db1_utf8_csets;
+CREATE TABLE t_utf8 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_unicode_ci) CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t_utf8;
+SELECT COUNT(*) FROM t_utf8;
+COUNT(*)
+2526
+RENAME TABLE t_utf8 TO old_t_utf8;
+SELECT COUNT(*) FROM t_utf8;
+COUNT(*)
+2526
+DROP DATABASE db1_utf8_csets;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE DATABASE `Êý¾Ý¿â`;
+USE `Êý¾Ý¿â`;
+CREATE TABLE ÔÁÂÌÉÃÁ (ÐÏÌÑ VARCHAR(30) CHARACTER SET cp1251 COLLATE cp1251_bulgarian_ci) CHARACTER SET cp1251 COLLATE cp1251_bulgarian_ci;
+CREATE VIEW `±í¸ñ` AS SELECT _cp1251'×Ö¶ÎÒ»';
+INSERT INTO ÔÁÂÌÉÃÁ VALUES (_cp1251'MYSQLPUMP'), (_cp1251'한글입력기');
+SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
+HEX(ÐÏÌÑ)	CHAR_LENGTH(ÐÏÌÑ)
+4D5953514C50554D50	9
+ED959CEAB880EC9E85EBA0A5EAB8B0	15
+CREATE FUNCTION `straÃe` ( `饽紴缽菠` CHAR(20) CHARACTER SET cp1251 COLLATE cp1251_bulgarian_ci)
+RETURNS CHAR(50)  CHARACTER SET cp1251 DETERMINISTIC RETURN `饽紴缽菠`;
+SELECT * FROM `±í¸ñ`;
+Г—Г–В¶ГЋГ’В»
+Г—Г–В¶ГЋГ’В»
+SELECT `straÃe`(_cp1251'한글');
+`straÃe`(_cp1251'한글')
+н•њкёЂ
+DROP DATABASE `Êý¾Ý¿â`;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+USE `Êý¾Ý¿â`;
+SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
+HEX(ÐÏÌÑ)	CHAR_LENGTH(ÐÏÌÑ)
+4D5953514C50554D50	9
+ED959CEAB880EC9E85EBA0A5EAB8B0	15
+SELECT `straÃe`(_cp1251'한글');
+`straÃe`(_cp1251'한글')
+н•њкёЂ
+SELECT * FROM `±í¸ñ`;
+Г—Г–В¶ГЋГ’В»
+Г—Г–В¶ГЋГ’В»
+DROP DATABASE `Êý¾Ý¿â`;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE DATABASE `Êý¾Ý¿â`;
+USE `Êý¾Ý¿â`;
+CREATE TABLE ÔÁÂÌÉÃÁ (ÐÏÌÑ VARCHAR(30) CHARACTER SET euckr COLLATE euckr_korean_ci) CHARACTER SET euckr COLLATE euckr_korean_ci;
+CREATE VIEW `±í¸ñ` AS SELECT _euckr'×Ö¶ÎÒ»';
+INSERT INTO ÔÁÂÌÉÃÁ VALUES (_euckr'MYSQLPUMP'), (_euckr'한글입력기');
+Warnings:
+Warning	1300	Invalid euckr character string: 'B880EC'
+Warning	1366	Incorrect string value: '\xB8\x80\xEC\x9E\x85\xEB...' for column 'ÐÏÌÑ' at row 2
+SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
+HEX(ÐÏÌÑ)	CHAR_LENGTH(ÐÏÌÑ)
+4D5953514C50554D50	9
+ED959CEA	2
+CREATE FUNCTION `straÃe` ( `饽紴缽菠` CHAR(20) CHARACTER SET euckr COLLATE euckr_korean_ci)
+RETURNS CHAR(50)  CHARACTER SET euckr DETERMINISTIC RETURN `饽紴缽菠`;
+SELECT * FROM `±í¸ñ`;
+횞횜쨋횓횘쨩
+횞횜쨋횓횘쨩
+SELECT `straÃe`(_euckr'한글');
+`straÃe`(_euckr'한글')
+?쒓
+Warnings:
+Warning	1300	Invalid euckr character string: 'B880'
+Warning	1366	Incorrect string value: '\xB8\x80' for column '饽紴缽菠' at row 1
+DROP DATABASE `Êý¾Ý¿â`;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+USE `Êý¾Ý¿â`;
+SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
+HEX(ÐÏÌÑ)	CHAR_LENGTH(ÐÏÌÑ)
+3F9CEA	2
+4D5953514C50554D50	9
+SELECT `straÃe`(_euckr'한글');
+`straÃe`(_euckr'한글')
+?쒓
+Warnings:
+Warning	1300	Invalid euckr character string: 'B880'
+Warning	1366	Incorrect string value: '\xB8\x80' for column '饽紴缽菠' at row 1
+SELECT * FROM `±í¸ñ`;
+횞횜쨋횓횘쨩
+횞횜쨋횓횘쨩
+DROP DATABASE `Êý¾Ý¿â`;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE DATABASE `Êý¾Ý¿â`;
+USE `Êý¾Ý¿â`;
+CREATE TABLE ÔÁÂÌÉÃÁ (ÐÏÌÑ VARCHAR(30) CHARACTER SET gb18030 COLLATE gb18030_bin) CHARACTER SET gb18030 COLLATE gb18030_bin;
+CREATE VIEW `±í¸ñ` AS SELECT _gb18030'×Ö¶ÎÒ»';
+INSERT INTO ÔÁÂÌÉÃÁ VALUES (_gb18030'MYSQLPUMP'), (_gb18030'한글입력기');
+Warnings:
+Warning	1300	Invalid gb18030 character string: 'B0'
+Warning	1366	Incorrect string value: '\xB0' for column 'ÐÏÌÑ' at row 2
+SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
+HEX(ÐÏÌÑ)	CHAR_LENGTH(ÐÏÌÑ)
+4D5953514C50554D50	9
+ED959CEAB880EC9E85EBA0A5EAB8	7
+CREATE FUNCTION `straÃe` ( `饽紴缽菠` CHAR(20) CHARACTER SET gb18030 COLLATE gb18030_bin)
+RETURNS CHAR(50)  CHARACTER SET gb18030 DETERMINISTIC RETURN `饽紴缽菠`;
+SELECT * FROM `±í¸ñ`;
+脳脰露脦脪禄
+脳脰露脦脪禄
+SELECT `straÃe`(_gb18030'한글');
+`straÃe`(_gb18030'한글')
+頃滉竴
+DROP DATABASE `Êý¾Ý¿â`;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+USE `Êý¾Ý¿â`;
+SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
+HEX(ÐÏÌÑ)	CHAR_LENGTH(ÐÏÌÑ)
+4D5953514C50554D50	9
+ED959CEAB880EC9E85EBA0A5EAB8	7
+SELECT `straÃe`(_gb18030'한글');
+`straÃe`(_gb18030'한글')
+頃滉竴
+SELECT * FROM `±í¸ñ`;
+脳脰露脦脪禄
+脳脰露脦脪禄
+DROP DATABASE `Êý¾Ý¿â`;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE DATABASE `Êý¾Ý¿â`;
+USE `Êý¾Ý¿â`;
+CREATE TABLE ÔÁÂÌÉÃÁ (ÐÏÌÑ VARCHAR(30) CHARACTER SET ujis COLLATE ujis_japanese_ci) CHARACTER SET ujis COLLATE ujis_japanese_ci;
+CREATE VIEW `±í¸ñ` AS SELECT _ujis'×Ö¶ÎÒ»';
+Warnings:
+Warning	1300	Invalid ujis character string: 'C397C3'
+Warning	1300	Invalid ujis character string: '\xC3\x97\xC3\x96\xC2\xB6...'
+INSERT INTO ÔÁÂÌÉÃÁ VALUES (_ujis'MYSQLPUMP'), (_ujis'한글입력기');
+Warnings:
+Warning	1300	Invalid ujis character string: 'ED959C'
+Warning	1366	Incorrect string value: '\xED\x95\x9C\xEA\xB8\x80...' for column 'ÐÏÌÑ' at row 2
+SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
+HEX(ÐÏÌÑ)	CHAR_LENGTH(ÐÏÌÑ)
+	0
+4D5953514C50554D50	9
+CREATE FUNCTION `straÃe` ( `饽紴缽菠` CHAR(20) CHARACTER SET ujis COLLATE ujis_japanese_ci)
+RETURNS CHAR(50)  CHARACTER SET ujis DETERMINISTIC RETURN `饽紴缽菠`;
+SELECT * FROM `±í¸ñ`;
+????其?ﾃ?損
+
+Warnings:
+Warning	1300	Invalid ujis character string: 'C397C3'
+Warning	1366	Incorrect string value: '\xC3\x97\xC3\x96\xC2\xB6...' for column '????其?ﾃ?損' at row 1
+SELECT `straÃe`(_ujis'한글');
+`straÃe`(_ujis'한글')
+
+Warnings:
+Warning	1300	Invalid ujis character string: 'ED959C'
+Warning	1366	Incorrect string value: '\xED\x95\x9C\xEA\xB8\x80' for column '饽紴缽菠' at row 1
+DROP DATABASE `Êý¾Ý¿â`;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+USE `Êý¾Ý¿â`;
+SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
+HEX(ÐÏÌÑ)	CHAR_LENGTH(ÐÏÌÑ)
+	0
+4D5953514C50554D50	9
+SELECT `straÃe`(_ujis'한글');
+`straÃe`(_ujis'한글')
+
+Warnings:
+Warning	1300	Invalid ujis character string: 'ED959C'
+Warning	1366	Incorrect string value: '\xED\x95\x9C\xEA\xB8\x80' for column '饽紴缽菠' at row 1
+SELECT * FROM `±í¸ñ`;
+????其?ﾃ?損
+
+Warnings:
+Warning	1300	Invalid ujis character string: 'C397C3'
+Warning	1366	Incorrect string value: '\xC3\x97\xC3\x96\xC2\xB6...' for column '????其?ﾃ?損' at row 1
+DROP DATABASE `Êý¾Ý¿â`;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE DATABASE `Êý¾Ý¿â`;
+USE `Êý¾Ý¿â`;
+CREATE TABLE ÔÁÂÌÉÃÁ (ÐÏÌÑ VARCHAR(30) CHARACTER SET sjis COLLATE sjis_japanese_ci) CHARACTER SET sjis COLLATE sjis_japanese_ci;
+CREATE VIEW `±í¸ñ` AS SELECT _sjis'×Ö¶ÎÒ»';
+INSERT INTO ÔÁÂÌÉÃÁ VALUES (_sjis'MYSQLPUMP'), (_sjis'한글입력기');
+Warnings:
+Warning	1300	Invalid sjis character string: '80EC9E'
+Warning	1366	Incorrect string value: '\x80\xEC\x9E\x85\xEB\xA0...' for column 'ÐÏÌÑ' at row 2
+SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
+HEX(ÐÏÌÑ)	CHAR_LENGTH(ÐÏÌÑ)
+4D5953514C50554D50	9
+ED959CEAB8	3
+CREATE FUNCTION `straÃe` ( `饽紴缽菠` CHAR(20) CHARACTER SET sjis COLLATE sjis_japanese_ci)
+RETURNS CHAR(50)  CHARACTER SET sjis DETERMINISTIC RETURN `饽紴缽菠`;
+SELECT * FROM `±í¸ñ`;
+ﾃ療鳴ｶﾃ偲陳ｻ
+ﾃ療鳴ｶﾃ偲陳ｻ
+SELECT `straÃe`(_sjis'한글');
+`straÃe`(_sjis'한글')
+?懋ｸ
+Warnings:
+Warning	1300	Invalid sjis character string: '80'
+Warning	1366	Incorrect string value: '\x80' for column '饽紴缽菠' at row 1
+DROP DATABASE `Êý¾Ý¿â`;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+USE `Êý¾Ý¿â`;
+SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
+HEX(ÐÏÌÑ)	CHAR_LENGTH(ÐÏÌÑ)
+3F9CEAB8	3
+4D5953514C50554D50	9
+SELECT `straÃe`(_sjis'한글');
+`straÃe`(_sjis'한글')
+?懋ｸ
+Warnings:
+Warning	1300	Invalid sjis character string: '80'
+Warning	1366	Incorrect string value: '\x80' for column '饽紴缽菠' at row 1
+SELECT * FROM `±í¸ñ`;
+ﾃ療鳴ｶﾃ偲陳ｻ
+ﾃ療鳴ｶﾃ偲陳ｻ
+DROP DATABASE `Êý¾Ý¿â`;
+CREATE DATABASE db1_charset;
+USE db1_charset;
+CREATE TABLE t_latin1(c CHAR(40)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_latin1 VALUES ('aaa'), ('ÁÂÃÄ');
+INSERT INTO t_latin1 VALUES (_latin1'ςσ');
+CREATE TABLE t_utf8(c CHAR(40)) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t_utf8 VALUES ('aaa'), ('ÁÂÃÄ');
+CREATE TABLE t_koi8r (c1 VARBINARY(255), c2 VARBINARY(255));
+SET CHARACTER_SET_CLIENT=koi8r,
+CHARACTER_SET_CONNECTION=cp1251,
+CHARACTER_SET_RESULTS=koi8r;
+INSERT INTO t_koi8r (c1, c2) VALUES ('îÕ, ÚÁ ÒÙÂÁÌËÕ','îÕ, ÚÁ ÒÙÂÁÌËÕ');
+Warnings:
+Warning	1300	Invalid koi8r character string: '\xC3\xAE\xC3\x95, ...'
+Warning	1300	Invalid koi8r character string: '\xC3\xAE\xC3\x95, ...'
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT * FROM t_latin1 ORDER BY 1;
+c
+aaa
+ÁÂÃÄ
+Ï‚Ïƒ
+SELECT * FROM t_utf8 ORDER BY 1;
+c
+aaa
+ÁÂÃÄ
+SELECT hex(c1), hex(c2) from t_koi8r;
+hex(c1)	hex(c2)
+F63FF63F2C20F6A0F63F20F63FF63FF63FF63FF63FF63FF63F	F63FF63F2C20F6A0F63F20F63FF63FF63FF63FF63FF63FF63F
+DROP DATABASE db1_charset;
+CREATE DATABASE db1_charset;
+USE db1_charset;
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT * FROM t_latin1 ORDER BY 1;
+c
+aaa
+ÁÂÃÄ
+Ï‚Ïƒ
+SELECT * FROM t_utf8 ORDER BY 1;
+c
+aaa
+ÁÂÃÄ
+SELECT hex(c1), hex(c2) FROM t_koi8r ORDER BY 1;
+hex(c1)	hex(c2)
+F63FF63F2C20F6A0F63F20F63FF63FF63FF63FF63FF63FF63F	F63FF63F2C20F6A0F63F20F63FF63FF63FF63FF63FF63FF63F
+DROP DATABASE db1_charset;
+CREATE DATABASE db1_charset;
+USE db1_charset;
+CREATE TABLE t_allcharsets
+(ucs2 CHAR(40) character set ucs2,
+utf8 CHAR(40) character set utf8,
+big5 CHAR(40) character set big5,
+cp932 CHAR(40) character set cp932,
+eucjpms CHAR(40) character set eucjpms,
+euckr CHAR(40) character set euckr,
+gb2312 CHAR(40) character set gb2312,
+gbk CHAR(40) character set gbk,
+sjis CHAR(40) character set sjis,
+ujis CHAR(40) character set ujis);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t_allcharsets (ucs2) VALUES (0x30da);
+UPDATE t_allcharsets
+SET utf8=ucs2,
+big5=ucs2,
+cp932=ucs2,
+eucjpms=ucs2,
+euckr=ucs2,
+gb2312=ucs2,
+gbk=ucs2,
+sjis=ucs2,
+ujis=ucs2;
+SELECT * FROM t_allcharsets;
+ucs2	utf8	big5	cp932	eucjpms	euckr	gb2312	gbk	sjis	ujis
+ペ	ペ	ペ	ペ	ペ	ペ	ペ	ペ	ペ	ペ
+DROP DATABASE db1_charset;
+USE db1_charset;
+SELECT * FROM t_allcharsets;
+ucs2	utf8	big5	cp932	eucjpms	euckr	gb2312	gbk	sjis	ujis
+ペ	ペ	ペ	ペ	ペ	ペ	ペ	ペ	ペ	ペ
+DROP DATABASE db1_charset;

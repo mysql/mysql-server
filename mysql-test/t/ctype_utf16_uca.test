@@ -1,7 +1,7 @@
 --source include/have_myisam.inc
+
 # Some bugs have MyISAM specific tests
 
--- source include/have_utf16.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -171,7 +171,6 @@ set collation_connection=utf16_unicode_ci;
 --source include/weight_string_euro.inc
 select hex(weight_string(_utf16 0xD800DC00 collate utf16_unicode_ci));
 select hex(weight_string(_utf16 0xD800DC01 collate utf16_unicode_ci));
---source include/weight_string_l1.inc
 
 set @@collation_connection=utf16_czech_ci;
 --source include/weight_string_chde.inc

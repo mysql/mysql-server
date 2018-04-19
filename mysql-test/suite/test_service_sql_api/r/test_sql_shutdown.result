@@ -1,0 +1,41 @@
+##########################################
+# Run plugin
+##########################################
+INSTALL PLUGIN test_sql_shutdown SONAME 'TEST_SQL_SHUTDOWN';
+SELECT count(*) FROM information_schema.processlist WHERE info LIKE 'PLUGIN%';
+count(*)
+1
+##########################################
+# Shutdown
+##########################################
+======================================================
+Opening a Session
+======================================================
+Apparently the server is shutting down
+SELECT 1, 2, 3 FROM DUAL
+ERROR 3169 : Session was killed
+
+Closing Session. Plugin init cycle = 1
+
+SERVER SHUTDOWN
+##########################################
+# Restart
+##########################################
+======================================================
+Opening a Session
+ERROR 3168 : Server isn't available
+======================================================
+SELECT 1, 2, 3 FROM DUAL
+
+Closing Session. Plugin init cycle = 2
+
+SELECT plugin_name, plugin_status, plugin_type,
+plugin_description, load_option
+FROM information_schema.plugins
+WHERE plugin_name LIKE "test_sql_shutdown";
+plugin_name	plugin_status	plugin_type	plugin_description	load_option
+test_sql_shutdown	ACTIVE	DAEMON	Test SQL shutdown	ON
+##########################################
+# Stop plugin
+##########################################
+UNINSTALL PLUGIN test_sql_shutdown;

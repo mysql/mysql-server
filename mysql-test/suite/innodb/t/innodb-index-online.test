@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_debug_sync.inc
 
 let $innodb_metrics_select=
@@ -140,10 +139,6 @@ AND stat_value = 6;
 SELECT * FROM mysql.innodb_index_stats WHERE table_name IN ('t1');
 CREATE TABLE t1_c2_stats SELECT * FROM mysql.innodb_index_stats
 WHERE database_name = 'test' AND table_name = 't1' and index_name = 'c2';
-# in Embedded mode (./mtr --embedded-server) the t1_c2_stats table gets
-# created in MyISAM format by default even if we set
-# default_storage_engine='innodb'
-ALTER TABLE t1_c2_stats ENGINE=INNODB;
 DROP INDEX c2 ON t1;
 ANALYZE TABLE t1_c2_stats;
 --replace_column 4 LAST_UPDATE
@@ -199,6 +194,7 @@ CREATE INDEX c2d ON t1(c2);
 # This should show the newly calculated stats by CREATE INDEX above,
 # not the faked cardinality=4 for c2d(c2).
 # Purge may or may not have cleaned up the DELETE FROM t1 WHERE c1 = 7;
+ANALYZE TABLE t1;
 --replace_result 81 80
 SHOW INDEX FROM t1;
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2 > 3;
@@ -244,8 +240,8 @@ while ($c)
 # (The output below strips TEMP_INDEX_PREFIX from the name.)
 eval $innodb_metrics_select;
 SET GLOBAL innodb_monitor_reset = module_ddl;
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = '?c2e';
 
 # Release con1.
@@ -261,8 +257,8 @@ reap;
 # cache with index->online_status = ONLINE_INDEX_ABORTED_DROPPED.
 eval $innodb_metrics_select;
 SET GLOBAL innodb_monitor_reset = module_ddl;
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = 'c2e';
 
 # ddl_background_drop_indexes = 1 here, because the incomplete index c2e still
@@ -322,8 +318,8 @@ connection default;
 SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created';
 
 # Check that the index was created.
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = '?c3p5';
 
 SET DEBUG_SYNC = 'ib_after_row_insert SIGNAL ins_done WAIT_FOR ddl_timed_out';
@@ -337,8 +333,8 @@ SET DEBUG_SYNC = 'now SIGNAL ddl_timed_out';
 
 # InnoDB should have cleaned up the index c3p5 from the data dictionary,
 # but not yet from the dictionary cache.
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = 'c3p5';
 eval $innodb_metrics_select;
 SET GLOBAL innodb_monitor_reset = module_ddl;

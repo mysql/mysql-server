@@ -2,7 +2,6 @@
 
 call mtr.add_suppression("Trying to free a missing index of table 'test/fts_test'");
 call mtr.add_suppression("Failed to create index with index id .* of table 'test/fts_test'");
--- source include/have_innodb.inc
 
 # Create FTS table
 CREATE TABLE fts_test (
@@ -83,7 +82,7 @@ CREATE TABLE fts_test (
 	body TEXT
 	) ENGINE=InnoDB;
 
-create unique index FTS_DOC_ID_INDEX on fts_test(FTS_DOC_ID);
+create unique index FTS_DOC_ID_INDEX on fts_test(FTS_DOC_ID DESC);
 
 # Insert six rows
 INSERT INTO fts_test (title,body) VALUES
@@ -99,6 +98,12 @@ INSERT INTO fts_test (title,body) VALUES
 # column already exists. This has not been implemented yet.
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 CREATE FULLTEXT INDEX idx on fts_test (title, body) LOCK=NONE;
+--error ER_INNODB_FT_WRONG_DOCID_INDEX
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+
+ALTER TABLE fts_test DROP INDEX FTS_DOC_ID_INDEX,
+ADD UNIQUE INDEX FTS_DOC_ID_INDEX(FTS_DOC_ID), ALGORITHM=INPLACE;
+
 CREATE FULLTEXT INDEX idx on fts_test (title, body);
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
@@ -161,7 +166,7 @@ drop table fts_test;
 
 # This should fail:
 # Create a FTS_DOC_ID of the wrong type (should be bigint)
---error 1166
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
 CREATE TABLE fts_test (
    FTS_DOC_ID int(20) unsigned NOT NULL AUTO_INCREMENT,
    title varchar(255) NOT NULL DEFAULT '',
@@ -272,3 +277,26 @@ SELECT * FROM articles WHERE MATCH (title, body)
 	AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
 DROP TABLE articles;
+
+# This should fail:
+# Create fulltext index when an arbitrary index whose name case-insensitively
+# matches FTS_DOC_ID_INDEX is present
+CREATE TABLE t(t TEXT, FTS_DOC_ID BIGINT UNSIGNED NOT NULL, b INT);
+CREATE UNIQUE INDEX FTS_DOC_Id_INDEX ON t(FTS_DOC_ID DESC);
+--error ER_INNODB_FT_WRONG_DOCID_INDEX
+CREATE FULLTEXT INDEX f ON t(t);
+DROP INDEX FTS_DOC_Id_INDEX on t;
+
+# This should fail:
+# Create a fullltext index when FTS_DOC_ID_INDEX is not a single-column
+# ascending unique index on FTS_DOC_ID.
+CREATE UNIQUE INDEX FTS_DOC_ID_INDEX ON t(FTS_DOC_ID DESC, b DESC);
+--error ER_INNODB_FT_WRONG_DOCID_INDEX
+CREATE FULLTEXT INDEX f ON t(t);
+DROP TABLE t;
+
+# This should fail:
+# Create a table with a column whose name case-insensitively matches FTS_DOC_ID
+# matches FTS_DOC_ID_INDEX is present
+--error ER_WRONG_COLUMN_NAME
+CREATE TABLE t(t TEXT, FTS_DOC_iD BIGINT UNSIGNED NOT NULL, b INT);

@@ -1,0 +1,770 @@
+#
+# Test basic read tracking for engine native
+# conflict resolution for ndb
+#
+#
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+--echo Setup circular replication
+
+--connection slave
+RESET MASTER;
+let $SLAVE_SERVER_ID= `select @@server_id`;
+echo SLAVE_SERVER_ID: $SLAVE_SERVER_ID;
+
+--connection master
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SLAVE_MYPORT,master_user="root"
+START SLAVE;
+let $MASTER_SERVER_ID= `select @@server_id`;
+echo MASTER_SERVER_ID: $MASTER_SERVER_ID;
+
+--echo Setup ndb_replication and t1$EX exceptions table
+
+--disable_warnings
+--disable_query_log
+--connection master
+drop table if exists mysql.ndb_replication;
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   conflict_fn VARBINARY(128),
+   PRIMARY KEY USING HASH (db,table_name,server_id))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+
+create table test.t1$EX
+ (NDB$SERVER_ID         int unsigned,
+  NDB$MASTER_SERVER_ID  int unsigned,
+  NDB$MASTER_EPOCH      bigint unsigned,
+  NDB$COUNT             int unsigned,
+  a                     int not null,
+  b$old                 varchar(2000),
+  b$new                 varchar(2000),
+  NDB$OP_TYPE           ENUM('WRITE_ROW','UPDATE_ROW','DELETE_ROW','REFRESH_ROW','READ_ROW') NOT NULL,
+  NDB$CFT_CAUSE         ENUM('ROW_DOES_NOT_EXIST','ROW_ALREADY_EXISTS','DATA_IN_CONFLICT','TRANS_IN_CONFLICT') NOT NULL,
+  NDB$ORIG_TRANSID      BIGINT UNSIGNED NOT NULL,
+  primary key(NDB$SERVER_ID, NDB$MASTER_SERVER_ID, NDB$MASTER_EPOCH, NDB$COUNT))
+ENGINE=NDB CHARACTER SET latin1;
+
+create table test.t2$EX
+ (NDB$SERVER_ID         int unsigned,
+  NDB$MASTER_SERVER_ID  int unsigned,
+  NDB$MASTER_EPOCH      bigint unsigned,
+  NDB$COUNT             int unsigned,
+  a                     int not null,
+  b$old                 varchar(2000),
+  b$new                 varchar(2000),
+  NDB$OP_TYPE           ENUM('WRITE_ROW','UPDATE_ROW','DELETE_ROW','REFRESH_ROW','READ_ROW') NOT NULL,
+  NDB$CFT_CAUSE         ENUM('ROW_DOES_NOT_EXIST','ROW_ALREADY_EXISTS','DATA_IN_CONFLICT','TRANS_IN_CONFLICT') NOT NULL,
+  NDB$ORIG_TRANSID      BIGINT UNSIGNED NOT NULL,
+  primary key(NDB$SERVER_ID, NDB$MASTER_SERVER_ID, NDB$MASTER_EPOCH, NDB$COUNT))
+ENGINE=NDB CHARACTER SET latin1;
+
+--enable_warnings
+--enable_query_log
+
+--echo Populate ndb_replication table as necessary
+eval replace into mysql.ndb_replication values
+  ("test", "t1", $SLAVE_SERVER_ID, 7, NULL),
+  ("test", "t1", $MASTER_SERVER_ID, 7, "NDB\$EPOCH_TRANS()"),
+  ("test", "t2", $SLAVE_SERVER_ID, 7, NULL),
+  ("test", "t2", $MASTER_SERVER_ID, 7, "NDB\$EPOCH_TRANS()");
+
+
+create table test.t1 (
+  a int primary key,
+  b varchar(2000)) engine=ndb character set latin1;
+
+create table test.t2 (
+  a int primary key,
+  b varchar(2000)) engine=ndb character set latin1;
+
+--sync_slave_with_master slave
+
+--connection master
+--echo Add some data
+insert into test.t1 values
+ (1, "Initial data 1"),
+ (2, "Initial data 2"),
+ (3, "Initial data 3"),
+ (4, "Initial data 4"),
+ (5, "Initial data 5"),
+ (6, "Initial data 6"),
+ (7, "Initial data 7"),
+ (8, "Initial data 8"),
+ (9, "Initial data 9"),
+ (10, "Initial data 10");
+
+insert into test.t2 values
+ (1, "Initial data 1"),
+ (2, "Initial data 2"),
+ (3, "Initial data 3"),
+ (4, "Initial data 4"),
+ (5, "Initial data 5"),
+ (6, "Initial data 6"),
+ (7, "Initial data 7"),
+ (8, "Initial data 8"),
+ (9, "Initial data 9"),
+ (10, "Initial data 10");
+
+--echo Sync all changes
+--echo ---------------------------------------
+--sync_slave_with_master slave
+--sync_slave_with_master master
+
+-- echo Test 1, read-update conflict without read tracking
+
+--connection slave
+--echo Stopping secondary slave
+stop slave;
+
+--connection master
+--echo Stopping primary slave
+stop slave;
+
+begin;
+update test.t1 set b="Primary first change 1" where a=1;
+update test.t1 set b="Primary first change 2" where a=2;
+commit;
+
+--connection slave
+SET ndb_log_exclusive_reads= 0;
+begin;
+select * from test.t1 where a = 1 for update;
+update test.t2 set b="Secondary first change 3" where a=3;
+commit;
+
+--echo Checking tables before conflict resolution
+--echo ---------------------------------------
+--connection master
+--echo **** Primary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--echo Starting primary slave
+start slave;
+
+--connection slave
+--echo **** Secondary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--sync_slave_with_master master
+
+--echo Primary should not have rejected change from Secondary
+
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+select NDB$OP_TYPE, b$old, b$new, NDB$CFT_CAUSE from test.t1$EX
+order by a;
+select NDB$OP_TYPE, b$old, b$new, NDB$CFT_CAUSE from test.t2$EX
+order by a;
+
+--connection slave
+-- Echo starting secondary slave
+start slave;
+
+--connection master
+--sync_slave_with_master slave
+
+--connection slave
+
+--echo Secondary should not have been realigned to Primary
+--connection master
+--echo **** Primary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--connection slave
+--echo **** Secondary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--connection master
+update test.t1 set b="Initial data 1" where a=1;
+update test.t1 set b="Initial data 2" where a=2;
+update test.t2 set b="Initial data 3" where a=3;
+--echo Sync all changes
+--echo ---------------------------------------
+--sync_slave_with_master slave
+--sync_slave_with_master master
+delete from test.t2$EX;
+
+-- echo Test 2, read-update conflict with read tracking
+
+--connection slave
+--echo Stopping secondary slave
+stop slave;
+
+--connection master
+--echo Stopping primary slave
+stop slave;
+
+begin;
+update test.t1 set b="Primary first change 1" where a=1;
+update test.t1 set b="Primary first change 2" where a=2;
+commit;
+
+--connection slave
+SET ndb_log_exclusive_reads= 1;
+begin;
+select * from test.t1 where a = 1 for update;
+update test.t2 set b="Secondary first change 3" where a=3;
+commit;
+
+--echo Checking tables before conflict resolution
+--echo ---------------------------------------
+--connection master
+--echo **** Primary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--echo Starting primary slave
+start slave;
+
+--connection slave
+--echo **** Secondary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--sync_slave_with_master master
+
+--echo Primary should have rejected change from Secondary, keeping its value
+
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+select NDB$OP_TYPE, b$old, b$new, NDB$CFT_CAUSE from test.t1$EX
+order by a;
+select NDB$OP_TYPE, b$old, b$new, NDB$CFT_CAUSE from test.t2$EX
+order by a;
+
+--connection slave
+-- Echo starting secondary slave
+start slave;
+
+--connection master
+--sync_slave_with_master slave
+
+--connection slave
+
+--echo Secondary should have been realigned to Primary
+--connection master
+--echo **** Primary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--connection slave
+--echo **** Secondary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--connection master
+update test.t1 set b="Initial data 1" where a=1;
+update test.t1 set b="Initial data 2" where a=2;
+update test.t2 set b="Initial data 3" where a=3;
+--echo Sync all changes
+--echo ---------------------------------------
+--sync_slave_with_master slave
+--sync_slave_with_master master
+delete from test.t1$EX;
+delete from test.t2$EX;
+
+-- echo Test 3, read-read conflict without read tracking
+
+--connection slave
+--echo Stopping secondary slave
+stop slave;
+
+--connection master
+--echo Stopping primary slave
+stop slave;
+
+SET ndb_log_exclusive_reads= 0;
+begin;
+select * from test.t1 where a = 1 for update;
+update test.t1 set b="Primary first change 2" where a=2;
+commit;
+
+--connection slave
+SET ndb_log_exclusive_reads= 0;
+begin;
+select * from test.t1 where a = 1 for update;
+update test.t2 set b="Secondary first change 3" where a=3;
+commit;
+
+--echo Checking tables before conflict resolution
+--echo ---------------------------------------
+--connection master
+--echo **** Primary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--echo Starting primary slave
+start slave;
+
+--connection slave
+--echo **** Secondary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--sync_slave_with_master master
+
+--echo Primary should not have rejected change from Secondary
+
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+select NDB$OP_TYPE, b$old, b$new, NDB$CFT_CAUSE from test.t1$EX
+order by a;
+select NDB$OP_TYPE, b$old, b$new, NDB$CFT_CAUSE from test.t2$EX
+order by a;
+
+--connection slave
+-- Echo starting secondary slave
+start slave;
+
+--connection master
+--sync_slave_with_master slave
+
+--connection slave
+
+--echo Secondary should not have been realigned to Primary
+--connection master
+--echo **** Primary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--connection slave
+--echo **** Secondary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--connection master
+update test.t1 set b="Initial data 1" where a=1;
+update test.t1 set b="Initial data 2" where a=2;
+update test.t2 set b="Initial data 3" where a=3;
+
+-- echo Test 4, read-read conflict with read tracking
+
+--connection slave
+--echo Stopping secondary slave
+stop slave;
+
+--connection master
+--echo Stopping primary slave
+stop slave;
+
+SET ndb_log_exclusive_reads= 1;
+begin;
+select * from test.t1 where a = 1 for update;
+update test.t1 set b="Primary first change 2" where a=2;
+commit;
+
+--connection slave
+SET ndb_log_exclusive_reads= 1;
+begin;
+select * from test.t1 where a = 1 for update;
+update test.t2 set b="Secondary first change 3" where a=3;
+commit;
+
+--echo Checking tables before conflict resolution
+--echo ---------------------------------------
+--connection master
+--echo **** Primary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--echo Starting primary slave
+start slave;
+
+--connection slave
+--echo **** Secondary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--sync_slave_with_master master
+
+--echo Primary should have rejected change from Secondary, keeping its value
+
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+select NDB$OP_TYPE, b$old, b$new, NDB$CFT_CAUSE from test.t1$EX
+order by a;
+select NDB$OP_TYPE, b$old, b$new, NDB$CFT_CAUSE from test.t2$EX
+order by a;
+
+--connection slave
+-- Echo starting secondary slave
+start slave;
+
+--connection master
+--sync_slave_with_master slave
+
+--connection slave
+
+--echo Secondary should have been realigned to Primary
+--connection master
+--echo **** Primary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--connection slave
+--echo **** Secondary ****
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--connection master
+update test.t1 set b="Initial data 1" where a=1;
+update test.t1 set b="Initial data 2" where a=2;
+update test.t2 set b="Initial data 3" where a=3;
+--echo Sync all changes
+--echo ---------------------------------------
+--sync_slave_with_master slave
+--sync_slave_with_master master
+delete from test.t1$EX;
+delete from test.t2$EX;
+
+-- echo Test 5, read-update conflict with read tracking on unique secondary index
+
+create table test.t3$EX
+ (NDB$SERVER_ID         int unsigned,
+  NDB$MASTER_SERVER_ID  int unsigned,
+  NDB$MASTER_EPOCH      bigint unsigned,
+  NDB$COUNT             int unsigned,
+  a                     int not null,
+  b$old                 varchar(2000),
+  b$new                 varchar(2000),
+  c$old                 int,
+  c$new                 int,
+  d$old                 int,
+  d$new                 int,
+  NDB$OP_TYPE           ENUM('WRITE_ROW','UPDATE_ROW','DELETE_ROW','REFRESH_ROW','READ_ROW') NOT NULL,
+  NDB$CFT_CAUSE         ENUM('ROW_DOES_NOT_EXIST','ROW_ALREADY_EXISTS','DATA_IN_CONFLICT','TRANS_IN_CONFLICT') NOT NULL,
+  NDB$ORIG_TRANSID      BIGINT UNSIGNED NOT NULL,
+  primary key(NDB$SERVER_ID, NDB$MASTER_SERVER_ID, NDB$MASTER_EPOCH, NDB$COUNT))
+ENGINE=NDB CHARACTER SET latin1;
+
+--echo Populate ndb_replication table as necessary
+eval replace into mysql.ndb_replication values
+  ("test", "t3", $SLAVE_SERVER_ID, 7, NULL),
+  ("test", "t3", $MASTER_SERVER_ID, 7, "NDB\$EPOCH_TRANS()");
+
+create table test.t3 (
+  a int primary key,
+  b varchar(2000),
+  c int not null unique,
+  d int,
+  key(d)) engine=ndb character set latin1;
+
+--sync_slave_with_master slave
+
+--connection master
+--echo Add some data
+
+insert into test.t3 values
+ (1, "Initial data 1", 1, 1),
+ (2, "Initial data 2", 2, 2),
+ (3, "Initial data 3", 3, 3),
+ (4, "Initial data 4", 4, 4),
+ (5, "Initial data 5", 5, 5),
+ (6, "Initial data 6", 6, 6),
+ (7, "Initial data 7", 7, 7),
+ (8, "Initial data 8", 8, 8),
+ (9, "Initial data 9", 9, 9),
+ (10, "Initial data 10", 10, 10);
+
+--echo Show basic read tracking
+--echo ---------------------------------------
+--sync_slave_with_master slave
+
+--connection slave
+--echo Stopping secondary slave
+stop slave;
+
+--connection master
+--echo Stopping primary slave
+stop slave;
+
+begin;
+update test.t3 set b="Primary first change 1" where a=1;
+update test.t3 set b="Primary first change 2" where a=2;
+commit;
+
+--connection slave
+SET ndb_log_exclusive_reads= 1;
+begin;
+select * from test.t3 where c = 1 for update;
+update test.t2 set b="Secondary first change 3" where a=3;
+commit;
+
+--echo Checking tables before conflict resolution
+--echo ---------------------------------------
+--connection master
+--echo **** Primary ****
+select * from test.t2 order by a;
+select * from test.t3 order by a;
+
+--echo Starting primary slave
+start slave;
+
+--connection slave
+--echo **** Secondary ****
+select * from test.t2 order by a;
+select * from test.t3 order by a;
+
+--sync_slave_with_master master
+
+--echo Primary should have rejected change from Secondary, keeping its value
+
+select * from test.t2 order by a;
+select * from test.t3 order by a;
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+select NDB$OP_TYPE, b$old, b$new, c$old, c$new, NDB$CFT_CAUSE from test.t3$EX
+order by a;
+
+--connection slave
+-- Echo starting secondary slave
+start slave;
+
+--connection master
+--sync_slave_with_master slave
+
+--connection slave
+
+--echo Secondary should have been realigned to Primary
+--connection master
+--echo **** Primary ****
+select * from test.t2 order by a;
+select * from test.t3 order by a;
+
+--connection slave
+--echo **** Secondary ****
+select * from test.t2 order by a;
+select * from test.t3 order by a;
+
+--connection master
+update test.t2 set b="Initial data 3" where a=3;
+update test.t3 set b="Initial data 1" where a=1;
+update test.t3 set b="Initial data 2" where a=2;
+--echo Sync all changes
+--echo ---------------------------------------
+--sync_slave_with_master slave
+--sync_slave_with_master master
+delete from test.t2$EX;
+delete from test.t3$EX;
+
+-- echo Test 6, read-update conflict with read tracking on ordered secondary index
+
+--echo Show basic read tracking
+--echo ---------------------------------------
+--sync_slave_with_master slave
+
+--connection slave
+--echo Stopping secondary slave
+stop slave;
+
+--connection master
+--echo Stopping primary slave
+stop slave;
+
+begin;
+update test.t3 set b="Primary first change 1" where a=1;
+update test.t3 set b="Primary first change 2" where a=2;
+commit;
+
+--connection slave
+SET ndb_log_exclusive_reads= 1;
+begin;
+select * from test.t3 where d = 1 for update;
+update test.t2 set b="Secondary first change 3" where a=3;
+commit;
+
+--echo Checking tables before conflict resolution
+--echo ---------------------------------------
+--connection master
+--echo **** Primary ****
+select * from test.t2 order by a;
+select * from test.t3 order by a;
+
+--echo Starting primary slave
+start slave;
+
+--connection slave
+--echo **** Secondary ****
+select * from test.t2 order by a;
+select * from test.t3 order by a;
+
+--sync_slave_with_master master
+
+--echo Primary should have rejected change from Secondary, keeping its value
+
+select * from test.t2 order by a;
+select * from test.t3 order by a;
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+select NDB$OP_TYPE, b$old, b$new, c$old, c$new, NDB$CFT_CAUSE from test.t3$EX
+order by a;
+
+--connection slave
+-- Echo starting secondary slave
+start slave;
+
+--connection master
+--sync_slave_with_master slave
+
+--connection slave
+
+--echo Secondary should have been realigned to Primary
+--connection master
+--echo **** Primary ****
+select * from test.t2 order by a;
+select * from test.t3 order by a;
+
+--connection slave
+--echo **** Secondary ****
+select * from test.t2 order by a;
+select * from test.t3 order by a;
+
+--connection master
+update test.t2 set b="Initial data 3" where a=3;
+update test.t3 set b="Initial data 1" where a=1;
+update test.t3 set b="Initial data 2" where a=2;
+--echo Sync all changes
+--echo ---------------------------------------
+--sync_slave_with_master slave
+--sync_slave_with_master master
+delete from test.t2$EX;
+delete from test.t3$EX;
+
+-- echo Test 7, read-update conflict with read tracking on table scan
+
+--echo Show basic read tracking
+--echo ---------------------------------------
+--sync_slave_with_master slave
+
+--connection slave
+--echo Stopping secondary slave
+stop slave;
+
+--connection master
+--echo Stopping primary slave
+stop slave;
+
+begin;
+update test.t3 set b="Primary first change 1" where a=1;
+update test.t3 set b="Primary first change 2" where a=2;
+commit;
+
+--connection slave
+SET ndb_log_exclusive_reads= 1;
+begin;
+select * from test.t3 where  b like "Initial data 1" for update;
+update test.t2 set b="Secondary first change 3" where a=3;
+commit;
+
+--echo Checking tables before conflict resolution
+--echo ---------------------------------------
+--connection master
+--echo **** Primary ****
+select * from test.t2 order by a;
+select * from test.t3 order by a;
+
+--echo Starting primary slave
+start slave;
+
+--connection slave
+--echo **** Secondary ****
+select * from test.t2 order by a;
+select * from test.t3 order by a;
+
+--sync_slave_with_master master
+
+--echo Primary should have rejected change from Secondary, keeping its value
+
+select * from test.t2 order by a;
+select * from test.t3 order by a;
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+select NDB$OP_TYPE, b$old, b$new, c$old, c$new, NDB$CFT_CAUSE from test.t3$EX
+order by a;
+
+--connection slave
+-- Echo starting secondary slave
+start slave;
+
+--connection master
+--sync_slave_with_master slave
+
+--connection slave
+
+--echo Secondary should have been realigned to Primary
+--connection master
+--echo **** Primary ****
+select * from test.t2 order by a;
+select * from test.t3 order by a;
+
+--connection slave
+--echo **** Secondary ****
+select * from test.t2 order by a;
+select * from test.t3 order by a;
+
+--connection master
+update test.t2 set b="Initial data 3" where a=3;
+update test.t3 set b="Initial data 1" where a=1;
+update test.t3 set b="Initial data 2" where a=2;
+--echo Sync all changes
+--echo ---------------------------------------
+--sync_slave_with_master slave
+--sync_slave_with_master master
+delete from test.t2$EX;
+delete from test.t3$EX;
+
+# Cleanup
+--connection master
+drop table mysql.ndb_replication;
+drop table test.t1, test.t2, test.t3;
+drop table test.t1$EX, test.t2$EX, test.t3$EX;
+
+--sync_slave_with_master slave
+
+--connection slave
+SET ndb_log_exclusive_reads= 0;
+flush logs;
+--sync_slave_with_master master
+stop slave;
+reset slave;
+--source include/rpl_end.inc

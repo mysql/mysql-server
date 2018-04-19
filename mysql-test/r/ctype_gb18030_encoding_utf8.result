@@ -4,14 +4,17 @@ Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE DATABASE `中文`;
 CREATE DATABASE `数据库`;
-SELECT schema_name, HEX(schema_name) FROM information_schema.schemata WHERE schema_name NOT IN ('mtr', 'sys');
-schema_name	HEX(schema_name)
+SELECT schema_name, HEX(schema_name)
+FROM information_schema.schemata
+WHERE schema_name NOT IN ('mtr', 'sys')
+ORDER BY schema_name;
+SCHEMA_NAME	HEX(schema_name)
 information_schema	696E666F726D6174696F6E5F736368656D61
-中文	E4B8ADE69687
-数据库	E695B0E68DAEE5BA93
 mysql	6D7973716C
 performance_schema	706572666F726D616E63655F736368656D61
 test	74657374
+中文	E4B8ADE69687
+数据库	E695B0E68DAEE5BA93
 USE `数据库`;
 USE `中文`;
 DROP DATABASE `数据库`;
@@ -46,32 +49,32 @@ Field	Type	Null	Key	Default	Extra
 㐄㐄㐄	char(1)	YES		NULL	
 DESC `㐇㐈㐉`;
 Field	Type	Null	Key	Default	Extra
-㐐㐐㐐	char(1)	YES		NULL	
+㐐㐐㐐	char(1)	YES		NULL	NULL
 SHOW CREATE TABLE `表格`;
 Table	Create Table
 表格	CREATE TABLE `表格` (
   `字段一` char(1) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE `模式`;
 Table	Create Table
 模式	CREATE TABLE `模式` (
   `列列列` char(1) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE `隞嗷㐁`;
 Table	Create Table
 隞嗷㐁	CREATE TABLE `隞嗷㐁` (
   `列㐄㐅` char(1) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE `㐅㐅㐅`;
 Table	Create Table
 㐅㐅㐅	CREATE TABLE `㐅㐅㐅` (
   `㐄㐄㐄` char(1) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE `㐇㐈㐉`;
 Table	Create Table
 㐇㐈㐉	CREATE TEMPORARY TABLE `㐇㐈㐉` (
   `㐐㐐㐐` char(1) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `表格`, `模式`, `隞嗷㐁`, `㐅㐅㐅`, `㐇㐈㐉`;
 'Test for ALTER TABLE'
 CREATE TABLE `表格` (`字段一` CHAR(5)) DEFAULT CHARSET = utf8mb4;
@@ -88,9 +91,9 @@ ALTER TABLE `表格` CHANGE `新字段二` `䑃䑃一` CHAR(1);
 ALTER TABLE `表格` MODIFY `新字段三` CHAR(6);
 SELECT * FROM `表格`;
 新字段一	字段一	䑃䑃一	新字段三
-NULL	㐅㐆㐇㐈㐉	NULL	NULL
 NULL	一二三四五	NULL	NULL
 NULL	六七八九十	NULL	NULL
+NULL	㐅㐆㐇㐈㐉	NULL	NULL
 DESC `表格`;
 Field	Type	Null	Key	Default	Extra
 新字段一	char(1)	YES		NULL	
@@ -107,7 +110,7 @@ Table	Create Table
   PRIMARY KEY (`字段一`),
   UNIQUE KEY `新字段三` (`新字段三`),
   KEY `新字段二` (`䑃䑃一`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE `表格` DROP INDEX `新字段二`;
 ALTER TABLE `表格` DROP PRIMARY KEY;
 ALTER TABLE `表格` DROP INDEX `新字段三`;
@@ -116,9 +119,9 @@ ALTER TABLE `表格` DROP `新字段一`;
 ALTER TABLE `表格` DROP `新字段三`;
 SELECT * FROM `表格`;
 字段一
-㐅㐆㐇㐈㐉
 一二三四五
 六七八九十
+㐅㐆㐇㐈㐉
 DESC `表格`;
 Field	Type	Null	Key	Default	Extra
 字段一	char(5)	NO		NULL	
@@ -126,7 +129,7 @@ SHOW CREATE TABLE `表格`;
 Table	Create Table
 表格	CREATE TABLE `表格` (
   `字段一` char(5) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `表格`, `隞嗷㐁`;
 'Test for INSERT/UPDATE/DELETE'
 CREATE TABLE `表一` (`字段一` char(5)) DEFAULT CHARSET = utf8mb4;
@@ -239,7 +242,7 @@ Table	Create Table
   `c` char(1) NOT NULL,
   `e` enum('口','日','目','田','晶') DEFAULT NULL,
   KEY `e` (`e`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DESC `表二`;
 Field	Type	Null	Key	Default	Extra
 c	char(1)	NO		NULL	
@@ -283,11 +286,21 @@ INSERT INTO `表一` VALUES ('龔龖龗龞龡龢龣龥𠀀𠀂𨡃𤈼𠻜𠻝�
 SELECT * FROM `表一`;
 c1
  !"#$%&'()*+,-./
-0123456789:;<=>?
+・・・・・・・・・・・・・・・・・・・・
+・・・・・・・・・・・・・・・ºª©®™
+・・・・・・・・・・・・・・ЂЃЄЅІЇ
+・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・
+・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË
+・áàäâăǎāąåãćĉčçċďéèë
+・άέήίϊΐόςύϋΰώ・・・・・・・
+・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑
+・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪
 @ABCDEFGHIJKLMNO
+¤№・・・・・・・・・・・・・・・・・・
+0123456789:;<=>?
 abcdefghijklmno
-êěėēęǵĝğ・ġĥíìïîǐ・īįĩ
 ÊĚĖĒĘ・ĜĞĢĠĤÍÌÏÎǏİĪĮĨ
+êěėēęǵĝğ・ġĥíìïîǐ・īįĩ
 ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ
 ĵķĺľļńňņñóòöôǒőōõŕřŗ
 PQRSTUVWXYZ[\]^_
@@ -296,17 +309,7 @@ pqrstuvwxyz{|}~
 śŝšşťţúùüûŭǔűūųůũǘǜǚ
 ǕŴÝŸŶŹŽŻ・・・・・・・・・・・・
 ǖŵýÿŷźžż・・・・・・・・・・・・
-¤№・・・・・・・・・・・・・・・・・・
 ЈЉЊЋЌЎЏ・・・・・・・・・・・・・
-・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË
-・áàäâăǎāąåãćĉčçċďéèë
-・άέήίϊΐόςύϋΰώ・・・・・・・
-・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・
-・・・・・・・・・・・・・・ЂЃЄЅІЇ
-・・・・・・・・・・・・・・・ºª©®™
-・・・・・・・・・・・・・・・・・・・・
-・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑
-・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪
 乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠
 仡仢仨仯仱仳仵份仾仿伀伂伃伈伋伌伒伕伖众
 伙伮伱你伳伵伷伹伻伾佀佂佈佉佋佌佒佔佖佘
@@ -358,11 +361,21 @@ c1
 SELECT c1, CONVERT(c1 USING gb18030) FROM `表一`;
 c1	CONVERT(c1 USING gb18030)
  !"#$%&'()*+,-./	 !"#$%&'()*+,-./
-0123456789:;<=>?	0123456789:;<=>?
+・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
+・・・・・・・・・・・・・・・ºª©®™	・・・・・・・・・・・・・・・ºª©®™
+・・・・・・・・・・・・・・ЂЃЄЅІЇ	・・・・・・・・・・・・・・ЂЃЄЅІЇ
+・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・	・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・
+・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË	・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË
+・áàäâăǎāąåãćĉčçċďéèë	・áàäâăǎāąåãćĉčçċďéèë
+・άέήίϊΐόςύϋΰώ・・・・・・・	・άέήίϊΐόςύϋΰώ・・・・・・・
+・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑	・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑
+・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪	・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪
 @ABCDEFGHIJKLMNO	@ABCDEFGHIJKLMNO
+¤№・・・・・・・・・・・・・・・・・・	¤№・・・・・・・・・・・・・・・・・・
+0123456789:;<=>?	0123456789:;<=>?
 abcdefghijklmno	abcdefghijklmno
-êěėēęǵĝğ・ġĥíìïîǐ・īįĩ	êěėēęǵĝğ・ġĥíìïîǐ・īįĩ
 ÊĚĖĒĘ・ĜĞĢĠĤÍÌÏÎǏİĪĮĨ	ÊĚĖĒĘ・ĜĞĢĠĤÍÌÏÎǏİĪĮĨ
+êěėēęǵĝğ・ġĥíìïîǐ・īįĩ	êěėēęǵĝğ・ġĥíìïîǐ・īįĩ
 ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ	ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ
 ĵķĺľļńňņñóòöôǒőōõŕřŗ	ĵķĺľļńňņñóòöôǒőōõŕřŗ
 PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
@@ -371,17 +384,7 @@ pqrstuvwxyz{|}~	pqrstuvwxyz{|}~
 śŝšşťţúùüûŭǔűūųůũǘǜǚ	śŝšşťţúùüûŭǔűūųůũǘǜǚ
 ǕŴÝŸŶŹŽŻ・・・・・・・・・・・・	ǕŴÝŸŶŹŽŻ・・・・・・・・・・・・
 ǖŵýÿŷźžż・・・・・・・・・・・・	ǖŵýÿŷźžż・・・・・・・・・・・・
-¤№・・・・・・・・・・・・・・・・・・	¤№・・・・・・・・・・・・・・・・・・
 ЈЉЊЋЌЎЏ・・・・・・・・・・・・・	ЈЉЊЋЌЎЏ・・・・・・・・・・・・・
-・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË	・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË
-・áàäâăǎāąåãćĉčçċďéèë	・áàäâăǎāąåãćĉčçċďéèë
-・άέήίϊΐόςύϋΰώ・・・・・・・	・άέήίϊΐόςύϋΰώ・・・・・・・
-・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・	・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・
-・・・・・・・・・・・・・・ЂЃЄЅІЇ	・・・・・・・・・・・・・・ЂЃЄЅІЇ
-・・・・・・・・・・・・・・・ºª©®™	・・・・・・・・・・・・・・・ºª©®™
-・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
-・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑	・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑
-・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪	・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪
 乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠	乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠
 仡仢仨仯仱仳仵份仾仿伀伂伃伈伋伌伒伕伖众	仡仢仨仯仱仳仵份仾仿伀伂伃伈伋伌伒伕伖众
 伙伮伱你伳伵伷伹伻伾佀佂佈佉佋佌佒佔佖佘	伙伮伱你伳伵伷伹伻伾佀佂佈佉佋佌佒佔佖佘
@@ -393,11 +396,21 @@ pqrstuvwxyz{|}~	pqrstuvwxyz{|}~
 SELECT c1, CONVERT(c1 USING utf8mb4), CONVERT(CONVERT(c1 USING utf8mb4) USING gb18030) FROM `表一`;
 c1	CONVERT(c1 USING utf8mb4)	CONVERT(CONVERT(c1 USING utf8mb4) USING gb18030)
  !"#$%&'()*+,-./	 !"#$%&'()*+,-./	 !"#$%&'()*+,-./
-0123456789:;<=>?	0123456789:;<=>?	0123456789:;<=>?
+・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
+・・・・・・・・・・・・・・・ºª©®™	・・・・・・・・・・・・・・・ºª©®™	・・・・・・・・・・・・・・・ºª©®™
+・・・・・・・・・・・・・・ЂЃЄЅІЇ	・・・・・・・・・・・・・・ЂЃЄЅІЇ	・・・・・・・・・・・・・・ЂЃЄЅІЇ
+・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・	・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・	・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・
+・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË	・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË	・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË
+・áàäâăǎāąåãćĉčçċďéèë	・áàäâăǎāąåãćĉčçċďéèë	・áàäâăǎāąåãćĉčçċďéèë
+・άέήίϊΐόςύϋΰώ・・・・・・・	・άέήίϊΐόςύϋΰώ・・・・・・・	・άέήίϊΐόςύϋΰώ・・・・・・・
+・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑	・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑	・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑
+・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪	・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪	・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪
 @ABCDEFGHIJKLMNO	@ABCDEFGHIJKLMNO	@ABCDEFGHIJKLMNO
+¤№・・・・・・・・・・・・・・・・・・	¤№・・・・・・・・・・・・・・・・・・	¤№・・・・・・・・・・・・・・・・・・
+0123456789:;<=>?	0123456789:;<=>?	0123456789:;<=>?
 abcdefghijklmno	abcdefghijklmno	abcdefghijklmno
-êěėēęǵĝğ・ġĥíìïîǐ・īįĩ	êěėēęǵĝğ・ġĥíìïîǐ・īįĩ	êěėēęǵĝğ・ġĥíìïîǐ・īįĩ
 ÊĚĖĒĘ・ĜĞĢĠĤÍÌÏÎǏİĪĮĨ	ÊĚĖĒĘ・ĜĞĢĠĤÍÌÏÎǏİĪĮĨ	ÊĚĖĒĘ・ĜĞĢĠĤÍÌÏÎǏİĪĮĨ
+êěėēęǵĝğ・ġĥíìïîǐ・īįĩ	êěėēęǵĝğ・ġĥíìïîǐ・īįĩ	êěėēęǵĝğ・ġĥíìïîǐ・īįĩ
 ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ	ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ	ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ
 ĵķĺľļńňņñóòöôǒőōõŕřŗ	ĵķĺľļńňņñóòöôǒőōõŕřŗ	ĵķĺľļńňņñóòöôǒőōõŕřŗ
 PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
@@ -406,17 +419,7 @@ pqrstuvwxyz{|}~	pqrstuvwxyz{|}~	pqrstuvwxyz{|}~
 śŝšşťţúùüûŭǔűūųůũǘǜǚ	śŝšşťţúùüûŭǔűūųůũǘǜǚ	śŝšşťţúùüûŭǔűūųůũǘǜǚ
 ǕŴÝŸŶŹŽŻ・・・・・・・・・・・・	ǕŴÝŸŶŹŽŻ・・・・・・・・・・・・	ǕŴÝŸŶŹŽŻ・・・・・・・・・・・・
 ǖŵýÿŷźžż・・・・・・・・・・・・	ǖŵýÿŷźžż・・・・・・・・・・・・	ǖŵýÿŷźžż・・・・・・・・・・・・
-¤№・・・・・・・・・・・・・・・・・・	¤№・・・・・・・・・・・・・・・・・・	¤№・・・・・・・・・・・・・・・・・・
 ЈЉЊЋЌЎЏ・・・・・・・・・・・・・	ЈЉЊЋЌЎЏ・・・・・・・・・・・・・	ЈЉЊЋЌЎЏ・・・・・・・・・・・・・
-・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË	・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË	・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË
-・áàäâăǎāąåãćĉčçċďéèë	・áàäâăǎāąåãćĉčçċďéèë	・áàäâăǎāąåãćĉčçċďéèë
-・άέήίϊΐόςύϋΰώ・・・・・・・	・άέήίϊΐόςύϋΰώ・・・・・・・	・άέήίϊΐόςύϋΰώ・・・・・・・
-・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・	・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・	・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・
-・・・・・・・・・・・・・・ЂЃЄЅІЇ	・・・・・・・・・・・・・・ЂЃЄЅІЇ	・・・・・・・・・・・・・・ЂЃЄЅІЇ
-・・・・・・・・・・・・・・・ºª©®™	・・・・・・・・・・・・・・・ºª©®™	・・・・・・・・・・・・・・・ºª©®™
-・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
-・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑	・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑	・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑
-・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪	・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪	・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪
 乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠	乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠	乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠
 仡仢仨仯仱仳仵份仾仿伀伂伃伈伋伌伒伕伖众	仡仢仨仯仱仳仵份仾仿伀伂伃伈伋伌伒伕伖众	仡仢仨仯仱仳仵份仾仿伀伂伃伈伋伌伒伕伖众
 伙伮伱你伳伵伷伹伻伾佀佂佈佉佋佌佒佔佖佘	伙伮伱你伳伵伷伹伻伾佀佂佈佉佋佌佒佔佖佘	伙伮伱你伳伵伷伹伻伾佀佂佈佉佋佌佒佔佖佘
@@ -443,8 +446,8 @@ c
 双
 SELECT c FROM t1a WHERE NOT EXISTS (SELECT c FROM t1b WHERE t1a.c = t1b.c);
 c
-䑃
 字
+䑃
 𤈼
 SELECT c FROM t2a WHERE c IN (SELECT c FROM t2b);
 c
@@ -454,20 +457,20 @@ c
 𠻠
 SELECT c FROM t2a WHERE NOT EXISTS (SELECT c FROM t2b WHERE t2a.c = t2b.c);
 c
-䑂
 齳
+䑂
 'Test for JOIN'
 SELECT * FROM t1a JOIN t1b;
 c	c
-䑃	双
 双	双
 字	双
+䑃	双
 𤈼	双
 SELECT * FROM t1a INNER JOIN t1b;
 c	c
-䑃	双
 双	双
 字	双
+䑃	双
 𤈼	双
 SELECT * FROM t1a JOIN t1b USING (c);
 c
@@ -477,43 +480,43 @@ c
 双
 SELECT * FROM t1a CROSS JOIN t1b;
 c	c
-䑃	双
 双	双
 字	双
+䑃	双
 𤈼	双
 SELECT * FROM t1a LEFT JOIN t1b USING (c);
 c
-䑃
 双
 字
+䑃
 𤈼
 SELECT * FROM t1a LEFT JOIN t1b ON (t1a.c = t1b.c);
 c	c
-䑃	NULL
 双	双
 字	NULL
+䑃	NULL
 𤈼	NULL
 SELECT * FROM t1b RIGHT JOIN t1a USING (c);
 c
-䑃
 双
 字
+䑃
 𤈼
 SELECT * FROM t1b RIGHT JOIN t1a ON (t1a.c = t1b.c);
 c	c
-NULL	䑃
 双	双
 NULL	字
+NULL	䑃
 NULL	𤈼
 SELECT * FROM t2a JOIN t2b;
 c	c
-䑂	𠻠
 齳	𠻠
+䑂	𠻠
 𠻠	𠻠
 SELECT * FROM t2a INNER JOIN t2b;
 c	c
-䑂	𠻠
 齳	𠻠
+䑂	𠻠
 𠻠	𠻠
 SELECT * FROM t2a JOIN t2b USING (c);
 c
@@ -523,28 +526,28 @@ c
 𠻠
 SELECT * FROM t2a CROSS JOIN t2b;
 c	c
-䑂	𠻠
 齳	𠻠
+䑂	𠻠
 𠻠	𠻠
 SELECT * FROM t2a LEFT JOIN t2b USING (c);
 c
-䑂
 齳
+䑂
 𠻠
 SELECT * FROM t2a LEFT JOIN t2b ON (t2a.c = t2b.c);
 c	c
-䑂	NULL
 齳	NULL
+䑂	NULL
 𠻠	𠻠
 SELECT * FROM t2b RIGHT JOIN t2a USING (c);
 c
-䑂
 齳
+䑂
 𠻠
 SELECT * FROM t2b RIGHT JOIN t2a ON (t2a.c = t2b.c);
 c	c
-NULL	䑂
 NULL	齳
+NULL	䑂
 𠻠	𠻠
 DROP TABLE t1a, t1b, t2a, t2b;
 'Test for string functions'
@@ -554,34 +557,34 @@ INSERT INTO `表一` VALUES ('䑃'), ('一䑃二三四'), ('𠀂𨡃');
 SELECT c1, LENGTH(c1) FROM `表一`;
 c1	LENGTH(c1)
 12345678900987654321	20
-䑃	3
-一䑃二三四	15
 一二三四五伍肆叁贰壹	30
+一䑃二三四	15
 九十	6
 六七八	9
 百	3
+䑃	3
 𠀂𨡃	8
 𠻜𠻝𠻞𠻟	16
 SELECT c1, LPAD(c1, 20, '中') FROM `表一`;
 c1	LPAD(c1, 20, '中')
 12345678900987654321	12345678900987654321
-䑃	中中中中中中中中中中中中中中中中中中中䑃
-一䑃二三四	中中中中中中中中中中中中中中中一䑃二三四
 一二三四五伍肆叁贰壹	中中中中中中中中中中一二三四五伍肆叁贰壹
+一䑃二三四	中中中中中中中中中中中中中中中一䑃二三四
 九十	中中中中中中中中中中中中中中中中中中九十
 六七八	中中中中中中中中中中中中中中中中中六七八
 百	中中中中中中中中中中中中中中中中中中中百
+䑃	中中中中中中中中中中中中中中中中中中中䑃
 𠀂𨡃	中中中中中中中中中中中中中中中中中中𠀂𨡃
 𠻜𠻝𠻞𠻟	中中中中中中中中中中中中中中中中𠻜𠻝𠻞𠻟
 SELECT c1, RPAD(c1, 20, '𤈼') FROM `表一`;
 c1	RPAD(c1, 20, '?')
 12345678900987654321	12345678900987654321
-䑃	䑃𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
-一䑃二三四	一䑃二三四𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
 一二三四五伍肆叁贰壹	一二三四五伍肆叁贰壹𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
+一䑃二三四	一䑃二三四𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
 九十	九十𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
 六七八	六七八𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
 百	百𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
+䑃	䑃𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
 𠀂𨡃	𠀂𨡃𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
 𠻜𠻝𠻞𠻟	𠻜𠻝𠻞𠻟𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
 TRUNCATE `表一`;
@@ -603,7 +606,7 @@ INSTR(c1, '?')
 4
 SELECT INSTR(c1, '𠻠') FROM `表一`;
 INSTR(c1, '?')
-4
+6
 SELECT INSTR(c1, '䑃') FROM `表一`;
 INSTR(c1, '䑃')
 2
@@ -733,11 +736,11 @@ CREATE TABLE t1 (c VARCHAR(10)) DEFAULT CHARSET = utf8mb4;
 INSERT INTO t1 VALUES ('嬽仛砻'), ('櫶'), ('怑橷'), ('獣厘濸氻'), ('嚏'), ('𠻠'), ('怑橷');
 SELECT c, COUNT(c) FROM t1 GROUP BY c;
 c	COUNT(c)
-嚏	1
 嬽仛砻	1
-怑橷	2
 櫶	1
+怑橷	2
 獣厘濸氻	1
+嚏	1
 𠻠	1
 DROP TABLE t1;
 'Test for PS'

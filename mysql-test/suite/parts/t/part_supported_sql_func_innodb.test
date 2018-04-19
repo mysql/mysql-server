@@ -25,9 +25,6 @@
 let $debug= 0;
 let $do_long_tests= 1;
 
-# The server must support partitioning.
---source include/have_partition.inc
-
 # This test takes long time, so only run it with the --big mtr-flag.
 --source include/big_test.inc
 # Skiping this test from Valgrind execution as per Bug-14627884
@@ -38,7 +35,6 @@ let $do_long_tests= 1;
 
 ##### Storage engine to be tested
 #The server nust support the engine
---source include/have_innodb.inc
 let $engine= 'INNODB';
 
 #------------------------------------------------------------------------------#

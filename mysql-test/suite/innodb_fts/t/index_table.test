@@ -1,7 +1,6 @@
 # This is the basic function tests for INNODB_FT_INDEX_TABLE
 # and INNODB_FT_INDEX_TABLE in INFORMATION_SCHEMA.
 
--- source include/have_innodb.inc
 
 # Must have debug code to use SET SESSION debug
 -- source include/have_debug.inc
@@ -70,7 +69,7 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 
 DROP TABLE articles;
 
-SET NAMES utf8;
+SET NAMES utf8mb4;
 
 # Test Case 3: Test UFT8 Charset
 CREATE TABLE articles (

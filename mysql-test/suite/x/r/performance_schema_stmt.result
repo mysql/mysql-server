@@ -1,0 +1,231 @@
+
+0 rows affected
+1
+1
+0 rows affected
+SCHEMA_NAME	DIGEST_TEXT	COUNT_STAR
+null	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest`	1
+null	SELECT ?	1
+0 rows affected
+
+1 rows affected
+######### create_collection #########
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+Query
+CREATE TABLE `xtest`.`test` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY) CHARSET utf8mb4 ENGINE=InnoDB
+0 rows affected
+######### Crud.Insert #########
+
+1 rows affected
+Query
+SELECT @@mysqlx_document_id_unique_prefix,@@auto_increment_offset,@@auto_increment_increment
+INSERT INTO `xtest`.`test` (doc) VALUES ('{\"_id\": \"one\"}')
+0 rows affected
+######### Crud.Insert (upsert) #########
+
+1 rows affected
+Query
+SELECT @@mysqlx_document_id_unique_prefix,@@auto_increment_offset,@@auto_increment_increment
+INSERT INTO `xtest`.`test` (doc) VALUES ('{\"_id\": \"two\"}') ON DUPLICATE KEY UPDATE doc = IF(JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id')) = JSON_UNQUOTE(JSON_EXTRACT(VALUES(doc), '$._id')), VALUES(doc), MYSQLX_ERROR(5018))
+0 rows affected
+######### Crud.Update #########
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+Query
+UPDATE `xtest`.`test` SET doc=JSON_SET(JSON_SET(doc,'$.key','val'),'$._id',JSON_EXTRACT(`doc`,'$._id')) WHERE (`_id` = 'one')
+0 rows affected
+######### Crud.CreateView #########
+Mysqlx.Ok {
+}
+
+Query
+CREATE VIEW `xtest`.`test_view` AS SELECT JSON_OBJECT('id', `_id`) AS doc FROM `xtest`.`test`
+0 rows affected
+######### Crud.ModifyView #########
+Mysqlx.Ok {
+}
+
+Query
+ALTER VIEW `xtest`.`test_view` AS SELECT JSON_OBJECT('id', `_id`) AS doc FROM `xtest`.`test`
+0 rows affected
+######### Crud.DropView #########
+Mysqlx.Ok {
+}
+
+Query
+DROP VIEW `xtest`.`test_view`
+0 rows affected
+######### Crud.Find #########
+doc
+{"_id": "one", "key": "val"}
+{"_id": "two"}
+command ok
+Query
+SELECT doc FROM `xtest`.`test`
+0 rows affected
+######### Crud.Find with shared lock #########
+doc
+{"_id": "one", "key": "val"}
+{"_id": "two"}
+command ok
+Query
+SELECT doc FROM `xtest`.`test` FOR SHARE
+0 rows affected
+######### Crud.Find with exclusive lock #########
+doc
+{"_id": "one", "key": "val"}
+{"_id": "two"}
+command ok
+Query
+SELECT doc FROM `xtest`.`test` FOR UPDATE
+0 rows affected
+######### Crud.Delete #########
+
+1 rows affected
+Query
+DELETE FROM `xtest`.`test` WHERE (`_id` = 'one')
+0 rows affected
+######### create_collection #########
+
+command ok
+Query
+CREATE TABLE `xtest`.`test2` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY) CHARSET utf8mb4 ENGINE=InnoDB
+0 rows affected
+######### ensure_collection #########
+
+command ok
+Query
+CREATE TABLE `xtest`.`test2` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY) CHARSET utf8mb4 ENGINE=InnoDB
+SELECT COUNT(*) AS cnt,COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END) AS doc,COUNT(CASE WHEN (column_name = '_id' AND generation_expression RLIKE '^json_unquote\\(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$\\._id\\\\''\\)\\)$') THEN 1 ELSE NULL END) AS id,COUNT(CASE WHEN (column_name != '_id' AND column_name != 'doc' AND generation_expression RLIKE 'json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_\\$]*|\\*|\\".*\\")))*\\\\''\\)') THEN 1 ELSE NULL END) AS gen FROM information_schema.columns WHERE table_name = 'test2' AND table_schema = 'xtest'
+0 rows affected
+######### create_collection_index #########
+
+command ok
+Query
+SHOW CREATE TABLE `xtest`.`test2`
+SHOW COLUMNS FROM `xtest`.`test2` WHERE Field = '$ix_t1_F3A2A51A9B0F2BE2468926B4132313728C250DBF'
+ALTER TABLE `xtest`.`test2` ADD COLUMN `$ix_t1_F3A2A51A9B0F2BE2468926B4132313728C250DBF` TEXT GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$.foo'))) VIRTUAL, ADD UNIQUE INDEX `foo` (`$ix_t1_F3A2A51A9B0F2BE2468926B4132313728C250DBF`(1))
+0 rows affected
+######### drop_collection_index #########
+
+command ok
+Query
+SELECT column_name, COUNT(index_name) AS count FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND column_name IN (SELECT column_name FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND index_name='foo' AND column_name RLIKE '^\\$ix_[[:alnum:]_]+[[:xdigit:]]+$') GROUP BY column_name HAVING count = 1
+ALTER TABLE `xtest`.`test2` DROP INDEX `foo`, DROP COLUMN `$ix_t1_F3A2A51A9B0F2BE2468926B4132313728C250DBF`
+0 rows affected
+######### create_collection_index (spatial) #########
+
+command ok
+Query
+SHOW CREATE TABLE `xtest`.`test2`
+SHOW COLUMNS FROM `xtest`.`test2` WHERE Field = '$ix_gj_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF'
+ALTER TABLE `xtest`.`test2` ADD COLUMN `$ix_gj_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF` GEOMETRY GENERATED ALWAYS AS (ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.foo'),1,4326)) STORED NOT NULL SRID 4326, ADD SPATIAL INDEX `bar` (`$ix_gj_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF`)
+0 rows affected
+######### drop_collection_index (spatial) #########
+
+command ok
+Query
+SELECT column_name, COUNT(index_name) AS count FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND column_name IN (SELECT column_name FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND index_name='bar' AND column_name RLIKE '^\\$ix_[[:alnum:]_]+[[:xdigit:]]+$') GROUP BY column_name HAVING count = 1
+ALTER TABLE `xtest`.`test2` DROP INDEX `bar`, DROP COLUMN `$ix_gj_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF`
+0 rows affected
+######### create_collection_index (fulltext) #########
+
+command ok
+Query
+SHOW CREATE TABLE `xtest`.`test2`
+SHOW COLUMNS FROM `xtest`.`test2` WHERE Field = '$ix_ft_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF'
+ALTER TABLE `xtest`.`test2` ADD COLUMN `$ix_ft_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF` TEXT GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$.foo'))) STORED NOT NULL, ADD FULLTEXT INDEX `foobar` (`$ix_ft_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF`) WITH PARSER ngram
+0 rows affected
+######### drop_collection_index (fulltext) #########
+
+command ok
+Query
+SELECT column_name, COUNT(index_name) AS count FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND column_name IN (SELECT column_name FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND index_name='foobar' AND column_name RLIKE '^\\$ix_[[:alnum:]_]+[[:xdigit:]]+$') GROUP BY column_name HAVING count = 1
+ALTER TABLE `xtest`.`test2` DROP INDEX `foobar`, DROP COLUMN `$ix_ft_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF`
+0 rows affected
+######### list_objects #########
+name	type
+test	COLLECTION
+test2	COLLECTION
+command ok
+Query
+SHOW TABLES FROM `xtest`
+SELECT T.table_name AS name, IF(ANY_VALUE(T.table_type) LIKE '%VIEW', IF(COUNT(*)=1 AND COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END)=1, 'COLLECTION_VIEW', 'VIEW'), IF(COUNT(*)-2 = COUNT(CASE WHEN (column_name != '_id' AND column_name != 'doc' AND generation_expression RLIKE 'json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_\\$]*|\\*|\\".*\\")))*\\\\''\\)') THEN 1 ELSE NULL END) AND COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END)=1 AND COUNT(CASE WHEN (column_name = '_id' AND generation_expression RLIKE '^json_unquote\\(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$\\._id\\\\''\\)\\)$') THEN 1 ELSE NULL END)=1, 'COLLECTION', 'TABLE')) AS type FROM information_schema.tables AS T LEFT JOIN information_schema.columns AS C ON (T.table_schema = C.table_schema AND T.table_name = C.table_name) WHERE T.table_schema = 'xtest' GROUP BY name ORDER BY name
+0 rows affected
+######### drop_collection #########
+
+command ok
+Query
+DROP TABLE `xtest`.`test2`
+0 rows affected
+######### list_clients #########
+
+0 rows affected
+
+0 rows affected
+client_id	user	host	sql_session
+1	x_root	localhost	$SESSION
+command ok
+Query
+CREATE USER 'unpriv'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+SET PASSWORD FOR `unpriv`@`localhost`=<secret>
+0 rows affected
+######### kill_client #########
+connecting...
+active session is now 'unpriv'
+connecting...
+active session is now 'x_root'
+
+command ok
+
+0 rows affected
+Query
+/* xplugin authentication */ SELECT @@require_secure_transport, `authentication_string`, `plugin`,(`account_locked`='Y') as is_account_locked, (`password_expired`!='N') as `is_password_expired`, @@disconnect_on_expired_password as `disconnect_on_expired_password`, @@offline_mode and (`Super_priv`='N') as `is_offline_mode_and_not_super_user`,`ssl_type`, `ssl_cipher`, `x509_issuer`, `x509_subject` FROM mysql.user WHERE 'x_root' = `user` AND 'localhost' = `host`
+KILL
+drop user unpriv@localhost
+0 rows affected
+######### list_notices #########
+notice	enabled
+warnings	1
+account_expired	1
+generated_insert_id	1
+rows_affected	1
+produced_message	1
+command ok
+Query
+0 rows affected
+######### disable_notices #########
+
+command ok
+1/0
+null
+0 rows affected
+Query
+SELECT 1/0
+0 rows affected
+######### enable_notices #########
+
+command ok
+1/0
+null
+0 rows affected
+Warnings generated:
+WARNING | 1365 | Division by 0
+Query
+SELECT 1/0
+SHOW WARNINGS
+0 rows affected
+######### ping #########
+
+command ok
+Query
+0 rows affected
+closing session x_root
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;

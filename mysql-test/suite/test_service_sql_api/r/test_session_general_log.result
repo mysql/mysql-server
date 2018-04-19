@@ -1,0 +1,92 @@
+# Setting general_log to initial state empty
+TRUNCATE TABLE mysql.general_log;
+SET @old_log_output = @@global.log_output;
+SET @old_general_log = @@global.general_log;
+SET @old_general_log_file = @@global.general_log_file;
+##########################################
+# Start plugin with general log
+##########################################
+SET GLOBAL general_log_file = '.../log/test_session_general.log';
+SET GLOBAL log_output = 'FILE,TABLE';
+SET GLOBAL general_log = 'ON';
+##########################################
+# Run plugin
+##########################################
+INSTALL PLUGIN test_session_in_thd SONAME 'TEST_SESSION_IN_THD';
+SELECT plugin_name FROM information_schema.plugins WHERE plugin_name LIKE 'test_session_in_thd';
+plugin_name
+test_session_in_thd
+##########################################
+# Stop plugin
+##########################################
+UNINSTALL PLUGIN test_session_in_thd;
+##########################################
+# Plugin log
+##########################################
+Follows threaded run
+============================================================================================
+init thread
+sql open session 0.
+sql open session 1.
+sql open session 2.
+sql open session 3.
+sql open session 4.
+sql open session 5.
+sql open session 6.
+sql open session 7.
+sql open session 8.
+close following nb of sessions: 9
+sql session close session 8.
+sql session close session 7.
+sql session close session 6.
+sql session close session 5.
+sql session close session 4.
+sql session close session 3.
+sql session close session 2.
+sql session close session 1.
+sql session close session 0.
+sql open session 0.
+sql open session 1.
+sql open session 2.
+sql open session 3.
+sql open session 4.
+sql open session 5.
+sql open session 6.
+sql open session 7.
+sql open session 8.
+close following nb of sessions: 9
+sql session close session 0.
+sql session close session 1.
+sql session close session 2.
+sql session close session 3.
+sql session close session 4.
+sql session close session 5.
+sql session close session 6.
+sql session close session 7.
+sql session close session 8.
+deinit thread
+##########################################
+# Check general log file
+##########################################
+CREATE TABLE t1 (c1 TEXT, c2 TEXT);
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/test_session_general.log' INTO TABLE t1;
+SELECT count(*) FROM t1 WHERE c2 LIKE '%Connect%';
+count(*)
+18
+SELECT count(*) FROM t1 WHERE c2 LIKE '%Quit%';
+count(*)
+18
+SELECT count(*) >= 36 FROM mysql.general_log WHERE command_type IN ('Connect','Quit');
+count(*) >= 36
+1
+##########################################
+# Cleanup
+##########################################
+# Dropping the created table
+DROP TABLE t1;
+# Removing general_log content
+TRUNCATE TABLE mysql.general_log;
+# Deleting log file created
+SET GLOBAL log_output = @old_log_output;
+SET GLOBAL general_log = @old_general_log;
+SET GLOBAL general_log_file = @old_general_log_file;

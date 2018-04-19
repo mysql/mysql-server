@@ -7,7 +7,7 @@ SELECT @@session.binlog_format;
 ROW
 SELECT @@session.binlog_direct_non_transactional_updates;
 @@session.binlog_direct_non_transactional_updates
-1
+0
 SELECT @@session.sql_log_bin;
 @@session.sql_log_bin
 1
@@ -44,7 +44,7 @@ insert into t2 values (1);
 # 'binlog_direct_non_transactional_updates' and 'sql_log_bin' are
 # read-only inside a transaction with preceding transactional updates.
 # Current session values are STATEMENT, TRUE and FALSE, respectively.
-set @@session.binlog_format= row;
+set @@session.binlog_format= 'row';
 ERROR HY000: Cannot modify @@session.binlog_format inside a transaction
 set @@session.binlog_direct_non_transactional_updates= FALSE;
 ERROR HY000: Cannot modify @@session.binlog_direct_non_transactional_updates inside a transaction
@@ -69,7 +69,7 @@ commit;
 # writable when AUTOCOMMIT=0, before a transaction has started.
 # Current session values are STATEMENT, TRUE, FALSE, respectively.
 set AUTOCOMMIT=0;
-set @@session.binlog_format= row;
+set @@session.binlog_format= 'row';
 set @@session.binlog_direct_non_transactional_updates= FALSE;
 set @@session.sql_log_bin= TRUE;
 SELECT @@session.binlog_format;

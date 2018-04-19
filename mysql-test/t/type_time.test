@@ -331,7 +331,7 @@ while ($cnt_0)
             let $second_operand=col_time_key;
           }
   
-          eval EXPLAIN EXTENDED SELECT * FROM
+          eval EXPLAIN SELECT * FROM
                $first_table $first_index_hint INDEX ($first_index)
                STRAIGHT_JOIN
                $second_table $second_index_hint INDEX ($second_index)
@@ -422,13 +422,13 @@ ANALYZE TABLE t3;
 
 let $query=SELECT * FROM t2 STRAIGHT_JOIN t3 FORCE INDEX (col_time_key)
            ON t3.col_time_key > t2.col_datetime_key;
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
 --sorted_result
 eval $query;
 
 let $query=SELECT * FROM t2 STRAIGHT_JOIN t3 IGNORE INDEX (col_time_key)
            ON t3.col_time_key > t2.col_datetime_key;
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
 --sorted_result
 eval $query;
 

@@ -2,9 +2,6 @@
 # WL#6205 - A series of tests to show the correct behavior for
 # CREATE TABLESPACE and associated SQL statements for 16k page size.
 #
---source include/have_innodb.inc
---source include/have_innodb_16k.inc
---source include/not_embedded.inc
 
 --echo #
 --echo # CREATE TABLESPACE related tests for 16k page sizes.
@@ -199,21 +196,16 @@ INSERT INTO t_dyn_in_16k VALUES (1,'a'),(2,'b'),(3,'c');
 --echo #
 --echo # Try to drop these tablespaces which are not empty
 --echo #
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_1k; 
-SHOW WARNINGS;
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_2k; 
-SHOW WARNINGS;
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_4k; 
-SHOW WARNINGS;
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_8k; 
-SHOW WARNINGS;
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE s_16k; 
-SHOW WARNINGS;
 
 --echo #
 --echo # Add more data to the existing Tables
@@ -259,6 +251,13 @@ CREATE TABLE t_red_in_16k_from_1k TABLESPACE s_16k ROW_FORMAT=redundant AS (SELE
 CREATE TABLE t_com_in_16k_from_1k TABLESPACE s_16k ROW_FORMAT=compact AS (SELECT * FROM t_zip1k_in_1k);
 CREATE TABLE t_dyn_in_16k_from_1k TABLESPACE s_16k ROW_FORMAT=dynamic AS (SELECT * FROM t_zip1k_in_1k);
 
+--echo #
+--echo # Create a tablespace that will be deleted while the engine is not
+--echo # running to show that it can still be dropped.
+--echo #
+CREATE TABLESPACE s_missing ADD DATAFILE 'delete_me.ibd';
+CREATE TABLE t_missing (a int) TABLESPACE=s_missing;
+
 --source suite/innodb/include/show_i_s_tablespaces.inc
 --source suite/innodb/include/show_i_s_tables.inc
 --echo # Directory of MYSQLD_DATADIR/
@@ -267,9 +266,16 @@ CREATE TABLE t_dyn_in_16k_from_1k TABLESPACE s_16k ROW_FORMAT=dynamic AS (SELECT
 --list_files $MYSQLD_DATADIR/test/ *.ibd
 
 --echo #
---echo # Restart the server and make sure that everything is OK.
+--echo # Stop the server.
+--source include/shutdown_mysqld.inc
+
+--echo # Delete a general tablespace datafile.
+--remove_file $MYSQLD_DATADIR/delete_me.ibd
+--source include/start_mysqld.inc
+
+--echo # Make sure that the missing tablespace can be dropped and
+--echo # everything else is OK.
 --echo #
---source include/restart_mysqld.inc
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
 --source suite/innodb/include/show_i_s_tables.inc
@@ -281,6 +287,11 @@ CREATE TABLE t_dyn_in_16k_from_1k TABLESPACE s_16k ROW_FORMAT=dynamic AS (SELECT
 --echo #
 --echo # Clean-up tables we no longer need
 --echo #
+
+--error ER_TABLESPACE_IS_NOT_EMPTY
+DROP TABLESPACE s_missing;
+DROP TABLE t_missing;
+DROP TABLESPACE s_missing;
 
 DROP TABLE t_zip1k_in_1k_like;
 DROP TABLE t_zip2k_in_2k_like;
@@ -621,3 +632,18 @@ DROP TABLESPACE s_2k;
 DROP TABLESPACE s_4k;
 DROP TABLESPACE s_8k;
 DROP TABLESPACE s_16k;
+--rmdir $MYSQL_TMP_DIR/test
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means the system cannot find the path specified");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot delete tablespace .* because it is not found in the tablespace memory cache");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table `test`.`t_missing` in the cache. Attempting to load the tablespace with space id .*");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace .*, name 's_missing', file 'delete_me.ibd' is missing!");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Ignoring tablespace `s_missing` because it could not be opened");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Unable to open tablespace .* \\(flags=.*, filename=delete_me.ibd\\);");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Trying to access missing tablespace .*");
+call mtr.add_suppression("\\[ERROR\\].* '.*s_.k.ibd' read failed! - attempted to read 4 bytes, read only 0 bytes at offset 16418");
+call mtr.add_suppression("\\[Warning\\].* Ignoring '.*s_.k.ibd' invalid tablespace ID in the header");
+--enable_query_log

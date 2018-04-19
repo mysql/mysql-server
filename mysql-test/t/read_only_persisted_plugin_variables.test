@@ -1,0 +1,91 @@
+
+--echo #
+--echo # WL#9787: Allow SET PERSIST to set read-only variables too
+--echo # Extended Test case to cover all the static server variables including
+--echo # plugin variables.
+--echo #
+
+#############################
+# Creation Date: 2017-05-23 #
+# Test Author: Mohit Joshi  #
+#############################
+
+# This test is also meant to check read-only persisted value of log-slave-updates,
+# thus, it makes sense to run this test when log-bin and log-slave-updates are enabled.
+-- source include/have_log_bin.inc
+
+--echo # Check there are no existing persistent variables
+--echo # Must return 0 rows.
+SELECT * FROM performance_schema.persisted_variables;
+SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURCE = 'PERSISTED';
+
+--echo # Allow SET PERSIST to set all the read only variables excluding plugin
+--echo # variables.
+--echo #
+--disable_warnings
+--source include/persist_only_variables.sql
+--enable_warnings
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+--echo # Must return 100 rows.
+SELECT count(*) from performance_schema.persisted_variables;
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+CALL mtr.add_suppression("Plugin audit_log reported *");
+
+--echo # Both queries must return 100 rows.
+SELECT * FROM performance_schema.persisted_variables;
+SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURCE = 'PERSISTED';
+
+RESET PERSIST;
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Install version token plugin
+--echo ##################
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
+SELECT @@version_tokens_session_number;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@persist_only.version_tokens_session_number=3;
+
+--echo # return 0 row
+SELECT * FROM performance_schema.persisted_variables;
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # return 0 row
+SELECT * FROM performance_schema.persisted_variables;
+SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURCE = 'PERSISTED';
+
+UNINSTALL PLUGIN version_tokens;
+RESET PERSIST;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc

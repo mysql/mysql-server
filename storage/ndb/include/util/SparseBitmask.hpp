@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2010, 2013 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -138,6 +145,70 @@ public:
     return false;
   }
 
+  /**
+   * Bitwise OR the content of the passed bitmask
+   * into our bitmask
+   */
+  void bitOR(const SparseBitmask& obj)
+  {
+    Vector<unsigned> result;
+    
+    unsigned my_idx = 0;
+    unsigned obj_idx = 0;
+    bool done = false;
+
+    /* Merge source + obj -> result in bit order */
+    while (!done)
+    {
+      if (my_idx < count())
+      {
+        const unsigned next_from_me = m_vec[my_idx];
+        
+        if (obj_idx < obj.count())
+        {
+          /* Set lowest bit from either bitmask */
+          const unsigned next_from_obj = obj.m_vec[obj_idx];
+          
+          if (next_from_me == next_from_obj)
+          {
+            /* Same bit set in both */
+            result.push_back(next_from_me);
+            my_idx++;
+            obj_idx++;
+          }
+          else if (next_from_me < next_from_obj)
+          {
+            result.push_back(next_from_me);
+            my_idx++;
+         }
+          else
+          {
+            result.push_back(next_from_obj);
+            obj_idx++;
+          }
+        }
+        else
+        {
+          /* Finished with bits set in obj */
+          result.push_back(next_from_me);
+          my_idx++;
+        }
+      }
+      else if (obj_idx < obj.count())
+      {
+        /* Finished with my bits */
+        result.push_back(obj.m_vec[obj_idx]);
+        obj_idx++;
+      }
+      else
+      {
+        done = true;
+      }
+    }
+    /* Overwrite my bitmask with the new value */
+    m_vec.assign(result);
+  }
+      
   BaseString str() const {
     BaseString tmp;
     const char* sep="";

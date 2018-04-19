@@ -1,0 +1,45 @@
+SHOW FULL PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+3	root	localhost	test	Query	0	starting	SHOW FULL PROCESSLIST
+SHOW STATUS LIKE '%thread%';
+Variable_name	Value
+Delayed_insert_threads	0
+Performance_schema_thread_classes_lost	0
+Performance_schema_thread_instances_lost	0
+Slow_launch_threads	0
+Threads_cached	0
+Threads_connected	1
+Threads_created	1
+Threads_running	1
+------ Run plugin ------------------------------------------------
+INSTALL PLUGIN test_processlist_thd_vars SONAME 'TEST_PROCESSLIST_THD_VAR';
+SHOW FULL PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+3	root	localhost	test	Query	0	starting	SHOW FULL PROCESSLIST
+SHOW STATUS LIKE '%thread%';
+Variable_name	Value
+Delayed_insert_threads	0
+Performance_schema_thread_classes_lost	0
+Performance_schema_thread_instances_lost	0
+Slow_launch_threads	0
+Threads_cached	0
+Threads_connected	1
+Threads_created	1
+Threads_running	1
+------ Stop plugin -----------------------------------------------
+UNINSTALL PLUGIN test_processlist_thd_vars;
+SHOW FULL PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+3	root	localhost	test	Query	0	starting	SHOW FULL PROCESSLIST
+SHOW STATUS LIKE '%thread%';
+Variable_name	Value
+Delayed_insert_threads	0
+Performance_schema_thread_classes_lost	0
+Performance_schema_thread_instances_lost	0
+Slow_launch_threads	0
+Threads_cached	0
+Threads_connected	1
+Threads_created	1
+Threads_running	1
+------ plugin log ------------------------------------------------
+Initializing.

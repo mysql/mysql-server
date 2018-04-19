@@ -1,0 +1,56 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET @group_replication_transaction_size_limit_save= @@GLOBAL.group_replication_transaction_size_limit;
+
+## 1. Test group_replication_transaction_size_limit option.
+SET GLOBAL group_replication_transaction_size_limit= "";
+ERROR 42000: Incorrect argument type to variable 'group_replication_transaction_size_limit'
+SET GLOBAL group_replication_transaction_size_limit= "ABC";
+ERROR 42000: Incorrect argument type to variable 'group_replication_transaction_size_limit'
+SET GLOBAL group_replication_transaction_size_limit= 2147483648;
+include/assert.inc [group_replication_transaction_size_limit is max]
+SET GLOBAL group_replication_transaction_size_limit= -1;
+include/assert.inc [group_replication_transaction_size_limit is min]
+SET GLOBAL group_replication_transaction_size_limit= 3000000000;
+include/assert.inc [group_replication_transaction_size_limit is max]
+SET GLOBAL group_replication_transaction_size_limit= -2;
+include/assert.inc [group_replication_transaction_size_limit is min]
+SET GLOBAL group_replication_transaction_size_limit= 1;
+include/assert.inc [group_replication_transaction_size_limit is correct]
+SET GLOBAL group_replication_transaction_size_limit= 0;
+include/assert.inc [group_replication_transaction_size_limit is correct]
+SET GLOBAL group_replication_transaction_size_limit= 1024;
+include/assert.inc [group_replication_transaction_size_limit is correct]
+SET GLOBAL group_replication_transaction_size_limit= 2147483647;
+include/assert.inc [group_replication_transaction_size_limit is correct]
+SET GLOBAL group_replication_transaction_size_limit= default;
+include/assert.inc [group_replication_transaction_size_limit is correct]
+
+## 2. Change group_replication_transaction_size options while
+##    Group Replication is running.
+include/start_and_bootstrap_group_replication.inc
+SET GLOBAL group_replication_transaction_size_limit= "";
+ERROR 42000: Incorrect argument type to variable 'group_replication_transaction_size_limit'
+SET GLOBAL group_replication_transaction_size_limit= "ABC";
+ERROR 42000: Incorrect argument type to variable 'group_replication_transaction_size_limit'
+SET GLOBAL group_replication_transaction_size_limit= 2147483648;
+include/assert.inc [group_replication_transaction_size_limit is max]
+SET GLOBAL group_replication_transaction_size_limit= -1;
+include/assert.inc [group_replication_transaction_size_limit is min]
+SET GLOBAL group_replication_transaction_size_limit= 3000000000;
+include/assert.inc [group_replication_transaction_size_limit is max]
+SET GLOBAL group_replication_transaction_size_limit= -2;
+include/assert.inc [group_replication_transaction_size_limit is min]
+SET GLOBAL group_replication_transaction_size_limit= 1024;
+include/assert.inc [group_replication_transaction_size_limit is correct]
+SET GLOBAL group_replication_transaction_size_limit= 2147483647;
+include/assert.inc [group_replication_transaction_size_limit is correct]
+SET GLOBAL group_replication_transaction_size_limit= 0;
+include/assert.inc [group_replication_transaction_size_limit is correct]
+
+## 3. Clean up.
+SET GLOBAL group_replication_transaction_size_limit= @group_replication_transaction_size_limit_save;
+include/group_replication_end.inc

@@ -7,14 +7,14 @@ SELECT PLUGIN_NAME, PLUGIN_TYPE
 FROM information_schema.plugins
 WHERE plugin_name LIKE 'rewrite%';
 plugin_name	plugin_type
-rewrite_example	QUERY REWRITE PRE PARSE
+rewrite_example	AUDIT
 Warnings:
 Note	1105	Query 'SELECT PLUGIN_NAME, PLUGIN_TYPE
 FROM information_schema.plugins
 WHERE plugin_name LIKE 'rewrite%'' rewritten to 'select plugin_name, plugin_type
 from information_schema.plugins
-where plugin_name like 'rewrite%'' by plugin: rewrite_example.
-Note	1105	Query 'SHOW WARNINGS' rewritten to 'show warnings' by plugin: rewrite_example.
+where plugin_name like 'rewrite%'' by a query rewrite plugin
+Note	1105	Query 'SHOW WARNINGS' rewritten to 'show warnings' by a query rewrite plugin
 # We roll our own show warnings here. We try GET DIAGNOSTICS at the same
 # time, so automatic SHOW WARNINGS would just be confusing.
 SELECT 'LOWERCASE';
@@ -22,8 +22,8 @@ lowercase
 lowercase
 SHOW WARNINGS;
 Level	Code	Message
-Note	1105	Query 'SELECT 'LOWERCASE'' rewritten to 'select 'lowercase'' by plugin: rewrite_example.
-Note	1105	Query 'SHOW WARNINGS' rewritten to 'show warnings' by plugin: rewrite_example.
+Note	1105	Query 'SELECT 'LOWERCASE'' rewritten to 'select 'lowercase'' by a query rewrite plugin
+Note	1105	Query 'SHOW WARNINGS' rewritten to 'show warnings' by a query rewrite plugin
 SELECT 'LOWERCASE AGAIN';
 lowercase again
 lowercase again
@@ -31,13 +31,14 @@ GET DIAGNOSTICS CONDITION 1 @c1p1 = MESSAGE_TEXT;
 GET DIAGNOSTICS CONDITION 2 @c2p1 = MESSAGE_TEXT;
 SELECT @c1p1;
 @c1p1
-Query 'SELECT 'LOWERCASE AGAIN'' rewritten to 'select 'lowercase again'' by plugin: rewrite_example.
+Query 'SELECT 'LOWERCASE AGAIN'' rewritten to 'select 'lowercase again'' by a query rewrite plugin
 SELECT @c2p1;
 @c2p1
-Query 'GET DIAGNOSTICS CONDITION 1 @c1p1 = MESSAGE_TEXT' rewritten to 'get diagnostics condition 1 @c1p1 = message_text' by plugin: rewrite_example.
+Query 'GET DIAGNOSTICS CONDITION 1 @c1p1 = MESSAGE_TEXT' rewritten to 'get diagnostics condition 1 @c1p1 = message_text' by a query rewrite plugin
 UNINSTALL PLUGIN rewrite_example;
 Warnings:
-Note	1105	Query 'UNINSTALL PLUGIN rewrite_example' rewritten to 'uninstall plugin rewrite_example' by plugin: rewrite_example.
+Note	1105	Query 'UNINSTALL PLUGIN rewrite_example' rewritten to 'uninstall plugin rewrite_example' by a query rewrite plugin
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
 SELECT 'UPPERCASE';
 UPPERCASE
 UPPERCASE

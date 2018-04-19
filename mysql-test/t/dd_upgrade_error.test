@@ -1,0 +1,149 @@
+--echo # This test scripts covers upgrade of tables, views, tablespaces,
+--echo # events, stored routines and triggers from 5.7 to 8.0.
+
+--echo # Set different paths for --datadir
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
+
+--echo # Stop DB server which was created by MTR default
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/shutdown_mysqld.inc
+
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/data57.zip $MYSQL_TMP_DIR/data57.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data57.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data57.zip -d $MYSQL_TMP_DIR
+
+--echo # Create a bootstrap file in temp location
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--exec echo $MYSQL_TMP_DIR/bootstrap.log
+
+--echo # Copy mismatch .frms to test_mismatch dir
+--copy_files_wildcard $MYSQL_TMP_DIR/data57/mismatch_frms/ $MYSQL_TMP_DIR/data57/test_mismatch/ *
+
+--echo # Copy pre 5.0 decimal files to test dir
+--copy_file $MYSQLTEST_VARDIR/std_data/41_decimal.frm $MYSQL_TMP_DIR/data57/test/41_decimal.frm
+
+--echo # Starting the DB server will fail since the data dir contains
+--echo # tables with non native partitioning.
+let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+--error 1
+--exec $MYSQLD $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
+
+let SEARCH_FILE= $MYSQLD_LOG;
+--let SEARCH_PATTERN= Table upgrade required for `test`.`41_decimal`. Please dump/reload table to fix it!
+--source include/search_pattern.inc
+
+let SEARCH_FILE= $MYSQLD_LOG;
+--let SEARCH_PATTERN= Error in creating TABLE_SHARE from p4_hash.frm file.
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t1_col_name
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t2_col_type
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t3_col_num
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t4_index_name
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t5_index_cols
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t6_indexes_num
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t7_indexes_unique
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t8_col_type_nulls
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in fixing SE data for test_mismatch.t9_index_prefix_len
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Table mismatch_frms/t1_col_name is not found in InnoDB dictionary
+--source include/search_pattern.inc
+
+--echo # Remove copied files
+--remove_file $MYSQLD_LOG
+--remove_file $MYSQL_TMP_DIR/data57.zip
+--force-rmdir $MYSQL_TMP_DIR/data57
+
+--echo # ------------------------------------------------------------------
+--echo # Check upgrade of tables and stored programs using long enum elements.
+--echo # ------------------------------------------------------------------
+
+--echo # Set different path for --datadir
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_enum;
+
+--echo # DB server which was started above is not running, no need for shutdown
+
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/data57_enum.zip $MYSQL_TMP_DIR/data57_enum.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data57_enum.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data57_enum.zip -d $MYSQL_TMP_DIR
+
+# Copy .frm file with generated column containing removed function.
+--copy_file $MYSQLTEST_VARDIR/std_data/t_gcol_dep.frm $MYSQL_TMP_DIR/data57_enum/test/t_gcol_dep.frm
+
+--echo #
+--echo # BUG#26743291 : VIEW WITH EXPLICIT COLUMN NAME > 64 IS MARKED
+--echo #                INVALID WHEN UPGRADED TO 8.0.
+
+--write_file $MYSQL_TMP_DIR/data57_enum/test/v1.frm
+TYPE=VIEW
+query=select 1 AS `a123456789012345678901234567890123456789012345678901234567890123456789`
+md5=fc83a6c1fde1c4183a3c24c91751f36f
+updatable=0
+algorithm=0
+definer_user=root
+definer_host=localhost
+suid=2
+with_check_option=0
+timestamp=2017-10-20 06:39:41
+create-version=1
+source=select 1
+client_cs_name=utf8
+connection_cl_name=utf8_general_ci
+view_body_utf8=select 1 AS `a123456789012345678901234567890123456789012345678901234567890123456789`
+EOF
+
+--echo # Starting the DB server will fail since the data dir contains
+--echo # a table and a stored program with a too long enum literals.
+let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+--error 1
+--exec $MYSQLD $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
+
+--let SEARCH_PATTERN= Error in Creating DD entry for test.t_long_enum
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in creating stored program 'test.p_long_enum'
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in processing generated columns for table test.t_gcol_dep
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= No database selected
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Incorrect column name 'a123456789012345678901234567890123456789012345678901234567890123456789'
+--source include/search_pattern.inc
+
+--echo # Remove copied files
+--remove_file $MYSQLD_LOG
+--remove_file $MYSQL_TMP_DIR/data57_enum.zip
+--force-rmdir $MYSQL_TMP_DIR/data57_enum
+
+--echo # Restart the server with default options.
+--source include/start_mysqld.inc

@@ -2,9 +2,6 @@
 #
 # Check the layout of information_schema.triggers and the impact of
 # CREATE/ALTER/DROP TABLE/VIEW/SCHEMA ... on it.
-# Variant for the non embedded server
-#    The expected results must equal is_triggers_embedded except that
-#    that the privilege system works (affects some result sets).
 #
 # There is detailed information about this test within
 #    suite/funcs_1/datadict/is_triggers.inc
@@ -17,6 +14,4 @@
 
 let $engine_type       = InnoDB;
 let $other_engine_type = InnoDB;
---source include/have_innodb.inc
---source include/not_embedded.inc
 --source suite/funcs_1/datadict/is_triggers.inc

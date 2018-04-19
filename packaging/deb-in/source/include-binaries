@@ -1,0 +1,118 @@
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+# obscured filename for mysqld-debug
+debian/extra/server-binary
+# obscured filenames for debug plugins
+debian/extra/adt_null-plugin
+debian/extra/auth-plugin
+debian/extra/auth_socket-plugin
+debian/extra/authentication_ldap_sasl_client-plugin
+debian/extra/auth_test_plugin-plugin
+debian/extra/component_example_component1-plugin
+debian/extra/component_example_component2-plugin
+debian/extra/component_example_component3-plugin
+debian/extra/component_log_sink_test-plugin
+debian/extra/component_log_sink_syseventlog-plugin
+debian/extra/component_log_filter_dragnet-plugin
+debian/extra/component_log_sink_json-plugin
+debian/extra/component_test_string_service_charset-plugin
+debian/extra/component_test_string_service_long-plugin
+debian/extra/component_test_string_service-plugin
+debian/extra/component_test_backup_lock_service-plugin
+debian/extra/component_pfs_example-plugin
+debian/extra/component_pfs_example_component_population-plugin
+debian/extra/pfs_example_plugin_employee-plugin
+debian/extra/component_test_pfs_notification-plugin
+debian/extra/component_test_pfs_resource_group-plugin
+debian/extra/component_test_udf_registration-plugin
+debian/extra/component_udf_reg_3_func-plugin
+debian/extra/component_udf_reg_avg_func-plugin
+debian/extra/component_udf_reg_int_func-plugin
+debian/extra/component_udf_reg_int_same_func-plugin
+debian/extra/component_udf_reg_only_3_func-plugin
+debian/extra/component_udf_reg_real_func-plugin
+debian/extra/component_udf_unreg_3_func-plugin
+debian/extra/component_udf_unreg_int_func-plugin
+debian/extra/component_udf_unreg_real_func-plugin
+debian/extra/component_test_sys_var_service_int-plugin
+debian/extra/component_test_sys_var_service-plugin
+debian/extra/component_test_sys_var_service_same-plugin
+debian/extra/component_test_sys_var_service_str-plugin
+debian/extra/component_test_status_var_service-plugin
+debian/extra/component_test_status_var_service_int-plugin
+debian/extra/component_test_status_var_service_reg_only-plugin
+debian/extra/component_test_status_var_service_str-plugin
+debian/extra/component_test_status_var_service_unreg_only-plugin
+debian/extra/component_test_system_variable_source-plugin
+debian/extra/component_validate_password-plugin
+debian/extra/group_replication-plugin
+debian/extra/ha_example-plugin
+debian/extra/innodb_engine-plugin
+debian/extra/keyring_file-plugin
+debian/extra/keyring_udf-plugin
+debian/extra/libdaemon_example-plugin
+debian/extra/libmemcached-plugin
+debian/extra/libpluginmecab-plugin
+debian/extra/libtest_framework-plugin
+debian/extra/libtest_services-plugin
+debian/extra/libtest_services_threaded-plugin
+debian/extra/libtest_session_detach-plugin
+debian/extra/libtest_session_attach-plugin
+debian/extra/libtest_session_info-plugin
+debian/extra/libtest_session_in_thd-plugin
+debian/extra/libtest_sql_2_sessions-plugin
+debian/extra/libtest_sql_all_col_types-plugin
+debian/extra/libtest_sql_cmds_1-plugin
+debian/extra/libtest_sql_commit-plugin
+debian/extra/libtest_sql_complex-plugin
+debian/extra/libtest_sql_errors-plugin
+debian/extra/libtest_sql_lock-plugin
+debian/extra/libtest_sql_processlist-plugin
+debian/extra/libtest_sql_replication-plugin
+debian/extra/libtest_sql_shutdown-plugin
+debian/extra/libtest_sql_stmt-plugin
+debian/extra/libtest_sql_sqlmode-plugin
+debian/extra/libtest_sql_stored_procedures_functions-plugin
+debian/extra/libtest_sql_views_triggers-plugin
+debian/extra/libtest_x_sessions_deinit-plugin
+debian/extra/libtest_x_sessions_init-plugin
+debian/extra/locking_service-plugin
+debian/extra/mypluglib-plugin
+debian/extra/mysql_no_login-plugin
+debian/extra/mysqlx-plugin
+debian/extra/qa_auth_client-plugin
+debian/extra/qa_auth_interface-plugin
+debian/extra/qa_auth_server-plugin
+debian/extra/replication_observers_example_plugin-plugin
+debian/extra/rewriter-plugin
+debian/extra/rewrite_example-plugin
+debian/extra/semisync_master-plugin
+debian/extra/semisync_slave-plugin
+debian/extra/test_udf_services-plugin
+debian/extra/udf_example-plugin
+debian/extra/test_security_context-plugin
+debian/extra/test_services_plugin_registry-plugin
+debian/extra/validate_password-plugin
+debian/extra/version_token-plugin
+debian/extra/connection_control-plugin
+@DEB_INCLUDE_BINARIES_EXTRA@

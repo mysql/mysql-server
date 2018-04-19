@@ -1,0 +1,86 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug#21644827 - FTS, ASSERT !SRV_READ_ONLY_MODE || M_IMPL.M_LOG_MODE ==
+--echo #                MTR_LOG_NO_REDO
+--echo #
+
+create table t1 (a int not null, d varchar(15) not null, b
+varchar(198) not null, c char(156),
+fulltext ftsic(c)) engine=InnoDB
+row_format=redundant;
+
+insert into t1 values(123, 'abcdef', 'jghikl', 'mnop');
+insert into t1 values(456, 'abcdef', 'jghikl', 'mnop');
+insert into t1 values(789, 'abcdef', 'jghikl', 'mnop');
+insert into t1 values(134, 'kasdfsdsadf', 'adfjlasdkfjasd', 'adfsadflkasdasdfljasdf');
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+
+SET GLOBAL innodb_file_per_table=OFF;
+create table t2 (a int not null, d varchar(15) not null, b
+varchar(198) not null, c char(156), fulltext ftsic(c)) engine=InnoDB
+row_format=redundant;
+
+insert into t2 select * from t1;
+
+create table t3 (a int not null, d varchar(15) not null, b varchar(198),
+c varchar(150), index k1(c(99), b(56)), index k2(b(5), c(10))) engine=InnoDB
+row_format=redundant;
+
+insert into t3 values(444, 'dddd', 'bbbbb', 'aaaaa');
+insert into t3 values(555, 'eeee', 'ccccc', 'aaaaa');
+
+# Suppress warning regarding re-populating charsets and collations.
+--disable_query_log
+CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+CALL mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+CALL mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
+--enable_query_log
+
+# read-only restart requires the change buffer to be empty; therefore we
+# do a slow shutdown.
+SET GLOBAL innodb_fast_shutdown=0;
+let $restart_parameters = restart: --innodb-read-only;
+--source include/restart_mysqld.inc
+
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+TRUNCATE TABLE t3;
+
+# These messages are relevant only when this debug parameter
+# "ib_table_invalid_flags" is enabled
+# In new DD, we don't load table from InnoDB data dictionary.
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Table `test`.`t1` in InnoDB data dictionary contains invalid flags. SYS_TABLES.MIX_LEN=255");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Parent table of FTS auxiliary table test/FTS_.* not found.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot open table test/t1 from the internal data dictionary of InnoDB though the .frm file for the table exists.");
+--enable_query_log
+
+let $restart_parameters = restart: --debug=d,ib_table_invalid_flags;
+--source include/restart_mysqld.inc
+
+#--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;
+
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;

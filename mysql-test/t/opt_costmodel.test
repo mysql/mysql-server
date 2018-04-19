@@ -1,232 +1,320 @@
-#
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
-#
+# The block size influence cost estimates in JSON EXPLAIN.
+# To produce the same cost estimates this test can only run with 16K pages.
 
 #
-# Test for the optimizer cost model
+# Default values for cost constants (from the source code)
 #
+let $row_evaluate_cost= 0.1;
+let $key_compare_cost= 0.05;
+let $memory_temptable_create_cost= 1.0;
+let $memory_temptable_row_cost= 0.1;
+let $disk_temptable_create_cost= 20;
+let $disk_temptable_row_cost= 0.5;
+let $memory_block_read_cost= 0.25;
+let $io_block_read_cost= 1.0;
 
-# Validate that the optimizer cost configuration tables exists and
-# has the expected content.
-#
-# Table: server_cost
-#
-# Mask out the content of the last_update column
---replace_column 3 #
-SELECT * FROM mysql.server_cost;
+--echo #
+--echo # Bug#20443863 USE OF WORST_SEEKS IN FIND_BEST_REF() CAN LEAD TO
+--echo #              WRONG QUERY PLAN
+--echo #
 
-# Check that it has the expected index defined
-# The index should be:
-#
-#   PRIMARY (cost_name)
-#
-# We do not care about the cardinality of this index since it can vary
---replace_column 7 #
-SHOW INDEX FROM mysql.server_cost;
 
-#
-# Table: engine_cost
-#
-# Mask out the content of the last_update column
---replace_column 5 #
-SELECT * FROM mysql.engine_cost;
+CREATE TABLE t1 (
+  i1 INTEGER,
+  i2 INTEGER,
+  i3 INTEGER,
+  KEY(i1,i2)
+) ENGINE=InnoDB;
 
-# Check that it has the expected index defined
-# The index should be a unique index on:
-#
-#   PRIMARY (cost_name, engine_name, device_type)
-#
-# We do not care about the cardinality of this index since it can vary
---replace_column 7 #
-SHOW INDEX FROM mysql.engine_cost;
+INSERT INTO t1 VALUES (1, 1, 1), (1, 1, 1),(1, 1, 1),(1, 1, 1),
+                      (2, 2, 1), (2, 2, 1),(2, 2, 1),(2, 2, 1),
+                      (3, 3, 1), (3, 3, 1),(3, 3, 1),(3, 3, 1);
 
-#
-# Test of updating cost constants in server_cost
-#
-# 1. Updating an existing cost constant
-#
-# Change the value
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t1;
+--enable_result_log
+--enable_query_log
+
+# worst_seeks is used for two cases: when the entire index is used and 
+# when only a prefix of the index is used. Two get coverage for both cases,
+# two almost identical queries are needed.
+
+# Test query for case 1: the entire index is used
+let query_1= SELECT i3 FROM t1 WHERE i1 = 1 AND i2 = 1;
+
+# Test query for case 2: only a prefix of the index is used
+let query_2= SELECT i3 FROM t1 WHERE i1 = 1 AND i3 = 1;
+
+# Run the queries with default cost constants
+
+# Create a user connection
+connect (con1,localhost,root,,);
+
+# Get cost estimates with default values
+eval EXPLAIN FORMAT=JSON $query_1;
+eval EXPLAIN FORMAT=JSON $query_2;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+# Double the value that the cost constants have:
+# 1. Replace the NULL in the cost_value column with actual value
+
+# Update server_cost:
+eval UPDATE mysql.server_cost
+     SET cost_value=$row_evaluate_cost
+     WHERE cost_name="row_evaluate_cost";
+
+eval UPDATE mysql.server_cost
+     SET cost_value=$key_compare_cost
+     WHERE cost_name="key_compare_cost";
+
+eval UPDATE mysql.server_cost
+     SET cost_value=$memory_temptable_create_cost
+     WHERE cost_name="memory_temptable_create_cost";
+
+eval UPDATE mysql.server_cost
+     SET cost_value=$memory_temptable_row_cost
+     WHERE cost_name="memory_temptable_row_cost";
+
+eval UPDATE mysql.server_cost
+     SET cost_value=$disk_temptable_create_cost
+     WHERE cost_name="disk_temptable_create_cost";
+
+eval UPDATE mysql.server_cost
+     SET cost_value=$disk_temptable_row_cost
+     WHERE cost_name="disk_temptable_row_cost";
+
+# Update engine_cost:
+eval UPDATE mysql.engine_cost
+     SET cost_value=$memory_block_read_cost
+     WHERE cost_name="memory_block_read_cost";
+
+eval UPDATE mysql.engine_cost
+     SET cost_value=$io_block_read_cost
+     WHERE cost_name="io_block_read_cost";
+
+# 2. Multiply all cost constants by two
 UPDATE mysql.server_cost
-SET cost_value=0.1
-WHERE cost_name="row_evaluate_cost";
+SET cost_value = 2 * cost_value;
 
---replace_column 3 #
-SELECT *
-FROM mysql.server_cost
-WHERE cost_name="row_evaluate_cost";
+UPDATE mysql.engine_cost
+SET cost_value = 2 * cost_value;
 
-# Reset it to its default value
+# Validate cost constants
+SELECT cost_name, cost_value FROM mysql.server_cost;
+SELECT cost_name, cost_value FROM mysql.engine_cost;
+
+FLUSH OPTIMIZER_COSTS;
+
+# Re-run the queries with the new cost constants
+
+# Create a user connection
+connect (con1,localhost,root,,);
+
+# The new cost estimates should be approximately the double compared to the
+# first run
+eval EXPLAIN FORMAT=JSON $query_1;
+eval EXPLAIN FORMAT=JSON $query_2;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+# Reset cost constants
 UPDATE mysql.server_cost
-SET cost_value=DEFAULT
-WHERE cost_name="row_evaluate_cost";
+SET cost_value=DEFAULT;
 
---replace_column 3 #
-SELECT *
-FROM mysql.server_cost
-WHERE cost_name="row_evaluate_cost";
-
-#
-# 2. Insert a new cost constant
-#
-INSERT INTO mysql.server_cost
-VALUES ("lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch is important");
-
---replace_column 3 #
-SELECT * FROM mysql.server_cost;
-
-DELETE FROM mysql.server_cost
-WHERE cost_name="lunch_cost";
-
-#
-# 3. Try to insert an already existing cost constant.
-#
---error ER_DUP_ENTRY
-INSERT INTO mysql.server_cost
-VALUES ("row_evaluate_cost", DEFAULT, CURRENT_TIMESTAMP, "Faster CPU");
-
-#
-# 4. Insert an entry with the same name as an existing cost constant
-#    but in upper case.
-#
---error ER_DUP_ENTRY
-INSERT INTO mysql.server_cost
-VALUES ("ROW_EVALUATE_COST", DEFAULT, CURRENT_TIMESTAMP, "Faster CPU");
-
---replace_column 3 #
-SELECT * FROM mysql.server_cost;
-
-#
-# Test of updating cost constants in engine_cost
-#
-# 1. Updating an existing cost constant
-#
-# Change the value
 UPDATE mysql.engine_cost
-SET cost_value=0.1
-WHERE cost_name="io_block_read_cost";
+SET cost_value=DEFAULT;
 
---replace_column 5 #
-SELECT *
-FROM mysql.engine_cost
-WHERE cost_name="io_block_read_cost";
+FLUSH OPTIMIZER_COSTS;
 
-# Reset it to its default value
-UPDATE mysql.engine_cost
-SET cost_value=DEFAULT
-WHERE cost_name="io_block_read_cost";
+DROP TABLE t1;
 
---replace_column 5 #
-SELECT *
-FROM mysql.engine_cost
-WHERE cost_name="io_block_read_cost";
+--echo #
+--echo # Bug#20947871 INDEX SCAN COST IN TEST_IF_CHEAPER_ORDERING() DOES
+--echo #              NOT USE COST CONSTANTS
+--echo #
 
-#
-# 2. Insert some new cost constant
-#
-INSERT INTO mysql.engine_cost
-VALUES ("InnoDB", 2, "lunch_cost1", DEFAULT, CURRENT_TIMESTAMP, "Lunch 1"),
-       ("InnoDB", 2, "lunch_cost2", DEFAULT, CURRENT_TIMESTAMP, "Lunch 2");
-
---replace_column 5 #
-SELECT * FROM mysql.engine_cost;
-
-DELETE FROM mysql.engine_cost
-WHERE cost_name LIKE "lunch_cost%";
-
-#
-# 3. Try to insert an already existing cost constant
-#    (this should fail due to the primary key)
-#
-INSERT INTO mysql.engine_cost
-VALUES ("default", 0, "lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch");
-
---error ER_DUP_ENTRY
-INSERT INTO mysql.engine_cost
-VALUES ("default", 0, "lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch");
-
---replace_column 5 #
-SELECT * FROM mysql.engine_cost;
-
-DELETE FROM mysql.engine_cost
-WHERE cost_name="lunch_cost";
-
-#
-# 5. Insert an entry with the same name as an existing cost constant
-#    but in upper case.
-#    (the collation on the table should prevent this from being accepted)
-#
-
---error ER_DUP_ENTRY
-INSERT INTO mysql.engine_cost
-VALUES ("default", 0, "IO_BLOCK_READ_COST", DEFAULT, CURRENT_TIMESTAMP,
-        "Lunch");
-
---replace_column 5 #
-SELECT * FROM mysql.engine_cost;
-
-#
-# Test that the last_update column in the two tables are automatically 
-# updated with a new time stamp value when updating the content of
-# a row
-#
-
-CREATE TABLE server_cost_tmp (
-  cost_name VARCHAR(64) NOT NULL,
-  last_update TIMESTAMP
+CREATE TABLE t1 (
+  pk INTEGER PRIMARY KEY,
+  a INTEGER,
+  b INTEGER,
+  c CHAR(255),
+  UNIQUE KEY k1 (a)
 );
 
-CREATE TABLE engine_cost_tmp (
-  cost_name VARCHAR(64) NOT NULL,
-  last_update TIMESTAMP
+INSERT INTO t1 VALUES (1, 1, NULL, "Abc"), (2, 2, NULL, "Abc"),
+                      (3, 3, NULL, "Abc"), (4, 4, NULL, "Abc");
+INSERT INTO t1 SELECT a + 4, a + 4, b, c FROM t1;
+INSERT INTO t1 SELECT a + 8, a + 8, b, c FROM t1;
+INSERT INTO t1 SELECT a + 16, a + 16, b, c FROM t1;
+INSERT INTO t1 SELECT a + 32, a + 32, b, c FROM t1;
+INSERT INTO t1 SELECT a + 64, a + 64, b, c FROM t1;
+INSERT INTO t1 SELECT a + 128, a + 128, b, c FROM t1;
+
+CREATE TABLE t2 (
+  d INTEGER PRIMARY KEY,
+  e INTEGER
 );
 
-# Copy the last_update time stamp values form the cost tables
-INSERT INTO server_cost_tmp
-SELECT cost_name, last_update FROM mysql.server_cost;
-INSERT INTO engine_cost_tmp
-SELECT cost_name, last_update FROM mysql.engine_cost;
+INSERT INTO t2 SELECT a, b FROM t1;
 
-# Need to do a sleep to ensure that we get a new distinct time stamp
---sleep 1
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t1, t2;
+--enable_result_log
+--enable_query_log
 
-#
-# 1. Test server_cost table
-#
-# Update on entry in the server_cost table
-UPDATE mysql.server_cost 
-SET cost_value=0.1
-WHERE cost_name="row_evaluate_cost";
+# Test query: This should do limit optimization and use index without filesort
+let query= SELECT * FROM t1 JOIN t2 ON b=d ORDER BY a LIMIT 4;
 
-# Validate that this has gotten a new time stamp and all others have the same
-# This query should return "row_evaluate_cost"
-SELECT mysql.server_cost.cost_name
-FROM mysql.server_cost JOIN server_cost_tmp 
-  ON mysql.server_cost.cost_name = server_cost_tmp.cost_name
-WHERE mysql.server_cost.last_update > server_cost_tmp.last_update;
+# Run the query with default cost constants
 
-# Reset the cost value
-UPDATE mysql.server_cost 
-SET cost_value=DEFAULT
-WHERE cost_name="row_evaluate_cost";
+# Create a user connection
+connect (con1,localhost,root,,);
 
-#
-# 2. Test engine_cost table
-#
-# Update on entry in the engine_cost table
-UPDATE mysql.engine_cost 
-SET cost_value=2.0
+# Get cost estimates with default values
+--echo # Query should be optimized for the LIMIT. Query plan should
+--echo # use index without filesort
+eval EXPLAIN FORMAT=JSON $query;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+# Halve the value of the cost constants:
+# 1. Replace the NULL in the cost_value column with actual value
+
+# Update server_cost:
+eval UPDATE mysql.server_cost
+     SET cost_value=$row_evaluate_cost
+     WHERE cost_name="row_evaluate_cost";
+
+eval UPDATE mysql.server_cost
+     SET cost_value=$key_compare_cost
+     WHERE cost_name="key_compare_cost";
+
+eval UPDATE mysql.server_cost
+     SET cost_value=$memory_temptable_create_cost
+     WHERE cost_name="memory_temptable_create_cost";
+
+eval UPDATE mysql.server_cost
+     SET cost_value=$memory_temptable_row_cost
+     WHERE cost_name="memory_temptable_row_cost";
+
+eval UPDATE mysql.server_cost
+     SET cost_value=$disk_temptable_create_cost
+     WHERE cost_name="disk_temptable_create_cost";
+
+eval UPDATE mysql.server_cost
+     SET cost_value=$disk_temptable_row_cost
+     WHERE cost_name="disk_temptable_row_cost";
+
+# Update engine_cost:
+eval UPDATE mysql.engine_cost
+     SET cost_value=$memory_block_read_cost
+     WHERE cost_name="memory_block_read_cost";
+
+eval UPDATE mysql.engine_cost
+     SET cost_value=$io_block_read_cost
+     WHERE cost_name="io_block_read_cost";
+
+# 2. Divide all cost constants by two
+UPDATE mysql.server_cost
+SET cost_value = 0.5 * cost_value;
+
+UPDATE mysql.engine_cost
+SET cost_value = 0.5 * cost_value;
+
+# Validate cost constants
+SELECT cost_name, cost_value FROM mysql.server_cost;
+SELECT cost_name, cost_value FROM mysql.engine_cost;
+
+FLUSH OPTIMIZER_COSTS;
+
+# Re-run the queries with the new cost constants
+
+# Create a user connection
+connect (con1,localhost,root,,);
+
+# The new cost estimates should be approximately half compared to the
+# first run. The query plan should still be the same.
+--echo # This should be optimized for the LIMIT. Query plan should
+--echo # use index without filesort
+eval EXPLAIN FORMAT=JSON $query;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+# Reset cost constants
+UPDATE mysql.server_cost
+SET cost_value=DEFAULT;
+
+UPDATE mysql.engine_cost
+SET cost_value=DEFAULT;
+
+FLUSH OPTIMIZER_COSTS;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#23508576 FILL_INDEXES_FROM_DD() DOES NOT INITIALIZE
+--echo #              ST_KEY::M_IN_MEMORY_ESTIMATE
+--echo #
+
+# Adjust cost constants to be different for reading pages from a memory
+# buffer compared to reading from disk.
+# Cost for reading pages from memory to 0.5
+UPDATE mysql.engine_cost
+SET cost_value=0.5
+WHERE cost_name="memory_block_read_cost";
+
+# Cost for reading pages from disk to 2.0
+UPDATE mysql.engine_cost
+SET cost_value=2
 WHERE cost_name="io_block_read_cost";
 
-# Validate that this has gotten a new time stamp and all others have the same
-# This query should return "io_block_read_cost"
-SELECT mysql.engine_cost.cost_name
-FROM mysql.engine_cost JOIN engine_cost_tmp 
-  ON mysql.engine_cost.cost_name = engine_cost_tmp.cost_name
-WHERE mysql.engine_cost.last_update > engine_cost_tmp.last_update;
+FLUSH OPTIMIZER_COSTS;
 
-# Reset the cost value
-UPDATE mysql.engine_cost 
-SET cost_value=DEFAULT
-WHERE cost_name="io_block_read_cost";
+# Validate that the cost constants have been updated
+SELECT engine_name, device_type, cost_name, cost_value
+FROM mysql.engine_cost
+WHERE cost_name="memory_block_read_cost"
+   OR cost_name="io_block_read_cost";
 
-DROP TABLE server_cost_tmp, engine_cost_tmp;
+# Table must be stored in a storage engine that does not provide
+# estimates for how much of the index pages that are in a buffer
+CREATE TABLE t1 (
+  i1 INTEGER,
+  c1 CHAR(200),
+  INDEX idx (i1)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (1, "Ullensvang"), (2, "Odda"), (3, "Jondal");
+
+# Create a user connection
+connect (con1,localhost,root,,);
+
+--echo # Pass criteria for the query plan:
+--echo # 1. Should be executed as an index-only range scan
+--echo # 2. Cost estimate: "read_cost" - "eval_cost" should be approximately
+--echo #    the cost of reading one page from memory, ie. about 0.5.
+EXPLAIN FORMAT=JSON
+SELECT i1 FROM t1 WHERE i1 > 1;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+DROP TABLE t1;
+
+# Reset cost constants for storage engines to default values
+UPDATE mysql.engine_cost
+SET cost_value=DEFAULT;
+
+FLUSH OPTIMIZER_COSTS;

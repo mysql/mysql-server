@@ -1,11 +1,9 @@
+
 # Tests for PERFORMANCE_SCHEMA table io
 #       Reveal that in case of statements using more than one base table
 #       both show up in a correct way.
 
 # Setup
-
---source include/not_embedded.inc
---source include/have_perfschema.inc
 
 --disable_warnings
 drop schema if exists test1;
@@ -50,4 +48,3 @@ where test.t1.col1 = test1.t2.col1;
 drop table test.t1;
 drop schema test1;
 --source ../include/table_io_cleanup_helper.inc
-

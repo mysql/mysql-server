@@ -9,14 +9,14 @@ performance_schema	ON
 show session variables like 'performance_schema';
 Variable_name	Value
 performance_schema	ON
-select * from information_schema.global_variables
+select * from performance_schema.global_variables
 where variable_name='performance_schema';
 VARIABLE_NAME	VARIABLE_VALUE
-PERFORMANCE_SCHEMA	ON
-select * from information_schema.session_variables
+performance_schema	ON
+select * from performance_schema.session_variables
 where variable_name='performance_schema';
 VARIABLE_NAME	VARIABLE_VALUE
-PERFORMANCE_SCHEMA	ON
+performance_schema	ON
 set global performance_schema=1;
 ERROR HY000: Variable 'performance_schema' is a read only variable
 set session performance_schema=1;

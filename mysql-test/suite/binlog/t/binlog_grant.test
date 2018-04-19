@@ -38,15 +38,15 @@ set session sql_log_bin = 1;
 
 connection root;
 --echo [root]
-set global binlog_format = row;
-set session binlog_format = row;
+set global binlog_format = 'row';
+set session binlog_format = 'row';
 
 connection plain;
 --echo [plain]
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-set global binlog_format = row;
+set global binlog_format = 'row';
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-set session binlog_format = row;
+set session binlog_format = 'row';
 
 --echo **** Clean up ****
 disconnect plain;
@@ -59,10 +59,8 @@ drop user mysqltest_1@localhost;
 
 # Testing if REPLICATION CLIENT privilege is enough to execute
 # SHOW MASTER LOGS and SHOW BINARY.
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+CREATE USER 'mysqltest_1'@'localhost';
 GRANT REPLICATION CLIENT ON *.* TO 'mysqltest_1'@'localhost';
-set sql_mode= @orig_sql_mode;
 --connect(rpl,localhost,mysqltest_1,,)
 
 --connection rpl

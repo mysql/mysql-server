@@ -17,26 +17,26 @@ innodb_stats_persistent_sample_pages	20
 SHOW session variables LIKE 'innodb_stats_persistent_sample_pages';
 Variable_name	Value
 innodb_stats_persistent_sample_pages	20
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM performance_schema.global_variables 
 WHERE variable_name='innodb_stats_persistent_sample_pages';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_PERSISTENT_SAMPLE_PAGES	20
-SELECT * FROM information_schema.session_variables 
+innodb_stats_persistent_sample_pages	20
+SELECT * FROM performance_schema.session_variables 
 WHERE variable_name='innodb_stats_persistent_sample_pages';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_PERSISTENT_SAMPLE_PAGES	20
+innodb_stats_persistent_sample_pages	20
 SET global innodb_stats_persistent_sample_pages=10;
 SELECT @@global.innodb_stats_persistent_sample_pages;
 @@global.innodb_stats_persistent_sample_pages
 10
-SELECT * FROM information_schema.global_variables
+SELECT * FROM performance_schema.global_variables
 WHERE variable_name='innodb_stats_persistent_sample_pages';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_PERSISTENT_SAMPLE_PAGES	10
-SELECT * FROM information_schema.session_variables 
+innodb_stats_persistent_sample_pages	10
+SELECT * FROM performance_schema.session_variables 
 WHERE variable_name='innodb_stats_persistent_sample_pages';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_PERSISTENT_SAMPLE_PAGES	10
+innodb_stats_persistent_sample_pages	10
 SET session innodb_stats_persistent_sample_pages=1;
 ERROR HY000: Variable 'innodb_stats_persistent_sample_pages' is a GLOBAL variable and should be set with SET GLOBAL
 set global innodb_stats_persistent_sample_pages=DEFAULT;
@@ -75,10 +75,10 @@ Warning	1292	Truncated incorrect innodb_stats_persistent_sample_p value: '-7'
 SELECT @@global.innodb_stats_persistent_sample_pages;
 @@global.innodb_stats_persistent_sample_pages
 1
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM performance_schema.global_variables 
 WHERE variable_name='innodb_stats_persistent_sample_pages';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_PERSISTENT_SAMPLE_PAGES	1
+innodb_stats_persistent_sample_pages	1
 SET @@global.innodb_stats_persistent_sample_pages = @start_global_value;
 SELECT @@global.innodb_stats_persistent_sample_pages;
 @@global.innodb_stats_persistent_sample_pages

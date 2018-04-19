@@ -1,0 +1,37 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+server1
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+COMMIT;
+INSERT INTO t1 VALUES (3);
+server2
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=SERVER_3_PORT, MASTER_AUTO_POSITION=1 FOR CHANNEL "channel_1";
+include/assert.inc ['The group replication applier channel is present']
+include/assert.inc ['The slave channel is present']
+RESET SLAVE ALL;
+include/assert.inc ['The group replication applier channel is still present']
+include/assert.inc ['The group replication applier channel is ON']
+include/assert.inc ['The slave channel is not present']
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+ERROR HY000: RESET SLAVE [ALL] FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+include/stop_group_replication.inc
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+include/assert.inc ['The group replication applier channel is not present']
+server2
+INSERT INTO t1 VALUES (4);
+server1
+include/start_group_replication.inc
+INSERT INTO t1 VALUES (5);
+include/rpl_sync.inc
+include/assert.inc [The table should contain 5 elements]
+DROP TABLE t1;
+include/group_replication_end.inc

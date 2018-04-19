@@ -1,17 +1,24 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef NDB_DBLQH_PROXY_HPP
 #define NDB_DBLQH_PROXY_HPP
@@ -144,6 +151,12 @@ protected:
   // GSN_SUB_GCP_COMPLETE_REP
   void execSUB_GCP_COMPLETE_REP(Signal*);
 
+  // GSN_START_LCP_ORD
+  void execSTART_LCP_ORD(Signal*);
+
+  // GSN_UNDO_LOG_LEVEL_REP
+  void execUNDO_LOG_LEVEL_REP(Signal*);
+
   // GSN_PREP_DROP_TAB_REQ
   struct Ss_PREP_DROP_TAB_REQ : SsParallel {
     PrepDropTabReq m_req;
@@ -243,6 +256,10 @@ protected:
      */
     static const char* name() { return "START_RECREQ"; }
     StartRecReq m_req;
+    Uint32 phaseToSend;
+    Uint32 restoreFragCompletedCount;
+    Uint32 undoDDCompletedCount;
+    Uint32 execREDOLogCompletedCount;
     // pointers to START_RECREQ_2 for LGMAN, TSMAN
     enum { m_req2cnt = 2 };
     struct {
@@ -264,14 +281,16 @@ protected:
   void execSTART_RECREQ(Signal*);
   void sendSTART_RECREQ(Signal*, Uint32 ssId, SectionHandle*);
   void execSTART_RECCONF(Signal*);
+  void execLOCAL_RECOVERY_COMP_REP(Signal*);
   void sendSTART_RECCONF(Signal*, Uint32 ssId);
 
   // GSN_START_RECREQ_2 [ sub-op, fictional gsn ]
   struct Ss_START_RECREQ_2 : SsParallel {
     static const char* name() { return "START_RECREQ_2"; }
     struct Req {
-      enum { SignalLength = 2 };
+      enum { SignalLength = 3 };
       Uint32 lcpId;
+      Uint32 localLcpId;
       Uint32 proxyBlockNo;
     };
     // senderData is unnecessary as signal is unique per proxyBlockNo
@@ -435,22 +454,32 @@ protected:
   void execEMPTY_LCP_REQ(Signal*);
   void execLCP_FRAG_ORD(Signal*);
   void execLCP_FRAG_REP(Signal*);
-  void execEND_LCP_CONF(Signal*);
+  void execEND_LCPCONF(Signal*);
   void execLCP_COMPLETE_REP(Signal*);
+  void execWAIT_ALL_COMPLETE_LCP_REQ(Signal*);
+  void execWAIT_COMPLETE_LCP_CONF(Signal*);
+  void execINFO_GCP_STOP_TIMER(Signal*);
+  void execSTART_NODE_LCP_REQ(Signal*);
+  void execSTART_NODE_LCP_CONF(Signal*);
+
+  Uint32 m_outstanding_wait_lcp;
+  BlockReference m_wait_all_lcp_sender;
+  bool m_received_wait_all;
+  bool m_lcp_started;
+  Uint32 m_outstanding_start_node_lcp_req;
 
   struct LcpRecord {
     enum {
       L_IDLE         = 0,
-      L_STARTING     = 1,
-      L_RUNNING      = 2,
-      L_COMPLETING_1 = 3,
-      L_COMPLETING_2 = 4,
-      L_COMPLETING_3 = 5
+      L_RUNNING      = 1,
+      L_COMPLETING_1 = 2,
+      L_COMPLETING_2 = 3
     } m_state;
     Uint32 m_lcpId;
+    Uint32 m_keepGci;
     Uint32 m_lcp_frag_ord_cnt;     // No of LCP_FRAG_ORD received
     Uint32 m_lcp_frag_rep_cnt;     // No of LCP_FRAG_REP sent
-    Uint32 m_complete_outstanding; // Outstanding END_LCP_REQ
+    Uint32 m_complete_outstanding; // Outstanding signals waiting for
     NdbNodeBitmask m_empty_lcp_req;// Nodes waiting for EMPTY_LCP_CONF
     LcpFragOrd m_last_lcp_frag_ord;// Last received LCP_FRAG_ORD
     bool m_lastFragmentFlag;
@@ -465,9 +494,7 @@ protected:
   };
   LcpRecord c_lcpRecord;
   Uint32 getNoOfOutstanding(const LcpRecord&) const;
-  void completeLCP_1(Signal* signal);
-  void completeLCP_2(Signal* signal);
-  void completeLCP_3(Signal* signal);
+  void completeLCP(Signal* signal);
   void sendLCP_COMPLETE_REP(Signal*);
 
   void checkSendEMPTY_LCP_CONF_impl(Signal* signal);

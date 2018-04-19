@@ -5,9 +5,7 @@
 # Designed and tested by Sinisa Milivojevic, sinisa@mysql.com
 #
 # These variables have to be set before sourcing this script:
-#   TRANSACTION ISOLATION LEVEL      REPEATABLE READ
-#   innodb_locks_unsafe_for_binlog   0 (default) or 1 (by
-#                                    --innodb_locks_unsafe_for_binlog)
+#   TRANSACTION ISOLATION LEVEL      REPEATABLE READ or READ COMMITTED
 #   $engine_type                     storage engine to be tested
 #
 # Last update:
@@ -29,21 +27,14 @@ connection default;
 #
 # Show prerequisites for this test.
 #
-SELECT @@global.tx_isolation;
-SELECT @@global.innodb_locks_unsafe_for_binlog;
+SELECT @@global.transaction_isolation;
 #
-# When innodb_locks_unsafe_for_binlog is not set (zero), which is the
-# default, InnoDB takes "next-key locks"/"gap locks". This means it
-# locks the gap before the keys that it accessed to find the rows to
-# use for a statement. In this case we have to expect some more lock
-# wait timeouts in the tests below as if innodb_locks_unsafe_for_binlog
-# is set (non-zero). In the latter case no "next-key locks"/"gap locks"
-# are taken and locks on keys that do not match the WHERE conditon are
-# released. Hence less lock collisions occur.
-# We use the variable $keep_locks to set the expectations for
-# lock wait timeouts accordingly.
+# Semi-consistent read is done only for isolation levels READ
+# COMMITTED and READ UNCOMMITTED.  The variable $keep_locks is
+# false if semi-consistent read is done.
 #
-let $keep_locks= `SELECT NOT @@global.innodb_locks_unsafe_for_binlog`;
+let $keep_locks= `SELECT @@global.transaction_isolation = 'REPEATABLE-READ'`;
+
 --echo # keep_locks == $keep_locks
 
 #
@@ -99,10 +90,10 @@ drop table if exists t1;
   --echo ** Start new transaction for thread 1
   begin;
   --echo ** Update on t1 will cause a table scan which will be blocked because
-  --echo ** the previously initiated table scan applied exclusive key locks on 
+  --echo ** the previously initiated table scan applied exclusive key locks on
   --echo ** all primary keys.
-  --echo ** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
-  --echo ** do not match the WHERE condition are released.
+  --echo ** Not so if isolation level is READ COMMITTED or READ UNCOMMITTED.
+  --echo ** The locks that do not match the WHERE condition are released.
   if ($keep_locks)
   {
     --error ER_LOCK_WAIT_TIMEOUT
@@ -198,10 +189,10 @@ drop table t1;
   --echo ** Start transaction on thread 1
   begin;
   --echo ** Update on t1 will cause a table scan which will be blocked because
-  --echo ** the previously initiated table scan applied exclusive key locks on 
+  --echo ** the previously initiated table scan applied exclusive key locks on
   --echo ** all primary keys.
-  --echo ** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
-  --echo ** do not match the WHERE condition are released.
+  --echo ** Not so if isolation level is READ COMMITTED or READ UNCOMMITTED.
+  --echo ** The locks that do not match the WHERE condition are released.
   if ($keep_locks)
   {
     --error ER_LOCK_WAIT_TIMEOUT
@@ -236,7 +227,7 @@ drop table t1;
   --echo ** thread 1 (updated on three places):
   select * from t1;
   commit;
-  --echo ** After a commit the table should be merged with the previous 
+  --echo ** After a commit the table should be merged with the previous
   --echo ** commit.
   --echo ** This select should show both updates:
   select * from t1;
@@ -341,7 +332,7 @@ drop table t1;
 
   --echo ** connection thread1
   connection thread1;
-  --echo ** Begin a new transaction on thread 1 
+  --echo ** Begin a new transaction on thread 1
   begin;
   --echo ** Update the same range which is marked for update on thread 2; this
   --echo ** will hang because of row locks.
@@ -411,14 +402,14 @@ drop table t1;
 
   --echo ** connection thread1
   connection thread1;
-  --echo 
+  --echo
   --echo ** Starting new transaction on thread 1
   begin;
   --echo ** Updating single row using a table scan. This will time out
   --echo ** because of ongoing transaction on thread 1 holding lock on
   --echo ** all primary keys in the scan.
-  --echo ** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
-  --echo ** do not match the WHERE condition are released.
+  --echo ** Not so if isolation level is READ COMMITTED or READ UNCOMMITTED.
+  --echo ** The locks that do not match the WHERE condition are released.
   if ($keep_locks)
   {
     --error ER_LOCK_WAIT_TIMEOUT
@@ -495,7 +486,7 @@ drop table t1;
   --echo ** because of on-going transaction on thread 2.
   --error ER_LOCK_WAIT_TIMEOUT
   select * from t1 where tipo=1 FOR UPDATE;
-  
+
       --echo ** connection thread2
       connection thread2;
       --echo ** Table will be unchanged and the select command will not be
@@ -587,7 +578,7 @@ connection default;
 drop table t1;
 
 
---echo 
+--echo
 --echo **
 --echo ** one UPDATE not changing result set and DELETE
 --echo **
@@ -618,15 +609,15 @@ drop table t1;
 # succeding update in the following thread. Also the used status variables '%lock%' and
 # 'innodb_deleted_rows' and infos in processlist where not sucessful.
       sleep 1;
- 
+
   --echo ** connection thread1
   connection thread1;
   begin;
   --echo ** Update on t1 will cause a table scan which will be blocked because
-  --echo ** the previously initiated table scan applied exclusive key locks on 
+  --echo ** the previously initiated table scan applied exclusive key locks on
   --echo ** all primary keys.
-  --echo ** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
-  --echo ** do not match the WHERE condition are released.
+  --echo ** Not so if isolation level is READ COMMITTED or READ UNCOMMITTED.
+  --echo ** The locks that do not match the WHERE condition are released.
   if ($keep_locks)
   {
     --error ER_LOCK_WAIT_TIMEOUT
@@ -637,7 +628,7 @@ drop table t1;
     update t1 set tipo=1 where tipo=22;
   }
   select * from t1;
-    
+
       --echo ** connection thread2
       connection thread2;
       reap;

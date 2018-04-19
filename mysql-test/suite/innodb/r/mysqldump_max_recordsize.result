@@ -1,8 +1,9 @@
-MYSQL_TMP_DIR/bootstrap.log
 call mtr.add_suppression("ERROR 1118 \\(42000\\) at line 106: Row size too large \\(> 8126\\)");
 # Stop DB server which was created by MTR default
+# create bootstrap file
 # Run the bootstrap command with page size 32k
 # Start the DB server with page size 32k
+# restart: --innodb_page_size=32K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2
 USE test;
 SELECT @@innodb_page_size;
 @@innodb_page_size
@@ -42,7 +43,7 @@ col36 CHAR(255),col37 CHAR(255),col38 CHAR(255),col39 CHAR(255),col40  CHAR(255)
 col42 CHAR(255),col43 CHAR(255),col44 CHAR(255),col45 CHAR(255),col46  CHAR(255), col47 CHAR(255),
 col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255), col53 CHAR(255),
 col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
-col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64 CHAR(255)) ENGINE=innodb;
+col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64 CHAR(255)) ENGINE=innodb ROW_FORMAT=COMPACT;
 Warnings:
 Warning	139	Row size too large (> 16318). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 INSERT INTO tab2 VALUES(repeat('a1',127),repeat('a2',127),repeat('a3',127),repeat('a4',127),
@@ -71,7 +72,7 @@ col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255)
 col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255)) ENGINE = innodb ROW_FORMAT=COMPRESSED;
 Warnings:
-Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=DYNAMIC.
 INSERT INTO tab3 VALUES(repeat('a1',127),repeat('a2',127),repeat('a3',127),repeat('a4',127),
 repeat('a5',127),repeat('a6',127),repeat('a7',127),repeat('a8',127),repeat('a9',127),repeat('a10',62),
 repeat('a11',62),repeat('a12',62),repeat('a13',62),repeat('a14',62),repeat('a15',62),repeat('a16',62),
@@ -95,18 +96,17 @@ SELECT count(*) FROM tab3;
 count(*)
 1
 DROP DATABASE test;
-Warnings:
-Error	1146	Table 'mysql.proc' doesn't exist
-Error	1146	Table 'mysql.event' doesn't exist
-# Stop DB server which was created by MTR default
 # Run the bootstrap command with page size 16k
 # Start the DB server with page size 16k
+# restart: --innodb_page_size=16K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2
 SELECT @@innodb_page_size;
 @@innodb_page_size
 16384
 SELECT @@innodb_strict_mode;
 @@innodb_strict_mode
 1
+Pattern "\[ERROR\] .*MY-\d+.* Cannot add field \`col32\` in table \`test\`.\`tab1\` because after adding it, the row size is 8192" found
+Pattern "\[ERROR\] .*MY-\d+.* Cannot add field \`col32\` in table \`test\`.\`tab2\` because after adding it, the row size is 8192" found
 USE test;
 SHOW TABLES;
 Tables_in_test
@@ -117,12 +117,9 @@ ERROR 42S02: Table 'test.tab2' doesn't exist
 SELECT count(*) FROM tab3;
 ERROR 42S02: Table 'test.tab3' doesn't exist
 DROP DATABASE test;
-Warnings:
-Error	1146	Table 'mysql.proc' doesn't exist
-Error	1146	Table 'mysql.event' doesn't exist
-# Stop DB server which was created by MTR default
 # Run the bootstrap command with page size 64k
 # Start the DB server with page size 64k
+# restart: --innodb_page_size=64K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2
 SELECT @@innodb_page_size;
 @@innodb_page_size
 65536
@@ -134,6 +131,7 @@ SHOW TABLES;
 Tables_in_test
 tab1
 tab2
+tab3
 SELECT count(*) FROM tab1;
 count(*)
 1
@@ -141,36 +139,7 @@ SELECT count(*) FROM tab2;
 count(*)
 0
 SELECT count(*) FROM tab3;
-ERROR 42S02: Table 'test.tab3' doesn't exist
+count(*)
+1
 SET innodb_strict_mode=Default;
-CREATE DATABASE mysql;
-USE mysql;
-CREATE TABLE `proc` (
-`db` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
-`name` char(64) NOT NULL DEFAULT '',
-`type` enum('FUNCTION','PROCEDURE') NOT NULL,
-`specific_name` char(64) NOT NULL DEFAULT '',
-`language` enum('SQL') NOT NULL DEFAULT 'SQL',
-`sql_data_access` enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA') NOT NULL DEFAULT 'CONTAINS_SQL',
-`is_deterministic` enum('YES','NO') NOT NULL DEFAULT 'NO',
-`security_type` enum('INVOKER','DEFINER') NOT NULL DEFAULT 'DEFINER',
-`param_list` blob NOT NULL,
-`returns` longblob NOT NULL,
-`body` longblob NOT NULL,
-`definer` char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
-`created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-`modified` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-`sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH') NOT NULL DEFAULT '',
-`comment` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-`character_set_client` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
-`collation_connection` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
-`db_collation` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
-`body_utf8` longblob,
-PRIMARY KEY (`db`,`name`,`type`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Stored Procedures';
-CREATE DATABASE mtr;
-USE mtr;
-CREATE PROCEDURE mtr.check_warnings(OUT result INT)
-BEGIN
-SELECT 0 INTO RESULT;
-END|
+# restart

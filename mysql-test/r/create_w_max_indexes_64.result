@@ -277,7 +277,7 @@ t1	CREATE TABLE `t1` (
   KEY `a062_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a063_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a064_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 flush tables;
 show create table t1;
 Table	Create Table
@@ -362,7 +362,7 @@ t1	CREATE TABLE `t1` (
   KEY `a062_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a063_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a064_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (c1 int, c2 int, c3 int, c4 int, c5 int, c6 int, c7 int, 
 c8 int, c9 int, c10 int, c11 int, c12 int, c13 int, c14 int, c15 int, c16 int);
@@ -642,7 +642,7 @@ t1	CREATE TABLE `t1` (
   KEY `a062_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a063_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a064_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 flush tables;
 show create table t1;
 Table	Create Table
@@ -727,7 +727,7 @@ t1	CREATE TABLE `t1` (
   KEY `a062_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a063_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`),
   KEY `a064_long_123456789_123456789_123456789_123456789_123456789_1234` (`c1`,`c2`,`c3`,`c4`,`c5`,`c6`,`c7`,`c8`,`c9`,`c10`,`c11`,`c12`,`c13`,`c14`,`c15`,`c16`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 add key 
 a065_long_123456789_123456789_123456789_123456789_123456789_1234 (
 c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16);
@@ -762,6 +762,6 @@ t1	CREATE TABLE `t1` (
   `c15` int(11) DEFAULT NULL,
   `c16` int(11) DEFAULT NULL,
   `c17` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 "End of tests"

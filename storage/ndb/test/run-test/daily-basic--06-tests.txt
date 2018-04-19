@@ -1,0 +1,140 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testNdbApi
+args: -n MaxNdb T6
+max-time: 180
+
+cmd: testDict
+args: -n Bug54651 T1
+max-time: 180
+
+cmd: testFK
+args: -n CreateDropError T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n Scan_4006 T1 D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -n NdbRecordPKUpdate T1 T6 T15
+max-time: 180
+
+cmd: testBasic
+args: -n CommitAsMuch630 T1 T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n RollbackDeleteMultiple T1 T6 D1 D2
+max-time: 180
+
+cmd: testDict
+args: -n testDropDDObjects T1
+max-time: 180
+
+cmd: testBasic
+args: -n Bug20535
+max-time: 180
+
+cmd: testBasic
+args: -r 10 -n Bug59496_case2 T2
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadCommitted240
+max-time: 180
+
+cmd: test_event
+args: -n EmptyUpdates T1
+max-time: 180
+
+cmd: testBasic
+args: -n PkReadAndLocker2 T6 D1 D2
+max-time: 180
+
+cmd: test_event
+args: -n Bug57886 T1
+max-time: 180
+
+cmd: testNodeRestart
+args: -n GCPStopFalsePositive T1
+max-time: 900
+
+cmd: testScan
+args: -n InsertDelete T1 T6 D1 D2
+max-time: 180
+
+cmd: testScanFilter
+args: T1
+max-time: 360
+
+cmd: testNodeRestart
+args: -n Bug41469 T1
+max-time: 1440
+
+cmd: testDict
+args: -n FragmentTypeAllSmall T1 T6
+max-time: 360
+
+cmd: testDict
+args: -n Bug46552 T1
+max-time: 540
+
+cmd: testNodeRestart
+args: -n LateCommit T1
+max-time: 540
+
+cmd: testBasic
+args: -n UpdateAndRead
+max-time: 720
+
+cmd: testScan
+args: -n ScanUpdateRestart T6
+max-time: 900
+
+cmd: testNodeRestart
+args: -n RestartAllNodesAbort T6 T13
+max-time: 1260
+
+cmd: testNodeRestart
+args: -n Bug28023 T6 D2
+max-time: 1260
+
+cmd: testSystemRestart
+args: -n SR_DD_2b D2
+max-time: 1620
+
+cmd: testNodeRestart
+args: -n -l 3 -n Bug43224 T1
+max-time: 1440
+
+cmd: testSystemRestart
+args: -n SR2 D2
+max-time: 3240
+
+cmd: testSystemRestart
+args: -n SR1 D2
+max-time: 4320
+

@@ -1,15 +1,22 @@
 #!/bin/sh
-# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
@@ -110,60 +117,28 @@ else
 fi
 
 # Create options 
-# We intentionally add a space to the beginning and end of lib strings, simplifies replace later
-libs=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqlclient @ZLIB_DEPS@ @CLIENT_LIBS@"
-libs="$libs @openssl_libs@ "
-libs_r=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqlclient @ZLIB_DEPS@ @CLIENT_LIBS@ @openssl_libs@ "
-libs="$libs @QUOTED_CMAKE_C_LINK_FLAGS@"
-libs_r="$libs_r @QUOTED_CMAKE_C_LINK_FLAGS@"
-embedded_libs=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqld @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @openssl_libs@ "
-embedded_libs="$embedded_libs @QUOTED_CMAKE_CXX_LINK_FLAGS@"
+libs="@QUOTED_CMAKE_CXX_LINK_FLAGS@-L$pkglibdir@RPATH_OPTION@"
+libs="$libs -l@LIBMYSQL_OS_OUTPUT_NAME@ @CONFIG_CLIENT_LIBS@"
 
-cflags="-I$pkgincludedir @CFLAGS@ " #note: end space!
-cxxflags="-I$pkgincludedir @CXXFLAGS@ " #note: end space!
+cflags="-I$pkgincludedir @CFLAGS@"
+cxxflags="-I$pkgincludedir @CXXFLAGS@"
 include="-I$pkgincludedir"
 
-# Remove some options that a client doesn't have to care about
-for remove in DDBUG_OFF DSAFE_MUTEX \
-              DEXTRA_DEBUG DHAVE_VALGRIND O 'O[0-9]' 'xO[0-9]' 'W[-A-Za-z]*' \
-              'mtune=[-A-Za-z0-9]*' 'mcpu=[-A-Za-z0-9]*' 'march=[-A-Za-z0-9]*' \
-              unroll2 ip mp restrict
-do
-  # The first option we might strip will always have a space before it because
-  # we set -I$pkgincludedir as the first option
-  cflags=`echo "$cflags"|sed -e "s/ -$remove  */ /g"` 
-  cxxflags=`echo "$cxxflags"|sed -e "s/ -$remove  */ /g"` 
-done
-cflags=`echo "$cflags"|sed -e 's/ *\$//'` 
-cxxflags=`echo "$cxxflags"|sed -e 's/ *\$//'` 
-
-# Same for --libs(_r)
-for remove in lmtmalloc static-libcxa i-static static-intel
-do
-  # We know the strings starts with a space
-  libs=`echo "$libs"|sed -e "s/ -$remove  */ /g"` 
-  libs_r=`echo "$libs_r"|sed -e "s/ -$remove  */ /g"` 
-  embedded_libs=`echo "$embedded_libs"|sed -e "s/ -$remove  */ /g"` 
-done
-
-# Strip trailing and ending space if any, and '+' (FIXME why?)
-libs=`echo "$libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
-libs_r=`echo "$libs_r" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
-embedded_libs=`echo "$embedded_libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
 
 usage () {
         cat <<EOF
 Usage: $0 [OPTIONS]
+Compiler: @COMPILER_ID_AND_VERSION@
 Options:
         --cflags         [$cflags]
         --cxxflags       [$cxxflags]
         --include        [$include]
         --libs           [$libs]
-        --libs_r         [$libs_r]
+        --libs_r         [$libs]
         --plugindir      [$plugindir]
         --socket         [$socket]
         --port           [$port]
-        --version        [$version]@LIBMYSQLD_LIBS_USAGE@
+        --version        [$version]
         --variable=VAR   VAR is one of:
                 pkgincludedir [$pkgincludedir]
                 pkglibdir     [$pkglibdir]
@@ -180,12 +155,11 @@ while test $# -gt 0; do
         --cxxflags)echo "$cxxflags";;
         --include) echo "$include" ;;
         --libs)    echo "$libs" ;;
-        --libs_r)  echo "$libs_r" ;;
+        --libs_r)  echo "$libs" ;;
         --plugindir) echo "$plugindir" ;;
         --socket)  echo "$socket" ;;
         --port)    echo "$port" ;;
         --version) echo "$version" ;;
-        --embedded-libs | --embedded | --libmysqld-libs) @DISABLE_EMBEDDED_SH@ echo "$embedded_libs" ;;
         --variable=*)
           var=`echo "$1" | sed 's,^[^=]*=,,'`
           case "$var" in

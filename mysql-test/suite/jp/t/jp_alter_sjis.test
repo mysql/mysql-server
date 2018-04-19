@@ -1,8 +1,6 @@
---source include/have_sjis.inc
 --character_set sjis
 SET NAMES sjis;
 SET character_set_database = sjis;
---source include/have_innodb.inc
 --disable_warnings
 DROP TABLE IF EXISTS `±±±`;
 DROP TABLE IF EXISTS `²²²`;

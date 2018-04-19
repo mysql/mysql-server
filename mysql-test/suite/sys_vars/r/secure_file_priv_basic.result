@@ -9,12 +9,12 @@ secure_file_priv	MYSQLTEST_VARDIR/
 show session variables like 'secure_file_priv';
 Variable_name	Value
 secure_file_priv	MYSQLTEST_VARDIR/
-select * from information_schema.global_variables where variable_name='secure_file_priv';
+select * from performance_schema.global_variables where variable_name='secure_file_priv';
 VARIABLE_NAME	VARIABLE_VALUE
-SECURE_FILE_PRIV	MYSQLTEST_VARDIR/
-select * from information_schema.session_variables where variable_name='secure_file_priv';
+secure_file_priv	MYSQLTEST_VARDIR/
+select * from performance_schema.session_variables where variable_name='secure_file_priv';
 VARIABLE_NAME	VARIABLE_VALUE
-SECURE_FILE_PRIV	MYSQLTEST_VARDIR/
+secure_file_priv	MYSQLTEST_VARDIR/
 set global secure_file_priv=1;
 ERROR HY000: Variable 'secure_file_priv' is a read only variable
 set session secure_file_priv=1;

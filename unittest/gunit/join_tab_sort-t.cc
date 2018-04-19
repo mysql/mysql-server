@@ -1,72 +1,67 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-
-#include "test_utils.h"
-
-#include "sql_select.h"
-#include "merge_sort.h"
-
+#include <sys/types.h>
 #include <vector>
+
+#include "my_inttypes.h"
+#include "sql/merge_sort.h"
+#include "sql/sql_select.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace join_tab_sort_unittest {
 
-using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
+using my_testing::Server_initializer;
 
-class JTSortTest : public ::testing::Test
-{
-protected:
+class JTSortTest : public ::testing::Test {
+ protected:
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 
   Server_initializer initializer;
 };
 
-
-class MOCK_JOIN_TAB : public JOIN_TAB
-{
-public:
-  MOCK_JOIN_TAB(uint recs, uint table_no) : JOIN_TAB()
-  {
-    found_records= recs;
+class MOCK_JOIN_TAB : public JOIN_TAB {
+ public:
+  MOCK_JOIN_TAB(uint recs, uint table_no) : JOIN_TAB() {
+    found_records = recs;
     set_qs(&m_shared);
     this->set_table(&m_table);
     m_table_list.set_tableno(table_no);
-    this->table_ref= &m_table_list;
+    this->table_ref = &m_table_list;
   }
 
-  TABLE       m_table;
-  TABLE_LIST  m_table_list;
-  QEP_shared  m_shared;
+  TABLE m_table;
+  TABLE_LIST m_table_list;
+  QEP_shared m_shared;
 };
 
-std::ostream &operator<<(std::ostream &s, const MOCK_JOIN_TAB &jt)
-{
-  return s << "{"
-           << jt.found_records << ", "
-           << jt.m_table_list.map()
-           << "}";
+std::ostream &operator<<(std::ostream &s, const MOCK_JOIN_TAB &jt) {
+  return s << "{" << jt.found_records << ", " << jt.m_table_list.map() << "}";
 }
 
-
-TEST_F(JTSortTest, SimpleSortTest)
-{
+TEST_F(JTSortTest, SimpleSortTest) {
   MOCK_JOIN_TAB jt1(UINT_MAX, 0);
   MOCK_JOIN_TAB jt2(2, 0);
   MOCK_JOIN_TAB jt3(1, 0);
@@ -74,90 +69,79 @@ TEST_F(JTSortTest, SimpleSortTest)
   MOCK_JOIN_TAB jt5(5, 0);
 
   MOCK_JOIN_TAB *arr[5];
-  arr[0]= &jt1;
-  arr[1]= &jt2;
-  arr[2]= &jt3;
-  arr[3]= &jt4;
-  arr[4]= &jt5;
+  arr[0] = &jt1;
+  arr[1] = &jt2;
+  arr[2] = &jt3;
+  arr[3] = &jt4;
+  arr[4] = &jt5;
 
-  insert_sort(arr, arr+5, Join_tab_compare_default());
+  insert_sort(arr, arr + 5, Join_tab_compare_default());
 
   EXPECT_EQ(1U, arr[0]->found_records);
   EXPECT_EQ(2U, arr[1]->found_records);
   EXPECT_EQ(5U, arr[2]->found_records);
   EXPECT_EQ(10U, arr[3]->found_records);
   EXPECT_EQ(UINT_MAX, arr[4]->found_records);
-
 }
 
-
-TEST_F(JTSortTest, SortFoundRecordsTest)
-{
-  const int num_tables= 50;
+TEST_F(JTSortTest, SortFoundRecordsTest) {
+  const int num_tables = 50;
   MOCK_JOIN_TAB *arr[num_tables];
 
-  for (int i= 0; i < num_tables; i++)
-    arr[i]= new MOCK_JOIN_TAB(i, 0);
+  for (int i = 0; i < num_tables; i++)
+    arr[i] = new (*THR_MALLOC) MOCK_JOIN_TAB(i, 0);
 
   // MERGE SORT
   std::random_shuffle(arr, arr + 50);
   merge_sort(arr, arr + num_tables, Join_tab_compare_default());
-  for (int i= 1; i < num_tables; i++)
-    EXPECT_TRUE(arr[i]->found_records > arr[i-1]->found_records);
+  for (int i = 1; i < num_tables; i++)
+    EXPECT_TRUE(arr[i]->found_records > arr[i - 1]->found_records);
 
   // INSERT SORT
   std::random_shuffle(arr, arr + 50);
   insert_sort(arr, arr + num_tables, Join_tab_compare_default());
-  for (int i= 1; i < num_tables; i++)
-    EXPECT_TRUE(arr[i]->found_records > arr[i-1]->found_records);
+  for (int i = 1; i < num_tables; i++)
+    EXPECT_TRUE(arr[i]->found_records > arr[i - 1]->found_records);
 
-  for (int i= 0; i < num_tables; i++)
-  {
-    delete arr[i];
+  for (int i = 0; i < num_tables; i++) {
+    destroy(arr[i]);
   }
 }
 
-
-TEST_F(JTSortTest, SortDependsTest)
-{
-  const int num_tables= 50;
+TEST_F(JTSortTest, SortDependsTest) {
+  const int num_tables = 50;
   MOCK_JOIN_TAB *arr[num_tables];
 
   /*
     dependency has higher precedence than found_records, so the tables
     shall be ordered with decreasing number of records in this test
   */
-  for (int i= 0; i < num_tables; i++)
-  {
-    arr[i]= new MOCK_JOIN_TAB(i, i);
-    for (int j= i+1; j < num_tables; j++)
-      arr[i]->dependent|= 1ULL << j;
+  for (int i = 0; i < num_tables; i++) {
+    arr[i] = new (*THR_MALLOC) MOCK_JOIN_TAB(i, i);
+    for (int j = i + 1; j < num_tables; j++) arr[i]->dependent |= 1ULL << j;
   }
 
   // MERGE SORT
   std::random_shuffle(arr, arr + num_tables);
   merge_sort(arr, arr + num_tables, Join_tab_compare_default());
-  for (int i= 1; i < num_tables; i++)
-    EXPECT_TRUE(arr[i]->found_records < arr[i-1]->found_records)
-      << "i: " << *(arr[i]) << " "
-      << "i-1: " << *(arr[i-1]);
+  for (int i = 1; i < num_tables; i++)
+    EXPECT_TRUE(arr[i]->found_records < arr[i - 1]->found_records)
+        << "i: " << *(arr[i]) << " "
+        << "i-1: " << *(arr[i - 1]);
 
   // INSERT SORT
   std::random_shuffle(arr, arr + num_tables);
   insert_sort(arr, arr + num_tables, Join_tab_compare_default());
-  for (int i= 1; i < num_tables; i++)
-    EXPECT_TRUE(arr[i]->found_records < arr[i-1]->found_records);
+  for (int i = 1; i < num_tables; i++)
+    EXPECT_TRUE(arr[i]->found_records < arr[i - 1]->found_records);
 
-  for (int i= 0; i < num_tables; i++)
-  {
-    delete arr[i];
+  for (int i = 0; i < num_tables; i++) {
+    destroy(arr[i]);
   }
 }
 
-
-TEST_F(JTSortTest, SortKeyDependsTest)
-{
-  const int num_tables= 50;
+TEST_F(JTSortTest, SortKeyDependsTest) {
+  const int num_tables = 50;
   MOCK_JOIN_TAB *arr[num_tables];
 
   /*
@@ -165,57 +149,47 @@ TEST_F(JTSortTest, SortKeyDependsTest)
     tables shall be ordered with decreasing number of records in this
     test
   */
-  for (int i= 0; i < num_tables; i++)
-  {
-    arr[i]= new MOCK_JOIN_TAB(i, i);
-    for (int j= i+1; j < num_tables; j++)
-      arr[i]->key_dependent|= 1ULL << j;
+  for (int i = 0; i < num_tables; i++) {
+    arr[i] = new (*THR_MALLOC) MOCK_JOIN_TAB(i, i);
+    for (int j = i + 1; j < num_tables; j++) arr[i]->key_dependent |= 1ULL << j;
   }
 
   // MERGE SORT
   std::random_shuffle(arr, arr + num_tables);
   merge_sort(arr, arr + num_tables, Join_tab_compare_default());
-  for (int i= 1; i < num_tables; i++)
-    EXPECT_TRUE(arr[i]->found_records < arr[i-1]->found_records);
+  for (int i = 1; i < num_tables; i++)
+    EXPECT_TRUE(arr[i]->found_records < arr[i - 1]->found_records);
 
   // INSERT SORT
   std::random_shuffle(arr, arr + num_tables);
   insert_sort(arr, arr + num_tables, Join_tab_compare_default());
-  for (int i= 1; i < num_tables; i++)
-    EXPECT_TRUE(arr[i]->found_records < arr[i-1]->found_records);
+  for (int i = 1; i < num_tables; i++)
+    EXPECT_TRUE(arr[i]->found_records < arr[i - 1]->found_records);
 
-  for (int i= 0; i < num_tables; i++)
-    delete arr[i];
+  for (int i = 0; i < num_tables; i++) destroy(arr[i]);
 }
 
 /*
   Above, sorting for JOIN_TABs were tested. Below we check that the
-  sorting works for ints types as well. 
+  sorting works for ints types as well.
 */
 
-class Int_compare_ptr :
-  public std::binary_function<const int*, const int*, bool>
-{
-public:
-  bool operator()(const int *i1, const int *i2) const
-  {
-    return *i1 < *i2;
-  }
+class Int_compare_ptr
+    : public std::binary_function<const int *, const int *, bool> {
+ public:
+  bool operator()(const int *i1, const int *i2) const { return *i1 < *i2; }
 };
 
-
-TEST_F(JTSortTest, SortIntTest)
-{
-  const uint ints_to_sort= 1000;
+TEST_F(JTSortTest, SortIntTest) {
+  const uint ints_to_sort = 1000;
 
   std::vector<int> arr;
-  std::vector<int*> arr_ptr;
+  std::vector<int *> arr_ptr;
 
   arr.reserve(ints_to_sort);
   arr_ptr.reserve(ints_to_sort);
 
-  for (uint i= 0; i < ints_to_sort; i++)
-  {
+  for (uint i = 0; i < ints_to_sort; i++) {
     arr.push_back(i);
     arr_ptr.push_back(&arr[i]);
   }
@@ -226,29 +200,24 @@ TEST_F(JTSortTest, SortIntTest)
   // MERGE SORT
   std::random_shuffle(&arr_ptr.front(), &arr_ptr.back() + 1);
   merge_sort(&arr_ptr.front(), &arr_ptr.back() + 1, Int_compare_ptr());
-  for (uint i= 0; i < arr_ptr.size(); i++)
-    EXPECT_TRUE(*arr_ptr[i] == (int)i);
+  for (uint i = 0; i < arr_ptr.size(); i++) EXPECT_TRUE(*arr_ptr[i] == (int)i);
 
   // INSERT SORT
   std::random_shuffle(&arr_ptr.front(), &arr_ptr.back() + 1);
   insert_sort(&arr_ptr.front(), &arr_ptr.back() + 1, Int_compare_ptr());
-  for (uint i= 0; i < arr_ptr.size(); i++)
-    EXPECT_TRUE(*arr_ptr[i] == (int)i);
+  for (uint i = 0; i < arr_ptr.size(); i++) EXPECT_TRUE(*arr_ptr[i] == (int)i);
 }
 
-
-TEST_F(JTSortTest, SortInt2Test)
-{
-  const uint ints_to_sort= 1000;
+TEST_F(JTSortTest, SortInt2Test) {
+  const uint ints_to_sort = 1000;
 
   std::vector<int> arr;
-  std::vector<int*> arr_ptr;
+  std::vector<int *> arr_ptr;
 
   arr.reserve(ints_to_sort);
   arr_ptr.reserve(ints_to_sort);
 
-  for (uint i= 0; i < (ints_to_sort - 2); i++)
-  {
+  for (uint i = 0; i < (ints_to_sort - 2); i++) {
     arr.push_back((i % 2) ? i : (i * -1));
     arr_ptr.push_back(&arr[i]);
   }
@@ -265,14 +234,14 @@ TEST_F(JTSortTest, SortInt2Test)
   // MERGE SORT
   std::random_shuffle(&arr_ptr.front(), &arr_ptr.back() + 1);
   merge_sort(&arr_ptr.front(), &arr_ptr.back() + 1, Int_compare_ptr());
-  for (uint i= 1; i < arr_ptr.size(); i++)
-    EXPECT_TRUE(*arr_ptr[i-1] < *arr_ptr[i]);
+  for (uint i = 1; i < arr_ptr.size(); i++)
+    EXPECT_TRUE(*arr_ptr[i - 1] < *arr_ptr[i]);
 
   // INSERT SORT
   std::random_shuffle(&arr_ptr.front(), &arr_ptr.back() + 1);
   insert_sort(&arr_ptr.front(), &arr_ptr.back() + 1, Int_compare_ptr());
-  for (uint i= 1; i < arr_ptr.size(); i++)
-    EXPECT_TRUE(*arr_ptr[i-1] < *arr_ptr[i]);
+  for (uint i = 1; i < arr_ptr.size(); i++)
+    EXPECT_TRUE(*arr_ptr[i - 1] < *arr_ptr[i]);
 }
 
-}
+}  // namespace join_tab_sort_unittest

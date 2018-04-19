@@ -1,7 +1,5 @@
 DROP TABLE IF EXISTS t1,t2,t3,t4;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 YEAR NOT NULL,c2 YEAR, PRIMARY KEY(c1));
 CREATE TABLE t2(c1 YEAR NOT NULL, c2 YEAR, UNIQUE INDEX idx(c1,c2));
 CREATE TABLE t3(c1 YEAR(4) NOT NULL,c2 YEAR(4), PRIMARY KEY(c1));
@@ -764,6 +762,8 @@ c1
 2003
 2071
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 UPDATE t1 SET c1=NULL WHERE c2 < 1975;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c2 < 1975;

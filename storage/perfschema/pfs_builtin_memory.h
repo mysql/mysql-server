@@ -1,47 +1,47 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef PFS_BUILTIN_MEMORY_H
 #define PFS_BUILTIN_MEMORY_H
 
-#include "my_global.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
+#include <sys/types.h>
+
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr_class.h"
 
 /**
   @file storage/perfschema/pfs_builtin_memory.h
-  Performance schema instruments meta data (declarations).
+  Performance schema instruments metadata (declarations).
 */
 
 typedef uint PFS_builtin_memory_key;
 
-struct PFS_builtin_memory_class
-{
+struct PFS_builtin_memory_class {
   PFS_memory_class m_class;
-  PFS_memory_stat m_stat;
+  PFS_memory_shared_stat m_stat;
 
-  inline void count_alloc(size_t size)
-  {
-    if (m_class.m_enabled)
-      m_stat.count_builtin_alloc(size);
-  }
+  inline void count_alloc(size_t size) { m_stat.count_builtin_alloc(size); }
 
-  inline void count_free(size_t size)
-  {
-    m_stat.count_builtin_free(size);
-  }
+  inline void count_free(size_t size) { m_stat.count_builtin_free(size); }
 };
 
 void init_all_builtin_memory_class();
@@ -61,17 +61,20 @@ extern PFS_builtin_memory_class builtin_memory_account_waits;
 extern PFS_builtin_memory_class builtin_memory_account_stages;
 extern PFS_builtin_memory_class builtin_memory_account_statements;
 extern PFS_builtin_memory_class builtin_memory_account_transactions;
+extern PFS_builtin_memory_class builtin_memory_account_errors;
 extern PFS_builtin_memory_class builtin_memory_account_memory;
 
 extern PFS_builtin_memory_class builtin_memory_global_stages;
 extern PFS_builtin_memory_class builtin_memory_global_statements;
 extern PFS_builtin_memory_class builtin_memory_global_memory;
+extern PFS_builtin_memory_class builtin_memory_global_errors;
 
 extern PFS_builtin_memory_class builtin_memory_host;
 extern PFS_builtin_memory_class builtin_memory_host_waits;
 extern PFS_builtin_memory_class builtin_memory_host_stages;
 extern PFS_builtin_memory_class builtin_memory_host_statements;
 extern PFS_builtin_memory_class builtin_memory_host_transactions;
+extern PFS_builtin_memory_class builtin_memory_host_errors;
 extern PFS_builtin_memory_class builtin_memory_host_memory;
 
 extern PFS_builtin_memory_class builtin_memory_thread;
@@ -79,13 +82,15 @@ extern PFS_builtin_memory_class builtin_memory_thread_waits;
 extern PFS_builtin_memory_class builtin_memory_thread_stages;
 extern PFS_builtin_memory_class builtin_memory_thread_statements;
 extern PFS_builtin_memory_class builtin_memory_thread_transactions;
+extern PFS_builtin_memory_class builtin_memory_thread_errors;
 extern PFS_builtin_memory_class builtin_memory_thread_memory;
 
 extern PFS_builtin_memory_class builtin_memory_thread_waits_history;
 extern PFS_builtin_memory_class builtin_memory_thread_stages_history;
 extern PFS_builtin_memory_class builtin_memory_thread_statements_history;
 extern PFS_builtin_memory_class builtin_memory_thread_statements_history_tokens;
-extern PFS_builtin_memory_class builtin_memory_thread_statements_history_sqltext;
+extern PFS_builtin_memory_class
+    builtin_memory_thread_statements_history_sqltext;
 extern PFS_builtin_memory_class builtin_memory_thread_statements_stack;
 extern PFS_builtin_memory_class builtin_memory_thread_statements_stack_tokens;
 extern PFS_builtin_memory_class builtin_memory_thread_statements_stack_sqltext;
@@ -97,6 +102,7 @@ extern PFS_builtin_memory_class builtin_memory_user_waits;
 extern PFS_builtin_memory_class builtin_memory_user_stages;
 extern PFS_builtin_memory_class builtin_memory_user_statements;
 extern PFS_builtin_memory_class builtin_memory_user_transactions;
+extern PFS_builtin_memory_class builtin_memory_user_errors;
 extern PFS_builtin_memory_class builtin_memory_user_memory;
 
 extern PFS_builtin_memory_class builtin_memory_mutex_class;
@@ -114,6 +120,7 @@ extern PFS_builtin_memory_class builtin_memory_setup_object;
 
 extern PFS_builtin_memory_class builtin_memory_digest;
 extern PFS_builtin_memory_class builtin_memory_digest_tokens;
+extern PFS_builtin_memory_class builtin_memory_digest_sample_sqltext;
 
 extern PFS_builtin_memory_class builtin_memory_stages_history_long;
 extern PFS_builtin_memory_class builtin_memory_statements_history_long;
@@ -134,4 +141,3 @@ extern PFS_builtin_memory_class builtin_memory_scalable_buffer;
 
 /** @} */
 #endif
-

@@ -42,7 +42,7 @@ connection master;
 
 # from now on checking rbr specific idempotent errors
 set @save_binlog_format= @@session.binlog_format;
-set @@session.binlog_format= row;
+set @@session.binlog_format= 'row';
 delete from ti1 where b=1;
 
 select * from ti1 order by b /* must be (2),(3) */;
@@ -121,6 +121,7 @@ select * from ti1 order by b /* must be (2),(3) */;
 
 --echo *** slave must stop (Trying to delete a referenced foreing key)
 connection slave;
+--let $slave_sql_errno= convert_error(ER_ROW_IS_REFERENCED_2)
 source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
@@ -155,6 +156,7 @@ insert into ti2 set a=3, b=3 /* offending write event */;
 
 --echo *** slave must stop (Trying to insert an invalid foreign key)
 connection slave;
+--let $slave_sql_errno= convert_error(ER_NO_REFERENCED_ROW_2)
 source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
@@ -194,6 +196,7 @@ insert into ti1 set b=1 /* offending write event */;
 
 --echo *** slave must stop (Trying to insert a dupliacte key)
 connection slave;
+--let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
 source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
@@ -229,6 +232,7 @@ DELETE FROM t1 WHERE a = -2;
 
 --echo *** slave must stop (Key was not found)
 connection slave;
+--let $slave_sql_errno= convert_error(ER_KEY_NOT_FOUND)
 source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);

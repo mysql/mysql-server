@@ -1,9 +1,9 @@
 
-#
-# Replication is disabled in embedded mode.
-#
---source include/not_embedded.inc
-
+# Not GTIDs because it sets slave_sql_skip_counter
+# When log-bin, skip-log-bin and binlog-format options are specified, mask the warning.
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] You need to use --log-bin to make --binlog-format work.");
+--enable_query_log
 #
 # Checks how replication commands behave when replication if OFF
 # due to server-id = 0.
@@ -48,6 +48,7 @@ CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2));
 #
 # Configuration options associated with the SLAVE.
 #
+--disable_warnings
 --let $saved= `SELECT @@GLOBAL.master_info_repository`
 SET @@GLOBAL.master_info_repository= "TABLE";
 --disable_query_log
@@ -58,6 +59,7 @@ SET @@GLOBAL.relay_log_info_repository= "TABLE";
 --disable_query_log
 --eval SET @@GLOBAL.relay_log_info_repository= "$saved"
 --enable_query_log
+--enable_warnings
 --let $saved= `SELECT @@GLOBAL.max_relay_log_size`
 SET @@GLOBAL.max_relay_log_size= 536870912;
 --eval SET @@GLOBAL.max_relay_log_size= $saved
@@ -78,7 +80,6 @@ SET @@SESSION.sql_log_bin= 0;
 SHOW MASTER LOGS;
 SHOW MASTER STATUS;
 SHOW SLAVE HOSTS;
---error ER_FLUSH_MASTER_BINLOG_CLOSED
 RESET MASTER;
 SHOW BINLOG EVENTS;
 --error 2

@@ -4,8 +4,7 @@
 
 [cluster_config.1]
 NoOfReplicas=                  2
-DataMemory=                    80M
-IndexMemory=                   20M
+DataMemory=                    100M
 #NoOfFragmentLogFiles=          4
 NoOfFragmentLogFiles=          16
 #FragmentLogFileSize=           80M
@@ -25,6 +24,7 @@ ndbapi=,,,,,,,,,,,
 #ndb-wait-setup=600
 ndb-cluster-connection-pool=2
 #ndb-extra-logging=99
+#log-error-verbosity=3
 
 #connect_timeout=60
 #delayed_insert_timeout =1300

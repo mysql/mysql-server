@@ -9,7 +9,7 @@ t1	CREATE TABLE `t1` (
   `pk1` int(11) NOT NULL,
   `b` bit(64) DEFAULT NULL,
   PRIMARY KEY (`pk1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values 
 (0,b'1111111111111111111111111111111111111111111111111111111111111111'),
 (1,b'1000000000000000000000000000000000000000000000000000000000000000'),
@@ -245,6 +245,39 @@ b bit(32) not null
 insert into t1 values (1,1);
 drop table t1;
 create table bigbits ( k int unsigned primary key, c1 bit(64), c2 bit(64), c3 bit(64), c4 bit(64), c5 bit(64), c6 bit(64), c7 bit(64), c8 bit(64), c9 bit(64), c10 bit(64), c11 bit(64), c12 bit(64), c13 bit(64), c14 bit(64), c15 bit(64), c16 bit(64), c17 bit(64), c18 bit(64), c19 bit(64), c20 bit(64), c21 bit(64), c22 bit(64), c23 bit(64), c24 bit(64), c25 bit(64), c26 bit(64), c27 bit(64), c28 bit(64), c29 bit(64), c30 bit(64), c31 bit(64), c32 bit(64), c33 bit(64), c34 bit(64), c35 bit(64), c36 bit(64), c37 bit(64), c38 bit(64), c39 bit(64), c40 bit(64), c41 bit(64), c42 bit(64), c43 bit(64), c44 bit(64), c45 bit(64), c46 bit(64), c47 bit(64), c48 bit(64), c49 bit(64), c50 bit(64), c51 bit(64), c52 bit(64), c53 bit(64), c54 bit(64), c55 bit(64), c56 bit(64), c57 bit(64), c58 bit(64), c59 bit(64), c60 bit(64), c61 bit(64), c62 bit(64), c63 bit(64), c64 bit(64), c65 bit(64), c66 bit(64), c67 bit(64), c68 bit(64), c69 bit(64), c70 bit(64), c71 bit(64), c72 bit(64), c73 bit(64), c74 bit(64), c75 bit(64), c76 bit(64), c77 bit(64), c78 bit(64), c79 bit(64), c80 bit(64), c81 bit(64), c82 bit(64), c83 bit(64), c84 bit(64), c85 bit(64), c86 bit(64), c87 bit(64), c88 bit(64), c89 bit(64), c90 bit(64), c91 bit(64), c92 bit(64), c93 bit(64), c94 bit(64), c95 bit(64), c96 bit(64), c97 bit(64), c98 bit(64), c99 bit(64), c100 bit(64), c101 bit(64), c102 bit(64), c103 bit(64), c104 bit(64), c105 bit(64), c106 bit(64), c107 bit(64), c108 bit(64), c109 bit(64), c110 bit(64), c111 bit(64), c112 bit(64), c113 bit(64), c114 bit(64), c115 bit(64), c116 bit(64), c117 bit(64), c118 bit(64), c119 bit(64), c120 bit(64), c121 bit(64), c122 bit(64), c123 bit(64), c124 bit(64), c125 bit(64), c126 bit(64)) engine=ndb;
+ERROR HY000: Table storage engine for 'bigbits' doesn't have this option
+create table bigbits ( k int unsigned primary key, c1 bit(64) column_format
+dynamic, c2 bit(64) column_format dynamic, c3 bit(64) column_format dynamic,
+c4 bit(64) column_format dynamic, c5 bit(64) column_format dynamic, c6
+bit(64) column_format dynamic, c7 bit(64) column_format dynamic, c8 bit(64)
+column_format dynamic, c9 bit(64) column_format dynamic, c10 bit(64)
+column_format dynamic, c11 bit(64) column_format dynamic, c12 bit(64)
+column_format dynamic, c13 bit(64) column_format dynamic, c14 bit(64)
+column_format dynamic, c15 bit(64) column_format dynamic, c16 bit(64)
+column_format dynamic, c17 bit(64) column_format dynamic, c18 bit(64)
+column_format dynamic, c19 bit(64) column_format dynamic, c20 bit(64)
+column_format dynamic, c21 bit(64) column_format dynamic, c22 bit(64)
+column_format dynamic, c23 bit(64) column_format dynamic, c24 bit(64)
+column_format dynamic, c25 bit(64) column_format dynamic, c26 bit(64)
+column_format dynamic, c27 bit(64) column_format dynamic, c28 bit(64)
+column_format dynamic, c29 bit(64) column_format dynamic, c30 bit(64)
+column_format dynamic, c31 bit(64) column_format dynamic, c32 bit(64)
+column_format dynamic, c33 bit(64) column_format dynamic, c34 bit(64)
+column_format dynamic, c35 bit(64) column_format dynamic, c36 bit(64)
+column_format dynamic, c37 bit(64) column_format dynamic, c38 bit(64)
+column_format dynamic, c39 bit(64) column_format dynamic, c40 bit(64)
+column_format dynamic, c41 bit(64) column_format dynamic, c42 bit(64)
+column_format dynamic, c43 bit(64) column_format dynamic, c44 bit(64)
+column_format dynamic, c45 bit(64) column_format dynamic, c46 bit(64)
+column_format dynamic, c47 bit(64) column_format dynamic, c48 bit(64)
+column_format dynamic, c49 bit(64) column_format dynamic, c50 bit(64)
+column_format dynamic, c51 bit(64) column_format dynamic, c52 bit(64)
+column_format dynamic, c53 bit(64) column_format dynamic, c54 bit(64)
+column_format dynamic, c55 bit(64) column_format dynamic, c56 bit(64)
+column_format dynamic, c57 bit(64) column_format dynamic, c58 bit(64)
+column_format dynamic, c59 bit(64) column_format dynamic, c60 bit(64)
+column_format dynamic, c61 bit(64) column_format dynamic, c62 bit(64)
+column_format dynamic, c63 bit(64) column_format dynamic) engine=ndb;
 ERROR HY000: Table storage engine for 'bigbits' doesn't have this option
 show warnings;
 Level	Code	Message

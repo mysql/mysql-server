@@ -1,0 +1,323 @@
+set default_storage_engine=innodb;
+CREATE TABLE t(
+j JSON,
+stored_gc JSON GENERATED ALWAYS AS (JSON_EXTRACT(j, '$[0]')) STORED,
+virtual_gc JSON GENERATED ALWAYS AS (JSON_EXTRACT(j, '$[1]')) VIRTUAL);
+INSERT INTO t(j) VALUES
+(JSON_ARRAY(1, 2)), (JSON_ARRAY(2, 1)), (JSON_ARRAY(10, 10)), (JSON_ARRAY(5));
+SELECT * FROM t ORDER BY stored_gc;
+j	stored_gc	virtual_gc
+[1, 2]	1	2
+[2, 1]	2	1
+[5]	5	NULL
+[10, 10]	10	10
+SELECT * FROM t ORDER BY virtual_gc;
+j	stored_gc	virtual_gc
+[5]	5	NULL
+[2, 1]	2	1
+[1, 2]	1	2
+[10, 10]	10	10
+DROP TABLE t;
+# ----------------------------------------------------------------------
+# Test of generated columns that call JSON functions
+# ----------------------------------------------------------------------
+CREATE TABLE t(id INT, j JSON,
+gc INT GENERATED ALWAYS AS (JSON_EXTRACT(j, '$[0]')));
+INSERT INTO t(id, j) VALUES (0, '"5"'), (1, '[]'), (2, '[1,2]'), (3, '5');
+INSERT INTO t(j) VALUES ('{}');
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column json_extract at row 1
+INSERT INTO t(j) VALUES ('{"a":1}');
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column json_extract at row 1
+INSERT INTO t(j) VALUES ('"abc"');
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column json_extract at row 1
+INSERT INTO t(j) VALUES ('');
+ERROR 22032: Invalid JSON text: "The document is empty." at position 0 in value for column 't.j'.
+INSERT INTO t(j) VALUES ('[');
+ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value for column 't.j'.
+SELECT * FROM t ORDER BY id;
+id	j	gc
+0	"5"	5
+1	[]	NULL
+2	[1, 2]	1
+3	5	5
+UPDATE t SET j = '[123]';
+SELECT * FROM t ORDER BY id;
+id	j	gc
+0	[123]	123
+1	[123]	123
+2	[123]	123
+3	[123]	123
+UPDATE t SET j = '[';
+ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value for column 't.j'.
+DROP TABLE t;
+CREATE TABLE t(id INT, j JSON,
+gc JSON GENERATED ALWAYS AS (JSON_ARRAY(j)));
+INSERT INTO t(id, j)
+VALUES (1, '1'), (2, '[true, false]'), (3, '{"a":1,"b":2}');
+INSERT INTO t(j) VALUES ('');
+ERROR 22032: Invalid JSON text: "The document is empty." at position 0 in value for column 't.j'.
+INSERT INTO t(j) VALUES ('[');
+ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value for column 't.j'.
+SELECT * FROM t ORDER BY id;
+id	j	gc
+1	1	[1]
+2	[true, false]	[[true, false]]
+3	{"a": 1, "b": 2}	[{"a": 1, "b": 2}]
+UPDATE t SET j = '"abc"';
+SELECT * FROM t ORDER BY id;
+id	j	gc
+1	"abc"	["abc"]
+2	"abc"	["abc"]
+3	"abc"	["abc"]
+UPDATE t SET j = '[';
+ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value for column 't.j'.
+DROP TABLE t;
+CREATE TABLE t(ts TIMESTAMP, j JSON AS (CAST(ts AS JSON)));
+INSERT INTO t(ts) VALUES ('2000-01-01 00:00:00');
+SELECT CAST(JSON_ARRAY(ts, j) AS CHAR) FROM t;
+CAST(JSON_ARRAY(ts, j) AS CHAR)
+["2000-01-01 00:00:00.000000", "2000-01-01 00:00:00.000000"]
+DROP TABLE t;
+#
+# Bug#21491442 VARIANT::FORCED_RETURN() [WITH T = JSON_SCALAR*]:
+#              ASSERTION `FALSE' FAILED.
+#
+create table t (a json, b blob,
+c int generated always as (1!=a) virtual not null) engine=innodb;
+insert into t(a) values('[1]');
+insert into t(a) values('[1]');
+select a,c from t;
+a	c
+[1]	1
+[1]	1
+prepare ps1 from 'insert into t(a) values(?)';
+set @a='[1]';
+execute ps1 using @a;
+execute ps1 using @a;
+select a,c from t;
+a	c
+[1]	1
+[1]	1
+[1]	1
+[1]	1
+drop table t;
+create temporary table t (a json, b blob,
+c int generated always as (1!=a) virtual not null) engine=innodb;
+insert into t(a) values('[1]');
+insert into t(a) values('[1]');
+select a,c from t;
+a	c
+[1]	1
+[1]	1
+prepare ps1 from 'insert into t(a) values(?)';
+set @a='[1]';
+execute ps1 using @a;
+execute ps1 using @a;
+select a,c from t;
+a	c
+[1]	1
+[1]	1
+[1]	1
+[1]	1
+drop table t;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+#
+# WL#8170: Expression analyzer for GC.
+# Queries with GC and JSON_EXTRACT  compared to strings should use index
+#
+create table t1(
+f1 json,
+gc varchar(20) character set utf8mb4 as
+(json_unquote(json_extract(f1,"$"))) stored,
+key gc_idx(gc));
+insert into t1(f1) values ('"qwe"'),('"rty"'),('"uiop"');
+insert into t1(f1) values ('"zxc"'),('"vbn"'),('"mnb"');
+insert into t1(f1) select f1 from t1;
+insert into t1(f1) select f1 from t1;
+insert into t1(f1) values ('"asd"'),('"asdf"'),('"asasas"');
+set @save_opt_sw= @@optimizer_switch;
+set @@optimizer_switch="index_condition_pushdown=off";
+select f1 from t1 where gc = "asd";
+f1
+"asd"
+explain select f1 from t1 where gc = "asd";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	gc_idx	gc_idx	83	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` = 'asd')
+select f1 from t1 where json_extract(f1,"$") = "asd";
+f1
+"asd"
+explain select f1 from t1 where json_extract(f1,"$") = "asd";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	gc_idx	gc_idx	83	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` = 'asd')
+select f1 from t1 where "asd" = json_extract(f1,"$");
+f1
+"asd"
+explain select f1 from t1 where "asd" = json_extract(f1,"$");
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	gc_idx	gc_idx	83	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ('asd' = `test`.`t1`.`gc`)
+select f1 from t1 where gc > "z";
+f1
+"zxc"
+"zxc"
+"zxc"
+"zxc"
+explain select f1 from t1 where gc > "z";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` > 'z')
+select f1 from t1 where json_extract(f1,"$") > "z";
+f1
+"zxc"
+"zxc"
+"zxc"
+"zxc"
+explain select f1 from t1 where json_extract(f1,"$") > "z";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` > 'z')
+select f1 from t1 where gc > "v" and gc < "z";
+f1
+"vbn"
+"vbn"
+"vbn"
+"vbn"
+explain select f1 from t1 where gc > "v" and gc < "z";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`gc` > 'v') and (`test`.`t1`.`gc` < 'z'))
+select f1 from t1 where json_extract(f1,"$") > "v" and json_extract(f1,"$") < "z";
+f1
+"vbn"
+"vbn"
+"vbn"
+"vbn"
+explain select f1 from t1 where json_extract(f1,"$") > "v" and json_extract(f1,"$") < "z";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`gc` > 'v') and (`test`.`t1`.`gc` < 'z'))
+select f1 from t1 where gc between "v" and "z";
+f1
+"vbn"
+"vbn"
+"vbn"
+"vbn"
+explain select f1 from t1 where gc between "v" and "z";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` between 'v' and 'z')
+select f1 from t1 where json_extract(f1,"$") between "v" and "z";
+f1
+"vbn"
+"vbn"
+"vbn"
+"vbn"
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the BETWEEN operator'
+explain select f1 from t1 where json_extract(f1,"$") between "v" and "z";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the BETWEEN operator'
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` between 'v' and 'z')
+select f1 from t1 where gc in ("asd","asasas","asdf");
+f1
+"asasas"
+"asd"
+"asdf"
+explain select f1 from t1 where gc in ("asd","asasas","asdf");
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` in ('asd','asasas','asdf'))
+select f1 from t1 where json_extract(f1,"$") in ("asd","asasas","asdf");
+f1
+"asasas"
+"asd"
+"asdf"
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
+explain select f1 from t1 where json_extract(f1,"$") in ("asd","asasas","asdf");
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	3	100.00	Using where
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` in ('asd','asasas','asdf'))
+select f1 from t1 where json_unquote(json_extract(f1,"$"))="asd";
+f1
+"asd"
+explain select f1 from t1 where json_unquote(json_extract(f1,"$"))="asd";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	gc_idx	gc_idx	83	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` = 'asd')
+set @@optimizer_switch= @save_opt_sw;
+drop table t1;
+create table t1(f1 varchar(10), gc varchar(10) as (json_unquote(f1)) stored,
+key gc_idx(gc));
+insert into t1(f1) values ('"qwe"'),('"rty"'),('"uiop"');
+select f1 from t1 where lower(f1)="qwe";
+f1
+drop table t1;
+#
+#
+# Bug#21054516:QUERY HAVING SQL_BIG_RESULT ON JSON DATA GIVES EXTRA
+#              ROWS IN OUTPUT
+#
+CREATE TABLE t1 (
+pk integer auto_increment key,
+col_varchar_255_utf8_key varchar(255)  CHARACTER SET utf8
+);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 VALUES (NULL, 'q') , (NULL, 'tgzvsj') ,
+(NULL, 'b') , (NULL, 'q') , (NULL, 'up') , (NULL, 'up') ;
+ALTER TABLE t1 ADD COLUMN json_varchar255_utf8_key json;
+UPDATE t1 SET json_varchar255_utf8_key =
+JSON_OBJECT('col_varchar_255_utf8_key', col_varchar_255_utf8_key);
+ALTER TABLE t1 MODIFY col_varchar_255_utf8_key VARCHAR(255)
+GENERATED ALWAYS AS
+(JSON_EXTRACT(json_varchar255_utf8_key,'$.col_varchar_255_utf8_key[0]'))
+STORED;
+SELECT SQL_BIG_RESULT table1.json_varchar255_utf8_key AS field1, count(*)
+FROM t1 AS table1 LEFT JOIN t1 AS table2 ON table1.pk <= table2.pk
+GROUP  BY field1;
+field1	count(*)
+{"col_varchar_255_utf8_key": "up"}	3
+{"col_varchar_255_utf8_key": "q"}	9
+{"col_varchar_255_utf8_key": "b"}	4
+{"col_varchar_255_utf8_key": "tgzvsj"}	5
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+DROP TABLE t1;
+#
+# Bug#26352119: WHERE JSON_EXTRACT() ON GEN KEY
+#
+SET NAMES utf8mb4 COLLATE utf8mb4_ja_0900_as_cs;
+CREATE TABLE t1 (j JSON, pk VARCHAR(10) AS (j->>'$.id') STORED PRIMARY KEY);
+INSERT INTO t1 (j) VALUES ('{"id":"a"}'), ('{"id":"b"}'), ('{"id":"c"}');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE j->>'$.id'='b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	42	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "b"}' AS `j`,'b' AS `pk` from `test`.`t1` where ('b' = 'b')
+SELECT * FROM t1 WHERE j->>'$.id'='b';
+j	pk
+{"id": "b"}	b
+DROP TABLE t1;
+SET NAMES DEFAULT;

@@ -1,0 +1,381 @@
+## Test document updates
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/update_doc.tmp
+--write_file $xtest_file
+-->quiet
+
+-->varlet %LITERAL% type: LITERAL literal
+-->varlet %V_OCTETS% type: V_OCTETS v_octets
+
+-->macro Insert  %SCHEMA%  %NAME%  %ROW%
+Mysqlx.Crud.Insert {
+  data_model: DOCUMENT
+  collection { name: '%NAME%' schema: '%SCHEMA%'}
+  row { field { %LITERAL% { %V_OCTETS% { value:'%ROW%' } } } }
+}
+-->recvresult be-quiet
+-->endmacro
+
+-->macro Setup %SCHEMA%  %NAME%  %ROW%
+-->stmtadmin ensure_collection	{"schema":"%SCHEMA%", "name":"%NAME%"}
+-->recvresult be-quiet
+-->stmtsql TRUNCATE `%SCHEMA%`.`%NAME%`
+-->recvresult be-quiet
+-->callmacro Insert	%SCHEMA%	%NAME%	%ROW%
+-->endmacro
+
+
+-->macro Show  %SCHEMA%  %NAME%
+Mysqlx.Crud.Find {
+  collection { name: "%NAME%" schema: "%SCHEMA%" }
+  data_model: DOCUMENT
+}
+-->recvresult
+-->endmacro
+
+-->macro Assert  %SCHEMA%  %NAME%  %EXPECT%
+Mysqlx.Crud.Find {
+  collection { name: "%NAME%" schema: "%SCHEMA%" }
+  data_model: DOCUMENT
+}
+-->recvtovar %RESULT% doc
+-->varlet %QUOTED% %EXPECT%
+-->assert_eq %QUOTED%	%RESULT%
+-->endmacro
+
+
+-->macro Update_base %SCHEMA%  %NAME%  %CRITERIA%  %CRITERIA_VALUE%  %OPERATIONS%  %ERROR%
+Mysqlx.Crud.Update {
+  collection { schema: '%SCHEMA%' name: '%NAME%' }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR operator {
+      name: '%CRITERIA%'
+      param { type: IDENT identifier { name: '_id' } }
+      param { %LITERAL% { %V_OCTETS% { value: '%CRITERIA_VALUE%' } } }
+    }
+  }
+  %OPERATIONS%
+}
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+
+-->macro Update %SCHEMA%  %NAME%  %CRITERIA%  %CRITERIA_VALUE%  %OPERATION%  %TARGET%  %VALUE%  %ERROR%
+-->callmacro Update_base	%SCHEMA%	%NAME%	%CRITERIA%	%CRITERIA_VALUE%	operation{operation:%OPERATION% source{%TARGET%} value{%VALUE%}}	%ERROR%
+-->endmacro
+
+-->macro Update_two %SCHEMA%  %NAME%  %CRITERIA%  %CRITERIA_VALUE%  %OPERATION1%  %TARGET1%  %VALUE1%  %OPERATION2%  %TARGET2%  %VALUE2%  %ERROR%
+-->callmacro Update_base	%SCHEMA%	%NAME%	%CRITERIA%	%CRITERIA_VALUE%	operation{operation:%OPERATION1% source{%TARGET1%} value{%VALUE1%}} operation{operation:%OPERATION2% source{%TARGET2%} value{%VALUE2%}}	%ERROR%
+-->endmacro
+
+-->macro Update_no_value %SCHEMA%  %NAME%  %CRITERIA%  %CRITERIA_VALUE%  %OPERATION%  %TARGET%  %ERROR%
+-->callmacro Update_base	%SCHEMA%	%NAME%	%CRITERIA%	%CRITERIA_VALUE%	operation{operation:%OPERATION% source{%TARGET%}}	%ERROR%
+-->endmacro
+
+-->macro Update_two_no_value %SCHEMA%  %NAME%  %CRITERIA%  %CRITERIA_VALUE%  %OPERATION1%  %TARGET1%  %VALUE1%  %OPERATION2%  %TARGET2%  %ERROR%
+-->callmacro Update_base	%SCHEMA%	%NAME%	%CRITERIA%	%CRITERIA_VALUE%	operation{operation:%OPERATION1% source{%TARGET1%} value{%VALUE1%}} operation{operation:%OPERATION2% source{%TARGET2%}}	%ERROR%
+-->endmacro
+
+-->varlet %MEMBER_NAME% document_path { type: MEMBER value: 'name' }
+-->varlet %LEMON% %LITERAL% { %V_OCTETS% { value: 'lemon' } }
+
+-->title =Update by ARRAY_APPEND
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ARRAY_APPEND	%MEMBER_NAME%	%LEMON%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": ["banana", "lemon"], "price": 1.2}
+
+
+-->varlet %MEMBER_ORIGIN% document_path { type: MEMBER value: 'origin' }
+-->varlet %MEMBER_ORIGIN_1% %MEMBER_ORIGIN% document_path { type: ARRAY_INDEX index: 1 }
+-->varlet %BRAZIL% %LITERAL% { %V_OCTETS% { value: 'brazil' } }
+
+-->title =Update by ARRAY_INSERT
+-->callmacro Setup	xtest	coll	{"_id": "5", "name": "mango", "price": 0.90, "origin":["mexico", "philippines"]}
+-->callmacro Update	xtest	coll	==	5	ARRAY_INSERT	%MEMBER_ORIGIN_1%	%BRAZIL%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "5", "name": "mango", "price": 0.9, "origin": ["mexico", "brazil", "philippines"]}
+
+
+-->title =Update by ARRAY_INSERT (invalid path)
+-->callmacro Setup	xtest	coll	{"_id": "5", "name": "mango", "price": 0.90, "origin":["mexico", "philippines"]}
+-->callmacro Update	xtest	coll	==	5	ARRAY_INSERT	%MEMBER_ORIGIN%	%BRAZIL%	ER_INVALID_JSON_PATH_ARRAY_CELL
+-->callmacro Assert	xtest	coll	{"_id": "5", "name": "mango", "price": 0.9, "origin": ["mexico", "philippines"]}
+
+
+-->title =Update by ITEM_REPLACE
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_REPLACE	%MEMBER_NAME%	%LEMON%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "lemon", "price": 1.2}
+
+
+-->varlet %MEMBER_LOCATION% document_path { type: MEMBER value: 'location' }
+-->varlet %PINEAPPLE% %LITERAL% { %V_OCTETS% { value: 'pineapple' } }
+
+-->title =Update by ITEM_REPLACE non-existing member
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_REPLACE	%MEMBER_LOCATION%	%PINEAPPLE%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2}
+
+
+-->varlet %NULL% %LITERAL% { type: V_NULL }
+
+-->title =ITEM_SET to NULL
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_SET	%MEMBER_NAME%	%NULL%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": null, "price": 1.2}
+
+
+-->varlet %MEMBER_PRICE% document_path { type: MEMBER value: 'price' }
+-->varlet %LEMON_FOR_FREE% %LITERAL% { %V_OCTETS% { value: 'lemon for free!' } }
+
+-->title =Update by ITEM_SET twice
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update_two	xtest	coll	==	1	ITEM_SET	%MEMBER_NAME%	%LEMON%	ITEM_SET	%MEMBER_PRICE%	%LEMON_FOR_FREE%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "lemon", "price": "lemon for free!"}
+
+
+-->title =Update by ITEM_SET non-existing member
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_SET	%MEMBER_LOCATION%	%LEMON%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2, "location": "lemon"}
+
+
+-->title =Update a valid document by _id (from field)
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_SET	%MEMBER_NAME%	%LEMON%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "lemon", "price": 1.2}
+
+
+-->varlet %MEMBER_ID% document_path { type: MEMBER value: '_id' }
+
+-->title =Update document with illegal _id change
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_SET	%MEMBER_ID%	%LEMON%	ER_X_BAD_MEMBER_TO_UPDATE
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2}
+
+
+-->title =Update non-existing document
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	666	ITEM_SET	%MEMBER_NAME%	%LEMON%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2}
+
+
+-->title =Update multiple documents
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Insert	xtest	coll	{"_id": "2", "name": "apple", "price": 0.25}
+-->callmacro Insert	xtest	coll	{"_id": "3", "name": "tomato", "price": 1.80}
+-->callmacro Insert	xtest	coll	{"_id": "4", "name": "mango", "price": 3.14}
+-->callmacro Insert	xtest	coll	{"_id": "5", "name": "mango", "price": 0.90, "origin":["mexico","philippines"]}
+-->callmacro Show	xtest	coll
+-->callmacro Update	xtest	coll	<	5	ITEM_SET	%MEMBER_NAME%	%LEMON%	ER_SUCCESS
+-->callmacro Show	xtest	coll
+
+
+-->title =Update on an invalid schema (bad)
+-->stmtsql CREATE SCHEMA ytest
+-->recvresult
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	ytest	coll	==	1	ITEM_SET	%MEMBER_NAME%	%LEMON%	ER_NO_SUCH_TABLE
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2}
+-->stmtsql DROP SCHEMA IF EXISTS ytest
+-->recvresult
+
+
+-->title =Update on an invalid collection (bad)
+-->callmacro Update	xtest	no_coll	==	1	ITEM_SET	%MEMBER_NAME%	%LEMON%	ER_NO_SUCH_TABLE
+
+
+-->varlet %MEMBER_NAME_COLUMN% %MEMBER_NAME% name:'xfield'
+
+-->title =Update member with column (bad)
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_SET	%MEMBER_NAME_COLUMN%	%LEMON%	ER_X_BAD_COLUMN_TO_UPDATE
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2}
+
+
+-->varlet %MEMBER_NAME_TABLE% %MEMBER_NAME% table_name: 'xtable'
+
+-->title =Update member with table name (bad)
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_SET	%MEMBER_NAME_TABLE%	%LEMON%	ER_X_BAD_COLUMN_TO_UPDATE
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2}
+
+
+-->varlet %MEMBER_NAME_SCHEMA% %MEMBER_NAME% schema_name: 'xschema'
+
+-->title =Update member with schema name (bad)
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_SET	%MEMBER_NAME_SCHEMA%	%LEMON%	ER_X_BAD_COLUMN_TO_UPDATE
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2}
+
+
+-->title =Update by SET (not allowed)
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	SET	%MEMBER_NAME%	%LEMON%	ER_X_BAD_TYPE_OF_UPDATE
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2}
+
+
+-->title =Update by ITEM_REMOVE
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update_no_value	xtest	coll	==	1	ITEM_REMOVE	%MEMBER_NAME%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "price": 1.2}
+
+
+-->title =Multiple chained operations
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update_two_no_value	xtest	coll	==	1	ITEM_SET	%MEMBER_NAME%	%LEMON%	ITEM_REMOVE	%MEMBER_PRICE%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "lemon"}
+
+
+-->varlet %ROOT_EMPTY%   
+-->varlet %DOC_WITHOUT_ID% %LITERAL% { %V_OCTETS% { value: '{"one":1, "two":"foo"}' content_type: 2 } }
+
+-->title =Merge with another document
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_MERGE	%ROOT_EMPTY%	%DOC_WITHOUT_ID%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "one": 1, "two": "foo", "name": "banana", "price": 1.2}
+
+
+-->varlet %DOC_WITH_ID% %LITERAL% { %V_OCTETS% { value: '{"three":3, "four":"bar", "_id":"666"}' content_type: 2 } }
+
+-->title =Merge with another document containing _id
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_MERGE	%ROOT_EMPTY%	%DOC_WITH_ID%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "four": "bar", "name": "banana", "price": 1.2, "three": 3}
+
+
+-->varlet %ROOT_MEMBER% document_path { type: MEMBER }
+
+-->title =Merge with another document containing _id (differ root)
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_MERGE	%ROOT_MEMBER%	%DOC_WITH_ID%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "four": "bar", "name": "banana", "price": 1.2, "three": 3}
+
+
+-->title =Set item and merge with another document
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update_two	xtest	coll	==	1	ITEM_SET	%MEMBER_NAME%	%LEMON%	ITEM_MERGE	%ROOT_MEMBER%	%DOC_WITHOUT_ID%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "one": 1, "two": "foo", "name": "lemon", "price": 1.2}
+
+
+-->title =Merge with another document and set item
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update_two	xtest	coll	==	1	ITEM_MERGE	%ROOT_MEMBER%	%DOC_WITHOUT_ID%	ITEM_SET	%MEMBER_NAME%	%LEMON%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "one": 1, "two": "foo", "name": "lemon", "price": 1.2}
+
+
+-->title =Merge with NULL
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_MERGE	%ROOT_MEMBER%	%NULL%	ER_X_DOC_ID_MISSING
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2}
+
+
+-->varlet %ARRAY% %LITERAL% { %V_OCTETS% { value: '[1,2,3]' } }
+
+-->title =Merge with non-document
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_MERGE	%ROOT_MEMBER%	%ARRAY%	ER_X_DOC_ID_MISSING
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2}
+
+
+-->title =Merge with two documents
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Show	xtest	coll
+-->callmacro Update_two	xtest	coll	==	1	ITEM_MERGE	%ROOT_EMPTY%	%DOC_WITH_ID%	ITEM_MERGE	%ROOT_EMPTY%	%DOC_WITHOUT_ID%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "one": 1, "two": "foo", "four": "bar", "name": "banana", "price": 1.2, "three": 3}
+
+
+-->title =Merge with numeric literal
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_MERGE	%ROOT_EMPTY%	%LEMON%	ER_X_BAD_UPDATE_DATA
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2}
+
+
+-->title =Replace entire document (by empty source)
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_REPLACE	%ROOT_EMPTY%	%DOC_WITH_ID%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "four": "bar", "three": 3}
+
+
+-->title =Replace entire document (by member)
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_REPLACE	%ROOT_MEMBER%	%DOC_WITH_ID%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "four": "bar", "three": 3}
+
+
+-->title =Replace entire document, no _id (by member)
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_REPLACE	%ROOT_MEMBER%	%DOC_WITHOUT_ID%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "one": 1, "two": "foo"}
+
+
+-->title =Replace entire document by NULL
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_REPLACE	%ROOT_MEMBER%	%NULL%	ER_X_DOC_ID_MISSING
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2}
+
+
+-->title =Set entire document (by empty source)
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_SET	%ROOT_EMPTY%	%DOC_WITH_ID%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "four": "bar", "three": 3}
+
+
+-->title =Set entire document (by member)
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_SET	%ROOT_MEMBER%	%DOC_WITH_ID%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "four": "bar", "three": 3}
+
+
+-->title =Set entire document, no _id (by member)
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Show	xtest	coll
+-->callmacro Update	xtest	coll	==	1	ITEM_SET	%ROOT_MEMBER%	%DOC_WITHOUT_ID%	ER_SUCCESS
+-->callmacro Assert	xtest	coll	{"_id": "1", "one": 1, "two": "foo"}
+
+
+-->title =Set entire document to NULL
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_SET	%ROOT_MEMBER%	%NULL%	ER_X_DOC_ID_MISSING
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2}
+
+
+-->title =Merge literal to member
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_MERGE	%MEMBER_NAME%	%LEMON%	ER_X_BAD_UPDATE_DATA
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2}
+
+
+-->title =Merge document to sub-document
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": {"one": 3.4}, "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_MERGE	%MEMBER_NAME%	%DOC_WITHOUT_ID%	ER_X_BAD_UPDATE_DATA
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": {"one": 3.4}, "price": 1.2}
+
+
+-->title =Merge document to member
+-->callmacro Setup	xtest	coll	{"_id": "1", "name": "banana", "price": 1.20}
+-->callmacro Update	xtest	coll	==	1	ITEM_MERGE	%MEMBER_NAME%	%DOC_WITHOUT_ID%	ER_X_BAD_UPDATE_DATA
+-->callmacro Assert	xtest	coll	{"_id": "1", "name": "banana", "price": 1.2}
+
+
+-->title =Merge document to member of array
+-->callmacro Setup	xtest	coll	{"_id": "2", "origin": ["mexico", {"philippines": true}]}
+-->callmacro Update	xtest	coll	==	2	ITEM_MERGE	%MEMBER_ORIGIN_1%	%DOC_WITHOUT_ID%	ER_X_BAD_UPDATE_DATA
+-->callmacro Assert	xtest	coll	{"_id": "2", "origin": ["mexico", {"philippines": true}]}
+
+
+EOF
+
+CREATE SCHEMA xtest;
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc

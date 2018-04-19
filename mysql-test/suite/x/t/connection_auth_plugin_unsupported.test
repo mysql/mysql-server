@@ -1,0 +1,72 @@
+## Test cases for authorization against an unsupported plugin
+
+--let $dont_reset_global_status_variables= 1
+--source include/xplugin_preamble.inc
+--source include/have_ssl.inc
+--source include/have_mysql_no_login_plugin.inc
+--source include/xplugin_create_user.inc
+
+call mtr.add_suppression("Maximum number of authentication attempts reached, login failed");
+
+## Test starts here
+
+--let $xtest_file= $MYSQL_TMP_DIR/connection_auth_plugin_unsupported.tmp
+--write_file $xtest_file
+-->quiet
+-->sql
+SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '');
+SHOW STATUS LIKE 'Mysqlx_ssl_active';
+-->endsql
+EOF
+
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN test_plugin_server SONAME '$PLUGIN_AUTH'
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN mysql_no_login SONAME '$MYSQL_NO_LOGIN'
+
+
+CREATE USER xuser_test@localhost
+            IDENTIFIED WITH 'test_plugin_server' BY 'test';
+GRANT ALL ON *.* TO xuser_test@localhost;
+
+CREATE USER xuser_nologin@localhost
+            IDENTIFIED WITH 'mysql_no_login' BY 'nologin';
+GRANT ALL ON *.* TO xuser_nologin@localhost;
+
+--echo Show users
+SELECT user, plugin FROM mysql.user WHERE user LIKE 'xuser%';
+
+
+--let $XBASIC= --file=$xtest_file 2>&1
+--let $XSSLPARAM= --ssl-cipher='DHE-RSA-AES256-SHA' $XBASIC
+
+--exec $MYSQLXTEST -ux_root          $XBASIC
+--exec $MYSQLXTEST -ux_root          $XSSLPARAM
+
+--echo Ssl connection by test plugin  -> fail
+--let $expected_error_msg= Invalid user or password \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST -uxuser_test -ptest $XSSLPARAM
+
+--echo Plain connection by test plugin  -> fail
+--let $expected_error_msg= Invalid user or password \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST -uxuser_test -ptest $XBASIC
+
+--echo Ssl connection by no_login plugin  -> fail
+--let $expected_error_msg= Invalid user or password \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST -uxuser_nologin -pnologin $XSSLPARAM
+
+--echo Ssl connection by no_login plugin  -> fail
+--let $expected_error_msg= Invalid user or password \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST -uxuser_nologin -pnologin $XSSLPARAM
+
+## Cleanup
+DROP USER xuser_test@localhost;
+DROP USER xuser_nologin@localhost;
+UNINSTALL PLUGIN test_plugin_server;
+UNINSTALL PLUGIN mysql_no_login;
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc

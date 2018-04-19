@@ -2,6 +2,7 @@
 --source include/have_binlog_format_mixed_or_row.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
 --source include/have_debug.inc
+--source include/not_valgrind.inc
 
 --connection slave
 STOP SLAVE;
@@ -22,7 +23,7 @@ CREATE TABLE `t1` (
 DELIMITER %;
 
 
-CREATE DEFINER=`root`@`localhost` PROCEDURE `loadgen`(total int) begin   set @x = 0;   repeat     insert into test.t1 values (1, repeat('B', 1000));     insert into test.t1 values (2, repeat('I', 1000));     insert into test.t1 values (3,repeat('W', 1000));     insert into test.t1 values (4, repeat('G', 1000));     insert into test.t1 values (5, repeat('V', 1000));     insert into test.t1 values (6, repeat('D', 1000));     insert into test.t1 values (7, repeat('P', 1000));     delete from test.t1;     set @x = @x + 1;   until @x = total   end repeat; end%
+CREATE DEFINER=`root`@`localhost` PROCEDURE `loadgen`(total int) begin   set @x = 0;   repeat     insert into test.t1 values (1, repeat('B', 10));     insert into test.t1 values (2, repeat('I', 10));     insert into test.t1 values (3,repeat('W', 10));     insert into test.t1 values (4, repeat('G', 10));     insert into test.t1 values (5, repeat('V', 10));     insert into test.t1 values (6, repeat('D', 10));     insert into test.t1 values (7, repeat('P', 10));     delete from test.t1;     set @x = @x + 1;   until @x = total   end repeat; end%
 
 DELIMITER ;%
 
@@ -42,7 +43,7 @@ START SLAVE;
 --disable_result_log
 
 create temporary table error_log (
-  row int auto_increment primary key,
+  `row` int auto_increment primary key,
   suspicious int default 1,
   file_name varchar(255),
   line varchar(1024) default null

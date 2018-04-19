@@ -1,0 +1,90 @@
+--echo Preamble
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+--write_file $MYSQL_TMP_DIR/mysqlx-capabilities-set-all-message.tmp
+-->quiet
+-->binparse %MESSAGE_DUMP% Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "plugin.version"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_STRING
+          v_string {
+            value: "1.0.0"
+          }
+        }
+      }
+    }
+  }
+}
+
+-->varsub %MESSAGE_DUMP%
+-->binsend %MESSAGE_DUMP%
+
+-->expecterror ER_X_CAPABILITY_NOT_FOUND
+-->recvresult
+EOF
+
+--write_file $MYSQL_TMP_DIR/mysqlx-capabilities-set-parts-message.tmp
+-->quiet
+-->binparse %MESSAGE_DUMP% Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "plugin.version"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_STRING
+          v_string {
+            value: "1.0.0"
+          }
+        }
+      }
+    }
+  }
+}
+
+-->varsub %MESSAGE_DUMP%
+-->binsendoffset %MESSAGE_DUMP% 0% 50%
+-->sleep 0.2
+-->varsub %MESSAGE_DUMP%
+-->binsendoffset %MESSAGE_DUMP% 50% 100%
+
+-->expecterror ER_X_CAPABILITY_NOT_FOUND
+-->recvresult
+EOF
+
+--disable_query_log
+--disable_result_log
+--echo Test
+--exec $MYSQLXTEST -u x_root --file=$MYSQL_TMP_DIR/mysqlx-capabilities-set-all-message.tmp -n 2>&1
+--let $send_in_single_call= query_get_value(SHOW STATUS LIKE 'Mysqlx_bytes_received', Value, 1)
+
+--source include/xplugin_reset_global_status.inc
+--disable_query_log
+--disable_result_log
+
+--exec $MYSQLXTEST -u x_root --file=$MYSQL_TMP_DIR/mysqlx-capabilities-set-parts-message.tmp -n 2>&1
+--let $send_in_two_calls= query_get_value(SHOW STATUS LIKE 'Mysqlx_bytes_received', Value, 1)
+
+SHOW STATUS LIKE 'Mysqlx_bytes_received';
+
+if ( $send_in_two_calls == 0) {
+--die Reported size shouldn't be zero
+}
+
+if ( $send_in_two_calls != $send_in_single_call) {
+--echo Message send in single call xplugin-reported data: $send_in_single_call
+--echo Message send in two calls xplugin-reported data: $send_in_two_calls
+--die Wrong size reported
+} 
+--echo Message sizes match
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/mysqlx-capabilities-set-all-message.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-capabilities-set-parts-message.tmp
+--source include/xplugin_drop_user.inc

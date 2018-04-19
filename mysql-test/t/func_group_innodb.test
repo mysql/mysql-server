@@ -2,7 +2,6 @@
 # Test of group functions that depend on innodb
 #
 
---source include/have_innodb.inc
 
 --disable_warnings
 create table t1 (USR_ID integer not null, MAX_REQ integer not null, constraint PK_SEA_USER primary key (USR_ID)) engine=InnoDB;

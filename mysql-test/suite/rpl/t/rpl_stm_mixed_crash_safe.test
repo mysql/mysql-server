@@ -1,16 +1,18 @@
 --source include/big_test.inc
---source include/master-slave.inc
---source include/not_embedded.inc
 --source include/not_valgrind.inc
 --source include/have_debug.inc
---source include/have_innodb.inc
 --source include/have_binlog_format_mixed_or_statement.inc
+# Test requires relay-log-info-repository = TABLE
+--source include/not_relay_log_info_file.inc
 --source include/not_mts_slave_parallel_workers.inc
+--source include/master-slave.inc
 
+--disable_query_log
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from master pos .* and file master-bin.000001");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-call mtr.add_suppression(".*  InnoDB: Warning: allocated tablespace .*, old maximum was .*");
+call mtr.add_suppression("allocated tablespace .*, old maximum was .*");
+--enable_query_log
 
 let $engine_type=Innodb;
 let $database_name=test;

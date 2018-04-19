@@ -1,10 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
 
 # Don't run this test if $MYSQL_FIX_PRIVILEGE_TABLES isn't set
 # to the location of mysql_fix_privilege_tables.sql
@@ -43,15 +36,12 @@ CREATE TABLE testdb.t1 (
 CREATE VIEW testdb.v1 AS
         SELECT * FROM testdb.t1;
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+CREATE USER 'show_view_tbl'@'localhost', 'select_only_c1'@localhost;
 GRANT CREATE VIEW, SHOW VIEW ON testdb.v1 TO 'show_view_tbl'@'localhost';
-SHOW GRANTS FOR 'show_view_tbl'@'localhost';
 echo;
 
 # Some extra GRANTS for more complete test
 GRANT SELECT(c1) on testdb.v1 to 'select_only_c1'@localhost;
-set sql_mode= @orig_sql_mode;
 SHOW GRANTS FOR 'select_only_c1'@'localhost';
 echo;
 

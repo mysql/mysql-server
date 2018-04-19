@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
 
 --disable_warnings
@@ -26,7 +21,11 @@ CREATE TABLE t1 (a int unsigned not null,
                  primary key(a,c),
                  unique (b))
 ENGINE = NDB
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
 partition by key(a);
+
+let $ndb_desc_opts= -b -i -d test t1;
+source suite/ndb/include/ndb_desc_print.inc;
 
 CREATE TABLE t2 (a int unsigned not null,
                  b int unsigned not null,
@@ -34,9 +33,13 @@ CREATE TABLE t2 (a int unsigned not null,
                  primary key(a,b),
                  unique (b))
 ENGINE = NDB
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
 STORAGE DISK
 TABLESPACE ts1
 partition by key(a);
+
+let $ndb_desc_opts= -b -i -d test t2;
+source suite/ndb/include/ndb_desc_print.inc;
 
 CREATE TABLE t3 (a int unsigned not null,
                  b int unsigned not null,
@@ -46,12 +49,16 @@ CREATE TABLE t3 (a int unsigned not null,
 MAX_ROWS=50000000
 ENGINE = NDB;
 
+let $ndb_desc_opts= -b -i -d test t3;
+source suite/ndb/include/ndb_desc_print.inc;
+
 CREATE TABLE t4 (a int unsigned not null,
                  b int unsigned not null,
                  c int unsigned not null,
                  primary key(a,b),
                  unique (b))
-ENGINE = NDB;
+ENGINE = NDB
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE t5 (a int unsigned not null,
                  b int unsigned not null,
@@ -187,17 +194,28 @@ select * from t4 where b = 30;
 select * from t4 where b = 40;
 select * from t4 where b = 50;
 
-alter online table t1 reorganize partition;
-alter online table t2 reorganize partition;
---echo Cannot use normal reorganize partition on t3 as it has explicit MAX_ROWS set
---error ER_ALTER_OPERATION_NOT_SUPPORTED 
-alter online table t3 reorganize partition;
+alter table t1 algorithm=inplace, reorganize partition;
+
+let $ndb_desc_opts= -b -i -d test t1;
+source suite/ndb/include/ndb_desc_print.inc;
+
+alter table t2 algorithm=inplace, reorganize partition;
+let $ndb_desc_opts= -b -i -d test t2;
+source suite/ndb/include/ndb_desc_print.inc;
+
+--echo Cannot use inplace reorganize partition on t3 as it has explicit MAX_ROWS set
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table t3 algorithm=inplace, reorganize partition;
 show warnings;
 
-alter online table t3 max_rows=50000000;
-alter online table t4 reorganize partition;
---error ER_ALTER_OPERATION_NOT_SUPPORTED
-alter online table t5 partition by key() partitions 6;
+alter table t3 algorithm=inplace, max_rows=50000000;
+let $ndb_desc_opts= -b -i -d test t3;
+source suite/ndb/include/ndb_desc_print.inc;
+
+alter table t4 algorithm=inplace, reorganize partition;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table t5 algorithm=inplace partition by key() partitions 6;
 
 let $t1_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't1', Value, 1);
 
@@ -219,11 +237,21 @@ eval select $t3_part_count_now - $t3_part_count_start as t3_added;
 eval select $t4_part_count_now - $t4_part_count_start as t4_added;
 --enable_query_log
 
-alter online table t1 add partition partitions 1;
-alter online table t2 add partition partitions 4;
-alter online table t3 max_rows=100000000; # Expansion of max rows
---error ER_ALTER_OPERATION_NOT_SUPPORTED 
-alter online table t4 max_rows=100000000; # Attempted introduction of max rows - fails
+alter table t1 algorithm=inplace, add partition partitions 1;
+
+let $ndb_desc_opts= -b -i -d test t1;
+source suite/ndb/include/ndb_desc_print.inc;
+
+alter table t2 algorithm=inplace, add partition partitions 4;
+let $ndb_desc_opts= -b -i -d test t2;
+source suite/ndb/include/ndb_desc_print.inc;
+
+alter table t3 algorithm=inplace, max_rows=100000000; # Expansion of max rows
+let $ndb_desc_opts= -b -i -d test t3;
+source suite/ndb/include/ndb_desc_print.inc;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table t4 algorithm=inplace, max_rows=100000000; # Attempted introduction of max rows - fails
 
 let $t1_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't1', Value, 1);
 
@@ -238,7 +266,7 @@ let $t4_part_count_now = query_get_value(select count(*) as Value from informati
 eval select $t1_part_count_now - $t1_part_count_start as t1_added;
 --echo partitions added to t2 (expect 4)
 eval select $t2_part_count_now - $t2_part_count_start as t2_added;
---echo partitions added to t3 (expect 2)
+--echo partitions added to t3 (expect 4)
 eval select $t3_part_count_now - $t3_part_count_start as t3_added;
 --echo partitions added to t4 (expect 0)
 eval select $t4_part_count_now - $t4_part_count_start as t4_added;
@@ -247,15 +275,15 @@ eval select $t4_part_count_now - $t4_part_count_start as t4_added;
 # reorganize partition not support if not default partitioning
 # and after a add partition it's no longer default
 --error ER_REORG_NO_PARAM_ERROR
-alter online table t1 reorganize partition;
+alter table t1 algorithm=inplace, reorganize partition;
 
 # Following will fail as t3 has an explicit MAX_ROWS set 
---error ER_ALTER_OPERATION_NOT_SUPPORTED 
-alter online table t3 reorganize partition;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table t3 algorithm=inplace, reorganize partition;
 show warnings;
 
 # t4 reorg will succeed as t4 has no explicit MAX_ROWS
-alter online table t4 reorganize partition;
+alter table t4 algorithm=inplace, reorganize partition;
 
 select count(*) from t1;
 select count(*) from t2;
@@ -325,9 +353,18 @@ let ndb_table=t4;
 
 drop table t4;
 
-alter online table t1 add partition partitions 2;
-alter online table t2 add partition partitions 1;
-alter online table t3 max_rows=150000000;
+alter table t1 algorithm=inplace, add partition partitions 2;
+let $ndb_desc_opts= -b -i -d test t1;
+source suite/ndb/include/ndb_desc_print.inc;
+
+alter table t2 algorithm=inplace, add partition partitions 1;
+let $ndb_desc_opts= -b -i -d test t2;
+source suite/ndb/include/ndb_desc_print.inc;
+
+alter table t3 algorithm=inplace, max_rows=150000000;
+let $ndb_desc_opts= -b -i -d test t3;
+source suite/ndb/include/ndb_desc_print.inc;
+
 
 let $t1_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't1', Value, 1);
 
@@ -410,7 +447,11 @@ let ndb_database=test;
 let ndb_table=t5;
 --source suite/ndb/include/ndb_check_unique_index.inc
 
+alter table t5 algorithm=inplace, add partition partitions 1;
+let $ndb_desc_opts= -b -i -d test t5;
+source suite/ndb/include/ndb_desc_print.inc;
+
 drop table t1,t2,t3,t5;
-alter tablespace ts1 drop datafile 'datafile.dat' engine = ndb;
-drop tablespace ts1 engine = ndb;
+alter tablespace ts1 drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1 engine = ndb;

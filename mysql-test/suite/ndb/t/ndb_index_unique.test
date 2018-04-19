@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
 
 --disable_warnings
@@ -108,7 +103,8 @@ CREATE TABLE t2 (
   b int unsigned not null,
   c int unsigned,
   UNIQUE (b, c) USING HASH	
-) engine=ndbcluster;
+) engine=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 
 insert t2 values(1,1,NULL),(2,2,2),(3,3,NULL),(4,4,4),(5,5,NULL),(6,6,6),(7,7,NULL),(8,3,NULL),(9,3,NULL);
@@ -435,8 +431,8 @@ insert into t1 values
 alter table t1 add unique(un);
 
 drop table t1;
-alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
-drop tablespace ts1 engine=ndb;
+alter tablespace ts1 drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1 engine=ndb;
 
 # bug#57032 'NOT NULL' evaluation is incorrect when using an 'unique index
@@ -522,9 +518,11 @@ drop table t1;
 # Bug#58750: 'out of connection objects' due to missing close()
 # of prev. full_table_scan()
 #
-create table t1 (pk int primary key, a int) engine=ndb;
+create table t1 (pk int primary key, a int) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t2 (pk int primary key, uq int, a int, 
-   unique key ix(uq,a) USING HASH) engine=ndb;
+   unique key ix(uq,a) USING HASH) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t2 values
    (0,0,0), (1,1,0), (2,2,0), (3,3,0), (4,4,0),
@@ -562,14 +560,16 @@ drop table t1,t2;
 #
 CREATE TABLE t1 (
   i int
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 INSERT INTO t1 VALUES (1);
 
 CREATE TABLE t2 (
   col_int_unique int,
   UNIQUE KEY ix1 (col_int_unique) USING HASH
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 INSERT INTO t2 VALUES (42);
 
@@ -580,7 +580,7 @@ EXPLAIN SELECT * FROM t1 WHERE i IN
 --disable_warnings
 create temporary table row_counts_at_startup 
        select * 
-       from information_schema.session_status
+       from performance_schema.session_status
        WHERE variable_name LIKE 'NDB_API_READ_ROW_COUNT';
 --enable_warnings
 
@@ -608,7 +608,7 @@ SELECT * FROM t1 WHERE i IN
 --disable_warnings
 create temporary table row_counts_at_end
        select * 
-       from information_schema.session_status
+       from performance_schema.session_status
        WHERE variable_name LIKE 'NDB_API_READ_ROW_COUNT';
 --enable_warnings
 
@@ -621,5 +621,116 @@ drop table row_counts_at_end;
 drop table row_counts_at_startup;
 
 drop table t1,t2;
+
+--echo #
+--echo # Bug#21777589 : UNIQUE KEY IS PARTIALLY DROPPED FROM MYSQLD EVEN WHEN A 'DROP INDEX' FAILS
+--echo # Bug#22104597 : DROP INDEX FAILURE CORRUPTS THE INDEX METADATA IN MYSQLD
+--echo #
+
+--echo # Create table t1 with multiple keys
+create table t1(
+  a int,
+  b int,
+  unique key uk1(a),
+  unique key uk2(b) using hash
+)engine=ndb;
+
+--echo # Create table t2 with a fk based on t1's uk
+create table t2(
+  a int,
+  b int,
+  c int,
+  foreign key fk1(a) references t1(a),
+  unique key uk3(b),
+  unique key uk4(c)
+)engine=ndb;
+
+--echo # Try dropping uk1. should fail with correct uk constraint
+--error ER_DROP_INDEX_FK
+drop index uk1 on t1;
+
+--echo # Perform a select from t1 to verify the index has not been partially dropped
+--echo # also to ensure the ordering in m_index is intact
+select * from t1;
+
+--echo # Try dropping uk2 now. should be dropped without any problem
+drop index uk2 on t1;
+
+--echo # Verify through show create table
+--disable_warnings
+show create table t1;
+--enable_warnings
+
+--echo # Make sure dropping multiple indexes together works
+alter table t2 drop index uk3, drop index uk4;
+
+--echo # Verify through show create table
+--disable_warnings
+show create table t1;
+--enable_warnings
+
+--echo # cleanup
+drop table t2,t1;
+
+--echo #
+--echo # Bug#22110051 : ASSERTION IN PROTOCOL::END_STATEMENT DURING DROP INDEX
+--echo #
+
+--echo # Create table t1 with unique key
+create table t1(
+  a int not null,
+  b int not null,
+  unique key uk1(a),
+  unique key uk2(b)
+)engine=ndb;
+
+--echo # Create table t2 with a fk mapped to t1(a)
+create table t2(
+  a int,
+  foreign key fk1(a) references t1(a)
+)engine=ndb;
+
+--echo # desc t1 to show the implicit pk
+desc t1;
+
+--echo # Drop index uk1 - it should fail
+--replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/ /[0-9]*\/[0-9]*\/fk1/<parent_table_id>\/<child_table_id>\/fk1/
+--error ER_FK_NO_INDEX_PARENT
+drop index uk1 on t1;
+
+--echo # Verify table is intact
+--disable_warnings
+show create table t1;
+--enable_warnings
+
+--echo # Modify column on t1 - remove not null
+alter table t1 modify column a int;
+
+--echo # verify that pk is now on b.
+desc t1;
+--disable_warnings
+show create table t1;
+--enable_warnings
+--echo # Verify that the fk constraint is intact through inserts
+insert into t1 values (1,10), (2,20), (3,30);
+insert into t2 values (1), (2), (3);
+--error ER_NO_REFERENCED_ROW_2
+insert into t2 values (4);
+
+--echo # Try removing uk2. should pass.
+alter table t1 drop index uk2;
+
+--echo # Verify that everything is fine.
+desc t1;
+--disable_warnings
+show create table t1;
+--enable_warnings
+--echo # Verify that the fk constraint is intact through inserts
+insert into t2 values (1), (2), (3);
+--error ER_NO_REFERENCED_ROW_2
+insert into t2 values (4);
+
+--echo #cleanup
+drop table t2, t1;
 
 # end of tests

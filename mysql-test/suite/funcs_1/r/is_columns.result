@@ -28,78 +28,58 @@ DROP FUNCTION test.f1;
 #########################################################################
 DESCRIBE          information_schema.COLUMNS;
 Field	Type	Null	Key	Default	Extra
-TABLE_CATALOG	varchar(512)	NO			
-TABLE_SCHEMA	varchar(64)	NO			
-TABLE_NAME	varchar(64)	NO			
-COLUMN_NAME	varchar(64)	NO			
-ORDINAL_POSITION	bigint(21) unsigned	NO		0	
-COLUMN_DEFAULT	longtext	YES		NULL	
+TABLE_CATALOG	varchar(64)	NO		NULL	
+TABLE_SCHEMA	varchar(64)	NO		NULL	
+TABLE_NAME	varchar(64)	NO		NULL	
+COLUMN_NAME	varchar(64)	YES		NULL	
+ORDINAL_POSITION	int(10) unsigned	NO		NULL	
+COLUMN_DEFAULT	text	YES		NULL	
 IS_NULLABLE	varchar(3)	NO			
-DATA_TYPE	varchar(64)	NO			
-CHARACTER_MAXIMUM_LENGTH	bigint(21) unsigned	YES		NULL	
-CHARACTER_OCTET_LENGTH	bigint(21) unsigned	YES		NULL	
-NUMERIC_PRECISION	bigint(21) unsigned	YES		NULL	
-NUMERIC_SCALE	bigint(21) unsigned	YES		NULL	
-DATETIME_PRECISION	bigint(21) unsigned	YES		NULL	
-CHARACTER_SET_NAME	varchar(32)	YES		NULL	
-COLLATION_NAME	varchar(32)	YES		NULL	
-COLUMN_TYPE	longtext	NO		NULL	
-COLUMN_KEY	varchar(3)	NO			
-EXTRA	varchar(30)	NO			
-PRIVILEGES	varchar(80)	NO			
-COLUMN_COMMENT	varchar(1024)	NO			
+DATA_TYPE	longtext	YES		NULL	
+CHARACTER_MAXIMUM_LENGTH	bigint(21)	YES		NULL	
+CHARACTER_OCTET_LENGTH	bigint(21)	YES		NULL	
+NUMERIC_PRECISION	bigint(10) unsigned	YES		NULL	
+NUMERIC_SCALE	bigint(10) unsigned	YES		NULL	
+DATETIME_PRECISION	int(10) unsigned	YES		NULL	
+CHARACTER_SET_NAME	varchar(64)	YES		NULL	
+COLLATION_NAME	varchar(64)	YES		NULL	
+COLUMN_TYPE	mediumtext	NO		NULL	
+COLUMN_KEY	enum('','PRI','UNI','MUL')	NO		NULL	
+EXTRA	varchar(57)	YES		NULL	
+PRIVILEGES	varchar(154)	YES		NULL	
+COLUMN_COMMENT	text	NO		NULL	
 GENERATION_EXPRESSION	longtext	NO		NULL	
+SRS_ID	int(10) unsigned	YES		NULL	
 SHOW CREATE TABLE information_schema.COLUMNS;
-Table	Create Table
-COLUMNS	CREATE TEMPORARY TABLE `COLUMNS` (
-  `TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',
-  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
-  `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
-  `COLUMN_NAME` varchar(64) NOT NULL DEFAULT '',
-  `ORDINAL_POSITION` bigint(21) unsigned NOT NULL DEFAULT '0',
-  `COLUMN_DEFAULT` longtext,
-  `IS_NULLABLE` varchar(3) NOT NULL DEFAULT '',
-  `DATA_TYPE` varchar(64) NOT NULL DEFAULT '',
-  `CHARACTER_MAXIMUM_LENGTH` bigint(21) unsigned DEFAULT NULL,
-  `CHARACTER_OCTET_LENGTH` bigint(21) unsigned DEFAULT NULL,
-  `NUMERIC_PRECISION` bigint(21) unsigned DEFAULT NULL,
-  `NUMERIC_SCALE` bigint(21) unsigned DEFAULT NULL,
-  `DATETIME_PRECISION` bigint(21) unsigned DEFAULT NULL,
-  `CHARACTER_SET_NAME` varchar(32) DEFAULT NULL,
-  `COLLATION_NAME` varchar(32) DEFAULT NULL,
-  `COLUMN_TYPE` longtext NOT NULL,
-  `COLUMN_KEY` varchar(3) NOT NULL DEFAULT '',
-  `EXTRA` varchar(30) NOT NULL DEFAULT '',
-  `PRIVILEGES` varchar(80) NOT NULL DEFAULT '',
-  `COLUMN_COMMENT` varchar(1024) NOT NULL DEFAULT '',
-  `GENERATION_EXPRESSION` longtext NOT NULL
-) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
+View	Create View	character_set_client	collation_connection
+COLUMNS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`COLUMNS` AS select `cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`tbl`.`name` AS `TABLE_NAME`,(`col`.`name` collate utf8_tolower_ci) AS `COLUMN_NAME`,`col`.`ordinal_position` AS `ORDINAL_POSITION`,`col`.`default_value_utf8` AS `COLUMN_DEFAULT`,if((`col`.`is_nullable` = 1),'YES','NO') AS `IS_NULLABLE`,substring_index(substring_index(`col`.`column_type_utf8`,'(',1),' ',1) AS `DATA_TYPE`,internal_dd_char_length(`col`.`type`,`col`.`char_length`,`coll`.`name`,0) AS `CHARACTER_MAXIMUM_LENGTH`,internal_dd_char_length(`col`.`type`,`col`.`char_length`,`coll`.`name`,1) AS `CHARACTER_OCTET_LENGTH`,if((`col`.`numeric_precision` = 0),NULL,`col`.`numeric_precision`) AS `NUMERIC_PRECISION`,if(((`col`.`numeric_scale` = 0) and (`col`.`numeric_precision` = 0)),NULL,`col`.`numeric_scale`) AS `NUMERIC_SCALE`,`col`.`datetime_precision` AS `DATETIME_PRECISION`,(case `col`.`type` when 'MYSQL_TYPE_STRING' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_VAR_STRING' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_VARCHAR' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_TINY_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_MEDIUM_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_LONG_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_ENUM' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_SET' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) else NULL end) AS `CHARACTER_SET_NAME`,(case `col`.`type` when 'MYSQL_TYPE_STRING' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_VAR_STRING' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_VARCHAR' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_TINY_BLOB' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_MEDIUM_BLOB' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_BLOB' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_LONG_BLOB' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_ENUM' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_SET' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) else NULL end) AS `COLLATION_NAME`,`col`.`column_type_utf8` AS `COLUMN_TYPE`,`col`.`column_key` AS `COLUMN_KEY`,if((ifnull(`col`.`generation_expression_utf8`,'IS_NOT_GC') = 'IS_NOT_GC'),if((`col`.`is_auto_increment` = TRUE),concat(ifnull(concat('on update ',`col`.`update_option`,' '),''),'auto_increment'),ifnull(concat('on update ',`col`.`update_option`),'')),if(`col`.`is_virtual`,'VIRTUAL GENERATED','STORED GENERATED')) AS `EXTRA`,get_dd_column_privileges(`sch`.`name`,`tbl`.`name`,`col`.`name`) AS `PRIVILEGES`,ifnull(`col`.`comment`,'') AS `COLUMN_COMMENT`,ifnull(`col`.`generation_expression_utf8`,'') AS `GENERATION_EXPRESSION`,`col`.`srs_id` AS `SRS_ID` from (((((`mysql`.`columns` `col` join `mysql`.`tables` `tbl` on((`col`.`table_id` = `tbl`.`id`))) join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `coll` on((`col`.`collation_id` = `coll`.`id`))) join `mysql`.`character_sets` `cs` on((`coll`.`character_set_id` = `cs`.`id`))) where (internal_get_view_warning_or_error(`sch`.`name`,`tbl`.`name`,`tbl`.`type`,`tbl`.`options`) and can_access_column(`sch`.`name`,`tbl`.`name`,`col`.`name`) and is_visible_dd_object(`tbl`.`hidden`,(`col`.`hidden` <> 'Visible')))	utf8	utf8_general_ci
 SHOW COLUMNS FROM information_schema.COLUMNS;
 Field	Type	Null	Key	Default	Extra
-TABLE_CATALOG	varchar(512)	NO			
-TABLE_SCHEMA	varchar(64)	NO			
-TABLE_NAME	varchar(64)	NO			
-COLUMN_NAME	varchar(64)	NO			
-ORDINAL_POSITION	bigint(21) unsigned	NO		0	
-COLUMN_DEFAULT	longtext	YES		NULL	
+TABLE_CATALOG	varchar(64)	NO		NULL	
+TABLE_SCHEMA	varchar(64)	NO		NULL	
+TABLE_NAME	varchar(64)	NO		NULL	
+COLUMN_NAME	varchar(64)	YES		NULL	
+ORDINAL_POSITION	int(10) unsigned	NO		NULL	
+COLUMN_DEFAULT	text	YES		NULL	
 IS_NULLABLE	varchar(3)	NO			
-DATA_TYPE	varchar(64)	NO			
-CHARACTER_MAXIMUM_LENGTH	bigint(21) unsigned	YES		NULL	
-CHARACTER_OCTET_LENGTH	bigint(21) unsigned	YES		NULL	
-NUMERIC_PRECISION	bigint(21) unsigned	YES		NULL	
-NUMERIC_SCALE	bigint(21) unsigned	YES		NULL	
-DATETIME_PRECISION	bigint(21) unsigned	YES		NULL	
-CHARACTER_SET_NAME	varchar(32)	YES		NULL	
-COLLATION_NAME	varchar(32)	YES		NULL	
-COLUMN_TYPE	longtext	NO		NULL	
-COLUMN_KEY	varchar(3)	NO			
-EXTRA	varchar(30)	NO			
-PRIVILEGES	varchar(80)	NO			
-COLUMN_COMMENT	varchar(1024)	NO			
+DATA_TYPE	longtext	YES		NULL	
+CHARACTER_MAXIMUM_LENGTH	bigint(21)	YES		NULL	
+CHARACTER_OCTET_LENGTH	bigint(21)	YES		NULL	
+NUMERIC_PRECISION	bigint(10) unsigned	YES		NULL	
+NUMERIC_SCALE	bigint(10) unsigned	YES		NULL	
+DATETIME_PRECISION	int(10) unsigned	YES		NULL	
+CHARACTER_SET_NAME	varchar(64)	YES		NULL	
+COLLATION_NAME	varchar(64)	YES		NULL	
+COLUMN_TYPE	mediumtext	NO		NULL	
+COLUMN_KEY	enum('','PRI','UNI','MUL')	NO		NULL	
+EXTRA	varchar(57)	YES		NULL	
+PRIVILEGES	varchar(154)	YES		NULL	
+COLUMN_COMMENT	text	NO		NULL	
 GENERATION_EXPRESSION	longtext	NO		NULL	
+SRS_ID	int(10) unsigned	YES		NULL	
 SELECT table_catalog, table_schema, table_name, column_name
 FROM information_schema.columns WHERE table_catalog IS NULL OR table_catalog <> 'def';
-table_catalog	table_schema	table_name	column_name
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME
 ###############################################################################
 # Testcase 3.2.6.2 + 3.2.6.3: INFORMATION_SCHEMA.COLUMNS accessible information
 ###############################################################################
@@ -113,27 +93,33 @@ CREATE TABLE db_datadict.t1
 (f1 CHAR(10), f2 TEXT, f3 DATE, f4 INT AUTO_INCREMENT,
 UNIQUE INDEX MUL_IDX(f1,f3), PRIMARY KEY (f4))
 ENGINE = <other_engine_type>;
+ANALYZE TABLE db_datadict.t1;
+Table	Op	Msg_type	Msg_text
+db_datadict.t1	analyze	status	OK
 CREATE VIEW db_datadict.v1 AS SELECT 1 AS f1, 1 AS f2;
 GRANT SELECT(f1, f2) ON db_datadict.t1 TO 'testuser1'@'localhost';
 GRANT SELECT(f2)     ON db_datadict.v1 TO 'testuser1'@'localhost';
 CREATE TABLE db_datadict.t2
 (f1 CHAR(10), f2 TEXT, f3 DATE, f4 INT, PRIMARY KEY (f1,f4))
 ENGINE = <other_engine_type>;
+ANALYZE TABLE db_datadict.t2;
+Table	Op	Msg_type	Msg_text
+db_datadict.t2	analyze	status	OK
 GRANT INSERT(f1, f2) ON db_datadict.t2 TO 'testuser2'@'localhost';
 SELECT * FROM information_schema.columns
 WHERE table_schema = 'db_datadict'
 ORDER BY table_schema, table_name, ordinal_position;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
-def	db_datadict	t1	f1	1	NULL	YES	char	10	10	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(10)	MUL		select,insert,update,references		
-def	db_datadict	t1	f2	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	latin1	latin1_swedish_ci	text			select,insert,update,references		
-def	db_datadict	t1	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
-def	db_datadict	t1	f4	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PRI	auto_increment	select,insert,update,references		
-def	db_datadict	t2	f1	1	NULL	NO	char	10	10	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(10)	PRI		select,insert,update,references		
-def	db_datadict	t2	f2	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	latin1	latin1_swedish_ci	text			select,insert,update,references		
-def	db_datadict	t2	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
-def	db_datadict	t2	f4	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PRI		select,insert,update,references		
-def	db_datadict	v1	f1	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(1)			select,insert,update,references		
-def	db_datadict	v1	f2	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(1)			select,insert,update,references		
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
+def	db_datadict	t1	f1	1	NULL	YES	char	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)	MUL		select,insert,update,references			NULL
+def	db_datadict	t1	f2	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	text			select,insert,update,references			NULL
+def	db_datadict	t1	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
+def	db_datadict	t1	f4	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PRI	auto_increment	select,insert,update,references			NULL
+def	db_datadict	t2	f1	1	NULL	NO	char	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)	PRI		select,insert,update,references			NULL
+def	db_datadict	t2	f2	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	text			select,insert,update,references			NULL
+def	db_datadict	t2	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
+def	db_datadict	t2	f4	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PRI		select,insert,update,references			NULL
+def	db_datadict	v1	f1	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(1)			select,insert,update,references			NULL
+def	db_datadict	v1	f2	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(1)			select,insert,update,references			NULL
 SHOW COLUMNS FROM db_datadict.t1;
 Field	Type	Null	Key	Default	Extra
 f1	char(10)	YES	MUL	NULL	
@@ -154,10 +140,10 @@ f2	int(1)	NO		0
 SELECT * FROM information_schema.columns
 WHERE table_schema = 'db_datadict'
 ORDER BY table_schema, table_name, ordinal_position;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
-def	db_datadict	t1	f1	1	NULL	YES	char	10	10	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(10)	MUL		select		
-def	db_datadict	t1	f2	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	latin1	latin1_swedish_ci	text			select		
-def	db_datadict	v1	f2	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(1)			select		
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
+def	db_datadict	t1	f1	1	NULL	YES	char	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)	MUL		select			NULL
+def	db_datadict	t1	f2	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	text			select			NULL
+def	db_datadict	v1	f2	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(1)			select			NULL
 SHOW COLUMNS FROM db_datadict.t1;
 Field	Type	Null	Key	Default	Extra
 f1	char(10)	YES	MUL	NULL	
@@ -171,9 +157,9 @@ f2	int(1)	NO		0
 SELECT * FROM information_schema.columns
 WHERE table_schema = 'db_datadict'
 ORDER BY table_schema, table_name, ordinal_position;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
-def	db_datadict	t2	f1	1	NULL	NO	char	10	10	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(10)	PRI		insert		
-def	db_datadict	t2	f2	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	latin1	latin1_swedish_ci	text			insert		
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
+def	db_datadict	t2	f1	1	NULL	NO	char	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)	PRI		insert			NULL
+def	db_datadict	t2	f2	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	text			insert			NULL
 SHOW COLUMNS FROM db_datadict.t1;
 ERROR 42000: SELECT command denied to user 'testuser2'@'localhost' for table 't1'
 SHOW COLUMNS FROM db_datadict.t2;
@@ -194,7 +180,7 @@ DROP DATABASE IF EXISTS db_datadict;
 CREATE DATABASE db_datadict;
 SELECT table_name FROM information_schema.columns
 WHERE table_name LIKE 't1_my_table%';
-table_name
+TABLE_NAME
 CREATE TABLE test.t1_my_table (f1 CHAR(12))
 DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci
 ENGINE = <engine_type>;
@@ -221,38 +207,39 @@ EXTRA
 PRIVILEGES	select,insert,update,references
 COLUMN_COMMENT	
 GENERATION_EXPRESSION	
+SRS_ID	NULL
 SELECT table_name FROM information_schema.columns
 WHERE table_name LIKE 't1_my_table%';
-table_name
+TABLE_NAME
 t1_my_table
 RENAME TABLE test.t1_my_table TO test.t1_my_tablex;
 SELECT table_name FROM information_schema.columns
 WHERE table_name LIKE 't1_my_table%';
-table_name
+TABLE_NAME
 t1_my_tablex
 SELECT table_schema,table_name FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_schema	table_name
+TABLE_SCHEMA	TABLE_NAME
 test	t1_my_tablex
 RENAME TABLE test.t1_my_tablex TO db_datadict.t1_my_tablex;
 SELECT table_schema,table_name FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_schema	table_name
+TABLE_SCHEMA	TABLE_NAME
 db_datadict	t1_my_tablex
 SELECT table_name, column_name FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name
+TABLE_NAME	COLUMN_NAME
 t1_my_tablex	f1
 ALTER TABLE db_datadict.t1_my_tablex CHANGE COLUMN f1 first_col CHAR(12);
 SELECT table_name, column_name FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name
+TABLE_NAME	COLUMN_NAME
 t1_my_tablex	first_col
 SELECT table_name, column_name, character_maximum_length,
 character_octet_length, column_type
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	character_maximum_length	character_octet_length	column_type
+TABLE_NAME	COLUMN_NAME	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	COLUMN_TYPE
 t1_my_tablex	first_col	12	12	char(12)
 ALTER TABLE db_datadict.t1_my_tablex
 MODIFY COLUMN first_col CHAR(20);
@@ -260,13 +247,13 @@ SELECT table_name, column_name, character_maximum_length,
 character_octet_length, column_type
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	character_maximum_length	character_octet_length	column_type
+TABLE_NAME	COLUMN_NAME	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	COLUMN_TYPE
 t1_my_tablex	first_col	20	20	char(20)
 SELECT table_name, column_name, character_maximum_length,
 character_octet_length, column_type
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	character_maximum_length	character_octet_length	column_type
+TABLE_NAME	COLUMN_NAME	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	COLUMN_TYPE
 t1_my_tablex	first_col	20	20	char(20)
 ALTER TABLE db_datadict.t1_my_tablex
 MODIFY COLUMN first_col VARCHAR(20);
@@ -274,88 +261,91 @@ SELECT table_name, column_name, character_maximum_length,
 character_octet_length, column_type
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	character_maximum_length	character_octet_length	column_type
+TABLE_NAME	COLUMN_NAME	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	COLUMN_TYPE
 t1_my_tablex	first_col	20	20	varchar(20)
 SELECT table_name, column_name, column_default
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	column_default
+TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT
 t1_my_tablex	first_col	NULL
 ALTER TABLE db_datadict.t1_my_tablex
 MODIFY COLUMN first_col CHAR(10) DEFAULT 'hello';
 SELECT table_name, column_name, column_default
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	column_default
+TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT
 t1_my_tablex	first_col	hello
 SELECT table_name, column_name, is_nullable
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	is_nullable
+TABLE_NAME	COLUMN_NAME	IS_NULLABLE
 t1_my_tablex	first_col	YES
 ALTER TABLE db_datadict.t1_my_tablex
 MODIFY COLUMN first_col CHAR(10) NOT NULL;
 SELECT table_name, column_name, is_nullable
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	is_nullable
+TABLE_NAME	COLUMN_NAME	IS_NULLABLE
 t1_my_tablex	first_col	NO
 SELECT table_name, column_name, collation_name
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	collation_name
+TABLE_NAME	COLUMN_NAME	COLLATION_NAME
 t1_my_tablex	first_col	latin1_swedish_ci
 ALTER TABLE db_datadict.t1_my_tablex
 MODIFY COLUMN first_col CHAR(10) COLLATE 'latin1_general_cs';
 SELECT table_name, column_name, collation_name
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	collation_name
+TABLE_NAME	COLUMN_NAME	COLLATION_NAME
 t1_my_tablex	first_col	latin1_general_cs
 SELECT table_name, column_name, character_maximum_length,
 character_octet_length, character_set_name
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	character_maximum_length	character_octet_length	character_set_name
+TABLE_NAME	COLUMN_NAME	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	CHARACTER_SET_NAME
 t1_my_tablex	first_col	10	10	latin1
 ALTER TABLE db_datadict.t1_my_tablex
 MODIFY COLUMN first_col CHAR(10) CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT table_name, column_name, character_maximum_length,
 character_octet_length, character_set_name
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	character_maximum_length	character_octet_length	character_set_name
+TABLE_NAME	COLUMN_NAME	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	CHARACTER_SET_NAME
 t1_my_tablex	first_col	10	30	utf8
 SELECT table_name, column_name, column_comment
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	column_comment
+TABLE_NAME	COLUMN_NAME	COLUMN_COMMENT
 t1_my_tablex	first_col	
 ALTER TABLE db_datadict.t1_my_tablex
 MODIFY COLUMN first_col CHAR(10) COMMENT 'Hello';
 SELECT table_name, column_name, column_comment
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	column_comment
+TABLE_NAME	COLUMN_NAME	COLUMN_COMMENT
 t1_my_tablex	first_col	Hello
 SELECT table_name, column_name
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name
+TABLE_NAME	COLUMN_NAME
 t1_my_tablex	first_col
 ALTER TABLE db_datadict.t1_my_tablex
 ADD COLUMN second_col CHAR(10);
 SELECT table_name, column_name
 FROM information_schema.columns
-WHERE table_name = 't1_my_tablex';
-table_name	column_name
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_name, column_name;
+TABLE_NAME	COLUMN_NAME
 t1_my_tablex	first_col
 t1_my_tablex	second_col
 SELECT table_name, column_name, ordinal_position
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex'
 ORDER BY table_name, column_name;
-table_name	column_name	ordinal_position
+TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION
 t1_my_tablex	first_col	1
 t1_my_tablex	second_col	2
 ALTER TABLE db_datadict.t1_my_tablex
@@ -364,47 +354,47 @@ SELECT table_name, column_name, ordinal_position
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex'
 ORDER BY table_name, column_name;
-table_name	column_name	ordinal_position
+TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION
 t1_my_tablex	first_col	2
 t1_my_tablex	second_col	1
 SELECT table_name, column_name
 FROM information_schema.columns
-WHERE table_name = 't1_my_tablex';
-table_name	column_name
-t1_my_tablex	second_col
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_name, column_name;
+TABLE_NAME	COLUMN_NAME
 t1_my_tablex	first_col
+t1_my_tablex	second_col
 ALTER TABLE db_datadict.t1_my_tablex
 DROP COLUMN first_col;
 SELECT table_name, column_name
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name
+TABLE_NAME	COLUMN_NAME
 t1_my_tablex	second_col
 SELECT table_name, column_name, column_key
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	column_key
+TABLE_NAME	COLUMN_NAME	COLUMN_KEY
 t1_my_tablex	second_col	
 ALTER TABLE db_datadict.t1_my_tablex
 ADD UNIQUE INDEX IDX(second_col);
 SELECT table_name, column_name, column_key
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name	column_key
+TABLE_NAME	COLUMN_NAME	COLUMN_KEY
 t1_my_tablex	second_col	UNI
 SELECT table_name, column_name
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name
+TABLE_NAME	COLUMN_NAME
 t1_my_tablex	second_col
 DROP TABLE db_datadict.t1_my_tablex;
 SELECT table_name, column_name
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name	column_name
+TABLE_NAME	COLUMN_NAME
+set names latin1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE VIEW test.t1_my_tablex
 AS SELECT 1 AS "col1", 'A' collate latin1_german1_ci AS "col2";
 SELECT * FROM information_schema.columns
@@ -431,6 +421,7 @@ EXTRA
 PRIVILEGES	select,insert,update,references
 COLUMN_COMMENT	
 GENERATION_EXPRESSION	
+SRS_ID	NULL
 TABLE_CATALOG	def
 TABLE_SCHEMA	test
 TABLE_NAME	t1_my_tablex
@@ -452,22 +443,24 @@ EXTRA
 PRIVILEGES	select,insert,update,references
 COLUMN_COMMENT	
 GENERATION_EXPRESSION	
+SRS_ID	NULL
 DROP VIEW test.t1_my_tablex;
 SELECT table_name FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name
+TABLE_NAME
 SET sql_mode = default;
+set names utf8mb4;
 CREATE TABLE db_datadict.t1_my_tablex
 ENGINE = <engine_type> AS
 SELECT 1;
 SELECT table_name FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name
+TABLE_NAME
 t1_my_tablex
 DROP DATABASE db_datadict;
 SELECT table_name FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
-table_name
+TABLE_NAME
 ########################################################################
 # Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
 #           DDL on INFORMATION_SCHEMA table are not supported

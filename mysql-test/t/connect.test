@@ -3,9 +3,6 @@
 # with right and wrong password, with and without database
 # Unfortunately the check is incomplete as we can't connect without database
 
-# This test makes no sense with the embedded server
---source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -16,13 +13,12 @@ drop table if exists t1,t2;
 
 --disable_query_log
 --disable_result_log
-call mtr.add_suppression("Did not write failed .*");
 --enable_result_log
 --enable_query_log
 #connect (con1,localhost,root,,"");
 #show tables;
 connect (con1,localhost,root,,mysql);
-show tables;
+show tables where Tables_in_mysql != 'ndb_binlog_index';
 connect (con2,localhost,root,,test);
 show tables;
 
@@ -47,7 +43,7 @@ grant ALL on *.* to test@127.0.0.1;
 #connect (con1,localhost,test,gambling,"");
 #show tables;
 connect (con3,localhost,test,gambling,mysql);
-show tables;
+show tables where Tables_in_mysql != 'ndb_binlog_index';
 connect (con4,localhost,test,gambling,test);
 show tables;
 
@@ -82,8 +78,8 @@ connect (fail_con,localhost,test,,);
 
 # remove user 'test' so that other tests which may use 'test'
 # do not depend on this test.
-delete from mysql.user where user=_binary"test";
-flush privileges;
+drop user test@localhost;
+drop user test@127.0.0.1;
 
 #
 # Bug#12517 Clear user variables and replication events before
@@ -127,15 +123,10 @@ CREATE USER mysqltest_u1@localhost;
 --echo
 let $saved_max_connections = `SELECT @@global.max_connections`;
 SET GLOBAL max_connections = 3;
-SET GLOBAL event_scheduler = ON;
 
---echo
---echo # -- Waiting for Event Scheduler to start...
-let $wait_condition =
-  SELECT COUNT(*) = 1
-  FROM information_schema.processlist
-  WHERE user = 'event_scheduler';
---source include/wait_condition.inc
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
 
 --echo
 --echo # -- Disconnecting default connection...
@@ -197,18 +188,6 @@ SELECT user FROM information_schema.processlist ORDER BY id;
 --eval SET GLOBAL max_connections = $saved_max_connections
 
 --echo
---echo # -- Stopping Event Scheduler...
-SET GLOBAL event_scheduler = OFF;
-
---echo
---echo # -- Waiting for Event Scheduler to stop...
-let $wait_condition =
-  SELECT COUNT(*) = 0
-  FROM information_schema.processlist
-  WHERE user = 'event_scheduler';
---source include/wait_condition.inc
-
---echo
 --echo # -- That's it. Closing connections...
 --disconnect con_1
 --disconnect con_2
@@ -244,10 +223,6 @@ FLUSH STATUS;
 --echo
 SHOW STATUS LIKE 'max_used_connections';
 
---echo
---echo # -- Starting Event Scheduler...
-SET GLOBAL event_scheduler = ON;
-
 --echo # -- Waiting for Event Scheduler to start...
 --source include/running_event_scheduler.inc
 
@@ -263,18 +238,15 @@ SET GLOBAL event_scheduler = ON;
 --echo # -- Check that max_used_connections hasn't changed.
 SHOW STATUS LIKE 'max_used_connections';
 
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
+
 --echo
 --echo # -- Closing new connection...
 --disconnect con_1
 --source include/wait_until_disconnected.inc
 --connection default
-
---echo
---echo # -- Stopping Event Scheduler...
-SET GLOBAL event_scheduler = OFF;
-
---echo # -- Waiting for Event Scheduler to stop...
---source include/no_running_events.inc
 
 --echo
 --echo # -- End of Bug#35074.
@@ -337,7 +309,9 @@ SELECT last_t1();
 CALL test_t1(last_t1() + 1);
 
 --echo # setting a password unlocks it
+--disable_ps_protocol
 ALTER USER must_change@localhost IDENTIFIED BY 'aha2';
+--enable_ps_protocol
 --echo # must not throw an error
 SELECT USER();
 --echo # must not throw an error
@@ -365,7 +339,9 @@ CALL test_t1(last_t1() + 1);
 
 --echo # setting a password with a user name is ok if it exactly matches the
 --echo # authenticated user.
+--disable_ps_protocol
 ALTER USER must_change@localhost IDENTIFIED BY 'aha3';
+--enable_ps_protocol
 SELECT USER();
 SELECT last_t1();
 CALL test_t1(last_t1() + 1);
@@ -389,7 +365,9 @@ SELECT password_expired FROM mysql.user
 --connect(must_change_con, localhost, must_change, aha3)
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
+--disable_ps_protocol
 ALTER USER must_change@localhost IDENTIFIED BY 'aha4';
+--enable_ps_protocol
 
 connection default;
 disconnect must_change_con;
@@ -404,9 +382,23 @@ SELECT password_expired FROM mysql.user
   WHERE user='must_change' and host = 'localhost';
 
 --connect(must_change_con, localhost, must_change, aha4)
+SELECT USER();
+
+connection default;
+disconnect must_change_con;
+
+ALTER USER must_change@localhost PASSWORD EXPIRE;
+
+SELECT password_expired FROM mysql.user
+  WHERE user='must_change' and host = 'localhost';
+
+--connect(must_change_con, localhost, must_change, aha4)
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
+
+--disable_ps_protocol
 ALTER USER must_change@localhost IDENTIFIED BY 'aha5';
+--enable_ps_protocol
 SELECT USER();
 
 connection default;
@@ -439,10 +431,10 @@ ALTER USER wl6587@localhost PASSWORD EXPIRE;
 --echo # mysqladmin non-password should fail
 --replace_regex /.*mysqladmin.*: connect/mysqladmin: connect/
 --error 1
---exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uwl6587 --password=wl6587 status 2>&1
+--exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT -uwl6587 --password=wl6587 status 2>&1
 
 --echo # mysqladmin password should work
---exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uwl6587 --password=wl6587 password wl6587-2 --ssl 2>&1
+--exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT -uwl6587 --password=wl6587 password wl6587-2 --ssl-mode=REQUIRED 2>&1
 
 DROP USER wl6587@localhost;
 

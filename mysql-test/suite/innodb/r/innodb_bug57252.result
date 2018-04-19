@@ -1,6 +1,6 @@
-cardinality
-10
+CARDINALITY
+19
 Table	Op	Msg_type	Msg_text
 test.bug57252	analyze	status	OK
-cardinality
-10
+CARDINALITY
+19

@@ -1,0 +1,30 @@
+#
+# Bug#24487414 - SIG 11 IN DD::INFO_SCHEMA::STATISTICS_CACHE::READ_STAT_BY_OPEN_TABLE
+#
+SET SESSION information_schema_stats_expiry=0;
+CREATE TABLE time_zone(f1 INT PRIMARY KEY) ENGINE=MyISAM;
+INSERT INTO time_zone VALUES (10);
+SET SESSION DEBUG="+d,simulate_kill_query_on_open_table";
+# Without fix, following query results in crash when query is killed while
+# opening "test.time_zone" table.
+SELECT * FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND
+TABLE_NAME = 'time_zone';
+ERROR 70100: Query execution was interrupted
+SET SESSION DEBUG="-d,simulate_kill_query_on_open_table";
+DROP TABLE time_zone;
+SET SESSION information_schema_stats_expiry=default;
+#
+# Bug#26318759 ASSERT IN ROW_DROP_TABLE_FOR_MYSQL IN ROW/ROW0MYSQL.CC
+#
+SET SESSION information_schema_stats_expiry=0;
+SET SESSION debug= "+d,information_schema_fetch_table_stats";
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+INSERT INTO t1 VALUES ('a','b');
+SELECT table_name, cardinality  FROM INFORMATION_SCHEMA.STATISTICS
+WHERE cardinality > 0 and table_schema='test';
+TABLE_NAME	CARDINALITY
+t1	1
+t1	1
+DROP TABLE t1;
+SET SESSION debug= "-d,information_schema_fetch_table_stats";
+SET SESSION information_schema_stats_expiry=default;

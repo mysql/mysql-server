@@ -1,20 +1,3 @@
-select @@global.lc_messages_dir;
-@@global.lc_messages_dir
-MYSQL_SHAREDIR/
-select @@session.lc_messages_dir;
-ERROR HY000: Variable 'lc_messages_dir' is a GLOBAL variable
-show global variables like 'lc_messages_dir';
-Variable_name	Value
-lc_messages_dir	MYSQL_SHAREDIR/
-show session variables like 'lc_messages_dir';
-Variable_name	Value
-lc_messages_dir	MYSQL_SHAREDIR/
-select * from information_schema.global_variables where variable_name='lc_messages_dir';
-VARIABLE_NAME	VARIABLE_VALUE
-LC_MESSAGES_DIR	MYSQL_SHAREDIR/
-select * from information_schema.session_variables where variable_name='lc_messages_dir';
-VARIABLE_NAME	VARIABLE_VALUE
-LC_MESSAGES_DIR	MYSQL_SHAREDIR/
 set global lc_messages_dir=1;
 ERROR HY000: Variable 'lc_messages_dir' is a read only variable
 set session lc_messages_dir=1;

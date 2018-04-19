@@ -208,7 +208,7 @@ select count(*) from t1 where match a against ('aaazzz' in boolean mode);
 count(*)
 262
 drop table t1;
-set names utf8;
+SET NAMES utf8mb4;
 create table t1(a text,fulltext(a)) ENGINE = INNODB collate=utf8_swedish_ci;
 insert into t1 values('test test '),('test'),('test'),('test'),
 ('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
@@ -236,11 +236,43 @@ select * from t1 where match a against('ab	c' in boolean mode);
 a
 drop table t1;
 set names latin1;
-SET NAMES utf8;
+SET NAMES utf8mb4;
 CREATE TABLE t1(a VARCHAR(255), FULLTEXT(a)) ENGINE = INNODB DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES('„MySQL“');
 SELECT a FROM t1 WHERE MATCH a AGAINST('“MySQL„' IN BOOLEAN MODE);
 a
 „MySQL“
 DROP TABLE t1;
 SET NAMES latin1;
+CREATE TABLE t1 (
+FTS_DOC_ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+id int(10) not null ,
+first_name varchar(50) NOT NULL,
+last_name varchar(50) NOT NULL,
+PRIMARY KEY (FTS_DOC_ID),
+UNIQUE KEY idx_1 (first_name, last_name),
+FULLTEXT KEY `idx_2` (first_name)
+) ENGINE=InnoDB;
+INSERT INTO t1 (id, first_name, last_name) VALUES
+(10, 'Bart', 'Simpson'),
+(11, 'Homer', 'Simpson'),
+(12, 'Marge', 'Simpson'),
+(13, 'Lisa', 'Simpson'),
+(14, 'Maggie', 'Simpson'),
+(15, 'Ned', 'Flanders'),
+(16, 'Nelson', 'Muntz');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT fts_doc_id, first_name, last_name, MATCH(first_name) AGAINST('Homer' IN BOOLEAN MODE) AS score FROM t1;
+fts_doc_id	first_name	last_name	score
+1	Bart	Simpson	0
+2	Homer	Simpson	0.7141907215118408
+4	Lisa	Simpson	0
+5	Maggie	Simpson	0
+3	Marge	Simpson	0
+6	Ned	Flanders	0
+7	Nelson	Muntz	0
+DROP TABLE t1;

@@ -1,0 +1,23 @@
+-->macro Wait_for_status_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
+-->echo Verify [Status variable "%VARIABLE_NAME%" needs to have a value of %EXPECTED_VALUE%]
+wait_for %EXPECTED_VALUE%
+	SELECT VARIABLE_VALUE=%EXPECTED_VALUE% FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE '%VARIABLE_NAME%';
+-->endmacro
+
+
+-->macro Assert_status_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
+-->stmtsql SHOW STATUS LIKE '%VARIABLE_NAME%';
+-->recvtovar %VARIABLE_VALUE% Value
+-->echo Verify [Status variable "%VARIABLE_NAME%" needs to have a value of %EXPECTED_VALUE%]
+-->assert_eq %EXPECTED_VALUE%	%VARIABLE_VALUE%
+-->endmacro
+
+
+-->macro Assert_recived_notices
+-->received Mysqlx.Notice.Warning	%MYSQLXTEST_NO_OF_WARNINGS%
+-->received Mysqlx.Notice.Frame	%MYSQLXTEST_NO_OF_OTHER%
+-->varinc %MYSQLXTEST_NO_OF_OTHER% -%MYSQLXTEST_NO_OF_WARNINGS%
+-->callmacro Assert_status_variable	Mysqlx_notice_other_sent	%MYSQLXTEST_NO_OF_OTHER%
+-->callmacro Assert_status_variable	Mysqlx_notice_warning_sent	%MYSQLXTEST_NO_OF_WARNINGS%
+-->endmacro
+

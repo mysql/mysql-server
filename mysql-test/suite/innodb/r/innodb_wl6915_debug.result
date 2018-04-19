@@ -1,4 +1,4 @@
-call mtr.add_suppression("\\[ERROR\\] InnoDB: table .* does not exist "
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* table .* does not exist "
 			 "in the InnoDB internal");
 call mtr.add_suppression("Found .* prepared XA transactions");
 set global innodb_file_per_table = off;
@@ -53,12 +53,13 @@ count(*)
 set session debug="+d,ib_trx_crash_during_commit";
 commit;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 select count(*) from t2;
 count(*)
 50
 drop table t2;
 drop procedure populate_t1_t2;
-# restart: --innodb_undo_logs=1
+# restart: --innodb_rollback_segments=1
 create table t (i int) engine=innodb;
 insert into t values (1);
 insert into t values (2);
@@ -95,7 +96,7 @@ count(*)
 drop table t1;
 drop table t2;
 drop procedure populate_t1_t2;
-# restart: --innodb_undo_logs=10
+# restart: --innodb_rollback_segments=1
 create table t (i int) engine=innodb;
 insert into t values (1);
 insert into t values (2);
@@ -104,7 +105,7 @@ insert into t values (1);
 insert into t values (2);
 drop table t;
 drop table t2;
-# restart: --innodb_undo_logs=40
+# restart: --innodb_rollback_segments=8
 create table t (i int) engine=innodb;
 insert into t values (1);
 insert into t values (2);

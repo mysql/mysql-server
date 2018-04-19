@@ -6,7 +6,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain select * from t1 where id=000000000001;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	12	NULL	2	50.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	48	NULL	2	50.00	Using where; Using index
 Warnings:
 Warning	1739	Cannot use ref access on index 'PRIMARY' due to type or collation conversion on field 'id'
 Warning	1739	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'id'
@@ -19,6 +19,7 @@ select * from t1;
 id
 000000000001
 drop table t1;
+set names latin1;
 SELECT 'a' = 'a ';
 'a' = 'a '
 1
@@ -34,7 +35,7 @@ SELECT 'a\t' < 'a';
 SELECT 'a\t' < 'a ';
 'a\t' < 'a '
 1
-CREATE TABLE t1 (a char(10) not null);
+CREATE TABLE t1 (a char(10) not null) charset latin1;
 INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
 SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
 hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
@@ -43,6 +44,7 @@ hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
 6109	-1	-1
 61	0	0
 DROP TABLE t1;
+set names default;
 SELECT CHAR(31) = '', '' = CHAR(31);
 CHAR(31) = ''	'' = CHAR(31)
 0	0
@@ -70,11 +72,10 @@ CONCAT(b,c)	CONCAT(b,c) = '0101'
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN EXTENDED SELECT b,c FROM t1 WHERE b = 1 AND CONCAT(b,c) = '0101';
+EXPLAIN SELECT b,c FROM t1 WHERE b = 1 AND CONCAT(b,c) = '0101';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	33.33	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`b` = 1) and (concat('01',`test`.`t1`.`c`) = '0101'))
 SELECT b,c FROM t1 WHERE b = 1 AND CONCAT(b,c) = '0101';
 b	c
@@ -94,7 +95,7 @@ test.t1	analyze	status	OK
 analyze table t2;
 Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
-EXPLAIN EXTENDED 
+EXPLAIN 
 SELECT a, 
 (SELECT COUNT(*) FROM t1 
 WHERE b = t2.a AND CONCAT(b,c) = CONCAT('0',t2.a,'01')) x 
@@ -103,14 +104,11 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	x	100.00	Using filesort
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	33.33	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,(/* select#2 */ select count(0) from `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (concat(`test`.`t1`.`b`,`test`.`t1`.`c`) = concat('0',`test`.`t2`.`a`,'01')))) AS `x` from `test`.`t2` order by `test`.`t2`.`a`
 DROP TABLE t1,t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a TIMESTAMP);
 INSERT INTO t1 VALUES (NOW()),(NOW()),(NOW());
 SELECT * FROM t1 WHERE a > '2008-01-01' AND a = '0000-00-00';
@@ -122,3 +120,22 @@ CREATE TABLE t1(a INT ZEROFILL);
 SELECT 1 FROM t1 WHERE t1.a IN (1, t1.a) AND t1.a=2;
 1
 DROP TABLE t1;
+
+Bug #27452148: ASSERTION FAILED: (SLEN % 4) == 0 IN
+MY_STRNNCOLLSP_UTF32_BIN
+
+SET NAMES latin1;
+CREATE TABLE t1(a CHAR(10) CHARACTER SET utf32 COLLATE utf32_bin);
+INSERT INTO t1 VALUES('a'),('b'),('c');
+SELECT ROW('1', '1') > ROW(a, '1') FROM t1;
+ROW('1', '1') > ROW(a, '1')
+0
+0
+0
+SELECT ROW(a, '1') > ROW('1', '1') FROM t1;
+ROW(a, '1') > ROW('1', '1')
+1
+1
+1
+DROP TABLE t1;
+SET NAMES default;

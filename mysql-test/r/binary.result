@@ -1,5 +1,6 @@
 drop table if exists t1,t2;
-create table t1 (name char(20) not null, primary key (name));
+set names latin1;
+create table t1 (name char(20) not null, primary key (name)) charset latin1;
 create table t2 (name char(20) binary not null, primary key (name));
 insert into t1 values ("å");
 insert into t1 values ("ä");
@@ -43,7 +44,7 @@ name
 select name from t2 where name between 'Ä' and 'Ö';
 name
 drop table t1,t2;
-create table t1 (a char(10) not null, b char(10) binary not null,key (a), key(b));
+create table t1 (a char(10) not null, b char(10) binary not null,key (a), key(b)) charset latin1;
 insert into t1 values ("hello ","hello "),("hello2 ","hello2 ");
 select concat("-",a,"-",b,"-") from t1 where a="hello";
 concat("-",a,"-",b,"-")
@@ -85,7 +86,7 @@ NULL
 select b from t1 having binary b like '';
 b
 drop table t1;
-create table t1 (a char(3) binary, b binary(3));
+create table t1 (a char(3) binary, b binary(3)) charset latin1;
 insert into t1 values ('aaa','bbb'),('AAA','BBB');
 select upper(a),upper(b) from t1;
 upper(a)	upper(b)
@@ -134,12 +135,12 @@ select * from t1 where firstname='john' and firstname like binary 'John';
 firstname	lastname
 John	Doe
 drop table t1;
-create table t1 (a binary);
+create table t1 (a binary) charset utf8mb4;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` binary(1) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (col1 binary(4));
 insert into t1 values ('a'),('a ');

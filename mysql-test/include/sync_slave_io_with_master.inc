@@ -9,6 +9,7 @@
 #
 # [--let $sync_slave_connection= <connection_name>]
 # [--let $use_gtids= 1]
+# [--let $rpl_channel_name= 'NAME']
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # --source include/sync_slave_io_with_master.inc
@@ -30,8 +31,15 @@
 #
 #   $rpl_debug
 #      See include/rpl_init.inc
+#
+#   $rpl_channel_name
+#     See include/wait_for_slave_param.inc
 
 --let $include_filename= sync_slave_io_with_master.inc
+if ($rpl_channel_name)
+{
+  --let $include_filename= $include_filename [FOR CHANNEL $rpl_channel_name]
+}
 --source include/begin_include_file.inc
 
 

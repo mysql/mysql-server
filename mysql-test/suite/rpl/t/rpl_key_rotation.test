@@ -1,0 +1,132 @@
+# WL#8821
+# Testing ALTER INSTANCE ROTATE INNODB MASTER KEY with replication
+# and keyring installing/uninstalling scenarios on master/slave.
+
+--source include/master-slave.inc
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Function 'keyring_file' already exists");
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Couldn't load plugin named 'keyring_file' with soname 'keyring_file.so'.");
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Can't generate new master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Error 'Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Slave: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.");
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+
+--connection master
+--echo [On Master]
+--echo
+# Roating master key when keyring file is empty.
+# It should genereate new master key.
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+# Creating table with encryption.
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0, "aaaaa");
+INSERT INTO t1 VALUES(1, "bbbbb");
+INSERT INTO t1 VALUES(2, "ccccc");
+SELECT * FROM t1;
+
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+CREATE TABLE t2(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t2 SELECT * FROM t1;
+SELECT COUNT(*) FROM t2;
+
+--echo
+--echo # Check for keyring file on master.
+--list_files $MYSQL_TMP_DIR/keyring_master/
+--echo
+
+# ALTER INSTANCE ROTATE cmd will create keyring file
+# if it is not exists and new master key in it.
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+--echo # Check for keyring file on master.
+--list_files $MYSQL_TMP_DIR/keyring_master/
+--file_exists $MYSQL_TMP_DIR/keyring_master/keyring_master
+--echo
+SELECT * FROM t1;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [On Slave]
+
+--echo # Check for keyring file on slave.
+--list_files $MYSQL_TMP_DIR/keyring_slave/
+--file_exists $MYSQL_TMP_DIR/keyring_slave/keyring_slave
+SELECT COUNT(*) FROM t2;
+SELECT * FROM t1;
+
+--echo # Check for keyring file on slave.
+--list_files $MYSQL_TMP_DIR/keyring_slave/
+
+--connection master
+--echo [On Master]
+--echo #
+CREATE TABLE t3(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t3 VALUES(0, "aaaaa");
+
+--echo
+--source include/sync_slave_sql_with_master.inc
+--echo [On Slave]
+SELECT * FROM t3;
+SELECT COUNT(*) FROM t2;
+SELECT * FROM t1;
+--echo # Check for keyring file on slave.
+--list_files $MYSQL_TMP_DIR/keyring_slave/
+
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+--echo # Check for keyring file on slave.
+--list_files $MYSQL_TMP_DIR/keyring_slave/
+--file_exists $MYSQL_TMP_DIR/keyring_slave/keyring_slave
+
+# Uninstalling keyring_file plugin on slave.
+UNINSTALL PLUGIN keyring_file;
+--echo # Checking keyring plugin after uninstall.
+query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
+FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+--source include/stop_slave_sql.inc
+
+--connection master
+--echo [On Master]
+CREATE TABLE t4(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t4 VALUES(1, "rpltest");
+
+--connection slave
+--echo [On Slave]
+START SLAVE SQL_THREAD;
+--let $slave_sql_errno= convert_error(ER_CANNOT_FIND_KEY_IN_KEYRING)
+--source include/wait_for_slave_sql_error.inc
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SET @@global.keyring_file_data='$MYSQL_TMP_DIR/keyring_slave/keyring_slave';
+query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
+FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+--source include/start_slave_sql.inc
+--connection master
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM t4;
+
+--connection master
+--echo [On Master]
+--echo # Uninstalling keyring_file plugin on master.
+UNINSTALL PLUGIN keyring_file;
+--echo # Checking keyring plugin after uninstall.
+query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
+FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+SELECT * FROM t1;
+--echo
+# Try to rotate master key when keyring_file plugin uninstalled. 
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+--echo # Installing keyring_file plugin on master.
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
+--echo # Cleanup
+DROP TABLE t1,t2,t3,t4;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc
+# End:

@@ -1,14 +1,36 @@
 #!/bin/sh
 
+# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+
 sourcedir=@PROJECT_SOURCE_DIR@
 builddir=@PROJECT_BINARY_DIR@
 installdir=@CMAKE_INSTALL_PREFIX@
 
 # Install Trees:
 bindir=@INSTALL_BINDIR@
-libexecdir=@INSTALL_SBINDIR@
+sbindir=@INSTALL_SBINDIR@
 libdir=@INSTALL_LIBDIR@
-scriptsdir=@INSTALL_SCRIPTDIR@
 sharedir=@INSTALL_MYSQLSHAREDIR@
 memcachedbin=@MEMCACHED_BIN_PATH@
 
@@ -32,42 +54,38 @@ fi
 if test -d $BUILD_DIR
  then
   # Use build dir
+  RUNTIME_OUTPUT_DIR=$BUILD_DIR/runtime_output_directory
   MEMCACHED_DIR=$BUILD_DIR/storage/ndb/memcache/extra/memcached
-  MGM_CLIENT_DIR=$BUILD_DIR/storage/ndb/src/mgmclient
-  MGM_SERVER_DIR=$BUILD_DIR/storage/ndb/src/mgmsrv
-  NDBD_DIR=$BUILD_DIR/storage/ndb/src/kernel
-  MYSQL_CLIENT_DIR=$BUILD_DIR/client
-  MYSQL_SERVER_DIR=$BUILD_DIR/scripts
+  MGM_CLIENT_DIR=$RUNTIME_OUTPUT_DIR
+  MGM_SERVER_DIR=$RUNTIME_OUTPUT_DIR
+  NDBD_DIR=$RUNTIME_OUTPUT_DIR
+  MYSQL_CLIENT_DIR=$RUNTIME_OUTPUT_DIR
+  MYSQL_SERVER_DIR=$RUNTIME_OUTPUT_DIR
+  MYSQLD_SAFE_DIR=$BUILD_DIR/scripts
   ENGINE_SO_DIR=$BUILD_DIR/storage/ndb/memcache
   METADATA_DIR=$BUILD_DIR/scripts/
-  SCRIPTS_DIR=$INSTALL_DIR/$scriptsdir    # See NOTE below
  else
   # Use install dir
   MEMCACHED_DIR=`dirname $memcachedbin`
-  MGM_CLIENT_DIR=$INSTALL_DIR/$libexecdir
-  MGM_SERVER_DIR=$INSTALL_DIR/$libexecdir
-  NDBD_DIR=$INSTALL_DIR/$libexecdir
+  MGM_CLIENT_DIR=$INSTALL_DIR/$sbindir
+  MGM_SERVER_DIR=$INSTALL_DIR/$sbindir
+  NDBD_DIR=$INSTALL_DIR/$sbindir
   MYSQL_CLIENT_DIR=$INSTALL_DIR/$bindir
-  MYSQL_SERVER_DIR=$INSTALL_DIR/$libexecdir
+  MYSQL_SERVER_DIR=$INSTALL_DIR/$bindir
+  MYSQLD_SAFE_DIR=$INSTALL_DIR/$sbindir
   ENGINE_SO_DIR=$INSTALL_DIR/$libdir
   METADATA_DIR=$sharedir/memcache-api
-  SCRIPTS_DIR=$INSTALL_DIR/$scriptsdir
 fi
 
-## NOTE.
-##  mysql_install_db only works from an installed copy.
-##  mtr fixes this by reimplementing mysql_install_db internally.
-##  Our solution for now is to hope we find a copy in the install_dir
- 
 test_paths() {
   test_exec_path $MGM_CLIENT_DIR ndb_mgm
   test_exec_path $MGM_SERVER_DIR ndb_mgmd
   test_exec_path $MYSQL_CLIENT_DIR mysql
   test_exec_path $MYSQL_CLIENT_DIR mysqladmin
-  test_exec_path $MYSQL_SERVER_DIR mysqld_safe
+  test_exec_path $MYSQL_SERVER_DIR mysqld
+  test_exec_path $MYSQLD_SAFE_DIR mysqld_safe
   test_exec_path $NDBD_DIR ndbd
   test_exec_path $MEMCACHED_DIR memcached
-  test_exec_path $SCRIPTS_DIR mysql_install_db
   test_read_path $ENGINE_SO_DIR ndb_engine.so
   test_read_path $METADATA_DIR ndb_memcache_metadata.sql
 }
@@ -135,12 +153,15 @@ write_cluster_ini() {
 }
 
 do_install_db() {
-  OUTFILE=`mktemp`
-  $SCRIPTS_DIR/mysql_install_db \
+  if test `uname` = "Darwin"
+    then OUTFILE=`mktemp XXXXXX`
+    else OUTFILE=`mktemp`
+  fi
+  $MYSQL_SERVER_DIR/mysqld --initialize-insecure \
     --basedir=$INSTALL_DIR --datadir=$HOME_BASE/sandbox/data \
     --skip-name-resolve --user=$MYSELF > $OUTFILE
   if test ! -d $HOME_BASE/sandbox/data/mysql 
-    then echo "Failed: mysql_install_db did not work:"
+    then echo "Failed: mysqld --initialize did not work:"
     cat $OUTFILE
     rm $OUTFILE
     exit    
@@ -174,7 +195,7 @@ start_ndbd() {
 }
 
 start_mysql_server() {
-  $MYSQL_SERVER_DIR/mysqld_safe --defaults-file=$HOME_BASE/sandbox/my.cnf &
+  $MYSQLD_SAFE_DIR/mysqld_safe --defaults-file=$HOME_BASE/sandbox/my.cnf &
   sleep 3
   wait_for_mysql_ready
 }
@@ -280,7 +301,7 @@ cmd_stop() {
 }  
 
 cmd_start() {
-  test "$1" = "memcached"  &&  start_memcached    && exit
+  test "$1" = "memcached"  &&  start_memcached "$2" "$3" && exit
   test "$1" = "mysqld"     &&  start_mysql_server && exit
   test "$1" = "ndbd"       &&  start_ndbd         && exit
   test "$1" = "ndb_mgmd"   &&  start_mgm_server   && exit
@@ -311,7 +332,7 @@ cmd_start() {
      cmd_stop "$2"
   elif test "$1" = "start"  
    then
-     cmd_start "$2"
+     cmd_start "$2" "$3" "$4"
   elif test "$1" = "status" 
     then
      cmd_status

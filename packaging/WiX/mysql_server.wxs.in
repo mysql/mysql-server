@@ -2,46 +2,52 @@
       xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
 <!--
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
-   
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-   
+   GNU General Public License, version 2.0, for more details.
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 -->
 
   <Product 
     Id="*" 
-    UpgradeCode="F59F931A-0282-45D0-97CD-33F8B43AE3C2"
-    Name="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@" 
+    UpgradeCode="@UPGRADE_CODE@"
+    Name="@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@" 
     Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@" 
     Language="1033" 
     Manufacturer="@MANUFACTURER@">
     
     <Package Id='*'
        Keywords='Installer'
-       Description="MySQL Database Server"
+       Description="@PRODUCT_DESCRIPTION@"
        Manufacturer='@MANUFACTURER@'
        InstallerVersion='200'
        Languages='1033'
        Compressed='yes'
        SummaryCodepage='1252'
-       Platform='@Platform@'
+       Platform='x64'
        InstallScope="perMachine"/>
   
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
 
     <!-- Upgrade -->
-    
-    <Upgrade Id="F59F931A-0282-45D0-97CD-33F8B43AE3C2">
+    <Upgrade Id="@UPGRADE_ID@">
       <?if '@PATCH_VERSION@' != '0'?>
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
@@ -65,6 +71,20 @@
       <RemoveExistingProducts After="InstallInitialize"/>
     </InstallExecuteSequence>
 
+
+    <?if "@LINK_STATIC_RUNTIME_LIBRARIES@"="OFF" AND "@BUNDLE_RUNTIME_LIBRARIES@"="OFF" ?>
+      <Property Id="VS14REDIST">
+        <RegistrySearch Id="FindRedistVS14"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\DevDiv\vc\Servicing\14.0\RuntimeMinimum"
+            Name="Version"
+            Type="raw" />
+      </Property>
+      <Condition Message="This application requires Visual Studio 2015 Redistributable. Please install the Redistributable then run this installer again.">
+        Installed OR VS14REDIST
+      </Condition>
+    <?endif?> 
+ 
     <!-- Save/restore install location -->
     <CustomAction Id="SaveTargetDir" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
     <InstallExecuteSequence>
@@ -79,18 +99,22 @@
     </InstallUISequence>
  
     <!-- Find previous installation -->
-    <Property Id="INSTALLDIR">
+    <Property Id="GETINSTALLDIR">
       <RegistrySearch Id="FindInstallLocation"
           Root="HKLM"
-          @Win64@
+          Win64="yes"
           Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
           Name="InstallLocation"
           Type="raw" />
     </Property>
+    <CustomAction Id="SetInstall"    Property="INSTALLDIR" Value="[GETINSTALLDIR]" />
+    <InstallUISequence>
+       <Custom Action="SetInstall"    After="AppSearch">Installed</Custom>
+    </InstallUISequence>
     <Property Id="OLDERVERSION"> 
       <RegistrySearch Id="FindOlderVersion"
         Root="HKLM"
-        @Win64@
+        Win64="yes"
         Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
         Name="DisplayVersion"
         Type="raw" />
@@ -131,11 +155,12 @@
     <!-- License -->
     <WixVariable
       Id="WixUILicenseRtf"
-      Value="@COPYING_RTF@"/>
+      Value="@LICENSE_RTF@"/>
 
     <!-- How to remove the service on uninstall -->
     <Binary Id='wixca.dll' SourceFile='@WIXCA_LOCATION@' />
     <CustomAction Id="UnregisterProperty" Property="UnregisterService" Value="[INSTALLDIR]" Return="check" />
+    <CustomAction Id="RunPostInstallProperty" Property="RunPostInstall" Value="[INSTALLDIR]" Return="check" />
     <CustomAction Id="UnregisterPropertySilent" Property="UnregisterServiceSilently" Value="[INSTALLDIR]" Return="check" />
     <CustomAction Id="UnregisterService"
                   BinaryKey="wixca.dll"
@@ -149,18 +174,26 @@
                   Execute="deferred"
                   Impersonate="no"
                   Return="check" />
+    <CustomAction Id="RunPostInstall" 
+                  BinaryKey="wixca.dll"
+                  DllEntry="RunPostInstall" 
+                  Execute="deferred" 
+                  Impersonate="no" 
+                  Return="asyncWait" />
     <InstallExecuteSequence>
       <Custom Action="UnregisterProperty" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL"</Custom>
       <Custom Action="UnregisterPropertySilent" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL"</Custom>
       <Custom Action="UnregisterService" After="UnregisterProperty">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL" And UILevel&gt;4</Custom>
       <Custom Action="UnregisterServiceSilently" After="UnregisterPropertySilent">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL" And UILevel&lt;=4</Custom>
+      <Custom Action="RunPostInstallProperty" After="InstallFiles">NOT(REMOVE="ALL")</Custom>
+      <Custom Action="RunPostInstall" After="RunPostInstallProperty">NOT(REMOVE="ALL")</Custom>
     </InstallExecuteSequence>
 
     <!-- Installation root-->
     <Directory Id='TARGETDIR' Name='SourceDir'>
-      <Directory Id='@PlatformProgramFilesFolder@'>
+      <Directory Id='ProgramFiles64Folder'>
         <Directory Id='directory.MySQL' Name='MySQL'>
-          <Directory Id='INSTALLDIR' Name='MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@'>
+          <Directory Id='INSTALLDIR' Name='@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@'>
           </Directory>
         </Directory>
       </Directory>

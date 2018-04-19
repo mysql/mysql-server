@@ -19,7 +19,7 @@
 #    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html      #
 #                                                                             #
 ###############################################################################
---source include/not_relay_log_info_table.inc
+--source include/not_relay_log_info_file.inc
 
 CALL mtr.add_suppression("The repository is not configured properly. Please, fix this before using replication.");
 
@@ -39,7 +39,7 @@ SELECT COUNT(@@SESSION.relay_log_info_repository);
 ####################################################################
 #   Check if Value can set                                         #
 ####################################################################
-SET @@GLOBAL.relay_log_info_repository= "TABLE";
+SET @@GLOBAL.relay_log_info_repository= "FILE";
 
 SELECT @@GLOBAL.relay_log_info_repository;
 
@@ -51,7 +51,7 @@ SELECT @@GLOBAL.relay_log_info_repository;
 
 --disable_warnings
 SELECT @@GLOBAL.relay_log_info_repository = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='relay_log_info_repository';
 --enable_warnings
 --echo 1 Expected
@@ -61,7 +61,7 @@ SELECT COUNT(@@GLOBAL.relay_log_info_repository);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='relay_log_info_repository';
 --enable_warnings
 --echo 1 Expected
@@ -86,4 +86,4 @@ SELECT COUNT(@@GLOBAL.relay_log_info_repository);
 ################################################################################
 #                                     Clean up                                 #
 ################################################################################
-SET @@GLOBAL.relay_log_info_repository= "FILE";
+SET @@GLOBAL.relay_log_info_repository= "TABLE";

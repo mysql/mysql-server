@@ -23,12 +23,9 @@ User	Host
 select `User`, `Host` from mysql.`user` where `user` like 'santa.claus.%';
 User	Host
 select @@global.max_connections into @saved_max_connections;
-create user 'quota'@'santa.claus.ipv6.example.com';
+create user 'quota'@'santa.claus.ipv6.example.com' with max_connections_per_hour 3;
 grant select on test.* to 'quota'@'santa.claus.ipv6.example.com';
-grant usage on *.* to 'quota'@'santa.claus.ipv6.example.com'
-  with max_connections_per_hour 3;
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+grant usage on *.* to 'quota'@'santa.claus.ipv6.example.com';
 select "Con1 is alive";
 Con1 is alive
 Con1 is alive
@@ -196,14 +193,10 @@ COUNT_LOCAL_ERRORS	0
 COUNT_UNKNOWN_ERRORS	0
 FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
-grant usage on *.* to 'quota'@'santa.claus.ipv6.example.com'
+alter user 'quota'@'santa.claus.ipv6.example.com'
   with max_connections_per_hour 0;
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
-grant usage on *.* to 'quota'@'santa.claus.ipv6.example.com'
+alter user 'quota'@'santa.claus.ipv6.example.com'
   with max_user_connections 3;
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 flush user_resources;
 select "Con7 is alive";
 Con7 is alive
@@ -365,10 +358,8 @@ COUNT_LOCAL_ERRORS	0
 COUNT_UNKNOWN_ERRORS	0
 FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
-grant usage on *.* to 'quota'@'santa.claus.ipv6.example.com'
+alter user 'quota'@'santa.claus.ipv6.example.com'
   with max_user_connections 0;
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 flush user_resources;
 set global max_user_connections = 3;
 select "Con4a is alive";

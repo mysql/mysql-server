@@ -1,19 +1,28 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <NdbDictionary.hpp>
+
+#include "my_compiler.h"
 
 /*
  * Move data between "compatible" tables.
@@ -125,6 +134,7 @@ private:
   Attr* m_sourceattr;
   Attr* m_targetattr;
   void set_type(Attr& attr, const NdbDictionary::Column* c);
+  Uint32 calc_str_len_truncated(CHARSET_INFO *cs, char *data, uint32 maxlen);
   int check_nopk(const Attr& attr1, const Attr& attr2);
   int check_promotion(const Attr& attr1, const Attr& attr2);
   int check_demotion(const Attr& attr1, const Attr& attr2);
@@ -177,7 +187,8 @@ private:
   Stat m_stat;
   Error m_error;
   void set_error_line(int line);
-  void set_error_code(int code, const char* fmt, ...);
+  void set_error_code(int code, const char* fmt, ...)
+    MY_ATTRIBUTE((format(printf, 3, 4)));
   void set_error_code(const NdbError& ndberror);
   void reset_error();
   friend class NdbOut& operator<<(NdbOut&, const Error&);

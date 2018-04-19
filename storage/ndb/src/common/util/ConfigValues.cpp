@@ -1,15 +1,21 @@
 /*
-   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
-   Use is subject to license terms.
+   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -151,6 +157,43 @@ ConfigValues::getString(Uint32 index) const {
   ptr -= ((index + 1) * sizeof(char *));
   return (char**)ptr;
 }
+
+
+Uint32
+ConfigValues::getNextEntryByIndex(Uint32 index, Entry * const entry) const
+{
+  while(true)
+  {
+    if (index >= m_size)
+    {
+      return 0; // No more Entries
+    }
+
+    const Uint32 pos = index * 2;
+    if (m_values[pos] == CFV_KEY_FREE)
+    {
+      // Found free entry, try next
+      index++;
+      continue;
+    }
+
+    if (!getByPos(pos, entry))
+    {
+      // Unknown entry type found, return no more
+      // rows(or crash in debug)
+      assert(false);
+      return 0;
+    }
+    entry->m_key = (m_values[pos] >> KP_KEYVAL_SHIFT) & KP_KEYVAL_MASK;
+
+    // Found one value at given index, return next index to use
+    index++;
+    return index;
+  }
+  abort(); // Never reached
+  return 0;
+}
+
 
 bool
 ConfigValues::ConstIterator::openSection(Uint32 key, Uint32 no){

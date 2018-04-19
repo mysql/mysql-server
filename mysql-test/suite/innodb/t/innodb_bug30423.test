@@ -4,7 +4,6 @@
 # Implemented InnoDB system variable "innodb_stats_method" with
 # "nulls_equal" (default), "nulls_unequal", and "nulls_ignored" options.
 
--- source include/have_innodb.inc
 
 let $innodb_stats_method_orig = `select @@innodb_stats_method`;
 

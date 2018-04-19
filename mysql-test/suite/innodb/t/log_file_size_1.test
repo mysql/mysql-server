@@ -11,10 +11,6 @@
 ######################################################################
 
 
-# Not supported in embedded
---source include/not_embedded.inc
-
--- source include/have_innodb.inc
 
 -- source include/have_innodb_max_16k.inc
 
@@ -23,13 +19,10 @@ if (`SELECT @@innodb_log_file_size = 2097152`) {
 }
 
 # restart with innodb-fast-shutdown=2 to on stopping it , behave as crash
-let $restart_parameters = restart: --innodb-fast-shutdown=2 --innodb-log-file-size=1M;
+let $restart_parameters = restart: --innodb-fast-shutdown=2 --innodb-log-file-size=4M;
 --source include/restart_mysqld.inc
 
-call mtr.add_suppression("InnoDB: Resizing redo log");
-call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
-call mtr.add_suppression("InnoDB: New log files created");
-call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
+call mtr.add_suppression("The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 
@@ -62,34 +55,34 @@ SELECT id,LEFT(bfield,20) FROM t1;
 --source include/shutdown_mysqld.inc
 
 # restart with different redo log size
-# set log size from 2*1M to 5*2M
---exec echo "restart: --innodb-log-file-size=2M --innodb_log_files_in_group=5  --log-error=$MYSQLTEST_VARDIR/log/case1.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# set log size from 2*4M to 5*4M
+--exec echo "restart: --innodb-log-file-size=4M --innodb_log_files_in_group=5 --log-error=$MYSQLTEST_VARDIR/log/case1.err --log-error-verbosity=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/case1.err;
-let SEARCH_PATTERN= InnoDB: Starting crash recovery;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=  Starting crash recovery;
+--source include/search_pattern.inc
 
 # Check size of ib_logfile* when innodb_log_files_in_group is set
 perl;
  my $dir = $ENV{'MYSQLD_DATADIR'};
  $file = "ib_logfile0";
  $size_in_MB = (-s "$dir/$file") / (1024 * 1024);;
- print "The size of the $file file: $size_in_MB \n";
+ print "The size of the $file file: $size_in_MB\n";
  $file = "ib_logfile1";
  $size_in_MB = (-s "$dir/$file") / (1024 * 1024);;
- print "The size of the $file file: $size_in_MB \n";
+ print "The size of the $file file: $size_in_MB\n";
  $file = "ib_logfile2";
  $size_in_MB = (-s "$dir/$file") / (1024 * 1024);;
- print "The size of the $file file: $size_in_MB \n";
+ print "The size of the $file file: $size_in_MB\n";
  $file = "ib_logfile3";
  $size_in_MB = (-s "$dir/$file") / (1024 * 1024);;
- print "The size of the $file file: $size_in_MB \n";
+ print "The size of the $file file: $size_in_MB\n";
  $file = "ib_logfile4";
  $size_in_MB = (-s "$dir/$file") / (1024 * 1024);;
- print "The size of the $file file: $size_in_MB \n";
+ print "The size of the $file file: $size_in_MB\n";
 EOF
 
 
@@ -106,8 +99,8 @@ SELECT id,LEFT(bfield,20) FROM t1;
 # restart with different redo log size
 DROP TABLE t1;
 DROP DATABASE db_wl6494;
-# set log size to 3*3M
-let $restart_parameters = restart: --innodb-fast-shutdown=2 --innodb-log-file-size=3M --innodb_log_files_in_group=3;
+# set log size to 3*6M
+let $restart_parameters = restart: --innodb-fast-shutdown=2 --innodb-log-file-size=6M --innodb_log_files_in_group=3;
 --source include/restart_mysqld.inc
 
 SELECT @@innodb_log_file_size;
@@ -137,8 +130,8 @@ SELECT id,LEFT(bfield,20) FROM t1;
 
 # restart with different redo log size
 --source include/shutdown_mysqld.inc
-# set log size from 3*3M to 2*2M
---exec echo "restart: --innodb-log-file-size=2M --innodb_log_files_in_group=2  --log-error=$MYSQLTEST_VARDIR/log/case2.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# set log size from 3*6M to 2*4M
+--exec echo "restart: --innodb-log-file-size=4M --innodb_log_files_in_group=2 --log-error=$MYSQLTEST_VARDIR/log/case2.err --log-error-verbosity=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -148,8 +141,8 @@ SELECT @@innodb_log_files_in_group;
 
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/case2.err;
-let SEARCH_PATTERN= InnoDB: Starting crash recovery;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=  Starting crash recovery;
+--source include/search_pattern.inc
 
 
 USE db_wl6494;
@@ -169,20 +162,21 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 let $args=--loose-console --core-file > $SEARCH_FILE 2>&1;
 
 # Stop the server
+SET GLOBAL innodb_fast_shutdown=0;
 --source include/shutdown_mysqld.inc
 
 --echo "test misc 1"
 --error 1
 --exec $MYSQLD_CMD $args --innodb-log-group-home-dir=foo\;bar
 let SEARCH_PATTERN= syntax error in innodb_log_group_home_dir;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --echo "test misc 3"
---error 1
+--error 1,42
 --exec $MYSQLD_CMD $args --innodb-read-only
-let SEARCH_PATTERN= InnoDB: Cannot resize log files in read-only mode;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=  Cannot resize log files in read-only mode;
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --echo "test misc 4"
@@ -190,10 +184,10 @@ let SEARCH_PATTERN= InnoDB: Cannot resize log files in read-only mode;
 # Rename the log files, and trigger an error in recovery.
 #--move_file $MYSQLD_DATADIR/ib_logfile101 $MYSQLD_DATADIR/ib_logfile0
 --move_file $MYSQLD_DATADIR/ib_logfile1 $MYSQLD_DATADIR/ib_logfile1_hidden
---error 1
+--error 1,42
 --exec $MYSQLD_CMD $args
-let SEARCH_PATTERN= InnoDB: Only one log file found;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=  Only one log file found;
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 #--move_file $MYSQLD_DATADIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile101
 --move_file $MYSQLD_DATADIR/ib_logfile1_hidden $MYSQLD_DATADIR/ib_logfile1
@@ -206,10 +200,10 @@ die unless open(FILE, ">$ENV{MYSQLD_DATADIR}/ib_logfile0");
 print FILE "garbage";
 close(FILE);
 EOF
---error 1
+--error 1,42
 --exec $MYSQLD_CMD $args
-let SEARCH_PATTERN= InnoDB: .*ib_logfile0 size 7 is not a multiple of innodb_page_size;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=  .*ib_logfile0 size 7 is not a multiple of innodb_page_size;
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --remove_file $MYSQLD_DATADIR/ib_logfile0
 --move_file $MYSQLD_DATADIR/ib_logfile0_hidden $MYSQLD_DATADIR/ib_logfile0
@@ -223,10 +217,10 @@ print FILE "junkfill" x 131072;
 close(FILE);
 EOF
 
---error 1
+--error 1,42
 --exec $MYSQLD_CMD $args
-let SEARCH_PATTERN= InnoDB: .*ib_logfile1 is of different size;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=  .*ib_logfile1 is of different size;
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --remove_file $MYSQLD_DATADIR/ib_logfile1
 --move_file $MYSQLD_DATADIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile0_hidden

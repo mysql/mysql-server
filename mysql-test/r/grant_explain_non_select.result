@@ -2,16 +2,7 @@ CREATE DATABASE privtest_db;
 CREATE TABLE privtest_db.t1 (a INT);
 CREATE TABLE privtest_db.t2 (a INT);
 INSERT INTO privtest_db.t2 VALUES (1), (2), (3);
-SET @orig_sql_mode= @@sql_mode;
-SET sql_mode= (SELECT replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
-GRANT USAGE ON *.* TO 'privtest'@'localhost';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SET sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+CREATE USER 'privtest'@'localhost';
 GRANT SELECT ON privtest_db.t2 TO 'privtest'@'localhost';
 USE privtest_db;
 EXPLAIN INSERT INTO t1 VALUES (10);

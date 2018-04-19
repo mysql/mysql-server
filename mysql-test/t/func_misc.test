@@ -1,4 +1,3 @@
-
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
@@ -19,6 +18,11 @@ select inet_ntoa(1099511627775),inet_ntoa(4294902271),inet_ntoa(511);
 select hex(inet_aton('127'));
 select hex(inet_aton('127.1'));
 select hex(inet_aton('127.1.1'));
+
+select inet_aton("122.256");
+select inet_aton("122.226.");
+select inet_aton("");
+explain select inet_aton("122.256"),inet_aton("122.226."),inet_aton("");
 
 select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8'-',_utf8'')));
 
@@ -54,7 +58,7 @@ drop table t1;
 
 
 #
-# Bug #21531: EXPORT_SET() doesn't accept args with coercible character sets
+# Bug #21531: EXPORT_SET() does not accept args with coercible character sets
 #
 select export_set(3, _latin1'foo', _utf8'bar', ',', 4);
 
@@ -130,7 +134,6 @@ drop table t1;
 #      - "worker" session sending the query with "send" and pulling results
 #        with "reap"
 #      - session observing the processlist parallel to the worker session
-#      "send" and "reap" do not work in case of an embedded server.
 #    Conclusion: Tests based on processlist have too many restrictions.
 #
 # Solutions for subtests based on TIMEDIFF of values filled via NOW()
@@ -149,7 +152,7 @@ drop table t1;
 #
 
 --echo #------------------------------------------------------------------------
---echo # Tests for Bug#6760 and Bug#12689
+--echo # Test for Bug#6760
 # Number of rows within the intended result set.
 SET @row_count = 4;
 # Parameter within SLEEP function
@@ -174,7 +177,6 @@ if (!` SELECT (@sleep_time_per_result_row * @row_count - @max_acceptable_delay >
                @sleep_time_per_result_row, @row_count, @max_acceptable_delay;
    exit;
 }
-SET @@global.query_cache_size = 1024 * 64;
 --disable_warnings
 DROP TEMPORARY TABLE IF EXISTS t_history;
 DROP TABLE IF EXISTS t1;
@@ -190,32 +192,6 @@ while ($num)
    dec $num;
 }
 
-let $loops = 4;
-let $num = $loops;
-while ($num)
-{
-   let $Qcache_queries_in_cache =
-       query_get_value(SHOW STATUS LIKE 'Qcache_queries_in_cache', Value, 1);
-   eval
-   INSERT INTO t_history
-   SET attempt = $loops - $num + 1, start_ts = NOW(),
-       start_cached = $Qcache_queries_in_cache;
-   SELECT *, SLEEP(@sleep_time_per_result_row) FROM t1;
-   #
-   # Do not determine Qcache_queries_in_cache before updating end_ts. The SHOW
-   # might cost too much time on an overloaded box.
-   eval
-   UPDATE t_history SET end_ts = NOW()
-   WHERE attempt = $loops - $num + 1;
-   let $Qcache_queries_in_cache =
-          query_get_value(SHOW STATUS LIKE 'Qcache_queries_in_cache', Value, 1);
-   eval
-   UPDATE t_history SET end_cached = $Qcache_queries_in_cache
-   WHERE attempt = $loops - $num + 1;
-   # DEBUG eval SELECT * FROM t_history WHERE attempt = $loops - $num + 1;
-   dec $num;
-}
-
 # 1. The majority of queries with SLEEP must need a reasonable time
 #    -> SLEEP has an impact on runtime
 #       = Replacement for original Bug#6760 test
@@ -227,39 +203,15 @@ WHERE TIMEDIFF(end_ts,start_ts) - @sleep_time_per_result_row * @row_count
       BETWEEN 0 AND @max_acceptable_delay;
 SELECT @aux1 AS "Expect 1";
 #
-# 2. The majority of queries (the first one must be ignored) with SLEEP must
-#    need a reasonable time
-#    -> If we assume that the result of a cached query will be sent back
-#       immediate, without any sleep, than the query with SLEEP cannot be cached
-#       (current and intended behaviour for queries with SLEEP).
-#    -> It could be also not excluded that the query was cached but the server
-#       honoured somehow the SLEEP. Such a behaviour would be also acceptable.
-#    = Replacement for one of the original Bug#12689 tests
---echo # Test 2: Does the query with SLEEP need a reasonable time even in case
---echo #         of the non first execution?
-eval SELECT COUNT(*) >= $loops - 1 - 1 INTO @aux2 FROM t_history
-WHERE TIMEDIFF(end_ts,start_ts) - @sleep_time_per_result_row * @row_count
-      BETWEEN 0 AND @max_acceptable_delay
-      AND attempt > 1;
-SELECT @aux2 AS "Expect 1";
-#
-# 3. The query with SLEEP should be not cached.
-#    -> SHOW STATUS Qcache_queries_in_cache must be not incremented after
-#       the execution of the query with SLEEP
---echo # Test 3: The query with SLEEP must be not cached.
-eval SELECT COUNT(*) = $loops INTO @aux3 FROM t_history
-WHERE end_cached = start_cached;
-SELECT @aux3 AS "Expect 1";
 #
 # Dump the content of t_history if one of the tests failed.
-if (`SELECT @aux1 + @aux2 + @aux3 <> 3`)
+if (`SELECT @aux1 <> 1`)
 {
    --echo # Some tests failed, dumping the content of t_history
    SELECT * FROM t_history;
 }
 DROP TABLE t1;
 DROP TEMPORARY TABLE t_history;
-SET @@global.query_cache_size = default;
 
 #
 # Bug #21466: INET_ATON() returns signed, not unsigned
@@ -398,7 +350,12 @@ drop table t1;
 # BUG#34289 - Incorrect NAME_CONST substitution in stored procedures breaks
 # replication
 #
+
+set names latin1;
+
 SELECT NAME_CONST('var', 'value') COLLATE latin1_general_cs;
+
+set names utf8mb4;
 
 #
 # Bug #35848: UUID() returns UUIDs with the wrong time
@@ -444,12 +401,6 @@ SELECT NAME_CONST('a', -(1 OR 2)) OR 1;
 --error ER_WRONG_ARGUMENTS
 SELECT NAME_CONST('a', -(1 AND 2)) OR 1;
 SELECT NAME_CONST('a', -(1)) OR 1;
-
-
-#
-#
-# Bug #30389: connection_id() always return 0 in embedded server
-#
 
 select connection_id() > 0;
 
@@ -539,7 +490,7 @@ DROP TABLE t1;
 SELECT INET6_ATON(NULL) IS NULL;
 SELECT INET6_ATON(123) IS NULL;
 SELECT INET6_ATON(123.45) IS NULL;
-SELECT INET6_ATON(NOW()) IS NULL;
+SELECT INET6_ATON(str_to_date('2014,2,28 09', '%Y,%m,%d %h')) IS NULL;
 
 SELECT INET6_ATON('1.2.3') IS NULL;
 SELECT INET6_ATON('1.2.3.') IS NULL;
@@ -644,7 +595,7 @@ SELECT LENGTH(INET6_ATON('1020:3040:5060:7080:90A0:B0C0:D0E0:F010'));
 SELECT INET6_NTOA(NULL);
 SELECT INET6_NTOA(123);
 SELECT INET6_NTOA(123.456);
-SELECT INET6_NTOA(NOW());
+SELECT INET6_NTOA(str_to_date('2014,2,28 09', '%Y,%m,%d %h'));
 SELECT INET6_NTOA(UNHEX('C0A801'));     # 3 bytes -> NULL
 SELECT INET6_NTOA(UNHEX('C0A80102'));   # 4 bytes -> 192.168.1.2
 SELECT INET6_NTOA(UNHEX('C0A8010203')); # 5 bytes -> NULL
@@ -813,13 +764,66 @@ SELECT INET6_NTOA(ip), HEX(ip), LENGTH(ip) FROM t2;
 
 --echo
 
+DELETE FROM t2;
+INSERT INTO t2 VALUES (INET6_ATON('1.0002.3.4'));
+INSERT INTO t2 VALUES (INET6_ATON('1.2.255'));
+INSERT INTO t2 VALUES (INET6_ATON('1.2.256'));
+INSERT INTO t2 VALUES (INET6_ATON('192.168.0x8.2'));
+
+INSERT INTO t2 VALUES (inet_aton("122.256"));
+INSERT INTO t2 VALUES (inet_aton("122.226."));
+INSERT INTO t2 VALUES (inet_aton(""));
+
+INSERT INTO t2 VALUES (UNHEX('Z0Q80F02'));
+
+SELECT INET6_NTOA(ip), HEX(ip), LENGTH(ip) FROM t2;
+DELETE FROM t2;
+
+--echo
+SET sql_mode = default;
+
+--error ER_WRONG_VALUE_FOR_TYPE
+INSERT INTO t2 VALUES (INET6_ATON('1.0002.3.4'));
+--error ER_WRONG_VALUE_FOR_TYPE
+INSERT INTO t2 VALUES (INET6_ATON('1.2.255'));
+--error ER_WRONG_VALUE_FOR_TYPE
+INSERT INTO t2 VALUES (INET6_ATON('1.2.256'));
+--error ER_WRONG_VALUE_FOR_TYPE
+INSERT INTO t2 VALUES (INET6_ATON('192.168.0x8.2'));
+
+--error ER_WRONG_VALUE_FOR_TYPE
+INSERT INTO t2 VALUES (inet_aton("122.256"));
+--error ER_WRONG_VALUE_FOR_TYPE
+INSERT INTO t2 VALUES (inet_aton("122.226."));
+--error ER_WRONG_VALUE_FOR_TYPE
+INSERT INTO t2 VALUES (inet_aton(""));
+--echo
+
+--error ER_WRONG_VALUE_FOR_TYPE
+INSERT INTO t2 VALUES (UNHEX('Z0Q80F02'));
+
+SELECT INET6_NTOA(ip), HEX(ip), LENGTH(ip) FROM t2;
+
 DROP TABLE t1;
 DROP TABLE t2;
+
+
+--echo #
+--echo # Bug#22071558 INET_ATON ACCEPTS MORE THAN FOUR GROUPS OF DIGITS AND RETURNS INT BIGGER THAN 4G
+--echo #
+
+select inet_aton("0.255.255.255.255");
+select inet_aton("255.255.255.2551");
+
+--echo #
+--echo # Bug #27004825: UBSAN: ITEM_FUNC_IS_IPV4_MAPPED - MEMBER ACCESS WITHIN MISALIGNED ADDRESS
+--echo #
+SELECT IS_IPV4_MAPPED(MIN(AES_ENCRYPT(1,2)));
+SELECT IS_IPV4_COMPAT(MIN(AES_ENCRYPT(1,2)));
 
 --echo
 --echo # -- Done.
 --echo
-SET sql_mode = default;
 --echo #
 --echo # End of tests
 --echo #

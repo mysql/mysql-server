@@ -1,8 +1,4 @@
 #
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
-#
-
-#
 # Test that provides code coverage for the code that checks and handles
 # entries in the cost constant tables that has invalid values.
 # This will cause warnings to be written to the MySQL error log.
@@ -10,9 +6,6 @@
 # The reason for having a separte test file for this is that we
 # need to suppress warnings from the error log.
 #
-
-# Can not run with embedded server since it requires server restarts
--- source include/not_embedded.inc
 
 # Before starting the test check that the cost constant tables exists and
 # have the expected content.
@@ -71,7 +64,7 @@ call mtr.add_suppression('Invalid value for cost constant "key_compare_cost" in 
 
 # Add an unrecognized cost constant name
 INSERT INTO mysql.server_cost
-VALUES ("lunch_cost", 1.0, CURRENT_TIMESTAMP, "Lunch is important");
+VALUES ("lunch_cost", 1.0, CURRENT_TIMESTAMP, "Lunch is important", DEFAULT);
 
 # Change an existing cost constant to have a negative cost
 UPDATE mysql.server_cost
@@ -117,7 +110,7 @@ call mtr.add_suppression('Unknown cost constant "lunch_cost" in mysql.engine_cos
 
 # Add an unrecognized cost constant name
 INSERT INTO mysql.engine_cost
-VALUES ("InnoDB", 0, "lunch_cost", 1.0, CURRENT_TIMESTAMP, "Lunch is important");
+VALUES ("InnoDB", 0, "lunch_cost", 1.0, CURRENT_TIMESTAMP, "Lunch is important", DEFAULT);
 
 # Change an existing cost constant to have zero cost
 UPDATE mysql.engine_cost
@@ -126,11 +119,11 @@ WHERE cost_name="io_block_read_cost";
 
 # Add a cost constant for an unknown storage engine
 INSERT INTO mysql.engine_cost
-VALUES ("Falcon", 0, "io_block_read_cost", 1.0, CURRENT_TIMESTAMP, "Unknown storage engine");
+VALUES ("Falcon", 0, "io_block_read_cost", 1.0, CURRENT_TIMESTAMP, "Unknown storage engine", DEFAULT);
 
 # Add a cost constant where the device type is illegal
 INSERT INTO mysql.engine_cost
-VALUES ("InnoDB", -1, "io_block_read_cost", 1.0, CURRENT_TIMESTAMP, "1 is an illegal device type");
+VALUES ("InnoDB", -1, "io_block_read_cost", 1.0, CURRENT_TIMESTAMP, "1 is an illegal device type", DEFAULT);
 
 
 # Restart the server to check that it handles the errors in the server_cost

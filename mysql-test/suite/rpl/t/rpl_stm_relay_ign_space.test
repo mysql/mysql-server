@@ -22,7 +22,6 @@
 
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
---source include/have_innodb.inc
 
 CREATE TABLE t1 (c1 TEXT) engine=InnoDB;
 
@@ -64,7 +63,7 @@ INSERT INTO t1 VALUES ('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 --connection slave
 
---let $relay_log_space_limit= `select variable_value from information_schema.global_variables where variable_name like 'relay_log_space_limit'`
+--let $relay_log_space_limit= `select variable_value from performance_schema.global_variables where variable_name like 'relay_log_space_limit'`
 if (`select $relay_log_space_limit >= $space_total`)
 {
     --echo *** relay_log_space_limit on the slave must be less than size of unprocessed events. ***

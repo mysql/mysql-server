@@ -5,7 +5,6 @@
 # a transaction and in sub-statements.
 #
 
-source include/have_innodb.inc;
 source include/have_myisam.inc;
 source include/have_binlog_format_row.inc;
 
@@ -47,7 +46,7 @@ set @@session.sql_log_bin= FALSE;
 --echo # read-only inside a transaction with preceding transactional updates.
 --echo # Current session values are STATEMENT, TRUE and FALSE, respectively.
 --error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT
-  set @@session.binlog_format= row;
+  set @@session.binlog_format= 'row';
 --error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT
   set @@session.binlog_direct_non_transactional_updates= FALSE;
 --error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN
@@ -73,7 +72,7 @@ commit;
 --echo # writable when AUTOCOMMIT=0, before a transaction has started.
 --echo # Current session values are STATEMENT, TRUE, FALSE, respectively.
 set AUTOCOMMIT=0;
-set @@session.binlog_format= row;
+set @@session.binlog_format= 'row';
 set @@session.binlog_direct_non_transactional_updates= FALSE;
 set @@session.sql_log_bin= TRUE;
 SELECT @@session.binlog_format;

@@ -5,18 +5,17 @@
 #  The prepared XA can be identified and concluded with XA COMMIT or ROLLBACK,
 #  "manually" by the user.
 
+--source include/not_valgrind.inc # Test takes too much time in Valgrind
 --source include/have_debug.inc
 # There's some format specifics through show_binlog_events,
 # but MIXED is chosen rather to optimize.
 --source include/have_binlog_format_mixed.inc
+--source include/linux.inc
+
 #
 # Crash-safe testing is difficult on other than Linux.
 # TODO: Open it back at XA-commit/rollback crash-safe bug/FR fixing.
 #
-if (`select convert(@@version_compile_os using latin1) IN ("Linux") = 0`)
-{
-  skip Need Linux;
-}
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
@@ -28,45 +27,74 @@ call mtr.add_suppression("Found 1 prepared XA transactions");
 
 CREATE TABLE t1 (a INT);
 
---connect (master_conn, 127.0.0.1,root,,test,$MASTER_MYPORT,)
---disable_reconnect
 # Transaction is committed (XA-rollback) only
 # to binlog, not to engine.
-SET DEBUG="+d,crash_after_xa_rollback";
 XA START 'xid_partly_rolled_back';
 INSERT INTO t1 VALUES(1);
 XA END 'xid_partly_rolled_back';
 XA PREPARE 'xid_partly_rolled_back';
 
-# Server crashes after doing the rollback, but before writing to
-# binlog -> ROLLBACK is lost in the binlog.
+# Server crashes after doing the rollback, with Innodb engine
+# rollback invoking first. XA ROLLBACK query is binlogged afterward.
+# Yet the innodb tranasction has a good chance to remain in
+# the engine after the master server restart which produces
+# desired scenario: the query is logged, but the engine did not necessarily
+# roll back.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+SET @@session.debug="+d,crash_after_xa_rollback";
 --error 2013 # CR_SERVER_LOST
---send XA ROLLBACK 'xid_partly_rolled_back'
+XA ROLLBACK 'xid_partly_rolled_back';
 
---source include/rpl_connection_master.inc
 #
 # Server restart
 #
 --enable_reconnect
+--source include/wait_until_disconnected.inc
 --let $rpl_server_number= 1
 --source include/rpl_start_server.inc
 --disable_reconnect
 
 --source include/rpl_connection_master.inc
-XA RECOVER;
-SELECT * FROM t1;
+
+# Due to non-determinism mentioned in the simulation part above
+# the following query is commented out.
+# Correct rollback handlerton ordering and thus deterministic behaviour
+# is scheduled for bug#20672719 fixing (TODO: uncomment)
+
+# XA RECOVER;
+
+--let $assert_text = Zero records in t1 is expected at master
+--let $assert_cond = COUNT(*) = 0 FROM t1
+--source include/assert.inc
 --source include/show_binlog_events.inc
 SET @save.sql_log_bin = @@session.sql_log_bin;
 SET @@session.sql_log_bin = 0;
+
+#
+# Rollback
+# TODO: same as above, remove 0.
+--error 0,ER_XAER_NOTA
 XA ROLLBACK 'xid_partly_rolled_back';
+
 SET @@session.sql_log_bin = @save.sql_log_bin;
 
-# Verify that slave has 'xid_partly_rolled_back' rolled back.
 
 --source include/rpl_connection_slave.inc
 --source include/start_slave.inc
 
+# Verify that slave has 'xid_partly_rolled_back' rolled back.
+
 --source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--let $assert_text = Zero records in t1 is expected at slave
+--let $assert_cond = COUNT(*) = 0 FROM t1
+--source include/assert.inc
+
+#
+# Cleanup
+#
+--source include/rpl_connection_master.inc
+
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 

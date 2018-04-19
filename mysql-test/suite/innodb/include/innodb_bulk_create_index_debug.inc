@@ -2,8 +2,6 @@
 # wl#7277: InnoDB: Bulk Load for Create Index
 #
 
-# Not supported in embedded
--- source include/not_embedded.inc
 
 # This test case needs to crash the server. Needs a debug server.
 -- source include/have_debug.inc
@@ -14,7 +12,6 @@
 # Avoid CrashReporter popup on Mac
 -- source include/not_crashrep.inc
 
--- source include/have_innodb.inc
 
 # Create Insert Procedure
 DELIMITER |;
@@ -116,6 +113,14 @@ DROP TABLE t1;
 
 # Test Crash Recovery
 
+#
+# The below part of test was disabled until InnoDB truly supports DDL
+# atomicity/WL#9536 is implemented. Otherwise the test creates discrepancy
+# between SQL-layer DD and InnoDB DD.
+#
+
+--disable_parsing
+
 if ($row_format != 'COMPRESSED')
 {
   eval CREATE TABLE t1(
@@ -140,7 +145,7 @@ if ($row_format == 'COMPRESSED')
 CALL populate_t1();
 -- enable_query_log
 
-SET SESSION debug="+d,crash_commit_before";
+SET SESSION debug="+d,crash_after_index_create";
 
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -194,7 +199,7 @@ INSERT INTO t1 VALUES
 
 SELECT CHAR_LENGTH(b) FROM t1;
 
-SET SESSION debug="+d,crash_commit_before";
+SET SESSION debug="+d,crash_after_index_create";
 
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -211,6 +216,8 @@ CHECK TABLE t1;
 SELECT CHAR_LENGTH(b) FROM t1;
 
 DROP TABLE t1;
+
+--enable_parsing
 
 # Restore global variables
 if ($row_format == 'COMPRESSED')

@@ -1,14 +1,16 @@
-# Scenario:
-#  T1= ({R(B), W(B)}, HIGH_PRIORITY)
-#  T2= ({R(B), W(B), C}, HIGH_PRIORITY)
+# Scenario: Test deadlock with high priority transactions
+#  T1= ({R(A), W(A)}, HIGH_PRIORITY)
+#  T2= ({R(B), W(B)}, HIGH_PRIORITY)
+#  T1= ({R(B), W(B)}, HIGH_PRIORITY) --> T1 Wait
+#  T2= ({R(A), W(A)}, HIGH_PRIORITY) --> T2 Dead Lock
 #
 # Outcome: T2 should error.
 
---source include/have_innodb.inc
 --source include/count_sessions.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
+INSERT INTO t1 VALUES (10);
 
 --connect(con1,localhost,root,,test)
 --connect(con2,localhost,root,,test)
@@ -23,13 +25,40 @@ UPDATE t1 SET c1=1 WHERE c1=0;
 --echo # On connection 2
 --connection con2
 --source include/start_transaction_high_prio.inc
+UPDATE t1 SET c1=12 WHERE c1=10;
+
+--echo
+--echo # On connection 1
+--connection con1
+let $con1_id=`SELECT CONNECTION_ID()`;
+--echo # Send
+--send UPDATE t1 SET c1=11 WHERE c1=10;
+
+--echo
+--echo # On connection 2
+--connection con2
+
+--disable_query_log
+eval SET @con1_id = $con1_id;
+--enable_query_log
+
+let $wait_timeout = 10;
+let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE id = @con1_id AND INFO = 'UPDATE t1 SET c1=11 WHERE c1=10'
+AND STATE = 'updating';
+--source include/wait_condition.inc
+--sleep 1
+
 --error ER_LOCK_DEADLOCK
 UPDATE t1 SET c1=2 WHERE c1=0;
+
 --disconnect con2
 
 --echo
 --echo # On connection 1
 --connection con1
+--echo # Reap UPDATE t1 SET c1=11 WHERE c1=10
+--reap
 COMMIT;
 --disconnect con1
 

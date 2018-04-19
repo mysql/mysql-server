@@ -62,11 +62,14 @@ USE INFORMATION_SCHEMA;
 --replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 SHOW CREATE TABLE INFORMATION_SCHEMA.ROUTINES;
 
-# embedded server does not display privileges
---replace_column 19 #
+# The below query results in two difference collations like
+# 'utf8_tolower_ci' or 'utf8_bin' depending on l_c_t_n for
+# 'mysql.schemata.name' column. In order to get consistent
+# results across platforms, we replace the results below.
+--replace_result utf8_tolower_ci utf8_bin
 query_vertical SELECT * FROM information_schema.columns
 WHERE table_schema = 'information_schema'
-  AND table_name   = 'routines'
+  AND table_name   = 'ROUTINES'
 ORDER BY ordinal_position;
 
 DESCRIBE INFORMATION_SCHEMA.ROUTINES;
@@ -295,3 +298,23 @@ INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='i_s_routines_test';
 
 # final clean up
 DROP DATABASE i_s_routines_test;
+USE test;
+
+
+--echo #
+--echo # Bug #21632425: SHOW FUNCTION STATUS ASSERTS WITH
+--echo #   PAD_CHAR_TO_FULL_LENGTH
+--echo #
+
+SELECT @@sql_mode INTO @old_sql_mode;
+SET sql_mode = 'pad_char_to_full_length';
+CREATE FUNCTION f() RETURNS INT RETURN 1;
+--echo # Must not assert
+--disable_result_log
+SHOW FUNCTION STATUS;
+--enable_result_log
+DROP FUNCTION IF EXISTS f;
+SET sql_mode = @old_sql_mode;
+
+
+--echo # End of 5.7 tests

@@ -1,11 +1,10 @@
 select interval(55,10,20,30,40,50,60,70,80,90,100),interval(3,1,1+1,1+1+1+1),field("IBM","NCA","ICL","SUN","IBM","DIGITAL"),field("A","B","C"),elt(2,"ONE","TWO","THREE"),interval(0,1,2,3,4),elt(1,1,2,3)|0,elt(1,1.1,1.2,1.3)+0;
 interval(55,10,20,30,40,50,60,70,80,90,100)	interval(3,1,1+1,1+1+1+1)	field("IBM","NCA","ICL","SUN","IBM","DIGITAL")	field("A","B","C")	elt(2,"ONE","TWO","THREE")	interval(0,1,2,3,4)	elt(1,1,2,3)|0	elt(1,1.1,1.2,1.3)+0
 5	2	4	0	TWO	0	1	1.1
-explain extended select INTERVAL(55,10,20,30,40,50,60,70,80,90,100),interval(3,1,1+1,1+1+1+1),field("IBM","NCA","ICL","SUN","IBM","DIGITAL"),field("A","B","C"),elt(2,"ONE","TWO","THREE"),interval(0,1,2,3,4),elt(1,1,2,3)|0,elt(1,1.1,1.2,1.3)+0;
+explain select INTERVAL(55,10,20,30,40,50,60,70,80,90,100),interval(3,1,1+1,1+1+1+1),field("IBM","NCA","ICL","SUN","IBM","DIGITAL"),field("A","B","C"),elt(2,"ONE","TWO","THREE"),interval(0,1,2,3,4),elt(1,1,2,3)|0,elt(1,1.1,1.2,1.3)+0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select interval(55,10,20,30,40,50,60,70,80,90,100) AS `INTERVAL(55,10,20,30,40,50,60,70,80,90,100)`,interval(3,1,(1 + 1),(((1 + 1) + 1) + 1)) AS `interval(3,1,1+1,1+1+1+1)`,field('IBM','NCA','ICL','SUN','IBM','DIGITAL') AS `field("IBM","NCA","ICL","SUN","IBM","DIGITAL")`,field('A','B','C') AS `field("A","B","C")`,elt(2,'ONE','TWO','THREE') AS `elt(2,"ONE","TWO","THREE")`,interval(0,1,2,3,4) AS `interval(0,1,2,3,4)`,(elt(1,1,2,3) | 0) AS `elt(1,1,2,3)|0`,(elt(1,1.1,1.2,1.3) + 0) AS `elt(1,1.1,1.2,1.3)+0`
 SELECT INTERVAL(13, 7, 14, 21, 28, 35, 42, 49, 56);
 INTERVAL(13, 7, 14, 21, 28, 35, 42, 49, 56)
@@ -107,6 +106,8 @@ End of 5.0 tests
 drop table if exists t1;
 create table t1 (f1 set('test1','test2','test3') character set utf8 default null)
 default charset=latin1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (''),(null),(null),(''),(''),('');
 select find_in_set(f1,f1) as a from t1,(select find_in_set(f1,f1) as b from t1) a;
 a
@@ -247,3 +248,9 @@ from( make_set( ( extract( minute_second from
 Warnings:
 Warning	1292	Truncated incorrect date value: '1.01'
 Warning	1411	Incorrect datetime value: '1.01' for function str_to_date
+# Bug#21547779 Assertion failed: select_lex->leaf_table_count == 0
+CREATE TABLE t(a INTEGER) engine=innodb;
+SELECT 1 IN (SELECT MAKE_SET(-1, 1, (SELECT 1 FROM t)) FROM t);
+1 IN (SELECT MAKE_SET(-1, 1, (SELECT 1 FROM t)) FROM t)
+0
+DROP TABLE t;

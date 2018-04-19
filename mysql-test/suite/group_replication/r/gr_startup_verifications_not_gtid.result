@@ -1,0 +1,7 @@
+include/assert.inc [Gtid Mode is disabled]
+#
+# Test if gtid_mode with the wrong value will fail.
+#
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+call mtr.add_suppression("Gtid mode should be ON for Group Replication");

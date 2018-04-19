@@ -1,5 +1,4 @@
-
---source include/have_symlink.inc
+# windows does not support symlink
 --source include/not_windows.inc
 
 --disable_warnings
@@ -76,8 +75,7 @@ create database mysqltest;
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) 
 engine=myisam index directory="/this-dir-does-not-exist";
 
-# temporarily disabled as it returns different result in the embedded server
---error ER_WRONG_TABLE_NAME
+--error ER_WRONG_VALUE
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) 
 engine=myisam index directory="not-hard-path";
 
@@ -259,23 +257,26 @@ SET @@SQL_MODE=@OLD_SQL_MODE;
 --echo # BUG#40980 - Drop table can remove another MyISAM table's
 --echo #             data and index files
 --echo #
+CREATE SCHEMA schema1;
+CREATE TABLE schema1.t1 (a INT, b INT) ENGINE=MYISAM;
+INSERT INTO schema1.t1 VALUES(1,1);
+INSERT INTO schema1.t1 VALUES(2,2);
 --mkdir $MYSQL_TMP_DIR/mysql 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLE user(a INT) ENGINE=MYISAM DATA DIRECTORY='$MYSQL_TMP_DIR/mysql'
-                             INDEX DIRECTORY='$MYSQL_TMP_DIR/mysql';
-FLUSH TABLE user;
---echo # Symlinking mysql database to tmpdir
---remove_file $MYSQL_TMP_DIR/mysql/user.MYD
---remove_file $MYSQL_TMP_DIR/mysql/user.MYI
+eval CREATE TABLE t1(a INT) ENGINE=MYISAM DATA DIRECTORY='$MYSQL_TMP_DIR/mysql'
+                            INDEX DIRECTORY='$MYSQL_TMP_DIR/mysql';
+FLUSH TABLE t1;
+--echo # Symlinking schema1 database to tmpdir
+--remove_file $MYSQL_TMP_DIR/mysql/t1.MYD
+--remove_file $MYSQL_TMP_DIR/mysql/t1.MYI
 --rmdir $MYSQL_TMP_DIR/mysql
---exec ln -s $MYSQLD_DATADIR/mysql $MYSQL_TMP_DIR/mysql
-FLUSH TABLE mysql.user;
-DROP TABLE user;
-FLUSH TABLE mysql.user;
---disable_result_log
-SELECT * FROM mysql.user;
---enable_result_log
+--exec ln -s $MYSQLD_DATADIR/schema1 $MYSQL_TMP_DIR/mysql
+FLUSH TABLE schema1.t1;
+DROP TABLE t1;
+FLUSH TABLE schema1.t1;
+SELECT * FROM schema1.t1;
 --remove_file $MYSQL_TMP_DIR/mysql
+DROP SCHEMA schema1;
 
 --echo End of 5.1 tests
 
@@ -299,3 +300,19 @@ show create table t1;
 create table t2 like t1;
 show create table t2;
 drop tables t1, t2;
+
+--echo #
+--echo # Test for bug #25514146 DB_NAME IS IGNORED WHEN CREATING TABLE
+--echo # WITH DATA DIRECTORY
+--echo #
+
+--echo # Make sure we have no current database
+CREATE DATABASE x;
+USE x;
+DROP DATABASE x;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval CREATE TABLE test.t1(id INT(11)) ENGINE MYISAM
+DATA DIRECTORY "$MYSQLTEST_VARDIR/tmp";
+
+DROP TABLE test.t1;

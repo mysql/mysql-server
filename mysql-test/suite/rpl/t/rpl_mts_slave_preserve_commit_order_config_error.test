@@ -1,0 +1,63 @@
+#
+# ==== Purpose ====
+#
+# This test checks if the ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER is issued
+# slave_preserve_commit_order value is incompatible with the values of log-bin
+# and log-slave-updates variables when initializing the slave and also when
+# starting the slave.
+#
+# ==== Implementation ====
+#
+# The server is initially configured with log-bin enabled but
+# log_slave_updates disabled to assert that the error
+# ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER is printed once in the slave's
+# err file.
+# Then, we try to start the slave and verify that, since the configuration was
+# not changed, the same error is issued.
+# Finally, slave_preserve_commit_order is disabled and the slave can be
+# correctly started.
+#
+# ==== References ====
+#
+# Bug#21915239 SLAVE-PRESERVE-COMMIT-ORDER SHOULD GENERATE ERROR WHEN
+#              LOG-BIN IS DISABLED
+
+
+# To grep a specific error pattern in the error log, a fresh error log must be
+# generated
+--source include/force_restart.inc
+# This test case is binlog format agnostic
+--source include/have_binlog_format_row.inc
+
+# initialize the master and slave without starting the slave
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression(".* slave_preserve_commit_order is not supported unless both log_bin and log_slave_updates are enabled.");
+
+# check if the error ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER is present in
+# the slave's log file
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_text= Slave incompatible configuration error present in log
+--let $assert_select=  slave_preserve_commit_order is not supported unless both log_bin and log_slave_updates are enabled
+--let $assert_count= 1
+--let $assert_only_after= CURRENT_TEST: rpl.rpl_mts_slave_preserve_commit_order_config_error
+--source include/assert_grep.inc
+
+# starting the slave produces an error because of the incompatible options
+--error ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER
+START SLAVE;
+
+SET @@GLOBAL.slave_preserve_commit_order= FALSE;
+
+# starting the slave does not produce the error because the value of
+# slave_preserve_commit_order is no longer incompatible with the initial
+# values of log-bin and log-slave-updates
+--source include/start_slave.inc
+
+#Cleanup
+--source include/stop_slave.inc
+SET @@GLOBAL.slave_preserve_commit_order= TRUE;
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

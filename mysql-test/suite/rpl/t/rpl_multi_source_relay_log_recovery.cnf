@@ -1,0 +1,16 @@
+!include ../my.cnf
+
+[mysqld.1]
+
+[mysqld.2]
+relay-log-recovery=1
+slave-transaction-retries=0
+sync_master_info=1
+
+[mysqld.3]
+
+
+[ENV]
+SERVER_MYPORT_3=		@mysqld.3.port
+SERVER_MYSOCK_3=		@mysqld.3.socket
+

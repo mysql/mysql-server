@@ -29,6 +29,8 @@
 # Sql thread will start without any error.
 ###############################################################################
 --source include/not_group_replication_plugin.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 --source include/master-slave.inc
 --source include/force_restart.inc
 --source include/rpl_connection_slave.inc
@@ -53,7 +55,7 @@ source include/sync_slave_io_with_master.inc;
 # Restart the slave server
 --let $rpl_server_number= 2
 --let $rpl_force_stop= 1
---let $rpl_server_parameters=--skip_slave_start=FALSE --master-info-repository=TABLE --relay-log-info-repository=TABLE --relay-log-recovery=1
+--let $rpl_server_parameters=--skip_slave_start=FALSE --relay-log-recovery=1
 --source include/rpl_restart_server.inc
 
 # With bug sql thread will not be able to start it will fail with error 1007

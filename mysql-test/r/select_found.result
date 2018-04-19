@@ -73,18 +73,18 @@ CREATE TABLE t1 (
 `kid` smallint(5) unsigned NOT NULL default '0',
 PRIMARY KEY (`id`),
 KEY `kid` (`kid`)
-);
+) charset utf8mb4;
 CREATE TABLE t2 (
 id smallint(5) unsigned NOT NULL auto_increment,
 name varchar(50) NOT NULL default '',
 email varchar(50) NOT NULL default '',
 PRIMARY KEY  (id),
 UNIQUE KEY e_n (email,name)
-);
+) charset utf8mb4;
 EXPLAIN SELECT SQL_CALC_FOUND_ROWS DISTINCT email FROM t2 LEFT JOIN t1  ON kid = t2.id WHERE t1.id IS NULL LIMIT 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	kid	NULL	NULL	NULL	0	0.00	const row not found
-1	SIMPLE	t2	NULL	ALL	e_n	NULL	NULL	NULL	200	100.00	Using temporary
+1	SIMPLE	t2	NULL	index	e_n	e_n	404	NULL	200	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select distinct sql_calc_found_rows `test`.`t2`.`email` AS `email` from `test`.`t2` where isnull(NULL) limit 10
 FLUSH STATUS;
@@ -95,15 +95,15 @@ Sort_scan	0
 SELECT SQL_CALC_FOUND_ROWS DISTINCT email FROM t2 LEFT JOIN t1  ON kid = t2.id WHERE t1.id IS NULL LIMIT 10;
 email
 email1
-email2
-email3
-email4
-email5
-email6
-email7
-email8
-email9
 email10
+email100
+email101
+email102
+email103
+email104
+email105
+email106
+email107
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 200
@@ -302,4 +302,17 @@ i
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+DROP TABLE t1;
+#
+# Bug #22155786: GET NEGATIVE FOUND_ROWS() FOR UNION STMT
+#
+CREATE TABLE t1 (c1 int) ;
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE false LIMIT 8, 1)
+UNION ALL
+(SELECT * FROM t1 LIMIT 4, 4);
+c1
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+0
 DROP TABLE t1;

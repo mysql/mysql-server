@@ -1,30 +1,25 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ###############################################
 #                                             #
 #   Prepared Statements test on NDB tables    #
 #                                             #
 ###############################################
 
-#    
-# NOTE: PLEASE SEE ps_1general.test (bottom) 
-#       BEFORE ADDING NEW TEST CASES HERE !!!
+-- source include/have_ndb.inc
 
-use test;
-
+# Turn off ndb_join_pushdown
 --disable_query_log
 set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;
 set ndb_join_pushdown = false;
 --enable_query_log
 
-# bug#36342
--- source include/not_embedded.inc
-
--- source include/have_ndb.inc
+# Set default engine type to use for these tests
 let $type= 'NDB' ;
+
+# Source the upstream include files which are also
+# used by ps_2myisam, ps_3innodb etc. This means that when
+# these upstream include files are modified the ps_7ndb.result file
+# need to be updated. Sometimes also the upstream include files need
+# to be adapted to also work with NDB tables
 -- source include/ps_create.inc
 -- source include/ps_renew.inc
 
@@ -35,8 +30,7 @@ let $type= 'NDB' ;
 
 drop table t1, t9;
 
+# Restore original ndb_join_pushdown value
 --disable_query_log
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 --enable_query_log
-
-# End of 4.1 tests

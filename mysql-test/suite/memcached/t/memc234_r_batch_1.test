@@ -1,16 +1,15 @@
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
 source include/not_windows.inc;
-source include/have_innodb.inc;
 
 --disable_query_log
-CALL mtr.add_suppression("daemon-memcached-r-batch-size': unsigned value");
+CALL mtr.add_suppression("daemon-memcached-r-batch-size': value");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
-CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
 --enable_query_log
 
 --enable_connect_log
-SET @tx_isolation= @@global.tx_isolation;
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 # Create the memcached tables
@@ -46,21 +45,10 @@ INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
 # Tables must exist before plugin can be started!
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 
-# This is a work around for having different values as result of "-1" in 5.6 and newer versions.
 --echo SELECT @@global.daemon_memcached_r_batch_size;
 --disable_query_log
-if (`SELECT @@global.version LIKE '%5.6%'`)
-{
-SELECT @@global.daemon_memcached_r_batch_size > 1 AS `@@global.daemon_memcached_r_batch_size`;
-}
-
-if (`SELECT @@global.version NOT LIKE '%5.6%'`))
-{
 SELECT @@global.daemon_memcached_r_batch_size;
-}
 --enable_query_log
-# end of work around
-
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@global.daemon_memcached_r_batch_size=100;
@@ -99,4 +87,4 @@ DROP TABLE t1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
  
-SET @@global.tx_isolation= @tx_isolation;
+SET @@global.transaction_isolation= @transaction_isolation;

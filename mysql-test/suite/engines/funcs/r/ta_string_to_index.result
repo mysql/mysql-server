@@ -7,7 +7,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY     (c1);
 SHOW TABLES;
 Tables_in_test
@@ -17,7 +17,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   KEY `c1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -29,7 +29,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY     (c1);
 SHOW TABLES;
 Tables_in_test
@@ -39,7 +39,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   KEY `c1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -51,7 +51,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY     (c1);
 SHOW TABLES;
 Tables_in_test
@@ -61,7 +61,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   KEY `c1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -73,7 +73,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY     (c1);
 SHOW TABLES;
 Tables_in_test
@@ -83,7 +83,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   KEY `c1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -95,7 +95,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY   USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -105,7 +105,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   KEY `c1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -117,7 +117,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY   USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -127,7 +127,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   KEY `c1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -139,7 +139,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY   USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -149,7 +149,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   KEY `c1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -161,7 +161,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY   USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -171,7 +171,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   KEY `c1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -183,8 +183,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -192,8 +194,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `c1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -205,8 +207,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -214,8 +218,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `c1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -227,8 +231,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -236,8 +242,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `c1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -249,8 +255,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -258,8 +266,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `c1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -271,7 +279,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX     (c1);
 SHOW TABLES;
 Tables_in_test
@@ -281,7 +289,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   KEY `c1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -293,7 +301,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX     (c1);
 SHOW TABLES;
 Tables_in_test
@@ -303,7 +311,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   KEY `c1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -315,7 +323,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX     (c1);
 SHOW TABLES;
 Tables_in_test
@@ -325,7 +333,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   KEY `c1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -337,7 +345,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX     (c1);
 SHOW TABLES;
 Tables_in_test
@@ -347,7 +355,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   KEY `c1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -359,7 +367,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX   USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -369,7 +377,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   KEY `c1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -381,7 +389,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX   USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -391,7 +399,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   KEY `c1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -403,7 +411,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX   USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -413,7 +421,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   KEY `c1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -425,7 +433,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX   USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -435,7 +443,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   KEY `c1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -447,8 +455,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -456,8 +466,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `c1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -469,8 +479,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -478,8 +490,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `c1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -491,8 +503,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -500,8 +514,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `c1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -513,8 +527,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX   USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -522,8 +538,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
-  KEY `c1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `c1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -535,7 +551,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY i1   (c1);
 SHOW TABLES;
 Tables_in_test
@@ -545,7 +561,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   KEY `i1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -557,7 +573,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY i1   (c1);
 SHOW TABLES;
 Tables_in_test
@@ -567,7 +583,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   KEY `i1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -579,7 +595,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY i1   (c1);
 SHOW TABLES;
 Tables_in_test
@@ -589,7 +605,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   KEY `i1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -601,7 +617,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY i1   (c1);
 SHOW TABLES;
 Tables_in_test
@@ -611,7 +627,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   KEY `i1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -623,7 +639,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY i1 USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -633,7 +649,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   KEY `i1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -645,7 +661,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY i1 USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -655,7 +671,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   KEY `i1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -667,7 +683,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY i1 USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -677,7 +693,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   KEY `i1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -689,7 +705,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY i1 USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -699,7 +715,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   KEY `i1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -711,8 +727,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -720,8 +738,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -733,8 +751,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -742,8 +762,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -755,8 +775,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -764,8 +786,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -777,8 +799,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -786,8 +810,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -799,7 +823,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX i1   (c1);
 SHOW TABLES;
 Tables_in_test
@@ -809,7 +833,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   KEY `i1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -821,7 +845,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX i1   (c1);
 SHOW TABLES;
 Tables_in_test
@@ -831,7 +855,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   KEY `i1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -843,7 +867,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX i1   (c1);
 SHOW TABLES;
 Tables_in_test
@@ -853,7 +877,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   KEY `i1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -865,7 +889,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX i1   (c1);
 SHOW TABLES;
 Tables_in_test
@@ -875,7 +899,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   KEY `i1` (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -887,7 +911,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX i1 USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -897,7 +921,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   KEY `i1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -909,7 +933,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX i1 USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -919,7 +943,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   KEY `i1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -931,7 +955,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX i1 USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -941,7 +965,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   KEY `i1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -953,7 +977,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX i1 USING BTREE (c1);
 SHOW TABLES;
 Tables_in_test
@@ -963,7 +987,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   KEY `i1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -975,8 +999,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -984,8 +1010,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -997,8 +1023,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -1006,8 +1034,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -1019,8 +1047,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -1028,8 +1058,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -1041,8 +1071,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX i1 USING HASH (c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -1050,8 +1082,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test

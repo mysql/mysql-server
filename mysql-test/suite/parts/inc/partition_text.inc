@@ -18,7 +18,7 @@ partition pa4 max_rows=40 min_rows=2);
 #drop table t1;
 
 --error ER_BLOB_FIELD_IN_PART_FUNC_ERROR
-eval create table t2 (a tinytext not null, primary key(a(767))) engine=$engine 
+eval create table t2 (a tinytext not null, primary key(a(255))) charset latin1 engine=$engine 
 partition by key (a) partitions 30;
 
 --error ER_BLOB_FIELD_IN_PART_FUNC_ERROR

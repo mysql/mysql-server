@@ -1,13 +1,20 @@
-# Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
@@ -22,7 +29,7 @@ args: -n DeferredMixedLoad T1 T6 T13
 
 max-time: 2000
 cmd: testIndex
-args: -n DeferredMixedLoadError T1 T6 T13
+args: -n DeferredMixedLoadError --skip-ndb-optimized-node-selection T1 T6 T13
 
 max-time: 900
 cmd: testIndex
@@ -569,7 +576,7 @@ args: -n CheckAfterTerror T6 D1 D2
 #cmd: testScan
 #args: -n ScanReadError5021 T1 D1 D2 
 #
-max-time: 500
+max-time: 720
 cmd: testScan
 args: -n ScanReaderror5022 T1 D1 D2 
 
@@ -639,7 +646,7 @@ args: -n Bug36124 T1
 
 max-time: 500
 cmd: testScan
-args: -n Bug54945 T1
+args: -n Bug54945 --skip-ndb-optimized-node-selection T1
 
 # Bug18408745 added on 17.04.2014
 #max-time: 600
@@ -647,7 +654,7 @@ args: -n Bug54945 T1
 #args: -n Bug12324191 T1 T6 T13
 #
 # Bug18408732 added on 17.04.2014
-#max-time: 1800
+#max-time: 3600
 #cmd: testNodeRestart
 #args: -n Bug27003 T1
 #
@@ -976,6 +983,14 @@ args: -n Bug44065
 #cmd: testNdbApi
 #args: -n Bug44065_org
 #
+max-time: 1000
+cmd: testNdbApi
+args: -n RecordSpecificationBackwardCompatibility
+
+max-time: 500
+cmd: testNdbApi
+args: -n DeleteClusterConnectionWhileUsed T1
+
 max-time: 500
 cmd: testInterpreter
 args: T1 
@@ -1092,6 +1107,14 @@ max-time: 5000
 cmd: testSystemRestart
 args: -n SR_UNDO T6 
 
+max-time: 5000
+cmd: testSystemRestart
+args: -n SR_UNDO D1
+
+max-time: 5000
+cmd: testSystemRestart
+args: -n SR_UNDO D2
+
 max-time: 1500
 cmd: testSystemRestart
 args: -n SR3 T6 
@@ -1152,9 +1175,19 @@ cmd: test_event
 args: -n Bug18703871 T1
 
 #
+max-time: 1000
+cmd: test_event
+args: -n Apiv2EmptyEpochs T1
+
+#
 max-time: 600
 cmd: test_event_merge
 args: --no-implicit-nulls --separate-events --blob-version 1
+
+#
+max-time: 1000
+cmd: test_event
+args: -n Apiv2EventBufferOverflow T1
 
 #
 max-time: 600
@@ -1713,6 +1746,10 @@ max-time: 1200
 cmd: test_event
 args: -n Bug57886 T1
 
+max-time: 1200
+cmd: test_event
+args: -n createDropEvent_NF T1
+
 max-time: 3600
 cmd: testNodeRestart
 args: -n Bug44952 T1
@@ -1874,10 +1911,10 @@ args: -n Bug57057 T1
 #
 # Refresh tuple
 # Bug18408692 added on 17.04.2014
-#max-time: 300
-#cmd: testBasic
-#args: -n RefreshTuple T6 D1
-#
+max-time: 300
+cmd: testBasic
+args: -n RefreshTuple T6 D1
+
 max-time: 300
 cmd: testIndex
 args: -n RefreshWithOrderedIndex T2 D2
@@ -1933,6 +1970,10 @@ max-time: 1800
 cmd: testNdbApi
 args: -n TestFragmentedSend T1
 
+max-time: 1800
+cmd: testNdbApi
+args: -n SchemaObjectOwnerCheck T1
+
 max-time: 300
 cmd: testNodeRestart
 args: -n MasterFailSlowLCP T1
@@ -1966,6 +2007,10 @@ args: -n LeakApiConnectObjects T1
 #cmd: testScan
 #args:  -n extraNextResultBug11748194 T1
 #
+max-time: 1200
+cmd: testRedo
+args: -nRedoFull T1
+
 # Bug18379486 added on 17.04.2014
 #max-time: 600
 #cmd: testRedo
@@ -2055,7 +2100,7 @@ args: -n CreateDropError T1
 # Bug18408672 added on 17.04.2014
 #max-time : 300
 #cmd: testFK
-#args: -n TransError T1
+#args: -n TransError T1 T15
 #
 max-time : 300
 cmd: testFK
@@ -2093,6 +2138,14 @@ max-time : 300
 cmd: testDict
 args: -n FK_Bug18069680 T1
 
+max-time : 300
+cmd: testDict
+args: -n indexStat T1
+
+max-time : 300
+cmd: testDict
+args: -n forceGCPWait T1
+
 max-time : 600
 cmd: testNodeRestart
 args: -n Bug16895311 T1
@@ -2101,7 +2154,55 @@ max-time : 600
 cmd: testNodeRestart
 args: -n Bug18044717 T1
 
+max-time : 600
+cmd: testNodeRestart
+args: -n GCPStopFalsePositive T1
+
 max-time: 600
 cmd: atrt-testBackup
 args: -n Bug17882305 T1
+
+max-time: 600
+cmd: atrt-testBackup
+args: -n Bug19202654 T1
+
+max-time : 600
+cmd: testNodeRestart
+args: -n DeleteRestart T1
+
+max-time : 600
+cmd: testBasic
+args: -n AccCommitOrder T1
+
+max-time: 1200
+cmd: test_event
+args: -n EmptyUpdates T1
+
+max-time: 1200
+cmd: test_event
+args: -n BackwardCompatiblePollNoWait T1
+
+max-time: 1200
+cmd: test_event
+args: -n BackwardCompatiblePollLongWait T1
+
+max-time: 1200
+cmd: test_event
+args: -n BackwardCompatiblePollInconsistency T1
+
+#max-time: 1000
+#cmd: test_event
+#args: -n Apiv2HQE-latestGCI T1
+#
+#max-time: 1200
+#cmd: test_event
+#args: -n Apiv2-check_event_queue_cleared T1
+#
+max-time: 1200
+cmd: test_event
+args: -n Apiv2-check_event_queue_cleared_initial T1
+
+max-time: 300
+cmd: testSystemRestart
+args: -n OneNodeWithCleanFilesystem T1
 

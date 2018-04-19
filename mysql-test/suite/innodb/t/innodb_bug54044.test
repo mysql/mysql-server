@@ -1,7 +1,6 @@
 # This is the test for bug #54044. Special handle MYSQL_TYPE_NULL type
 # during create table, so it will not trigger assertion failure.
 
---source include/have_innodb.inc
 
 # This 'create table' operation no longer uses the NULL datatype.
 
@@ -10,10 +9,9 @@ CREATE TEMPORARY TABLE table_54044 ENGINE = INNODB
 SHOW CREATE TABLE table_54044;
 DROP TABLE table_54044;
 
-# These 'create table' operations should fail because of
-# using NULL datatype
+# This 'create table' should pass since it uses a Field_string of size 0.
 
-CREATE TABLE tmp ENGINE = INNODB AS SELECT COALESCE(NULL, NULL, NULL), GREATEST(NULL, NULL), NULL;
+CREATE TABLE tmp ENGINE = INNODB
+ AS SELECT COALESCE(NULL, NULL, NULL), GREATEST(NULL, NULL), NULL;
 SHOW CREATE TABLE tmp;
 DROP TABLE tmp;
-

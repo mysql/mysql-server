@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ################################################################
 # Test access via unique index 
 #
@@ -31,44 +26,48 @@ my $mc = My::Memcache->new();
 my $r = $mc->connect("localhost",$port);
 
 # 1: SET on primary key
-$mc->set("tup:1","key1\tSuperbe!")        || Carp::confess("Failed test 1.A");
-$mc->set("tup:2","key2\tIncroyable!")     || Carp::confess("Failed test 1.B");
+$mc->set("tup:1","key1\tSuperbe!")        || $mc->fail("Failed test 1.A");
+$mc->set("tup:2","key2\tIncroyable!")     || $mc->fail("Failed test 1.B");
 $mc->set("tup:3","key3\tTres bien fait");
 $mc->set("tup:4","key4\tPas mal");
 
 # 2: GET on primary key
-($mc->get("tup:1") == "key1\tSuperbe!")   || Carp::confess("Failed test 2.A");
-($mc->get("tup:2") == "key2\tIncroyable!")|| Carp::confess("Failed test 2.B");
+($mc->get("tup:1") == "key1\tSuperbe!")   || $mc->fail("Failed test 2.A");
+($mc->get("tup:2") == "key2\tIncroyable!")|| $mc->fail("Failed test 2.B");
 
 # 3: GET via unique key (two value columns)
-($mc->get("tur:key1") == "1\tSuperbe!")   || Carp::confess("Failed test 3.");
+($mc->get("tur:key1") == "1\tSuperbe!")   || $mc->fail("Failed test 3.");
 
 # 4: GET via unique key (one value column)
-($mc->get("tui:key2") == "Incroyable!")   || Carp::confess("Failed test 4.");
+($mc->get("tui:key2") == "Incroyable!")   || $mc->fail("Failed test 4.");
 
 # 5. SET via unique key (one value column, not part of primary key)
-$mc->set("tui:key3", "Assez bien")        || Carp::confess("Failed test 5.A");
-$mc->set("tui:key4", "Pas trop mal...")   || Carp::confess("Failed test 5.B");
+$mc->set("tui:key3", "Assez bien")        || $mc->fail("Failed test 5.A");
+$mc->set("tui:key4", "Pas trop mal...")   || $mc->fail("Failed test 5.B");
 
 # 6. REPLACE via unique key (one value column, not part of primary key)
-$mc->replace("tui:key2", "Passable")  || Carp::confess("Failed test 6");
+$mc->replace("tui:key2", "Passable")  || $mc->fail("Failed test 6");
 
 # 7. Inserts via unique key access fail with NOT_FOUND:
 # (A) SET
-($mc->set("tui:key5", "rien") == 0)   || Carp::confess("Test 7.A SET should fail");
-($mc->{error} =~ "NOT_FOUND")         || Carp::confess("Test 7.A expected NOT_FOUND");
+($mc->set("tui:key5", "rien") == 0)   || $mc->fail("Test 7.A SET should fail");
+($mc->{error} =~ "NOT_FOUND")         || $mc->fail("Test 7.A expected NOT_FOUND");
 
 # (B) ADD
-($mc->add("tui:key6", "rien") == 0)   || Carp::confess("Test 7.B ADD should fail");
-($mc->{error} =~ "NOT_FOUND")         || Carp::confess("Test 7.B expected NOT_FOUND");
+($mc->add("tui:key6", "rien") == 0)   || $mc->fail("Test 7.B ADD should fail");
+($mc->{error} =~ "NOT_FOUND")         || $mc->fail("Test 7.B expected NOT_FOUND");
 
 # 8. Update via unique key succeeds if PK is equal to old PK
-$mc->set("tur:key1", "1\tQuotidien")  || Carp::confess("Failed test 8.A");
-($mc->get("tui:key1") == "Quotidien") || Carp::confess("Failed test 8.B");
+$mc->set("tur:key1", "1\tQuotidien")  || $mc->fail("Failed test 8.A");
+($mc->get("tui:key1") == "Quotidien") || $mc->fail("Failed test 8.B");
 
 # 9. Attempt to change PK fails with NOT_STORED
-($mc->set("tur:key3", "5\tJamais!") == 0) || Carp::confess("Test 9 SET should fail.");
-($mc->{error} =~ "NOT_STORED")         || Carp::confess("Test 9 expected NOT_STORED");
+($mc->set("tur:key3", "5\tJamais!") == 0) || $mc->fail("Test 9 SET should fail.");
+($mc->{error} =~ "NOT_STORED")         || $mc->fail("Test 9 expected NOT_STORED");
+
+# 10. This is the final test in the ndb_memcache suite; send a "stats errors"
+# request so that the server will flush its log file.
+$mc->stats("errors");
 
 EOF
 

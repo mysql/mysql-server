@@ -1,101 +1,91 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/trx0rec.ic
-Transaction undo log record
+/** @file include/trx0rec.ic
+ Transaction undo log record
 
-Created 3/26/1996 Heikki Tuuri
-*******************************************************/
+ Created 3/26/1996 Heikki Tuuri
+ *******************************************************/
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************************//**
-Reads from an undo log record the record type.
-@return record type */
+/** Reads from an undo log record the record type.
+ @return record type */
 UNIV_INLINE
-ulint
-trx_undo_rec_get_type(
-/*==================*/
-	const trx_undo_rec_t*	undo_rec)	/*!< in: undo log record */
+ulint trx_undo_rec_get_type(
+    const trx_undo_rec_t *undo_rec) /*!< in: undo log record */
 {
-	return(mach_read_from_1(undo_rec + 2) & (TRX_UNDO_CMPL_INFO_MULT - 1));
+  return (mach_read_from_1(undo_rec + 2) & (TRX_UNDO_CMPL_INFO_MULT - 1));
 }
 
-/**********************************************************************//**
-Reads from an undo log record the record compiler info.
-@return compiler info */
+/** Reads from an undo log record the record compiler info.
+ @return compiler info */
 UNIV_INLINE
-ulint
-trx_undo_rec_get_cmpl_info(
-/*=======================*/
-	const trx_undo_rec_t*	undo_rec)	/*!< in: undo log record */
+ulint trx_undo_rec_get_cmpl_info(
+    const trx_undo_rec_t *undo_rec) /*!< in: undo log record */
 {
-	return(mach_read_from_1(undo_rec + 2) / TRX_UNDO_CMPL_INFO_MULT);
+  return (mach_read_from_1(undo_rec + 2) / TRX_UNDO_CMPL_INFO_MULT);
 }
 
-/**********************************************************************//**
-Returns TRUE if an undo log record contains an extern storage field.
-@return TRUE if extern */
+/** Returns TRUE if an undo log record contains an extern storage field.
+ @return true if extern */
 UNIV_INLINE
-ibool
-trx_undo_rec_get_extern_storage(
-/*============================*/
-	const trx_undo_rec_t*	undo_rec)	/*!< in: undo log record */
+ibool trx_undo_rec_get_extern_storage(
+    const trx_undo_rec_t *undo_rec) /*!< in: undo log record */
 {
-	if (mach_read_from_1(undo_rec + 2) & TRX_UNDO_UPD_EXTERN) {
+  if (mach_read_from_1(undo_rec + 2) & TRX_UNDO_UPD_EXTERN) {
+    return (TRUE);
+  }
 
-		return(TRUE);
-	}
-
-	return(FALSE);
+  return (FALSE);
 }
 
-/**********************************************************************//**
-Reads the undo log record number.
-@return undo no */
+/** Reads the undo log record number.
+ @return undo no */
 UNIV_INLINE
-undo_no_t
-trx_undo_rec_get_undo_no(
-/*=====================*/
-	const trx_undo_rec_t*	undo_rec)	/*!< in: undo log record */
+undo_no_t trx_undo_rec_get_undo_no(
+    const trx_undo_rec_t *undo_rec) /*!< in: undo log record */
 {
-	const byte*	ptr;
+  const byte *ptr;
 
-	ptr = undo_rec + 3;
+  ptr = undo_rec + 3;
 
-	return(mach_u64_read_much_compressed(ptr));
+  return (mach_u64_read_much_compressed(ptr));
 }
 
-/***********************************************************************//**
-Copies the undo record to the heap.
-@return own: copy of undo log record */
+/** Copies the undo record to the heap.
+ @return own: copy of undo log record */
 UNIV_INLINE
-trx_undo_rec_t*
-trx_undo_rec_copy(
-/*==============*/
-	const trx_undo_rec_t*	undo_rec,	/*!< in: undo log record */
-	mem_heap_t*		heap)		/*!< in: heap where copied */
+trx_undo_rec_t *trx_undo_rec_copy(
+    const trx_undo_rec_t *undo_rec, /*!< in: undo log record */
+    mem_heap_t *heap)               /*!< in: heap where copied */
 {
-	ulint		len;
+  ulint len;
 
-	len = mach_read_from_2(undo_rec)
-		- ut_align_offset(undo_rec, UNIV_PAGE_SIZE);
-	ut_ad(len < UNIV_PAGE_SIZE);
-	return((trx_undo_rec_t*) mem_heap_dup(heap, undo_rec, len));
+  len = mach_read_from_2(undo_rec) - ut_align_offset(undo_rec, UNIV_PAGE_SIZE);
+  ut_ad(len < UNIV_PAGE_SIZE);
+  return ((trx_undo_rec_t *)mem_heap_dup(heap, undo_rec, len));
 }
 #endif /* !UNIV_HOTBACKUP */

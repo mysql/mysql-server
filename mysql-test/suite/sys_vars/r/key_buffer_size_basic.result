@@ -51,12 +51,12 @@ SET @@session.key_buffer_size = 0;
 ERROR HY000: Variable 'key_buffer_size' is a GLOBAL variable and should be set with SET GLOBAL
 '#----------------------FN_DYNVARS_055_06------------------------#'
 SELECT @@global.key_buffer_size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='key_buffer_size';
 @@global.key_buffer_size = VARIABLE_VALUE
 1
 SELECT @@key_buffer_size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='key_buffer_size';
 @@key_buffer_size = VARIABLE_VALUE
 1

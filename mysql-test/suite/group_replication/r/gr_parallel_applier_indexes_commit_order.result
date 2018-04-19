@@ -1,0 +1,220 @@
+
+############################################################
+# 1.  Setup a new group with three members.
+#
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# Create four connections to server 1 so that transactions executed
+# on server 1 can be parallel, what would not happen if we only use
+# one client.
+#
+
+# Suppress auto increment warnings, we want the same configuration
+# on all servers.
+#
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Plugin group_replication reported: 'Group contains 3 members which is greater than group_replication_auto_increment_increment value of 1. This can lead to an higher rate of transactional aborts.");
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Plugin group_replication reported: 'Group contains 2 members which is greater than group_replication_auto_increment_increment value of 1. This can lead to an higher rate of transactional aborts.");
+SET SESSION sql_log_bin= 1;
+
+# Create a table on all members.
+#
+[connection server1]
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/rpl_sync.inc
+
+# Force a binary log rotate on remote servers: 2 and 3.
+#
+[connection server2]
+FLUSH BINARY LOGS;
+[connection server3]
+FLUSH BINARY LOGS;
+
+############################################################
+# 2.  Commit 4 groups of 4 transactions, we have 4 configured
+#     parallel workers.
+#     All these transactions will be able to execute in parallel.
+#
+[connection server2]
+LOCK TABLE t1 WRITE;
+[connection server3]
+LOCK TABLE t1 WRITE;
+[connection server1_1]
+INSERT INTO t1 VALUES (1);
+[connection server1_2]
+INSERT INTO t1 VALUES (2);
+[connection server1_3]
+INSERT INTO t1 VALUES (3);
+[connection server1_4]
+INSERT INTO t1 VALUES (4);
+[connection server2]
+UNLOCK TABLES;
+[connection server3]
+UNLOCK TABLES;
+[connection server2]
+LOCK TABLE t1 WRITE;
+[connection server3]
+LOCK TABLE t1 WRITE;
+[connection server1_1]
+INSERT INTO t1 VALUES (5);
+[connection server1_2]
+INSERT INTO t1 VALUES (6);
+[connection server1_3]
+INSERT INTO t1 VALUES (7);
+[connection server1_4]
+INSERT INTO t1 VALUES (8);
+[connection server2]
+UNLOCK TABLES;
+[connection server3]
+UNLOCK TABLES;
+[connection server2]
+LOCK TABLE t1 WRITE;
+[connection server3]
+LOCK TABLE t1 WRITE;
+[connection server1_1]
+INSERT INTO t1 VALUES (9);
+[connection server1_2]
+INSERT INTO t1 VALUES (10);
+[connection server1_3]
+INSERT INTO t1 VALUES (11);
+[connection server1_4]
+INSERT INTO t1 VALUES (12);
+[connection server2]
+UNLOCK TABLES;
+[connection server3]
+UNLOCK TABLES;
+[connection server2]
+LOCK TABLE t1 WRITE;
+[connection server3]
+LOCK TABLE t1 WRITE;
+[connection server1_1]
+INSERT INTO t1 VALUES (13);
+[connection server1_2]
+INSERT INTO t1 VALUES (14);
+[connection server1_3]
+INSERT INTO t1 VALUES (15);
+[connection server1_4]
+INSERT INTO t1 VALUES (16);
+[connection server2]
+UNLOCK TABLES;
+[connection server3]
+UNLOCK TABLES;
+
+# Wait for group synchronization.
+#
+[connection server1]
+include/rpl_sync.inc
+
+############################################################
+# 3.  Verify that above transactions are committed on server
+#     2 and 3 on the same order they were on server 1.
+#
+
+# include/gr_mts_indexes_commit_order_validation.inc
+# Parameters: server_number: 2
+[connection server2]
+
+# Assert parallel indexes, the 4 groups of transactions
+# must be parallel.
+include/include/assert_logical_timestamps.inc [0 0;0 0;2 3;3 4;3 5;3 6;3 7;3 8;3 9;3 10;3 11;3 12;3 13;3 14;3 15;3 16;3 17;3 18;3 19]
+include/stop_group_replication.inc
+
+# Binary log will be reapplied one by one later through mysql. The
+# table is recreated with an extra auto increment field. The new
+# field 'id' will be filled by server automatically when reapplying
+# binary log. So it exactly records the binlogging order of the
+# transactions.
+#
+DROP TABLE t1;
+CREATE TABLE t1 (a INT, id INT AUTO_INCREMENT KEY) ENGINE = InnoDB;
+
+# Clear GTID_EXECUTED to avoid that transactions reapplied
+# from binary log are skipped.
+#
+RESET MASTER;
+
+# Replay binary log.
+#
+
+# The transactions should be binlogged in the same order as
+# they are binlogged on server 1.
+# Because the transactions:
+#   * insert numbers starting from 1;
+#   * id starts from 1;
+#   * both are increased by 1 for each transaction;
+# the table's data should look like:
+#   id    a
+#   1     1
+#   2     2
+#   ...  ...
+#   n     n
+# It means the values of field 'id' are always same to the
+# values of field 'a'.
+SELECT * FROM t1 WHERE id <> a;
+a	id
+include/assert.inc ['There are no mismatched rows']
+include/assert.inc ['There are no row which is null']
+include/assert.inc ['There are 16 rows']
+DROP TABLE t1;
+
+# include/gr_mts_indexes_commit_order_validation.inc
+# Parameters: server_number: 3
+[connection server3]
+
+# Assert parallel indexes, the 4 groups of transactions
+# must be parallel.
+include/include/assert_logical_timestamps.inc [0 0;0 0;0 0;3 4;4 5;4 6;4 7;4 8;4 9;4 10;4 11;4 12;4 13;4 14;4 15;4 16;4 17;4 18;4 19;4 20]
+include/stop_group_replication.inc
+
+# Binary log will be reapplied one by one later through mysql. The
+# table is recreated with an extra auto increment field. The new
+# field 'id' will be filled by server automatically when reapplying
+# binary log. So it exactly records the binlogging order of the
+# transactions.
+#
+DROP TABLE t1;
+CREATE TABLE t1 (a INT, id INT AUTO_INCREMENT KEY) ENGINE = InnoDB;
+
+# Clear GTID_EXECUTED to avoid that transactions reapplied
+# from binary log are skipped.
+#
+RESET MASTER;
+
+# Replay binary log.
+#
+
+# The transactions should be binlogged in the same order as
+# they are binlogged on server 1.
+# Because the transactions:
+#   * insert numbers starting from 1;
+#   * id starts from 1;
+#   * both are increased by 1 for each transaction;
+# the table's data should look like:
+#   id    a
+#   1     1
+#   2     2
+#   ...  ...
+#   n     n
+# It means the values of field 'id' are always same to the
+# values of field 'a'.
+SELECT * FROM t1 WHERE id <> a;
+a	id
+include/assert.inc ['There are no mismatched rows']
+include/assert.inc ['There are no row which is null']
+include/assert.inc ['There are 16 rows']
+DROP TABLE t1;
+
+############################################################
+# 4.  Clean up.
+#
+[connection server1]
+DROP TABLE t1;
+include/group_replication_end.inc

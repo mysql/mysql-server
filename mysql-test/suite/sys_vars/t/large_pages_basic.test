@@ -7,8 +7,8 @@ select @@session.large_pages;
 show global variables like 'large_pages';
 show session variables like 'large_pages';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='large_pages';
-select * from information_schema.session_variables where variable_name='large_pages';
+select * from performance_schema.global_variables where variable_name='large_pages';
+select * from performance_schema.session_variables where variable_name='large_pages';
 --enable_warnings
 
 #

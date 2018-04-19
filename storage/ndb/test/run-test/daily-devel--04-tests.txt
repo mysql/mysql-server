@@ -1,0 +1,84 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testFK
+args: -n Cascade10 T1
+max-time: 180
+
+cmd: testBackup
+args: -n BackupWhenOutOfLDMRecords T1
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug16007980 T1
+max-time: 1440
+
+cmd: testOIBasic
+args: -case hz
+max-time: 540
+
+cmd: testSystemRestart
+args: -n Bug45154 D1
+max-time: 900
+
+cmd: testNodeRestart
+args: -n GetTabInfoOverload T1
+max-time: 540
+
+cmd: testSystemRestart
+args: -n SR_DD_3_LCP D2
+max-time: 900
+
+cmd: testSystemRestart
+args: -n SR_DD_2 D2
+max-time: 1080
+
+cmd: test_event
+args: -l 10 -n Bug27169 T1
+max-time: 1260
+
+cmd: testIndex
+args: -n NFNR3_O T6 T13
+max-time: 1260
+
+cmd: testIndex
+args: -n NFNR1 T6 T13
+max-time: 1620
+
+cmd: testSystemRestart
+args: -n SR_DD_2b D1
+max-time: 1800
+
+cmd: testSRBank
+args: -n NR -l 300 -r 15 T1
+max-time: 1980
+
+cmd: atrt-testBackup
+args: -n BackupBank T6
+max-time: 1980
+
+cmd: testNodeRestart
+args: -n mixedmultiop T1 I2 I3 D2
+max-time: 3060
+

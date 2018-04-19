@@ -1,7 +1,9 @@
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 include/gtid_utils.inc
 RESET MASTER;
 CREATE VIEW v_processlist  as SELECT * FROM performance_schema.threads where type = 'FOREGROUND';
 call mtr.add_suppression("Found 10 prepared XA transactions");
+call mtr.add_suppression("Found 1 prepared XA transactions");
 CREATE TABLE t (a INT) ENGINE=innodb;
 SET @@sql_log_bin = OFF;
 CREATE TEMPORARY TABLE tmp1 (a int) ENGINE=innodb;
@@ -36,21 +38,18 @@ formatID	gtrid_length	bqual_length	data
 XA COMMIT 'trx1tmp';
 KILL connection CONN_ID;
 XA COMMIT 'trx3tmp';
-XA START   'trx1ro';
+XA START   'trx1ro1';
 SELECT * from t ORDER BY a;
-a
-XA END     'trx1ro';
-XA PREPARE 'trx1ro';
-XA START   'trx2ro';
+XA END     'trx1ro1';
+XA PREPARE 'trx1ro1';
+XA START   'trx2ro1';
 SELECT * from t ORDER BY a;
-a
-XA END     'trx2ro';
-XA PREPARE 'trx2ro';
-XA START   'trx3ro';
+XA END     'trx2ro1';
+XA PREPARE 'trx2ro1';
+XA START   'trx3ro1';
 SELECT * from t ORDER BY a;
-a
-XA END     'trx3ro';
-XA PREPARE 'trx3ro';
+XA END     'trx3ro1';
+XA PREPARE 'trx3ro1';
 *** 4 prepared transactions must be in the list ***
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
@@ -58,18 +57,21 @@ formatID	gtrid_length	bqual_length	data
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
-XA ROLLBACK 'trx1ro';
+XA COMMIT 'trx1ro1';
 KILL connection CONN_ID;
-XA ROLLBACK 'trx3ro';
-XA START   'trx1empty';
-XA END     'trx1empty';
-XA PREPARE 'trx1empty';
-XA START   'trx2empty';
-XA END     'trx2empty';
-XA PREPARE 'trx2empty';
-XA START   'trx3empty';
-XA END     'trx3empty';
-XA PREPARE 'trx3empty';
+XA COMMIT 'trx3ro1';
+XA START   'trx1ro2';
+SELECT * from t ORDER BY a;
+XA END     'trx1ro2';
+XA PREPARE 'trx1ro2';
+XA START   'trx2ro2';
+SELECT * from t ORDER BY a;
+XA END     'trx2ro2';
+XA PREPARE 'trx2ro2';
+XA START   'trx3ro2';
+SELECT * from t ORDER BY a;
+XA END     'trx3ro2';
+XA PREPARE 'trx3ro2';
 *** 5 prepared transactions must be in the list ***
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
@@ -78,9 +80,52 @@ formatID	gtrid_length	bqual_length	data
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
-XA COMMIT 'trx1empty';
+XA ROLLBACK 'trx1ro2';
 KILL connection CONN_ID;
-XA COMMIT 'trx3empty';
+XA ROLLBACK 'trx3ro2';
+XA START   'trx1empty1';
+XA END     'trx1empty1';
+XA PREPARE 'trx1empty1';
+XA START   'trx2empty1';
+XA END     'trx2empty1';
+XA PREPARE 'trx2empty1';
+XA START   'trx3empty1';
+XA END     'trx3empty1';
+XA PREPARE 'trx3empty1';
+*** 6 prepared transactions must be in the list ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+XA COMMIT 'trx1empty1';
+KILL connection CONN_ID;
+XA COMMIT 'trx3empty1';
+XA START   'trx1empty2';
+XA END     'trx1empty2';
+XA PREPARE 'trx1empty2';
+XA START   'trx2empty2';
+XA END     'trx2empty2';
+XA PREPARE 'trx2empty2';
+XA START   'trx3empty2';
+XA END     'trx3empty2';
+XA PREPARE 'trx3empty2';
+*** 7 prepared transactions must be in the list ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+XA ROLLBACK 'trx1empty2';
+KILL connection CONN_ID;
+XA ROLLBACK 'trx3empty2';
 XA START   'trx1unprepared';
 INSERT INTO t set a=0;
 XA END     'trx1unprepared';
@@ -92,116 +137,116 @@ XA START 'trx1unprepared';
 ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
 XA COMMIT 'trx1unprepared';
 ERROR XAE04: XAER_NOTA: Unknown XID
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_0';
 INSERT INTO t SET a=0;
 XA END     'trx_0';
 XA PREPARE 'trx_0';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_1';
 INSERT INTO t SET a=1;
 XA END     'trx_1';
 XA PREPARE 'trx_1';
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_2';
 INSERT INTO t SET a=2;
 XA END     'trx_2';
 XA PREPARE 'trx_2';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_3';
 INSERT INTO t SET a=3;
 XA END     'trx_3';
 XA PREPARE 'trx_3';
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_4';
 INSERT INTO t SET a=4;
 XA END     'trx_4';
 XA PREPARE 'trx_4';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_5';
 INSERT INTO t SET a=5;
 XA END     'trx_5';
 XA PREPARE 'trx_5';
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_6';
 INSERT INTO t SET a=6;
 XA END     'trx_6';
 XA PREPARE 'trx_6';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_7';
 INSERT INTO t SET a=7;
 XA END     'trx_7';
 XA PREPARE 'trx_7';
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_8';
 INSERT INTO t SET a=8;
 XA END     'trx_8';
 XA PREPARE 'trx_8';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_9';
 INSERT INTO t SET a=9;
 XA END     'trx_9';
 XA PREPARE 'trx_9';
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_10';
 INSERT INTO t SET a=10;
 XA END     'trx_10';
 XA PREPARE 'trx_10';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_11';
 INSERT INTO t SET a=11;
 XA END     'trx_11';
 XA PREPARE 'trx_11';
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_12';
 INSERT INTO t SET a=12;
 XA END     'trx_12';
 XA PREPARE 'trx_12';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_13';
 INSERT INTO t SET a=13;
 XA END     'trx_13';
 XA PREPARE 'trx_13';
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_14';
 INSERT INTO t SET a=14;
 XA END     'trx_14';
 XA PREPARE 'trx_14';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_15';
 INSERT INTO t SET a=15;
 XA END     'trx_15';
 XA PREPARE 'trx_15';
 KILL CONNECTION CONN_ID;
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_16';
 INSERT INTO t SET a=16;
 XA END     'trx_16';
 XA PREPARE 'trx_16';
 KILL CONNECTION CONN_ID;
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_17';
 INSERT INTO t SET a=17;
 XA END     'trx_17';
 XA PREPARE 'trx_17';
 KILL CONNECTION CONN_ID;
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_18';
 INSERT INTO t SET a=18;
 XA END     'trx_18';
 XA PREPARE 'trx_18';
 KILL CONNECTION CONN_ID;
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_19';
 INSERT INTO t SET a=19;
 XA END     'trx_19';
@@ -373,81 +418,18 @@ formatID	gtrid_length	bqual_length	data
 XA COMMIT 'trx1tmp';
 KILL connection CONN_ID;
 XA COMMIT 'trx3tmp';
-XA START   'trx1ro';
+XA START   'trx1ro1';
 SELECT * from t ORDER BY a;
-a
-0
-1
-2
-3
-4
-5
-5
-6
-6
-7
-7
-8
-8
-9
-9
-10
-11
-12
-13
-14
-XA END     'trx1ro';
-XA PREPARE 'trx1ro';
-XA START   'trx2ro';
+XA END     'trx1ro1';
+XA PREPARE 'trx1ro1';
+XA START   'trx2ro1';
 SELECT * from t ORDER BY a;
-a
-0
-1
-2
-3
-4
-5
-5
-6
-6
-7
-7
-8
-8
-9
-9
-10
-11
-12
-13
-14
-XA END     'trx2ro';
-XA PREPARE 'trx2ro';
-XA START   'trx3ro';
+XA END     'trx2ro1';
+XA PREPARE 'trx2ro1';
+XA START   'trx3ro1';
 SELECT * from t ORDER BY a;
-a
-0
-1
-2
-3
-4
-5
-5
-6
-6
-7
-7
-8
-8
-9
-9
-10
-11
-12
-13
-14
-XA END     'trx3ro';
-XA PREPARE 'trx3ro';
+XA END     'trx3ro1';
+XA PREPARE 'trx3ro1';
 *** 4 prepared transactions must be in the list ***
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
@@ -455,18 +437,21 @@ formatID	gtrid_length	bqual_length	data
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
-XA ROLLBACK 'trx1ro';
+XA COMMIT 'trx1ro1';
 KILL connection CONN_ID;
-XA ROLLBACK 'trx3ro';
-XA START   'trx1empty';
-XA END     'trx1empty';
-XA PREPARE 'trx1empty';
-XA START   'trx2empty';
-XA END     'trx2empty';
-XA PREPARE 'trx2empty';
-XA START   'trx3empty';
-XA END     'trx3empty';
-XA PREPARE 'trx3empty';
+XA COMMIT 'trx3ro1';
+XA START   'trx1ro2';
+SELECT * from t ORDER BY a;
+XA END     'trx1ro2';
+XA PREPARE 'trx1ro2';
+XA START   'trx2ro2';
+SELECT * from t ORDER BY a;
+XA END     'trx2ro2';
+XA PREPARE 'trx2ro2';
+XA START   'trx3ro2';
+SELECT * from t ORDER BY a;
+XA END     'trx3ro2';
+XA PREPARE 'trx3ro2';
 *** 5 prepared transactions must be in the list ***
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
@@ -475,9 +460,52 @@ formatID	gtrid_length	bqual_length	data
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
-XA COMMIT 'trx1empty';
+XA ROLLBACK 'trx1ro2';
 KILL connection CONN_ID;
-XA COMMIT 'trx3empty';
+XA ROLLBACK 'trx3ro2';
+XA START   'trx1empty1';
+XA END     'trx1empty1';
+XA PREPARE 'trx1empty1';
+XA START   'trx2empty1';
+XA END     'trx2empty1';
+XA PREPARE 'trx2empty1';
+XA START   'trx3empty1';
+XA END     'trx3empty1';
+XA PREPARE 'trx3empty1';
+*** 6 prepared transactions must be in the list ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+XA COMMIT 'trx1empty1';
+KILL connection CONN_ID;
+XA COMMIT 'trx3empty1';
+XA START   'trx1empty2';
+XA END     'trx1empty2';
+XA PREPARE 'trx1empty2';
+XA START   'trx2empty2';
+XA END     'trx2empty2';
+XA PREPARE 'trx2empty2';
+XA START   'trx3empty2';
+XA END     'trx3empty2';
+XA PREPARE 'trx3empty2';
+*** 7 prepared transactions must be in the list ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+XA ROLLBACK 'trx1empty2';
+KILL connection CONN_ID;
+XA ROLLBACK 'trx3empty2';
 XA START   'trx1unprepared';
 INSERT INTO t set a=0;
 XA END     'trx1unprepared';
@@ -489,116 +517,116 @@ XA START 'trx1unprepared';
 ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
 XA COMMIT 'trx1unprepared';
 ERROR XAE04: XAER_NOTA: Unknown XID
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_0';
 INSERT INTO t SET a=0;
 XA END     'trx_0';
 XA PREPARE 'trx_0';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_1';
 INSERT INTO t SET a=1;
 XA END     'trx_1';
 XA PREPARE 'trx_1';
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_2';
 INSERT INTO t SET a=2;
 XA END     'trx_2';
 XA PREPARE 'trx_2';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_3';
 INSERT INTO t SET a=3;
 XA END     'trx_3';
 XA PREPARE 'trx_3';
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_4';
 INSERT INTO t SET a=4;
 XA END     'trx_4';
 XA PREPARE 'trx_4';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_5';
 INSERT INTO t SET a=5;
 XA END     'trx_5';
 XA PREPARE 'trx_5';
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_6';
 INSERT INTO t SET a=6;
 XA END     'trx_6';
 XA PREPARE 'trx_6';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_7';
 INSERT INTO t SET a=7;
 XA END     'trx_7';
 XA PREPARE 'trx_7';
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_8';
 INSERT INTO t SET a=8;
 XA END     'trx_8';
 XA PREPARE 'trx_8';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_9';
 INSERT INTO t SET a=9;
 XA END     'trx_9';
 XA PREPARE 'trx_9';
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_10';
 INSERT INTO t SET a=10;
 XA END     'trx_10';
 XA PREPARE 'trx_10';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_11';
 INSERT INTO t SET a=11;
 XA END     'trx_11';
 XA PREPARE 'trx_11';
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_12';
 INSERT INTO t SET a=12;
 XA END     'trx_12';
 XA PREPARE 'trx_12';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_13';
 INSERT INTO t SET a=13;
 XA END     'trx_13';
 XA PREPARE 'trx_13';
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_14';
 INSERT INTO t SET a=14;
 XA END     'trx_14';
 XA PREPARE 'trx_14';
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_15';
 INSERT INTO t SET a=15;
 XA END     'trx_15';
 XA PREPARE 'trx_15';
 KILL CONNECTION CONN_ID;
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_16';
 INSERT INTO t SET a=16;
 XA END     'trx_16';
 XA PREPARE 'trx_16';
 KILL CONNECTION CONN_ID;
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_17';
 INSERT INTO t SET a=17;
 XA END     'trx_17';
 XA PREPARE 'trx_17';
 KILL CONNECTION CONN_ID;
-SET @@binlog_format = STATEMENT;
+SET @@binlog_format = 'STATEMENT';
 XA START   'trx_18';
 INSERT INTO t SET a=18;
 XA END     'trx_18';
 XA PREPARE 'trx_18';
 KILL CONNECTION CONN_ID;
-SET @@binlog_format = STATEMENT;
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'STATEMENT';
+SET @@binlog_format = 'ROW';
 XA START   'trx_19';
 INSERT INTO t SET a=19;
 XA END     'trx_19';
@@ -781,117 +809,136 @@ DROP TABLE t;
 DROP VIEW v_processlist;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_processlist` AS SELECT * FROM performance_schema.threads where type = 'FOREGROUND'
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_latin1'Found 10 prepared XA transactions' COLLATE 'latin1_swedish_ci'))
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t (a INT) ENGINE=innodb
-master-bin.000001	#	Query	#	#	XA START X'7472785f30',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=0
-master-bin.000001	#	Query	#	#	XA END X'7472785f30',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f30',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f31',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f31',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f31',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f32',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=2
-master-bin.000001	#	Query	#	#	XA END X'7472785f32',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f32',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f33',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f33',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f33',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f34',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=4
-master-bin.000001	#	Query	#	#	XA END X'7472785f34',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f34',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f35',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f35',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f35',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f36',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=6
-master-bin.000001	#	Query	#	#	XA END X'7472785f36',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f36',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f37',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f37',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f37',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f38',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=8
-master-bin.000001	#	Query	#	#	XA END X'7472785f38',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f38',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f39',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f39',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f39',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3130',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=10
-master-bin.000001	#	Query	#	#	XA END X'7472785f3130',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3130',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3131',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f3131',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3131',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3132',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=12
-master-bin.000001	#	Query	#	#	XA END X'7472785f3132',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3132',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3133',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f3133',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3133',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3134',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=14
-master-bin.000001	#	Query	#	#	XA END X'7472785f3134',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3134',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3135',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f3135',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3135',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3136',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=16
-master-bin.000001	#	Query	#	#	XA END X'7472785f3136',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3136',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3137',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f3137',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3137',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3138',X'',1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=18
-master-bin.000001	#	Query	#	#	XA END X'7472785f3138',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3138',X'',1
-master-bin.000001	#	Query	#	#	XA START X'7472785f3139',X'',1
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	XA END X'7472785f3139',X'',1
-master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3139',X'',1
-master-bin.000001	#	Query	#	#	XA ROLLBACK X'7472785f30',X'',1
-master-bin.000001	#	Query	#	#	XA ROLLBACK X'7472785f31',X'',1
-master-bin.000001	#	Query	#	#	XA ROLLBACK X'7472785f32',X'',1
-master-bin.000001	#	Query	#	#	XA ROLLBACK X'7472785f33',X'',1
-master-bin.000001	#	Query	#	#	XA ROLLBACK X'7472785f34',X'',1
-master-bin.000001	#	Query	#	#	XA COMMIT X'7472785f35',X'',1
-master-bin.000001	#	Query	#	#	XA COMMIT X'7472785f36',X'',1
-master-bin.000001	#	Query	#	#	XA COMMIT X'7472785f37',X'',1
-master-bin.000001	#	Query	#	#	XA COMMIT X'7472785f38',X'',1
-master-bin.000001	#	Query	#	#	XA COMMIT X'7472785f39',X'',1
-master-bin.000001	#	Stop	#	#	
-include/assert.inc [committed gno 130]
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_processlist` AS SELECT * FROM performance_schema.threads where type = 'FOREGROUND'
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_utf8mb4'Found 10 prepared XA transactions' COLLATE 'utf8mb4_0900_ai_ci'))
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_utf8mb4'Found 1 prepared XA transactions' COLLATE 'utf8mb4_0900_ai_ci'))
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t (a INT) ENGINE=innodb
+binlog.000001	#	Query	#	#	XA START X'7472785f30',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=0
+binlog.000001	#	Query	#	#	XA END X'7472785f30',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f30',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f31',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f31',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f31',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f32',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=2
+binlog.000001	#	Query	#	#	XA END X'7472785f32',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f32',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f33',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f33',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f33',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f34',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=4
+binlog.000001	#	Query	#	#	XA END X'7472785f34',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f34',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f35',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f35',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f35',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f36',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=6
+binlog.000001	#	Query	#	#	XA END X'7472785f36',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f36',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f37',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f37',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f37',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f38',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=8
+binlog.000001	#	Query	#	#	XA END X'7472785f38',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f38',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f39',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f39',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f39',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3130',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=10
+binlog.000001	#	Query	#	#	XA END X'7472785f3130',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3130',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3131',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f3131',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3131',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3132',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=12
+binlog.000001	#	Query	#	#	XA END X'7472785f3132',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3132',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3133',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f3133',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3133',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3134',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=14
+binlog.000001	#	Query	#	#	XA END X'7472785f3134',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3134',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3135',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f3135',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3135',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3136',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=16
+binlog.000001	#	Query	#	#	XA END X'7472785f3136',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3136',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3137',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f3137',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3137',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3138',X'',1
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=18
+binlog.000001	#	Query	#	#	XA END X'7472785f3138',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3138',X'',1
+binlog.000001	#	Query	#	#	XA START X'7472785f3139',X'',1
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	XA END X'7472785f3139',X'',1
+binlog.000001	#	XA_prepare	#	#	XA PREPARE X'7472785f3139',X'',1
+binlog.000001	#	Query	#	#	XA ROLLBACK X'7472785f30',X'',1
+binlog.000001	#	Query	#	#	XA ROLLBACK X'7472785f31',X'',1
+binlog.000001	#	Query	#	#	XA ROLLBACK X'7472785f32',X'',1
+binlog.000001	#	Query	#	#	XA ROLLBACK X'7472785f33',X'',1
+binlog.000001	#	Query	#	#	XA ROLLBACK X'7472785f34',X'',1
+binlog.000001	#	Query	#	#	XA COMMIT X'7472785f35',X'',1
+binlog.000001	#	Query	#	#	XA COMMIT X'7472785f36',X'',1
+binlog.000001	#	Query	#	#	XA COMMIT X'7472785f37',X'',1
+binlog.000001	#	Query	#	#	XA COMMIT X'7472785f38',X'',1
+binlog.000001	#	Query	#	#	XA COMMIT X'7472785f39',X'',1
+binlog.000001	#	Stop	#	#	
+include/assert.inc [committed gno 131]
 RESET MASTER;
-include/assert.inc [committed gno 130]
+include/assert.inc [committed gno 131]
 All transactions must be completed, to empty-list the following:
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
+CREATE TABLE t(a INT);
+XA START 'xa1';
+INSERT INTO t SET a = 1;
+XA END 'xa1';
+SET @@SESSION.pseudo_slave_mode=1;
+ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
+XA PREPARE 'xa1';
 # restart
+XA ROLLBACK 'xa1';
+XA START 'xa1';
+INSERT INTO t SET a = 1;
+XA END 'xa1';
+XA PREPARE 'xa1';
+SET @@SESSION.pseudo_slave_mode=1;
+ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
+XA COMMIT 'xa1';
+DROP TABLE t;
 include/gtid_utils_end.inc

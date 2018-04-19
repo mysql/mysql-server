@@ -3,8 +3,45 @@
 #define fts0bIN_HEADER 1
 
 #line 6 "../include/fts0blex.h"
+#line 2 "fts0blex.l"
+/*****************************************************************************
 
-#line 8 "../include/fts0blex.h"
+Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+*****************************************************************************/
+
+/**
+ * @file fts/fts0blex.l
+ * FTS parser lexical analyzer
+ *
+ * Created 2007/5/9 Sunny Bains
+ */
+
+#include "univ.i"
+
+
+
+#line 37 "../include/fts0blex.h"
 
 #define  YY_INT_ALIGNED short int
 
@@ -13,7 +50,7 @@
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
 #define YY_FLEX_MINOR_VERSION 5
-#define YY_FLEX_SUBMINOR_VERSION 35
+#define YY_FLEX_SUBMINOR_VERSION 39
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
 #endif
@@ -170,7 +207,7 @@ struct yy_buffer_state
 	/* Number of characters read into yy_ch_buf, not including EOB
 	 * characters.
 	 */
-	int yy_n_chars;
+	yy_size_t yy_n_chars;
 
 	/* Whether we "own" the buffer - i.e., we know we created it,
 	 * and can realloc() it to grow it, and should free() it to
@@ -214,7 +251,7 @@ void fts0bpop_buffer_state (yyscan_t yyscanner );
 
 YY_BUFFER_STATE fts0b_scan_buffer (char *base,yy_size_t size ,yyscan_t yyscanner );
 YY_BUFFER_STATE fts0b_scan_string (yyconst char *yy_str ,yyscan_t yyscanner );
-YY_BUFFER_STATE fts0b_scan_bytes (yyconst char *bytes,int len ,yyscan_t yyscanner );
+YY_BUFFER_STATE fts0b_scan_bytes (yyconst char *bytes,yy_size_t len ,yyscan_t yyscanner );
 
 void *fts0balloc (yy_size_t ,yyscan_t yyscanner );
 void *fts0brealloc (void *,yy_size_t ,yyscan_t yyscanner );
@@ -222,7 +259,7 @@ void fts0bfree (void * ,yyscan_t yyscanner );
 
 /* Begin user sect3 */
 
-#define fts0bwrap(n) 1
+#define fts0bwrap(yyscanner) 1
 #define YY_SKIP_YYWRAP
 
 #define yytext_ptr yytext_r
@@ -269,13 +306,17 @@ FILE *fts0bget_out (yyscan_t yyscanner );
 
 void fts0bset_out  (FILE * out_str ,yyscan_t yyscanner );
 
-int fts0bget_leng (yyscan_t yyscanner );
+yy_size_t fts0bget_leng (yyscan_t yyscanner );
 
 char *fts0bget_text (yyscan_t yyscanner );
 
 int fts0bget_lineno (yyscan_t yyscanner );
 
 void fts0bset_lineno (int line_number ,yyscan_t yyscanner );
+
+int fts0bget_column  (yyscan_t yyscanner );
+
+void fts0bset_column (int column_no ,yyscan_t yyscanner );
 
 /* Macros after this point can all be overridden by user definitions in
  * section 1.
@@ -341,9 +382,9 @@ extern int fts0blex (yyscan_t yyscanner);
 #undef YY_DECL
 #endif
 
-#line 74 "fts0blex.l"
+#line 76 "fts0blex.l"
 
 
-#line 348 "../include/fts0blex.h"
+#line 381 "../include/fts0blex.h"
 #undef fts0bIN_HEADER
 #endif /* fts0bHEADER_H */

@@ -1,4 +1,3 @@
--- source include/have_innodb.inc
 --source include/no_valgrind_without_big.inc
 
 let $engine_type=InnoDb;
@@ -420,4 +419,3 @@ let $FCT=y;
 -- source include/parser_bug21114.inc
 let $FCT=yearweek;
 -- source include/parser_bug21114.inc
-

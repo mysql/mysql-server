@@ -1,0 +1,39 @@
+# ==== Purpose ====
+#
+# Tests for PERFORMANCE_SCHEMA
+#
+# This test verifies the correct behaviour in case of invalid
+# usage of DMLs on the table replication_applier_filters.
+#
+# ==== References ====
+#
+# WL#7361 MSR: per-channel replication filters
+#
+
+--disable_result_log
+SELECT * FROM performance_schema.replication_applier_filters
+  LIMIT 1;
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.replication_applier_filters
+  SET COUNTER=2;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_applier_filters
+  SET COUNTER=12 WHERE COUNTER=0;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_filters
+  WHERE COUNTER=0;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_filters;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_applier_filters READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_applier_filters WRITE;
+UNLOCK TABLES;

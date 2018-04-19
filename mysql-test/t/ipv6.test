@@ -3,8 +3,7 @@
 # Options: --skip-name-resolve (see corresponding opt file).
 #
 --source include/check_ipv6.inc
-# Can't be tested with embedded server
---source include/not_embedded.inc
+--source include/add_extra_root_users.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -38,5 +37,6 @@ let $IPv6= 0:0:0:0:0:0:0:1;
 --source include/ipv6.inc
 --source include/ipv6_func.inc
 
+--source include/remove_extra_root_users.inc
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

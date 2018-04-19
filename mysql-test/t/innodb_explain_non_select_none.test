@@ -1,9 +1,13 @@
 -- source include/big_test.inc
+# There are expected differences in Handler_update output when run with and
+# without log-bin. Thus, test is updated to run with binary logging ON now.
+# Also, skipping it for binlog_format=STATEMENT due to Unsafe statements.
+--source include/have_binlog_format_mixed_or_row.inc
+
 # 
 # Run explain_non_select.inc on InnoDB without any of the socalled 6.0 features.
 #
 
---source include/have_innodb.inc
 
 --disable_query_log
 if (`select locate('semijoin', @@optimizer_switch) > 0`) 
@@ -28,7 +32,6 @@ set @save_storage_engine= @@session.default_storage_engine;
 set session default_storage_engine = InnoDB;
 --let $innodb = 1
 --let $json = 0
---let $validation = 0
 --source include/explain_non_select.inc
 set default_storage_engine= @save_storage_engine;
 

@@ -3,7 +3,7 @@ call mtr.ADD_suppression(".*Starting to delete and rewrite log files.*");
 call mtr.ADD_suppression(".*New log files created.*");
 SELECT @@global.innodb_undo_tablespaces;
 @@global.innodb_undo_tablespaces
-0
+2
 CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
 begin
 declare n int default 20;
@@ -21,8 +21,8 @@ c9 decimal(6,3),
 PRIMARY KEY (c1),
 INDEX (c3,c4(50),c5(50)), 
 INDEX (c2))
-ENGINE=InnoDB ROW_FORMAT=redundant;
-set @s = concat("CREATE TABLE t1",id," ( c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=redundant;");
+charset latin1 ENGINE=InnoDB ROW_FORMAT=redundant;
+set @s = concat("CREATE TABLE t1",id," ( c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=redundant;");
 PREPARE createTable FROM @s;
 EXECUTE createTable;
 DEALLOCATE PREPARE createTable;
@@ -38,25 +38,12 @@ c9 decimal(6,3),
 PRIMARY KEY (c1),
 INDEX (c3,c4(50),c5(50)),
 INDEX (c2))
-ENGINE=InnoDB ROW_FORMAT=compact;
-set @s = concat("CREATE TABLE t2",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=compact;");
+charset latin1 ENGINE=InnoDB ROW_FORMAT=compact;
+set @s = concat("CREATE TABLE t2",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=compact;");
 PREPARE createTable FROM @s;
 EXECUTE createTable;
 DEALLOCATE PREPARE createTable;
-CREATE TEMPORARY TABLE t3_temp(c1 int NOT NULL,
-c2 int NOT NULL,
-c3 char(255) NOT NULL,
-c4 text(600) NOT NULL,
-c5 blob(600) NOT NULL,
-c6 varchar(600) NOT NULL,
-c7 varchar(600) NOT NULL,
-c8 datetime,
-c9 decimal(6,3),
-PRIMARY KEY (c1),
-INDEX (c3,c4(50),c5(50)),
-INDEX (c2))
-ENGINE=InnoDB ROW_FORMAT=compressed key_block_size=4;
-set @s = concat("CREATE TABLE t3",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=compressed key_block_size=4;");
+set @s = concat("CREATE TABLE t3",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=compressed key_block_size=4;");
 PREPARE createTable FROM @s;
 EXECUTE createTable;
 DEALLOCATE PREPARE createTable;
@@ -72,8 +59,8 @@ c9 decimal(6,3),
 PRIMARY KEY (c1),
 INDEX (c3,c4(50),c5(50)),
 INDEX (c2))
-ENGINE=InnoDB ROW_FORMAT=dynamic;
-set @s = concat("CREATE TABLE t4",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=dynamic;");
+charset latin1 ENGINE=InnoDB ROW_FORMAT=dynamic;
+set @s = concat("CREATE TABLE t4",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=dynamic;");
 PREPARE createTable FROM @s;
 EXECUTE createTable;
 DEALLOCATE PREPARE createTable;
@@ -100,10 +87,6 @@ set @s = concat("INSERT INTO t3",id," VALUES(",n,",",n,",REPEAT(concat(' tc3_',"
 PREPARE insertIntoTable FROM @s;
 EXECUTE insertIntoTable;
 DEALLOCATE PREPARE insertIntoTable;
-INSERT INTO t3_temp VALUES(n,n,REPEAT(concat(' tc3_',n),30),
-REPEAT(concat(' tc4_',n),70),REPEAT(concat(' tc_',n),70),
-REPEAT(concat(' tc6_',n),70),REPEAT(concat(' tc7_',n),70),
-NOW(),(100.55+n));
 savepoint b;
 set @s = concat("INSERT INTO t4",id," VALUES(",n,",",n,",REPEAT(concat(' tc3_',",n,"),30),     REPEAT(concat(' tc4_',",n,"),70),REPEAT(concat(' tc_',",n,"),70),     REPEAT(concat(' tc6_',",n,"),70),REPEAT(concat(' tc7_',",n,"),70),     NOW(),(100.55+",n,"));");     
 PREPARE insertIntoTable FROM @s;
@@ -130,13 +113,11 @@ if (n > 5) then
 START TRANSACTION;
 DELETE FROM t1_temp WHERE c1 > 10 ;
 DELETE FROM t2_temp WHERE c1 > 10 ;
-DELETE FROM t3_temp WHERE c1 > 10 ;
 DELETE FROM t4_temp WHERE c1 > 10 ;
 rollback;
 START TRANSACTION;
 update t1_temp set c1 = c1 + 1000 WHERE c1 > 10;
 update t2_temp set c1 = c1 + 1000 WHERE c1 > 10;
-update t3_temp set c1 = c1 + 1000 WHERE c1 > 10;
 update t4_temp set c1 = c1 + 1000 WHERE c1 > 10;
 rollback;
 end if;
@@ -149,8 +130,6 @@ ALTER TABLE t1_temp DROP PRIMARY KEY;
 ALTER TABLE t1_temp ADD PRIMARY KEY (c1,c3(10),c4(10));
 ALTER TABLE t2_temp DROP PRIMARY KEY;
 ALTER TABLE t2_temp ADD PRIMARY KEY (c1,c3(10),c4(10));
-ALTER TABLE t3_temp DROP PRIMARY KEY;
-ALTER TABLE t3_temp ADD PRIMARY KEY (c1,c3(10),c4(10));
 ALTER TABLE t4_temp DROP PRIMARY KEY;
 ALTER TABLE t4_temp ADD PRIMARY KEY (c1,c3(10),c4(10));
 FLUSH tables;
@@ -175,10 +154,6 @@ set @s = concat("INSERT INTO t3",id," VALUES(",n,"+100,",n,"+100,REPEAT(concat('
 PREPARE insertIntoTable FROM @s;
 EXECUTE insertIntoTable;
 DEALLOCATE PREPARE insertIntoTable;
-INSERT INTO t3_temp VALUES(n+100,n+100,REPEAT(concat(' tc3_',n+100),30),
-REPEAT(concat(' tc4_',n+100),70),REPEAT(concat(' tc_',n+100),70),
-REPEAT(concat(' tc6_',n+100),60),REPEAT(concat(' tc7_',n+100),60),
-NOW(),(100.55+n+100));
 set @s = concat("INSERT INTO t4",id," VALUES(",n,"+100,",n,"+100,REPEAT(concat(' tc3_',",n,"+100),30),        REPEAT(concat(' tc4_',",n,"+100),70),REPEAT(concat(' tc_',",n,"+100),70),        REPEAT(concat(' tc6_',",n,"+100),60),REPEAT(concat(' tc7_',",n,"+100),60),        NOW(),(100.55+",n,"+100));");
 PREPARE insertIntoTable FROM @s;
 EXECUTE insertIntoTable;
@@ -189,11 +164,9 @@ REPEAT(concat(' tc6_',n+100),60),REPEAT(concat(' tc7_',n+100),60),
 NOW(),(100.55+n+100));
 DELETE FROM t1_temp WHERE c1 between 100 and 110;
 DELETE FROM t2_temp WHERE c1 between 100 and 110;
-DELETE FROM t3_temp WHERE c1 between 100 and 110;
 DELETE FROM t4_temp WHERE c1 between 100 and 110;
 update t1_temp set c1 = c1+1 WHERE c1>110; 
 update t2_temp set c1 = c1+1 WHERE c1>110; 
-update t3_temp set c1 = c1+1 WHERE c1>110; 
 update t4_temp set c1 = c1+1 WHERE c1>110; 
 savepoint a;
 set @s = concat("INSERT INTO t1",id," VALUES(300+",n,"+100,",n,"+100,REPEAT(concat(' tc3_',",n,"+100),30),        REPEAT(concat(' tc4_',",n,"+100),70),REPEAT(concat(' tc_',",n,"+100),70),        REPEAT(concat(' tc6_',",n,"+100),60),REPEAT(concat(' tc7_',",n,"+100),60),        NOW(),(100.55+",n,"+100));");
@@ -216,10 +189,6 @@ set @s = concat("INSERT INTO t3",id," VALUES(300+",n,"+100,",n,"+100,REPEAT(conc
 PREPARE insertIntoTable FROM @s;
 EXECUTE insertIntoTable;
 DEALLOCATE PREPARE insertIntoTable;
-INSERT INTO t3_temp VALUES(300+n+100,n+100,REPEAT(concat(' tc3_',n+100),30),
-REPEAT(concat(' tc4_',n+100),70),REPEAT(concat(' tc_',n+100),70),
-REPEAT(concat(' tc6_',n+100),60),REPEAT(concat(' tc7_',n+100),60),
-NOW(),(100.55+n+100));
 set @s = concat("INSERT INTO t4",id," VALUES(300+",n,"+100,",n,"+100,REPEAT(concat(' tc3_',",n,"+100),30),        REPEAT(concat(' tc4_',",n,"+100),70),REPEAT(concat(' tc_',",n,"+100),70),        REPEAT(concat(' tc6_',",n,"+100),60),REPEAT(concat(' tc7_',",n,"+100),60),        NOW(),(100.55+",n,"+100));");
 PREPARE insertIntoTable FROM @s;
 EXECUTE insertIntoTable;
@@ -249,10 +218,6 @@ set @s = concat("INSERT INTO t3",id," VALUES(400+",n,"+100,",n,"+100,REPEAT(conc
 PREPARE insertIntoTable FROM @s;
 EXECUTE insertIntoTable;
 DEALLOCATE PREPARE insertIntoTable;
-INSERT INTO t3_temp VALUES(400+n+100,n+100,REPEAT(concat(' tc3_',n+100),30),
-REPEAT(concat(' tc4_',n+100),70),REPEAT(concat(' tc_',n+100),70),
-REPEAT(concat(' tc6_',n+100),60),REPEAT(concat(' tc7_',n+100),60),
-NOW(),(100.55+n+100));
 set @s = concat("INSERT INTO t4",id," VALUES(400+",n,"+100,",n,"+100,REPEAT(concat(' tc3_',",n,"+100),30),        REPEAT(concat(' tc4_',",n,"+100),70),REPEAT(concat(' tc_',",n,"+100),70),        REPEAT(concat(' tc6_',",n,"+100),60),REPEAT(concat(' tc7_',",n,"+100),60),        NOW(),(100.55+",n,"+100));");
 PREPARE insertIntoTable FROM @s;
 EXECUTE insertIntoTable;
@@ -437,9 +402,6 @@ count(*)
 SELECT count(*) FROM t2_temp;
 count(*)
 26
-SELECT count(*) FROM t3_temp;
-count(*)
-24
 SELECT count(*) FROM t4_temp;
 count(*)
 22
@@ -481,32 +443,6 @@ c1
 10
 11
 12
-13
-14
-15
-16
-17
-18
-19
-20
-122
-124
-126
-128
-130
-132
-134
-136
-138
-140
-SELECT c1 FROM t3_temp;
-c1
-5
-6
-7
-8
-9
-10
 13
 14
 15
@@ -714,9 +650,6 @@ count(*)
 SELECT count(*) FROM t2_temp;
 count(*)
 26
-SELECT count(*) FROM t3_temp;
-count(*)
-24
 SELECT count(*) FROM t4_temp;
 count(*)
 22
@@ -758,32 +691,6 @@ c1
 10
 11
 12
-13
-14
-15
-16
-17
-18
-19
-20
-122
-124
-126
-128
-130
-132
-134
-136
-138
-140
-SELECT c1 FROM t3_temp;
-c1
-5
-6
-7
-8
-9
-10
 13
 14
 15
@@ -832,8 +739,6 @@ ALTER TABLE t1_temp DROP PRIMARY KEY;
 ALTER TABLE t1_temp ADD PRIMARY KEY (c1);
 ALTER TABLE t2_temp DROP PRIMARY KEY;
 ALTER TABLE t2_temp ADD PRIMARY KEY (c1);
-ALTER TABLE t3_temp DROP PRIMARY KEY;
-ALTER TABLE t3_temp ADD PRIMARY KEY (c1);
 ALTER TABLE t4_temp DROP PRIMARY KEY;
 ALTER TABLE t4_temp ADD PRIMARY KEY (c1);
 INSERT INTO t1_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
@@ -844,11 +749,6 @@ Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 INSERT INTO t2_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 insert ignore into t2_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
-Warnings:
-Warning	1062	Duplicate entry '20' for key 'PRIMARY'
-INSERT INTO t3_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
-ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
-insert ignore into t3_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 Warnings:
 Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 INSERT INTO t4_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
@@ -862,9 +762,6 @@ ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 INSERT INTO t2_temp VALUES (1,1,'a','a','a','a','a',NOW(),100.55),
 (20,1,'a','a','a','a','a',NOW(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
-INSERT INTO t3_temp VALUES (1,1,'a','a','a','a','a',NOW(),100.55),
-(20,1,'a','a','a','a','a',NOW(),100.55);
-ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 INSERT INTO t4_temp VALUES (1,1,'a','a','a','a','a',NOW(),100.55),
 (20,1,'a','a','a','a','a',NOW(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
@@ -875,23 +772,16 @@ c1	c2
 SELECT c1,c2 FROM t2_temp WHERE c1 in (20,1);
 c1	c2
 20	20
-SELECT c1,c2 FROM t3_temp WHERE c1 in (20,1);
-c1	c2
-20	20
 SELECT c1,c2 FROM t4_temp WHERE c1 in (20,1);
 c1	c2
 20	20
 REPLACE INTO t1_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 REPLACE INTO t2_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
-REPLACE INTO t3_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 REPLACE INTO t4_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 SELECT c1,c2,c3,c4,c5,c6,c7,c9 FROM t1_temp WHERE c1 = 20;
 c1	c2	c3	c4	c5	c6	c7	c9
 20	1	a	a	a	a	a	100.550
 SELECT c1,c2,c3,c4,c5,c6,c7,c9 FROM t2_temp WHERE c1 = 20;
-c1	c2	c3	c4	c5	c6	c7	c9
-20	1	a	a	a	a	a	100.550
-SELECT c1,c2,c3,c4,c5,c6,c7,c9 FROM t3_temp WHERE c1 = 20;
 c1	c2	c3	c4	c5	c6	c7	c9
 20	1	a	a	a	a	a	100.550
 SELECT c1,c2,c3,c4,c5,c6,c7,c9 FROM t4_temp WHERE c1 = 20;
@@ -903,9 +793,6 @@ Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 update ignore t2_temp set c1 = 20 WHERE c1 = 140 ;
 Warnings:
 Warning	1062	Duplicate entry '20' for key 'PRIMARY'
-update ignore t3_temp set c1 = 20 WHERE c1 = 140 ;
-Warnings:
-Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 update ignore t4_temp set c1 = 20 WHERE c1 = 140 ;
 Warnings:
 Warning	1062	Duplicate entry '20' for key 'PRIMARY'
@@ -913,9 +800,6 @@ SELECT count(*) FROM t1_temp WHERE c1 = 140;
 count(*)
 1
 SELECT count(*) FROM t2_temp WHERE c1 = 140;
-count(*)
-1
-SELECT count(*) FROM t3_temp WHERE c1 = 140;
 count(*)
 1
 SELECT count(*) FROM t4_temp WHERE c1 = 140;
@@ -939,7 +823,7 @@ c1	c2	c3	c4	c5	c6	c7	c9	c10	c11
 -2	-2	a	a	a	a	a	100.550	99	test
 DROP TABLE t1_1 ,t2_1 ,t3_1,t4_1;
 DROP TABLE t1_2 ,t2_2 ,t3_2,t4_2;
-# restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=20 --innodb_undo_logs=20 --innodb_log_files_in_group=4
+# restart: --innodb_undo_tablespaces=5 --innodb_rollback_segments=20 --innodb_log_files_in_group=4
 call populate_tables('_1');;
 call populate_tables('_2');;
 "#connection 1 - verify tables"
@@ -1107,9 +991,6 @@ count(*)
 SELECT count(*) FROM t2_temp;
 count(*)
 26
-SELECT count(*) FROM t3_temp;
-count(*)
-24
 SELECT count(*) FROM t4_temp;
 count(*)
 22
@@ -1151,32 +1032,6 @@ c1
 10
 11
 12
-13
-14
-15
-16
-17
-18
-19
-20
-122
-124
-126
-128
-130
-132
-134
-136
-138
-140
-SELECT c1 FROM t3_temp;
-c1
-5
-6
-7
-8
-9
-10
 13
 14
 15
@@ -1385,9 +1240,6 @@ count(*)
 SELECT count(*) FROM t2_temp;
 count(*)
 26
-SELECT count(*) FROM t3_temp;
-count(*)
-24
 SELECT count(*) FROM t4_temp;
 count(*)
 22
@@ -1429,32 +1281,6 @@ c1
 10
 11
 12
-13
-14
-15
-16
-17
-18
-19
-20
-122
-124
-126
-128
-130
-132
-134
-136
-138
-140
-SELECT c1 FROM t3_temp;
-c1
-5
-6
-7
-8
-9
-10
 13
 14
 15
@@ -1498,7 +1324,7 @@ c1
 138
 140
 DROP TABLE t1_2 ,t2_2 ,t3_2,t4_2;
-# restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=30 --innodb_undo_logs=20 --innodb_log_files_in_group=4
+# restart: --innodb_undo_tablespaces=3 --innodb_rollback_segments=30 --innodb_log_files_in_group=4
 call populate_tables('_1');;
 call populate_tables('_2');;
 "#connection 1 - verify tables"
@@ -1666,9 +1492,6 @@ count(*)
 SELECT count(*) FROM t2_temp;
 count(*)
 26
-SELECT count(*) FROM t3_temp;
-count(*)
-24
 SELECT count(*) FROM t4_temp;
 count(*)
 22
@@ -1710,32 +1533,6 @@ c1
 10
 11
 12
-13
-14
-15
-16
-17
-18
-19
-20
-122
-124
-126
-128
-130
-132
-134
-136
-138
-140
-SELECT c1 FROM t3_temp;
-c1
-5
-6
-7
-8
-9
-10
 13
 14
 15
@@ -1944,9 +1741,6 @@ count(*)
 SELECT count(*) FROM t2_temp;
 count(*)
 26
-SELECT count(*) FROM t3_temp;
-count(*)
-24
 SELECT count(*) FROM t4_temp;
 count(*)
 22
@@ -1988,32 +1782,6 @@ c1
 10
 11
 12
-13
-14
-15
-16
-17
-18
-19
-20
-122
-124
-126
-128
-130
-132
-134
-136
-138
-140
-SELECT c1 FROM t3_temp;
-c1
-5
-6
-7
-8
-9
-10
 13
 14
 15
@@ -2058,3 +1826,5 @@ c1
 140
 DROP TABLE t1_2 ,t2_2 ,t3_2,t4_2;
 DROP PROCEDURE populate_tables;
+SHOW TABLES;
+Tables_in_test

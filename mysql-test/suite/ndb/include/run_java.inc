@@ -35,6 +35,7 @@ my $java_class = $ENV{JAVA_CLASS} || die "ERROR: Java class to run not set, plea
 my $java_args = $ENV{MTR_JAVA_ARGS} || '';
 my $jvm_opts = $ENV{JAVA_JVM_OPTS} || '';
 my $class_args = $ENV{JAVA_ARGUMENTS} || '';
+my $vardir = $ENV{MYSQLTEST_VARDIR} || die "Need MYSQLTEST_VARDIR";
 
 my $sep = ":";
 if(IS_WINDOWS)
@@ -60,6 +61,9 @@ for my $i (1..9)
   }
 }
 
+# Tell the vm to put temporary files in $MYSQLTEST_VARDIR/tmp
+$jvm_opts .= " -Djava.io.tmpdir=$vardir/tmp";
+
 if ($ENV{MTR_CLASSPATH})
 {
   $java_classpath .= "$sep$ENV{MTR_CLASSPATH}"
@@ -68,7 +72,6 @@ if ($ENV{MTR_CLASSPATH})
 my $cmd = "\"$java\" $java_args $jvm_opts -classpath \"$java_classpath\" $java_class $class_args";
 my $res = exec_print_on_error($cmd);
 
-my $vardir = $ENV{MYSQLTEST_VARDIR} || die "Need MYSQLTEST_VARDIR";
 my $F = IO::File->new("$vardir/tmp/run_java.result", "w") || die "Couldn't open varfile for writing";
 if ($res)
 {

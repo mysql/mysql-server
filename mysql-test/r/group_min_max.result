@@ -1,7 +1,7 @@
 drop table if exists t1;
 create table t1 (
 a1 char(64), a2 char(64), b char(16), c char(16) not null, d char(16), dummy char(248) default ' '
-);
+) charset latin1;
 insert into t1 (a1, a2, b, c, d) values
 ('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
 ('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
@@ -44,7 +44,7 @@ test.t1	analyze	status	Table is already up to date
 drop table if exists t2;
 create table t2 (
 a1 char(64), a2 char(64) not null, b char(16), c char(16), d char(16), dummy char(248) default ' '
-);
+) charset latin1;
 insert into t2 select * from t1;
 insert into t2 (a1, a2, b, c, d) values
 ('a','a',NULL,'a777','xyz'),('a','a',NULL,'a888','xyz'),('a','a',NULL,'a999','xyz'),
@@ -72,7 +72,7 @@ test.t2	analyze	status	Table is already up to date
 drop table if exists t3;
 create table t3 (
 a1 char(1), a2 char(1), b char(1), c char(4) not null, d char(3), dummy char(1) default ' '
-);
+) charset latin1;
 insert into t3 (a1, a2, b, c, d) values
 ('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
 ('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
@@ -1716,7 +1716,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain select a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	idx_t2_1,idx_t2_2	idx_t2_1	163	NULL	#	0.33	Using where; Using index
+1	SIMPLE	t2	NULL	range	idx_t2_1,idx_t2_2	idx_t2_1	163	NULL	#	100.00	Using where; Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`c` = 'i121') and (`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain select a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
@@ -1773,11 +1773,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	range	idx_t1_1,idx_t1_2	idx_t1_1	147	NULL	17	100.00	Using where; Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b'))
-explain extended select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+explain select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	idx_t1_1	idx_t1_1	163	NULL	128	0.33	Using where; Using index
+1	SIMPLE	t1	NULL	index	idx_t1_1	idx_t1_1	163	NULL	128	0.78	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = 'i121') and (`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b'))
 explain select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1799,11 +1798,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	range	idx_t2_1,idx_t2_2	idx_t2_1	146	NULL	#	100.00	Using where; Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b'))
-explain extended select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+explain select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	idx_t2_1	idx_t2_1	163	NULL	164	0.33	Using where; Using index
+1	SIMPLE	t2	NULL	index	idx_t2_1	idx_t2_1	163	NULL	164	0.61	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select distinct `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`c` = 'i121') and (`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b'))
 explain select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1951,7 +1949,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 'c') and (`test`.`t1`.`a1` > 'a') and (`test`.`t1`.`a2` > 'a')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain select distinct b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	idx_t1_1,idx_t1_2	idx_t1_1	147	NULL	17	100.00	Using where; Using index for group-by; Using temporary; Using filesort
+1	SIMPLE	t1	NULL	range	idx_t1_1,idx_t1_2	idx_t1_1	147	NULL	17	100.00	Using where; Using index for group-by; Using temporary
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
 explain select distinct a1,a2,b from t2;
@@ -1966,7 +1964,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	idx_t2_1,idx_t2_2	idx_t2_1	163	NULL	#	0.33	Using where; Using index
+1	SIMPLE	t2	NULL	range	idx_t2_1,idx_t2_2	idx_t2_1	163	NULL	#	100.00	Using where; Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`c` = 'i121') and (`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
@@ -1976,7 +1974,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 'c') and (`test`.`t2`.`a1` > 'a') and (`test`.`t2`.`a2` > 'a')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain select distinct b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	idx_t2_1,idx_t2_2	idx_t2_1	146	NULL	#	100.00	Using where; Using index for group-by; Using temporary; Using filesort
+1	SIMPLE	t2	NULL	range	idx_t2_1,idx_t2_2	idx_t2_1	146	NULL	#	100.00	Using where; Using index for group-by; Using temporary
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 'a') and (`test`.`t2`.`a2` >= 'b')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 select distinct a1,a2,b from t1;
@@ -2057,22 +2055,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	range	idx_t1_1	idx_t1_1	163	NULL	65	100.00	Using where; Using index for group-by (scanning)
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`,`test`.`t1`.`c`) AS `count(distinct a1,a2,b,c)` from `test`.`t1` where ((`test`.`t1`.`c` = 'i121') and (`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b'))
-explain extended select count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
+explain select count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	147	NULL	14	100.00	Using where; Using index for group-by
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`) AS `count(distinct a1,a2,b)` from `test`.`t1` where ((`test`.`t1`.`b` = 'c') and (`test`.`t1`.`a1` > 'a') and (`test`.`t1`.`a2` > 'a'))
 explain select count(distinct b) from t1 where (a2 >= 'b') and (b = 'a');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	3.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`b`) AS `count(distinct b)` from `test`.`t1` where ((`test`.`t1`.`b` = 'a') and (`test`.`t1`.`a2` >= 'b'))
-explain extended select 98 + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
+explain select 98 + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	147	NULL	14	100.00	Using where; Using index for group-by
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (98 + count(distinct `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`)) AS `98 + count(distinct a1,a2,b)` from `test`.`t1` where ((`test`.`t1`.`a1` > 'a') and (`test`.`t1`.`a2` > 'a'))
 select count(distinct a1,a2,b) from t1 where (a2 >= 'b') and (b = 'a');
 count(distinct a1,a2,b)
@@ -2182,45 +2178,41 @@ concat(ord(min(b)),ord(max(b)))	min(b)	max(b)
 9798	a	b
 explain select a1,a2,b,d,min(c),max(c) from t1 group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	idx_t1_1,idx_t1_2	NULL	NULL	NULL	128	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`d` AS `d`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain select a1,a2,b,d from t1 group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	idx_t1_1,idx_t1_2	NULL	NULL	NULL	128	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`d` AS `d` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
-explain extended select a1,a2,min(b),max(b) from t1
+explain select a1,a2,min(b),max(b) from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	130	NULL	76	33.33	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,min(`test`.`t1`.`b`) AS `min(b)`,max(`test`.`t1`.`b`) AS `max(b)` from `test`.`t1` where (((`test`.`t1`.`a1` = 'b') or (`test`.`t1`.`a1` = 'd') or (`test`.`t1`.`a1` = 'a') or (`test`.`t1`.`a1` = 'c')) and (`test`.`t1`.`a2` > 'a') and (`test`.`t1`.`c` > 'a111')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
-explain extended select a1,a2,b,min(c),max(c) from t1
+explain select a1,a2,b,min(c),max(c) from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	idx_t1_0,idx_t1_1,idx_t1_2	NULL	NULL	NULL	128	11.02	Using where; Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	11.02	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (((`test`.`t1`.`a1` = 'b') or (`test`.`t1`.`a1` = 'd') or (`test`.`t1`.`a1` = 'a') or (`test`.`t1`.`a1` = 'c')) and (`test`.`t1`.`a2` > 'a') and (`test`.`t1`.`d` > 'xy2')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
-explain extended select a1,a2,b,c from t1
+explain select a1,a2,b,c from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b,c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	idx_t1_0,idx_t1_1,idx_t1_2	NULL	NULL	NULL	128	11.02	Using where; Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	11.02	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (((`test`.`t1`.`a1` = 'b') or (`test`.`t1`.`a1` = 'd') or (`test`.`t1`.`a1` = 'a') or (`test`.`t1`.`a1` = 'c')) and (`test`.`t1`.`a2` > 'a') and (`test`.`t1`.`d` > 'xy2')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`,`test`.`t1`.`c`
 explain select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b < 'b') group by a1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	idx_t2_0,idx_t2_1,idx_t2_2	idx_t2_1	163	NULL	164	34.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)`,min(`test`.`t2`.`c`) AS `min(c)` from `test`.`t2` where (((`test`.`t2`.`b` = 'b') and (`test`.`t2`.`a2` = 'a')) or (`test`.`t2`.`b` < 'b')) group by `test`.`t2`.`a1`
-explain extended select a1,a2,b from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2,b;
+explain select a1,a2,b from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	130	NULL	76	33.33	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a1` = 'b') or (`test`.`t1`.`a1` = 'd') or (`test`.`t1`.`a1` = 'a') or (`test`.`t1`.`a1` = 'c')) and (`test`.`t1`.`a2` > 'a') and (`test`.`t1`.`c` > 'a111')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2243,7 +2235,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`c` > 'a000') and (`test`.`t2`.`c` <= 'd999') and (`test`.`t2`.`c` like '_8__')) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`,`test`.`t2`.`b`
 explain select a1, a2, b, c, min(d), max(d) from t1 group by a1,a2,b,c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	idx_t1_1	NULL	NULL	NULL	128	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	idx_t1_1	idx_t1_1	163	NULL	128	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,min(`test`.`t1`.`d`) AS `min(d)`,max(`test`.`t1`.`d`) AS `max(d)` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`,`test`.`t1`.`c`
 explain select a1,a2,count(a2) from t1 group by a1,a2,b;
@@ -2251,17 +2243,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index	idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,count(`test`.`t1`.`a2`) AS `count(a2)` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
-explain extended select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
+explain select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	75.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	65	NULL	102	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,count(`test`.`t1`.`a2`) AS `count(a2)` from `test`.`t1` where (`test`.`t1`.`a1` > 'a') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
-explain extended select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
+explain select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	75.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	65	NULL	102	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select sum(ord(`test`.`t1`.`a1`)) AS `sum(ord(a1))` from `test`.`t1` where (`test`.`t1`.`a1` > 'a') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain select distinct(a1) from t1 where ord(a2) = 98;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2328,7 +2318,7 @@ c1	c2
 30	8
 30	9
 drop table t1;
-CREATE TABLE t1 (a varchar(5), b int(11), PRIMARY KEY (a,b));
+CREATE TABLE t1 (a varchar(5), b int(11), PRIMARY KEY (a,b)) charset utf8mb4;
 INSERT INTO t1 VALUES ('AA',1), ('AA',2), ('AA',3), ('BB',1), ('AA',4);
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2341,12 +2331,12 @@ a
 BB
 EXPLAIN SELECT a FROM t1 WHERE a='AA' GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY	PRIMARY	7	const	3	100.00	Using index
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	22	NULL	1	100.00	Using where; Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 'AA') group by `test`.`t1`.`a`
 EXPLAIN SELECT a FROM t1 WHERE a='BB' GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY	PRIMARY	7	const	1	100.00	Using index
+1	SIMPLE	t1	NULL	ref	PRIMARY	PRIMARY	22	const	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 'BB') group by `test`.`t1`.`a`
 SELECT DISTINCT a FROM t1 WHERE a='BB';
@@ -2396,14 +2386,14 @@ COUNT(DISTINCT a)
 1
 DROP TABLE t1;
 DROP PROCEDURE a;
-CREATE TABLE t1 (a varchar(64) NOT NULL default '', PRIMARY KEY(a));
+CREATE TABLE t1 (a varchar(64) NOT NULL default '', PRIMARY KEY(a)) charset utf8mb4;
 INSERT INTO t1 (a) VALUES 
 (''), ('CENTRAL'), ('EASTERN'), ('GREATER LONDON'),
 ('NORTH CENTRAL'), ('NORTH EAST'), ('NORTH WEST'), ('SCOTLAND'),
 ('SOUTH EAST'), ('SOUTH WEST'), ('WESTERN');
 EXPLAIN SELECT DISTINCT a,a FROM t1 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	66	NULL	11	100.00	Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	258	NULL	11	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a`,`test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
 SELECT DISTINCT a,a FROM t1 ORDER BY a;
@@ -2525,8 +2515,8 @@ FLUSH STATUS;
 CREATE TABLE t2 SELECT max(b), a FROM t1 GROUP BY a;
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
-Handler_read_key	10
-Handler_read_next	0
+Handler_read_key	23
+Handler_read_next	2
 FLUSH STATUS;
 SELECT * FROM (SELECT max(b), a FROM t1 GROUP BY a) b;
 max(b)	a
@@ -2613,6 +2603,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select (/* select#3 */ select max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having (`test`.`t1`.`a` < 2)) AS `x` from `test`.`t1` `t1_outer`) AS `x2` from `test`.`t1` `t1_outer2`
 CREATE TABLE t3 LIKE t1;
+# Warm-up data-dictionary cache.
 FLUSH STATUS;
 INSERT INTO t3 SELECT a,MAX(b) FROM t1 GROUP BY a;
 SHOW STATUS LIKE 'handler_read__e%';
@@ -2725,7 +2716,7 @@ a	MIN(b)	MAX(b)
 EXPLAIN
 SELECT a, MIN(b), MAX(b), AVG(b) FROM t1 GROUP BY a ORDER BY a DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	break_it	break_it	10	NULL	24	100.00	Using index
+1	SIMPLE	t1	NULL	index	break_it	break_it	10	NULL	24	100.00	Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)`,max(`test`.`t1`.`b`) AS `MAX(b)`,avg(`test`.`t1`.`b`) AS `AVG(b)` from `test`.`t1` group by `test`.`t1`.`a` desc order by `test`.`t1`.`a` desc
 SELECT a, MIN(b), MAX(b), AVG(b) FROM t1 GROUP BY a ORDER BY a DESC;
@@ -2809,11 +2800,10 @@ a	b
 3	11
 3	12
 3	13
-explain extended select sql_buffer_result a, max(b)+1 from t1 where a = 0 group by a;
+explain select sql_buffer_result a, max(b)+1 from t1 where a = 0 group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,index	index	4	NULL	3	100.00	Using where; Using index for group-by; Using temporary
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select sql_buffer_result `test`.`t1`.`a` AS `a`,(max(`test`.`t1`.`b`) + 1) AS `max(b)+1` from `test`.`t1` where (`test`.`t1`.`a` = 0) group by `test`.`t1`.`a`
 drop table t1;
 CREATE TABLE t1 (a int, b int, c int, d int,
@@ -3113,9 +3103,6 @@ INSERT INTO t1 VALUES (1), (2), (3);
 # NULL-safe operator test disabled for non-NULL indexed columns.
 #
 # See bugs
-#
-# - Bug#52173: Reading NULL value from non-NULL index gives
-#   wrong result in embedded server 
 #
 # - Bug#52174: Sometimes wrong plan when reading a MAX value from 
 #   non-NULL index
@@ -3508,7 +3495,7 @@ COUNT(DISTINCT b)	SUM(DISTINCT b)
 8	100
 EXPLAIN SELECT COUNT(DISTINCT a, b) FROM t2 WHERE c = 13 AND d = 42;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	32	1.00	Using where
+1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	32	3.12	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`,`test`.`t2`.`b`) AS `COUNT(DISTINCT a, b)` from `test`.`t2` where ((`test`.`t2`.`d` = 42) and (`test`.`t2`.`c` = 13))
 SELECT COUNT(DISTINCT a, b) FROM t2 WHERE c = 13 AND d = 42;
@@ -3604,7 +3591,7 @@ CREATE TABLE t1 (
 f1 int(11) NOT NULL DEFAULT '0',
 f2 char(1) NOT NULL DEFAULT '',
 PRIMARY KEY (f1,f2)
-) ;
+)  charset utf8mb4;
 insert into t1 values(1,'A'),(1 , 'B'), (1, 'C'), (2, 'A'), 
 (3, 'A'), (3, 'B'), (3, 'C'), (3, 'D');
 SELECT f1, COUNT(DISTINCT f2) FROM t1 GROUP BY f1;
@@ -3614,7 +3601,7 @@ f1	COUNT(DISTINCT f2)
 3	4
 explain SELECT f1, COUNT(DISTINCT f2) FROM t1 GROUP BY f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	5	NULL	9	100.00	Using index for group-by (scanning)
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	8	NULL	9	100.00	Using index for group-by (scanning)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,count(distinct `test`.`t1`.`f2`) AS `COUNT(DISTINCT f2)` from `test`.`t1` group by `test`.`t1`.`f1`
 drop table t1;
@@ -3762,3 +3749,655 @@ SELECT 1 FROM t WHERE b IN ('') GROUP BY  b ;
 1
 DROP TABLE t;
 # End of test#18486293.
+#
+# Bug#18109609: LOOSE INDEX SCAN IS NOT USED WHEN IT SHOULD
+#
+CREATE TABLE t1 (
+id INT AUTO_INCREMENT PRIMARY KEY,
+c1 INT,
+c2 INT,
+KEY(c1,c2));
+INSERT INTO t1(c1,c2) VALUES
+(1, 1), (1,2), (2,1), (2,2), (3,1), (3,2), (3,3), (4,1), (4,2), (4,3),
+(4,4), (4,5), (4,6), (4,7), (4,8), (4,9), (4,10), (4,11), (4,12), (4,13),
+(4,14), (4,15), (4,16), (4,17), (4,18), (4,19), (4,20),(5,5);
+EXPLAIN SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	7	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`c2`) AS `MAX(c2)`,`test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = 4) group by `test`.`t1`.`c1`
+FLUSH STATUS;
+SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
+MAX(c2)	c1
+20	4
+SHOW SESSION STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	3
+Handler_read_last	1
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+DROP TABLE t1;
+# End of test for Bug#18109609
+#
+# Bug#22661012 - "USING INDEX FOR GROUP-BY" QUERIES CAN RETURN
+#                NO DATA WITH LE/LEQ AND ROUNDING
+#
+CREATE TABLE t1 (a INT, b INT, KEY(a,b));
+INSERT INTO t1 VALUES (1,1000), (1,1001), (1,2000),
+(1,2001), (1,3000), (1,3002);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b < 1999.5 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	10	NULL	1	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` < 1999.5)) group by `test`.`t1`.`a`
+SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b < 1999.5 GROUP BY a;
+a	MAX(b)
+1	1001
+EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b <= 1999.5 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	10	NULL	1	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` <= 1999.5)) group by `test`.`t1`.`a`
+SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b <= 1999.5 GROUP BY a;
+a	MAX(b)
+1	1001
+EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b between 0 and 1999.5
+GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	10	NULL	1	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` between 0 and 1999.5)) group by `test`.`t1`.`a`
+SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b between 0 and 1999.5
+GROUP BY a;
+a	MAX(b)
+1	1001
+EXPLAIN SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b > 2000.1 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	10	NULL	1	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` > 2000.1)) group by `test`.`t1`.`a`
+SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b > 2000.1 GROUP BY a;
+a	MIN(b)
+1	2001
+EXPLAIN SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b >= 2000.1 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	10	NULL	1	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` >= 2000.1)) group by `test`.`t1`.`a`
+SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b >= 2000.1 GROUP BY a;
+a	MIN(b)
+1	2001
+DROP TABLE t1;
+# End of test for Bug#22661012
+#
+# Bug#24484060 INCORRECT EVALUATION OF MIN/MAX REFERRING
+# TO AN OUTER QUERY BLOCK
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, nk INT, k INT UNIQUE);
+INSERT INTO t1 VALUES (1,1,1),(2,2,2),(4,4,4);
+CREATE TABLE t2 (k INT);
+INSERT INTO t2 VALUES (1),(2),(4);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk<>3 AND out1.nk = (SELECT MAX(out1.k) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	out1	NULL	ref	PRIMARY,k	k	5	test.t2.k	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` <> 3) and (`test`.`out1`.`nk` = (/* select#2 */ select max(`test`.`out1`.`k`) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk<>3 AND out1.nk = (SELECT MAX(out1.k) FROM t1);
+k
+1
+2
+4
+# Repeat the test with PRIMARY KEY instead of the non-indexed column.
+ALTER TABLE t1 DROP COLUMN nk;
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MAX(out1.k) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	out1	NULL	ALL	k	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` = (/* select#2 */ select max(`test`.`out1`.`k`) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MAX(out1.k) FROM t1);
+k
+1
+2
+4
+# Inner reference should be optimized.
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MAX(k) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	out1	NULL	const	PRIMARY,k	PRIMARY	4	const	1	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`t2`.`k` = '4'))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MAX(k) FROM t1);
+k
+4
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT 2*MIN(k) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	out1	NULL	const	PRIMARY,k	PRIMARY	4	const	1	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`t2`.`k` = '2'))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT 2*MIN(k) FROM t1);
+k
+2
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT SUM(k) - COUNT(k) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	out1	NULL	const	PRIMARY,k	PRIMARY	4	const	1	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+2	SUBQUERY	t1	NULL	index	NULL	k	5	NULL	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`t2`.`k` = '4') and ('4' = (/* select#2 */ select (sum(`test`.`t1`.`k`) - count(`test`.`t1`.`k`)) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT SUM(k) - COUNT(k) FROM t1);
+k
+4
+# Combinations of outer and inner references should not be optimized.
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MIN(out1.k + k) - 1 FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	out1	NULL	ALL	k	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	k	5	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` = (/* select#2 */ select (min((`test`.`out1`.`k` + `test`.`t1`.`k`)) - 1) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MIN(out1.k + k) - 1 FROM t1);
+k
+1
+2
+4
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT out1.k + MIN(k) - 1 FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	out1	NULL	ALL	k	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	k	5	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` = (/* select#2 */ select ((`test`.`out1`.`k` + min(`test`.`t1`.`k`)) - 1) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT out1.k + MIN(k) - 1 FROM t1);
+k
+1
+2
+4
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MIN(out1.k) + MIN(k) - 1 FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	out1	NULL	ALL	k	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	k	5	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` = (/* select#2 */ select ((min(`test`.`out1`.`k`) + min(`test`.`t1`.`k`)) - 1) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT MIN(out1.k) + MIN(k) - 1 FROM t1);
+k
+1
+2
+4
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT SUM(out1.k) / COUNT(k) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	out1	NULL	ALL	k	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	k	5	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` = (/* select#2 */ select (sum(`test`.`out1`.`k`) / count(`test`.`t1`.`k`)) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT SUM(out1.k) / COUNT(k) FROM t1);
+k
+1
+2
+4
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT SUM(out1.k) / COUNT(*) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	out1	NULL	ALL	k	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` = (/* select#2 */ select (sum(`test`.`out1`.`k`) / count(0)) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT SUM(out1.k) / COUNT(*) FROM t1);
+k
+1
+2
+4
+explain SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT AVG(out1.k) FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	out1	NULL	ALL	k	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k` from `test`.`t1` `out1` join `test`.`t2` where ((`test`.`out1`.`k` = `test`.`t2`.`k`) and (`test`.`out1`.`pk` = (/* select#2 */ select avg(`test`.`out1`.`k`) from `test`.`t1`)))
+SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
+AND out1.pk = (SELECT AVG(out1.k) FROM t1);
+k
+1
+2
+4
+DROP TABLE t1, t2;
+# End of test for Bug#24484060
+#
+# Bug#24657798 HANDLER::HA_INDEX_INIT() TRIES TO USE
+# AN UNLOCKED CONST TABLE IN OPT_SUM_QUERY()
+#
+CREATE TABLE t1 (k INT, KEY(k)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (h INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (3);
+explain SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `k` from dual where (/* select#2 */ select min('1') from dual)
+SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
+k
+1
+explain SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	s1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `k` from dual where exists(/* select#2 */ select min('1') from dual)
+SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
+k
+1
+explain SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `k` from dual where exists(/* select#2 */ select min('1') from dual)
+SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
+k
+1
+UPDATE t1 SET k=0;
+explain SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '0' AS `k` from dual where (/* select#2 */ select min('0') from dual)
+SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
+k
+explain SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	s1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '0' AS `k` from dual where exists(/* select#2 */ select min('0') from dual)
+SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
+k
+0
+explain SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '0' AS `k` from dual where exists(/* select#2 */ select min('0') from dual)
+SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
+k
+0
+DROP TABLE t1;
+CREATE TABLE t1 (nk INT, k INT, KEY(k)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1);
+explain SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	s1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `nk`,'1' AS `k` from dual where ('1' = (/* select#2 */ select min('1') from dual))
+SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
+nk	k
+1	1
+explain SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `nk`,'1' AS `k` from dual where ('1' = (/* select#2 */ select min('1') from dual))
+SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
+nk	k
+1	1
+UPDATE t1 SET nk=0, k=0;
+explain SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	s1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '0' AS `nk`,'0' AS `k` from dual where ('0' = (/* select#2 */ select min('0') from dual))
+SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
+nk	k
+0	0
+explain SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '0' AS `nk`,'0' AS `k` from dual where ('0' = (/* select#2 */ select min('0') from dual))
+SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
+nk	k
+0	0
+DROP TABLE t1;
+DROP TABLE t2;
+# End of test for Bug#24657798
+#
+# Bug#24423143 - WRONG RESULTS FOR AGGREGATE QUERY
+#
+# Test index merge tree scenario
+CREATE TABLE a (
+aggr_col int,
+group_by_col int,
+KEY aggr_col_key (aggr_col),
+KEY group_by_col_key (group_by_col, aggr_col)
+) ENGINE=InnoDB;
+set optimizer_trace_max_mem_size=1048576;
+set @@session.optimizer_trace='enabled=on';
+set end_markers_in_json=on;
+INSERT INTO a VALUES (2,3),(5,6),(6,3),(7,NULL),(9,NULL),(10,6);
+ANALYZE TABLE a;
+Table	Op	Msg_type	Msg_text
+test.a	analyze	status	OK
+SELECT group_by_col, MIN(aggr_col) FROM a
+WHERE (group_by_col IN (70, 9)) OR (aggr_col > 2) GROUP BY group_by_col;
+group_by_col	MIN(aggr_col)
+NULL	7
+3	6
+6	5
+EXPLAIN SELECT group_by_col, MIN(aggr_col) FROM a
+WHERE (group_by_col IN (70 ,9)) OR (aggr_col > 2) GROUP BY group_by_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	index	aggr_col_key,group_by_col_key	group_by_col_key	10	NULL	6	55.55	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)` from `test`.`a` where ((`test`.`a`.`group_by_col` in (70,9)) or (`test`.`a`.`aggr_col` > 2)) group by `test`.`a`.`group_by_col`
+SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+SELECT group_by_col, MAX(aggr_col) FROM a
+WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
+group_by_col	MAX(aggr_col)
+NULL	7
+3	6
+6	5
+EXPLAIN SELECT group_by_col, MAX(aggr_col) FROM a
+WHERE (group_by_col IN (70 , 9)) OR (aggr_col < 9) GROUP BY group_by_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	index	aggr_col_key,group_by_col_key	group_by_col_key	10	NULL	6	55.55	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((`test`.`a`.`group_by_col` in (70,9)) or (`test`.`a`.`aggr_col` < 9)) group by `test`.`a`.`group_by_col`
+SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+# Test IMPOSSIBLE TREE scenario
+ALTER TABLE a DROP KEY aggr_col_key;
+SELECT group_by_col, MIN(aggr_col) FROM a
+WHERE (group_by_col IN (70 ,9)) OR (aggr_col > 2) GROUP BY group_by_col;
+group_by_col	MIN(aggr_col)
+NULL	7
+3	6
+6	5
+EXPLAIN SELECT group_by_col, MIN(aggr_col) FROM a
+WHERE (group_by_col IN (70, 9)) OR (aggr_col > 2) GROUP BY group_by_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	index	group_by_col_key	group_by_col_key	10	NULL	6	55.55	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)` from `test`.`a` where ((`test`.`a`.`group_by_col` in (70,9)) or (`test`.`a`.`aggr_col` > 2)) group by `test`.`a`.`group_by_col`
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+SELECT group_by_col, MAX(aggr_col) FROM a
+WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
+group_by_col	MAX(aggr_col)
+NULL	7
+3	6
+6	5
+EXPLAIN SELECT group_by_col, MAX(aggr_col) FROM a
+WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	index	group_by_col_key	group_by_col_key	10	NULL	6	55.55	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((`test`.`a`.`group_by_col` in (70,9)) or (`test`.`a`.`aggr_col` < 9)) group by `test`.`a`.`group_by_col`
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+# Scenario 3: aggregate field used as equal expression.
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE (group_by_col IN (3, 9)) OR (aggr_col = 9) GROUP BY group_by_col;
+group_by_col	MIN(aggr_col)	MAX(aggr_col)
+NULL	9	9
+3	2	6
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE (group_by_col IN (3, 9)) OR (aggr_col = 9) GROUP BY group_by_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	index	group_by_col_key	group_by_col_key	10	NULL	6	44.44	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((`test`.`a`.`group_by_col` in (3,9)) or (`test`.`a`.`aggr_col` = 9)) group by `test`.`a`.`group_by_col`
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+# Scenario 4: non aggregate field used as equal expression.
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE (group_by_col = 3) OR (aggr_col > 8) GROUP BY group_by_col;
+group_by_col	MIN(aggr_col)	MAX(aggr_col)
+NULL	9	9
+3	2	6
+6	10	10
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE (group_by_col = 3) OR (aggr_col > 8) GROUP BY group_by_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	index	group_by_col_key	group_by_col_key	10	NULL	6	55.55	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((`test`.`a`.`group_by_col` = 3) or (`test`.`a`.`aggr_col` > 8)) group by `test`.`a`.`group_by_col`
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+# Scenario 5: aggregate field used as non-zero expression.
+INSERT INTO a VALUES(0, 3);
+INSERT INTO a VALUES(0, 9);
+INSERT INTO a VALUES(8, 0);
+ANALYZE TABLE a;
+Table	Op	Msg_type	Msg_text
+test.a	analyze	status	OK
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE (group_by_col = 9) OR aggr_col GROUP BY group_by_col;
+group_by_col	MIN(aggr_col)	MAX(aggr_col)
+NULL	7	9
+0	8	8
+3	2	6
+6	5	10
+9	0	0
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE group_by_col = 9 OR aggr_col GROUP BY group_by_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	index	group_by_col_key	group_by_col_key	10	NULL	9	91.11	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((`test`.`a`.`group_by_col` = 9) or `test`.`a`.`aggr_col`) group by `test`.`a`.`group_by_col`
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+# Scenario 6: non aggregate field used as non-zero expression.
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE group_by_col OR (aggr_col < 9) GROUP BY group_by_col;
+group_by_col	MIN(aggr_col)	MAX(aggr_col)
+NULL	7	7
+0	8	8
+3	0	6
+6	5	10
+9	0	0
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE group_by_col OR (aggr_col < 9) GROUP BY group_by_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	index	group_by_col_key	group_by_col_key	10	NULL	9	92.59	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where (`test`.`a`.`group_by_col` or (`test`.`a`.`aggr_col` < 9)) group by `test`.`a`.`group_by_col`
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+# Scenario 7: aggregate field used in equal exp without a CONST
+INSERT INTO a VALUES(1,1),(1,2),(2,1);
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col = group_by_col GROUP BY group_by_col;
+group_by_col	MIN(aggr_col)	MAX(aggr_col)
+1	1	1
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col = group_by_col GROUP BY group_by_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	index	group_by_col_key	group_by_col_key	10	NULL	12	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where (`test`.`a`.`group_by_col` = `test`.`a`.`aggr_col`) group by `test`.`a`.`group_by_col`
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+# Scenario 8: aggregate field used in a non-eq exp without a CONST
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col < group_by_col GROUP BY group_by_col;
+group_by_col	MIN(aggr_col)	MAX(aggr_col)
+2	1	1
+3	0	2
+6	5	5
+9	0	0
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col < group_by_col GROUP BY group_by_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	index	group_by_col_key	group_by_col_key	10	NULL	12	33.33	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where (`test`.`a`.`aggr_col` < `test`.`a`.`group_by_col`) group by `test`.`a`.`group_by_col`
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+# Scenario 8
+INSERT INTO a VALUES(0,1),(1,0),(0,0);
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col OR group_by_col GROUP BY group_by_col;
+group_by_col	MIN(aggr_col)	MAX(aggr_col)
+NULL	7	9
+0	1	8
+1	0	2
+2	1	1
+3	0	6
+6	5	10
+9	0	0
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col OR group_by_col GROUP BY group_by_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	index	group_by_col_key	group_by_col_key	10	NULL	15	99.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where (`test`.`a`.`aggr_col` or `test`.`a`.`group_by_col`) group by `test`.`a`.`group_by_col`
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+# Scenario 9
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col AND group_by_col GROUP BY group_by_col;
+group_by_col	MIN(aggr_col)	MAX(aggr_col)
+1	1	2
+2	1	1
+3	2	6
+6	5	10
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col AND group_by_col GROUP BY group_by_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	index	group_by_col_key	group_by_col_key	10	NULL	15	81.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where (`test`.`a`.`aggr_col` and `test`.`a`.`group_by_col`) group by `test`.`a`.`group_by_col`
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+# Scenario 10: Added for completion. This fix does not have an impact.
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col<>0 AND group_by_col<>0 GROUP BY group_by_col;
+group_by_col	MIN(aggr_col)	MAX(aggr_col)
+1	1	2
+2	1	1
+3	2	6
+6	5	10
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE aggr_col<>0 AND group_by_col<>0 GROUP BY group_by_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	range	group_by_col_key	group_by_col_key	10	NULL	7	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where ((`test`.`a`.`aggr_col` <> 0) and (`test`.`a`.`group_by_col` <> 0)) group by `test`.`a`.`group_by_col`
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+0
+# Scenario 11: ITEM_FUNC as an argument of ITEM_FUNC
+SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE group_by_col OR (group_by_col < (aggr_col = 1)) GROUP BY group_by_col;
+group_by_col	MIN(aggr_col)	MAX(aggr_col)
+0	1	1
+1	0	2
+2	1	1
+3	0	6
+6	5	10
+9	0	0
+EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
+WHERE group_by_col OR (group_by_col < (aggr_col = 1)) GROUP BY group_by_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	index	group_by_col_key	group_by_col_key	10	NULL	15	93.33	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`group_by_col` AS `group_by_col`,min(`test`.`a`.`aggr_col`) AS `MIN(aggr_col)`,max(`test`.`a`.`aggr_col`) AS `MAX(aggr_col)` from `test`.`a` where (`test`.`a`.`group_by_col` or (`test`.`a`.`group_by_col` < (`test`.`a`.`aggr_col` = 1))) group by `test`.`a`.`group_by_col`
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+SET optimizer_trace_max_mem_size=DEFAULT;
+SET optimizer_trace=DEFAULT;
+SET end_markers_in_json=DEFAULT;
+DROP TABLE a;
+# End of test for Bug#24423143

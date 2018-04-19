@@ -1,18 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_multi_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
 
 --disable_warnings
-connection server2;
-drop database if exists mysqltest;
-drop table if exists t1,t2,t3;
-connection server1;
-drop database if exists mysqltest;
-drop table if exists t1,t2,t3;
 --connection server1
 reset master;
 --connection server2
@@ -20,8 +9,8 @@ reset master;
 --enable_warnings
 
 #
-# basic test to see if ddl distribution works across
-# multiple binlogs
+# Basic test to see if DDL distribution works across
+# binlogs in different MySQL Server(s)
 #
 
 # create database
@@ -35,10 +24,10 @@ create table t1 (a int primary key) engine=ndb;
 
 --connection server2
 create table t2 (a int primary key) engine=ndb;
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 --connection server1
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 # alter table
 --connection server1
@@ -50,7 +39,7 @@ reset master;
 alter table t2 add column (b int);
 
 --connection server1
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 # alter database
 --connection server1
@@ -62,19 +51,11 @@ reset master;
 ALTER DATABASE mysqltest CHARACTER SET latin1;
 
 
-# having drop here instead of below sometimes triggers bug#18976
-## drop table and drop should come after data events
---connection server2
-drop table mysqltest.t1;
-
 --connection server1
---source include/show_binlog_events2.inc
-# to track down bug#18976
---real_sleep 10
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 #--connection server2
-#drop table mysqltest.t1;
+drop table mysqltest.t1;
 
 # drop database and drop should come after data events
 --connection server1
@@ -89,7 +70,7 @@ drop database mysqltest;
 create table t1 (a int primary key) engine=ndb;
 
 --connection server2
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 --connection server2
 drop table t2;
@@ -120,31 +101,21 @@ ENGINE NDB;
 
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE = 4M 
-ENGINE=NDB;
+INITIAL_SIZE = 4M;
 
 ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile.dat' 
-ENGINE = NDB;
+DROP DATAFILE 'datafile.dat';
 
-ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile02.dat' 
-ENGINE = NDB;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile02.dat';
 
-DROP TABLESPACE ts1 
-ENGINE = NDB;
+DROP TABLESPACE ts1;
 
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
 
-# having drop here instead of below sometimes triggers bug#18976
-#drop table t1;
-
 --connection server2
---source include/show_binlog_events2.inc
-# to track down bug#18976
---real_sleep 10
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 drop table t1;
 
@@ -165,7 +136,7 @@ create table t2 (a int key) engine=ndb;
 create table t3 (a int key) engine=ndb;
 rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
 --connection server2
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 drop table t1;
 drop table t2;
@@ -192,4 +163,157 @@ insert into t2 values(2);
 # prior to bug fix, data was missing for t2
 --connection server2
 drop table t2;
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
+
+##########################
+# Bug#22135584: BINLOG CONTAINS SCHEMA EVENTS IN INCORRECT ORDER
+#
+# DDL operations are sometimes inserted in the incorrect relative order
+# vs. the DML operations.
+##########################
+--connection server1
+reset master;
+--connection server2
+reset master;
+
+##################################################
+# Check whether we have a debug compiled binary:
+# @@global.debug can't be referred without this.
+# However, instead of skipping entire test without debug,
+# we run it without setting the specific debug flags.
+###################################################
+--connection server2
+--let $have_debug= `select (version() like '%debug%')`
+
+disable_query_log;
+if ($have_debug)
+{
+  # Force server2 to yield the CPU inbetween polling the event buffer
+  set @save_debug= @@global.debug;
+  set global debug='+d,ndb_binlog_injector_yield_before_schema_pollEvent';
+}
+enable_query_log;
+
+--connection server1
+use test;
+
+--echo The relative order between DML and DDL statements below are
+--echo expected to follow the same order in binlog as shown below.
+let $i=5;
+while ($i)
+{
+  create database mysqltest;
+  create table t1 (a int primary key) engine=ndb;
+  insert into t1 values (1);
+  drop database mysqltest;
+  drop table t1;
+  dec $i;
+}
+# Dummy synchronization to flush prior events to binlog
+create table dummy (dummyk int primary key) engine = ndb;
+
+--connection server2
+disable_query_log;
+if ($have_debug)
+{
+  set global debug= @save_debug;
+}
+enable_query_log;
+
+--connection server2
+
+# Ensure that synchronization dummy reached log
+drop table dummy;
+--source include/show_binlog_events.inc
+
+##########################
+# Bug#22842538:
+#
+#    New mysqld's joining the schema distribution may cause
+#    ongoing DDL operations to never complete -> timeout
+# 
+##########################
+connection server1;
+
+
+# Procedure p1 communicate through 'progress' table
+CREATE TABLE progress(
+  cnt int, stop_flag int
+) ENGINE NDB;
+
+
+# Create a procedure for producing a background load of
+# DDL operations. Any operations, like a CREATE TABLE, would
+# do. However, we have experienced that CREATE LOGFILE seems
+# to be most likely to trigger this bug (Due to timing?)
+#
+disable_query_log;
+delimiter %;
+create procedure p1()
+begin
+  declare done int default 0;
+  repeat
+    UPDATE progress set cnt=cnt+1;
+    COMMIT;
+    CREATE LOGFILE GROUP lg_1
+      ADD UNDOFILE 'undo_1.dat'
+      INITIAL_SIZE 4M
+      UNDO_BUFFER_SIZE 2M
+      ENGINE NDB;
+    UPDATE progress set cnt=cnt+1;
+    COMMIT;
+    DROP LOGFILE GROUP lg_1 ENGINE NDB;
+    SELECT stop_flag INTO done FROM progress;
+  until done end repeat;
+end%
+delimiter ;%
+enable_query_log;
+
+
+insert into progress value(0,0);
+
+--echo Start background load distributing schema changes.
+send call p1();
+
+connection server2;
+let $1 = 4;
+while ($1)
+{
+  # Ignore the warning generated by ndbcluster's binlog thread
+  # when cluster is restarted
+  --disable_query_log ONCE
+  call mtr.add_suppression("mysqld startup An incident event has been written");
+
+  --echo Restart mysqld 'server2'
+  let $mysqld_name=mysqld.2.1;
+  --source include/restart_mysqld.inc
+
+  --echo Checking for schema ops. still making progress
+  let $initial_cnt = `select cnt from progress`;
+  let $progress_cnt = $initial_cnt;
+
+  let $max_wait = 10;
+  while ($progress_cnt == $initial_cnt)
+  {
+    sleep 1;
+    dec $max_wait;
+    if ($max_wait == 0)
+    {
+      die Schema distribution timed out without progress;
+    }
+    let $progress_cnt = `select cnt from progress`;
+  }
+  dec $1;
+}
+
+--echo Stopping background load distributing schema changes.
+update progress set stop_flag=1;
+
+connection server1;
+
+--echo Wait for background schema distribution load to complete.
+reap;
+
+--echo Cleanup
+drop procedure p1;
+drop table progress;

@@ -9,15 +9,16 @@
 # --let $statement_connection= CONNECTION_NAME
 # --let $statement= STATEMENT
 # --let $sync_point= SYNC_POINT_NAME
+# [--let $auxiliary_connection= CONNECTION_NAME]
 # [--let $quiet= [0|2]]
 # [--let $sync_point_timeout= N]
-# --source include/execute_statement_at_sync_point.inc
+# --source include/execute_to_sync_point.inc
 #
 # Parameters:
 #   See execute_at_sync_point.inc.
 
 --let $include_silent= 1
---let $include_filename= execute_at_sync_point.inc
+--let $include_filename= execute_to_sync_point.inc
 --source include/begin_include_file.inc
 --let $include_silent= 0
 
@@ -58,7 +59,9 @@ if ($sync_point_timeout)
 }
 
 # On $statement_connection, setup sync point and begin execute statement.
---connection $statement_connection
+--let $rpl_connection_name= $statement_connection
+--source include/rpl_connection.inc
+
 eval SET @@SESSION.DEBUG_SYNC = '$sync_point SIGNAL _esp_parked_$sync_point$underscore$statement_connection WAIT_FOR _esp_go_$sync_point$underscore$statement_connection $_esp_timeout';
 
 if ($quiet != 2)
@@ -70,9 +73,15 @@ if ($quiet != 2)
 eval $statement;
 
 # On auxiliary connection, begin waiting for statement to reach the sync point.
---connection $_esp_auxiliary_connection
+if ($rpl_debug)
+{
+  --echo waiting for debug sync point _esp_parked_$sync_point$underscore$statement_connection $_esp_timeout
+}
+--let $rpl_connection_name= $_esp_auxiliary_connection
+--source include/rpl_connection.inc
+
 eval SET @@SESSION.DEBUG_SYNC = 'now WAIT_FOR _esp_parked_$sync_point$underscore$statement_connection $_esp_timeout';
 
 --let $skip_restore_connection= 1
---let $include_filename= execute_at_sync_point.inc
+--let $include_filename= execute_to_sync_point.inc
 --source include/end_include_file.inc

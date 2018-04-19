@@ -25,20 +25,20 @@ commit work;
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if first page of user
 # tablespace is full of zeroes.
-select space from information_schema.innodb_sys_tables
+select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 # Wait for purge to complete
 # Ensure that dirty pages of table t1 is flushed.
 flush tables t1 for export;
 unlock tables;
+SET GLOBAL innodb_checkpoint_disabled=1;
+begin;
+insert into t1 values (6, repeat('%', 12));
 # Make the first page dirty for table t1
 set global innodb_saved_page_number_debug = 0;
 set global innodb_fil_make_page_dirty_debug = @space_id;
-# Ensure that dirty pages of table t1 is flushed.
-flush tables t1 for export;
-unlock tables;
-begin;
-insert into t1 values (6, repeat('%', 12));
+# Ensure that dirty pages of table t1 are flushed.
+set global innodb_buf_flush_list_now = 1;
 # Kill the server
 # Make the first page (page_no=0) of the user tablespace
 # full of zeroes.
@@ -57,19 +57,19 @@ f1	f2
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if first page of user
 # tablespace is corrupted.
-select space from information_schema.innodb_sys_tables
+select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 # Ensure that dirty pages of table t1 is flushed.
 flush tables t1 for export;
 unlock tables;
+SET GLOBAL innodb_checkpoint_disabled=1;
+begin;
+insert into t1 values (6, repeat('%', 12));
 # Make the first page dirty for table t1
 set global innodb_saved_page_number_debug = 0;
 set global innodb_fil_make_page_dirty_debug = @space_id;
-# Ensure that dirty pages of table t1 is flushed.
-flush tables t1 for export;
-unlock tables;
-begin;
-insert into t1 values (6, repeat('%', 12));
+# Ensure that dirty pages of table t1 are flushed.
+set global innodb_buf_flush_list_now = 1;
 # Kill the server
 # Corrupt the first page (page_no=0) of the user tablespace.
 # restart
@@ -87,19 +87,19 @@ f1	f2
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if 2nd page of user
 # tablespace is full of zeroes.
-select space from information_schema.innodb_sys_tables
+select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 # Ensure that dirty pages of table t1 is flushed.
 flush tables t1 for export;
 unlock tables;
+SET GLOBAL innodb_checkpoint_disabled=1;
+begin;
+insert into t1 values (6, repeat('%', 400));
 # Make the 2nd page dirty for table t1
 set global innodb_saved_page_number_debug = 1;
 set global innodb_fil_make_page_dirty_debug = @space_id;
-# Ensure that dirty pages of table t1 is flushed.
-flush tables t1 for export;
-unlock tables;
-begin;
-insert into t1 values (6, repeat('%', 400));
+# Ensure that dirty pages of table t1 are flushed.
+set global innodb_buf_flush_list_now = 1;
 # Kill the server
 # Make the 2nd page (page_no=1) of the tablespace all zeroes.
 # restart
@@ -117,19 +117,19 @@ f1	f2
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if 2nd page of user
 # tablespace is corrupted.
-select space from information_schema.innodb_sys_tables
+select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 # Ensure that dirty pages of table t1 is flushed.
 flush tables t1 for export;
 unlock tables;
+SET GLOBAL innodb_checkpoint_disabled=1;
+begin;
+insert into t1 values (6, repeat('%', 400));
 # Make the 2nd page dirty for table t1
 set global innodb_saved_page_number_debug = 1;
 set global innodb_fil_make_page_dirty_debug = @space_id;
-# Ensure that dirty pages of table t1 is flushed.
-flush tables t1 for export;
-unlock tables;
-begin;
-insert into t1 values (6, repeat('%', 400));
+# Ensure that the dirty pages of table t1 are flushed.
+set global innodb_buf_flush_list_now = 1;
 # Kill the server
 # Corrupt the 2nd page (page_no=1) of the user tablespace.
 # restart
@@ -147,15 +147,15 @@ f1	f2
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if first page of
 # system tablespace is full of zeroes.
-# Ensure that the dirty page of system tablespace is flushed.
+begin;
+insert into t1 values (6, repeat('%', 400));
+# Ensure that all dirty pages in the system are flushed.
 set global innodb_buf_flush_list_now = 1;
 # Make the first page dirty for system tablespace
 set global innodb_saved_page_number_debug = 0;
 set global innodb_fil_make_page_dirty_debug = 0;
 # Ensure that the dirty page of system tablespace is also flushed.
 set global innodb_buf_flush_list_now = 1;
-begin;
-insert into t1 values (6, repeat('%', 400));
 # Kill the server
 # Make the first page (page_no=0) of the system tablespace
 # all zeroes.
@@ -174,15 +174,15 @@ f1	f2
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if first page of
 # system tablespace is corrupted.
-# Ensure that the dirty page of system tablespace is flushed.
+begin;
+insert into t1 values (6, repeat('%', 400));
+# Ensure that all dirty pages in the system are flushed.
 set global innodb_buf_flush_list_now = 1;
 # Make the first page dirty for system tablespace
 set global innodb_saved_page_number_debug = 0;
 set global innodb_fil_make_page_dirty_debug = 0;
 # Ensure that the dirty page of system tablespace is also flushed.
 set global innodb_buf_flush_list_now = 1;
-begin;
-insert into t1 values (6, repeat('%', 400));
 # Kill the server
 # Corrupt the first page (page_no=0) of the system tablespace.
 # restart
@@ -200,15 +200,15 @@ f1	f2
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if 2nd page of
 # system tablespace is full of zeroes.
-# Ensure that the dirty page of system tablespace is flushed.
+begin;
+insert into t1 values (6, repeat('%', 400));
+# Ensure that all dirty pages in the system are flushed.
 set global innodb_buf_flush_list_now = 1;
 # Make the second page dirty for system tablespace
 set global innodb_saved_page_number_debug = 1;
 set global innodb_fil_make_page_dirty_debug = 0;
-# Ensure that the dirty page of system tablespace is flushed.
+# Ensure that the dirty page of system tablespace is also flushed.
 set global innodb_buf_flush_list_now = 1;
-begin;
-insert into t1 values (6, repeat('%', 400));
 # Kill the server
 # Make the 2nd page (page_no=1) of the system tablespace
 # all zeroes.
@@ -227,15 +227,15 @@ f1	f2
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if 2nd page of
 # system tablespace is corrupted.
-# Ensure that the dirty page of system tablespace is flushed.
+begin;
+insert into t1 values (6, repeat('%', 400));
+# Ensure that all dirty pages in the system are flushed.
 set global innodb_buf_flush_list_now = 1;
 # Make the second page dirty for system tablespace
 set global innodb_saved_page_number_debug = 1;
 set global innodb_fil_make_page_dirty_debug = 0;
-# Ensure that the dirty page of system tablespace is flushed.
+# Ensure that the dirty page of system tablespace is also flushed.
 set global innodb_buf_flush_list_now = 1;
-begin;
-insert into t1 values (6, repeat('%', 400));
 # Kill the server
 # Make the 2nd page (page_no=1) of the system tablespace
 # all zeroes.
@@ -257,3 +257,10 @@ drop table t1;
 # BUG#20511314 - INNODB: FAILING ASSERTION: FOUND IN BUF0BUF.CC LINE 3856
 #
 SET GLOBAL innodb_fil_make_page_dirty_debug=38098908;
+#
+# Bug#22311319 - SERVER CRASHES ON INVALID VALUE FOR VARIABLE
+#		INNODB_SAVED_PAGE_NUMBER_DEBUG
+#
+set global innodb_saved_page_number_debug=461461461;
+set global innodb_fil_make_page_dirty_debug=0;
+set global innodb_saved_page_number_debug=default;

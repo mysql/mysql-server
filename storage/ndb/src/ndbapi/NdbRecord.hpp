@@ -1,15 +1,21 @@
 /*
-   Copyright (C) 2007, 2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -87,12 +93,26 @@ public:
     */
     IsMysqldShrinkVarchar= 0x80,
     /* Bitfield stored in the internal mysqld format. */
-    IsMysqldBitfield= 0x100
+    IsMysqldBitfield= 0x100,
+    /*
+      Bit field maps only null bits.
+      No overflow bits.
+      Used only with IsMysqldBitfield.
+    */
+    BitFieldMapsNullBitOnly= 0x200
   };
 
   struct Attr
   {
     Uint32 attrId;
+
+    /* Character set information, for ordered index merge sort. */
+    CHARSET_INFO *charset_info;
+    /* Function used to compare attributes during merge sort. */
+    NdbSqlUtil::Cmp *compare_function;
+
+    void *unused; /* Make it 64 bytes large */
+
     Uint32 column_no;
     /*
       The index_attrId member is the attribute id in the index table object,
@@ -101,32 +121,28 @@ public:
       table, unless the ordered index is on columns (0..N).
     */
     Uint32 index_attrId;
-    /* Offset of data from the start of a row. */
-    Uint32 offset;
     /*
       Maximum size of the attribute. This is duplicated here to avoid having
       to dig into Table object for every attribute fetch/store.
     */
     Uint32 maxSize;
-    /*
-      Alignment information for the attribute, duplicated from column info
-    */
-    Uint32 orgAttrSize;
     /* Number of bits in a bitfield. */
     Uint32 bitCount;
-
-    /* Flags, or-ed from enum ColFlags. */
-    Uint32 flags;
-
-    /* Character set information, for ordered index merge sort. */
-    CHARSET_INFO *charset_info;
-    /* Function used to compare attributes during merge sort. */
-    NdbSqlUtil::Cmp *compare_function;
-
 
     /* NULL bit location (only for nullable columns, ie. flags&IsNullable). */
     Uint32 nullbit_byte_offset;
     Uint32 nullbit_bit_in_byte;
+
+    /* Offset of data from the start of a row. */
+    Uint32 offset;
+
+    /* Flags, or-ed from enum ColFlags. */
+    Uint32 flags;
+
+    /*
+      Alignment information for the attribute, duplicated from column info
+    */
+    Uint32 orgAttrSize;
 
     bool get_var_length(const char *row, Uint32& len) const
     {
@@ -196,11 +212,6 @@ public:
    * of the distribution keys in the table.
    */
   Uint32 m_no_of_distribution_keys;
-  /* Flags, or-ed from enum RecFlags. */
-  Uint32 flags;
-  /* Size of row (really end of right-most defined attribute in row). */
-  Uint32 m_row_size;
-
   /*
     Array of index (into columns[]) of primary key columns, in order.
     Physical storage for these is after columns[] array.
@@ -209,6 +220,9 @@ public:
   const Uint32 *key_indexes;
   /* Length of key_indexes array. */
   Uint32 key_index_length;
+
+  /* Length of distkey_indexes array. */
+  Uint32 distkey_index_length;
   /*
     Array of index (into columns[]) of distribution keys, in attrId order.
     This is used to build the distribution key, which is the concatenation
@@ -218,18 +232,6 @@ public:
     this array is empty (zero length).
   */
   const Uint32 *distkey_indexes;
-  /* Length of distkey_indexes array. */
-  Uint32 distkey_index_length;
-
-  /**
-   * Array mapping an attribute Id into the corresponding index into the
-   * columns[] array, useful for looking up a column by attribute id.
-   *
-   * If the column is not included in the NdbRecord, the value is -1.
-   */
-  const int *m_attrId_indexes;
-  /* Size of array pointed to by m_attrId_indexes. */
-  Uint32 m_attrId_indexes_length;
 
   /*
     m_min_distkey_prefix_length is the minimum lenght of an index prefix
@@ -239,8 +241,24 @@ public:
     This member only makes sense for an index NdbRecord.
   */
   Uint32 m_min_distkey_prefix_length;
+
+  /* Size of array pointed to by m_attrId_indexes. */
+  Uint32 m_attrId_indexes_length;
   /* The real size of the array at the end of this struct. */
   Uint32 noOfColumns;
+  /* Flags, or-ed from enum RecFlags. */
+  Uint32 flags;
+  /**
+   * Array mapping an attribute Id into the corresponding index into the
+   * columns[] array, useful for looking up a column by attribute id.
+   *
+   * If the column is not included in the NdbRecord, the value is -1.
+   */
+  const int *m_attrId_indexes;
+
+  /* Size of row (really end of right-most defined attribute in row). */
+  Uint32 m_row_size;
+
   struct Attr columns[1];
 
   /* Copy a user-supplied mask to internal mask. */

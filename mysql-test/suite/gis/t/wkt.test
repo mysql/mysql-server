@@ -1,0 +1,1090 @@
+# This test tests the GIS functions that take as arguments a Well-Known Text (WKT)
+# representation and, optionally, a spatial reference system identifier (SRID).
+# They return the corresponding geometry.
+#
+# Creation Date : 2016-03-16
+# Author : Pavan Naik
+#
+
+SET @wkt_pt = 'POINT(0 0)';
+SET @wkt_ln = 'LINESTRING(0 0,2 2,4 4,6 6,8 8, 10 10)';
+SET @wkt_py = 'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))';
+SET @wkt_mpt = 'MULTIPOINT(0 0,2 2,4 4,6 6)';
+SET @wkt_mln = 'MULTILINESTRING((0 0,2 2,4 4),(6 6,8 8,10 10))';
+SET @wkt_mpy = 'MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                            '((10 10,10 12,12 12,12 10,10 10)))';
+SET @wkt_gc = 'GEOMETRYCOLLECTION('
+                  'POINT(0 0),'
+                  'LINESTRING(0 0,10 10),'
+                  'POLYGON((0 0,0 10,10 10,10 0, 0 0)),'
+                  'MULTIPOINT(0 0,2 2,4 4,6 6,8 8,10 10),'
+                  'MULTILINESTRING((0 0,10 10),(0 10,10 0)),'
+                  'MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))';
+
+--echo #
+--echo # Functions that accept a WKT value of any geometry type.
+--echo #
+
+--echo # ST_GeomFromText()
+SELECT ST_AsText(ST_GeomFromText(@wkt_pt));
+SELECT ST_AsText(ST_GeomFromText(@wkt_ln));
+SELECT ST_AsText(ST_GeomFromText(@wkt_py));
+SELECT ST_AsText(ST_GeomFromText(@wkt_mpt));
+SELECT ST_AsText(ST_GeomFromText(@wkt_mln));
+SELECT ST_AsText(ST_GeomFromText(@wkt_mpy));
+SELECT ST_AsText(ST_GeomFromText(@wkt_gc));
+
+--echo # ST_GeometryFromText()
+SELECT ST_AsText(ST_GeometryFromText(@wkt_pt));
+SELECT ST_AsText(ST_GeometryFromText(@wkt_ln));
+SELECT ST_AsText(ST_GeometryFromText(@wkt_py));
+SELECT ST_AsText(ST_GeometryFromText(@wkt_mpt));
+SELECT ST_AsText(ST_GeometryFromText(@wkt_mln));
+SELECT ST_AsText(ST_GeometryFromText(@wkt_mpy));
+SELECT ST_AsText(ST_GeometryFromText(@wkt_gc));
+
+--echo #
+--echo # Function that accepts a WKT value of Point geometry
+--echo #
+
+--echo # ST_PointFromText()
+SELECT ST_AsText(ST_PointFromText(@wkt_pt));
+
+--echo #
+--echo # Functions that accept a WKT value of LineString geometry
+--echo #
+
+--echo # ST_LineFromText()
+SELECT ST_AsText(ST_LineFromText(@wkt_ln));
+
+--echo # ST_LineStringFromText()
+SELECT ST_AsText(ST_LineStringFromText(@wkt_ln));
+
+--echo #
+--echo # Functions that accept a WKT value of Polygon geometry
+--echo #
+
+--echo # ST_PolyFromText()
+SELECT ST_AsText(ST_PolyFromText(@wkt_py));
+
+--echo # ST_PolygonFromText()
+SELECT ST_AsText(ST_PolygonFromText(@wkt_py));
+
+--echo #
+--echo # Functions that accept a WKT value of MultiPoint geometry
+--echo #
+
+--echo # ST_MPointFromText()
+SELECT ST_AsText(ST_MPointFromText(@wkt_mpt));
+
+--echo # ST_MultiPointFromText()
+SELECT ST_AsText(ST_MultiPointFromText(@wkt_mpt));
+
+--echo #
+--echo # Functions that accept a WKT value of MultiLineString geometry
+--echo #
+
+--echo # ST_MLineFromText()
+SELECT ST_AsText(ST_MLineFromText(@wkt_mln));
+
+--echo # ST_MultiLineStringFromText()
+SELECT ST_AsText(ST_MultiLineStringFromText(@wkt_mln));
+
+--echo #
+--echo # Functions that accept a WKT value of MultiPolygon geometry
+--echo #
+
+--echo # ST_MPolyFromText()
+SELECT ST_AsText(ST_MPolyFromText(@wkt_mpy));
+
+--echo # ST_MultiPolygonFromText()
+SELECT ST_AsText(ST_MultiPolygonFromText(@wkt_mpy));
+
+--echo #
+--echo # Functions that accept a WKT value of GeometryCollection geometry
+--echo #
+
+--echo # ST_GeomCollFromTxt()
+SELECT ST_AsText(ST_GeomCollFromTxt(@wkt_gc));
+
+--echo # ST_GeomCollFromText()
+SELECT ST_AsText(ST_GeomCollFromText(@wkt_gc));
+
+--echo # ST_GeometryCollectionFromText()
+SELECT ST_AsText(ST_GeometryCollectionFromText(@wkt_gc));
+
+--echo #
+--echo # Invalid function calls
+--echo #
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_GeomFromText();
+
+SELECT ST_GeomFromText(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_GeomFromText('POINT()');
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_GeomFromText('LINESTRING(0 0,! 10)');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_GeometryFromText();
+
+SELECT ST_GeometryFromText(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_GeometryFromText('POINT(! 0)');
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_GeometryFromText('POLYGON((0 0,0 10,10 10,10 0,0 0)');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_PointFromText();
+
+SELECT ST_PointFromText(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_PointFromText('POINT()');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_LineFromText();
+
+SELECT ST_LineFromText(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_LineFromText('LINESTRING(a a,b b)');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_LineStringFromText();
+
+SELECT ST_LineStringFromText(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_LineStringFromText('LINESTRING(1 1,1 b)');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_PolyFromText();
+
+SELECT ST_PolyFromText(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_PolyFromText('POLYGON(())');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_PolygonFromText();
+
+SELECT ST_PolygonFromText(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_PolygonFromText('POLYGON((0 0,0 5,5 5,5 0,0 0),())');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_MPointFromText();
+
+SELECT ST_MPointFromText(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_MPointFromText('MULTIPOINT(0 0,1)');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_MultiPointFromText();
+
+SELECT ST_MultiPointFromText(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_MultiPointFromText('MULTIPOINT(0 0,1 1 1)');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_MLineFromText();
+
+SELECT ST_MLineFromText(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_MLineFromText('MULTILINESTRING((0 0,1),())');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_MultiLineStringFromText();
+
+SELECT ST_MultiLineStringFromText(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_MultiLineStringFromText('MULTILINESTRING((0 0,1),(1 1,2 2)');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_MPolyFromText();
+
+SELECT ST_MPolyFromText(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_MPolyFromText('MULTIPOLYGON(((0 0,1)),(()))');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_MultiPolygonFromText();
+
+SELECT ST_MultiPolygonFromText(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_MultiPolygonFromText('MULTIPOLYGON(((0 0,0 1,1 1,1 0,0 0)),(2 2,2 3,3 3,3 2,2 2))');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_GeomCollFromTxt();
+
+SELECT ST_GeomCollFromTxt(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_GeomCollFromTxt('GEOMETRYCOLLECTION(POINT())');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_GeomCollFromText();
+
+SELECT ST_GeomCollFromText(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_GeomCollFromText('GEOMETRYCOLLECTION(POINT(a a))');
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_GeometryCollectionFromText();
+
+SELECT ST_GeometryCollectionFromText(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,1 1)');
+
+--echo #
+--echo # WL#8579 Spatial Reference Systems
+--echo #
+
+DELIMITER |;
+CREATE PROCEDURE gis_wkt_funcs(IN srid INT)
+BEGIN
+    SET @wkt_pt = 'POINT(0 0)';
+    SET @wkt_ln = 'LINESTRING(0 0,2 2,4 4,6 6,8 8, 10 10)';
+    SET @wkt_py = 'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))';
+    SET @wkt_mpt = 'MULTIPOINT(0 0,2 2,4 4,6 6)';
+    SET @wkt_mln = 'MULTILINESTRING((0 0,2 2,4 4),(6 6,8 8,10 10))';
+    SET @wkt_mpy = 'MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                '((10 10,10 12,12 12,12 10,10 10)))';
+    SET @wkt_gc = 'GEOMETRYCOLLECTION('
+                      'POINT(0 0),'
+                      'LINESTRING(0 0,10 10),'
+                      'POLYGON((0 0,0 10,10 10,10 0, 0 0)),'
+                      'MULTIPOINT(0 0,2 2,4 4,6 6,8 8,10 10),'
+                      'MULTILINESTRING((0 0,10 10),(0 10,10 0)),'
+                      'MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))';
+
+    # GIS WKT functions
+    DO ST_GeomFromText(@wkt_pt, srid);
+    DO ST_GeometryFromText(@wkt_pt, srid);
+
+    DO ST_PointFromText(@wkt_pt, srid);
+
+    DO ST_LineFromText(@wkt_ln, srid);
+    DO ST_LineStringFromText(@wkt_ln, srid);
+
+    DO ST_PolyFromText(@wkt_py, srid);
+    DO ST_PolygonFromText(@wkt_py, srid);
+
+    DO ST_MPointFromText(@wkt_mpt, srid);
+    DO ST_MultiPointFromText(@wkt_mpt, srid);
+
+    DO ST_MLineFromText(@wkt_mln, srid);
+    DO ST_MultiLineStringFromText(@wkt_mln, srid);
+
+    DO ST_MPolyFromText(@wkt_mpy, srid);
+    DO ST_MultiPolygonFromText(@wkt_mpy, srid);
+
+    DO ST_GeomCollFromTxt(@wkt_gc, srid);
+    DO ST_GeomCollFromText(@wkt_gc, srid);
+    DO ST_GeometryCollectionFromText(@wkt_gc, srid);
+END |
+DELIMITER ;|
+
+--echo # SRID 0 (should pass)
+CALL gis_wkt_funcs(0);
+
+--echo # Projected SRS (should pass)
+CALL gis_wkt_funcs(2000);
+
+--echo # Geographic SRS (should pass)
+CALL gis_wkt_funcs(4326);
+
+--echo # Undefined SRS (should fail)
+# Assume SRID 19000000 is undefined
+--error ER_SRS_NOT_FOUND
+CALL gis_wkt_funcs(19000000);
+
+--echo # Clean up
+DROP PROCEDURE gis_wkt_funcs;
+
+--echo #
+--echo # Bug #23632147 MYSQL USES INVALID WKT FOR EMPTY GEOMETRYCOLLECTION
+--echo #
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POINT EMPTY'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POINT()'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(' POINT  EMPTY '));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POINT EMPTY()'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POINT EMPT'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POINT EMPTYNESS'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('LINESTRING EMPTY'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('LINESTRING()'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(' LINESTRING  EMPTY '));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('LINESTRING EMPTY()'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('LINESTRING EMPT'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('LINESTRING EMPTYNESS'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POLYGON EMPTY'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POLYGON()'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(' POLYGON  EMPTY '));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POLYGON EMPTY()'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POLYGON EMPT'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('POLYGON EMPTYNESS'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOINT EMPTY'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOINT()'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(' MULTIPOINT  EMPTY '));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOINT EMPTY()'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOINT EMPT'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOINT EMPTYNESS'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTILINESTRING EMPTY'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTILINESTRING()'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(' MULTILINESTRING  EMPTY '));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTILINESTRING EMPTY()'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTILINESTRING EMPT'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTILINESTRING EMPTYNESS'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOLYGON EMPTY'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOLYGON()'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(' MULTIPOLYGON  EMPTY '));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOLYGON EMPTY()'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOLYGON EMPT'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('MULTIPOLYGON EMPTYNESS'));
+
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION EMPTY'));
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'));
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(' GEOMETRYCOLLECTION  EMPTY '));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION EMPTY()'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION EMPT'));
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION EMPTYNESS'));
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(
+  'GEOMETRYCOLLECTION(
+     GEOMETRYCOLLECTION(
+       GEOMETRYCOLLECTION EMPTY,
+       GEOMETRYCOLLECTION ()
+     )
+   )'
+));
+
+--echo ########################################################################
+--echo # Inserting testing SRS values in spatial reference table
+--echo ########################################################################
+
+--echo # Inserting geographical srs with long-lat ordering
+CREATE SPATIAL REFERENCE SYSTEM 30000000 NAME 'TEST30000000' DEFINITION 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LONG",EAST],AXIS["LAT",NORTH],AUTHORITY["EPSG","30000000"]]';
+
+--echo # Inserting geographical srs with lat-long ordering
+CREATE SPATIAL REFERENCE SYSTEM 30100000 NAME 'TEST30100000' DEFINITION 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LAT",NORTH],AXIS["LONG",EAST],AUTHORITY["EPSG","30100000"]]';
+
+--echo # Inserting projected srs with northing-easting ordering
+CREATE SPATIAL REFERENCE SYSTEM 30200000 NAME 'TEST30200000' DEFINITION 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",NORTH],AXIS["Y",EAST],AUTHORITY["EPSG","30200000"]]';
+
+--echo # Inserting projected srs with easting-northing ordering
+CREATE SPATIAL REFERENCE SYSTEM 30300000 NAME 'TEST30300000' DEFINITION 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",EAST],AXIS["Y",NORTH],AUTHORITY["EPSG","30300000"]]';
+
+
+--echo ########################################################################
+--echo # Retrieving geometrycollections with the ST_GEOMCOLLFROMTEXT function
+--echo #
+--echo ########################################################################
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,10 0,10 10,0 10,0 0)),
+    MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),
+    ((0 0,-2 -2,0 -2, 0 0))))', 30000000,'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30100000,'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30200000,'axis-order=srid-defined'));
+
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,10 0,10 10,0 10,0 0)),
+    MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),
+    ((0 0,-2 -2,0 -2, 0 0))))', 30300000,'axis-order=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Retrieving geometrycollections with the ST_GEOMCOLLFROMTXT function
+--echo #
+--echo ########################################################################
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,10 0,10 10,0 10,0 0)),
+    MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),
+    ((0 0,-2 -2,0 -2, 0 0))))', 30000000,'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30100000,'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30200000,'axis-order=srid-defined'));
+
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,10 0,10 10,0 10,0 0)),
+    MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),
+    ((0 0,-2 -2,0 -2, 0 0))))', 30300000,'axis-order=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Retrieving geometrycollections with the ST_GEOMETRYCOLLECTIONFROMTEXT
+--echo # function
+--echo ########################################################################
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,10 0,10 10,0 10,0 0)),
+    MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),
+    ((0 0,-2 -2,0 -2, 0 0))))', 30000000,'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30100000,'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30200000,'axis-order=srid-defined'));
+
+SELECT ST_ASTEXT(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,10 0,10 10,0 10,0 0)),
+    MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),
+    ((0 0,-2 -2,0 -2, 0 0))))', 30300000,'axis-order=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Retrieving geometrycollections with the ST_GEOMETRYFROMTEXT function
+--echo #
+--echo ########################################################################
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_GEOMETRYFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,10 0,10 10,0 10,0 0)),
+    MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),
+    ((0 0,-2 -2,0 -2, 0 0))))', 30000000,'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_GEOMETRYFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30100000,'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_GEOMETRYFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30200000,'axis-order=srid-defined'));
+
+SELECT ST_ASTEXT(ST_GEOMETRYFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,10 0,10 10,0 10,0 0)),
+    MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),
+    ((0 0,-2 -2,0 -2, 0 0))))', 30300000,'axis-order=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Retrieving geometrycollections with the ST_GEOMFROMTEXT function
+--echo #
+--echo ########################################################################
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,10 0,10 10,0 10,0 0)),
+    MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),
+    ((0 0,-2 -2,0 -2, 0 0))))', 30000000,'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30100000,'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30200000,'axis-order=srid-defined'));
+
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,10 0,10 10,0 10,0 0)),
+    MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),
+    ((0 0,-2 -2,0 -2, 0 0))))', 30300000,'axis-order=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Retrieving linestrings with the ST_LINEFROMTEXT function
+--echo #
+--echo ########################################################################
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)', 30100000,
+'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)', 30100000,
+'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)', 30100000,
+'axis-order=srid-defined'));
+SELECT ST_ASTEXT(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)', 30000000,
+'axis-order=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Retrieving linestrings with the ST_LINESTRINGFROMTEXT function
+--echo #
+--echo ########################################################################
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_LINESTRINGFROMTEXT('LINESTRING(0 5,5 10,10 15)', 30100000,
+'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_LINESTRINGFROMTEXT('LINESTRING(0 5,5 10,10 15)', 30100000,
+'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_LINESTRINGFROMTEXT('LINESTRING(0 5,5 10,10 15)', 30100000,
+'axis-order=srid-defined'));
+SELECT ST_ASTEXT(ST_LINESTRINGFROMTEXT('LINESTRING(0 5,5 10,10 15)', 30000000,
+'axis-order=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Retrieving multistrings with the ST_MLINEFROMTEXT function
+--echo #
+--echo ########################################################################
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),
+    (8 11,11 14,14 17))', 30000000,'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),
+    (8 11,11 14,14 17))', 30100000,'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),
+    (8 11,11 14,14 17))', 30200000,'axis-order=srid-defined'));
+SELECT ST_ASTEXT(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),
+    (8 11,11 14,14 17))', 30300000,'axis-order=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Retrieving multipoints with the ST_MPOINTFROMTEXT function
+--echo #
+--echo ########################################################################
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',
+30000000,'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',
+30100000,'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',
+30200000,'axis-order=srid-defined'));
+SELECT ST_ASTEXT(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',
+30300000,'axis-order=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Retrieving multipolygons with the ST_MPOLYFROMTEXT function
+--echo #
+--echo ########################################################################
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),
+    (4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))', 30000000,
+    'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),
+    (4 4,6 4,6 6,4 6, 4 4)),((0 0,-2 -2,-2 0, 0 0)))', 30100000,
+    'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),
+    (4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))', 30200000,
+    'axis-order=srid-defined'));
+SELECT ST_ASTEXT(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),
+    (4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))', 30300000,
+    'axis-order=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Retrieving multistrings with the ST_MULTILINESTRINGFROMTEXT function
+--echo #
+--echo ########################################################################
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),
+    (8 11,11 14,14 17))', 30000000,'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),
+    (8 11,11 14,14 17))', 30100000,'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),
+    (8 11,11 14,14 17))', 30200000,'axis-order=srid-defined'));
+SELECT ST_ASTEXT(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),
+    (8 11,11 14,14 17))', 30300000,'axis-order=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Retrieving multipoints with the ST_MULTIPOINTFROMTEXT function
+--echo #
+--echo ########################################################################
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_MULTIPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2),
+(4 9))', 30000000,'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_MULTIPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2),
+(4 9))', 30100000,'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_MULTIPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2),
+(4 9))', 30200000,'axis-order=srid-defined'));
+SELECT ST_ASTEXT(ST_MULTIPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2),
+(4 9))', 30300000,'axis-order=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Retrieving multipolygons with the ST_MULTIPOLYGONFROMTEXT function
+--echo #
+--echo ########################################################################
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_MULTIPOLYGONFROMTEXT(
+'MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0), (4 4,4 6,6 6,6 4, 4 4)),
+((0 0,-2 -2,0 -2, 0 0)))', 30000000, 'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_MULTIPOLYGONFROMTEXT(
+'MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0), (4 4,6 4,6 6,4 6, 4 4)),
+((0 0,-2 -2,-2 0, 0 0)))', 30100000, 'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_MULTIPOLYGONFROMTEXT(
+'MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0), (4 4,4 6,6 6,6 4, 4 4)),
+((0 0,-2 -2,0 -2, 0 0)))', 30200000, 'axis-order=srid-defined'));
+SELECT ST_ASTEXT(ST_MULTIPOLYGONFROMTEXT(
+'MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0), (4 4,4 6,6 6,6 4, 4 4)),
+((0 0,-2 -2,0 -2, 0 0)))', 30300000, 'axis-order=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Retrieving points with the ST_POINTFROMTEXT function
+--echo #
+--echo ########################################################################
+
+--echo # When the geometry is in a projected spatial reference system,
+--echo # the coordinates are interpreted as in the order they appear in the geometry.
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('point(1 2)',30300000, 'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('point(1 2)',30100000, 'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('point(1 2)',30200000, 'axis-order=srid-defined'));
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('point(1 2)',30100000, 'axis-order=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Retrieving polygons with the ST_POLYFROMTEXT function
+--echo #
+--echo ########################################################################
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))', 30000000,
+'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_POLYFROMTEXT('POLYGON((0 0,0 5,5 5,5 0,0 0))', 30100000,
+'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_POLYFROMTEXT('POLYGON((0 0,0 5,5 5,5 0,0 0))', 30200000,
+'axis-order=srid-defined'));
+SELECT ST_ASTEXT(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))', 30300000,
+'axis-order=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Retrieving polygons with the ST_POLYGONFROMTEXT function
+--echo #
+--echo ########################################################################
+
+--echo # Retrieve values with long lat ordering.
+SELECT ST_ASTEXT(ST_POLYGONFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))', 30000000,
+'axis-order=long-lat'));
+
+--echo # Retrieve values with lat-long ordering.
+SELECT ST_ASTEXT(ST_POLYGONFROMTEXT('POLYGON((0 0,0 5,5 5,5 0,0 0))', 30100000,
+'axis-order=lat-long'));
+
+--echo # Retrieve values with SRID-defined ordering.
+SELECT ST_ASTEXT(ST_POLYGONFROMTEXT('POLYGON((0 0,0 5,5 5,5 0,0 0))', 30200000,
+'axis-order=srid-defined'));
+SELECT ST_ASTEXT(ST_POLYGONFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))', 30300000,
+'axis-order=srid-defined'));
+
+
+--echo # ######################################################################
+--echo # Options upper and lower case testing
+--echo # ######################################################################
+
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,10 0,10 10,0 10,0 0)),
+    MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),
+    ((0 0,-2 -2,0 -2, 0 0))))', 30000000,'axis-order=Long-Lat'));
+
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30100000,'axiS-Order=Lat-lonG'));
+
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30200000,'AXis-orDer=srid-defined'));
+
+
+--echo ########################################################################
+--echo # Error testing
+--echo ########################################################################
+
+--echo # Test with too many options.
+
+--error ER_DUPLICATE_OPTION_KEY
+SELECT ST_ASTEXT(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),
+    (4 4,6 4,6 6,4 6, 4 4)),((0 0,-2 -2,-2 0, 0 0)))', 30300000,
+    'axis-order=srid-defined, axis-order=lat-long'));
+
+--echo # Test with invalid options key.
+--error ER_INVALID_OPTION_KEY
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30300000,'axix-order=srid-defined'));
+
+--error ER_INVALID_OPTION_KEY
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30200000,'axix-order=lat-long'));
+
+--error ER_INVALID_OPTION_KEY
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30100000,'axix-order=lat-long'));
+
+--echo # Test with invalid options value
+--error ER_INVALID_OPTION_VALUE
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30300000,'axis-order=srid-dfined'));
+
+--error ER_INVALID_OPTION_VALUE
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30200000,'axis-order=lat-bong'));
+
+--error ER_INVALID_OPTION_VALUE
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30100000,'axis-order=lat-shwong'));
+
+--echo # Test with both invalid option and invalid value
+--error ER_INVALID_OPTION_KEY
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,10 0,10 10,0 10,0 0)),
+    MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),
+    ((0 0,-2 -2,0 -2, 0 0))))', 30100000,'axis-border=lat-shwong'));
+
+--echo # Testing for badly formed options argument.
+--error ER_INVALID_OPTION_KEY_VALUE_PAIR
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30100000,'axis-order srid-defined'));
+
+--error ER_INVALID_OPTION_START_CHARACTER
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30100000,'=axis-order srid-defined'));
+
+--error ER_INVALID_OPTION_END_CHARACTER
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30100000,'axis-order=srid-defined='));
+
+--error ER_INVALID_OPTION_CHARACTERS
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30100000,'axis-order== srid-defined'));
+
+
+--echo # ######################################################################
+--echo # Empty string and white space testing
+--echo # ######################################################################
+
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,10 0,10 10,0 10,0 0)),
+    MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),
+    ((0 0,-2 -2,0 -2, 0 0))))', 30000000,''));
+
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30200000,' '));
+
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5),
+    POLYGON((0 0,0 10,10 10,10 0,0 0)),
+    MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6, 4 4)),
+    ((0 0,-2 -2,-2 0, 0 0))))', 30200000,' axis-order = srid-defined '));
+
+--echo # ######################################################################
+--echo # NULL value testing
+--echo # ######################################################################
+
+--echo # NULL value testing: Should return NULL if either or both parameters is NULL
+
+SELECT ST_ASTEXT(ST_POINTFROMTEXT(NULL,30300000, 'axis-order=long-lat'));
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('point(1 2)', NULL, 'axis-order=lat-long'));
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('point(1 2)', 30200000, NULL));
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('point(1 2)', NULL, NULL));
+SELECT ST_ASTEXT(ST_POINTFROMTEXT(NULL, NULL, NULL));
+
+--echo #
+--echo # Bug #25818451 ASAN HEAP-USE-AFTER-FREE WITH GEOMETRY + STRING
+--echo #
+
+SET @c:=REPEAT('a',128);
+SET @f:=0x336f;
+SET @s:=REPLACE("DO ST_ASTEXT(LEFT(@c,@f));","'",'"');
+PREPARE s FROM @s;
+--error ER_GIS_INVALID_DATA
+EXECUTE s;
+DROP PREPARE s;
+
+######################################################################
+# WL#9449 Restrict range of geographic coordinates in import functions
+######################################################################
+
+--echo ##########################################################
+--echo # Inserting testing SRS values in spatial reference table
+--echo ##########################################################
+
+--echo # Inserting geographical srs with long-lat ordering
+CREATE SPATIAL REFERENCE SYSTEM 32000000 NAME 'TEST32000000' DEFINITION 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LONG",EAST],AXIS["LAT",NORTH],AUTHORITY["EPSG","32000000"]]';
+
+--echo # Inserting geographical srs with lat-long ordering
+CREATE SPATIAL REFERENCE SYSTEM 32100000 NAME 'TEST32100000' DEFINITION 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LAT",NORTH],AXIS["LONG",EAST],AUTHORITY["EPSG","32100000"]]';
+
+--echo # Inserting projected srs with northing-easting ordering
+CREATE SPATIAL REFERENCE SYSTEM 32200000 NAME 'TEST32200000' DEFINITION 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",NORTH],AXIS["Y",EAST],AUTHORITY["EPSG","32200000"]]';
+
+--echo #########################################################################
+--echo # Test with geometries with geographic SRS with long-lat ordering outside
+--echo # valid range.
+--echo #########################################################################
+
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(-200 10)',32000000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_LINEFROMTEXT('LINESTRING(0 5,194 10,10 15)',32000000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,-300 5,0 0))',32000000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (798 2), (-344 9))',32000000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(744 11,11 14,14 17))',32000000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,350 0,350 350,0 350,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',32000000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(-199 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',32000000);
+
+--echo #########################################################################
+--echo # Test with geometries with geographic SRS with lat-long ordering outside
+--echo # valid range (same geometries as above, but with different error since
+--echo # coordinates are flipped).
+--echo #########################################################################
+
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(-200 10)',32100000);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_LINEFROMTEXT('LINESTRING(0 5,194 10,10 15)',32100000);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,-300 5,0 0))',32100000);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (798 2), (4 9))',32100000);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(744 11,11 14,14 17))',32100000);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,350 0,350 350,0 350,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',32100000);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(-199 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',32100000);
+
+--echo ##############################
+--echo # Miscellaneous error testing
+--echo ##############################
+
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(-91 10)',32100000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(10 -182)',32100000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(744 11,11 91,14 17))',32000000);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_MLINEFROMTEXT('MULTILINESTRING((0 95,2 4,4 6),(744 11,11 91,14 17))',32000000);
+
+--echo ###################
+--echo # Edge case testing
+--echo ###################
+
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('POINT(-90.0000000 10)',32100000));
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('POINT(10 -180.000000)',32100000));
+
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('POINT(90.0000000 10)',32100000));
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('POINT(10 180.000000)',32100000));
+
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(-90.0000001 10)',32100000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(10 -180.0000001)',32100000);
+
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(90.0000001 10)',32100000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(10 180.0000001)',32100000);
+
+--echo #################################################################
+--echo # Test that range restriction does not apply to projected spatial
+--echo # reference systems
+--echo #################################################################
+
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('POINT(-200 10)',32200000));
+SELECT ST_ASTEXT(ST_LINEFROMTEXT('LINESTRING(0 5,194 10,10 15)',32200000));
+SELECT ST_ASTEXT(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,-300 5,0 0))',32200000));
+SELECT ST_ASTEXT(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (798 2), (4 9))',32200000));
+SELECT ST_ASTEXT(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(744 11,11 14,14 17))',32200000));
+SELECT ST_ASTEXT(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,350 0,350 350,0 350,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',32200000));
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(-199 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',32200000));
+
+--echo ########################################################
+--echo # Test with empty GEOMETRYCOLLECTION with geographic SRS
+--echo ########################################################
+
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()', 32000000));
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()', 32100000));
+
+# Cleanup.
+DROP SPATIAL REFERENCE SYSTEM 30000000;
+DROP SPATIAL REFERENCE SYSTEM 30100000;
+DROP SPATIAL REFERENCE SYSTEM 30200000;
+DROP SPATIAL REFERENCE SYSTEM 30300000;
+DROP SPATIAL REFERENCE SYSTEM 32000000;
+DROP SPATIAL REFERENCE SYSTEM 32100000;
+DROP SPATIAL REFERENCE SYSTEM 32200000;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined. Should raise warning.
+DO ST_ASTEXT(x'0A000000010100000000000000000000000000000000000000');
+DO ST_ASWKT(x'0A000000010100000000000000000000000000000000000000');
+
+--echo #
+--echo # Bug #27427677 SIG 11 IN STRING::APPEND() METHOD,
+--echo # SQL-COMMON/SQL_STRING.CC:535
+--echo #
+
+CREATE TABLE t1(c1 GEOMETRY);
+INSERT INTO t1 VALUES (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 0))'));
+SELECT ST_AsText(c1) AS f1 FROM t1 ORDER BY f1;
+DROP TABLE t1;

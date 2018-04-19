@@ -1,10 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # this test needs multithreaded mysqltest
--- source include/not_embedded.inc
 
 # Test sleeps for long times
 --source include/big_test.inc
@@ -22,15 +16,15 @@ set session long_query_time=10;
 select get_lock('bug27638', 1);
 connection con2;
 set session long_query_time=1;
-truncate table mysql.slow_log;
 select get_lock('bug27638', 2);
-select if (query_time between '00:00:01' and '00:00:10', 'OK', 'WRONG') as qt, sql_text from mysql.slow_log;
-truncate table mysql.slow_log;
+select if (query_time >= '00:00:01', 'OK', 'WRONG') as qt, sql_text from mysql.slow_log
+       where sql_text = 'select get_lock(\'bug27638\', 2)';
 select get_lock('bug27638', 60);
-select if (query_time between '00:00:59' and '00:01:10', 'OK', 'WRONG') as qt, sql_text from mysql.slow_log;
-truncate table mysql.slow_log;
+select if (query_time >= '00:00:59', 'OK', 'WRONG') as qt, sql_text from mysql.slow_log
+       where sql_text = 'select get_lock(\'bug27638\', 60)';
 select get_lock('bug27638', 101);
-select if (query_time between '00:01:40' and '00:01:50', 'OK', 'WRONG') as qt, sql_text from mysql.slow_log;
+select if (query_time >= '00:01:40', 'OK', 'WRONG') as qt, sql_text from mysql.slow_log
+       where sql_text = 'select get_lock(\'bug27638\', 101)';
 connection con1;
 select release_lock('bug27638');
 connection default;

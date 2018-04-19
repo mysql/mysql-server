@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 # suite/rpl/t/rpl_checksum.test contains similar testing of 
 # all checksum related system variables.
@@ -20,6 +19,42 @@ set @@global.master_verify_checksum = default;
 
 --error ER_WRONG_VALUE_FOR_VAR
 set @@global.binlog_checksum = ADLER32;
+
+--echo #
+--echo # Bug#22914463 SET BINLOG_CHECKSUM CRASHES WHEN EXECUTED INSIDE
+--echo #              TRANSACTION
+--echo #
+
+--echo # Check that changing binlog_checksum inside transacation
+--echo # is not allowed.
+--echo #
+BEGIN;
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@global.binlog_checksum = CRC32;
+COMMIT;
+
+XA START 'trx1';
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@global.binlog_checksum = CRC32;
+XA END 'trx1';
+XA ROLLBACK 'trx1';
+
+--echo #
+--echo # Check that changing binlog_checksum if the session owns
+--echo # a GTID is not allowed.
+--echo #
+SET GLOBAL GTID_MODE=OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE=ON_PERMISSIVE;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY=ON;
+SET GLOBAL GTID_MODE=ON;
+SET SESSION GTID_NEXT='11111111-AAAA-2222-BBBB-000000000000:5';
+--error ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID
+SET @@global.binlog_checksum = CRC32;
+SET SESSION GTID_NEXT='AUTOMATIC';
+SET GLOBAL GTID_MODE=ON_PERMISSIVE;
+SET GLOBAL GTID_MODE=OFF_PERMISSIVE;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY=OFF;
+SET GLOBAL GTID_MODE=OFF;
 
 # cleanup
 set @@global.binlog_checksum = @save_binlog_checksum;

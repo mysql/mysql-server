@@ -1,0 +1,316 @@
+create temporary table t1 (i int) engine = innodb;
+show create table information_schema.innodb_temp_table_info;
+Table	Create Table
+INNODB_TEMP_TABLE_INFO	CREATE TEMPORARY TABLE `INNODB_TEMP_TABLE_INFO` (
+  `TABLE_ID` bigint(21) unsigned NOT NULL DEFAULT '0',
+  `NAME` varchar(64) DEFAULT NULL,
+  `N_COLS` int(11) unsigned NOT NULL DEFAULT '0',
+  `SPACE` int(11) unsigned NOT NULL DEFAULT '0'
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
+select count(*) from information_schema.innodb_temp_table_info;
+count(*)
+1
+insert into t1 values (1), (2), (3), (4);
+select * from t1;
+i
+1
+2
+3
+4
+select * from t1 where i = 4;
+i
+4
+drop table t1;
+create temporary table t1 (i int) engine = innodb;
+select count(*) from information_schema.innodb_temp_table_info;
+count(*)
+1
+insert into t1 values (1), (2), (3), (4);
+select * from t1;
+i
+1
+2
+3
+4
+select * from t1 where i = 4;
+i
+4
+drop table t1;
+create temporary table t2 (i int) engine = innodb;
+insert into t2 values (1), (2), (3), (4);
+select * from t2;
+i
+1
+2
+3
+4
+select * from t2 where i = 4;
+i
+4
+select count(*) from information_schema.innodb_temp_table_info;
+count(*)
+1
+drop table t2;
+create temporary table t1 (i int, primary key pk(i)) engine = innodb;
+create temporary table t2 (i int, primary key pk(i)) engine = innodb;
+create temporary table t3 (i int, primary key pk(i)) engine = innodb;
+insert into t1 values (1), (2), (3), (4);
+insert into t2 values (1), (2), (3), (4);
+insert into t3 values (1), (2), (3), (4);
+select * from t1;
+i
+1
+2
+3
+4
+select * from t1 where i = 4;
+i
+4
+select count(*) from information_schema.innodb_temp_table_info;
+count(*)
+3
+drop table t1;
+select count(*) from information_schema.innodb_temp_table_info;
+count(*)
+2
+drop table t2;
+select count(*) from information_schema.innodb_temp_table_info;
+count(*)
+1
+drop table t3;
+create temporary table t1
+(keyc int, c1 char(100), c2 char(100),
+primary key(keyc)) engine = innodb;
+create procedure populate_t1()
+begin
+declare i int default 1;
+while (i <= 200) DO
+insert into t1 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+set autocommit=0;
+select * from t1;
+keyc	c1	c2
+call populate_t1();
+select count(*) from t1;
+count(*)
+200
+select * from t1 limit 10;
+keyc	c1	c2
+1	a	b
+2	a	b
+3	a	b
+4	a	b
+5	a	b
+6	a	b
+7	a	b
+8	a	b
+9	a	b
+10	a	b
+set autocommit=1;
+truncate table t1;
+select * from t1;
+keyc	c1	c2
+drop table t1;
+create temporary table t1 (i int) engine = innodb;
+insert into t1 values (1), (2), (3), (4);
+select * from t1;
+i
+1
+2
+3
+4
+select * from t1 where i = 4;
+i
+4
+drop table t1;
+create temporary table t1
+(keyc int, c1 char(100), c2 char(100),
+primary key(keyc))
+engine = innodb;
+begin;
+select * from t1;
+keyc	c1	c2
+call populate_t1();
+select count(*) from t1;
+count(*)
+200
+rollback;
+select * from t1;
+keyc	c1	c2
+begin;
+call populate_t1();
+commit;
+select count(*) from t1;
+count(*)
+200
+truncate table t1;
+select * from t1;
+keyc	c1	c2
+drop table t1;
+drop procedure populate_t1;
+create temporary table t1 (t1_i int, t1_f float) engine = innodb;
+insert into t1 values (1, 1.1), (2, 2.2), (3, 2.2), (4, 4.4);
+explain select * from t1 where t1_i = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`t1_i` AS `t1_i`,`test`.`t1`.`t1_f` AS `t1_f` from `test`.`t1` where (`test`.`t1`.`t1_i` = 1)
+alter table t1 add unique index pri_index(t1_i);
+explain select * from t1 where t1_i = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	pri_index	pri_index	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `t1_i`,'1.1' AS `t1_f` from `test`.`t1` where 1
+select * from t1 where t1_i = 1;
+t1_i	t1_f
+1	1.1
+alter table t1 add unique index sec_index(t1_f);
+ERROR 23000: Duplicate entry '2.2' for key 'sec_index'
+alter table t1 add index sec_index(t1_f);
+explain select * from t1 where t1_f > 2.2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	sec_index	sec_index	5	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`t1_i` AS `t1_i`,`test`.`t1`.`t1_f` AS `t1_f` from `test`.`t1` where (`test`.`t1`.`t1_f` > 2.2)
+select * from t1 where t1_f > 2.2;
+t1_i	t1_f
+2	2.2
+3	2.2
+4	4.4
+alter table t1 add column (t1_c char(10));
+select * from t1;
+t1_i	t1_f	t1_c
+1	1.1	NULL
+2	2.2	NULL
+3	2.2	NULL
+4	4.4	NULL
+insert into t1 values (5, 5.5, 'krunal');
+alter table t1 drop column t1_f;
+show create table t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `t1_i` int(11) DEFAULT NULL,
+  `t1_c` char(10) DEFAULT NULL,
+  UNIQUE KEY `pri_index` (`t1_i`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from t1 where t1_f > 2.2;
+ERROR 42S22: Unknown column 't1_f' in 'where clause'
+alter table t1 add index sec_index2(t1_c), algorithm=inplace;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+select count(*) from information_schema.innodb_temp_table_info;
+count(*)
+1
+drop table t1;
+create temporary table t1 (i int, f float) engine = innodb;
+insert into t1 values (10, 1.1), (20, 2.2);
+select * from t1;
+i	f
+10	1.1
+20	2.2
+alter table t1 discard tablespace;
+ERROR HY000: Cannot DISCARD/IMPORT tablespace associated with temporary table
+alter table t1 import tablespace;
+ERROR HY000: Cannot DISCARD/IMPORT tablespace associated with temporary table
+drop table t1;
+create temporary table t1 (i int) engine=innodb;
+insert into t1 values (1), (2), (3);
+select * from t1;
+i
+1
+2
+3
+alter table t1 rename t2;
+select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select * from t2;
+i
+1
+2
+3
+insert into t2 values (1), (2), (6), (7);
+select * from t2;
+i
+1
+2
+3
+1
+2
+6
+7
+drop table t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+create temporary table t (
+a int not null,
+b blob not null,
+index sk (b(3021))
+) row_format = dynamic engine=innodb;
+drop table t;
+create temporary table t (
+a int not null,
+b blob not null,
+index sk (b(3021))
+) row_format = dynamic engine=innodb;
+drop table t;
+create temporary table t (
+a int not null,
+b blob not null,
+index sk (b(3021))
+) row_format = dynamic engine=innodb;
+drop table t;
+SET innodb_strict_mode=OFF;
+create temporary table t (
+a int not null,
+b blob not null,
+index sk (b(3021))
+) row_format = compact engine=innodb;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+create temporary table t (
+a int not null,
+b blob not null,
+index sk (b(3021))
+) row_format = dynamic engine=innodb;
+drop table t;
+create temporary table t (
+a int not null,
+b blob not null,
+index sk (b(3021))
+) row_format = compressed engine=innodb;
+drop table t;
+create temporary table t (
+a int not null,
+b blob not null,
+index sk (b(3021))
+) row_format = compact engine=innodb;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+create temporary table t (
+a int not null,
+b blob not null,
+index sk (b(3021))
+) row_format = dynamic engine=innodb;
+drop table t;
+DROP TABLE IF EXISTS t1,t2,t3;
+CREATE TABLE t6469_1 ( i INT ) ENGINE = Innodb;
+CREATE TEMPORARY TABLE t6469_2 ( i INT ) ENGINE = Innodb;
+CREATE TEMPORARY table t6469_3 ( i INT ) ENGINE = Innodb ROW_FORMAT=compressed;
+Warnings:
+Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
+SELECT count(*) FROM information_schema.files WHERE file_name LIKE '%t6469%';
+count(*)
+1
+SELECT count(*) FROM information_schema.INNODB_DATAFILES WHERE PATH LIKE '%t6469%';
+count(*)
+1
+SELECT count(*) FROM information_schema.INNODB_TABLES WHERE NAME LIKE '%t6469%';
+count(*)
+1
+DROP TABLE t6469_1,t6469_2,t6469_3;
+SELECT * FROM information_schema.files WHERE file_name LIKE '%t6469%';
+FILE_ID	FILE_NAME	FILE_TYPE	TABLESPACE_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	LOGFILE_GROUP_NAME	LOGFILE_GROUP_NUMBER	ENGINE	FULLTEXT_KEYS	DELETED_ROWS	UPDATE_COUNT	FREE_EXTENTS	TOTAL_EXTENTS	EXTENT_SIZE	INITIAL_SIZE	MAXIMUM_SIZE	AUTOEXTEND_SIZE	CREATION_TIME	LAST_UPDATE_TIME	LAST_ACCESS_TIME	RECOVER_TIME	TRANSACTION_COUNTER	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	STATUS	EXTRA
+SELECT * FROM information_schema.INNODB_DATAFILES WHERE PATH LIKE '%t6469%';
+SPACE	PATH
+SELECT * FROM information_schema.INNODB_TABLES WHERE NAME LIKE '%t6469%';
+TABLE_ID	NAME	FLAG	N_COLS	SPACE	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
+SET sql_mode=default;

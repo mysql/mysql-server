@@ -1,0 +1,37 @@
+--source include/have_ndb.inc
+
+# 'high' used to be equal to 'total' at all times. Check that this is not so.
+select sum(high) < sum(total) from ndbinfo.ndb$pools 
+  where pool_name='Fired Trigger'; 
+
+# A helper table for generating inserts into t1.
+create table num (n int);
+insert into num value (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+# Create a table with a unique key. Every insert into t1 will fire a trigger
+# to update the uniqie index on 'd'.
+CREATE TABLE t1 (
+  a int NOT NULL,
+  b int NOT NULL,
+  c int NOT NULL,
+  d int NOT NULL,
+  PRIMARY KEY (`b`,`a`),
+  unique key(d)
+) ENGINE=ndbcluster;
+
+
+# Now do a lot of inserts into t1. This should cause MaxNoOfFiredTriggers to be
+# exceeded. We want to chech that this gives error 221 rather than 218 
+# (out of long message buffer). This was the case in Bug#19976428 
+# "REPORTS FAILING WITH 'OUT OF LONGMESSAGEBUFFER' ERROR".
+# Observe that we have set MaxNoOfFiredTriggers to a very low value in 
+# ndb_fired_trigger_shortage.cnf.
+--error 1297
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+
+# All FiredTrigger record should be released when the query above aborts.
+# Therefore, sum(used) should be 0 now.
+select sum(used) from ndbinfo.ndb$pools where pool_name='Fired Trigger';
+
+drop table num;
+drop table t1;

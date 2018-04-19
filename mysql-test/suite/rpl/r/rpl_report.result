@@ -3,18 +3,18 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_host';
+select * from performance_schema.global_variables where variable_name like 'report_host';
 VARIABLE_NAME	VARIABLE_VALUE
-REPORT_HOST	127.0.0.1
-select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_port';
+report_host	127.0.0.1
+select * from performance_schema.global_variables where variable_name like 'report_port';
 VARIABLE_NAME	VARIABLE_VALUE
-REPORT_PORT	9308
-select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_user';
+report_port	9308
+select * from performance_schema.global_variables where variable_name like 'report_user';
 VARIABLE_NAME	VARIABLE_VALUE
-REPORT_USER	my_user
-select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_password';
+report_user	my_user
+select * from performance_schema.global_variables where variable_name like 'report_password';
 VARIABLE_NAME	VARIABLE_VALUE
-REPORT_PASSWORD	my_password
+report_password	my_password
 show global variables like 'report_host';
 Variable_name	report_host
 Value	127.0.0.1

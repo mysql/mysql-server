@@ -1,0 +1,745 @@
+# restart:--log-error=MYSQL_TMP_DIR/mysql_upgrade_grant.err
+CREATE USER mysqltest1@'%' IDENTIFIED by 'sakila';
+GRANT ALL ON *.* TO mysqltest1@'%';
+Run mysql_upgrade with password protected account
+mysql_upgrade: [Warning] Using a password on the command line interface can be insecure.
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+DROP USER mysqltest1@'%';
+#
+# Bug #53613: mysql_upgrade incorrectly revokes
+#   TRIGGER privilege on given table
+#
+CREATE USER 'user3'@'%';
+GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
+Run mysql_upgrade with all privileges on a user
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+SHOW GRANTS FOR 'user3'@'%';
+Grants for user3@%
+GRANT USAGE ON *.* TO `user3`@`%`
+GRANT ALL PRIVILEGES ON `roelt`.`test2` TO `user3`@`%`
+DROP USER 'user3'@'%';
+#
+# Bug #19011337: UPGRADE TO 5.7 DISABLES USER ACCOUNTS
+#
+CREATE TABLE mysql.tmp_backup_tables_priv AS SELECT * FROM mysql.tables_priv;
+CREATE TABLE mysql.tmp_backup_user AS SELECT * FROM mysql.user;
+ALTER TABLE mysql.user DROP COLUMN Drop_role_priv;
+ALTER TABLE mysql.user DROP COLUMN Create_role_priv;
+ALTER TABLE mysql.user DROP COLUMN Password_reuse_history;
+ALTER TABLE mysql.user DROP COLUMN Password_reuse_time;
+ALTER TABLE mysql.user ADD COLUMN Password
+char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL
+AFTER user;
+ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT 'mysql_native_password';
+ALTER TABLE mysql.user DROP COLUMN password_last_changed;
+ALTER TABLE mysql.user DROP COLUMN password_lifetime;
+ALTER TABLE mysql.user DROP COLUMN account_locked;
+INSERT INTO mysql.user VALUES
+('localhost','B19011337_nhash','*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'','','N'),
+('localhost','B19011337_ohash','0f0ea7602c473904','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'','','N');
+call mtr.add_suppression("Some of the user accounts with SUPER");
+call mtr.add_suppression("1. Stop");
+call mtr.add_suppression("2. Run");
+call mtr.add_suppression("3. Restart");
+call mtr.add_suppression("For complete");
+call mtr.add_suppression("User entry .B19011337");
+# expect a warning in the error log
+FLUSH PRIVILEGES;
+Warnings:
+Warning	1805	Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
+# let's check for the presense of the warning
+Pattern "User entry 'B19011337_ohash'@'localhost' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore." found
+Pattern "1. Stop" found
+Pattern "2. Run" found
+Pattern "3. Restart" found
+Pattern "For complete instructions on how to upgrade MySQL" found
+# end of check for the presense of the warning
+# repair the user's plugin
+mysql_upgrade: (non fatal) [WARNING] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.tmp_backup_tables_priv                       OK
+mysql.tmp_backup_user                              OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+# expect mysql_native_password
+SELECT plugin FROM mysql.user WHERE user='B19011337_nhash';
+plugin
+mysql_native_password
+# expect empty plugin
+SELECT plugin FROM mysql.user WHERE user='B19011337_ohash';
+plugin
+
+# cleanup
+DROP USER B19011337_nhash@localhost;
+DROP USER B19011337_ohash@localhost;
+TRUNCATE TABLE mysql.tables_priv;
+INSERT INTO mysql.tables_priv (SELECT * FROM mysql.tmp_backup_tables_priv);
+DROP TABLE mysql.tmp_backup_tables_priv;
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user (SELECT * FROM mysql.tmp_backup_user);
+DROP TABLE mysql.tmp_backup_user;
+#
+# WL #8350 ENSURE 5.7 SUPPORTS SMOOTH LIVE UPGRADE FROM 5.6
+#
+call mtr.add_suppression("Column count of mysql.* is wrong. "
+                         "Expected .*, found .*. "
+                         "The table is probably corrupted");
+CREATE TABLE mysql.tmp_backup_tables_priv AS SELECT * FROM mysql.tables_priv;
+CREATE TABLE mysql.tmp_backup_user AS SELECT * FROM mysql.user;
+ALTER TABLE mysql.user DROP COLUMN Drop_role_priv;
+ALTER TABLE mysql.user DROP COLUMN Create_role_priv;
+ALTER TABLE mysql.user DROP COLUMN Password_reuse_history;
+ALTER TABLE mysql.user DROP COLUMN Password_reuse_time;
+ALTER TABLE mysql.user ADD COLUMN Password
+char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL
+AFTER user;
+ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT 'mysql_native_password';
+ALTER TABLE mysql.user DROP COLUMN password_last_changed;
+ALTER TABLE mysql.user DROP COLUMN password_lifetime;
+ALTER TABLE mysql.user DROP COLUMN account_locked;
+call mtr.add_suppression("The plugin 'mysql_old_password' used to authenticate user 'user_old_pass_wp'@'%' is not loaded. Nobody can currently login using this account.");
+# Because su_old_pass_pn is a super user without plugin name but with pre 4.1
+# hash password we generate instruction on how one can proceed with
+# the upgrade using this account.
+call mtr.add_suppression("Some of the user accounts with SUPER");
+call mtr.add_suppression("1. Stop");
+call mtr.add_suppression("2. Run");
+call mtr.add_suppression("3. Restart");
+call mtr.add_suppression("For complete");
+INSERT INTO mysql.user VALUES
+('%','user_old_pass_wp','0f0ea7602c473904','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_old_password','','N');
+INSERT INTO mysql.user VALUES
+('%','user_old_pass_pn','0f0ea7602c473904','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'','','N'),
+('%','su_old_pass_pn','0f0ea7602c473904','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'','','N'),
+('%','user_nat_pass_pn','*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,NULL,'','N'),
+('%','user_nat_pass_wp','*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','','N');
+FLUSH PRIVILEGES;
+Warnings:
+Warning	1805	Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
+# check the presents of the warnings in the log file
+Pattern "User entry 'user_old_pass_pn'@'%' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore." found
+Pattern "User entry 'su_old_pass_pn'@'%' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore." found
+# end of check for the presense of the warning
+#Connect using root account - should succeed
+#Connecting user with pre 4.1 hash and empty plugin- should fail
+connect(localhost,user_old_pass_pn,lala,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'user_old_pass_pn'@'localhost' (using password: YES)
+#Connecting user with pre 4.1 hash and mysql_old_password plugin set -
+#should fail - the mysql_old_password was removed in 5.7
+connect(localhost,user_old_pass_wp,lala,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Plugin 'mysql_old_password' is not loaded
+#Connecting user with 4.1 hash and empty plugin - should succeed
+#Connecting user with 4.1 hash and mysql_native_plugin plugin set -
+#should succeed
+#Trying to do select on mysql.user table - should fail as
+#user_nat_pass_pn is not a super user
+SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
+ERROR 42000: SELECT command denied to user 'user_nat_pass_pn'@'localhost' for table 'user'
+#Try granting all privileges on mysql db to user_nat_pass_pn using root
+#account - this should fail since mysql.user table has 5.6 layout.
+GRANT ALL PRIVILEGES ON mysql.* TO 'user_nat_pass_pn'@'%' WITH GRANT OPTION;
+ERROR HY000: Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
+#Select on mysql.user should not be possible since user_nat_pass_pn has
+#no select privileges on mysql database
+SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
+ERROR 42000: SELECT command denied to user 'user_nat_pass_pn'@'localhost' for table 'user'
+#Revoke all privileges from 'user_nat_pass_pn'@'%' - this should fail
+#since mysql.user table has 5.6 layout.
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user_nat_pass_pn'@'%';
+ERROR HY000: Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
+#Trying to do select on mysql.user table - this should fail since
+#user_nat_pass_pn has no select prvileleges on mysql db.
+SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
+ERROR 42000: SELECT command denied to user 'user_nat_pass_pn'@'localhost' for table 'user'
+#All alter user commands should fail since mysql.user has 5.6 layout.
+SELECT authentication_string FROM mysql.user where user='user_nat_pass_pn';
+authentication_string
+
+SELECT password_expired FROM mysql.user where user='user_nat_pass_pn';
+password_expired
+N
+ALTER USER 'user_nat_pass_pn'@'%' PASSWORD EXPIRE;
+ERROR HY000: Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
+SELECT authentication_string FROM mysql.user WHERE user='user_nat_pass_pn';
+authentication_string
+
+SELECT password_expired FROM mysql.user WHERE user='user_nat_pass_pn';
+password_expired
+N
+#Fix authentication string
+UPDATE mysql.user SET authentication_string='' WHERE user='user_nat_pass_pn';
+#"Manualy" grant super user privileges to user_nat_pass_pn, note we are
+#now updating mysql_user to get all privileges on *.*
+UPDATE mysql.user SET Select_priv='Y', Insert_priv='Y', Update_priv='Y', Delete_priv='Y', Create_priv='Y', Drop_priv='Y', Reload_priv='Y', Shutdown_priv='Y', Process_priv='Y', File_priv='Y', Grant_priv='Y', References_priv='Y', Index_priv='Y', Alter_priv='Y', Show_db_priv='Y', Super_priv='Y', Create_tmp_table_priv='Y', Lock_tables_priv='Y', Execute_priv='Y', Repl_slave_priv='Y', Repl_client_priv='Y', Create_view_priv='Y', Show_view_priv='Y', Create_routine_priv='Y', Alter_routine_priv='Y', Create_user_priv='Y', Event_priv='Y', Trigger_priv='Y', Create_tablespace_priv='Y' where user="user_nat_pass_pn";
+FLUSH PRIVILEGES;
+Warnings:
+Warning	1805	Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
+#Select on mysql.user should now be possible
+SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
+Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections	plugin	authentication_string	password_expired
+%	user_nat_pass_pn	*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y					0	0	0	0	NULL		N
+#Run mysql_upgrade with user_nat_pass_pn - i.e. user with empty plugin
+#column and 4.1 hash password. After mysql_upgrade finishes the
+#mysql.user table should have 5.7 layout thus no need to restore the
+#dropped columns from the begining of the test
+mysql_upgrade: [Warning] Using a password on the command line interface can be insecure.
+mysql_upgrade: (non fatal) [WARNING] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.tmp_backup_tables_priv                       OK
+mysql.tmp_backup_user                              OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+call mtr.add_suppression("User entry 'user_old_pass_pn'@'%' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+call mtr.add_suppression("User entry 'su_old_pass_pn'@'%' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+# check the presents of the warnings in the log file
+Pattern "User entry 'user_old_pass_pn'@'%' has an empty plugin value." found
+Pattern "User entry 'su_old_pass_pn'@'%' has an empty plugin value." found
+# end of check for the presense of the warning
+#Restart the server
+# restart:--log-error=MYSQL_TMP_DIR/mysql_upgrade_grant.err
+#After the update all acl commands should be working fine. Trying out
+#some of them
+ALTER USER 'user_nat_pass_pn'@'%' PASSWORD EXPIRE;
+SELECT password_expired FROM mysql.user WHERE user='user_nat_pass_pn';
+password_expired
+Y
+SET PASSWORD FOR user_nat_pass_pn@'%' = 'lala';
+SELECT password_expired FROM mysql.user WHERE user='user_nat_pass_pn';
+password_expired
+N
+ALTER USER 'user_nat_pass_wp'@'%' ACCOUNT LOCK;
+SELECT account_locked FROM mysql.user WHERE user='user_nat_pass_wp';
+account_locked
+Y
+ALTER USER 'user_nat_pass_wp'@'%' ACCOUNT UNLOCK;
+SELECT account_locked FROM mysql.user WHERE user='user_nat_pass_wp';
+account_locked
+N
+#Connecting with user using mysql_old_password plugin should not be
+#possible
+connect(localhost,user_old_pass_wp,lala,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Plugin 'mysql_old_password' is not loaded
+#Creating super user and assigning all privileges to it. This updates
+#mysql.user table so should now be possible.
+CREATE USER super@localhost IDENTIFIED BY 'lala';
+GRANT ALL PRIVILEGES ON *.* TO super@localhost WITH GRANT OPTION;
+SELECT user FROM mysql.user WHERE user='super';
+user
+super
+DROP USER 'super'@'localhost';
+DROP USER 'user_old_pass_pn'@'%';
+DROP USER 'su_old_pass_pn'@'%';
+DROP USER 'user_old_pass_wp'@'%';
+DROP USER 'user_nat_pass_pn'@'%';
+DROP USER 'user_nat_pass_wp'@'%';
+TRUNCATE TABLE mysql.tables_priv;
+INSERT INTO mysql.tables_priv (SELECT * FROM mysql.tmp_backup_tables_priv);
+DROP TABLE mysql.tmp_backup_tables_priv;
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user (SELECT * FROM mysql.tmp_backup_user);
+DROP TABLE mysql.tmp_backup_user;
+#
+# BUG#20614545: USERS WITH OLD-PASSWORD=1 CHANGED TO
+# MYSQL_NATIVE_PASSWORD AFTER UPGRADE
+#
+CREATE TABLE mysql.tmp_backup_tables_priv AS SELECT * FROM mysql.tables_priv;
+CREATE TABLE mysql.tmp_backup_user AS SELECT * FROM mysql.user;
+ALTER TABLE mysql.user DROP COLUMN Drop_role_priv;
+ALTER TABLE mysql.user DROP COLUMN Create_role_priv;
+ALTER TABLE mysql.user DROP COLUMN Password_reuse_history;
+ALTER TABLE mysql.user DROP COLUMN Password_reuse_time;
+ALTER TABLE mysql.user ADD COLUMN Password
+char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL
+AFTER user;
+ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT 'mysql_native_password';
+ALTER TABLE mysql.user DROP COLUMN password_last_changed;
+ALTER TABLE mysql.user DROP COLUMN password_lifetime;
+ALTER TABLE mysql.user DROP COLUMN account_locked;
+INSERT INTO mysql.user VALUES
+('localhost','B20614545','0f0ea7602c473904','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'','','N');
+FLUSH PRIVILEGES;
+Warnings:
+Warning	1805	Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
+# check the presents of the warnings in the log file
+Pattern "User entry 'B20614545'@'localhost' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore." found
+# end of check for the presense of the warning
+mysql_upgrade: (non fatal) [WARNING] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.tmp_backup_tables_priv                       OK
+mysql.tmp_backup_user                              OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+call mtr.add_suppression("User entry 'B20614545'@'localhost' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+# check the presents of the warnings in the log file
+Pattern "User entry 'B20614545'@'localhost' has an empty plugin value." found
+# end of check for the presense of the warning
+#Restart the server
+# restart
+# expect empty plugin
+SELECT plugin FROM mysql.user WHERE user='B20614545';
+plugin
+
+DROP USER B20614545@localhost;
+TRUNCATE TABLE mysql.tables_priv;
+INSERT INTO mysql.tables_priv (SELECT * FROM mysql.tmp_backup_tables_priv);
+DROP TABLE mysql.tmp_backup_tables_priv;
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user (SELECT * FROM mysql.tmp_backup_user);
+DROP TABLE mysql.tmp_backup_user;
+#
+# Tests for WL#7194
+# Check that users with SUPER privilege (root@localhost and
+# the new added user u1) gets XA_RECOVER_ADMIN privilege
+# after upgrade.
+#
+# Show privilege for root@localhost before the privilege XA_RECOVER_ADMIN will be revoked
+SHOW GRANTS FOR root@localhost;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+CREATE USER u1;
+GRANT SUPER ON *.* TO u1;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+# Revoke the privilege XA_RECOVER_ADMIN in order to simulate
+# the case when upgrade is run against a database that was created by
+# mysql server without support for XA_RECOVER_ADMIN.
+REVOKE XA_RECOVER_ADMIN ON *.* FROM root@localhost;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
+# We show here that the users root@localhost and u1 have the privilege
+# SUPER and don't have the privilege XA_RECOVER_ADMIN
+SHOW GRANTS FOR root@localhost;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT SUPER ON *.* TO `u1`@`%`
+# Start upgrade
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+# Show privileges granted to the users root@localhost and u1
+# after upgrade has been finished.
+# It is expected that the users root@localhost and u1 have the
+# privilege XA_RECOVER_ADMIN granted since they had the privilge SUPER
+# before upgrade and there wasn't any user with explicitly granted
+# privilege XA_RECOVER_ADMIN.
+SHOW GRANTS FOR root@localhost;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT SUPER ON *.* TO `u1`@`%`
+GRANT XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
+# Now run upgrade against database where there is a user with granted
+# privilege XA_RECOVER_ADMIN and check that for those users who have
+# the privilege SUPER assigned the privilege XA_RECOVER_ADMIN won't be
+# granted during upgrade.
+# Revoke the privilege XA_RECOVER_ADMIN from the user u1 and
+# mysql.session@localhost
+REVOKE XA_RECOVER_ADMIN ON *.* FROM u1;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
+# Start upgrade
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+# It is expected that after upgrade be finished the privilege
+# XA_RECOVER_ADMIN won't be granted to the user u1 since
+# there was another user (root@localhost) who had the privilege
+# XA_RECOVER_ADMIN at the time when upgrade was started
+SHOW GRANTS FOR root@localhost;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT SUPER ON *.* TO `u1`@`%`
+# Cleaning up
+DROP USER u1;
+# End of tests for WL#7194
+#
+# Bug#26667007 - MYSQL UPGRADE TO 8.0.3 USER WITH RELOAD GRANTED BACKUP_ADMIN WITH GRANT OPTION
+#
+# Revoke privileges BACKUP_ADMIN and XA_RECOVER_ADMIN in order to simulate
+# the case when upgrade is run against a database that was created by
+# mysql server without support for BACKUP_ADMIN/XA_RECOVER_ADMIN.
+REVOKE BACKUP_ADMIN ON *.* FROM root@localhost;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM root@localhost;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
+CREATE USER u1;
+CREATE USER u2;
+GRANT RELOAD ON *.* TO u1;
+GRANT RELOAD ON *.* TO u2 WITH GRANT OPTION;
+GRANT SUPER ON *.* TO u1;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+GRANT SUPER ON *.* TO u2 WITH GRANT OPTION;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT RELOAD, SUPER ON *.* TO `u1`@`%`
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT RELOAD, SUPER ON *.* TO `u2`@`%` WITH GRANT OPTION
+# Start upgrade
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+# Check that the user u1 has privileges BACKUP_ADMIN and XA_RECOVER_ADMIN granted
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT RELOAD, SUPER ON *.* TO `u1`@`%`
+GRANT BACKUP_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
+# Check that the user u2 has privileges BACKUP_ADMIN and XA_RECOVER_ADMIN granted with grant option
+# since originally RELOAD privilege and SUPER privilege were granted to user u2 with grant option
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT RELOAD, SUPER ON *.* TO `u2`@`%` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u2`@`%` WITH GRANT OPTION
+DROP USER u1;
+DROP USER u2;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
+#
+# Bug#26948662 - REMOVE SUPER_ACL CHECK IN RESOURCE GROUPS.
+#
+REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM root@localhost;
+REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM `mysql.session`@localhost;
+CREATE USER user1;
+GRANT SUPER ON *.* TO user1;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+# Users root@localhost and user1 have privilege SUPER but not RESOURCE_GROUP_ADMIN 
+SHOW GRANTS FOR root@localhost;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+SHOW GRANTS FOR user1;
+Grants for user1@%
+GRANT SUPER ON *.* TO `user1`@`%`
+# Start upgrade
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+# After upgrade users root@localhost and user1 has privilege RESOURCE_GROUP_ADMIN.
+SHOW GRANTS FOR root@localhost;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+SHOW GRANTS FOR user1;
+Grants for user1@%
+GRANT SUPER ON *.* TO `user1`@`%`
+GRANT RESOURCE_GROUP_ADMIN ON *.* TO `user1`@`%`
+DROP USER user1;
+REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM `mysql.session`@localhost;
+
+End of tests

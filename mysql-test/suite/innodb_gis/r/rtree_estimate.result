@@ -1,0 +1,161 @@
+CREATE TABLE t1 (
+g GEOMETRY NOT NULL SRID 0
+) ENGINE=InnoDB;
+ALTER TABLE t1 ADD SPATIAL(g);
+SET @g1 = ST_GeomFromText('POINT(10 10)');
+SET @g2 = ST_GeomFromText('POLYGON((5 5, 20 5, 20 21, 5 21, 5 5))');
+SET @g3 = ST_GeomFromText('POLYGON((1.79769e+308 1.79769e+308, 20 5, -1.79769e+308 -1.79769e+308, 1.79769e+308 1.79769e+308))');
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRContains(g, @g1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	g	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrcontains(`test`.`t1`.`g`,<cache>((@`g1`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g1);
+ST_AsText(g)
+INSERT INTO t1 VALUES(@g1);
+INSERT INTO t1 VALUES(@g2);
+INSERT INTO t1 VALUES(@g3);
+SELECT ST_AsText(g) FROM t1;
+ST_AsText(g)
+POINT(10 10)
+POLYGON((5 5,20 5,20 21,5 21,5 5))
+POLYGON((1.79769e308 1.79769e308,20 5,-1.79769e308 -1.79769e308,1.79769e308 1.79769e308))
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRContains(g, @g1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	g	g	34	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrcontains(`test`.`t1`.`g`,<cache>((@`g1`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g1);
+ST_AsText(g)
+POINT(10 10)
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRDisjoint(g, @g1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	g	g	34	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrdisjoint(`test`.`t1`.`g`,<cache>((@`g1`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g1);
+ST_AsText(g)
+POINT(10 10)
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBREquals(g, @g1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	g	g	34	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrequals(`test`.`t1`.`g`,<cache>((@`g1`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g1);
+ST_AsText(g)
+POINT(10 10)
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRIntersects(g, @g1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	g	g	34	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrintersects(`test`.`t1`.`g`,<cache>((@`g1`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g1);
+ST_AsText(g)
+POINT(10 10)
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	g	g	34	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrwithin(`test`.`t1`.`g`,<cache>((@`g1`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g1);
+ST_AsText(g)
+POINT(10 10)
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRContains(g, @g2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	g	g	34	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrcontains(`test`.`t1`.`g`,<cache>((@`g2`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g2);
+ST_AsText(g)
+POINT(10 10)
+POLYGON((5 5,20 5,20 21,5 21,5 5))
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRDisjoint(g, @g2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	g	g	34	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrdisjoint(`test`.`t1`.`g`,<cache>((@`g2`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g2);
+ST_AsText(g)
+POINT(10 10)
+POLYGON((5 5,20 5,20 21,5 21,5 5))
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBREquals(g, @g2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	g	g	34	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrequals(`test`.`t1`.`g`,<cache>((@`g2`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g2);
+ST_AsText(g)
+POINT(10 10)
+POLYGON((5 5,20 5,20 21,5 21,5 5))
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRIntersects(g, @g2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	g	g	34	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrintersects(`test`.`t1`.`g`,<cache>((@`g2`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g2);
+ST_AsText(g)
+POINT(10 10)
+POLYGON((5 5,20 5,20 21,5 21,5 5))
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	g	g	34	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrwithin(`test`.`t1`.`g`,<cache>((@`g2`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g2);
+ST_AsText(g)
+POINT(10 10)
+POLYGON((5 5,20 5,20 21,5 21,5 5))
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRContains(g, @g3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	g	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrcontains(`test`.`t1`.`g`,<cache>((@`g3`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g3);
+ST_AsText(g)
+POINT(10 10)
+POLYGON((5 5,20 5,20 21,5 21,5 5))
+POLYGON((1.79769e308 1.79769e308,20 5,-1.79769e308 -1.79769e308,1.79769e308 1.79769e308))
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRDisjoint(g, @g3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	g	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrdisjoint(`test`.`t1`.`g`,<cache>((@`g3`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g3);
+ST_AsText(g)
+POINT(10 10)
+POLYGON((5 5,20 5,20 21,5 21,5 5))
+POLYGON((1.79769e308 1.79769e308,20 5,-1.79769e308 -1.79769e308,1.79769e308 1.79769e308))
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBREquals(g, @g3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	g	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrequals(`test`.`t1`.`g`,<cache>((@`g3`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g3);
+ST_AsText(g)
+POINT(10 10)
+POLYGON((5 5,20 5,20 21,5 21,5 5))
+POLYGON((1.79769e308 1.79769e308,20 5,-1.79769e308 -1.79769e308,1.79769e308 1.79769e308))
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRIntersects(g, @g3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	g	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrintersects(`test`.`t1`.`g`,<cache>((@`g3`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g3);
+ST_AsText(g)
+POINT(10 10)
+POLYGON((5 5,20 5,20 21,5 21,5 5))
+POLYGON((1.79769e308 1.79769e308,20 5,-1.79769e308 -1.79769e308,1.79769e308 1.79769e308))
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	g	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where mbrwithin(`test`.`t1`.`g`,<cache>((@`g3`)))
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g3);
+ST_AsText(g)
+POINT(10 10)
+POLYGON((5 5,20 5,20 21,5 21,5 5))
+POLYGON((1.79769e308 1.79769e308,20 5,-1.79769e308 -1.79769e308,1.79769e308 1.79769e308))
+DROP TABLE t1;

@@ -5,18 +5,18 @@ SET @@global.optimizer_trace_limit=5;
 show global variables like 'optimizer_trace_limit';
 Variable_name	Value
 optimizer_trace_limit	5
-select * from information_schema.global_variables where variable_name='optimizer_trace_limit';
+select * from performance_schema.global_variables where variable_name='optimizer_trace_limit';
 VARIABLE_NAME	VARIABLE_VALUE
-OPTIMIZER_TRACE_LIMIT	5
+optimizer_trace_limit	5
 select @@session.optimizer_trace_limit;
 @@session.optimizer_trace_limit
 1
 show session variables like 'optimizer_trace_limit';
 Variable_name	Value
 optimizer_trace_limit	1
-select * from information_schema.session_variables where variable_name='optimizer_trace_limit';
+select * from performance_schema.session_variables where variable_name='optimizer_trace_limit';
 VARIABLE_NAME	VARIABLE_VALUE
-OPTIMIZER_TRACE_LIMIT	1
+optimizer_trace_limit	1
 set session optimizer_trace_limit=10;
 select @@session.optimizer_trace_limit;
 @@session.optimizer_trace_limit

@@ -1,0 +1,131 @@
+# ==== Purpose ====
+#
+# This test case test verifies that no unwanted fseeks are done by dump threads
+# reading the binary log file sequentially. Dump threads should not change
+# COUNT_MISC after started dumping a binary log file, until moving to dumping
+# another binary log file.
+#
+# This test will create a set of transactions which event headers would,
+# sometimes, cross the IO_CACHE block size. After running the workload, the test
+# case will verify the P_S counter COUNT_MISC for "wait/io/file/sql/binlog"
+# EVENT_NAME at performance_schema.file_summary_by_event_name. In a single
+# binary log file case, the counter should not be more than 5 (as there are some
+# real file operations opening the binary log file and pointing it to the first
+# event position) or 8 in the case of GTIDs be enabled with auto positioning.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#24763579 BINLOG SENDER IS GENERATING UNWANTED FSEEKS ON BINARY LOG FILE
+#
+# It was noticed that the binlog sender was reading the event reader (19 bytes)
+# to get the event size and was doing a "fseek" on the IO_CACHE to the beginning
+# of the event, as the event would be fully read later, after adjusting the
+# network packet size to fit the whole event.
+#
+# As the IO_CACHE read the files using an 8K block (for reads smaller than 8K),
+# when the event header crossed the block boundaries, the "fseek" needed to
+# be performed on file level (and not only at IO_CACHE buffer level), generating
+# a call to the OS that resulted in an unwanted wait.
+#
+
+# This test case was designed to run with SBR
+--source include/have_binlog_format_statement.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+--source include/stop_dump_threads.inc
+
+##################################################
+# Some variable to help calculating the workload #
+##################################################
+# IO_CACHE block size
+--let $block_size= 8192
+# How many bytes of the header should be at the end of a block
+--let $border= 2
+# We must fit many events into a block size
+--let $event_factor= 8
+
+################################################
+# Preparing the master for the larger workload #
+################################################
+--eval CREATE TABLE t1 (c1 TEXT($block_size))
+
+# Get current binlog position
+--let $init_master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+
+--let $ref_size= `SELECT $block_size DIV $event_factor`
+--let $content= `SELECT REPEAT('x', $ref_size)`
+--disable_query_log
+--echo Inserting a reference transaction to calculate the content size
+--eval INSERT INTO t1 VALUES ("$content")
+--enable_query_log
+
+# Calculate the "transaction payload" (all but the insert content)
+--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $trx_base_size= `SELECT ($master_pos - $init_master_pos) - $ref_size`
+
+# Prepare a transaction to left the binlog at the border of a block
+--let $content_size= `SELECT (($block_size - $border) - $trx_base_size) - $master_pos`
+--let $content= `SELECT REPEAT('x', $content_size)`
+--disable_query_log
+--echo Filling binary log up to the border of the $block_size block
+--eval INSERT INTO t1 VALUES ("$content")
+--enable_query_log
+
+--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $assert_text= The binary log is at the expected border of a $block_size block
+--let $assert_cond= $border = ($block_size - ( $master_pos % $block_size ))
+--source include/assert.inc
+
+# Prepare a transaction content for the large workload
+--let $content_size= `SELECT (($block_size DIV $event_factor) - $trx_base_size)`
+--let $content= `SELECT REPEAT('x', $content_size)`
+
+######################
+# The large workload #
+######################
+--let $counter=100
+--echo Filling the binary log $counter transactions
+--disable_query_log
+while ($counter)
+{
+  --eval INSERT INTO t1 VALUES ("$content")
+  --dec $counter
+}
+--enable_query_log
+
+################################################
+# Sync slave I/O thread and check the counters #
+################################################
+TRUNCATE performance_schema.file_summary_by_event_name;
+
+# Sync slave I/O thread
+--source include/rpl_connection_slave.inc
+--source include/start_slave_io.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_io_with_master.inc
+
+# Check the COUNT_MISC counter
+--source include/rpl_connection_master.inc
+# In a first run, the counter tops 5 without GTIDs, and tops 8 when GTIDs are
+# enabled, because of the process of searching the binary log file that
+# contains the first GTID not yet retrieved/executed by the slave.
+--let $expected_count_misc= 5
+if ($use_gtids)
+{
+  --let $expected_count_misc= 8
+}
+
+--let $current_count_misc=`SELECT COUNT_MISC FROM performance_schema.file_summary_by_event_name WHERE EVENT_NAME = "wait/io/file/sql/binlog"`
+
+--let $assert_text= COUNT_MISC for "wait/io/file/sql/binlog" should be minimal
+--let $assert_cond= $current_count_misc = $expected_count_misc
+--let $extra_debug_eval= $current_count_misc AS current_count_misc, $expected_count_misc as expected_count_misc
+--let $extra_debug_info= COUNT_MISC should be 5 for non-GTID and 8 for GTID enabled servers
+--source include/assert.inc
+
+# Cleanup
+--source include/rpl_connection_slave.inc
+--source include/start_slave_sql.inc
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

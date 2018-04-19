@@ -1,0 +1,468 @@
+################################################################################
+# Test to check if the flush command works fine for Group Replication.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Setup a GROUP with two members ONLINE.
+# 2. Test 'flush error logs' statement on M1. It should support.
+# 3. Test 'flush relay logs' statement on M1. It should support.
+# 4. Test 'flush slow logs' statement on M1. It should support.
+# 5. Test 'flush general logs' statement on M1. It should support.
+# 6. Test 'flush engine logs' statement on M1. It should support.
+# For each 'flush..' command above:-
+#  - Check error log file exists on M1.
+#  - Make sure binary logs was not flushed on M1.
+#  - Make sure applier logs was not flushed on M1.
+#  - Make sure recovery logs was not flushed on M2.
+#  - Make sure applier logs was not flushed on M2.
+#  - Make sure binary logs was not flushed on M2.
+#  - Test that replication is working fine between the members.
+# 7. Test 'flush binary logs' statement on M1. It should support.
+#  - Make sure binary logs is flushed on M1.
+#  - Make sure that the 'show binary logs' statement shows the correct data.
+#  - Make sure applier logs was not flushed on M1.
+#  - Make sure recovery logs was not flushed on M2.
+#  - Make sure applier logs was not flushed on M2.
+#  - Make sure binary logs was not flushed on M2.
+#  - Test that replication is working fine between the members.
+# 8. Test if support to combine all kinds of logs into one statement on M1. It
+#    should support 'flush error logs, relay logs'.
+#  - Make sure binary logs was not flushed on M1.
+#  - Make sure applier logs was not flushed on M1.
+#  - Make sure recovery logs was not flushed on M2.
+#  - Make sure applier logs was not flushed on M2.
+#  - Make sure binary logs was not flushed on M2.
+#  - Test that replication is working fine between the members.
+# 9. Test if 'flush logs' statement works fine and flush all the logs on M1.
+#  - Make sure binary logs is flushed on M1.
+#  - Make sure applier logs was not flushed on M1.
+#  - Make sure recovery logs was not flushed on M2.
+#  - Make sure applier logs was not flushed on M2.
+#  - Make sure binary logs was not flushed on M2.
+#  - Execute 'flush logs' on M2:
+#  - Make sure binary logs is flushed on M2.
+#  - Make sure applier logs was not flushed on M2.
+#  - Make sure applier logs was not flushed on M1.
+#  - Make sure binary logs was not flushed on M1.
+#  - Test that replication is working fine between the members.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--connection server1
+
+CREATE TABLE t1 (i INT PRIMARY KEY) engine= innodb;
+--source include/rpl_sync.inc
+
+--connection server1
+
+--echo # Test if support 'flush error logs' statement.
+flush error logs;
+
+--file_exists $MYSQLTEST_VARDIR/tmp/master_log.err
+
+--echo # Make sure binary logs was not flushed after execute 'flush error logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
+
+--echo # Make sure applier logs was not flushed after execute 'flush error logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+
+--source include/rpl_sync.inc
+--connection server2
+
+--echo # Make sure recovery logs was not flushed after execute 'flush error logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
+
+--echo # Make sure applier logs was not flushed after execute 'flush error logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
+
+--echo # Make sure binary logs was not flushed after execute 'flush error logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+
+# Testing if the replication is working fine between the members.
+
+--source include/rpl_sync.inc
+--connection server1
+
+INSERT INTO t1 VALUES(1);
+--source include/rpl_sync.inc
+
+INSERT INTO t1 VALUES(2);
+--source include/rpl_sync.inc
+
+--connection server1
+--let $wait_condition= select count(*) = 2 from t1
+--source include/wait_condition.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+
+--connection server1
+--echo # Test if support 'flush relay logs' statement.
+flush relay logs;
+
+--echo # Make sure binary logs was not flushed after execute 'flush relay logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
+
+--echo # Make sure applier logs was not flushed after execute 'flush relay logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+
+--source include/rpl_sync.inc
+--connection server2
+
+--echo # Make sure recovery logs was not flushed after execute 'flush relay logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
+
+--echo # Make sure applier logs was not flushed after execute 'flush relay logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
+
+--echo # Make sure binary logs was not flushed after execute 'flush relay logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+
+# Testing if the replication is working fine between the members.
+
+--connection server1
+INSERT INTO t1 VALUES(3);
+--source include/rpl_sync.inc
+
+INSERT INTO t1 VALUES(4);
+--source include/rpl_sync.inc
+
+--connection server1
+--let $wait_condition= select count(*) = 4 from t1
+--source include/wait_condition.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+# Test 'flush slow logs' statement.
+--echo # Test if support 'flush slow logs' statement.
+flush slow logs;
+
+--echo # Make sure binary logs was not flushed after execute 'flush slow logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
+
+--echo # Make sure applier logs was not flushed after execute 'flush slow logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+
+--source include/rpl_sync.inc
+--connection server2
+
+--echo # Make sure recovery logs was not flushed after execute 'flush slow logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
+
+--echo # Make sure applier logs was not flushed after execute 'flush slow logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
+
+--echo # Make sure binary logs was not flushed after execute 'flush slow logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+
+
+# Testing if the replication is working fine between the members.
+
+--source include/rpl_sync.inc
+--connection server1
+INSERT INTO t1 VALUES(5);
+--source include/rpl_sync.inc
+
+INSERT INTO t1 VALUES(6);
+--source include/rpl_sync.inc
+
+--connection server1
+--let $wait_condition= select count(*) = 6 from t1
+--source include/wait_condition.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+--connection server1
+# Test 'flush general logs' statement.
+--echo # Test if support 'flush general logs' statement.
+flush general logs;
+
+--echo # Make sure binary logs was not flushed after execute 'flush general logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
+
+--echo # Make sure applier logs was not flushed after execute 'flush general logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+
+--source include/rpl_sync.inc
+--connection server2
+
+--echo # Make sure recovery logs was not flushed after execute 'flush general logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
+
+--echo # Make sure applier logs was not flushed after execute 'flush general logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
+
+--echo # Make sure binary logs was not flushed after execute 'flush general logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+
+# Testing if the replication is working fine between the members.
+
+--connection server1
+INSERT INTO t1 VALUES(7);
+--source include/rpl_sync.inc
+
+INSERT INTO t1 VALUES(8);
+--source include/rpl_sync.inc
+
+--connection server1
+--let $wait_condition= select count(*) = 8 from t1
+--source include/wait_condition.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+# Test 'flush engine logs' statement.
+--echo # Test if support 'flush engine logs' statement.
+flush engine logs;
+
+--echo # Make sure binary logs was not flushed after execute 'flush engine logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
+
+--echo # Make sure applier logs was not flushed after execute 'flush engine logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+
+--source include/rpl_sync.inc
+--connection server2
+
+--echo # Make sure recovery logs was not flushed after execute 'flush engine logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
+
+--echo # Make sure applier logs was not flushed after execute 'flush engine logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
+
+--echo # Make sure binary logs was not flushed after execute 'flush engine logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+
+# Testing if the replication is working fine between the members.
+
+--connection server1
+INSERT INTO t1 VALUES(9);
+--source include/rpl_sync.inc
+
+INSERT INTO t1 VALUES(10);
+--source include/rpl_sync.inc
+
+--connection server1
+--let $wait_condition= select count(*) = 10 from t1
+--source include/wait_condition.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+--connection server1
+# Test 'flush binary logs' statement.
+--echo # Make sure the 'server1-bin.000002' file does not
+--echo # exist before execute 'flush binary logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
+
+--connection server2
+--echo # Make sure the 'server1-bin.000002' file does not
+--echo # exist before execute 'flush binary logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
+
+--connection server1
+--echo # Test if support 'flush binary logs' statement.
+flush binary logs;
+
+--echo # Make sure binary logs is flushed after execute 'flush binary logs' statement.
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000002
+
+--echo # Test if it supports 'show binary logs' statement and verify that it shows the correct data
+
+--let $binlog1= query_get_value(show binary logs, Log_name, 1)
+--let $assert_text= assert that the first binary log name is server-binary-log.000001
+--let $assert_cond= "$binlog1" = "server-binary-log.000001"
+--source include/assert.inc
+
+--let $binlog2= query_get_value(show binary logs, Log_name, 2)
+--let $assert_text= assert that the second binary log name is server-binary-log.000002
+--let $assert_cond= "$binlog2" = "server-binary-log.000002"
+--source include/assert.inc
+
+--echo # Make sure applier logs was not flushed after execute 'flush binary logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+
+--source include/rpl_sync.inc
+--connection server2
+
+--echo # Make sure recovery logs was not flushed after execute 'flush binary logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
+
+--echo # Make sure applier logs was not flushed after execute 'flush binary logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
+
+--echo # Make sure binary logs was not flushed after execute 'flush binary logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+
+# Testing if the replication is working fine between the members.
+
+--connection server1
+INSERT INTO t1 VALUES(11);
+--source include/rpl_sync.inc
+
+INSERT INTO t1 VALUES(12);
+--source include/rpl_sync.inc
+
+--connection server1
+--let $wait_condition= select count(*) = 12 from t1
+--source include/wait_condition.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+--connection server1
+
+--echo # Test if support to combine all kinds of logs into one statement.
+flush error logs, relay logs;
+
+--file_exists $MYSQLTEST_VARDIR/tmp/master_log.err
+
+--echo # Make sure binary logs was not flushed after execute 'flush error logs, relay logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000003
+
+--echo # Make sure applier logs was not flushed after execute 'flush error logs, relay logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+
+--source include/rpl_sync.inc
+--connection server2
+
+--echo # Make sure recovery logs was not flushed after execute 'flush error logs, relay logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
+
+--echo # Make sure applier logs was not flushed after execute 'flush error logs, relay logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
+
+--echo # Make sure binary logs was not flushed after execute 'flush error logs, relay logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+
+# Testing if the replication is working fine between the members.
+
+--source include/rpl_sync.inc
+--connection server1
+INSERT INTO t1 VALUES(13);
+--source include/rpl_sync.inc
+
+INSERT INTO t1 VALUES(14);
+--source include/rpl_sync.inc
+
+--connection server1
+--let $wait_condition= select count(*) = 14 from t1
+--source include/wait_condition.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+--connection server2
+# Test 'flush logs' statement
+
+--connection server1
+
+--echo # Test if 'flush logs' statement works fine and flush all the logs.
+flush logs;
+
+--file_exists $MYSQLTEST_VARDIR/tmp/master_log.err
+
+--echo # Check 'server1-bin.000003' is created after execute 'flush logs' statement.
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000003
+
+--echo # Make sure applier logs was not flushed after execute 'flush logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+
+--source include/rpl_sync.inc
+--connection server2
+
+--echo # Make sure recovery logs was not flushed after execute 'flush logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_recovery.000001
+
+--echo # Make sure applier logs was not flushed after execute 'flush logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
+
+--echo # Make sure binary logs was not flushed after execute 'flush logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+
+--echo # Checking the "flush logs" behavior executed from the server2 side
+
+--connection server2
+flush logs;
+
+--echo # Check 'server2-bin.000002' is created after execute 'flush logs' statement.
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-binary-log.000002
+
+--echo # Check 'group_replication_applier.000002 is not created after execute 'flush logs' statement on server2.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.2/data/group_replication_applier.000002
+
+--source include/rpl_sync.inc
+--connection server1
+
+--echo # Check 'server1-bin.000004' is not created after execute 'flush logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-binary-log.000004
+
+--echo # Check 'group_replication_applier.000002' is not created after execute 'flush logs' statement.
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
+
+# Testing if the replication is working fine between the members.
+--connection server1
+
+INSERT INTO t1 VALUES(15);
+
+--source include/rpl_sync.inc
+INSERT INTO t1 VALUES(16);
+
+--source include/rpl_sync.inc
+
+--let $wait_condition= select count(*) = 16 from t1
+--source include/wait_condition.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+--connection server1
+DROP TABLE t1;
+--source include/group_replication_end.inc

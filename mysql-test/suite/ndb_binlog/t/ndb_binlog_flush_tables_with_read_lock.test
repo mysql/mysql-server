@@ -43,12 +43,12 @@ create table test.myisamt3s2 (a int primary key, b int) engine=myisam;
 insert into ndbt1 values (1,1);
 
 --echo Show + reset Binlog contents on Server 1
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 reset master;
 
 --echo Show + reset Binlog contents on Server 2
 --connection server2
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 reset master;
 
 --echo Now perform MyIsam table change followed by 
@@ -60,7 +60,7 @@ FLUSH TABLES WITH READ LOCK;
 
 --echo The MyIsam change definitely will be in the local
 --echo binlog as it occurred 'before' the lock
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 --echo Show that Ndb and local tables are still 
 --echo Read-Write from Server2
@@ -70,20 +70,20 @@ insert into ndbt1 values (4,4);
 
 --echo Look at the Binlog events on Server 2 - contains
 --echo rows written at Server2
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 insert into myisamt3s2 values (5,5);
 
 --echo Look at the Binlog events on Server 2 - contains
 --echo rows written at Server2
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 --echo Now look at the Binlog events on Server 1
 --connection server1
 # Note that this will not block waiting for binlog
 # sync as the latest ndb transaction from the p.o.v
 # of Server 1 is already in the binlog.
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 --echo Now remove the read lock at server 1
 unlock tables;
@@ -95,7 +95,7 @@ insert into ndbt1 values (6,6);
 
 --echo Show that server 1 binlog now contains all the relevant
 --echo events.
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 --echo Reset both binlogs;
 --connection server1
@@ -120,6 +120,8 @@ reset master;
 --echo We do this work on Server2 as it doesn't have
 --echo a read lock :)
 
+create table ndbt2 (a int primary key, b varchar(100)) engine=ndb;
+
 --disable_query_log
 --disable_result_log
 
@@ -131,18 +133,21 @@ while ($not_proven)
 {
   --connection server1
   let $SERVER1_DATADIR= `select @@datadir;`;
-  delete from test.ndbt1;
+  delete from test.ndbt2;
   reset master;
 
   --connection server2
   let $SERVER2_DATADIR= `select @@datadir;`;
-  delete from test.ndbt1;
+  delete from test.ndbt2;
   reset master;
 
   --connection server1
 
-  insert into test.ndbt1 values (123,123);
+  insert into test.ndbt2 values (123, "A most unlikely sequence if I may say so");
   flush tables with read lock;
+
+  # Allow some time(100ms) to elapse to let the insert reach server 2 binlog
+  --sleep 0.1
 
   --connection server2
   #--echo Disable binlogging of the binlog examination on server2
@@ -151,14 +156,14 @@ while ($not_proven)
   create table raw_binlog_rows_server1 (txt varchar(1000));
   create table raw_binlog_rows_server2 (txt varchar(1000));
 
-  --exec $MYSQL_BINLOG --verbose $SERVER1_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
-  --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows_server1 columns terminated by '\n';
-  --exec $MYSQL_BINLOG --verbose $SERVER2_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
-  --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows_server2 columns terminated by '\n';
+  --exec $MYSQL_BINLOG --verbose $SERVER1_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog1.sql
+  --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog1.sql' into table raw_binlog_rows_server1 columns terminated by '\n';
+  --exec $MYSQL_BINLOG --verbose $SERVER2_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog2.sql
+  --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog2.sql' into table raw_binlog_rows_server2 columns terminated by '\n';
 
 
-  let $server1_has_insert = `select @s1_has_ins:=count(1) > 0 from raw_binlog_rows_server1 where txt like '%123%'`;
-  let $server2_has_insert = `select @s2_has_ins:=count(1) > 0 from raw_binlog_rows_server2 where txt like '%123%'`;
+  let $server1_has_insert = `select @s1_has_ins:=count(1) > 0 from raw_binlog_rows_server1 where txt like '%A most unlikely sequence if I may say so%'`;
+  let $server2_has_insert = `select @s2_has_ins:=count(1) > 0 from raw_binlog_rows_server2 where txt like '%A most unlikely sequence if I may say so%'`;
   
   # We succeed when server 1 does not have the insert, but server 2 does.
   select @proven:= (@s1_has_ins = 0 and @s2_has_ins != 0);
@@ -183,6 +188,7 @@ while ($not_proven)
 --echo Now cleanup
 --connection server1
 drop table ndbt1;
+drop table ndbt2;
 drop table myisamt3s1;
 
 --connection server2

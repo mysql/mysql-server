@@ -1,5 +1,3 @@
---source include/not_embedded.inc
---source include/have_no_undo_tablespaces.inc
 --source include/not_windows.inc
 
 --echo #-------------------------------------------------------------------------
@@ -7,17 +5,17 @@
 --echo # Setup
 let BASEDIR= `select @@basedir`;
 let DDIR=$MYSQL_TMP_DIR/installdb_test;
-let extra_args=--no-defaults --console --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let outfile=$MYSQLTEST_VARDIR/log/ddir_perm.err;
+let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
 --exec echo $MYSQL_TMP_DIR/.mysql_secret > $MYSQL_TMP_DIR/readpwdfilepath.txt
 
 --echo # We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
 --echo #
 --echo #-------------------------------------------------------------------------
 
 --echo #
 --echo # Initialize the server with --initialize-insecure
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --log-error-verbosity=1 2>&1
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --log-error-verbosity=1 > $outfile 2>&1
 
 --echo # Check data directory permission. Expected value : 0750
 --perl
@@ -30,25 +28,7 @@ EOF
 
 --echo #
 --echo # Clean-up
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
---echo #
-
---echo #-------------------------------------------------------------------------
-
---echo #
---echo # Initialize the server with mysql_install_db
-let midparam= --insecure;
---source include/m_i_db_startsvr.inc
-
---echo # Check data directory permission. Expected value : 0750
---perl
-  my $ddir_perms= (stat($ENV{'DDIR'}))[2];
-  printf "# Data directory permission with mysql_install_db : %04o\n", $ddir_perms &0777
-EOF
+--force-rmdir $DDIR
 --echo #
 
 --echo #-------------------------------------------------------------------------
@@ -60,15 +40,7 @@ EOF
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"MYSQL_TMP_DIR"}."/installdb_test";
-  rmtree([ "$DDIR" ]);
-  $filename1=$ENV{"MYSQL_TMP_DIR"}."/readpwd.inc";
-  $filename2=$ENV{"MYSQL_TMP_DIR"}."/readpwdfilepath.txt";
-  unlink $filename1;
-  unlink $filename2;
-EOF
+--remove_file $MYSQL_TMP_DIR/readpwdfilepath.txt
 
 --echo #-------------------------------------------------------------------------
 

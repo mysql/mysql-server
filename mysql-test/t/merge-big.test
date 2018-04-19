@@ -8,8 +8,6 @@
 --source include/big_test.inc
 # We use some debug-only features in this test
 --source include/have_debug.inc
-# We use INFORMATION_SCHEMA.PROCESSLIST in this test
---source include/not_embedded.inc
 
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6;

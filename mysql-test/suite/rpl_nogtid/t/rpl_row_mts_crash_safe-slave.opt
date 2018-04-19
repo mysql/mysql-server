@@ -1,0 +1,1 @@
+--skip-core-file --slave-transaction-retries=0 --sync-master-info=1 --innodb-buffer-pool-size=268435456

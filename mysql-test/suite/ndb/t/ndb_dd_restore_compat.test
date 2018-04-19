@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
 
 # Directory containing the saved backup files
@@ -11,11 +6,12 @@ let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 --exec $NDB_RESTORE --no-defaults -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
 
-# (priviliges differ on embedded and server so replace)
 --replace_column 19 #
 select * from information_schema.columns
 where table_name = "t1";
+--disable_warnings
 show create table t1;
+--enable_warnings
 source show_attributes.inc;
 select * from t1 order by a1;
 
@@ -23,18 +19,20 @@ select * from t1 order by a1;
 # in .frm but with tablespace in engine -> do extra checks
 # that tablespace is still there after ALTER
 ALTER TABLE t1 ADD COLUMN c int;
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 FLUSH TABLES;
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 
 drop table t1;
 
 ALTER TABLESPACE ts
-DROP DATAFILE 'datafile.dat'
-ENGINE NDB;
+DROP DATAFILE 'datafile.dat';
 
-drop tablespace ts
-engine ndb;
+drop tablespace ts;
 
 drop logfile group lg
 engine ndb;

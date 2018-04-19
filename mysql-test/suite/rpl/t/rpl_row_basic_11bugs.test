@@ -1,6 +1,5 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
---source include/have_innodb.inc
 --source include/have_myisam.inc
 
 let $SERVER_VERSION=`select version()`;
@@ -11,8 +10,8 @@ let $SERVER_VERSION=`select version()`;
 
 --source include/master-slave.inc
 
-# Bug#15942 (RBR ignores --binlog_ignore_db and tries to map to table
-# on slave for writes)
+--echo # Bug#15942 (RBR ignores --binlog_ignore_db and tries to map to table
+--echo # on slave for writes)
 
 CREATE DATABASE test_ignore;      # --binlog_ignore_db=mysqltest_ignore
 
@@ -43,8 +42,8 @@ DROP TABLE t1;
 USE test;
 
 
-# Bug#19995: Extreneous table maps generated for statements that does
-# not generate rows
+--echo # Bug#19995: Extreneous table maps generated for statements that does
+--echo # not generate rows
 --source include/rpl_reset.inc
 
 connection master;
@@ -64,7 +63,6 @@ DROP TABLE t1;
 
 --echo **** On Slave **** 
 connection slave;
-SET GLOBAL QUERY_CACHE_SIZE=0;
 call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on table test.t1.* Error_code: 1032");
 
 --echo **** On Master **** 
@@ -74,7 +72,6 @@ INSERT INTO t1 VALUES (1),(2),(3);
 
 --echo **** On Slave **** 
 --source include/sync_slave_sql_with_master.inc
-SET GLOBAL QUERY_CACHE_SIZE=16*1024*1024;
 
 --echo **** On Master **** 
 connection master;
@@ -92,7 +89,6 @@ INSERT INTO t1 VALUES (7),(8),(9);
 --source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 
-SET GLOBAL QUERY_CACHE_SIZE=DEFAULT;
 --connection master
 DROP TABLE t1;
 
@@ -186,9 +182,9 @@ connection master;
 DROP TABLE IF EXISTS t1_myisam, t1_innodb, t2_myisam, t2_innodb;
 --source include/sync_slave_sql_with_master.inc
 
-#
-# Bug#27716  	multi-update did partially and has not binlogged
-#
+--echo #
+--echo # Bug#27716  	multi-update did partially and has not binlogged
+--echo #
 
 connection master;
 
@@ -225,10 +221,10 @@ drop table t1,t2;
 
 --source include/sync_slave_sql_with_master.inc
 
-#
-# BUG#31702: Missing row on slave causes assertion failure under
-# row-based replication 
-#
+--echo #
+--echo # BUG#31702: Missing row on slave causes assertion failure under
+--echo # row-based replication
+--echo #
 
 --source include/rpl_reset.inc
 

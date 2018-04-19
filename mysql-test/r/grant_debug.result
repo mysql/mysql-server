@@ -1,0 +1,99 @@
+#
+# WL#9262: All system tables should support 32 character length user names
+#
+CREATE USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
+CREATE USER user_name_robert_golebiowski1234@localhost;
+GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski1234@localhost WITH GRANT OPTION;
+CREATE USER some_user@localhost;
+# This will change CURRENT_USER from user_name_robert_golebiowski1234@localhost to
+# user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+# We have to do this in the server code as we are not able to simulate connecting to
+# such a host from MTR
+SET @@global.debug="+d,wl_9262_set_max_length_hostname";
+FLUSH PRIVILEGES;
+SET @@global.debug="-d,wl_9262_set_max_length_hostname";
+SELECT CURRENT_USER();
+CURRENT_USER()
+user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+CREATE DATABASE db_1;
+CREATE TABLE db_1.test_table(ID INT);
+# This should just work and Grantor should not be truncated
+GRANT SELECT ON db_1.test_table TO some_user@localhost;
+SELECT Grantor FROM mysql.tables_priv WHERE USER = 'some_user';
+Grantor
+user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+SELECT LENGTH(Grantor) FROM mysql.tables_priv WHERE USER = 'some_user';
+LENGTH(Grantor)
+93
+DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+DROP USER user_name_robert_golebiowski1234@localhost;
+DROP USER some_user@localhost;
+DROP DATABASE db_1;
+#
+# If acl_load() fails unexpectedly we shouldn't delete the acl cache
+#
+use test;
+CREATE ROLE r1,r2;
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT all on *.* to u1@localhost;
+GRANT r1,r2 TO u1@localhost;
+GRANT ALL ON *.* TO r1;
+SHOW GRANTS FOR u1@localhost USING r1;
+Grants for u1@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u1`@`localhost`
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%` TO `u1`@`localhost`
+ALTER USER u1@localhost DEFAULT ROLE r1;
+SET @@global.debug="+d,induce_acl_load_failure";
+GRANT r1 TO r2;
+FLUSH PRIVILEGES;
+ERROR HY000: Unknown error
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u1`@`localhost`
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%` TO `u1`@`localhost`
+REVOKE r1 FROM r2;
+SET @@global.debug="+d,induce_acl_load_failure";
+FLUSH PRIVILEGES;
+ERROR HY000: Unknown error
+# Grant should not have changed
+SHOW GRANTS FOR u1@localhost USING r1;
+Grants for u1@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u1`@`localhost`
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%` TO `u1`@`localhost`
+# Grant should not have changed
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u1`@`localhost`
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%` TO `u1`@`localhost`
+SET @@global.debug="-d,induce_acl_load_failure";
+FLUSH PRIVILEGES;
+DROP USER u1@localhost;
+DROP ROLE r1,r2;
+#
+# If reload_roles_cache() fails unexpectedly, we should be able to
+# revert the roles cache to previous sane state
+#
+CREATE USER u1;
+CREATE ROLE r1;
+GRANT r1 TO u1;
+GRANT SELECT ON *.* TO r1;
+SET DEFAULT ROLE ALL TO u1;
+SELECT * FROM mysql.role_edges;
+FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
+%	r1	%	u1	N
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+%	u1	%	r1
+USE mysql;
+SET @@global.debug="+d, dbug_fail_in_role_cache_reinit";
+FLUSH PRIVILEGES;
+ERROR HY000: Operation cannot be performed. The table 'mysql.default_roles' is missing, corrupt or contains bad data.
+USE mysql;
+SET @@global.debug="-d, dbug_fail_in_role_cache_reinit";
+DROP USER u1;
+DROP ROLE r1;

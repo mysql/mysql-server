@@ -4,7 +4,6 @@
 # that depends on InnoDB
 #
 
---source include/have_innodb.inc
 
 --disable_warnings
 drop view if exists v1;
@@ -92,7 +91,7 @@ drop table t1;
 #
 # Bug #13293 Wrongly used index results in endless loop.
 #
-create table t1 (f1 int, f2 char(1), primary key(f1,f2)) engine=innodb
+create table t1 (f1 int, f2 char(1), primary key(f1,f2)) charset utf8mb4 engine=innodb
 stats_persistent=0;
 insert into t1 values ( 1,"e"),(2,"a"),( 3,"c"),(4,"d");
 alter table t1 drop primary key, add primary key (f2, f1);
@@ -124,14 +123,15 @@ drop table t1;
 --echo # FILE /BUILDDIR/BUILD/BUILD/MYSQ
 --echo #
 
-CREATE TABLE t1 (a CHAR(1), b CHAR(1), PRIMARY KEY (a,b)) ENGINE=InnoDB;
+CREATE TABLE t1 (a CHAR(1), b CHAR(1), PRIMARY KEY (a,b))
+charset utf8mb4 ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('a', 'b'), ('c', 'd');
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
 SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
 DROP TABLE t1;
 
 CREATE TABLE t1 (a CHAR(1) NOT NULL, b CHAR(1) NOT NULL, UNIQUE KEY (a,b))
-ENGINE=InnoDB;
+charset utf8mb4 ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('a', 'b'), ('c', 'd');
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
 SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
@@ -156,7 +156,7 @@ CREATE TABLE t1 (
   i1 INTEGER NOT NULL,
   i2 INTEGER NOT NULL,
   UNIQUE KEY k1 (c1,i2)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 SELECT 'A',i1,i1 FROM t0;
 INSERT INTO t1 SELECT 'B',i1,i1 FROM t0;
@@ -170,7 +170,7 @@ CREATE TABLE t2 (
   i1 INTEGER NOT NULL,
   i2 INTEGER NOT NULL,
   UNIQUE KEY k2 (c1,i1,i2)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 SELECT 'A',i1,i1 FROM t0;
 INSERT INTO t2 SELECT 'B',i1,i1 FROM t0;
@@ -257,3 +257,227 @@ SET optimizer_trace=DEFAULT;
 SET end_markers_in_json=DEFAULT;
 
 DROP TABLE t0,t1,t2;
+
+--echo #
+--echo # Bug #21749123: SELECT DISTINCT, WRONG RESULTS COMBINED WITH
+--echo #                USE_INDEX_EXTENSIONS=OFF
+--echo #
+
+CREATE TABLE t1 (
+  pk_col INT AUTO_INCREMENT PRIMARY KEY,
+  a1 CHAR(64),
+  KEY a1_idx (a1)
+) charset utf8mb4 ENGINE=INNODB;
+INSERT INTO t1 (a1) VALUES ('a'),('a'),('a'),('a'), ('a');
+
+CREATE TABLE t2 (
+  pk_col1 INT NOT NULL,
+  pk_col2 INT NOT NULL,
+  a1 CHAR(64),
+  a2 CHAR(64),
+  PRIMARY KEY(pk_col1, pk_col2),
+  KEY a1_idx (a1),
+  KEY a1_a2_idx (a1, a2)
+) charset utf8mb4 ENGINE=INNODB;
+INSERT INTO t2 (pk_col1, pk_col2, a1, a2) VALUES (1,1,'a','b'),(1,2,'a','b'),
+                                                 (1,3,'a','c'),(1,4,'a','c'),
+                                                 (2,1,'a','d');
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+
+#Does not use loose index scan irrespective of index extensions.
+let query1=
+SELECT DISTINCT a1
+FROM t1
+WHERE (pk_col = 2 OR pk_col = 22) AND a1 = 'a';
+
+#Doesn't use loose index scan when index extensions is off.
+let query2=
+SELECT COUNT(DISTINCT a1)
+FROM t1
+GROUP BY a1,pk_col;
+
+#Doesn't use loose index scan when index extensions is off.
+let query3=
+SELECT COUNT(DISTINCT a1)
+FROM t2
+GROUP BY a1,pk_col1;
+
+#Uses loose index scan irrespective of index extensions.
+let query4=
+SELECT COUNT(DISTINCT a1)
+FROM t2
+GROUP BY a1,a2;
+
+eval EXPLAIN $query1;
+eval $query1;
+eval EXPLAIN $query2;
+eval $query2;
+eval EXPLAIN $query3;
+eval $query3;
+eval EXPLAIN $query4;
+eval $query4;
+
+SET @optimizer_switch_save=@@optimizer_switch;
+SET @@optimizer_switch= "use_index_extensions=off";
+
+eval EXPLAIN $query1;
+eval $query1;
+eval EXPLAIN $query2;
+eval $query2;
+eval EXPLAIN $query3;
+eval $query3;
+eval EXPLAIN $query4;
+eval $query4;
+
+SET @@optimizer_switch= @optimizer_switch_save;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #24671968: WHEN THE OPTIMISER IS USING INDEX FOR GROUP-BY IT OFTEN
+--echo #                OFTEN GIVES WRONG RESULTS
+--echo #
+
+CREATE TABLE t1 (
+id int NOT NULL,
+c1 int NOT NULL,
+c2 int,
+PRIMARY KEY(id),
+INDEX c1_c2_idx(c1, c2));
+
+INSERT INTO t1 (id, c1, c2) VALUES (1,1,1), (2,2,2), (10,10,1), (11,10,8),
+                                   (12,10,1), (13,10,2);
+ANALYZE TABLE t1;
+
+# Query similar to the one mentioned in the bug page. Incorrectly chooses
+# loose index scan.
+let query1=
+SELECT DISTINCT c1
+FROM t1
+WHERE EXISTS (SELECT *
+              FROM DUAL
+              WHERE (c2 = 2));
+
+# IN subquery. Incorrectly chooses loose index scan.
+let query2=
+SELECT DISTINCT c1
+FROM t1
+WHERE 1 IN (2,
+            (SELECT 1
+            FROM DUAL
+            WHERE (c2 = 2)),
+            3);
+
+# Similar to above queries but without subquery.
+let query3=
+SELECT DISTINCT c1
+FROM t1
+WHERE c2 = 2;
+
+# Same as query1 with IGNORE INDEX. So this will not choose loose index scan.
+let query4=
+SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE EXISTS (SELECT *
+              FROM DUAL
+              WHERE (c2 = 2));
+
+# Same as query2 with IGNORE INDEX. So this will not choose loose index scan.
+let query5=
+SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE 1 IN (2,
+            (SELECT 1
+            FROM DUAL
+            WHERE (c2 = 2)),
+            3);
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+eval EXPLAIN $query3;
+eval EXPLAIN $query4;
+eval EXPLAIN $query5;
+
+# Looking for the tag in optimizer trace: "dependent_subquery_in_where".
+SET optimizer_trace="enabled=on";
+
+eval $query1;
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "keypart_reference_from_where_clause";
+
+SET optimizer_trace="enabled=off";
+
+eval $query2;
+eval $query3;
+eval $query4;
+eval $query5;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #26532061: SELECT DISTINCT WITH SECONDARY KEY FOR
+--echo #                'USING INDEX FOR GROUP-BY' BAD RESULTS
+--echo #
+
+CREATE TABLE t1(
+  pk INT NOT NULL,
+  c1 CHAR(2),
+  c2 INT,
+  PRIMARY KEY(pk),
+  UNIQUE KEY ukey(c1, c2)
+);
+
+INSERT INTO t1(pk, c1, c2) VALUES (1,1,1),(2,2,2),(3,3,3),(4,5,4);
+SET @a:=5;
+--disable_warnings
+INSERT IGNORE INTo t1(pk, c1, c2)
+  SELECT (@a:=@a+1),@a,@a FROM t1, t1 t2,t1 t3, t1 t4;
+--enable_warnings
+ANALYZE TABLE t1;
+
+SELECT * FROM t1 WHERE pk = 1 OR pk = 231;
+
+#query shouldn't use loose index scan
+let query1=
+SELECT DISTINCT c1
+FROM t1 FORCE INDEX(ukey)
+WHERE pk IN (1,231) and c1 IS NOT NULL;
+
+let query2=
+SELECT DISTINCT c1
+FROM t1 IGNORE INDEX(ukey)
+WHERE pk IN (1,231) and c1 IS NOT NULL;
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+
+eval $query1;
+eval $query2;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #25989915: LOOSE INDEX SCANS RETURNING WRONG RESULT
+--echo #
+
+CREATE TABLE t1 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  c1 varchar(100) DEFAULT NULL,
+  c2 INT NOT NULL,
+  PRIMARY KEY (pk),
+  UNIQUE KEY ukey (c2,c1)
+);
+
+INSERT INTO t1(pk, c2) VALUES (100, 0), (101, 0), (102, 0), (103, 0);
+ANALYZE TABLE t1;
+
+let query1= SELECT COUNT(DISTINCT(c2)) FROM t1 WHERE pk IN (102, 101);
+let query2= SELECT COUNT(DISTINCT(c2)) FROM t1 WHERE pk IN (102, 100);
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+
+eval $query1;
+eval $query2;
+
+DROP TABLE t1;

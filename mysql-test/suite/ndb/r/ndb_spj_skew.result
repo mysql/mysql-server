@@ -1,0 +1,12 @@
+create table test.parent(a int primary key, b int) engine=ndb;
+create table test.child(b int primary key, c int) engine=ndb;
+insert into test.parent values
+(1,2),(2,3),(3,4),(4,5),(5,5),(6,7),(7,8),(8,9);
+insert into test.child values
+(1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+create temporary table counters_at_startup
+select * from ndbinfo.counters
+where block_name="DBSPJ";
+
+Report (and fail) if there are too much skew in 'TABLE_SCANS_RECEIVED':
+Skewed SPJ load	counter_name	min(cnt.val-old.val)	max(cnt.val-old.val)

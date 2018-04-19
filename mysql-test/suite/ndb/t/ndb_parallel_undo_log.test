@@ -1,0 +1,140 @@
+--source include/have_ndb.inc
+--source suite/ndb/include/ndb_find_tools.inc
+-- source have_ndb_error_insert.inc
+
+# WL-8478 : Undo log speedup - parallel LGMAN applying
+
+--echo "WL-8478"
+disable_query_log;
+
+
+CREATE LOGFILE GROUP lg_1
+    ADD UNDOFILE 'undo_1.log'
+    INITIAL_SIZE 16M
+    UNDO_BUFFER_SIZE 2M
+    ENGINE NDBCLUSTER;
+
+ALTER LOGFILE GROUP lg_1
+    ADD UNDOFILE 'undo_2.log'
+    INITIAL_SIZE 12M
+    ENGINE NDBCLUSTER;
+
+CREATE TABLESPACE ts_1
+    ADD DATAFILE 'data_1.dat'
+    USE LOGFILE GROUP lg_1
+    INITIAL_SIZE 32M
+    ENGINE NDBCLUSTER;
+
+ALTER TABLESPACE ts_1
+    ADD DATAFILE 'data_2.dat'
+    INITIAL_SIZE 48M;
+
+# Create disk-data tables and do some operations on them.
+
+CREATE TABLE dt_1 (
+    member_id INT
+    )
+    TABLESPACE ts_1 STORAGE DISK
+    ENGINE NDBCLUSTER;
+
+let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
+
+let $x = 1000;
+--echo "Inserting 100000 rows...";
+
+while($x > 0)
+{
+  let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
+# Retry query until it succeeds.
+  while($mysql_errno)
+  {
+    --error 0,ER_LOCK_WAIT_TIMEOUT
+# UNDO_TUP_ALLOC
+    INSERT INTO dt_1 VALUES
+    (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+    (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+    (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+    (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+    (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+    (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+    (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+    (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+    (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+    (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+  }
+  dec $x;
+}
+
+--exec $NDB_SELECT_COUNT -d test dt_1;
+
+CREATE TABLE dt_2 (
+    member_id INT
+    )
+    TABLESPACE ts_1 STORAGE DISK
+    ENGINE NDBCLUSTER;
+
+# UNDO_TUP_FREE
+let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
+# Retry query until it succeeds.
+while($mysql_errno)
+{
+  --error 0,ER_LOCK_WAIT_TIMEOUT
+  DELETE FROM dt_1 WHERE member_id = 2;
+}
+
+# UNDO_TUP_UPDATE
+let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
+# Retry query until it succeeds.
+while($mysql_errno)
+{
+  --error 0,ER_LOCK_WAIT_TIMEOUT
+  UPDATE dt_1 SET member_id = 6 WHERE member_id = 5;
+}
+# UNDO_TUP_DROP
+--exec $NDB_DROP_TABLE -d test dt_2 >> $NDB_TOOLS_OUTPUT
+let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
+
+
+# Start LCP so that disk table pages are flushed to disk.
+# Otherwise, the undo log records are not sent to the LDM threads for application
+--echo "Run DUMP commands to start LCP"
+--exec $NDB_MGM --no-defaults -e "all dump 7099" >> $NDB_TOOLS_OUTPUT
+
+--echo "Sleep 10s so that LCP can complete"
+sleep 10;
+
+# Restart node 1 with -n
+--echo "Restarting node 1 with -n"
+--exec $NDB_MGM --no-defaults -e "1 RESTART -n" >> $NDB_TOOLS_OUTPUT
+
+# Wait for node to reach not-started state
+--exec $NDB_WAITER --not-started --wait-nodes=1 >> $NDB_TOOLS_OUTPUT
+
+# Insert error to invalidate the latest LCP, so that the undo records till the LCP start of the previous
+# LCP are applied
+--exec $NDB_MGM --no-defaults -e "1 ERROR 7248" >> $NDB_TOOLS_OUTPUT
+
+# Start node
+--exec $NDB_MGM --no-defaults -e "1 START" >> $NDB_TOOLS_OUTPUT
+
+# Wait for node to start
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+--echo "Node 1 started"
+
+# Clear error insert/s
+--exec $NDB_MGM --no-defaults -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+
+# Make sure the table is fine
+--exec $NDB_SELECT_COUNT -d test dt_1;
+INSERT INTO dt_1 VALUES (1),(2),(3),(4);
+--exec $NDB_SELECT_COUNT -d test dt_1;
+DELETE FROM dt_1 WHERE member_id = 1;
+--exec $NDB_SELECT_COUNT -d test dt_1;
+
+# dt_2 should not exist
+--error 1
+--exec $NDB_SHOW_TABLES -d test dt_2 >> $NDB_TOOLS_OUTPUT
+
+# Cleanup
+--exec $NDB_DROP_TABLE -d test dt_1 >> $NDB_TOOLS_OUTPUT
+enable_query_log;

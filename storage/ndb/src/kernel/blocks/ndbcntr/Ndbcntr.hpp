@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -27,6 +34,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/CntrStart.hpp>
 #include <signaldata/CheckNodeGroups.hpp>
+#include <signaldata/LocalSysfile.hpp>
 
 #include <NodeState.hpp>
 #include <NdbTick.h>
@@ -82,12 +90,15 @@ public:
     
     void reset();
     NdbNodeBitmask m_starting;
-    NdbNodeBitmask m_waiting; // == (m_withLog | m_withoutLog | m_waitTO)
+    NdbNodeBitmask m_waiting;
+    // == (m_withLog | m_withoutLog | m_withLogNotRestorable | m_waitTO)
     NdbNodeBitmask m_withLog;
+    NdbNodeBitmask m_withLogNotRestorable;
     NdbNodeBitmask m_withoutLog;
     NdbNodeBitmask m_waitTO;
     Uint32 m_lastGci;
     Uint32 m_lastGciNodeId;
+    Uint32 m_lastLcpId;
 
     // Timeouts in ms since 'm_startTime' 
     Uint64 m_startPartialTimeout;  // UNUSED!
@@ -102,6 +113,37 @@ public:
     Uint32 m_wait_sp[MAX_NDB_NODES];
   } c_start;
   
+  struct LocalSysfile
+  {
+    LocalSysfile() {};
+    Uint32 m_data[128];
+    Uint32 m_file_pointer;
+    Uint32 m_sender_data;
+    Uint32 m_sender_ref;
+    bool m_initial_read_done;
+    bool m_last_write_done;
+    bool m_initial_write_local_sysfile_ongoing;
+    enum
+    {
+      NOT_USED = 0,
+      OPEN_READ_FILE_0 = 1,
+      OPEN_READ_FILE_1 = 2,
+      READ_FILE_0 = 3,
+      READ_FILE_1 = 4,
+      CLOSE_READ_FILE = 5,
+      CLOSE_READ_REF_0 = 6,
+      CLOSE_READ_REF_1 = 7,
+      OPEN_WRITE_FILE_0 = 8,
+      OPEN_WRITE_FILE_1 = 9,
+      WRITE_FILE_0 = 10,
+      WRITE_FILE_1 = 11,
+      CLOSE_WRITE_FILE_0 = 12,
+      CLOSE_WRITE_FILE_1 = 13
+    } m_state;
+    Uint32 m_restorable_flag;
+    Uint32 m_max_restorable_gci;
+  } c_local_sysfile;
+
   struct NdbBlocksRec {
     BlockReference blockref;
   }; /* p2c: size = 2 bytes */
@@ -239,7 +281,7 @@ private:
   void sendCntrStartReq(Signal* signal);
   void sendCntrStartRef(Signal*, Uint32 nodeId, CntrStartRef::ErrorCode);
   void sendNdbSttor(Signal* signal);
-  void sendSttorry(Signal* signal);
+  void sendSttorry(Signal* signal, Uint32 delayed = 0);
 
   bool trySystemRestart(Signal* signal);
   void startWaitingNodes(Signal* signal);
@@ -298,8 +340,39 @@ private:
   void execCREATE_NODEGROUP_IMPL_REQ(Signal*);
   void execDROP_NODEGROUP_IMPL_REQ(Signal*);
 
+  /* Local Sysfile stuff */
+  void execREAD_LOCAL_SYSFILE_REQ(Signal*);
+  void execWRITE_LOCAL_SYSFILE_REQ(Signal*);
+  void execREAD_LOCAL_SYSFILE_CONF(Signal*);
+  void execWRITE_LOCAL_SYSFILE_CONF(Signal*);
+  void execFSOPENREF(Signal*);
+  void execFSOPENCONF(Signal*);
+  void execFSREADREF(Signal*);
+  void execFSREADCONF(Signal*);
+  void execFSWRITECONF(Signal*);
+  void execFSWRITEREF(Signal*);
+  void execFSCLOSEREF(Signal*);
+  void execFSCLOSECONF(Signal*);
+
+  void sendReadLocalSysfile(Signal *signal);
+  void sendWriteLocalSysfile_initial(Signal *signal);
+  void update_withLog();
+
+  void init_local_sysfile();
+  void init_local_sysfile_vars();
+  void open_local_sysfile(Signal*, Uint32, bool);
+  void read_local_sysfile(Signal*);
+  void read_local_sysfile_data(Signal*);
+  void write_local_sysfile(Signal*);
+  void handle_read_refuse(Signal*);
+  void close_local_sysfile(Signal*);
+  void sendReadLocalSysfileConf(Signal*, BlockReference, Uint32);
+  void sendWriteLocalSysfileConf(Signal*);
+
   void updateNodeState(Signal* signal, const NodeState & newState) const ;
   void getNodeGroup(Signal* signal);
+
+  void send_node_started_rep(Signal *signal);
 
   // Initialisation
   void initData();
@@ -375,8 +448,8 @@ public:
     
     BlockNumber number() const { return cntr.number(); }
     EmulatedJamBuffer *jamBuffer() const { return cntr.jamBuffer(); }
-    void progError(int line, int cause, const char * extra) { 
-      cntr.progError(line, cause, extra); 
+    void progError(int line, int cause, const char * extra, const char * check) {
+      cntr.progError(line, cause, extra, check);
     }
 
     enum StopNodesStep {
@@ -408,8 +481,9 @@ private:
     
     BlockNumber number() const { return cntr.number(); }
     EmulatedJamBuffer *jamBuffer() const { return cntr.jamBuffer(); }
-    void progError(int line, int cause, const char * extra) { 
-      cntr.progError(line, cause, extra); 
+    void progError(int line, int cause, const char * extra, const char * check)
+    {
+      cntr.progError(line, cause, extra, check);
     }
     Ndbcntr & cntr;
   };
@@ -420,6 +494,58 @@ private:
   void execSTTORRY(Signal* signal);
   void execSTART_ORD(Signal* signal);
   void execREAD_CONFIG_CONF(Signal*);
+
+  void send_restorable_gci_rep_to_backup(Signal*, Uint32);
+
+  bool m_received_wait_all;
+  bool m_any_lcp_started;
+  bool m_initial_local_lcp_started;
+  bool m_local_lcp_started;
+  bool m_local_lcp_completed;
+  bool m_full_local_lcp_started;
+  bool m_distributed_lcp_started;
+  bool m_ready_to_cut_log_tail;
+  bool m_wait_cut_undo_log_tail;
+  bool m_copy_fragment_in_progress;
+  Uint32 m_distributed_lcp_id;
+  Uint32 m_set_local_lcp_id_reqs;
+  Uint32 m_outstanding_wait_lcp;
+  Uint32 m_outstanding_wait_cut_redo_log_tail;
+  Uint32 m_max_gci_in_lcp;
+  Uint32 m_max_keep_gci;
+  Uint32 m_max_completed_gci;
+
+  Uint32 m_lcp_id;
+  Uint32 m_local_lcp_id;
+
+  Uint32 send_to_all_lqh(Signal*, Uint32 gsn, Uint32 sig_len);
+  void send_cut_log_tail(Signal*);
+  void check_cut_log_tail_completed(Signal*);
+  bool is_ready_to_cut_log_tail();
+  void sendWAIT_ALL_COMPLETE_LCP_CONF(Signal*);
+  void sendLCP_ALL_COMPLETE_CONF(Signal*);
+  void sendSTART_FULL_LOCAL_LCP_ORD(Signal*);
+  void sendSTART_LOCAL_LCP_ORD(Signal*);
+  void sendSET_LOCAL_LCP_ID_CONF(Signal*);
+  void sendWriteLocalSysfile_startLcp(Signal*,Uint32);
+  void write_local_sysfile_start_lcp_done(Signal*);
+  const char* get_restorable_flag_string(Uint32);
+
+  void execCOPY_FRAG_IN_PROGRESS_REP(Signal*);
+  void execCOPY_FRAG_NOT_IN_PROGRESS_REP(Signal*);
+  void execUNDO_LOG_LEVEL_REP(Signal*);
+  void execSTART_LOCAL_LCP_ORD(Signal*);
+  void execSET_LOCAL_LCP_ID_REQ(Signal*);
+  void execWAIT_ALL_COMPLETE_LCP_REQ(Signal*);
+  void execWAIT_COMPLETE_LCP_CONF(Signal*);
+
+  void execSTART_DISTRIBUTED_LCP_ORD(Signal*);
+  void execLCP_ALL_COMPLETE_REQ(Signal*);
+
+  void execCUT_UNDO_LOG_TAIL_CONF(Signal*);
+  void execCUT_REDO_LOG_TAIL_CONF(Signal*);
+
+  void execRESTORABLE_GCI_REP(Signal*);
 };
 
 

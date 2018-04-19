@@ -27,8 +27,7 @@ if ( ! $source_dist and ! -d "$basedir/bin" )
 
 # Out of source set MTR_BINDIR
 my $bindir = $ENV{MTR_BINDIR} || $basedir;
-my $ndb_error_reporter = my_find_file($bindir,
-                            ["storage/ndb/tools", "bin"],
+my $ndb_error_reporter = my_find_file($bindir, ["bin"],
                             "ndb_error_reporter");
 my $F = IO::File->new("$vardir/tmp/ndb_error_reporter_result.inc", "w") or die;
 if ($ndb_error_reporter) {

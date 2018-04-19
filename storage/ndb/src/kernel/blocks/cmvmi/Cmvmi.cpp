@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -20,8 +27,9 @@
 #include <Configuration.hpp>
 #include <kernel_types.h>
 #include <NdbOut.hpp>
-#include <NdbMem.h>
+#include <portlib/NdbMem.h>
 #include <NdbTick.h>
+#include <util/ConfigValues.hpp>
 
 #include <TransporterRegistry.hpp>
 #include <SignalLoggerManager.hpp>
@@ -48,6 +56,9 @@
 #include <NdbSleep.h>
 #include <SafeCounter.hpp>
 #include <SectionReader.hpp>
+#include <vm/WatchDog.hpp>
+
+#include <DebuggerNames.hpp>
 
 #define JAM_FILE_ID 380
 
@@ -108,6 +119,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
                &Cmvmi::execCANCEL_SUBSCRIPTION_REQ);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Cmvmi::execDUMP_STATE_ORD);
+  addRecSignal(GSN_TC_COMMIT_ACK, &Cmvmi::execTC_COMMIT_ACK);
 
   addRecSignal(GSN_TESTSIG, &Cmvmi::execTESTSIG);
   addRecSignal(GSN_NODE_START_REP, &Cmvmi::execNODE_START_REP, true);
@@ -190,7 +202,7 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
     ndbrequire(false);
   }
 
-#ifndef NDB_WIN32
+#ifndef _WIN32
   if(ERROR_INSERTED(9996)){
     simulate_error_during_shutdown= SIGSEGV;
     ndbrequire(false);
@@ -199,6 +211,12 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
   if(ERROR_INSERTED(9995)){
     simulate_error_during_shutdown= SIGSEGV;
     kill(getpid(), SIGABRT);
+  }
+
+  if(ERROR_INSERTED(9006)){
+    g_eventLogger->info("Activating error 9006 for SEGV of all nodes");
+    int *invalid_ptr = (int*) 123;
+    printf("%u", *invalid_ptr); // SEGV
   }
 #endif
 
@@ -668,9 +686,6 @@ void Cmvmi::sendSTTORRY(Signal* signal)
 }//Cmvmi::sendSTTORRY
 
 
-static Uint32 f_accpages = 0;
-extern Uint32 compute_acc_32kpages(const ndb_mgm_configuration_iterator * p);
-
 static Uint32 f_read_config_ref = 0;
 static Uint32 f_read_config_data = 0;
 
@@ -692,8 +707,6 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
     void* ptr = m_ctx.m_mm.get_memroot();
     m_shared_page_pool.set((GlobalPage*)ptr, ~0);
   }
-
-  f_accpages = compute_acc_32kpages(p);
 
   Uint32 eventlog = 8192;
   ndb_mgm_get_int_parameter(p, CFG_DB_EVENTLOG_BUFFER_SIZE, &eventlog);
@@ -777,7 +790,11 @@ Cmvmi::init_global_page_pool()
   {
     Uint32 ptrI;
     Uint32 cnt = rl.m_max;
-    m_ctx.m_mm.alloc_pages(RG_DISK_PAGE_BUFFER, &ptrI, &cnt, 1);
+    m_ctx.m_mm.alloc_pages(RG_DISK_PAGE_BUFFER,
+                           &ptrI,
+                           &cnt,
+                           1,
+                           Ndbd_mem_manager::NDB_ZONE_LE_30);
     ndbrequire(cnt);
     for (Uint32 i = 0; i<cnt; i++)
     {
@@ -841,6 +858,7 @@ void Cmvmi::execSTTOR(Signal* signal)
     signal->theData[1] = 0;
     signal->theData[2] = 0;
     signal->theData[3] = 0;
+    signal->theData[4] = 0;
     execCONTINUEB(signal);
     
     sendSTTORRY(signal);
@@ -873,6 +891,14 @@ void Cmvmi::execSTTOR(Signal* signal)
       return;
     }
 #endif
+    const ndb_mgm_configuration_iterator * p =
+      m_ctx.m_config.getOwnConfigIterator();
+    ndbrequire(p != 0);
+
+    Uint32 free_pct = 5;
+    ndb_mgm_get_int_parameter(p, CFG_DB_FREE_PCT, &free_pct);
+    m_ctx.m_mm.init_resource_spare(RG_DATAMEM, free_pct);
+
     globalData.theStartLevel = NodeState::SL_STARTED;
     sendSTTORRY(signal);
   }
@@ -1063,6 +1089,7 @@ Cmvmi::execSTART_ORD(Signal* signal) {
         globalTransporterRegistry.do_connect(i);
       }
     }
+    g_eventLogger->info("First START_ORD executed to connect MGM servers");
 
     globalData.theStartLevel = NodeState::SL_CMVMI;
     sendSignal(QMGR_REF, GSN_START_ORD, signal, 1, JBA);
@@ -1072,7 +1099,6 @@ Cmvmi::execSTART_ORD(Signal* signal) {
   if(globalData.theStartLevel == NodeState::SL_CMVMI)
   {
     jam();
-    
     globalData.theStartLevel  = NodeState::SL_STARTING;
     globalData.theRestartFlag = system_started;
     /**
@@ -1080,7 +1106,17 @@ Cmvmi::execSTART_ORD(Signal* signal) {
      *
      * Do Restart
      */
-    
+    if (signal->getSendersBlockRef() == 0)
+    {
+      jam();
+      g_eventLogger->info("Received second START_ORD as part of normal start");
+    }
+    else
+    {
+      jam();
+      g_eventLogger->info("Received second START_ORD from node %u",
+                          refToNode(signal->getSendersBlockRef()));
+    }
     // Disconnect all nodes as part of the system restart. 
     // We need to ensure that we are starting up
     // without any connected nodes.   
@@ -1092,12 +1128,14 @@ Cmvmi::execSTART_ORD(Signal* signal) {
         globalTransporterRegistry.setIOState(i, HaltIO);
       }
     }
+    g_eventLogger->info("Disconnect all non-MGM servers");
 
     CRASH_INSERTION(9994);
     
     /**
      * Start running startphases
      */
+    g_eventLogger->info("Start excuting the start phases");
     sendSignal(NDBCNTR_REF, GSN_START_ORD, signal, 1, JBA);  
     return;
   }
@@ -1211,8 +1249,8 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
   }
   else if (errNo < 12000)
   {
-    // DBUTIL_REF ?
     jam();
+    tuserblockref = PGMAN_REF;
   }
   else if (errNo < 13000)
   {
@@ -1248,6 +1286,11 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
   {
     jam();
     tuserblockref = TRIX_REF;
+  }
+  else if (errNo < 20000)
+  {
+    jam();
+    tuserblockref = DBUTIL_REF;
   }
   else if (errNo < 30000)
   {
@@ -1331,6 +1374,19 @@ static Uint32 f_free_segments[32];
 static Uint32 f_free_segment_pos = 0;
 #endif
 
+/**
+ * TC_COMMIT_ACK is routed through CMVMI to ensure correct signal order
+ * when sending DUMP_STATE_ORD to DBTC while TC_COMMIT_ACK is also
+ * being in transit.
+ */
+void
+Cmvmi::execTC_COMMIT_ACK(Signal* signal)
+{
+  jamEntry();
+  BlockReference ref = signal->theData[2];
+  sendSignal(ref, GSN_TC_COMMIT_ACK, signal, 2, JBB);
+}
+
 void
 Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 {
@@ -1348,6 +1404,50 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     else if (check_block(LQH, val))
     {
       sendSignal(DBLQH_REF, GSN_DUMP_STATE_ORD, signal, signal->length(), JBB);
+    }
+    else if (check_block(CMVMI, val))
+    {
+      /**
+       * Handle here since we are already in CMVMI, mostly used for
+       * online config changes.
+       */
+      DumpStateOrd * const & dumpState = (DumpStateOrd *)&signal->theData[0];
+      Uint32 arg = dumpState->args[0];
+      Uint32 first_val = dumpState->args[1];
+      if (signal->length() > 0)
+      {
+        if (val == DumpStateOrd::SetSchedulerResponsiveness)
+        {
+          if (signal->length() != 2)
+          {
+            ndbout_c("dump 103000 X, where X is between 0 and 10 to set"
+                     "transactional priority");
+          }
+          else if (arg == DumpStateOrd::SetSchedulerResponsiveness)
+          {
+            if (first_val > 10)
+            {
+              ndbout_c("Trying to set SchedulerResponsiveness outside 0-10");
+            }
+            else
+            {
+              ndbout_c("Setting SchedulerResponsiveness to %u", first_val);
+              Configuration *conf = globalEmulatorData.theConfiguration;
+              conf->setSchedulerResponsiveness(first_val);
+            }
+          }
+        }
+        else if (val == DumpStateOrd::EnableEventLoggerDebug)
+        {
+          g_eventLogger->info("Enable Debug level in node log");
+          g_eventLogger->enable(Logger::LL_DEBUG);
+        }
+        else if (val == DumpStateOrd::DisableEventLoggerDebug)
+        {
+          g_eventLogger->info("Disable Debug level in node log");
+          g_eventLogger->disable(Logger::LL_DEBUG);
+        }
+      }
     }
     return;
   }
@@ -1490,6 +1590,151 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 #endif
   }
 
+  if (arg == DumpStateOrd::CmvmiLongSignalMemorySnapshotCheck2)
+  {
+    ndbout_c("CmvmiLongSignalMemorySnapshotCheck2");
+
+#if defined VM_TRACE || defined ERROR_INSERT
+    Uint32 orig_idx = (f_free_segment_pos - 1) % 
+      NDB_ARRAY_SIZE(f_free_segments);
+
+    Uint32 poolsize = g_sectionSegmentPool.getSize();    
+    Uint32 orig_level = f_free_segments[orig_idx];
+    Uint32 orig_used = poolsize - orig_level;
+    Uint32 curr_level = g_sectionSegmentPool.getNoOfFree();
+    Uint32 curr_used = poolsize - curr_level;
+
+    ndbout_c("  Total : %u", poolsize);
+    ndbout_c("  Orig free level : %u (%u pct)", 
+             orig_level, orig_level * 100 / poolsize);
+    ndbout_c("  Curr free level : %u (%u pct)", 
+             curr_level, curr_level * 100 / poolsize);
+    ndbout_c("  Orig in-use : %u (%u pct)",
+             orig_used, orig_used * 100 / poolsize);
+    ndbout_c("  Curr in-use : %u (%u pct)",
+             curr_used, curr_used * 100 / poolsize);
+    
+    if (curr_used > 2 * orig_used)
+    {
+      ndbout_c("  ERROR : in-use has grown by more than a factor of 2");
+      ndbrequire(false);
+    }
+    else
+    {
+      ndbout_c("  Snapshot ok");
+    }
+#endif
+  }
+
+  if (arg == DumpStateOrd::CmvmiShowLongSignalOwnership)
+  {
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+    ndbout_c("CMVMI dump LSB usage");
+    Uint32 buffs = g_sectionSegmentPool.getSize();
+    Uint32* buffOwners = (Uint32*) malloc(buffs * sizeof(Uint32));
+    Uint64* buffOwnersCount = (Uint64*) malloc(buffs * sizeof(Uint64));
+    
+    memset(buffOwnersCount, 0, buffs * sizeof(Uint64));
+
+    ndbout_c("  Filling owners list");
+    Uint32 zeroOwners = 0;
+    lock_global_ssp();
+    {
+      /* Fill owners list */
+      Ptr<SectionSegment> tmp;
+      for (tmp.i=0; tmp.i<buffs; tmp.i++)
+      {
+        g_sectionSegmentPool.getPtrIgnoreAlloc(tmp);
+        buffOwners[tmp.i] = tmp.p->m_ownerRef;
+        if (buffOwners[tmp.i] == 0)
+          zeroOwners++;
+        
+        /* Expensive, ideally find a hacky way to iterate the freelist */
+        if (!g_sectionSegmentPool.findId(tmp.i))
+        {
+          buffOwners[tmp.i] = 0;
+        }
+      }
+    }
+    unlock_global_ssp();
+
+    ndbout_c("  Summing by owner");
+    /* Use a linear hash to find items */
+    
+    Uint32 free = 0;
+    Uint32 numOwners = 0;
+    for (Uint32 i=0; i < buffs; i++)
+    {
+      Uint32 owner = buffOwners[i];
+      if (owner == 0)
+      {
+        free++;
+      }
+      else
+      {
+        Uint32 ownerHash = 17 + 37 * owner;
+        Uint32 start=ownerHash % buffs;
+
+        Uint32 y=0;
+        for (; y < buffs; y++)
+        {
+          Uint32 pos = (start + y) % buffs;
+          if (buffOwnersCount[pos] == 0)
+          {
+            numOwners++;
+            buffOwnersCount[pos] = (Uint64(owner) << 32 | 1);
+            break;
+          }
+          else if ((buffOwnersCount[pos] >> 32) == owner)
+          {
+            buffOwnersCount[pos] ++;
+            break;
+          }
+        }
+        ndbrequire(y != buffs);
+      }
+    }
+
+    ndbout_c("  Summary");
+    ndbout_c("    Warning, free buffers in thread caches considered used here");
+    ndbout_c("    ndbd avoids this problem");
+    ndbout_c("    Zero owners : %u", zeroOwners);
+    ndbout_c("    Num free : %u", free);
+    ndbout_c("    Num owners : %u", numOwners);
+    
+    for (Uint32 i=0; i < buffs; i++)
+    {
+      Uint64 entry = buffOwnersCount[i];
+      if (entry != 0)
+      {
+        /* Breakdown assuming Block ref + GSN format */
+        Uint32 count = Uint32(entry & 0xffffffff);
+        Uint32 ownerId = Uint32(entry >> 32);
+        Uint32 block = (ownerId >> 16) & 0x1ff;
+        Uint32 instance = ownerId >> 25;
+        Uint32 gsn = ownerId & 0xffff;
+        ndbout_c("      Count : %u : OwnerId : 0x%x (0x%x:%u/%u) %s %s",
+                 count,
+                 ownerId,
+                 block,
+                 instance,
+                 gsn,
+                 block == 1 ? "RECV" : getBlockName(block, "Unknown"),
+                 getSignalName(gsn, "Unknown"));
+      }
+    }
+
+    ndbout_c("Done");
+ 
+    ::free(buffOwners);
+    ::free(buffOwnersCount);
+#else
+    ndbout_c("CMVMI :: ShowLongSignalOwnership.  Not compiled "
+             "with NDB_DEBUG_RES_OWNERSHIP");
+#endif
+
+  }
+
   if (dumpState->args[0] == DumpStateOrd::DumpPageMemory)
   {
     const Uint32 len = signal->getLength();
@@ -1532,10 +1777,10 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     Resource_limit rl;
     if (m_ctx.m_mm.get_resource_limit(id, rl))
     {
-      if (rl.m_min || rl.m_curr || rl.m_max)
+      if (rl.m_min || rl.m_curr || rl.m_max || rl.m_spare)
       {
-        infoEvent("Resource %d min: %d max: %d curr: %d",
-                  id, rl.m_min, rl.m_max, rl.m_curr);
+        infoEvent("Resource %d min: %d max: %d curr: %d spare: %d",
+                  id, rl.m_min, rl.m_max, rl.m_curr, rl.m_spare);
       }
 
       signal->theData[0] = 1000;
@@ -1699,24 +1944,23 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     sendSignal(reference(), GSN_TESTSIG, signal, numArgs, JBB);
   }
 
-#ifdef ERROR_INSERT
-  if (arg == 9000 || arg == 9002)
+  if (arg == DumpStateOrd::CmvmiSetKillerWatchdog)
   {
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
-  }
-  if (arg == 9001)
-  {
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
+    bool val = true;
+    if (signal->length() >= 2)
+    {
+      val = (signal->theData[1] != 0);
+    }
+    globalEmulatorData.theWatchDog->setKillSwitch(val);
+    return;
   }
 
+#ifdef ERROR_INSERT
   if (arg == 9004 && signal->getLength() == 2)
   {
     SET_ERROR_INSERT_VALUE(9004);
 
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
+    /* Actual handling of dump code moved to TRPMAN */
   }
 #endif
 
@@ -1738,49 +1982,14 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       SafeCounter tmp(mgr, handle);
       tmp.clearWaitingFor(3);
       ndbrequire(tmp.done());
-      ndbout_c("Deallocted");
+      ndbout_c("Deallocated");
     }
     ndbrequire(handle.done());
   }
 #endif
 #endif
 
-#ifdef ERROR_INSERT
-  /* <Target NodeId> dump 9992 <NodeId list>
-   * On Target NodeId, block receiving signals from NodeId list
-   *
-   * <Target NodeId> dump 9993 <NodeId list>
-   * On Target NodeId, resume receiving signals from NodeId list
-   *
-   * <Target NodeId> dump 9991
-   * On Target NodeId, resume receiving signals from any blocked node
-   *
-   *
-   * See also code in QMGR for blocking receive from nodes based
-   * on HB roles.
-   *
-   */
-  if((arg == 9993) ||  /* Unblock recv from nodeid */
-     (arg == 9992))    /* Block recv from nodeid */
-  {
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
-  }
-
-  if (arg == 9990) /* Block recv from all ndbd matching pattern */
-  {
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
-  }
-
-  if (arg == 9991) /* Unblock recv from all blocked */
-  {
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
-  }
-#endif
-
-  if (arg == 9999)
+  if (arg == 9999 || arg == 9006)
   {
     Uint32 delay = 1000;
     switch(signal->getLength()){
@@ -1796,8 +2005,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       break;
     }
     }
-    
-    signal->theData[0] = 9999;
+    signal->theData[0] = arg;
     if (delay == 0)
     {
       execNDB_TAMPER(signal);
@@ -1881,6 +2089,10 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
     Uint32 resource_id = cursor->data[0];
     Resource_limit resource_limit;
 
+    if (resource_id == 0)
+    {
+      resource_id++;
+    }
     while(m_ctx.m_mm.get_resource_limit(resource_id, resource_limit))
     {
       jam();
@@ -1892,6 +2104,7 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint32(resource_limit.m_curr);
       row.write_uint32(resource_limit.m_max);
       row.write_uint32(0); //TODO
+      row.write_uint32(resource_limit.m_spare);
       ndbinfo_send_row(signal, req, row, rl);
       resource_id++;
 
@@ -1933,14 +2146,15 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
     Resource_limit res_limit;
     m_ctx.m_mm.get_resource_limit(RG_DATAMEM, res_limit);
 
-    const Uint32 tup_pages_used = res_limit.m_curr - f_accpages;
-    const Uint32 tup_pages_total = res_limit.m_min - f_accpages;
+    const Uint32 dm_pages_used = res_limit.m_curr;
+    const Uint32 dm_pages_total =
+      res_limit.m_max > 0 ? res_limit.m_max : res_limit.m_min;
 
     Ndbinfo::pool_entry pools[] =
     {
       { "Data memory",
-        tup_pages_used,
-        tup_pages_total,
+        dm_pages_used,
+        dm_pages_total,
         sizeof(GlobalPage),
         0,
         { CFG_DB_DATA_MEM,0,0,0 }},
@@ -1981,6 +2195,107 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
         return;
       }
     }
+    break;
+  }
+
+  case Ndbinfo::CONFIG_VALUES_TABLEID:
+  {
+    jam();
+    Uint32 index = cursor->data[0];
+
+    char buf[512];
+    const ConfigValues* const values = m_ctx.m_config.get_own_config_values();
+    ConfigValues::Entry entry;
+    while (true)
+    {
+      /*
+        Iterate own configuration by index and
+        return the configured values
+      */
+      index = values->getNextEntryByIndex(index, &entry);
+      if (index == 0)
+      {
+         // No more config values
+        break;
+      }
+
+      if (entry.m_key > PRIVATE_BASE)
+      {
+        // Skip private configuration values which are calculated
+        // and only to be known within one data node
+        index++;
+        continue;
+      }
+
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId()); // Node id
+      row.write_uint32(entry.m_key); // config_param
+
+      switch(entry.m_type)
+      {
+      case ConfigValues::IntType:
+        BaseString::snprintf(buf, sizeof(buf), "%u", entry.m_int);
+        break;
+
+      case ConfigValues::Int64Type:
+        BaseString::snprintf(buf, sizeof(buf), "%llu", entry.m_int64);
+        break;
+
+      case ConfigValues::StringType:
+        BaseString::snprintf(buf, sizeof(buf), "%s", entry.m_string);
+        break;
+
+      default:
+        assert(false);
+        break;
+      }
+      row.write_string(buf); // config_values
+
+      ndbinfo_send_row(signal, req, row, rl);
+
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, index);
+        return;
+      }
+    }
+    break;
+  }
+
+  case Ndbinfo::CONFIG_NODES_TABLEID:
+  {
+    jam();
+    ndb_mgm_configuration_iterator * iter = m_ctx.m_config.getClusterConfigIterator();
+    Uint32 row_num, sent_row_num = cursor->data[0];
+
+    for(row_num = 1, ndb_mgm_first(iter);
+        ndb_mgm_valid(iter);
+        row_num++, ndb_mgm_next(iter))
+    {
+      if(row_num > sent_row_num)
+      {
+        Uint32 row_node_id, row_node_type;
+        const char * hostname;
+        Ndbinfo::Row row(signal, req);
+        row.write_uint32(getOwnNodeId());
+        ndb_mgm_get_int_parameter(iter, CFG_NODE_ID, & row_node_id);
+        row.write_uint32(row_node_id);
+        ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION, & row_node_type);
+        row.write_uint32(row_node_type);
+        ndb_mgm_get_string_parameter(iter, CFG_NODE_HOST, & hostname);
+        row.write_string(hostname);
+        ndbinfo_send_row(signal, req, row, rl);
+
+        if (rl.need_break(req))
+        {
+          jam();
+          ndbinfo_send_scan_break(signal, req, rl, row_num);
+          return;
+        }
+      }
+    }
+    break;
   }
 
   default:
@@ -2831,16 +3146,37 @@ Cmvmi::execCONTINUEB(Signal* signal)
   {
     jam();
     Uint32 cnt = signal->theData[1];
-    Uint32 tup_percent_last = signal->theData[2];
-    Uint32 acc_percent_last = signal->theData[3];
+    Uint32 dm_percent_last = signal->theData[2];
+    Uint32 tup_percent_last = signal->theData[3];
+    Uint32 acc_percent_last = signal->theData[4];
 
+    // Data memory threshold
+    Resource_limit rl;
+    m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
     {
-      // Data memory threshold
-      Resource_limit rl;
-      m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
+      const Uint32 dm_pages_used = rl.m_curr;
+      const Uint32 dm_pages_total = rl.m_max > 0 ? rl.m_max : rl.m_min;
+      const Uint32 dm_percent_now = calc_percent(dm_pages_used,
+                                                 dm_pages_total);
 
-      const Uint32 tup_pages_used = rl.m_curr - f_accpages;
-      const Uint32 tup_pages_total = rl.m_min - f_accpages;
+      const Uint32 acc_pages_used =
+        sum_array(g_acc_pages_used, NDB_ARRAY_SIZE(g_acc_pages_used));
+
+      const Uint32 tup_pages_used = dm_pages_used - acc_pages_used;
+
+      /**
+       * If for example both acc and tup uses 50% each of data memory
+       * we want it to show 100% usage so that thresholds warning
+       * starting at 80% trigger.
+       *
+       * Therefore acc and tup percentage are calculated against free
+       * data memory plus its own usage.
+       */
+      const Uint32 acc_pages_total = dm_pages_total - tup_pages_used;
+      const Uint32 acc_percent_now = calc_percent(acc_pages_used,
+                                                  acc_pages_total);
+
+      const Uint32 tup_pages_total = dm_pages_total - acc_pages_used;
       const Uint32 tup_percent_now = calc_percent(tup_pages_used,
                                                   tup_pages_total);
 
@@ -2851,22 +3187,17 @@ Cmvmi::execCONTINUEB(Signal* signal)
         reportDMUsage(signal, tup_percent_now >= tup_percent_last ? 1 : -1);
         tup_percent_last = passed;
       }
-    }
-
-    {
-      // Index memory threshold
-      const Uint32 acc_pages_used =
-        sum_array(g_acc_pages_used, NDB_ARRAY_SIZE(g_acc_pages_used));
-      const Uint32 acc_pages_total = f_accpages * 4;
-      const Uint32 acc_percent_now = calc_percent(acc_pages_used,
-                                                  acc_pages_total);
-
-      int passed;
       if ((passed = check_threshold(acc_percent_last, acc_percent_now)) != -1)
       {
         jam();
         reportIMUsage(signal, acc_percent_now >= acc_percent_last ? 1 : -1);
         acc_percent_last = passed;
+      }
+      if ((passed = check_threshold(dm_percent_last, dm_percent_now)) != -1)
+      {
+        jam();
+        /* no separate report, see dbtup and dbacc report above */
+        dm_percent_last = passed;
       }
     }
 
@@ -2886,9 +3217,10 @@ Cmvmi::execCONTINUEB(Signal* signal)
     }
     signal->theData[0] = ZREPORT_MEMORY_USAGE;
     signal->theData[1] = cnt; // seconds since last report
-    signal->theData[2] = tup_percent_last; // last reported threshold for TUP
-    signal->theData[3] = acc_percent_last; // last reported threshold for ACC
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 4);
+    signal->theData[2] = dm_percent_last;  // last reported threshold for data memory
+    signal->theData[3] = tup_percent_last; // last reported threshold for TUP
+    signal->theData[4] = acc_percent_last; // last reported threshold for ACC
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 5);
     return;
   }
   }
@@ -2900,8 +3232,15 @@ Cmvmi::reportDMUsage(Signal* signal, int incDec, BlockReference ref)
   Resource_limit rl;
   m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
 
-  const Uint32 tup_pages_used = rl.m_curr - f_accpages;
-  const Uint32 tup_pages_total = rl.m_min - f_accpages;
+  const Uint32 dm_pages_used = rl.m_curr;
+  const Uint32 dm_pages_total = rl.m_max > 0 ? rl.m_max : rl.m_min;
+
+  const Uint32 acc_pages_used =
+    sum_array(g_acc_pages_used, NDB_ARRAY_SIZE(g_acc_pages_used));
+
+  const Uint32 tup_pages_used = dm_pages_used - acc_pages_used;
+
+  const Uint32 tup_pages_total = dm_pages_total - acc_pages_used;
 
   signal->theData[0] = NDB_LE_MemoryUsage;
   signal->theData[1] = incDec;
@@ -2912,18 +3251,27 @@ Cmvmi::reportDMUsage(Signal* signal, int incDec, BlockReference ref)
   sendSignal(ref, GSN_EVENT_REP, signal, 6, JBB);
 }
 
-
 void
 Cmvmi::reportIMUsage(Signal* signal, int incDec, BlockReference ref)
 {
+  Resource_limit rl;
+  m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
+
+  const Uint32 dm_pages_used = rl.m_curr;
+  const Uint32 dm_pages_total = rl.m_max > 0 ? rl.m_max : rl.m_min;
+
   const Uint32 acc_pages_used =
     sum_array(g_acc_pages_used, NDB_ARRAY_SIZE(g_acc_pages_used));
 
+  const Uint32 tup_pages_used = dm_pages_used - acc_pages_used;
+
+  const Uint32 acc_pages_total = dm_pages_total - tup_pages_used;
+
   signal->theData[0] = NDB_LE_MemoryUsage;
   signal->theData[1] = incDec;
-  signal->theData[2] = 8192;
+  signal->theData[2] = sizeof(GlobalPage);
   signal->theData[3] = acc_pages_used;
-  signal->theData[4] = f_accpages * 4;
+  signal->theData[4] = acc_pages_total;
   signal->theData[5] = DBACC;
   sendSignal(ref, GSN_EVENT_REP, signal, 6, JBB);
 }

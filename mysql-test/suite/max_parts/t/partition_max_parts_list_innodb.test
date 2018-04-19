@@ -11,11 +11,10 @@
 
 # General not engine specific settings and requirements
 
-# The server must support partitioning.
---source include/have_partition.inc
-
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
+
+call mtr.add_suppression("A long semaphore wait");
 
 ##### Storage engine to be tested
 let $engine= 'InnoDB';

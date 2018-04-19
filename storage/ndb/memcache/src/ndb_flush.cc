@@ -1,27 +1,31 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- as published by the Free Software Foundation; version 2 of
- the License.
- 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU General Public License for more details.
- 
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License, version 2.0, for more details.
+
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 /* configure defines */
-#include <my_config.h>
+#include "my_config.h"
 
 /* System headers */
-#define __STDC_FORMAT_MACROS 
 #include <assert.h>
 #include <ctype.h>
 
@@ -84,19 +88,19 @@ ENGINE_ERROR_CODE ndb_flush_all(ndb_pipeline *pipeline) {
       if(plan.pk_access) {
         // To flush, scan the table and delete every row
         if(plan.canHaveExternalValue()) {
-          DEBUG_PRINT("prefix %d - doing ExternalValue delete", i);
+          DEBUG_PRINT_DETAIL("prefix %d - doing ExternalValue delete", i);
           r = scan_delete_ext_val(pipeline, &inst, &plan);
         }
         else {
-          DEBUG_PRINT("prefix %d - deleting from %s", i, pfx->table->table_name);
+          DEBUG_PRINT_DETAIL("prefix %d - deleting from %s", i, pfx->table->table_name);
           r = scan_delete(&inst, &plan);
         }
         if(! r) logger->log(LOG_WARNING, 0, "-- FLUSH_ALL Failed.\n");
       }
-      else DEBUG_PRINT("prefix %d - not scanning table %s -- accees path "
+      else DEBUG_PRINT_DETAIL("prefix %d - not scanning table %s -- accees path "
                        "is not primary key", i, pfx->table->table_name);
     }
-    else DEBUG_PRINT("prefix %d - not scanning table %s -- use_ndb:%d flush:%d",
+    else DEBUG_PRINT_DETAIL("prefix %d - not scanning table %s -- use_ndb:%d flush:%d",
                      i, pfx->table ? pfx->table->table_name : "",
                      pfx->info.use_ndb, pfx->info.do_db_flush);
   }

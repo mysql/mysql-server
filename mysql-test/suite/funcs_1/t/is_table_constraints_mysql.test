@@ -2,9 +2,6 @@
 #
 # Check the content of information_schema.table_constraints about tables within
 # the database mysql (= the system tables) with different privileged users.
-# Variant for the non embedded server
-#    The expected results must equal is_table_constraints_mysql_embedded
-#    except that the privilege system works (affects some result sets).
 #
 # Author:
 # 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
@@ -12,6 +9,5 @@
 #                   Create this script based on older scripts and new code.
 #
 
---source include/not_embedded.inc
 let $table_schema = mysql;
 --source suite/funcs_1/datadict/table_constraints.inc

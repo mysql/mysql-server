@@ -1,0 +1,118 @@
+###############################################################################
+# Bug#19316063: MAKE MTS WORK WITH RELAY_LOG_RECOVERY=1 WHEN
+# GTID IS ENABLED
+#
+# Problem:
+# ========
+# When gaps are present in MTS and trying to restart the server with
+# relay-log-recovery=1 will result in the following error.
+# "relay-log-recovery cannot be executed when the slave was stopped with an
+# error or killed in MTS mode"
+#
+# Test:
+# =====
+# Enable GTID protocol along with MTS. Generate gaps in MTS, on the slave and
+# restart slave server with relay-log-recovery=1. The gaps should
+# be filled because of GTID protocol and slave should be in sync with master.
+###############################################################################
+--source include/rpl_connection_master.inc
+CREATE DATABASE d1;
+CREATE DATABASE d2;
+CREATE DATABASE d3;
+CREATE DATABASE d4;
+
+CREATE TABLE d1.t1 (a int unique) ENGINE=INNODB;
+CREATE TABLE d2.t1 (a int unique) ENGINE=INNODB;
+CREATE TABLE d3.t1 (a int unique) ENGINE=INNODB;
+CREATE TABLE d4.t1 (a int unique) ENGINE=INNODB;
+
+--source include/sync_slave_sql_with_master.inc
+STOP SLAVE SQL_THREAD;
+SET GLOBAL DEBUG='d,flush_after_reading_user_var_event';
+# Generate three blocked workers on slave for 3 GAPS.
+BEGIN;
+INSERT INTO d1.t1 VALUES (1); # to cause the dup key error
+INSERT INTO d2.t1 VALUES (2);
+INSERT INTO d3.t1 VALUES (3);
+# change-master with gaps
+--source include/rpl_connection_master.inc
+INSERT INTO d1.t1 VALUES (4);
+INSERT INTO d2.t1 VALUES (5);
+INSERT INTO d3.t1 VALUES (6);
+INSERT INTO d4.t1 VALUES (7);
+--source include/rpl_connection_master1.inc
+# Using debug extension point d,flush_after_reading_user_var_event
+# split the following transaction across the relay logs on slave.
+BEGIN;
+INSERT INTO d1.t1 VALUES (1);
+SET @v= 100;
+INSERT INTO d1.t1 VALUES (@v);
+INSERT INTO d2.t1 VALUES (2);
+INSERT INTO d3.t1 VALUES (3);
+
+--source include/rpl_connection_master.inc
+BEGIN;
+INSERT INTO d4.t1 VALUES (8);  # this worker will race over one inserting (1)
+--source include/rpl_connection_master1.inc
+COMMIT;
+
+--source include/rpl_connection_slave1.inc
+SET DEBUG_SYNC='now WAIT_FOR Reached';
+FLUSH LOGS;
+--echo # Let IO thread continue splitting has been done now.
+SET DEBUG_SYNC= 'now SIGNAL signal.flush_complete_continue';
+
+--source include/rpl_connection_master.inc
+COMMIT;
+INSERT INTO d4.t1 VALUES (9);
+--source include/sync_slave_io_with_master.inc
+
+--source include/rpl_connection_slave1.inc
+START SLAVE SQL_THREAD;
+# make sure workers doing d2.t1 raced the one that occupied  with d1.t1
+--let $count= 1
+--let $table= d4.t1
+--let $wait_condition= select count(*) = 1 from $table where a = 8
+--source include/wait_condition.inc
+
+--source include/rpl_connection_slave.inc
+# make worker executing (1) to error out
+COMMIT;
+
+--let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
+--source include/wait_for_slave_sql_error.inc
+
+--source include/stop_slave_io.inc
+# Remove tuple 13 from slave so that upon restart when the missing
+# transaction is fetched again it will cause duplicate key error.
+DELETE FROM d1.t1 where a=1;
+DELETE FROM d2.t1 where a=2;
+DELETE FROM d3.t1 where a=3;
+
+# Restart the salve server
+--let $rpl_server_number= 2
+--let $rpl_start_with_gtids= 1
+--let $rpl_server_parameters= --skip_slave_start=FALSE --sync_master_info=1 --relay-log-recovery=1
+--source include/rpl_restart_server.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# Compare the tables on master and slave they should be in sync
+let $i=4;
+while($i)
+{
+  --let diff_tables=master:d$i.t1, slave:d$i.t1
+  --source include/diff_tables.inc
+  --dec $i
+}
+
+#
+# cleanup
+#
+--source include/rpl_connection_master.inc
+DROP DATABASE d1;
+DROP DATABASE d2;
+DROP DATABASE d3;
+DROP DATABASE d4;
+--source include/sync_slave_sql_with_master.inc

@@ -94,15 +94,15 @@ SET @@session.sql_warnings = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_warnings = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_warnings = TRÜE;
+SET @@session.sql_warnings = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_warnings = ÕN;
---Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_warnings = Ã•N;
+--error ER_PARSE_ERROR
 SET @@session.sql_warnings = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_warnings = ÓFF;
+SET @@session.sql_warnings = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_warnings = '¹';
+SET @@session.sql_warnings = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_warnings = NO;
 
@@ -125,7 +125,7 @@ SELECT @@global.sql_warnings;
 
 --disable_warnings
 SELECT count(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='sql_warnings';
 --enable_warnings
 
@@ -137,13 +137,13 @@ WHERE VARIABLE_NAME='sql_warnings';
 
 --disable_warnings
 SELECT IF(@@session.sql_warnings, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_warnings';
 --enable_warnings
 SELECT @@session.sql_warnings;
 --disable_warnings
 SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_warnings';
 --enable_warnings
 

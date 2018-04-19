@@ -271,7 +271,7 @@ server_id	3
 MySQLD error output for server 2.1 matching pattern %NDB Slave%
 relevant
 [warning] ndb slave: table test.t3oneex : no extra row author bits in table.
-[note] ndb slave: table test.t3oneex : cft_ndb_epoch[_trans], low epoch resolution
+[note] ndb slave: table test.t3oneex : ndb$epoch, low epoch resolution
 [note] ndb slave: table test.t2diffex using conflict_fn ndb$max on attribute x.
 [note] ndb slave: table test.t2diffex logging exceptions to test.t2diffex$ex
 [note] ndb slave: table test.t1allsame using conflict_fn ndb$max on attribute x.
@@ -413,6 +413,28 @@ relevant
 [warning] ndb slave: exceptions table t1$ex has wrong definition (initial 4 columns)
 drop table test.t1;
 drop table test.t1$EX;
+Test conflict_fn definitions in ndb_replication which cover  
+exceptions tables and verify that conflict functions are not
+set up for exceptions tables. 
+insert into mysql.ndb_replication values ("test", "t2%", 1, 7, "NDB$EPOCH()");
+create table test.t2$EX (
+server_id int unsigned NOT NULL,
+master_server_id int unsigned NOT NULL,
+master_epoch bigint unsigned NOT NULL,
+count int unsigned NOT NULL,
+a int NOT NULL,
+PRIMARY KEY (server_id,master_server_id,master_epoch,count)
+) ENGINE=ndbcluster;
+create table test.t2 (
+a int primary key,
+b varchar(100)) engine=ndb;
+count(*)
+1
+count(*)
+1
+drop table test.server_error_log;
+drop table test.t2;
+drop table test.t2$EX;
 "Cleanup"
 drop table mysql.ndb_replication;
 include/rpl_end.inc

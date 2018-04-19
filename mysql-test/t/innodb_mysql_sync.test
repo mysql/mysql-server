@@ -1,7 +1,6 @@
 #
 # Test file for InnoDB tests that require the debug sync facility
 #
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 # Save the initial number of concurrent sessions.
@@ -37,6 +36,7 @@ SET DEBUG_SYNC='now SIGNAL table_altered';
 --echo # Connection 1
 --echo # Complete optimization
 connection default;
+--replace_regex /'Unknown error.*'/'Unknown error'/
 --reap
 
 disconnect con2;
@@ -789,6 +789,317 @@ SET DEBUG_SYNC= 'now WAIT_FOR rebuild';
 
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
+
+
+--echo #
+--echo # BUG#20367116: ALTER TABLE BREAKS ON DELETE CASCADE FOREIGN KEY
+--echo #               CONSTRAINT
+
+
+--echo # Test case to ensure there are no orphaned rows.
+--echo # (ALTER TABLE, COPY) Algorithm.
+
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1)) ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, foreign key(f2) REFERENCES t1(f1)
+                ON DELETE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+
+--enable_connect_log
+SET DEBUG_SYNC= 'alter_after_copy_table SIGNAL delete_parent WAIT_FOR delete_child';
+--send ALTER TABLE t2 ADD f3 INT NOT NULL, ALGORITHM=COPY
+
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC= 'now WAIT_FOR delete_parent';
+--send DELETE FROM t1 WHERE f1 = 1
+
+--echo # Without the patch, there is no table MDL wait, so the below
+--echo # times out.
+connect (con2, localhost, root,,);
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+                     WHERE INFO='DELETE FROM t1 WHERE f1 = 1' and
+                     STATE='Waiting for table metadata lock';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL delete_child';
+
+connection con1;
+--reap
+
+connection default;
+--reap
+
+--echo # Without the patch, there will be an orphaned row in table 't2'.
+SELECT * FROM t2;
+SELECT * FROM t1;
+DROP TABLE t2, t1;
+
+--echo # Cleanup
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+
+--echo # Test case to ensure there is no deadlock.
+--echo # (ALTER TABLE, INPLACE) algorithm.
+
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1))ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, FOREIGN KEY(f2) REFERENCES t1(f1) ON DELETE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+
+SET DEBUG_SYNC='innodb_commit_inplace_alter_table_enter SIGNAL delete_parent WAIT_FOR alter_child';
+--send ALTER TABLE t2 ADD f3 INT NOT NULL, ALGORITHM=INPLACE
+
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC='now WAIT_FOR delete_parent';
+--send DELETE FROM t1 WHERE f1 = 1
+
+--echo # Without the patch, there is no table MDL wait, so the below times out.
+connect (con2, localhost, root,,);
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+                     WHERE INFO='DELETE FROM t1 WHERE f1 = 1' and
+                     STATE='Waiting for table metadata lock';
+--source include/wait_condition.inc
+SET DEBUG_SYNC='now signal alter_child';
+
+connection con1;
+--reap
+
+--echo # Cleanup
+connection default;
+--reap
+DROP TABLE t2, t1;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+
+--echo # Test case to ensure that the parent's parent is also locked.
+--echo # (ALTER TABLE, COPY) Algorithm.
+
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1)) ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, f3 INT NOT NULL, FOREIGN KEY(f2)
+                REFERENCES t1(f1) ON DELETE CASCADE,
+                PRIMARY KEY(f3))ENGINE=INNODB;
+CREATE TABLE t3(f4 INT NOT NULL, FOREIGN KEY(f4) REFERENCES t2(f3)
+                ON DELETE CASCADE) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, 2);
+INSERT INTO t3 VALUES(2);
+
+--enable_connect_log
+SET DEBUG_SYNC= 'alter_after_copy_table SIGNAL delete_parent_parent WAIT_FOR delete_child';
+--send ALTER TABLE t3 ADD f5 INT NOT NULL, ALGORITHM=COPY
+
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC= 'now WAIT_FOR delete_parent_parent';
+--send DELETE FROM t1 WHERE f1 = 1
+
+--echo # Without the patch, there is no table MDL wait, so the below
+--echo # times out.
+connect (con2, localhost, root,,);
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+                     WHERE INFO='DELETE FROM t1 WHERE f1 = 1' and
+                     STATE='Waiting for table metadata lock';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL delete_child';
+
+connection con1;
+--reap
+
+connection default;
+--reap
+
+--echo # Without the patch, there will be an orphaned row in table 't3'.
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+
+DROP TABLE t3, t2, t1;
+
+--echo # Cleanup
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+
+--echo # Test case to ensure there is no deadlock by locking parent's parent.
+--echo # (ALTER TABLE, INPLACE) algorithm.
+
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1))ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, f3 INT NOT NULL, FOREIGN KEY(f2)
+                REFERENCES t1(f1) ON DELETE CASCADE,
+                PRIMARY KEY(f3))ENGINE=INNODB;
+CREATE TABLE t3(f4 INT NOT NULL, FOREIGN KEY(f4) REFERENCES t2(f3)
+                ON DELETE CASCADE) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, 2);
+INSERT INTO t3 VALUES(2);
+
+SET DEBUG_SYNC='innodb_commit_inplace_alter_table_enter SIGNAL delete_parent_parent WAIT_FOR alter_child';
+--send ALTER TABLE t3 ADD f3 INT NOT NULL, ALGORITHM=INPLACE
+
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC='now WAIT_FOR delete_parent_parent';
+--send DELETE FROM t1 WHERE f1 = 1
+
+--echo # Without the patch, there is no table MDL wait, so the below times out.
+connect (con2, localhost, root,,);
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+                     WHERE INFO='DELETE FROM t1 WHERE f1 = 1' and
+                     STATE='Waiting for table metadata lock';
+--source include/wait_condition.inc
+SET DEBUG_SYNC='now signal alter_child';
+
+connection con1;
+--reap
+
+--echo # Cleanup
+connection default;
+--reap
+DROP TABLE t3, t2, t1;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+
+--echo # Test case where ALTER is performed under LOCK TABLES.
+--echo # (ALTER TABLE, COPY) Algorithm.
+
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1)) ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, FOREIGN KEY(f2) REFERENCES t1(f1)
+                ON DELETE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+
+--enable_connect_log
+SET DEBUG_SYNC= 'alter_after_copy_table SIGNAL delete_parent_parent WAIT_FOR delete_child';
+LOCK TABLES t2 WRITE;
+--send ALTER TABLE t2 ADD f5 INT NOT NULL, ALGORITHM=COPY
+
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC= 'now WAIT_FOR delete_parent_parent';
+--send DELETE FROM t1 WHERE f1 = 1
+
+--echo # Without the patch, there is no table MDL wait, so the below
+--echo # times out.
+connect (con2, localhost, root,,);
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+                     WHERE INFO='DELETE FROM t1 WHERE f1 = 1' and
+                     STATE='Waiting for table metadata lock';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL delete_child';
+
+connection default;
+--reap
+
+UNLOCK TABLES;
+
+connection con1;
+--reap
+
+connection default;
+--echo # Without the patch, there will be an orphaned row in table 't2'.
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TABLE t2, t1;
+
+--echo # Cleanup
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+
+--echo # Test case where ALTER is performed under LOCK TABLES.
+--echo # (ALTER TABLE, INPLACE) algorithm.
+
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1))ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, FOREIGN KEY(f2) REFERENCES t1(f1)
+                ON DELETE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+
+SET DEBUG_SYNC='innodb_commit_inplace_alter_table_enter SIGNAL delete_parent_parent WAIT_FOR alter_child';
+LOCK TABLES t2 WRITE;
+--send ALTER TABLE t2 ADD f3 INT NOT NULL, ALGORITHM=INPLACE
+
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC='now WAIT_FOR delete_parent_parent';
+--send DELETE FROM t1 WHERE f1 = 1
+
+--echo # Without the patch, there is no table MDL wait, so the below times out.
+connect (con2, localhost, root,,);
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+                     WHERE INFO='DELETE FROM t1 WHERE f1 = 1' and
+                     STATE='Waiting for table metadata lock';
+--source include/wait_condition.inc
+SET DEBUG_SYNC='now signal alter_child';
+
+connection default;
+--reap
+UNLOCK TABLES;
+
+connection con1;
+--reap
+
+connection default;
+--echo # Cleanup
+DROP TABLE t2, t1;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+
+--disable_connect_log
+
+--echo #
+--echo # BUG#21631284: DROP VIRTUAL COLUMN RESULT IN DROP WRONG INDEX.
+--echo #
+
+--echo # Index is not rebuilt, since there is no change in the definition.
+CREATE TABLE t1 (fld1 VARCHAR(300), fld2 INT, KEY idx1(fld2, fld1(200)))
+ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_zero";
+
+--echo #Without the patch, an error is reported.
+ALTER TABLE t1 FORCE;
+
+--echo #cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_zero";
+
+--echo # Index is rebuilt since the index is changed from prefixed
+--echo # to non-prefixed index.
+CREATE TABLE t1 (fld1 CHAR(10), KEY idx1(fld1(5))) ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_one";
+
+--echo #Without the patch, an error is reported.
+ALTER TABLE t1 MODIFY fld1 CHAR(5);
+
+--echo #cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_one";
+
+--echo # Coverage test cases.
+
+--echo # Index is rebuilt since the index is changed from non-prefixed
+--echo # to prefixed index.
+CREATE TABLE t1 (fld1 CHAR(10), KEY idx1(fld1)) ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_one";
+
+--echo #In case of incorrect behavior, an error is reported.
+ALTER TABLE t1 MODIFY fld1 CHAR(5);
+
+--echo #cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_one";
+
+--echo # Index is not rebuilt since the index prefix length is
+--echo # the same.
+CREATE TABLE t1 (fld1 CHAR(10), KEY idx1(fld1(5))) ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_zero";
+
+--echo #In case of incorrect behavior, an error is reported.
+ALTER TABLE t1 MODIFY fld1 CHAR(20);
+
+--echo #cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_zero";
 
 
 # Check that all connections opened by test cases in this file are really

@@ -1,0 +1,260 @@
+#################################################################
+# Test DDL statement 1: ALTER TABLE.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a1` smallint(6) NOT NULL,
+  `a2` int(11) NOT NULL,
+  `a3` bigint(20) NOT NULL,
+  `a4` char(10) DEFAULT NULL,
+  `a5` decimal(5,1) DEFAULT NULL,
+  `a6` time DEFAULT NULL,
+  `a7` date DEFAULT NULL,
+  `a8` datetime DEFAULT NULL,
+  `a9` varchar(255) DEFAULT NULL,
+  `a10` blob,
+  PRIMARY KEY (`a1`)
+) /*!50100 TABLESPACE `ts` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+connect  con1, localhost, root;
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+# Sending 'ALTER TABLE t1 ADD COLUMN c int;'
+ALTER TABLE t1 ADD COLUMN c int;;
+# Verify that the tablespace name is locked.
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+SET DEBUG_SYNC= 'now SIGNAL cont';
+connection con1;
+# Reaping 'ALTER TABLE t1 ADD COLUMN c int;'
+Warnings:
+Note	1880	TIME/TIMESTAMP/DATETIME columns of old format have been upgraded to the new format.
+disconnect con1;
+connection default;
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
+ALTER TABLESPACE ts DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts;
+DROP LOGFILE GROUP lg ENGINE NDB;
+#################################################################
+# Test DDL statement 2: RENAME TABLE.
+# Disabled due to failing assert in ndb.
+#################################################################
+# Test DDL statement 3: TRUNCATE TABLE.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a1` smallint(6) NOT NULL,
+  `a2` int(11) NOT NULL,
+  `a3` bigint(20) NOT NULL,
+  `a4` char(10) DEFAULT NULL,
+  `a5` decimal(5,1) DEFAULT NULL,
+  `a6` time DEFAULT NULL,
+  `a7` date DEFAULT NULL,
+  `a8` datetime DEFAULT NULL,
+  `a9` varchar(255) DEFAULT NULL,
+  `a10` blob,
+  PRIMARY KEY (`a1`)
+) /*!50100 TABLESPACE `ts` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+connect  con1, localhost, root;
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+# Sending 'TRUNCATE TABLE t1;'
+TRUNCATE TABLE t1;;
+# Verify that the tablespace name is locked.
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+SET DEBUG_SYNC= 'now SIGNAL cont';
+connection con1;
+# Reaping 'TRUNCATE TABLE t1;'
+disconnect con1;
+connection default;
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
+ALTER TABLESPACE ts DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts;
+DROP LOGFILE GROUP lg ENGINE NDB;
+#################################################################
+# Test DDL statement 4: DROP TABLE.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a1` smallint(6) NOT NULL,
+  `a2` int(11) NOT NULL,
+  `a3` bigint(20) NOT NULL,
+  `a4` char(10) DEFAULT NULL,
+  `a5` decimal(5,1) DEFAULT NULL,
+  `a6` time DEFAULT NULL,
+  `a7` date DEFAULT NULL,
+  `a8` datetime DEFAULT NULL,
+  `a9` varchar(255) DEFAULT NULL,
+  `a10` blob,
+  PRIMARY KEY (`a1`)
+) /*!50100 TABLESPACE `ts` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+connect  con1, localhost, root;
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+# Sending 'DROP TABLE t1;'
+DROP TABLE t1;;
+# Verify that the tablespace name is locked.
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+SET DEBUG_SYNC= 'now SIGNAL cont';
+connection con1;
+# Reaping 'DROP TABLE t1;'
+disconnect con1;
+connection default;
+SET DEBUG_SYNC= 'RESET';
+ALTER TABLESPACE ts DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts;
+DROP LOGFILE GROUP lg ENGINE NDB;
+#################################################################
+# Test DDL statement 5: ALTER TABLE, but now use the default
+# connection to verify that repeated use of the same connection
+# works too. In this case, we skip the verification of MDL lock
+# acquisition, since it has already been tested above.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a1` smallint(6) NOT NULL,
+  `a2` int(11) NOT NULL,
+  `a3` bigint(20) NOT NULL,
+  `a4` char(10) DEFAULT NULL,
+  `a5` decimal(5,1) DEFAULT NULL,
+  `a6` time DEFAULT NULL,
+  `a7` date DEFAULT NULL,
+  `a8` datetime DEFAULT NULL,
+  `a9` varchar(255) DEFAULT NULL,
+  `a10` blob,
+  PRIMARY KEY (`a1`)
+) /*!50100 TABLESPACE `ts` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD COLUMN c int;
+Warnings:
+Note	1880	TIME/TIMESTAMP/DATETIME columns of old format have been upgraded to the new format.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a1` smallint(6) NOT NULL,
+  `a2` int(11) NOT NULL,
+  `a3` bigint(20) NOT NULL,
+  `a4` char(10) DEFAULT NULL,
+  `a5` decimal(5,1) DEFAULT NULL,
+  `a6` time DEFAULT NULL,
+  `a7` date DEFAULT NULL,
+  `a8` datetime DEFAULT NULL,
+  `a9` varchar(255) DEFAULT NULL,
+  `a10` blob,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a1`)
+) /*!50100 TABLESPACE `ts` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+DROP TABLE t1;
+ALTER TABLESPACE ts DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts;
+DROP LOGFILE GROUP lg ENGINE NDB;
+# Bug#21376265 - ENHANCEMENT: ACQUIRE MDL LOCKS ON ALL TABLESPACE
+#                REFERRED BY A STATEMENT
+set new=on;
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M ENGINE=NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile1.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 64M
+ENGINE NDB;
+CREATE TABLE t1 (
+a INT NOT NULL,
+PRIMARY KEY (a)
+)
+ENGINE=NDB
+PARTITION BY RANGE (a)
+PARTITIONS 1
+(PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1);
+set new=on;
+#############################################
+# Case1: Checking ALTER TABLE
+# Sending 'ALTER TABLE t1 ADD COLUMN f int;'
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+ALTER TABLE t1 ADD COLUMN f int;;
+# Verify that the tablespace name is locked.
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+SET DEBUG_SYNC= 'now SIGNAL cont';
+# Reaping 'ALTER TABLE t1 ADD COLUMN f int;'
+#############################################
+# Case2: Checking TRUNCATE TABLE
+# Sending 'TRUNCATE TABLE t1;'
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+TRUNCATE TABLE t1;;
+# Verify that the tablespace name is locked.
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+SET DEBUG_SYNC= 'now SIGNAL cont';
+# Reaping 'TRUNCATE TABLE t1'
+#############################################
+# Case4: Checking CREATE TABLE
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+CREATE TABLE t3 (a INT NOT NULL, PRIMARY KEY (a)) ENGINE=NDB PARTITION BY RANGE (a) PARTITIONS 1 (PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1);;
+# Verify that the tablespace name is locked.
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+SET DEBUG_SYNC= 'now SIGNAL cont';
+# Reaping 'CREATE TABLE'
+#############################################
+# Case5: Checking CREATE TABLE LIKE
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+CREATE TABLE t4 LIKE t3;;
+# Verify that the tablespace name is locked.
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+SET DEBUG_SYNC= 'now SIGNAL cont';
+# Reaping 'CREATE TABLE LIKE'
+#############################################
+# Case6: Checking ALTER TABLE ... PARTITION
+CREATE TABLESPACE ts2
+ADD DATAFILE 'datafile2.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 64M
+ENGINE NDB;
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+ALTER TABLE t3 ADD PARTITION (PARTITION p2 VALUES LESS THAN (4) TABLESPACE ts2);;
+# Verify that the tablespace name is locked.
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+SET DEBUG_SYNC= 'now SIGNAL cont';
+# Reaping 'ALTER TABLE'
+#############################################
+# Case7: Checking LOCK TABLE t2 WRITE
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+LOCK TABLE t3 WRITE;
+# Verify that the tablespace name is locked.
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+SET DEBUG_SYNC= 'now SIGNAL cont';
+# Reaping 'LOCK TABLE'
+UNLOCK TABLES;
+# Cleanup
+set new=off;
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
+DROP TABLE t3;
+DROP TABLE t4;
+ALTER TABLESPACE ts1 DROP DATAFILE 'datafile1.dat';
+ALTER TABLESPACE ts2 DROP DATAFILE 'datafile2.dat';
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+DROP LOGFILE GROUP lg1 ENGINE NDB;

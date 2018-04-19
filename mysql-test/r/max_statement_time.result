@@ -1,79 +1,105 @@
-SET SESSION query_cache_type= 0;
 #
-# 1. Test MAX_STATEMENT_TIME option syntax.
+# 1. Test MAX_EXECUTION_TIME option syntax.
 #
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (10);
-SET @var= (SELECT MAX_STATEMENT_TIME=0 1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1)' at line 1
-SELECT 1 FROM t1 WHERE a IN (SELECT MAX_STATEMENT_TIME=0 1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1)' at line 1
-SELECT (SELECT MAX_STATEMENT_TIME=0 a FROM t1);
-ERROR 42S22: Unknown column 'MAX_STATEMENT_TIME' in 'field list'
-SELECT a FROM t1 WHERE a IN (SELECT MAX_STATEMENT_TIME=0 a FROM t1);
-ERROR 42S22: Unknown column 'MAX_STATEMENT_TIME' in 'field list'
-SELECT * FROM t1 WHERE a IN (SELECT MAX_STATEMENT_TIME=0 a FROM t1);
-ERROR 42S22: Unknown column 'MAX_STATEMENT_TIME' in 'field list'
-SELECT MAX_STATEMENT_TIME=0 * FROM t1
-WHERE a IN (SELECT MAX_STATEMENT_TIME=0 a FROM t1);
-ERROR 42S22: Unknown column 'MAX_STATEMENT_TIME' in 'field list'
-SELECT * FROM t1
-WHERE a IN (SELECT a FROM t1 UNION SELECT MAX_STATEMENT_TIME=0 a FROM t1);
-ERROR 42S22: Unknown column 'MAX_STATEMENT_TIME' in 'field list'
-SELECT MAX_STATEMENT_TIME=0 * FROM t1
-WHERE a IN (SELECT a FROM t1 UNION SELECT MAX_STATEMENT_TIME=0 a FROM t1);
-ERROR 42S22: Unknown column 'MAX_STATEMENT_TIME' in 'field list'
-SELECT * FROM t1 UNION SELECT MAX_STATEMENT_TIME=0 * FROM t1;
-ERROR 42000: Incorrect usage/placement of 'MAX_STATEMENT_TIME'
-SELECT MAX_STATEMENT_TIME=0 * FROM t1
-UNION SELECT MAX_STATEMENT_TIME=0 * FROM t1;
-ERROR 42000: Incorrect usage/placement of 'MAX_STATEMENT_TIME'
-INSERT INTO t1 SELECT MAX_STATEMENT_TIME=0 * FROM t1;
-ERROR 42000: Incorrect usage/placement of 'MAX_STATEMENT_TIME'
-CREATE TABLE t1 AS SELECT MAX_STATEMENT_TIME=0 * FROM t1;
-ERROR 42000: Incorrect usage/placement of 'MAX_STATEMENT_TIME'
-CREATE TABLE t1 AS SELECT 1 A UNION SELECT 2 UNION SELECT MAX_STATEMENT_TIME=0 3;
-ERROR 42000: Incorrect usage/placement of 'MAX_STATEMENT_TIME'
-CREATE TABLE MAX_STATEMENT_TIME=100 t2 (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=100 t2 (a int)' at line 1
-CREATE MAX_STATEMENT_TIME=100 TABLE t2 (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MAX_STATEMENT_TIME=100 TABLE t2 (a int)' at line 1
-DELETE MAX_STATEMENT_TIME=100 FROM t1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=100 FROM t1' at line 1
-UPDATE MAX_STATEMENT_TIME=100 t1 SET a=20;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '100 t1 SET a=20' at line 1
-ALTER TABLE MAX_STATEMENT_TIME=100 t1 ADD b VARCHAR(200);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=100 t1 ADD b VARCHAR(200)' at line 1
-ALTER MAX_STATEMENT_TIME=100 TABLE t1 ADD b VARCHAR(200);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MAX_STATEMENT_TIME=100 TABLE t1 ADD b VARCHAR(200)' at line 1
-SELECT MAX_STATEMENT_TIME=0 * FROM t1;
+SET @var= (SELECT /*+ MAX_EXECUTION_TIME(0) */ 1);
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+SELECT 1 FROM t1 WHERE a IN (SELECT /*+ MAX_EXECUTION_TIME(0) */ 1);
+1
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+SELECT (SELECT /*+ MAX_EXECUTION_TIME(0) */ a FROM t1);
+(SELECT /*+ MAX_EXECUTION_TIME(0) */ a FROM t1)
+10
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+SELECT a FROM t1 WHERE a IN (SELECT /*+ MAX_EXECUTION_TIME(0) */ a FROM t1);
 a
 10
-DROP TABLE t1;
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+SELECT * FROM t1 WHERE a IN (SELECT /*+ MAX_EXECUTION_TIME(0) */ a FROM t1);
+a
+10
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1
+WHERE a IN (SELECT /*+ MAX_EXECUTION_TIME(0) */ a FROM t1);
+a
+10
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+SELECT * FROM t1
+WHERE a IN (SELECT a FROM t1 UNION SELECT /*+ MAX_EXECUTION_TIME(0) */ a FROM t1);
+a
+10
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1
+WHERE a IN (SELECT a FROM t1 UNION SELECT /*+ MAX_EXECUTION_TIME(0) */ a FROM t1);
+a
+10
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+SELECT * FROM t1 UNION SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1;
+a
+10
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1
+UNION SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1;
+a
+10
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+INSERT INTO t1 SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1;
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+CREATE TABLE t2 AS SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1;
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+CREATE TABLE t3 AS SELECT 1 A UNION SELECT 2 UNION SELECT /*+ MAX_EXECUTION_TIME(0) */ 3;
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+CREATE TABLE /*+ MAX_EXECUTION_TIME(100) */ t4 (a int);
+CREATE /*+ MAX_EXECUTION_TIME(100) */ TABLE t5 (a int);
+DELETE /*+ MAX_EXECUTION_TIME(100) */ FROM t1;
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+UPDATE /*+ MAX_EXECUTION_TIME(100) */ t1 SET a=20;
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+ALTER TABLE /*+ MAX_EXECUTION_TIME(100) */ t1 ADD b VARCHAR(200);
+ALTER /*+ MAX_EXECUTION_TIME(100) */ TABLE t1 ADD c VARCHAR(200);
+SELECT /*+ MAX_EXECUTION_TIME(0) */ * FROM t1;
+a	b	c
+DROP TABLE t1, t2, t3, t4, t5;
 #
-# 2. Test MAX_STATEMENT_TIME value set at session level.
+# 2. Test MAX_EXECUTION_TIME value set at session level.
 #
-SELECT @@max_statement_time;
-@@max_statement_time
+SELECT @@max_execution_time;
+@@max_execution_time
 0
-SET @@SESSION.max_statement_time= 1;
-SELECT @@max_statement_time;
-@@max_statement_time
+SET @@SESSION.max_execution_time= 1;
+SELECT @@max_execution_time;
+@@max_execution_time
 1
-SET @@SESSION.max_statement_time= 0;
+SET @@SESSION.max_execution_time= 0;
 #
-# 3. Test the MAX_STATEMENT_TIME option by setting value for it at,
+# 3. Test the MAX_EXECUTION_TIME option by setting value for it at,
 #        - STATEMENT
 #        - SESSION
 #
-SELECT MAX_STATEMENT_TIME=1 SLEEP(5);
+SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(5);
 SLEEP(5)
 1
-SET @@SESSION.max_statement_time= 1;
+SET @@SESSION.max_execution_time= 1;
 SELECT SLEEP(5);
 SLEEP(5)
 1
-SET @@SESSION.max_statement_time= 0;
+SET @@SESSION.max_execution_time= 0;
 # 
 # 4. Test statement timeout functionality.
 #
@@ -90,14 +116,14 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
-SET @@SESSION.max_statement_time= 2;
+SET @@SESSION.max_execution_time= 2;
 SELECT *, SLEEP(0.5) from t1;
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
 LOCK TABLE t1 WRITE;
 SELECT * FROM t1;
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
-SELECT MAX_STATEMENT_TIME=1 * FROM t1;
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
+SELECT /*+ MAX_EXECUTION_TIME(1) */ * FROM t1;
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
 UNLOCK TABLES;
 CREATE TABLE t2 SELECT * FROM t1;
 ALTER TABLE t2 ADD c VARCHAR(200) default 'new_col';
@@ -107,19 +133,19 @@ DELETE FROM t2;
 #
 # 5. Test SELECT with subquery.
 #
-SELECT MAX_STATEMENT_TIME=3600000 (SELECT SLEEP(0.5)) AS true_if_subquery_is_timedout;
+SELECT /*+ MAX_EXECUTION_TIME(3600000) */ (SELECT SLEEP(0.5)) AS true_if_subquery_is_timedout;
 true_if_subquery_is_timedout
 0
 #
-# 6. Test max_statement_time with prepared statements.
+# 6. Test max_execution_time with prepared statements.
 #
 PREPARE stmt1 FROM "SELECT *, SLEEP(0.5) FROM t1 WHERE b= 'new_string'";
-PREPARE stmt2 FROM "SELECT MAX_STATEMENT_TIME=2 *, SLEEP(0.5) FROM t1 WHERE b= 'new_string'";
-PREPARE stmt3 FROM "SELECT MAX_STATEMENT_TIME=3600000 count(*) FROM t1";
+PREPARE stmt2 FROM "SELECT /*+ MAX_EXECUTION_TIME(2) */ *, SLEEP(0.5) FROM t1 WHERE b= 'new_string'";
+PREPARE stmt3 FROM "SELECT /*+ MAX_EXECUTION_TIME(3600000) */ count(*) FROM t1";
 EXECUTE stmt1;
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
 EXECUTE stmt2;
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
 EXECUTE stmt3;
 count(*)
 4096
@@ -127,14 +153,16 @@ DEALLOCATE PREPARE stmt1;
 DEALLOCATE PREPARE stmt2;
 DEALLOCATE PREPARE stmt3;
 #
-# 7. Test max_statement_time with Stored Routines.
+# 7. Test max_execution_time with Stored Routines.
 #
 CREATE FUNCTION f1() RETURNS INT
 BEGIN
-SELECT MAX_STATEMENT_TIME=1 SLEEP(1.5) INTO @a;
+SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(1.5) INTO @a;
 RETURN 1;
 END|
-ERROR 42000: Incorrect usage/placement of 'MAX_STATEMENT_TIME'
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+DROP FUNCTION f1|
 CREATE FUNCTION f1() RETURNS INT
 BEGIN
 SELECT SLEEP(3) INTO @a;
@@ -146,10 +174,10 @@ INSERT INTO t2 SELECT * FROM t2;
 RETURN 1;
 END|
 INSERT INTO t2 VALUES (1, 'string1', 'string2');
-SET @@SESSION.max_statement_time= 2;
+SET @@SESSION.max_execution_time= 2;
 SELECT f1();
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
-SELECT MAX_STATEMENT_TIME=60000 f2();
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
+SELECT /*+ MAX_EXECUTION_TIME(60000) */ f2();
 f2()
 1
 Warnings:
@@ -158,10 +186,12 @@ DROP FUNCTION f1;
 DROP FUNCTION f2;
 CREATE PROCEDURE p1()
 BEGIN
-SELECT max_statement_time=1 SLEEP(1.5);
+SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(1.5);
 INSERT INTO t2 SELECT DISTINCT * FROM t2;
 END|
-ERROR 42000: Incorrect usage/placement of 'MAX_STATEMENT_TIME'
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+DROP PROCEDURE p1|
 CREATE PROCEDURE p1()
 BEGIN
 INSERT INTO t2 SELECT DISTINCT * FROM t2;
@@ -174,8 +204,8 @@ DROP PROCEDURE p1;
 DROP TABLE t2;
 SET @global_event_scheduler_status= @@global.event_scheduler;
 SET @@global.event_scheduler= ON;
-SET @@global.max_statement_time= 1;
-CREATE TABLE t2 (f1 int);
+SET @@global.max_execution_time= 1;
+CREATE TABLE t2 (f1 int, f2 int);
 SELECT SLEEP(2) into @a;
 SELECT @a;
 @a
@@ -183,198 +213,106 @@ SELECT @a;
 CREATE EVENT event1 ON SCHEDULE AT CURRENT_TIMESTAMP
 DO BEGIN
 SELECT SLEEP(2) into @a;
-SELECT MAX_STATEMENT_TIME=1 SLEEP(2) into @b;
-INSERT INTO t2 VALUES(@a);
-INSERT INTO t2 VALUES(@b);
+SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(2) into @b;
+INSERT INTO t2 VALUES(@a, @b);
 END|
-ERROR 42000: Incorrect usage/placement of 'MAX_STATEMENT_TIME'
-CREATE EVENT event1 ON SCHEDULE AT CURRENT_TIMESTAMP
-DO BEGIN
-SELECT SLEEP(2) into @a;
-INSERT INTO t2 VALUES(@a);
-END
-|
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
 # Wait until at least one instance of event is executed.
-SELECT MAX_STATEMENT_TIME=3600000 * FROM t2;
-f1
-0
+SELECT /*+ MAX_EXECUTION_TIME(3600000) */ * FROM t2;
+f1	f2
+0	0
 DELETE FROM t2;
 SET @@global.event_scheduler= @global_event_scheduler_status;
-SET @@global.max_statement_time= 0;
+SET @@global.max_execution_time= 0;
+CREATE TABLE t3 (f1 int)|
 CREATE TRIGGER t1_before_trigger BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
 SELECT SLEEP(2) into @a;
-SELECT MAX_STATEMENT_TIME=1 SLEEP(2) into @b;
-INSERT INTO t2 VALUES(@a);
-INSERT INTO t2 VALUES(@b);
+SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(2) into @b;
+INSERT INTO t3 VALUES(@a);
+INSERT INTO t3 VALUES(@b);
 END|
-ERROR 42000: Incorrect usage/placement of 'MAX_STATEMENT_TIME'
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+DROP TRIGGER t1_before_trigger|
 CREATE TRIGGER t1_before_trigger BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
 SELECT SLEEP(2) into @a;
-INSERT INTO t2 VALUES(@a);
+INSERT INTO t3 VALUES(@a);
 END
 |
 SELECT SLEEP(5) into @a;
-SELECT max_statement_time=1 SLEEP(2) into @b;
+SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(2) into @b;
 SELECT @a, @b;
 @a	@b
 1	1
 INSERT INTO t1 VALUES (1, 'string');
-SELECT MAX_STATEMENT_TIME=3600000 * FROM t2;
+SELECT /*+ MAX_EXECUTION_TIME(3600000) */ * FROM t3;
 f1
 0
-DROP TABLE t1,t2;
+DROP TABLE t1,t2,t3;
 #
-# 8. Test MAX_STATEMENT_TIME precedence set at different levels.
+# 8. Test MAX_EXECUTION_TIME precedence set at different levels.
 #
-SET @@SESSION.max_statement_time= 3;
+SET @@SESSION.max_execution_time= 3;
 SELECT sleep(5);
 sleep(5)
 1
-SELECT MAX_STATEMENT_TIME=2 sleep(5);
+SELECT /*+ MAX_EXECUTION_TIME(2) */ sleep(5);
 sleep(5)
 1
-SET @@SESSION.max_statement_time= 0;
+SET @@SESSION.max_execution_time= 0;
 #
-# 9. MAX_STATEMENT_TIME status variables.
+# 9. MAX_EXECUTION_TIME status variables.
 #
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set
-FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET';
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET';
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_exceeded
-FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_EXCEEDED';
-SELECT MAX_STATEMENT_TIME=10 SLEEP(1);
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_EXCEEDED';
+SELECT /*+ MAX_EXECUTION_TIME(10) */ SLEEP(1);
 SLEEP(1)
 1
 # Ensure that the counters for:
 # - statements that are time limited; and
 # - statements that exceeded their maximum execution time
 # are incremented.
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET'
+SELECT 1 AS STATUS FROM performance_schema.global_status
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set;
 STATUS
 1
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_EXCEEDED'
+SELECT 1 AS STATUS FROM performance_schema.global_status
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_EXCEEDED'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_exceeded;
 STATUS
 1
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set_failed
-FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED';
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED';
 SET DEBUG= '+d,thd_timer_create_failure';
-SELECT MAX_STATEMENT_TIME=10 SLEEP(1);
+SELECT /*+ MAX_EXECUTION_TIME(10) */ SLEEP(1);
 SLEEP(1)
 0
 SET DEBUG= '-d,thd_timer_create_failure';
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED'
+SELECT 1 AS STATUS FROM performance_schema.global_status
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set_failed;
 STATUS
 1
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set_failed
-FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED';
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED';
 SET DEBUG= '+d,thd_timer_set_failure';
-SELECT MAX_STATEMENT_TIME=10 SLEEP(1);
+SELECT /*+ MAX_EXECUTION_TIME(10) */ SLEEP(1);
 SLEEP(1)
 0
 SET DEBUG= '-d,thd_timer_set_failure';
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED'
+SELECT 1 AS STATUS FROM performance_schema.global_status
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set_failed;
 STATUS
 1
-# 
-# 10. Test Query cache behavior with max_statement_time.
-#
-SET SESSION query_cache_type= 1;
-SET @@SESSION.max_statement_time= 0;
-CREATE TABLE t1 (fld1 int);
-INSERT INTO t1 VALUES (1), (2), (3);
-INSERT INTO t1 SELECT * FROM t1;
-FLUSH QUERY CACHE;
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_inserts
-FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'Qcache_inserts';
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_hits
-FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'Qcache_hits';
-SELECT * FROM t1;
-fld1
-1
-2
-3
-1
-2
-3
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'Qcache_inserts'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_inserts;
-STATUS
-1
-SELECT * FROM t1;
-fld1
-1
-2
-3
-1
-2
-3
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'Qcache_hits'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_hits;
-STATUS
-1
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_inserts
-FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'Qcache_inserts';
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_hits
-FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'Qcache_hits';
-SELECT MAX_STATEMENT_TIME=3600000 * FROM t1;
-fld1
-1
-2
-3
-1
-2
-3
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'Qcache_hits'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_hits;
-STATUS
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'Qcache_inserts'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_inserts;
-STATUS
-1
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_inserts
-FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'Qcache_inserts';
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_hits
-FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'Qcache_hits';
-SELECT MAX_STATEMENT_TIME=3600000 * FROM t1;
-fld1
-1
-2
-3
-1
-2
-3
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'Qcache_hits'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_hits;
-STATUS
-1
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'Qcache_inserts'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_inserts;
-STATUS
-FLUSH QUERY CACHE;
-DROP TABLE t1;
-SET @@SESSION.max_statement_time= 0;
+SET @@SESSION.max_execution_time= 0;

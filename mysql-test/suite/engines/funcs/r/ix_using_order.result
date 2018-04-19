@@ -6,19 +6,19 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   KEY `i1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP INDEX i1 ON t1;
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t1(c1 INTEGER NOT NULL);
-CREATE   INDEX i1 USING BTREE ON t1(c1 DESC);
+CREATE   INDEX i1 USING BTREE ON t1(c1);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   KEY `i1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -29,67 +29,75 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   UNIQUE KEY `i1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP INDEX i1 ON t1;
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t1(c1 INTEGER NOT NULL);
-CREATE UNIQUE INDEX i1 USING BTREE ON t1(c1 DESC);
+CREATE UNIQUE INDEX i1 USING BTREE ON t1(c1);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   UNIQUE KEY `i1` (`c1`) USING BTREE
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP INDEX i1 ON t1;
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t1(c1 INTEGER NOT NULL);
-CREATE   INDEX i1 USING HASH ON t1(c1 ASC);
+CREATE   INDEX i1 USING HASH ON t1(c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP INDEX i1 ON t1;
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t1(c1 INTEGER NOT NULL);
-CREATE   INDEX i1 USING HASH ON t1(c1 DESC);
+CREATE   INDEX i1 USING HASH ON t1(c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
-  KEY `i1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP INDEX i1 ON t1;
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t1(c1 INTEGER NOT NULL);
-CREATE UNIQUE INDEX i1 USING HASH ON t1(c1 ASC);
+CREATE UNIQUE INDEX i1 USING HASH ON t1(c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
-  UNIQUE KEY `i1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  UNIQUE KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP INDEX i1 ON t1;
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t1(c1 INTEGER NOT NULL);
-CREATE UNIQUE INDEX i1 USING HASH ON t1(c1 DESC);
+CREATE UNIQUE INDEX i1 USING HASH ON t1(c1);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
-  UNIQUE KEY `i1` (`c1`) USING HASH
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  UNIQUE KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP INDEX i1 ON t1;
 DROP TABLE t1;
 SHOW TABLES;

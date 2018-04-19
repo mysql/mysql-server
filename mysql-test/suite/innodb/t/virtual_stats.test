@@ -1,0 +1,51 @@
+
+#
+# BUG#22469660 INNODB DOESN'T UPDATE INDEX STATS WHEN ADDING OR DROPPING VIRTUAL COLUMN
+#
+
+CREATE TABLE t (
+  a INT,
+  b INT,
+  c INT GENERATED ALWAYS AS(a+b),
+  d INT GENERATED ALWAYS AS(a+b+b),
+  KEY idxa (a),
+  KEY vidxcd (c, d)
+) ENGINE=INNODB;
+
+INSERT INTO t (a,b) VALUES (1, 2);
+
+SELECT index_name, stat_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE database_name = 'test' AND table_name = 't';
+
+ALTER TABLE t ADD COLUMN e INT GENERATED ALWAYS AS(a+a+b), ADD INDEX idxb (b), ALGORITHM=INPLACE;
+
+SELECT index_name, stat_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE database_name = 'test' AND table_name = 't';
+
+ALTER TABLE t DROP COLUMN c, DROP INDEX idxa, ALGORITHM=INPLACE;
+
+SELECT index_name, stat_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE database_name = 'test' AND table_name = 't';
+
+ALTER TABLE t ADD INDEX vidxe (e), ALGORITHM=INPLACE;
+
+SELECT index_name, stat_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE database_name = 'test' AND table_name = 't';
+
+ALTER TABLE t ADD COLUMN f INT GENERATED ALWAYS AS(a + a), ADD INDEX vidxf (f), ALGORITHM=INPLACE;
+
+SELECT index_name, stat_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE database_name = 'test' AND table_name = 't';
+
+ALTER TABLE t DROP INDEX vidxcd;
+
+SELECT index_name, stat_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE database_name = 'test' AND table_name = 't';
+
+DROP TABLE t;

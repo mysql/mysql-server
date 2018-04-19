@@ -43,7 +43,6 @@
 --echo ==== Initialization ====
 
 --source include/have_ndb.inc
---source include/have_innodb.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
 
 --echo ---- setup master ----
@@ -58,9 +57,13 @@ CREATE TABLE ndb_innodb    (a INT) ENGINE=NDB;
 SHOW CREATE TABLE myisam_innodb;
 SHOW CREATE TABLE innodb_myisam;
 SHOW CREATE TABLE myisam_ndb;
+--disable_warnings
 SHOW CREATE TABLE ndb_myisam;
+--enable_warnings
 SHOW CREATE TABLE innodb_ndb;
+--disable_warnings
 SHOW CREATE TABLE ndb_innodb;
+--enable_warnings
 
 --echo ---- setup slave with different engines ----
 
@@ -79,9 +82,13 @@ CREATE TABLE ndb_innodb    (a INT) ENGINE=INNODB;
 
 SHOW CREATE TABLE myisam_innodb;
 SHOW CREATE TABLE innodb_myisam;
+--disable_warnings
 SHOW CREATE TABLE myisam_ndb;
+--enable_warnings
 SHOW CREATE TABLE ndb_myisam;
+--disable_warnings
 SHOW CREATE TABLE innodb_ndb;
+--enable_warnings
 SHOW CREATE TABLE ndb_innodb;
 
 connection master;

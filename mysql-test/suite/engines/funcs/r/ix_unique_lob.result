@@ -9,7 +9,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` tinyblob,
   UNIQUE KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -23,7 +23,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` blob,
   UNIQUE KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -37,7 +37,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` mediumblob,
   UNIQUE KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -51,11 +51,11 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` longblob,
   UNIQUE KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
-CREATE TABLE t4(c1 TINYTEXT NULL);
+CREATE TABLE t4(c1 TINYTEXT NULL) charset latin1;
 CREATE UNIQUE INDEX i1 ON t4(c1(100));
 SHOW TABLES;
 Tables_in_test
@@ -79,7 +79,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` text,
   UNIQUE KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -93,7 +93,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` mediumtext,
   UNIQUE KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -107,7 +107,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` longtext,
   UNIQUE KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -121,7 +121,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` tinyblob NOT NULL,
   UNIQUE KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -135,7 +135,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` blob NOT NULL,
   UNIQUE KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -149,7 +149,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` mediumblob NOT NULL,
   UNIQUE KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -163,11 +163,11 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` longblob NOT NULL,
   UNIQUE KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
-CREATE TABLE t4(c1 TINYTEXT NOT NULL);
+CREATE TABLE t4(c1 TINYTEXT NOT NULL) charset latin1;
 CREATE UNIQUE INDEX i1 ON t4(c1(100));
 SHOW TABLES;
 Tables_in_test
@@ -191,7 +191,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` text NOT NULL,
   UNIQUE KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -205,7 +205,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` mediumtext NOT NULL,
   UNIQUE KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -219,7 +219,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` longtext NOT NULL,
   UNIQUE KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test

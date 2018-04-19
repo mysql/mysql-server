@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -31,6 +38,9 @@
 #include <version.h>
 
 #define NDB_RESTORE_STAGING_SUFFIX "$ST"
+#ifdef ERROR_INSERT
+#define NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER 1
+#endif
 
 enum TableChangesMask
 {
@@ -101,6 +111,7 @@ struct AttributeDesc {
   Uint32 m_nullBitIndex;
   AttrConvertFunc convertFunc;
   void *parameter;
+  Uint32 parameterSz; 
   bool truncation_detected;
   bool staging;
 
@@ -120,6 +131,7 @@ class AttributeS {
 public:
   AttributeDesc * Desc;
   AttributeData Data;
+  void printAttributeValue() const;
 };
 
 class TupleS {
@@ -335,7 +347,9 @@ protected:
   void * m_buffer_ptr;
   Uint32 m_buffer_sz;
   Uint32 m_buffer_data_left;
-
+#ifdef ERROR_INSERT
+  unsigned m_error_insert;
+#endif
   Uint64 m_file_size;
   Uint64 m_file_pos;
   
@@ -364,6 +378,7 @@ protected:
 public:
   bool readHeader();
   bool validateFooter();
+  bool validateBackupFile();
 
   const char * getPath() const { return m_path;}
   const char * getFilename() const { return m_fileName;}
@@ -374,7 +389,10 @@ public:
 
   Uint64 get_file_size() const { return m_file_size; }
   Uint64 get_file_pos() const { return m_file_pos; }
-
+#ifdef ERROR_INSERT
+  void error_insert(unsigned int code); 
+#endif
+  static const Uint32 BUFFER_SIZE = 128*1024;
 private:
   void
   twiddle_atribute(const AttributeDesc * const attr_desc,
@@ -442,6 +460,7 @@ public:
   // Read data file fragment header
   bool readFragmentHeader(int & res, Uint32 *fragmentId);
   bool validateFragmentFooter();
+  bool validateRestoreDataIterator();
 
   const TupleS *getNextTuple(int & res);
   TableS *getCurrentTable();
@@ -509,6 +528,7 @@ public:
   }
   Uint32 size() const { return m_values.size(); }
   const AttributeS * operator[](int i) const { return m_values[i];}
+  void printSqlLog() const;
 };
 
 class RestoreLogIterator : public BackupFile {

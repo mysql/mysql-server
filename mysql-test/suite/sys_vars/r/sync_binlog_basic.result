@@ -88,7 +88,7 @@ SELECT @@sync_binlog;
 4294967295
 '#----------------------FN_DYNVARS_168_06------------------------#'
 SELECT @@global.sync_binlog = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='sync_binlog';
 @@global.sync_binlog = VARIABLE_VALUE
 1

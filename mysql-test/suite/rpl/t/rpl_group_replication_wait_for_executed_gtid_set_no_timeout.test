@@ -1,5 +1,0 @@
---source include/have_group_replication_plugin.inc
-
---let $gtid_wait_set= 6
-
---source extra/rpl_tests/rpl_wait_for_executed_gtid_set_no_timeout.inc

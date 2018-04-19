@@ -14,7 +14,6 @@
 # Change:                                                                      #
 ################################################################################
 
---source include/have_partition.inc
 
 --disable_warnings
 drop table if exists t1;
@@ -124,3 +123,55 @@ ALTER TABLE t1 modify b int generated always as (year(a)-1) virtual;
 select * from t1;
 
 drop table t1;
+
+--echo #
+--echo # Bug#21779011 INVALID READS AND SENDING RANDOM SERVER MEMORY BACK
+--echo #              TO CLIENT
+--echo #
+
+CREATE TABLE t (
+ c INTEGER GENERATED ALWAYS AS (2) VIRTUAL,
+ d INTEGER,
+ KEY (d)
+) PARTITION BY KEY (d) PARTITIONS 2;
+
+INSERT INTO t (d) VALUES (1),(1),(2),(2);
+
+# Need to disable ONLY_FULL_GROUP_BY mode
+--source include/turn_off_only_full_group_by.inc
+
+SELECT c FROM t WHERE d >= 1 GROUP BY d LIMIT 2;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#21779554: CHECK_MISPLACED_ROWS BOGUS "FOUND A MISPLACED ROW"
+--echo #               AND CRASHES
+--echo #
+CREATE TABLE t(a INT,b INT GENERATED ALWAYS AS (1) VIRTUAL,c INT)
+PARTITION BY KEY (b)PARTITIONS 6;
+INSERT INTO t VALUES();
+CHECK TABLE t EXTENDED;
+FLUSH TABLES;
+CHECK TABLE t EXTENDED;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#22574695 ASSERTION `!TABLE || (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET, FIELD_I
+--echo #
+
+CREATE TABLE t1(
+   col1 VARCHAR(500),
+   col2 INT,
+   col5 VARCHAR(500) GENERATED ALWAYS AS
+        (SUBSTR(col1,1,500)) VIRTUAL
+) ENGINE = InnoDB PARTITION BY KEY(col5) PARTITIONS 2;
+
+INSERT INTO test . t1 SET col1 = REPEAT('_', 500);
+COMMIT;
+UPDATE t1 SET col2 = 1;
+SELECT 'Obviously no crash';
+
+DROP TABLE t1;

@@ -1,14 +1,21 @@
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (a varchar(2) character set cp1250)
 partition by list columns (a)
 ( partition p0 values in (0x81));
+Warnings:
+Warning	1300	Invalid cp1250 character string: '81'
+Warning	1300	Invalid cp1250 character string: '81'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(2) CHARACTER SET cp1250 DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `a` varchar(2) CHARACTER SET cp1250 COLLATE cp1250_general_ci DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY LIST  COLUMNS(a)
 (PARTITION p0 VALUES IN (_cp1250 0x81) ENGINE = ENGINE) */
+Warnings:
+Warning	1300	Invalid cp1250 character string: '81'
 drop table t1;
 create table t1 (a varchar(2) character set cp1250)
 partition by list columns (a)
@@ -16,8 +23,8 @@ partition by list columns (a)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(2) CHARACTER SET cp1250 DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `a` varchar(2) CHARACTER SET cp1250 COLLATE cp1250_general_ci DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY LIST  COLUMNS(a)
 (PARTITION p0 VALUES IN ('€') ENGINE = ENGINE) */
 drop table t1;
@@ -30,6 +37,8 @@ partition by range columns(a)
 ( partition p0 values less than ('CZ'),
 partition p1 values less than ('CH'),
 partition p2 values less than ('D'));
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('czz'),('chi'),('ci'),('cg');
 select * from t1 where a between 'cg' AND 'ci';
 a
@@ -43,8 +52,8 @@ partition p1 values in (''));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `a` varchar(2) CHARACTER SET ucs2 COLLATE ucs2_general_ci DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY LIST  COLUMNS(a)
 (PARTITION p0 VALUES IN ('†') ENGINE = ENGINE,
  PARTITION p1 VALUES IN ('') ENGINE = ENGINE) */

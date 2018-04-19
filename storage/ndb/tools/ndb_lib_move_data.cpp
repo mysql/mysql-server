@@ -1,17 +1,24 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <ndb_global.h>
 #include <NdbOut.hpp>
@@ -49,8 +56,8 @@ Ndb_move_data::Ndb_move_data()
 
 Ndb_move_data::~Ndb_move_data()
 {
-  delete m_sourceattr;
-  delete m_targetattr;
+  delete [] m_sourceattr;
+  delete [] m_targetattr;
   m_sourceattr = 0;
   m_targetattr = 0;
   release_data();
@@ -136,6 +143,21 @@ Ndb_move_data::set_type(Attr& attr, const NdbDictionary::Column* c)
   }
 }
 
+Uint32
+Ndb_move_data::calc_str_len_truncated(CHARSET_INFO *cs, char *data, Uint32 maxlen)
+{
+  const char *begin = (const char*) data;
+  const char *end= (const char*) (data+maxlen);
+  int errors = 0;
+  // for multi-byte characters, truncate to last well-formed character before
+  // maxlen so that string is not truncated in the middle of a multi-byte char. 
+  Uint32 numchars = cs->cset->numchars(cs, begin, end); 
+  Uint32 wf_len = cs->cset->well_formed_len(cs, begin, end, numchars, &errors);
+  require(wf_len <= maxlen);
+
+  return wf_len;
+}
+  
 int
 Ndb_move_data::check_nopk(const Attr& attr1, const Attr& attr2)
 {
@@ -341,6 +363,14 @@ Ndb_move_data::check_tables()
       if (attr1.type == Attr::TypeArray &&
           attr2.type == Attr::TypeArray)
       {
+        CHK1(check_sizes(attr1, attr2) == 0);
+        continue;
+      }
+
+      if (attr1.type == Attr::TypeBlob &&
+          attr2.type == Attr::TypeBlob)
+      {
+        // TEXT and BLOB conversions
         CHK1(check_sizes(attr1, attr2) == 0);
         continue;
       }
@@ -662,6 +692,7 @@ Ndb_move_data::copy_blob_to_array(const Attr& attr1, const Attr& attr2)
     {
       char* data1 = &op.buf1[0];
       Uint32 length1 = attr2.data_size;
+      require(length1 <= (unsigned)op.buflen); // avoid buffer overflow
       CHK2(bh1->readData(data1, length1) == 0, (bh1->getNdbError()));
       // pass also real length to detect truncation
       CHK1(copy_data_to_array(data1, attr2, length1, data_length) == 0);
@@ -701,9 +732,21 @@ Ndb_move_data::copy_blob_to_blob(const Attr& attr1, const Attr& attr2)
     {
       char* data = alloc_data(data_length);
       Uint32 bytes = data_length;
+
       CHK2(bh1->readData(data, bytes) == 0, (bh1->getNdbError()));
       require(bytes == data_length);
-
+      
+      // prevent TINYTEXT/TINYBLOB overflow by truncating data
+      if(attr2.column->getPartSize() == 0)
+      {
+        Uint32 inline_size = attr2.column->getInlineSize();
+        if(bytes > inline_size) 
+        {
+          data_length = calc_str_len_truncated(attr2.column->getCharset(),
+                                               data, inline_size);
+          op.truncated_in_batch++;
+        }
+      }
       CHK2(bh2->setValue(data, data_length) == 0,
            (bh2->getNdbError()));
     }
@@ -746,6 +789,7 @@ Ndb_move_data::copy_attr(const Attr& attr1, const Attr& attr2)
     if (attr1.type == Attr::TypeBlob &&
         attr2.type == Attr::TypeBlob)
     {
+      // handles TEXT and BLOB conversions 
       CHK1(copy_blob_to_blob(attr1, attr2) == 0);
       break;
     }
@@ -1012,7 +1056,7 @@ Ndb_move_data::set_error_code(int code, const char* fmt, ...)
   require(code != 0);
   Error& e = m_error;
   e.code = code;
-  my_vsnprintf(e.message, sizeof(e.message), fmt, ap);
+  vsnprintf(e.message, sizeof(e.message), fmt, ap);
   va_end(ap);
 }
 

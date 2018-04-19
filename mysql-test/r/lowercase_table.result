@@ -85,13 +85,15 @@ drop table t1, t2;
 show tables;
 Tables_in_test
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table if exists İ,İİ;
 create table İ (s1 int);
 show create table İ;
 Table	Create Table
 İ	CREATE TABLE `i` (
   `s1` int(11) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show tables;
 Tables_in_test
 i
@@ -101,7 +103,7 @@ show create table İİ;
 Table	Create Table
 İİ	CREATE TABLE `ii` (
   `s1` int(11) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show tables;
 Tables_in_test
 ii
@@ -111,7 +113,7 @@ End of 5.0 tests
 create database mysql_TEST;
 show create database mysql_TEST;
 Database	Create Database
-mysql_TEST	CREATE DATABASE `mysql_TEST` /*!40100 DEFAULT CHARACTER SET latin1 */
+mysql_TEST	CREATE DATABASE `mysql_TEST` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 drop database mysql_TEST;
 End of 6.0 tests
 #

@@ -1,16 +1,9 @@
-# Embedded server does not support restarting.
---source include/not_embedded.inc
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 
 --echo #
 --echo # Bug #19498877 LIMITATION ON BLOB SIZE IS TOO STRICT, BLOB CAN
 --echo # BE 10% OF TOTAL REDO LOG SIZE
 --echo #
-
-call mtr.add_suppression("InnoDB: Resizing redo log from");
-call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
-call mtr.add_suppression("InnoDB: New log files created, LSN=");
 
 SET GLOBAL max_allowed_packet = 100*1024*1024;
 

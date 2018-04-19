@@ -1,14 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ######################################################################
 # Test various issues ndb_restore had at some time
 ######################################################################
 
 -- source include/have_ndb.inc
--- source include/ndb_default_cluster.inc
 
 # Directory containing the saved backup files
 let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
@@ -115,7 +109,7 @@ CREATE TABLE `t8_c` (
   `fastca` char(1) default NULL,
   `fastmag` char(1) default NULL,
   `lastupdate` datetime default NULL,
-  `hassetistart` datetime NOT NULL default '0000-00-00 00:00:00',
+  `hassetistart` datetime NOT NULL,
   `accthassetitime` int(10) unsigned default NULL,
   `acctoutputoctets` bigint(20) unsigned default NULL,
   `acctinputoctets` bigint(20) unsigned default NULL,
@@ -142,7 +136,7 @@ CREATE TABLE `t9_c` (
   `fastca` char(1) default NULL,
   `fastmag` char(1) default NULL,
   `lastupdate` datetime default NULL,
-  `hassetistart` datetime NOT NULL default '0000-00-00 00:00:00',
+  `hassetistart` datetime NOT NULL,
   `accthassetitime` int(10) unsigned default NULL,
   `actcoutpuocttets` bigint(20) unsigned default NULL,
   `actinputocctets` bigint(20) unsigned default NULL,
@@ -513,12 +507,16 @@ select epoch > (1 << 32) from mysql.ndb_apply_status where server_id=0;
 #
 create table t1 (a int not null primary key auto_increment, b int) auto_increment=200
 engine=ndb;
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source include/ndb_backup.inc
 drop table t1;
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--disable_warnings
 show create table t1;
+--enable_warnings
 drop table t1;
 
 #
@@ -621,3 +619,73 @@ let $mgm_cmd = $mgm_cmd --verbose=0;
 
 --echo # Trying to start another backup as nowait with same id should not return error
 --exec $mgm_cmd -e "start backup $the_backup_id nowait"
+
+#
+# Bug#11764704 Exclude missing tables when restoring a backup
+#
+create database db1;
+use db1;
+CREATE TABLE t1 (a INT) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE t2 (b INT) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE t3 (c INT) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (4),(5),(6);
+INSERT INTO t3 VALUES (7),(8),(9);
+--source include/ndb_backup.inc
+truncate t1;
+truncate t2;
+drop table t3;
+--echo #without 'exclude-missing-tables' should fail
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--echo #calling 'exclude-missing-tables' with 'restore-meta' should fail
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r -m --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--echo #with 'exclude-missing-tables'
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --print_meta --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --print_meta --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+select count(*) from t1;
+select count(*) from t2;
+--echo #with exclusive include, exclude tables arguments
+--echo #exclude non missing table
+truncate t1;
+truncate t2;
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --print_meta --exclude-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --print_meta --exclude-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+select count(*) from t1;
+select count(*) from t2;
+--echo #exclude missing table
+truncate t1;
+truncate t2;
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --print_meta --exclude-tables=db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --print_meta --exclude-tables=db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+select count(*) from t1;
+select count(*) from t2;
+--echo #include non missing table
+truncate t1;
+truncate t2;
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --print_meta --include-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --print_meta --include-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+select count(*) from t1;
+select count(*) from t2;
+--echo #include missing table
+truncate t1;
+truncate t2;
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --print_meta --include-tables=db1.t1,db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --print_meta --include-tables=db1.t1,db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+select count(*) from t1;
+select count(*) from t2;
+--echo #clearup
+drop database db1;
+--echo # ndb_restore with unique index, check behaviour of --restore-epoch
+use test;
+create table t1(id int primary key, val int unique) engine=ndb;
+--source include/ndb_backup.inc
+drop table t1;
+delete from mysql.ndb_apply_status;
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 2 --restore-epoch $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+select count(1) from mysql.ndb_apply_status where server_id=0;
+drop table t1;

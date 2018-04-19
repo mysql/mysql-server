@@ -1,17 +1,22 @@
-SET @tx_isolation= @@global.tx_isolation;
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 "innodb_only", "innodb_only", "innodb_only");
 INSERT INTO config_options VALUES("separator", "|");
 INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 "c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
+INSERT INTO containers VALUES ("int_test", "test", "int_test",
+"k", "v",  "", "", "", "PRIMARY");
 USE test;
+DROP TABLE IF EXISTS int_test;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1        (c1 VARCHAR(32),
 c2 INT,
 c21 VARCHAR(1024),
 c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
+CREATE TABLE int_test  (k varchar(32),
+v int unsigned NOT NULL, PRIMARY KEY (k)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('D', 1, 'City', 0, 0, 0);
 INSERT INTO t1 VALUES ('B', 2, 'Mitte', 0, 0, 0);
 INSERT INTO t1 VALUES ('C', 3, 'West', 0, 0 ,0);
@@ -105,8 +110,6 @@ E	9223372036854775807	Ost
 F	-1	Beijing-Signed-BIGINT
 H	4	Norderstedt
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 ALTER TABLE t1 MODIFY c2 SMALLINT;
 Warnings:
 Warning	1264	Out of range value for column 'c2' at row 4
@@ -236,6 +239,15 @@ Here the memcached results after add key with over max border:
 6|Ost
 DROP TABLE t1;
 SET sql_mode=default;
+#
+# Bug#20535517	INCORRECT HANDLING OF UNSIGNED NOT NULL INTEGERS IN INNODB_MEMCACHED
+#
+Here the memcached results with E:
+543
+SELECT * FROM int_test;
+k	v
+E	543
+DROP TABLE int_test;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
-SET @@global.tx_isolation= @tx_isolation;
+SET @@global.transaction_isolation= @transaction_isolation;

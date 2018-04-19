@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -24,6 +31,7 @@
 #include <SimulatedBlock.hpp>
 #include <NodeBitmask.hpp>
 #include <SignalCounter.hpp>
+#include <ProcessInfo.hpp>
 
 #include <signaldata/EventReport.hpp>
 #include <signaldata/ArbitSignalData.hpp>
@@ -102,10 +110,11 @@ public:
     ZINIT = 1, 		        /* All nodes start in phase INIT         */
     ZSTARTING = 2, 		/* Node is connecting to cluster         */
     ZRUNNING = 3, 		/* Node is running in the cluster        */
-    ZPREPARE_FAIL = 4,       /* PREPARATION FOR FAILURE               */
-    ZFAIL_CLOSING = 5,             /* API/NDB IS DISCONNECTING              */
+    ZPREPARE_FAIL = 4,          /* PREPARATION FOR FAILURE               */
+    ZFAIL_CLOSING = 5,          /* API/NDB IS DISCONNECTING              */
     ZAPI_ACTIVE = 6,            /* API IS RUNNING IN NODE                */
-    ZAPI_INACTIVE = 7           /* Inactive API */
+    ZAPI_INACTIVE = 7,          /* Inactive API */
+    ZAPI_ACTIVATION_ONGOING = 8 /* API is being activated */
   };
 
   struct StartRecord {
@@ -370,6 +379,12 @@ private:
   // Ndbinfo signal
   void execDBINFO_SCANREQ(Signal *signal);
 
+  // ProcessInfo Report signal
+  void execPROCESSINFO_REP(Signal *signal);
+
+  // NDBCNTR informing us our node is fully started
+  void execNODE_STARTED_REP(Signal *signal);
+
   // Statement blocks
   void check_readnodes_reply(Signal* signal, Uint32 nodeId, Uint32 gsn);
   Uint32 check_startup(Signal* signal);
@@ -448,8 +463,10 @@ private:
   void stateArbitRun(Signal* signal);
   void stateArbitChoose(Signal* signal);
   void stateArbitCrash(Signal* signal);
+  Uint32 count_previously_alive_nodes();
   void computeArbitNdbMask(NodeBitmaskPOD& aMask);
   void computeArbitNdbMask(NdbNodeBitmaskPOD& aMask);
+  void computeNonDiedNdbMask(NdbNodeBitmaskPOD& aMask);
   void reportArbitEvent(Signal* signal, Ndb_logevent_type type,
                         const NodeBitmask mask = NodeBitmask());
 
@@ -478,6 +495,7 @@ private:
   void joinedCluster(Signal* signal, NodeRecPtr nodePtr);
   void sendCmRegReq(Signal * signal, Uint32 nodeId);
   void sendCmNodeInfoReq(Signal* signal, Uint32 nodeId, const NodeRec * self);
+  ProcessInfo * getProcessInfo(Uint32 nodeId);
 
 private:
   void sendPrepFailReqRef(Signal* signal, 
@@ -513,7 +531,7 @@ private:
   /* Status flags ----------------------------------*/
 
   Uint32 c_restartPartialTimeout;
-  Uint32 c_restartPartionedTimeout;
+  Uint32 c_restartPartitionedTimeout;
   Uint32 c_restartFailureTimeout;
   Uint32 c_restartNoNodegroupTimeout;
   NDB_TICKS c_start_election_time;
@@ -538,6 +556,9 @@ private:
   Timer hb_send_timer;
   Timer hb_api_timer;
 
+  Int16 processInfoNodeIndex[MAX_NODES];
+  ProcessInfo * receivedProcessInfo;
+  Uint16 max_api_node_id;
 
   NdbNodeBitmask cfailedNodes;
   NdbNodeBitmask cprepFailedNodes;
@@ -583,6 +604,11 @@ private:
   Uint32& set_hb_count(Uint32 nodeId) {
     return globalData.set_hb_count(nodeId);
   }
+
+  void execISOLATE_ORD(Signal* signal);
+
+  void sendReadLocalSysfile(Signal*);
+  void execREAD_LOCAL_SYSFILE_CONF(Signal*);
 };
 
 

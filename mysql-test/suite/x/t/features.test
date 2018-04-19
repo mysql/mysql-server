@@ -1,0 +1,61 @@
+
+# Test feature presents using expect flow and
+# "field_exists" condition.
+#
+# Following features are covered:
+#  - WL#10645: X Protocol Crud.Find with row locking
+#  - WL#9807: X Protocol Crud.Insert with upsert
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/features.tmp
+
+##
+## Verify_expect_open
+##
+-->macro Verify_expect_open	%TEXT_FIELD%	%COND%
+-->echo [Verification of %TEXT_FIELD%]
+Mysqlx.Expect.Open {
+  %COND%
+}
+-->noquery_result
+-->quiet
+-->recvtype Mysqlx.Ok
+
+Mysqlx.Expect.Close {
+}
+-->recvtype Mysqlx.Ok
+
+-->noquery_result
+-->noquiet
+-->echo ok
+-->echo 
+-->endmacro
+
+##
+## Verify_feature_existence
+##
+-->macro Verify_feature_existence	%TEXT_FIELD%	%ID_FIELD%
+
+-->varlet %COND% cond { condition_key:2 condition_value: '%ID_FIELD%' }
+-->varlet %ALL_COND% %ALL_COND% %COND%
+-->callmacro Verify_expect_open	%TEXT_FIELD% (%ID_FIELD%)	%COND%
+-->endmacro
+
+##
+## Test case
+##
+-->varlet %ALL_COND%
+-->callmacro Verify_feature_existence	Mysqlx.Crud.Insert::upsert	18.6
+-->callmacro Verify_feature_existence	Mysqlx.Crud.Find::locking	17.12
+-->callmacro Verify_feature_existence	Mysqlx.Crud.Find::locking_options	17.13
+-->callmacro Verify_expect_open	all features in single request	%ALL_COND%
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/features.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/features.tmp
+--source include/xplugin_drop_user.inc

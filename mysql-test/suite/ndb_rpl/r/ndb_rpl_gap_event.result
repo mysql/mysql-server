@@ -9,9 +9,10 @@ count(*)
 1000
 Restarting mysqld
 # restart
-show binlog events in 'master-bin.000002'  from <start_pos> limit 0,1;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000002	#	Incident	1	<end_pos>	#1 (LOST_EVENTS)
+master-bin.000002	#	Incident	#	#	#1 (LOST_EVENTS)
+master-bin.000002	#	Rotate	#	#	master-bin.000003;pos=POS
 drop table if exists t1;
 Get IO thread to reconnect to Master
 start slave;

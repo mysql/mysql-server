@@ -1,15 +1,12 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --source ../include/start_server_common.inc
 
-# Expect no enabled statements instruments
+# Expect no enabled transaction instruments
 select * from performance_schema.setup_instruments
   where name in ('transaction') and enabled='YES';
 
-# Expect no statement statistics collected
+# Expect no transaction statistics collected
 
 select * from performance_schema.events_transactions_summary_global_by_event_name
   where count_star > 0;

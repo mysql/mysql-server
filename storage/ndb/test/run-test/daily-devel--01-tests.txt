@@ -1,0 +1,92 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testScan
+args: -n ScanKeyInfoExhaust T1
+max-time: 180
+
+cmd: testFK
+args: -n CreateDropWithData T1
+max-time: 180
+
+cmd: testFK
+args: -n CascadeError T1
+max-time: 360
+
+cmd: testScan
+args: -n ScanRead40RandomTable -l 100 T1
+max-time: 360
+
+cmd: test_event
+args: -n DbUtilRace T1
+max-time: 360
+
+cmd: testSystemRestart
+args: -n Bug46412 T1
+max-time: 900
+
+cmd: testDict
+args: -n DropTableConcurrentLCP T1
+max-time: 1260
+
+cmd: testSystemRestart
+args: -n SR_DD_3 D1
+max-time: 720
+
+cmd: testScan
+args: -n ScanRead488_Mixed -l 10 T6 D1 D2
+max-time: 720
+
+cmd: testNodeRestart
+args: -n Bug41295 T1
+max-time: 1080
+
+cmd: testNodeRestart
+args: -n GcpStop T1 --loops=1
+max-time: 1080
+
+cmd: testNodeRestart
+args: -n Bug25984 T1
+max-time: 1620
+
+cmd: testSystemRestart
+args: -n SR_DD_2b_LCP D2
+max-time: 1620
+
+cmd: testSystemRestart
+args: -n to D2
+max-time: 1800
+
+cmd: testNdbApi
+args: -n Bug44065_org
+max-time: 2520
+
+cmd: testDict
+args: -n Bug46585 T1 I3 D1
+max-time: 2160
+
+cmd: testDict
+args: -n SchemaTrans -l 1
+max-time: 4320
+

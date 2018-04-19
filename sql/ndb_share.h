@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -18,32 +25,31 @@
 #ifndef NDB_SHARE_H
 #define NDB_SHARE_H
 
-#include <my_global.h>
-#include <my_alloc.h>        // MEM_ROOT
-#include <thr_lock.h>        // THR_LOCK
-#include <my_bitmap.h>       // MY_BITMAP
+#include <stdio.h>           // FILE, stderr
+#include <string>
+#ifndef DBUG_OFF
+#include <unordered_set>
+#endif
 
-#include <ndbapi/Ndb.hpp>    // Ndb::TupleIdRange
-#include "ndb_conflict.h"
+#include "my_alloc.h"        // MEM_ROOT
+#include "my_bitmap.h"       // MY_BITMAP
+#include "mysql/psi/mysql_thread.h"
+#include "storage/ndb/include/ndbapi/Ndb.hpp" // Ndb::TupleIdRange
+#include "thr_lock.h"        // THR_LOCK
 
-enum NDB_SHARE_STATE {
-  NSS_INITIAL= 0,
-  NSS_DROPPED,
-  NSS_ALTERED 
-};
 
-#ifdef HAVE_NDB_BINLOG
 enum Ndb_binlog_type
 {
   NBT_DEFAULT                   = 0
   ,NBT_NO_LOGGING               = 1
   ,NBT_UPDATED_ONLY             = 2
   ,NBT_FULL                     = 3
-  ,NBT_USE_UPDATE               = 4 /* bit 0x4 indicates USE_UPDATE */
-  ,NBT_UPDATED_ONLY_USE_UPDATE  = NBT_UPDATED_ONLY | NBT_USE_UPDATE
-  ,NBT_FULL_USE_UPDATE          = NBT_FULL         | NBT_USE_UPDATE
+  ,NBT_USE_UPDATE               = 4
+  ,NBT_UPDATED_ONLY_USE_UPDATE  = 6
+  ,NBT_FULL_USE_UPDATE          = 7
+  ,NBT_UPDATED_ONLY_MINIMAL     = 8
+  ,NBT_UPDATED_FULL_MINIMAL     = 9
 };
-#endif
 
 
 /*
@@ -51,7 +57,6 @@ enum Ndb_binlog_type
 */
 struct Ndb_statistics {
   Uint64 row_count;
-  Uint64 commit_count;
   ulong row_size;
   Uint64 fragment_memory;
   Uint64 fragment_extent_space; 
@@ -60,144 +65,356 @@ struct Ndb_statistics {
 
 
 struct NDB_SHARE {
-  NDB_SHARE_STATE state;
-  MEM_ROOT mem_root;
   THR_LOCK lock;
-  native_mutex_t mutex;
-  char *key;
-  uint key_length;
-  char *new_key;
-  uint use_count;
-  uint commit_count_lock;
-  ulonglong commit_count;
+  mysql_mutex_t mutex;
+  struct NDB_SHARE_KEY* key;
   char *db;
   char *table_name;
+
+private:
+  /*
+    The current TupleIdRange for the table is stored in NDB_SHARE in order
+    for the auto_increment value of a table to be consecutive between
+    different user connections, i.e subsequent INSERTs by two
+    connections should get consecutive values(if that's how the auto
+    increment setting of MySQL Server and ndbcluster plugin are currently
+    configured). The default of NdbApi would otherwise be to give each
+    Ndb object instance their own range.
+
+    NOTE! Protected by NDB_SHARE::mutex, can only be accessed via
+    the Tuple_id_range_guard class
+  */
   Ndb::TupleIdRange tuple_id_range;
+
+public:
+  // RAII style class for accessing tuple_id_range
+  class Tuple_id_range_guard {
+    NDB_SHARE * m_share;
+  public:
+    Ndb::TupleIdRange& range;
+
+    Tuple_id_range_guard(NDB_SHARE* share) :
+      m_share(share),
+      range(share->tuple_id_range)
+    {
+      mysql_mutex_lock(&m_share->mutex);
+    }
+    ~Tuple_id_range_guard()
+    {
+      mysql_mutex_unlock(&m_share->mutex);
+    }
+  };
+
+  // Reset the tuple_id_range
+  void reset_tuple_id_range()
+  {
+    Tuple_id_range_guard g(this);
+    g.range.reset();
+  }
+
   struct Ndb_statistics stat;
   struct Ndb_index_stat* index_stat_list;
-  bool util_thread; // if opened by util thread
-  uint32 flags;
-#ifdef HAVE_NDB_BINLOG
-  NDB_CONFLICT_FN_SHARE *m_cfn_share;
-#endif
-  class Ndb_event_data *event_data; // Place holder before NdbEventOperation is created
-  class NdbEventOperation *op;
-  char *old_names; // for rename table
-  MY_BITMAP *subscriber_bitmap;
-  class NdbEventOperation *new_op;
 
-  static NDB_SHARE* create(const char* key, size_t key_length,
-                         struct TABLE* table, const char* db_name,
-                         const char* table_name);
+private:
+  enum Ndb_share_flags : uint {
+    // Flag describing binlogging ON or OFF
+    // - table should not be binlogged
+    FLAG_NO_BINLOG                    = 1UL << 2,
+
+    // Flags describing the binlog mode
+    // - table should be binlogged with full rows
+    FLAG_BINLOG_MODE_FULL             = 1UL << 3,
+    // - table update should be binlogged using update log event
+    FLAG_BINLOG_MODE_USE_UPDATE       = 1UL << 4,
+    // - table update should be binlogged using minimal format:
+    //    i.e before(primary key(s)):after(changed column(s))
+    FLAG_BINLOG_MODE_MINIMAL_UPDATE   = 1UL << 5,
+
+    // Flag describing if table have event
+    // NOTE! The decision wheter or not a table have event is decided
+    // only once by Ndb_binlog_client::table_should_have_event()
+    FLAG_TABLE_HAVE_EVENT             = 1UL << 6,
+  };
+
+  uint flags;
+public:
+  bool get_binlog_nologging() const
+  {
+    return flags & NDB_SHARE::FLAG_NO_BINLOG;
+  }
+  bool get_binlog_full() const
+  {
+    return flags & NDB_SHARE::FLAG_BINLOG_MODE_FULL;
+  }
+  bool get_binlog_use_update() const
+  {
+    return flags & NDB_SHARE::FLAG_BINLOG_MODE_USE_UPDATE;
+  }
+  bool get_binlog_update_minimal() const
+  {
+    return flags & NDB_SHARE::FLAG_BINLOG_MODE_MINIMAL_UPDATE;
+  }
+
+  void set_binlog_flags(Ndb_binlog_type ndb_binlog_type);
+
+  void set_have_event()
+  {
+    flags |= NDB_SHARE::FLAG_TABLE_HAVE_EVENT;
+  }
+  bool get_have_event() const
+  {
+    return flags & NDB_SHARE::FLAG_TABLE_HAVE_EVENT;
+  }
+
+
+  struct NDB_CONFLICT_FN_SHARE *m_cfn_share;
+
+  class NdbEventOperation *op;
+
+  // Raw pointer for passing table definition from schema dist client to
+  // participant in the same node to avoid that paritcipant have to access
+  // the DD to open the table definition.
+  const void* inplace_alter_new_table_def;
+
+  static NDB_SHARE* create(const char* key);
   static void destroy(NDB_SHARE* share);
 
-  class Ndb_event_data* get_event_data_ptr() const;
+  // Functions for working with the opaque NDB_SHARE_KEY
+  static struct NDB_SHARE_KEY* create_key(const char *new_key);
+  static void free_key(struct NDB_SHARE_KEY*);
 
-  void print(const char* where, FILE* file = stderr) const;
+  static std::string key_get_key(struct NDB_SHARE_KEY*);
+  static char* key_get_db_name(struct NDB_SHARE_KEY*);
+  static char* key_get_table_name(struct NDB_SHARE_KEY*);
 
-  /*
-    Returns true if this share need to subscribe to
-    events from the table.
-  */
-  bool need_events(bool default_on) const;
+  size_t key_length() const;
+  const char* key_string() const;
+
+
+  /**
+   * Note about acquire_reference() / release_reference() functions:
+   *
+   *  *) All shares are referred from the list of tables
+   *     until they are released with NDB_SHARE::mark_share_dropped().
+   *  *) All shares are referred by the 'binlog' if its DDL operations
+   *     should be replicated with schema events ('share->op != nullptr')
+   *     Release 'binlog' reference when event operations are released.
+   *  *) All shares are ref counted when they are temporarily referred
+   *     inside a function. Release when last share related operation
+   *     has been completed.
+   *  *) Each ha_ndbcluster instance have a share reference (m_share) which is
+   *     acquired in :open() and released in ::close(). Those references are
+   *     a little special as it indicates that a user is holding the table
+   *     open. Those references can't be controlled in any other way than
+   *     trying to flush the table from the MySQL Server open table cache.
+   */
+
+  // Acquire NDB_SHARE reference for use by ha_ndbcluster
+  static NDB_SHARE* acquire_for_handler(const char* key,
+                                        const class ha_ndbcluster* reference);
+  // Release NDB_SHARE reference acquired by ha_ndbcluster
+  static void release_for_handler(NDB_SHARE* share,
+                                  const class ha_ndbcluster* reference);
+  // Create NDB_SHARE and acquire reference
+  static NDB_SHARE* create_and_acquire_reference(const char* key,
+                                                 const char* reference);
+  // Acquire reference by key
+  static NDB_SHARE* acquire_reference_by_key(const char* key,
+                                             const char* reference);
+  static NDB_SHARE* acquire_reference_by_key_have_lock(const char* key,
+                                                       const char* reference);
+  // Acquire reference to existing NDB_SHARE
+  static NDB_SHARE* acquire_reference_on_existing(NDB_SHARE *share,
+                                                  const char* reference);
+  // Release NDB_SHARE reference
+  static void release_reference(NDB_SHARE *share,
+                                const char* reference);
+  static void release_reference_have_lock(NDB_SHARE *share,
+                                          const char *reference);
+
+  // Mark share as dropped in list of tables
+  static void mark_share_dropped(NDB_SHARE** share);
+
+  // Rename share, rename in list of tables
+  static int rename_share(NDB_SHARE *share,
+                          struct NDB_SHARE_KEY* new_key);
+
+#ifndef DBUG_OFF
+  static void dbg_check_shares_update(void);
+#endif
+
+  static void initialize(CHARSET_INFO* charset);
+  static void deinitialize(void);
+  static void release_extra_share_references(void);
+
+  // Print the list of open tables to stderr
+  static void print_remaining_open_tables();
+
+  // Debug print the NDB_SHARE to string
+  void debug_print(std::string& out, const char *line_separator = "") const;
+private:
+  // Debug print the list of open NDB_SHARE's to string
+  static void debug_print_shares(std::string& out);
+
+private:
+  uint m_use_count;
+  uint increment_use_count() { return ++m_use_count; }
+  uint decrement_use_count() { return --m_use_count; }
+  uint use_count() const { return m_use_count; }
+
+  enum {
+    NSS_INITIAL= 0,
+    NSS_DROPPED
+  } state;
+
+  const char* share_state_string() const;
+
+  static void real_free_share(NDB_SHARE **share);
+  static void free_share(NDB_SHARE** share);
+
+  static NDB_SHARE* acquire_reference_impl(const char *key);
+
+#ifndef DBUG_OFF
+  // Lists of the different "users" who have acquired a reference to
+  // this NDB_SHARE, used for checking the reference counter "m_use_count"
+  // in a programmatic way.
+  // Protected by "ndbcluster_mutex" in the same way as "m_use_count".
+  struct Ndb_share_references
+  {
+    std::unordered_set<const class ha_ndbcluster*> handlers;
+    std::unordered_set<std::string> strings;
+
+    size_t size() const {
+      return handlers.size() + strings.size();
+    }
+
+    bool exists(const class ha_ndbcluster* ref) const
+    {
+      return handlers.find(ref) != handlers.end();
+    }
+
+    bool insert(const class ha_ndbcluster* ref)
+    {
+      // The reference should not already exist
+      DBUG_ASSERT(!exists(ref));
+
+      // Insert the new handler reference in the list
+      const auto result = handlers.insert(ref);
+      DBUG_ASSERT(result.second);
+
+      return result.second;
+    }
+
+    bool erase(const class ha_ndbcluster* ref)
+    {
+      // The reference must already exist
+      DBUG_ASSERT(exists(ref));
+
+      // Remove the handler reference from the list
+      const size_t erased = handlers.erase(ref);
+      DBUG_ASSERT(erased == 1);
+
+      return erased == 1;
+    }
+
+    bool exists(const char* ref)
+    {
+      return strings.find(ref) != strings.end();
+    }
+
+    bool insert(const char* ref)
+    {
+      // The reference should not already exist
+      DBUG_ASSERT(!exists(ref));
+
+      // Insert the new string reference in the list
+      const auto result = strings.insert(ref);
+      DBUG_ASSERT(result.second);
+
+      return result.second;
+    }
+
+    bool erase(const char* ref)
+    {
+      // The reference must already exist
+      DBUG_ASSERT(exists(ref));
+
+      // Remove the string reference from the list
+      const size_t erased = strings.erase(ref);
+      DBUG_ASSERT(erased == 1);
+
+      return erased == 1;
+    }
+
+    bool check_empty() const;
+
+    // Debug print the reference lists to string
+    void debug_print(std::string& out, const char *line_separator = "") const;
+
+  };
+  Ndb_share_references* refs;
+#endif
+  void refs_insert(const char* reference MY_ATTRIBUTE((unused)))
+  {
+    DBUG_ASSERT(refs->insert(reference));
+  }
+  void refs_insert(const class ha_ndbcluster* reference MY_ATTRIBUTE((unused)))
+  {
+    DBUG_ASSERT(refs->insert(reference));
+  }
+  void refs_erase(const char* reference MY_ATTRIBUTE((unused)))
+  {
+    DBUG_ASSERT(refs->erase(reference));
+  }
+  void refs_erase(const class ha_ndbcluster* reference MY_ATTRIBUTE((unused)))
+  {
+    DBUG_ASSERT(refs->erase(reference));
+  }
 };
 
+/**
+   @brief Utility class for working with a temporary
+          NDB_SHARE* references RAII style
 
-inline
-NDB_SHARE_STATE
-get_ndb_share_state(NDB_SHARE *share)
-{
-  NDB_SHARE_STATE state;
-  native_mutex_lock(&share->mutex);
-  state= share->state;
-  native_mutex_unlock(&share->mutex);
-  return state;
-}
+          The class will automatically "get" a NDB_SHARE*
+          reference and release it when going out of scope.
+ */
+class Ndb_share_temp_ref {
+  NDB_SHARE* m_share;
+  const std::string m_reference;
 
+  Ndb_share_temp_ref(const Ndb_share_temp_ref&); // prevent
+  Ndb_share_temp_ref& operator=(const Ndb_share_temp_ref&); // prevent
+public:
+  Ndb_share_temp_ref(const char* key, const char* reference) :
+    m_reference(reference)
+  {
+    m_share = NDB_SHARE::acquire_reference_by_key(key,
+                                                  m_reference.c_str());
+     // Should always exist
+    assert(m_share);
+  }
 
-inline
-void
-set_ndb_share_state(NDB_SHARE *share, NDB_SHARE_STATE state)
-{
-  native_mutex_lock(&share->mutex);
-  share->state= state;
-  native_mutex_unlock(&share->mutex);
-}
+  ~Ndb_share_temp_ref()
+  {
+    assert(m_share);
+    /* release the temporary reference */
+    NDB_SHARE::release_reference(m_share, m_reference.c_str());
+  }
 
+  // Return the NDB_SHARE* by type conversion operator
+  operator NDB_SHARE*() const
+  {
+    assert(m_share);
+    return m_share;
+  }
 
-/* NDB_SHARE.flags */
-#define NSF_HIDDEN_PK   1u /* table has hidden primary key */
-#define NSF_BLOB_FLAG   2u /* table has blob attributes */
-#define NSF_NO_BINLOG   4u /* table should not be binlogged */
-#define NSF_BINLOG_FULL 8u /* table should be binlogged with full rows */
-#define NSF_BINLOG_USE_UPDATE 16u  /* table update should be binlogged using
-                                     update log event */
-inline void set_binlog_logging(NDB_SHARE *share)
-{
-  DBUG_PRINT("info", ("set_binlog_logging"));
-  share->flags&= ~NSF_NO_BINLOG;
-}
-inline void set_binlog_nologging(NDB_SHARE *share)
-{
-  DBUG_PRINT("info", ("set_binlog_nologging"));
-  share->flags|= NSF_NO_BINLOG;
-}
-inline my_bool get_binlog_nologging(NDB_SHARE *share)
-{ return (share->flags & NSF_NO_BINLOG) != 0; }
-inline void set_binlog_updated_only(NDB_SHARE *share)
-{
-  DBUG_PRINT("info", ("set_binlog_updated_only"));
-  share->flags&= ~NSF_BINLOG_FULL;
-}
-inline void set_binlog_full(NDB_SHARE *share)
-{
-  DBUG_PRINT("info", ("set_binlog_full"));
-  share->flags|= NSF_BINLOG_FULL;
-}
-inline my_bool get_binlog_full(NDB_SHARE *share)
-{ return (share->flags & NSF_BINLOG_FULL) != 0; }
-inline void set_binlog_use_write(NDB_SHARE *share)
-{
-  DBUG_PRINT("info", ("set_binlog_use_write"));
-  share->flags&= ~NSF_BINLOG_USE_UPDATE;
-}
-inline void set_binlog_use_update(NDB_SHARE *share)
-{
-  DBUG_PRINT("info", ("set_binlog_use_update"));
-  share->flags|= NSF_BINLOG_USE_UPDATE;
-}
-inline my_bool get_binlog_use_update(NDB_SHARE *share)
-{ return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
-
-
-NDB_SHARE *ndbcluster_get_share(const char *key,
-                                struct TABLE *table,
-                                bool create_if_not_exists,
-                                bool have_lock);
-NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share);
-void ndbcluster_free_share(NDB_SHARE **share, bool have_lock);
-void ndbcluster_real_free_share(NDB_SHARE **share);
-int handle_trailing_share(THD *thd, NDB_SHARE *share);
-int ndbcluster_prepare_rename_share(NDB_SHARE *share, const char *new_key);
-int ndbcluster_rename_share(THD *thd, NDB_SHARE *share);
-int ndbcluster_undo_rename_share(THD *thd, NDB_SHARE *share);
-void ndbcluster_mark_share_dropped(NDB_SHARE*);
-inline NDB_SHARE *get_share(const char *key,
-                            struct TABLE *table,
-                            bool create_if_not_exists= TRUE,
-                            bool have_lock= FALSE)
-{
-  return ndbcluster_get_share(key, table, create_if_not_exists, have_lock);
-}
-
-inline NDB_SHARE *get_share(NDB_SHARE *share)
-{
-  return ndbcluster_get_share(share);
-}
-
-inline void free_share(NDB_SHARE **share, bool have_lock= FALSE)
-{
-  ndbcluster_free_share(share, have_lock);
-}
+  // Return the NDB_SHARE* when using pointer operator
+  const NDB_SHARE* operator->() const
+  {
+    assert(m_share);
+    return m_share;
+  }
+};
 
 #endif

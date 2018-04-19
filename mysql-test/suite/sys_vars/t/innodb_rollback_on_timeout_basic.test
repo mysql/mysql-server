@@ -22,7 +22,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 
 --echo '#---------------------BS_STVARS_039_01----------------------#'
 ####################################################################
@@ -54,7 +53,7 @@ SELECT COUNT(@@GLOBAL.innodb_rollback_on_timeout);
 
 --disable_warnings
 SELECT IF(@@GLOBAL.innodb_rollback_on_timeout, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_rollback_on_timeout';
 --enable_warnings
 --echo 1 Expected
@@ -64,7 +63,7 @@ SELECT COUNT(@@GLOBAL.innodb_rollback_on_timeout);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_rollback_on_timeout';
 --enable_warnings
 --echo 1 Expected

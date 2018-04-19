@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -72,6 +79,48 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
 
     /** My logger */
     static final Logger logger = LoggerFactoryService.getFactory().getInstance(InvocationHandlerImpl.class);
+
+    /** Finalize this object. This method is called by the garbage collector
+     * when the proxy that delegates to this object is no longer reachable.
+     */
+    protected void finalize() throws Throwable {
+        if (logger.isDetailEnabled()) logger.detail("NdbRecordSmartValueHandler.finalize");
+        try {
+            release();
+        } finally {
+            super.finalize();
+        }
+    }
+
+    /** Release any resources associated with this object.
+     * This method is called by the owner of this object.
+     */
+    public void release() {
+        if (logger.isDetailEnabled()) logger.detail("NdbRecordSmartValueHandler.release");
+        if (wasReleased()) {
+            return;
+        }
+        // NdbRecordOperationImpl holds references to key buffer and value buffer ByteBuffers
+        operation.release();
+        operation = null;
+        domainTypeHandler = null;
+        domainFieldHandlers = null;
+        fieldNumberToColumnNumberMap = null;
+        transientValues = null;
+        proxy = null;
+    }
+
+    /** Was this value handler released? */
+    public boolean wasReleased() {
+        return operation == null;
+    }
+
+    /** Assert that this value handler was not released */
+    void assertNotReleased() {
+        if (wasReleased()) {
+            throw new ClusterJUserException(local.message("ERR_Cannot_Access_Object_After_Release"));
+        }
+    }
 
     protected NdbRecordOperationImpl operation;
 
@@ -543,12 +592,14 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
     public void setLobBytes(int fieldNumber, byte[] value) {
         int columnId = fieldNumberToColumnNumberMap[fieldNumber];
         NdbRecordBlobImpl blob = operation.getBlobHandle(columnId);
+        operation.columnSet(columnId);
         blob.setData(value);
     }
 
     public void setLobString(int fieldNumber, String value) {
         int columnId = fieldNumberToColumnNumberMap[fieldNumber];
         NdbRecordBlobImpl blob = operation.getBlobHandle(columnId);
+        operation.columnSet(columnId);
         blob.setData(value);
     }
 
@@ -680,6 +731,7 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
      * @return the value from data storage
      */
     public Object get(int fieldNumber) {
+        assertNotReleased();
         int columnId = fieldNumberToColumnNumberMap[fieldNumber];
         if (columnId < 0) {
             return transientValues[-1 - columnId];
@@ -688,6 +740,7 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
     }
 
     public void set(int fieldNumber, Object value) {
+        assertNotReleased();
         int columnId = fieldNumberToColumnNumberMap[fieldNumber];
         if (columnId < 0) {
             transientValues[-1 - columnId] = value;
@@ -707,6 +760,7 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
         String propertyName = propertyHead.toLowerCase() + propertyTail;
         int fieldNumber;
         Object result;
+        assertNotReleased();
         if (methodName.startsWith("get")) {
             // get the field number from the name
             fieldNumber = domainTypeHandler.getFieldNumber(propertyName);

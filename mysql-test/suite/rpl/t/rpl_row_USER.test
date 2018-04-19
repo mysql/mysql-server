@@ -21,12 +21,9 @@ CREATE DATABASE mysqltest1;
 --enable_warnings
 
 # Section 1 test anonymous user
-CREATE USER tester IDENTIFIED BY 'test';
-GRANT ALL ON mysqltest1.* TO 'tester'@'%' IDENTIFIED BY 'test';
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+CREATE USER tester IDENTIFIED BY 'test', ''@'localhost%';
+GRANT ALL ON mysqltest1.* TO 'tester'@'%';
 GRANT ALL ON mysqltest1.* TO ''@'localhost%';
-set sql_mode= @orig_sql_mode;
 FLUSH PRIVILEGES;
 connect (m_1,localhost,tester,,mysqltest1);
 
@@ -70,7 +67,7 @@ CREATE DATABASE mysqltest1;
 
 # Section 2 test anonymous host
 CREATE USER 'tester1'@'' IDENTIFIED BY 'test';
-GRANT ALL ON mysqltest1.* TO 'tester1'@'' IDENTIFIED BY 'test';
+GRANT ALL ON mysqltest1.* TO 'tester1'@'';
 FLUSH PRIVILEGES;
 connect (m_2,localhost,tester1,test,mysqltest1);
 

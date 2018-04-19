@@ -38,8 +38,6 @@ o INT
 );
 INSERT INTO t1 ( o ) VALUES ( 1 );
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t2 (
 a TIMESTAMP    NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
 b TIMESTAMP(1) NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP(1),
@@ -57,8 +55,8 @@ m DATETIME(5)  ON UPDATE CURRENT_TIMESTAMP(5),
 n DATETIME(6)  ON UPDATE CURRENT_TIMESTAMP(6),
 o INT
 );
-SET sql_mode = default;
 INSERT INTO t2 ( o ) VALUES ( 1 );
+SET sql_mode = default;
 sync_slave_with_master
 include/sync_slave_sql_with_master.inc
 connection slave

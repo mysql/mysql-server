@@ -3,8 +3,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Replicate_Do_DB = 'initfiledb1,initfiledb2'
 Replicate_Ignore_DB = 'initfiledb3'
 Replicate_Do_Table = 'initfiledb3.t'
@@ -12,10 +10,8 @@ Replicate_Ignore_Table = 'db3.initfilet3'
 Replicate_Wild_Do_Table = 'initfiled%.t%'
 Replicate_Wild_Ignore_Table = 'initfiledb%.%'
 Replicate_Rewrite_DB = '(initfiledb1,initfiledb3)'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1,db2,`db32`, `db,3`);
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
 include/stop_slave_sql.inc
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1,db2,`db32`, `db,3`);
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=(db3);
@@ -24,20 +20,14 @@ CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(`db3`.t3, db5.t8);
 CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('d%.t%', 'dbt.t');
 CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('db%.%');
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db3), (db4,db5));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Replicate_Do_DB = 'db1,db2,db32,db,3'
 Replicate_Ignore_DB = 'db3'
 Replicate_Do_Table = 'db3.t,db4.t6'
-Replicate_Ignore_Table = 'db5.t8,db3.t3'
+Replicate_Ignore_Table = 'db3.t3,db5.t8'
 Replicate_Wild_Do_Table = 'd%.t%,dbt.t'
 Replicate_Wild_Ignore_Table = 'db%.%'
 Replicate_Rewrite_DB = '(db1,db3),(db4,db5)'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CHANGE REPLICATION FILTER REPLICATE_DO_DB= (one, two, three ), REPLICATE_REWRITE_DB=((db_pair1, db_pair2), (db_pair3, db_pair4)), REPLICATE_DO_TABLE=(db1.`table`), REPLICATE_IGNORE_DB= (four, five, six), REPLICATE_IGNORE_TABLE=(db2.t1), REPLICATE_WILD_DO_TABLE=('sample.table%'), REPLICATE_WILD_IGNORE_TABLE=('sample2.ignore%table', 'dbsampe.%');
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Replicate_Do_DB = 'one,two,three'
 Replicate_Ignore_DB = 'four,five,six'
 Replicate_Do_Table = 'db1.table'
@@ -45,11 +35,7 @@ Replicate_Ignore_Table = 'db2.t1'
 Replicate_Wild_Do_Table = 'sample.table%'
 Replicate_Wild_Ignore_Table = 'sample2.ignore%table,dbsampe.%'
 Replicate_Rewrite_DB = '(db_pair1,db_pair2),(db_pair3,db_pair4)'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CHANGE REPLICATION FILTER REPLICATE_DO_DB= (), REPLICATE_REWRITE_DB=(), REPLICATE_DO_TABLE=(), REPLICATE_WILD_DO_TABLE=(), REPLICATE_WILD_IGNORE_TABLE=(), REPLICATE_IGNORE_DB=(), REPLICATE_IGNORE_TABLE=();
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Replicate_Do_DB = ''
 Replicate_Ignore_DB = ''
 Replicate_Do_Table = ''
@@ -57,11 +43,10 @@ Replicate_Ignore_Table = ''
 Replicate_Wild_Do_Table = ''
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = ''
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+include/assert.inc [REPLICATE_REWRITE_DB ACTIVE_SINCE changed after cleanup]
 CREATE USER 'user7057' IDENTIFIED BY 'pass7057';
 mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 1227 (42000) at line 1: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 1227 (42000) at line 1: Access denied; you need (at least one of) the SUPER or REPLICATION_SLAVE_ADMIN privilege(s) for this operation
 DROP USER 'user7057';
 include/start_slave_sql.inc
 include/rpl_end.inc

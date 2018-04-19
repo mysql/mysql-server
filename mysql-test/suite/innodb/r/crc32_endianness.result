@@ -1,0 +1,20 @@
+CREATE TABLE crc32_big_endian (a VARCHAR(16)) ENGINE=INNODB charset latin1
+ROW_FORMAT=COMPACT;
+CREATE TABLE crc32_little_endian (a VARCHAR(16)) ENGINE=INNODB charset latin1
+ROW_FORMAT=COMPACT;
+ALTER TABLE crc32_big_endian DISCARD TABLESPACE;
+ALTER TABLE crc32_little_endian DISCARD TABLESPACE;
+ALTER TABLE crc32_big_endian IMPORT TABLESPACE;
+ALTER TABLE crc32_little_endian IMPORT TABLESPACE;
+SELECT * FROM crc32_big_endian;
+a
+big 1
+big 2
+big 3
+SELECT * FROM crc32_little_endian;
+a
+little 1
+little 2
+little 3
+DROP TABLE crc32_big_endian;
+DROP TABLE crc32_little_endian;

@@ -3,7 +3,6 @@
 # Author: Horst Hunger
 
 let $ENGINE=InnoDB;
---source include/have_innodb.inc
 --source suite/parts/inc/rpl-partition-dml-1-1.inc
 --source include/rpl_end.inc
 

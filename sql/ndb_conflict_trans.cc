@@ -1,25 +1,32 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_conflict_trans.h"
+#include "sql/ndb_conflict_trans.h"
 
-#ifdef HAVE_NDB_BINLOG
-#include "my_sys.h"
+#include "my_alloc.h"
 #include "my_base.h"
+#include "my_sys.h"
 
 /* Whether to track all transactions, or just
  * 'interesting' ones
@@ -76,19 +83,19 @@ st_row_event_key_info::equal(const st_row_event_key_info* other) const
     ((tableObj == other->tableObj) &&
      (packed_key_len == other->packed_key_len) &&
      (memcmp(packed_key, other->packed_key, packed_key_len) == 0));
-};
+}
 
 st_row_event_key_info*
 st_row_event_key_info::getNext() const
 {
   return hash_next;
-};
+}
 
 void
 st_row_event_key_info::setNext(st_row_event_key_info* _next)
 {
   hash_next = _next;
-};
+}
 
 
 /* st_trans_dependency implementation */
@@ -102,7 +109,7 @@ st_trans_dependency(st_transaction* _target_transaction,
     next_entry(_next),
     hash_next(NULL)
 {
-};
+}
 
 st_transaction*
 st_trans_dependency::getTargetTransaction() const
@@ -139,26 +146,26 @@ st_trans_dependency::hashValue() const
   }
 
   return 17 + (37 * (Uint32)p);
-};
+}
 
 bool
 st_trans_dependency::equal(const st_trans_dependency* other) const
 {
   return ((target_transaction == other->target_transaction) &&
           (dependent_transaction == other->dependent_transaction));
-};
+}
 
 st_trans_dependency*
 st_trans_dependency::getNext() const
 {
   return hash_next;
-};
+}
 
 void
 st_trans_dependency::setNext(st_trans_dependency* _next)
 {
   hash_next = _next;
-};
+}
 
 
 /* st_transaction implementation */
@@ -207,25 +214,25 @@ st_transaction::hashValue() const
 {
   return 17 + (37 * ((transaction_id & 0xffffffff) ^
                      (transaction_id >> 32 & 0xffffffff)));
-};
+}
 
 bool
 st_transaction::equal(const st_transaction* other) const
 {
   return transaction_id == other->transaction_id;
-};
+}
 
 st_transaction*
 st_transaction::getNext() const
 {
     return hash_next;
-};
+}
 
 void
 st_transaction::setNext(st_transaction* _next)
 {
   hash_next = _next;
-};
+}
 
 
 
@@ -296,7 +303,7 @@ pack_key_to_buffer(const NdbDictionary::Table* table,
 
   buff_len = buff_offset;
   return 0;
-};
+}
 
 static
 Uint32 determine_packed_key_size(const NdbDictionary::Table* table,
@@ -311,7 +318,7 @@ Uint32 determine_packed_key_size(const NdbDictionary::Table* table,
                      NULL,
                      key_size);
   return key_size;
-};
+}
 
 /* st_mem_root_allocator implementation */
 void*
@@ -319,7 +326,7 @@ st_mem_root_allocator::alloc(void* ctx, size_t bytes)
 {
   st_mem_root_allocator* a = (st_mem_root_allocator*) ctx;
   return alloc_root(a->mem_root, bytes);
-};
+}
 
 void*
 st_mem_root_allocator::mem_calloc(void* ctx, size_t nelem, size_t bytes)
@@ -329,18 +336,16 @@ st_mem_root_allocator::mem_calloc(void* ctx, size_t nelem, size_t bytes)
                     nelem * bytes);
 }
 
-void
-st_mem_root_allocator::mem_free(void* ctx, void* mem)
-{
+void st_mem_root_allocator::mem_free(void*, void*) {
   /* Do nothing, will be globally freed when arena (mem_root)
    * released
    */
-};
+}
 
 st_mem_root_allocator::st_mem_root_allocator(MEM_ROOT* _mem_root)
   : mem_root(_mem_root)
 {
-};
+}
 
 
 /* DependencyTracker implementation */
@@ -372,7 +377,7 @@ DependencyTracker(MEM_ROOT* mem_root)
   key_hash.setSize(1024);
   trans_hash.setSize(100);
   dependency_hash.setSize(100);
-};
+}
 
 
 int
@@ -475,7 +480,7 @@ track_operation(const NdbDictionary::Table* table,
   }
 
   DBUG_RETURN(0);
-};
+}
 
 int
 DependencyTracker::
@@ -547,7 +552,7 @@ DependencyTracker::in_conflict(Uint64 trans_id)
     assert(! TRACK_ALL_TRANSACTIONS);
   }
   DBUG_RETURN(false);
-};
+}
 
 st_transaction*
 DependencyTracker::
@@ -634,14 +639,14 @@ add_dependency(Uint64 trans_id, Uint64 dependent_trans_id)
   assert(verify_graph());
 
   DBUG_RETURN(0);
-};
+}
 
 void
 DependencyTracker::
 reset_dependency_iterator()
 {
   iteratorTodo.reset();
-};
+}
 
 st_transaction*
 DependencyTracker::
@@ -686,7 +691,7 @@ get_next_dependency(const st_transaction* current,
   assert(iteratorTodo.size() == 0);
   DBUG_PRINT("info", ("No more dependencies to visit"));
   DBUG_RETURN(NULL);
-};
+}
 
 void
 DependencyTracker::
@@ -716,7 +721,7 @@ dump_dependents(Uint64 trans_id)
   {
     fprintf(stderr, "None\n");
   }
-};
+}
 
 bool
 DependencyTracker::
@@ -777,14 +782,10 @@ const char*
 DependencyTracker::get_error_text() const
 {
   return error_text;
-};
+}
 
 Uint32
 DependencyTracker::get_conflict_count() const
 {
   return conflicting_trans_count;
 }
-
-/* #ifdef HAVE_NDB_BINLOG */
-
-#endif

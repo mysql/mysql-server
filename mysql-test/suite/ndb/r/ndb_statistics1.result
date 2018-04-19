@@ -16,7 +16,6 @@ ndb_index_stat_enable	ON
 show local variables like 'ndb_index_stat_enable';
 Variable_name	Value
 ndb_index_stat_enable	ON
-drop table if exists t1, t2, t3, t4;
 CREATE TABLE t10(
 K INT NOT NULL AUTO_INCREMENT,
 I INT, J INT,
@@ -30,7 +29,7 @@ CREATE TABLE t100 LIKE t10;
 INSERT INTO t100(I,J)
 SELECT X.J, X.J+(10*Y.J) FROM t10 AS X,t10 AS Y;
 CREATE TABLE t10000 LIKE t10;
-ALTER TABLE t10000 ENGINE=MYISAM;
+ALTER TABLE t10000 ENGINE=INNODB;
 INSERT INTO t10000(I,J)
 SELECT X.J, X.J+(100*Y.J) FROM t100 AS X,t100 AS Y;
 ALTER TABLE t10000 ENGINE=NDBCLUSTER;
@@ -185,7 +184,7 @@ Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` A
 EXPLAIN
 SELECT * FROM t10000 WHERE J = 0 AND K < 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t10000	p0	ref	PRIMARY,J	J	5	const	2	2.50	Using where with pushed condition (`test`.`t10000`.`K` < 1)
+1	SIMPLE	t10000	p0	range	PRIMARY,J	PRIMARY	4	NULL	2	2.50	Using where with pushed condition ((`test`.`t10000`.`J` = 0) and (`test`.`t10000`.`K` < 1)); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` = 0) and (`test`.`t10000`.`K` < 1))
 EXPLAIN
@@ -237,7 +236,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` <> 1) and (`test`.`t10000`.`I` <> 0))
 DROP TABLE t10,t100,t10000;
-End of 5.1 tests
 set @is_enable = @is_enable_default;
 set @is_enable = NULL;
 # is_enable_on=0 is_enable_off=0

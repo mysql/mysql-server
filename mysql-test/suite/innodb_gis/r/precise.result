@@ -121,10 +121,10 @@ ST_DISTANCE(ST_geomfromtext('linestring(0 0, 3 6, 6 3, 0 0)'), ST_geomfromtext('
 0.8944271909999159
 select ST_astext(ST_Intersection(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), ST_GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))')));
 ST_astext(ST_Intersection(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), ST_GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))')))
-POLYGON((21.951219512195124 27.4390243902439,26.470588235294116 23.823529411764707,29.28994082840237 26.36094674556213,23.855421686746986 29.819277108433734,21.951219512195124 27.4390243902439))
+POLYGON((21.951219512195124 27.4390243902439,26.470588235294116 23.823529411764707,29.28994082840237 26.36094674556213,23.85542168674699 29.819277108433734,21.951219512195124 27.4390243902439))
 select ST_astext(ST_Intersection(ST_GeomFromText('LINESTRING(0 0, 50 45, 40 50, 0 0)'), ST_GeomFromText('LINESTRING(50 5, 55 10, 0 45, 50 5)')));
 ST_astext(ST_Intersection(ST_GeomFromText('LINESTRING(0 0, 50 45, 40 50, 0 0)'), ST_GeomFromText('LINESTRING(50 5, 55 10, 0 45, 50 5)')))
-MULTIPOINT(26.470588235294116 23.823529411764707,29.28994082840237 26.36094674556213,23.855421686746986 29.819277108433734,21.951219512195124 27.4390243902439)
+MULTIPOINT((21.951219512195124 27.4390243902439),(23.85542168674699 29.819277108433734),(26.470588235294116 23.823529411764707),(29.28994082840237 26.36094674556213))
 select ST_astext(ST_Intersection(ST_GeomFromText('LINESTRING(0 0, 50 45, 40 50)'), ST_GeomFromText('LINESTRING(50 5, 55 10, 0 45)')));
 ST_astext(ST_Intersection(ST_GeomFromText('LINESTRING(0 0, 50 45, 40 50)'), ST_GeomFromText('LINESTRING(50 5, 55 10, 0 45)')))
 POINT(29.28994082840237 26.36094674556213)
@@ -145,37 +145,33 @@ ST_astext(ST_intersection(ST_geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), ST_g
 POLYGON((0 1,0 0,0.5 0.5,0 1))
 select ST_astext(ST_symdifference(ST_geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), ST_geomfromtext('polygon((0 0, 1 1, 0 2, 0 0))')));
 ST_astext(ST_symdifference(ST_geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), ST_geomfromtext('polygon((0 0, 1 1, 0 2, 0 0))')))
-MULTIPOLYGON(((0.5 0.5,0 0,1 0,0.5 0.5)),((0 1,0.5 0.5,1 1,0 2,0 1)))
+MULTIPOLYGON(((0.5 0.5,0 0,1 0,0.5 0.5)),((0.5 0.5,1 1,0 2,0 1,0.5 0.5)))
 select ST_astext(ST_UNION(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), ST_GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
 ST_astext(ST_UNION(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), ST_GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')))
 GEOMETRYCOLLECTION(POLYGON((0 0,50 45,40 50,0 0)),MULTILINESTRING((-10 -10,0 0),(46.666666666666664 46.666666666666664,200 200,199 201,45.333333333333336 47.333333333333336),(8 10,-11 -9)))
 select ST_astext(ST_buffer(ST_geometryfromtext('point(1 1)'), 1));
 ST_astext(ST_buffer(ST_geometryfromtext('point(1 1)'), 1))
-POLYGON((2 1,1.9807 1.1950,1.9238 1.3826,1.8314 1.5555,1.7071 1.7071,1.5555 1.8314,1.3826 1.9238,1.1950 1.9807,1.0000 2,0.8049 1.9807,0.6173 1.9238,0.4444 1.8314,0.2928 1.7071,0.1685 1.5555,0.0761 1.3826,0.0192 1.1950,0 1.0000,0.0192 0.8049,0.0761 0.6173,0.1685 0.4444,0.2928 0.2928,0.4444 0.1685,0.6173 0.0761,0.8049 0.0192,1 0,1.1950 0.0192,1.3826 0.0761,1.5555 0.1685,1.7071 0.2928,1.8314 0.4444,1.9238 0.6173,1.9807 0.8049,2 1))
+POLYGON((2 1,1.98078528040323 1.19509032201612,1.92387953251129 1.38268343236509,1.83146961230255 1.5555702330196,1.70710678118655 1.70710678118655,1.5555702330196 1.83146961230254,1.38268343236509 1.92387953251129,1.19509032201613 1.98078528040323,1 2,0.80490967798387 1.98078528040323,0.61731656763491 1.92387953251129,0.4444297669804 1.83146961230255,0.29289321881345 1.70710678118655,0.16853038769746 1.5555702330196,0.07612046748871 1.38268343236509,0.01921471959677 1.19509032201613,0 1,0.01921471959677 0.80490967798387,0.07612046748871 0.61731656763491,0.16853038769745 0.4444297669804,0.29289321881345 0.29289321881345,0.4444297669804 0.16853038769745,0.61731656763491 0.07612046748871,0.80490967798387 0.01921471959677,1 0,1.19509032201613 0.01921471959677,1.38268343236509 0.07612046748871,1.5555702330196 0.16853038769745,1.70710678118655 0.29289321881345,1.83146961230255 0.4444297669804,1.92387953251129 0.61731656763491,1.98078528040323 0.80490967798387,2 1))
 create table t1(geom geometrycollection)engine=innodb;
 insert into t1 values (ST_geomfromtext('POLYGON((0 0, 10 10, 0 8, 0 0))'));
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values (ST_geomfromtext('POLYGON((1 1, 10 10, 0 8, 1 1))'));
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 select ST_astext(geom), ST_area(geom),ST_area(ST_buffer(geom,2)) from t1;
 ST_astext(geom)	ST_area(geom)	ST_area(ST_buffer(geom,2))
-POLYGON((0 0,10 10,0 8,0 0))	40	117.1597
-POLYGON((1 1,10 10,0 8,1 1))	36	108.4741
 select ST_NUMPOINTS(ST_EXTERIORRING(ST_buffer(geom,2))) from t1;
 ST_NUMPOINTS(ST_EXTERIORRING(ST_buffer(geom,2)))
-35
-35
 set @geom=ST_geomfromtext('LINESTRING(2 1, 4 2, 2 3, 2 5)');
 set @buff=ST_buffer(@geom,1);
 select ST_NUMPOINTS(ST_EXTERIORRING(@buff)) from t1;
 ST_NUMPOINTS(ST_EXTERIORRING(@buff))
-55
-55
 DROP TABLE t1;
 select st_touches(ST_geomfromtext('point(0 0)'), ST_geomfromtext('point(1 1)'));
 st_touches(ST_geomfromtext('point(0 0)'), ST_geomfromtext('point(1 1)'))
-0
+NULL
 select st_touches(ST_geomfromtext('point(1 1)'), ST_geomfromtext('point(1 1)'));
 st_touches(ST_geomfromtext('point(1 1)'), ST_geomfromtext('point(1 1)'))
-0
+NULL
 select st_touches(ST_geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), ST_geomfromtext('point(1 1)'));
 st_touches(ST_geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), ST_geomfromtext('point(1 1)'))
 1
@@ -234,12 +230,14 @@ END|
 #
 # Testing ST_BUFFER with positive distance
 #
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
-POINT(0 0))
+POINT(0 0)
 dist	buffer	buf_area
 1	POLYGON	3.12
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
-LineString(0 1, 1 1))
+LineString(0 1, 1 1)
 dist	buffer	buf_area
 1	POLYGON	5.12
 -----
@@ -282,24 +280,28 @@ dist	buffer	buf_area
 MultiLineString((0 0,0 1),(3 0,3 1))
 dist	buffer	buf_area
 1	MULTIPOLYGON	10.24
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
-1	POLYGON	73.15
+1	POLYGON	73.16
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
-1	POLYGON	73.15
+1	POLYGON	73.16
 -----
 GeometryCollection(Point(0 0))
 dist	buffer	buf_area
 1	POLYGON	3.12
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
-GeometryCollection(LineString(0 0, 2 2)))
+GeometryCollection(LineString(0 0, 2 2))
 dist	buffer	buf_area
 1	POLYGON	8.78
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
-GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2))))
+GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
 1	POLYGON	63.12
 -----
@@ -317,16 +319,18 @@ dist	buffer	buf_area
 -----
 GeometryCollection(Point(9 9),LineString(1 5,0 0),Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
-1	POLYGON	75.91
+1	POLYGON	75.88
 #
 # Testing ST_BUFFER with zero distance
 #
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
-POINT(0 0))
+POINT(0 0)
 dist	buffer	buf_area
 0	POINT	0.00
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
-LineString(0 1, 1 1))
+LineString(0 1, 1 1)
 dist	buffer	buf_area
 0	LINESTRING	0.00
 -----
@@ -365,10 +369,12 @@ dist	buffer	buf_area
 MultiLineString((2 2,2 8,-2 8),(-6 -6, 6 6),(10 10, 14 14))
 dist	buffer	buf_area
 0	MULTILINESTRING	0.00
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
 0	MULTIPOLYGON	66.00
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
@@ -377,12 +383,14 @@ dist	buffer	buf_area
 GeometryCollection(Point(0 0))
 dist	buffer	buf_area
 0	POINT	0.00
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
-GeometryCollection(LineString(0 0, 2 2)))
+GeometryCollection(LineString(0 0, 2 2))
 dist	buffer	buf_area
 0	LINESTRING	0.00
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
-GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2))))
+GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
 0	POLYGON	36.00
 -----
@@ -400,7 +408,7 @@ dist	buffer	buf_area
 -----
 GeometryCollection(Point(9 9),LineString(1 5,0 0),Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
-0	GEOMETRYCOLLECTION	36.00
+0	GEOMCOLLECTION	36.00
 #
 # Testing ST_BUFFER with negative distance
 #
@@ -440,22 +448,26 @@ ERROR HY000: Incorrect arguments to st_buffer
 -----
 MultiLineString((2 2,2 8,-2 8),(-6 -6, 6 6),(10 10, 14 14))
 ERROR HY000: Incorrect arguments to st_buffer
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
--1	POLYGON	8.00
+-1	POLYGON	-6.14
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
--1	MULTIPOLYGON	0.30
+-1	MULTIPOLYGON	0.74
 -----
 GeometryCollection(Point(0 0))
 ERROR HY000: Incorrect arguments to st_buffer
 -----
-GeometryCollection(LineString(0 0, 2 2)))
+GeometryCollection(LineString(0 0, 2 2))
 ERROR HY000: Incorrect arguments to st_buffer
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
-GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2))))
+GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
 -1	POLYGON	16.00
 -----
@@ -497,7 +509,7 @@ POLYGON
 #
 # Bug#13358363 - ASSERTION: N > 0 && N < SINUSES_CALCULATED*2+1 | GET_N_SINCOS/ADD_EDGE_BUFFER
 #
-DO ST_BUFFER(ST_GEOMCOLLFROMTEXT('linestring(1 1,2 2)'),'');
+DO ST_BUFFER(ST_LINEFROMTEXT('linestring(1 1,2 2)'),'');
 SELECT ST_WITHIN(
 ST_LINESTRINGFROMTEXT(' LINESTRING(3 8,9 2,3 8,3 3,7 6,4 7,4 7,8 1) '),
 ST_BUFFER(ST_MULTIPOLYGONFROMTEXT(' MULTIPOLYGON(((3 5,2 5,2 4,3 4,3 5)),((2 2,2 8,8 8,8 2,2 2),(4 4,4 6,6 6,6 4,4 4)),((0 5,3 5,3 2,1 2,1 1,3 1,3 0,0 0,0 3,2 3,2 4,0 4,0 5))) '),

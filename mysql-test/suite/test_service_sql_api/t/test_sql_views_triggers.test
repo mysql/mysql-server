@@ -1,0 +1,57 @@
+--echo # Creating table t1
+CREATE TABLE t1(c1 INT, c2 VARCHAR(128));
+INSERT INTO t1 VALUES (1, 'aaa'), (2, 'bbb'), (3, 'ccc');
+
+--echo # Creating a view
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+--echo # Creating table t2
+CREATE TABLE t2(c1 INT, c2 VARCHAR(128));
+
+--echo # Creating a trigger
+CREATE TRIGGER trig AFTER UPDATE ON t1 FOR EACH ROW INSERT INTO t2 VALUES (1, 'aaa');
+
+--echo ##########################################
+--echo # Run plugin
+--echo ##########################################
+--replace_result $TEST_SQL_VIEWS_TRIGGERS TEST_SQL_VIEWS_TRIGGERS
+eval INSTALL PLUGIN test_sql_views_triggers SONAME '$TEST_SQL_VIEWS_TRIGGERS';
+
+--echo ##########################################
+--echo # Stop plugin
+--echo ##########################################
+UNINSTALL PLUGIN test_sql_views_triggers;
+
+--echo ##########################################
+--echo # Plugin log
+--echo ##########################################
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_sql_views_triggers.log;
+remove_file $MYSQLD_DATADIR/test_sql_views_triggers.log;
+
+--echo # Checking the view created in test plugin is visible in MTR test
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v1';
+
+--echo # Checking the contents of the view created
+SELECT * FROM v1;
+
+--echo # Checking the trigger created in test plugin is visible in MTR test
+SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'test' AND TRIGGER_NAME = 'trig';
+
+--echo # Calling the trigger created in test plugin
+UPDATE t1 SET c2 = 'abcde' WHERE c1 = 1;
+SELECT * FROM t2;
+
+--echo ##########################################
+--echo # Cleanup
+--echo ##########################################
+
+--echo # Dropping the created view
+DROP VIEW v1;
+
+--echo # Dropping the created trigger
+DROP TRIGGER trig;
+
+--echo # Dropping the created tables
+DROP TABLE t1;
+DROP TABLE t2;

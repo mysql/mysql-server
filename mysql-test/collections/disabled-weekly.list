@@ -1,3 +1,0 @@
-rpl.rpl_semi_sync_group_commit_deadlock     :BUG#16988017 @freebsd 2013-06-20 Viswa disbaled due to slow machine
-rpl.rpl_group_commit_deadlock               :BUG#16988017 @freebsd 2013-06-20 Viswa disabled due to slow machine
-rpl.rpl_semi_sync_non_group_commit_deadlock :BUG#16988017 @freebsd 2013-06-20 Viswa disabled due to slow machine

@@ -1,17 +1,24 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 #ifndef MT_LOCK_HPP
@@ -45,7 +52,6 @@ static void register_lock(const void * ptr, const char * name);
  */
 #if defined(NDB_HAVE_XCNG) && defined(NDB_USE_SPINLOCK)
 static mt_lock_stat * lookup_lock(const void * ptr);
-template <unsigned SZ>
 struct thr_spin_lock
 {
   thr_spin_lock(const char * name = 0)
@@ -54,10 +60,7 @@ struct thr_spin_lock
     register_lock(this, name);
   }
 
-  union {
-    volatile Uint32 m_lock;
-    char pad[SZ];
-  };
+  volatile Uint32 m_lock;
 };
 
 static
@@ -89,11 +92,10 @@ loop:
   }
 }
 
-template <unsigned SZ>
 static
 inline
 void
-lock(struct thr_spin_lock<SZ>* sl)
+lock(struct thr_spin_lock* sl)
 {
   volatile unsigned* val = &sl->m_lock;
   if (likely(xcng(val, 1) == 0))
@@ -102,11 +104,10 @@ lock(struct thr_spin_lock<SZ>* sl)
   lock_slow(sl, val);
 }
 
-template <unsigned SZ>
 static
 inline
 void
-unlock(struct thr_spin_lock<SZ>* sl)
+unlock(struct thr_spin_lock* sl)
 {
   /**
    * Memory barrier here, to make sure all of our stores are visible before
@@ -121,11 +122,10 @@ unlock(struct thr_spin_lock<SZ>* sl)
   sl->m_lock = 0;
 }
 
-template <unsigned SZ>
 static
 inline
 int
-trylock(struct thr_spin_lock<SZ>* sl)
+trylock(struct thr_spin_lock* sl)
 {
   volatile unsigned* val = &sl->m_lock;
   return xcng(val, 1);
@@ -134,7 +134,6 @@ trylock(struct thr_spin_lock<SZ>* sl)
 #define thr_spin_lock thr_mutex
 #endif
 
-template <unsigned SZ>
 struct thr_mutex
 {
   thr_mutex(const char * name = 0) {
@@ -142,35 +141,29 @@ struct thr_mutex
     register_lock(this, name);
   }
 
-  union {
-    NdbMutex m_mutex;
-    char pad[SZ];
-  };
+  NdbMutex m_mutex;
 };
 
-template <unsigned SZ>
 static
 inline
 void
-lock(struct thr_mutex<SZ>* sl)
+lock(struct thr_mutex* sl)
 {
   NdbMutex_Lock(&sl->m_mutex);
 }
 
-template <unsigned SZ>
 static
 inline
 void
-unlock(struct thr_mutex<SZ>* sl)
+unlock(struct thr_mutex* sl)
 {
   NdbMutex_Unlock(&sl->m_mutex);
 }
 
-template <unsigned SZ>
 static
 inline
 int
-trylock(struct thr_mutex<SZ> * sl)
+trylock(struct thr_mutex* sl)
 {
   return NdbMutex_Trylock(&sl->m_mutex);
 }

@@ -1,4 +1,5 @@
---require r/not_windows.require
-disable_query_log;
-select convert(@@version_compile_os using latin1) NOT IN ("Win32","Win64","Windows") as "TRUE";
-enable_query_log;
+let $have_windows = `SELECT CONVERT(@@version_compile_os using latin1) IN ("Win32", "Win64", "Windows")`;
+if ($have_windows)
+{
+  --skip Test requires 'not_windows'
+}

@@ -24,7 +24,7 @@ SHOW CREATE TABLE innodb_stats_drop_locked;
 Table	Create Table
 innodb_stats_drop_locked	CREATE TABLE `innodb_stats_drop_locked` (
   `c` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=1
 DROP TABLE innodb_stats_drop_locked;
 SHOW TABLES;
 Tables_in_test

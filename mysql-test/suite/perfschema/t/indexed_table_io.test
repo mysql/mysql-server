@@ -3,9 +3,6 @@
 
 # Setup
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 let $engine_type= MyISAM;
 
 --disable_warnings
@@ -104,7 +101,7 @@ update performance_schema.setup_consumers set enabled='NO';
 eval $table_io_select 'index_tab';
 
 # In case of failures, this will tell if table io are lost.
-show global status like 'performance_schema_%';
+show global status like 'performance_schema_%_lost';
 
 # Cleanup
 drop table test.no_index_tab;

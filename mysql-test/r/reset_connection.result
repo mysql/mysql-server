@@ -47,28 +47,29 @@ NULL
 SHOW SESSION VARIABLES like 'autocommit';
 Variable_name	Value
 autocommit	ON
-SHOW SESSION VARIABLES like 'tx_isolation';
+SHOW SESSION VARIABLES like 'transaction_isolation';
 Variable_name	Value
-tx_isolation	REPEATABLE-READ
+transaction_isolation	REPEATABLE-READ
 SHOW SESSION VARIABLES like 'character_set_client';
 Variable_name	Value
-character_set_client	latin1
+character_set_client	utf8mb4
 SHOW SESSION VARIABLES like 'character_set_connection';
 Variable_name	Value
-character_set_connection	latin1
+character_set_connection	utf8mb4
 SHOW SESSION VARIABLES like 'max_join_size';
 Variable_name	Value
 max_join_size	18446744073709551615
 set autocommit=0;
-set tx_isolation='SERIALIZABLE';
+set transaction_isolation='SERIALIZABLE';
 set names 'big5';
 set max_join_size=100;
+set max_join_size=1000;
 SHOW SESSION VARIABLES like 'autocommit';
 Variable_name	Value
 autocommit	OFF
-SHOW SESSION VARIABLES like 'tx_isolation';
+SHOW SESSION VARIABLES like 'transaction_isolation';
 Variable_name	Value
-tx_isolation	SERIALIZABLE
+transaction_isolation	SERIALIZABLE
 SHOW SESSION VARIABLES like 'character_set_client';
 Variable_name	Value
 character_set_client	big5
@@ -77,20 +78,21 @@ Variable_name	Value
 character_set_connection	big5
 SHOW SESSION VARIABLES like 'max_join_size';
 Variable_name	Value
-max_join_size	100
+max_join_size	1000
+set max_join_size=100;
 resetconnection;
 SHOW SESSION VARIABLES like 'autocommit';
 Variable_name	Value
 autocommit	ON
-SHOW SESSION VARIABLES like 'tx_isolation';
+SHOW SESSION VARIABLES like 'transaction_isolation';
 Variable_name	Value
-tx_isolation	REPEATABLE-READ
+transaction_isolation	REPEATABLE-READ
 SHOW SESSION VARIABLES like 'character_set_client';
 Variable_name	Value
-character_set_client	latin1
+character_set_client	utf8mb4
 SHOW SESSION VARIABLES like 'character_set_connection';
 Variable_name	Value
-character_set_connection	latin1
+character_set_connection	utf8mb4
 SHOW SESSION VARIABLES like 'max_join_size';
 Variable_name	Value
 max_join_size	18446744073709551615
@@ -115,10 +117,10 @@ DELETE FROM newt;
 DROP TABLE newt;
 SHOW STATUS like 'Table_open_cache_hits';
 Variable_name	Value
-Table_open_cache_hits	2
+Table_open_cache_hits	>0
 SHOW STATUS like 'Opened_tables';
 Variable_name	Value
-Opened_tables	1
+Opened_tables	>0
 resetconnection;
 SHOW STATUS like 'Table_open_cache_hits';
 Variable_name	Value
@@ -183,18 +185,10 @@ DROP DATABASE wl6797;
 # Bug 17772561 RESET CONNECTION ERROR HANDLING CAN BE MORE INFORMATIVE
 # FOR ERROR CASES
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+create user 'user_wl6797'@'localhost';
 grant all privileges on *.* to  'user_wl6797'@'localhost';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 ALTER USER user_wl6797@localhost PASSWORD EXPIRE;
-mysqltest: At line 1: reset connection failed: You must SET PASSWORD before executing this statement
+mysqltest: At line 1: reset connection failed: You must reset your password using ALTER USER statement before executing this statement.
 DROP USER user_wl6797@localhost;
 
 Bug #18329348 RESETCONNECTION DOESN'T CLEAR TIMESTAMP

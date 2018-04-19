@@ -1,0 +1,9 @@
+# This file lists directories or files to ignore when reporting
+# coverage %. An extra step will remove them from the coverage data.
+# You may list individual files or (more typically) directories.
+# Do not use shell wildcards and such, they will not work.
+
+plugin/x/tests/driver/
+unittest/gunit/xplugin
+extra/protobuf
+extra/icu

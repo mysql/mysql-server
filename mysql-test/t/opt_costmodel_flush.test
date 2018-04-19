@@ -1,14 +1,9 @@
 #
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
-#
-
-#
 # Test of the FLUSH OPTIMIZER_COSTS command
 #
 
 # To get stable cost estimates, the test should only be run with 
 # 16K InnoDB page size.
---source include/have_innodb_16k.inc
 
 CREATE TABLE t0 (
   i1 INTEGER
@@ -80,7 +75,7 @@ SET cost_value=DEFAULT;
 
 # Master connection: Update the value of the row_evaluate_cost
 UPDATE mysql.server_cost
-SET cost_value=0.4
+SET cost_value=0.2
 WHERE cost_name="row_evaluate_cost";
 
 FLUSH OPTIMIZER_COSTS;
@@ -113,7 +108,7 @@ eval EXPLAIN FORMAT=JSON $query;
 
 # Master connection: Update the value of the key_compare_cost
 UPDATE mysql.server_cost
-SET cost_value=0.2
+SET cost_value=0.1
 WHERE cost_name="key_compare_cost";
 
 FLUSH OPTIMIZER_COSTS;
@@ -146,8 +141,8 @@ WHERE i1 IN (SELECT i1 FROM t1);
 eval EXPLAIN FORMAT=JSON $query;
 
 # Master connection:
-# Update the value of the memory_temptable_create_cost from default (2.0)
-# to 10.0 (up by 8.0)
+# Update the value of the memory_temptable_create_cost from default (1.0)
+# to 10.0 (up by 9.0)
 UPDATE mysql.server_cost
 SET cost_value=10.0
 WHERE cost_name="memory_temptable_create_cost";
@@ -159,7 +154,7 @@ connect (con1,localhost,root,,);
 connection con1;
 
 --echo #
---echo # Verify that the cost estimate for the query is incrased (by 8.0)
+--echo # Verify that the cost estimate for the query is incrased (by 9.0)
 --echo #
 eval EXPLAIN FORMAT=JSON $query;
 
@@ -182,10 +177,10 @@ WHERE i1 IN (SELECT i1 FROM t1);
 eval EXPLAIN FORMAT=JSON $query;
 
 # Master connection:
-# Update the value of the memory_temptable_row_cost from default (0.2)
-# to 0.4
+# Update the value of the memory_temptable_row_cost from default (0.1)
+# to 0.2
 UPDATE mysql.server_cost
-SET cost_value=0.4
+SET cost_value=0.2
 WHERE cost_name="memory_temptable_row_cost";
 
 FLUSH OPTIMIZER_COSTS;
@@ -197,8 +192,8 @@ connection con1;
 --echo #
 --echo # Verify that the cost estimate for the query is incrased by:
 --echo # 100 rows that needs to be inserted and read from the temporary table.
---echo # The cost of each insert and read is increased by 0.2, ie cost should
---echo # be increased by 100 * 2 * 0.2 = 40.
+--echo # The cost of each insert and read is increased by 0.1, ie cost should
+--echo # be increased by 100 * 2 * 0.1 = 20.
 --echo #
 eval EXPLAIN FORMAT=JSON $query;
 
@@ -211,6 +206,8 @@ SET cost_value=DEFAULT;
 
 # The next two tests are for cost of disk based temporary tables
 # To ensure this temp table is written to a disk based storage engine
+set global internal_tmp_mem_storage_engine='memory';
+set session internal_tmp_mem_storage_engine='memory';
 set @max_heap_table_size_save= @@max_heap_table_size;
 set max_heap_table_size= 16384;
 
@@ -226,10 +223,10 @@ WHERE c1 IN (SELECT c1 FROM t1);
 eval EXPLAIN FORMAT=JSON $query;
 
 # Master connection:
-# Update the value of the disk_temptable_create_cost from default (40.0)
-# to 80.0
+# Update the value of the disk_temptable_create_cost from default (20.0)
+# to 40.0
 UPDATE mysql.server_cost
-SET cost_value=80.0
+SET cost_value=40.0
 WHERE cost_name="disk_temptable_create_cost";
 
 FLUSH OPTIMIZER_COSTS;
@@ -241,7 +238,7 @@ connection con1;
 set max_heap_table_size= 16384;  
 
 --echo #
---echo # Verify that the cost estimate for the query is incrased (by 40.0)
+--echo # Verify that the cost estimate for the query is incrased (by 20.0)
 --echo #
 eval EXPLAIN FORMAT=JSON $query;
 
@@ -264,10 +261,10 @@ WHERE c1 IN (SELECT c1 FROM t1);
 eval EXPLAIN FORMAT=JSON $query;
 
 # Master connection:
-# Update the value of the disk_temptable_row_cost from default (1.0)
-# to 2.0
+# Update the value of the disk_temptable_row_cost from default (0.5)
+# to 1.0
 UPDATE mysql.server_cost
-SET cost_value=2.0
+SET cost_value=1.0
 WHERE cost_name="disk_temptable_row_cost";
 
 FLUSH OPTIMIZER_COSTS;
@@ -280,8 +277,8 @@ set max_heap_table_size= 16384;
 --echo #
 --echo # Verify that the cost estimate for the query is incrased by:
 --echo # 100 rows that needs to be inserted and read from the temporary table.
---echo # The cost of each insert and read is increased by 1.0, ie cost should
---echo # be increased by 100 * 2 * 1.0 = 200.
+--echo # The cost of each insert and read is increased by 0.5, ie cost should
+--echo # be increased by 100 * 2 * 0.5 = 100.
 --echo #
 eval EXPLAIN FORMAT=JSON $query;
 
@@ -294,19 +291,21 @@ SET cost_value=DEFAULT;
 
 # Finished testing disk based temporary tables
 set max_heap_table_size= @max_heap_table_size_save;
+set session internal_tmp_mem_storage_engine=default;
+set global internal_tmp_mem_storage_engine=default;
 
 --echo #
---echo # Test effect of changing the io_block_read_cost
+--echo # Test effect of changing the memory_block_read_cost
 --echo #
 --echo # Result from running query with default cost constants:
 --echo #
 let query= SELECT * FROM t1;
 eval EXPLAIN FORMAT=JSON $query;
 
-# Master connection: Update the value of the io_block_read_cost
+# Master connection: Update the value of the memory_block_read_cost
 UPDATE mysql.engine_cost
-SET cost_value=2.0
-WHERE cost_name="io_block_read_cost";
+SET cost_value=0.5
+WHERE cost_name="memory_block_read_cost";
 
 FLUSH OPTIMIZER_COSTS;
 

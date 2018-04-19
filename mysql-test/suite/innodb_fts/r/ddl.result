@@ -70,7 +70,7 @@ FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200),
 body TEXT
 ) ENGINE=InnoDB;
-create unique index FTS_DOC_ID_INDEX on fts_test(FTS_DOC_ID);
+create unique index FTS_DOC_ID_INDEX on fts_test(FTS_DOC_ID DESC);
 INSERT INTO fts_test (title,body) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
 ('How To Use MySQL Well','After you went through a ...'),
@@ -80,6 +80,10 @@ INSERT INTO fts_test (title,body) VALUES
 ('MySQL Security','When configured properly, MySQL ...');
 CREATE FULLTEXT INDEX idx on fts_test (title, body) LOCK=NONE;
 ERROR 0A000: LOCK=NONE is not supported. Reason: Fulltext index creation requires a lock. Try LOCK=SHARED.
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+ERROR HY000: Index 'FTS_DOC_ID_INDEX' is of wrong type for an InnoDB FULLTEXT index
+ALTER TABLE fts_test DROP INDEX FTS_DOC_ID_INDEX,
+ADD UNIQUE INDEX FTS_DOC_ID_INDEX(FTS_DOC_ID), ALGORITHM=INPLACE;
 CREATE FULLTEXT INDEX idx on fts_test (title, body);
 ALTER TABLE fts_test ROW_FORMAT=REDUNDANT, LOCK=NONE;
 ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB presently supports one FULLTEXT index creation at a time. Try LOCK=SHARED.
@@ -142,7 +146,7 @@ PRIMARY KEY (FTS_DOC_ID),
 UNIQUE KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
 FULLTEXT KEY idx (title,text)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
-ERROR 42000: Incorrect column name 'FTS_DOC_ID'
+ERROR HY000: Column 'FTS_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 CREATE TABLE fts_test (
 FTS_DOC_ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 title varchar(255) NOT NULL DEFAULT '',
@@ -169,6 +173,8 @@ ADD FULLTEXT INDEX idx5 (title);
 ERROR HY000: InnoDB presently supports one FULLTEXT index creation at a time
 CREATE FULLTEXT INDEX idx on articles (title);
 ALTER TABLE articles ADD FULLTEXT INDEX idx3 (title);
+Warnings:
+Warning	1831	Duplicate index 'idx3' defined on the table 'test.articles'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE articles ADD INDEX t20 (title(20)), LOCK=NONE;
 ALTER TABLE articles DROP INDEX t20;
 INSERT INTO articles (FTS_DOC_ID, title, body) VALUES
@@ -229,3 +235,14 @@ id	title	body
 1	MySQL Tutorial	DBMS stands for DataBase ...
 3	Optimizing MySQL	In this tutorial we will show ...
 DROP TABLE articles;
+CREATE TABLE t(t TEXT, FTS_DOC_ID BIGINT UNSIGNED NOT NULL, b INT);
+CREATE UNIQUE INDEX FTS_DOC_Id_INDEX ON t(FTS_DOC_ID DESC);
+CREATE FULLTEXT INDEX f ON t(t);
+ERROR HY000: Index 'FTS_DOC_Id_INDEX' is of wrong type for an InnoDB FULLTEXT index
+DROP INDEX FTS_DOC_Id_INDEX on t;
+CREATE UNIQUE INDEX FTS_DOC_ID_INDEX ON t(FTS_DOC_ID DESC, b DESC);
+CREATE FULLTEXT INDEX f ON t(t);
+ERROR HY000: Index 'FTS_DOC_ID_INDEX' is of wrong type for an InnoDB FULLTEXT index
+DROP TABLE t;
+CREATE TABLE t(t TEXT, FTS_DOC_iD BIGINT UNSIGNED NOT NULL, b INT);
+ERROR 42000: Incorrect column name 'FTS_DOC_iD'

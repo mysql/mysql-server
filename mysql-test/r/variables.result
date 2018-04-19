@@ -1,4 +1,5 @@
 drop table if exists t1,t2;
+SET @default_table_open_cache = @@table_open_cache;
 set @my_log_error_verbosity       =@@global.log_error_verbosity;
 set @my_connect_timeout           =@@global.connect_timeout;
 set @my_delayed_insert_timeout    =@@global.delayed_insert_timeout;
@@ -28,9 +29,6 @@ set @my_myisam_max_sort_file_size =@@global.myisam_max_sort_file_size;
 set @my_net_buffer_length         =@@global.net_buffer_length;
 set @my_net_write_timeout         =@@global.net_write_timeout;
 set @my_net_read_timeout          =@@global.net_read_timeout;
-set @my_query_cache_limit         =@@global.query_cache_limit;
-set @my_query_cache_type          =@@global.query_cache_type;
-set @my_query_cache_size          =@@global.query_cache_size;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.default_storage_engine;
@@ -81,11 +79,10 @@ NULL	NULL	NULL	NULL
 select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 @t1:=(@t2:=1)+@t3:=4	@t1	@t2	@t3
 5	5	1	4
-explain extended select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
+explain select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@`t1`) AS `@t1`,(@`t2`) AS `@t2`,(@`t3`) AS `@t3`
 select @t5;
 @t5
@@ -111,39 +108,42 @@ c_id	c_name	c_country
 drop table t1;
 set GLOBAL max_join_size=10;
 set max_join_size=100;
+set max_join_size=1000;
 show variables like 'max_join_size';
 Variable_name	Value
-max_join_size	100
-select * from information_schema.session_variables where variable_name like 'max_join_size';
+max_join_size	1000
+set max_join_size=100;
+SET SQL_BIG_SELECTS=1;
+select * from performance_schema.session_variables where variable_name like 'max_join_size';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_JOIN_SIZE	100
+max_join_size	100
 show global variables like 'max_join_size';
 Variable_name	Value
 max_join_size	10
-select * from information_schema.global_variables where variable_name like 'max_join_size';
+select * from performance_schema.global_variables where variable_name like 'max_join_size';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_JOIN_SIZE	10
+max_join_size	10
 set GLOBAL max_join_size=2000;
 show global variables like 'max_join_size';
 Variable_name	Value
 max_join_size	2000
-select * from information_schema.global_variables where variable_name like 'max_join_size';
+select * from performance_schema.global_variables where variable_name like 'max_join_size';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_JOIN_SIZE	2000
+max_join_size	2000
 set max_join_size=DEFAULT;
 show variables like 'max_join_size';
 Variable_name	Value
 max_join_size	2000
-select * from information_schema.session_variables where variable_name like 'max_join_size';
+select * from performance_schema.session_variables where variable_name like 'max_join_size';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_JOIN_SIZE	2000
+max_join_size	2000
 set GLOBAL max_join_size=DEFAULT;
 show global variables like 'max_join_size';
 Variable_name	Value
 max_join_size	HA_POS_ERROR
-select * from information_schema.global_variables where variable_name like 'max_join_size';
+select * from performance_schema.global_variables where variable_name like 'max_join_size';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_JOIN_SIZE	HA_POS_ERROR
+max_join_size	HA_POS_ERROR
 set @@max_join_size=1000, @@global.max_join_size=2000;
 select @@local.max_join_size, @@global.max_join_size;
 @@local.max_join_size	@@global.max_join_size
@@ -157,43 +157,41 @@ select @@VERSION=version();
 select last_insert_id(345);
 last_insert_id(345)
 345
-explain extended select last_insert_id(345);
+explain select last_insert_id(345);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select last_insert_id(345) AS `last_insert_id(345)`
 select @@IDENTITY,last_insert_id(), @@identity;
 @@IDENTITY	last_insert_id()	@@identity
 345	345	345
-explain extended select @@IDENTITY,last_insert_id(), @@identity;
+explain select @@IDENTITY,last_insert_id(), @@identity;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select @@IDENTITY AS `@@IDENTITY`,last_insert_id() AS `last_insert_id()`,@@identity AS `@@identity`
 set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
 set global concurrent_insert=2;
 show variables like 'concurrent_insert';
 Variable_name	Value
 concurrent_insert	ALWAYS
-select * from information_schema.session_variables where variable_name like 'concurrent_insert';
+select * from performance_schema.session_variables where variable_name like 'concurrent_insert';
 VARIABLE_NAME	VARIABLE_VALUE
-CONCURRENT_INSERT	ALWAYS
+concurrent_insert	ALWAYS
 set global concurrent_insert=1;
 show variables like 'concurrent_insert';
 Variable_name	Value
 concurrent_insert	AUTO
-select * from information_schema.session_variables where variable_name like 'concurrent_insert';
+select * from performance_schema.session_variables where variable_name like 'concurrent_insert';
 VARIABLE_NAME	VARIABLE_VALUE
-CONCURRENT_INSERT	AUTO
+concurrent_insert	AUTO
 set global concurrent_insert=0;
 show variables like 'concurrent_insert';
 Variable_name	Value
 concurrent_insert	NEVER
-select * from information_schema.session_variables where variable_name like 'concurrent_insert';
+select * from performance_schema.session_variables where variable_name like 'concurrent_insert';
 VARIABLE_NAME	VARIABLE_VALUE
-CONCURRENT_INSERT	NEVER
+concurrent_insert	NEVER
 set global concurrent_insert=DEFAULT;
 select @@concurrent_insert;
 @@concurrent_insert
@@ -202,32 +200,31 @@ set default_storage_engine=MYISAM, default_storage_engine="HEAP", global default
 show local variables like 'default_storage_engine';
 Variable_name	Value
 default_storage_engine	MEMORY
-select * from information_schema.session_variables where variable_name like 'default_storage_engine';
+select * from performance_schema.session_variables where variable_name like 'default_storage_engine';
 VARIABLE_NAME	VARIABLE_VALUE
-DEFAULT_STORAGE_ENGINE	MEMORY
+default_storage_engine	MEMORY
 show global variables like 'default_storage_engine';
 Variable_name	Value
 default_storage_engine	MRG_MYISAM
-select * from information_schema.global_variables where variable_name like 'default_storage_engine';
+select * from performance_schema.global_variables where variable_name like 'default_storage_engine';
 VARIABLE_NAME	VARIABLE_VALUE
-DEFAULT_STORAGE_ENGINE	MRG_MYISAM
-set GLOBAL query_cache_size=102400;
+default_storage_engine	MRG_MYISAM
 set GLOBAL myisam_max_sort_file_size=2000000;
 Warnings:
 Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '2000000'
 show global variables like 'myisam_max_sort_file_size';
 Variable_name	Value
 myisam_max_sort_file_size	1048576
-select * from information_schema.global_variables where variable_name like 'myisam_max_sort_file_size';
+select * from performance_schema.global_variables where variable_name like 'myisam_max_sort_file_size';
 VARIABLE_NAME	VARIABLE_VALUE
-MYISAM_MAX_SORT_FILE_SIZE	1048576
+myisam_max_sort_file_size	1048576
 set GLOBAL myisam_max_sort_file_size=default;
 show global variables like 'myisam_max_sort_file_size';
 Variable_name	Value
 myisam_max_sort_file_size	FILE_SIZE
-select * from information_schema.global_variables where variable_name like 'myisam_max_sort_file_size';
+select * from performance_schema.global_variables where variable_name like 'myisam_max_sort_file_size';
 VARIABLE_NAME	VARIABLE_VALUE
-MYISAM_MAX_SORT_FILE_SIZE	FILE_SIZE
+myisam_max_sort_file_size	FILE_SIZE
 set global net_retry_count=10, session net_retry_count=10;
 set global net_buffer_length=1024, net_write_timeout=200, net_read_timeout=300;
 show global variables like 'net_%';
@@ -236,24 +233,24 @@ net_buffer_length	1024
 net_read_timeout	300
 net_retry_count	10
 net_write_timeout	200
-select * from information_schema.global_variables where variable_name like 'net_%' order by 1;
+select * from performance_schema.global_variables where variable_name like 'net_%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
-NET_BUFFER_LENGTH	1024
-NET_READ_TIMEOUT	300
-NET_RETRY_COUNT	10
-NET_WRITE_TIMEOUT	200
+net_buffer_length	1024
+net_read_timeout	300
+net_retry_count	10
+net_write_timeout	200
 show session variables like 'net_%';
 Variable_name	Value
 net_buffer_length	16384
 net_read_timeout	30
 net_retry_count	10
 net_write_timeout	60
-select * from information_schema.session_variables where variable_name like 'net_%' order by 1;
+select * from performance_schema.session_variables where variable_name like 'net_%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
-NET_BUFFER_LENGTH	16384
-NET_READ_TIMEOUT	30
-NET_RETRY_COUNT	10
-NET_WRITE_TIMEOUT	60
+net_buffer_length	16384
+net_read_timeout	30
+net_retry_count	10
+net_write_timeout	60
 set global net_buffer_length=8000, global net_read_timeout=900, net_write_timeout=1000;
 Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '8000'
@@ -263,37 +260,37 @@ net_buffer_length	7168
 net_read_timeout	900
 net_retry_count	10
 net_write_timeout	1000
-select * from information_schema.global_variables where variable_name like 'net_%' order by 1;
+select * from performance_schema.global_variables where variable_name like 'net_%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
-NET_BUFFER_LENGTH	7168
-NET_READ_TIMEOUT	900
-NET_RETRY_COUNT	10
-NET_WRITE_TIMEOUT	1000
+net_buffer_length	7168
+net_read_timeout	900
+net_retry_count	10
+net_write_timeout	1000
 set global net_buffer_length=1;
 Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '1'
 show global variables like 'net_buffer_length';
 Variable_name	Value
 net_buffer_length	1024
-select * from information_schema.global_variables where variable_name like 'net_buffer_length';
+select * from performance_schema.global_variables where variable_name like 'net_buffer_length';
 VARIABLE_NAME	VARIABLE_VALUE
-NET_BUFFER_LENGTH	1024
+net_buffer_length	1024
 set global net_buffer_length=2000000000;
 Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '2000000000'
 show global variables like 'net_buffer_length';
 Variable_name	Value
 net_buffer_length	1048576
-select * from information_schema.global_variables where variable_name like 'net_buffer_length';
+select * from performance_schema.global_variables where variable_name like 'net_buffer_length';
 VARIABLE_NAME	VARIABLE_VALUE
-NET_BUFFER_LENGTH	1048576
+net_buffer_length	1048576
 set character set cp1251_koi8;
 show variables like "character_set_client";
 Variable_name	Value
 character_set_client	cp1251
-select * from information_schema.session_variables where variable_name like 'character_set_client';
+select * from performance_schema.session_variables where variable_name like 'character_set_client';
 VARIABLE_NAME	VARIABLE_VALUE
-CHARACTER_SET_CLIENT	cp1251
+character_set_client	cp1251
 select @@timestamp>0;
 @@timestamp>0
 1
@@ -316,17 +313,17 @@ query_prealloc_size	8192
 range_alloc_block_size	4096
 transaction_alloc_block_size	8192
 transaction_prealloc_size	4096
-==+ information_schema data +==
-SELECT * FROM information_schema.session_variables 
+==+ performance_schema data +==
+SELECT * FROM performance_schema.session_variables 
 WHERE variable_name IN ('range_alloc_block_size',
 'query_alloc_block_size', 'query_prealloc_size',
 'transaction_alloc_block_size', 'transaction_prealloc_size') ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
-QUERY_ALLOC_BLOCK_SIZE	8192
-QUERY_PREALLOC_SIZE	8192
-RANGE_ALLOC_BLOCK_SIZE	4096
-TRANSACTION_ALLOC_BLOCK_SIZE	8192
-TRANSACTION_PREALLOC_SIZE	4096
+query_alloc_block_size	8192
+query_prealloc_size	8192
+range_alloc_block_size	4096
+transaction_alloc_block_size	8192
+transaction_prealloc_size	4096
 Testing values that are multiples of 1024
 set @@range_alloc_block_size=1024*15+1024;
 set @@query_alloc_block_size=1024*15+1024*2;
@@ -346,17 +343,17 @@ query_prealloc_size	17408
 range_alloc_block_size	16384
 transaction_alloc_block_size	20480
 transaction_prealloc_size	19456
-==+ information_schema data +==
-SELECT * FROM information_schema.session_variables
+==+ performance_schema data +==
+SELECT * FROM performance_schema.session_variables
 WHERE variable_name IN ('range_alloc_block_size',
 'query_alloc_block_size', 'query_prealloc_size',
 'transaction_alloc_block_size', 'transaction_prealloc_size') ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
-QUERY_ALLOC_BLOCK_SIZE	17408
-QUERY_PREALLOC_SIZE	17408
-RANGE_ALLOC_BLOCK_SIZE	16384
-TRANSACTION_ALLOC_BLOCK_SIZE	20480
-TRANSACTION_PREALLOC_SIZE	19456
+query_alloc_block_size	17408
+query_prealloc_size	17408
+range_alloc_block_size	16384
+transaction_alloc_block_size	20480
+transaction_prealloc_size	19456
 ==+ Manipulate variable values +==
 Testing values that are not 1024 multiples
 set @@range_alloc_block_size=1024*16+1023;
@@ -384,17 +381,17 @@ query_prealloc_size	17408
 range_alloc_block_size	16384
 transaction_alloc_block_size	19456
 transaction_prealloc_size	20480
-==+ information_schema data +==
-SELECT * FROM information_schema.session_variables 
+==+ performance_schema data +==
+SELECT * FROM performance_schema.session_variables 
 WHERE variable_name IN ('range_alloc_block_size',
 'query_alloc_block_size', 'query_prealloc_size',
 'transaction_alloc_block_size', 'transaction_prealloc_size') ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
-QUERY_ALLOC_BLOCK_SIZE	17408
-QUERY_PREALLOC_SIZE	17408
-RANGE_ALLOC_BLOCK_SIZE	16384
-TRANSACTION_ALLOC_BLOCK_SIZE	19456
-TRANSACTION_PREALLOC_SIZE	20480
+query_alloc_block_size	17408
+query_prealloc_size	17408
+range_alloc_block_size	16384
+transaction_alloc_block_size	19456
+transaction_prealloc_size	20480
 ==+ Set values back to the default values +==
 set @@range_alloc_block_size=default;
 set @@query_alloc_block_size=default, @@query_prealloc_size=default;
@@ -430,8 +427,6 @@ ERROR 42000: Variable 'big_tables' can't be set to the value of '2'
 show local variables like 'default_storage_engine';
 Variable_name	Value
 default_storage_engine	MEMORY
-set SESSION query_cache_size=10000;
-ERROR HY000: Variable 'query_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
 set character_set_client=UNKNOWN_CHARACTER_SET;
 ERROR 42000: Unknown character set: 'UNKNOWN_CHARACTER_SET'
 set collation_connection=UNKNOWN_COLLATION;
@@ -495,7 +490,7 @@ set join_buffer_size=100;
 Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '100'
 set last_insert_id=1;
-set global local_infile=1;
+set global local_infile=0;
 set long_query_time=0.000001;
 select @@long_query_time;
 @@long_query_time
@@ -525,9 +520,6 @@ Warnings:
 Warning	1292	Truncated incorrect max_heap_table_size value: '100'
 set max_join_size=100;
 set max_sort_length=100;
-set max_tmp_tables=100;
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
 set global max_user_connections=100;
 select @@max_user_connections;
 @@max_user_connections
@@ -541,11 +533,6 @@ Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '100'
 set net_read_timeout=100;
 set net_write_timeout=100;
-set global query_cache_limit=100;
-set global query_cache_size=100;
-Warnings:
-Warning	1292	Truncated incorrect query_cache_size value: '100'
-set global query_cache_type=demand;
 set read_buffer_size=100;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '100'
@@ -586,11 +573,10 @@ set timestamp=1, timestamp=default;
 set tmp_table_size=100;
 Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '100'
-set tx_isolation="READ-COMMITTED";
+set transaction_isolation="READ-COMMITTED";
 set wait_timeout=100;
-set global log_warnings=1;
-Warnings:
-Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+set global log_error_verbosity=2;
+set sort_buffer_size=default;
 set global max_allowed_packet        =@my_max_allowed_packet;
 select @@session.insert_id;
 @@session.insert_id
@@ -658,9 +644,9 @@ set global myisam_max_sort_file_size=4294967296;
 show global variables like 'myisam_max_sort_file_size';
 Variable_name	Value
 myisam_max_sort_file_size	MAX_FILE_SIZE
-select * from information_schema.global_variables where variable_name like 'myisam_max_sort_file_size';
+select * from performance_schema.global_variables where variable_name like 'myisam_max_sort_file_size';
 VARIABLE_NAME	VARIABLE_VALUE
-MYISAM_MAX_SORT_FILE_SIZE	MAX_FILE_SIZE
+myisam_max_sort_file_size	MAX_FILE_SIZE
 set global myisam_max_sort_file_size=default;
 select @@global.max_user_connections,@@local.max_join_size;
 @@global.max_user_connections	@@local.max_join_size
@@ -696,43 +682,6 @@ SELECT @@global.session.key_buffer_size;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'session.key_buffer_size' at line 1
 SELECT @@global.local.key_buffer_size;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.key_buffer_size' at line 1
-set @tstlw = @@log_warnings;
-Warnings:
-Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
-show global variables like 'log_warnings';
-Variable_name	Value
-log_warnings	1
-select * from information_schema.global_variables where variable_name like 'log_warnings';
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_WARNINGS	1
-set global log_warnings = 0;
-Warnings:
-Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
-show global variables like 'log_warnings';
-Variable_name	Value
-log_warnings	0
-select * from information_schema.global_variables where variable_name like 'log_warnings';
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_WARNINGS	0
-set global log_warnings = 42;
-Warnings:
-Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
-Warning	1292	Truncated incorrect log_warnings value: '42'
-show global variables like 'log_warnings';
-Variable_name	Value
-log_warnings	2
-select * from information_schema.global_variables where variable_name like 'log_warnings';
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_WARNINGS	2
-set global log_warnings = @tstlw;
-Warnings:
-Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
-show global variables like 'log_warnings';
-Variable_name	Value
-log_warnings	1
-select * from information_schema.global_variables where variable_name like 'log_warnings';
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_WARNINGS	1
 create table t1 (
 c1 tinyint,
 c2 smallint,
@@ -747,7 +696,7 @@ t1	CREATE TABLE `t1` (
   `c3` mediumint(9) DEFAULT NULL,
   `c4` int(11) DEFAULT NULL,
   `c5` bigint(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set @arg00= 8, @arg01= 8.8, @arg02= 'a string', @arg03= 0.2e0;
 create table t1 as select @arg00 as c1, @arg01 as c2, @arg02 as c3, @arg03 as c4;
@@ -758,25 +707,25 @@ t1	CREATE TABLE `t1` (
   `c2` decimal(65,30) DEFAULT NULL,
   `c3` longtext,
   `c4` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET GLOBAL MYISAM_DATA_POINTER_SIZE= 7;
 SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';
 Variable_name	Value
 myisam_data_pointer_size	7
-SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME LIKE 'MYISAM_DATA_POINTER_SIZE';
+SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'MYISAM_DATA_POINTER_SIZE';
 VARIABLE_NAME	VARIABLE_VALUE
-MYISAM_DATA_POINTER_SIZE	7
+myisam_data_pointer_size	7
 SET GLOBAL table_open_cache=-1;
 Warnings:
 Warning	1292	Truncated incorrect table_open_cache value: '-1'
 SHOW VARIABLES LIKE 'table_open_cache';
 Variable_name	Value
 table_open_cache	1
-SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME LIKE 'table_open_cache';
+SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'table_open_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-TABLE_OPEN_CACHE	1
-SET GLOBAL table_open_cache=DEFAULT;
+table_open_cache	1
+SET GLOBAL table_open_cache= @default_table_open_cache;
 set character_set_results=NULL;
 select ifnull(@@character_set_results,"really null");
 ifnull(@@character_set_results,"really null")
@@ -932,36 +881,36 @@ set @@sql_big_selects = 1;
 show variables like 'sql_big_selects';
 Variable_name	Value
 sql_big_selects	ON
-select * from information_schema.session_variables where variable_name like 'sql_big_selects';
+select * from performance_schema.session_variables where variable_name like 'sql_big_selects';
 VARIABLE_NAME	VARIABLE_VALUE
-SQL_BIG_SELECTS	ON
+sql_big_selects	ON
 set @@sql_big_selects = @old_sql_big_selects;
 set @@sql_notes = 0, @@sql_warnings = 0;
 show variables like 'sql_notes';
 Variable_name	Value
 sql_notes	OFF
-select * from information_schema.session_variables where variable_name like 'sql_notes';
+select * from performance_schema.session_variables where variable_name like 'sql_notes';
 VARIABLE_NAME	VARIABLE_VALUE
-SQL_NOTES	OFF
+sql_notes	OFF
 show variables like 'sql_warnings';
 Variable_name	Value
 sql_warnings	OFF
-select * from information_schema.session_variables where variable_name like 'sql_warnings';
+select * from performance_schema.session_variables where variable_name like 'sql_warnings';
 VARIABLE_NAME	VARIABLE_VALUE
-SQL_WARNINGS	OFF
+sql_warnings	OFF
 set @@sql_notes = 1, @@sql_warnings = 1;
 show variables like 'sql_notes';
 Variable_name	Value
 sql_notes	ON
-select * from information_schema.session_variables where variable_name like 'sql_notes';
+select * from performance_schema.session_variables where variable_name like 'sql_notes';
 VARIABLE_NAME	VARIABLE_VALUE
-SQL_NOTES	ON
+sql_notes	ON
 show variables like 'sql_warnings';
 Variable_name	Value
 sql_warnings	ON
-select * from information_schema.session_variables where variable_name like 'sql_warnings';
+select * from performance_schema.session_variables where variable_name like 'sql_warnings';
 VARIABLE_NAME	VARIABLE_VALUE
-SQL_WARNINGS	ON
+sql_warnings	ON
 select @@system_time_zone;
 @@system_time_zone
 #
@@ -969,27 +918,28 @@ select @@version, @@version_comment, @@version_compile_machine,
 @@version_compile_os;
 @@version	@@version_comment	@@version_compile_machine	@@version_compile_os
 #	#	#	#
+SET SQL_BIG_SELECTS=1;
 select @@basedir, @@datadir, @@tmpdir;
 @@basedir	@@datadir	@@tmpdir
 #	#	#
 show variables like 'basedir';
 Variable_name	Value
 basedir	#
-select * from information_schema.session_variables where variable_name like 'basedir';
+select * from performance_schema.session_variables where variable_name like 'basedir';
 VARIABLE_NAME	VARIABLE_VALUE
-BASEDIR	#
+basedir	#
 show variables like 'datadir';
 Variable_name	Value
 datadir	#
-select * from information_schema.session_variables where variable_name like 'datadir';
+select * from performance_schema.session_variables where variable_name like 'datadir';
 VARIABLE_NAME	VARIABLE_VALUE
-DATADIR	#
+datadir	#
 show variables like 'tmpdir';
 Variable_name	Value
 tmpdir	#
-select * from information_schema.session_variables where variable_name like 'tmpdir';
+select * from performance_schema.session_variables where variable_name like 'tmpdir';
 VARIABLE_NAME	VARIABLE_VALUE
-TMPDIR	#
+tmpdir	#
 select @@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_key;
 @@ssl_ca	@@ssl_capath	@@ssl_cert	@@ssl_cipher	@@ssl_key
 #	#	#	#	#
@@ -1001,25 +951,28 @@ ssl_cert	#
 ssl_cipher	#
 ssl_crl	#
 ssl_crlpath	#
+ssl_fips_mode	#
 ssl_key	#
-select * from information_schema.session_variables where variable_name like 'ssl%' order by 1;
+select * from performance_schema.session_variables where variable_name like 'ssl%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
-SSL_CA	#
-SSL_CAPATH	#
-SSL_CERT	#
-SSL_CIPHER	#
-SSL_CRL	#
-SSL_CRLPATH	#
-SSL_KEY	#
+ssl_ca	#
+ssl_capath	#
+ssl_cert	#
+ssl_cipher	#
+ssl_crl	#
+ssl_crlpath	#
+ssl_fips_mode	#
+ssl_key	#
+SET SQL_BIG_SELECTS=0;
 select @@log_queries_not_using_indexes;
 @@log_queries_not_using_indexes
 0
 show variables like 'log_queries_not_using_indexes';
 Variable_name	Value
 log_queries_not_using_indexes	OFF
-select * from information_schema.session_variables where variable_name like 'log_queries_not_using_indexes';
+select * from performance_schema.session_variables where variable_name like 'log_queries_not_using_indexes';
 VARIABLE_NAME	VARIABLE_VALUE
-LOG_QUERIES_NOT_USING_INDEXES	OFF
+log_queries_not_using_indexes	OFF
 select @@"";
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '""' at line 1
 select @@&;
@@ -1083,9 +1036,6 @@ set global myisam_max_sort_file_size =@my_myisam_max_sort_file_size;
 set global net_buffer_length         =@my_net_buffer_length;
 set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
-set global query_cache_limit         =@my_query_cache_limit;
-set global query_cache_type          =@my_query_cache_type;
-set global query_cache_size          =@my_query_cache_size;
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;
@@ -1161,12 +1111,12 @@ ERROR HY000: Variable 'ft_stopword_file' is a read only variable
 #
 SHOW VARIABLES like 'back_log';
 Variable_name	Value
-back_log	80
+back_log	151
 SELECT @@session.back_log;
 ERROR HY000: Variable 'back_log' is a GLOBAL variable
 SELECT @@global.back_log;
 @@global.back_log
-80
+151
 SET @@session.back_log= 7;
 ERROR HY000: Variable 'back_log' is a read only variable
 SET @@global.back_log= 7;
@@ -1252,12 +1202,12 @@ ERROR HY000: Variable 'large_pages' is a read only variable
 #
 SHOW VARIABLES like 'log_bin';
 Variable_name	Value
-log_bin	OFF
+log_bin	#
 SELECT @@session.log_bin;
 ERROR HY000: Variable 'log_bin' is a GLOBAL variable
 SELECT @@global.log_bin;
 @@global.log_bin
-0
+#
 SET @@session.log_bin= true;
 ERROR HY000: Variable 'log_bin' is a read only variable
 SET @@global.log_bin= true;
@@ -1431,15 +1381,24 @@ SET @@session.thread_stack= 7;
 ERROR HY000: Variable 'thread_stack' is a read only variable
 SET @@global.thread_stack= 7;
 ERROR HY000: Variable 'thread_stack' is a read only variable
+SELECT @@global.binlog_expire_logs_seconds INTO @old_seconds;
+SET @@global.binlog_expire_logs_seconds = 0;
 SELECT @@global.expire_logs_days INTO @old_eld;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET GLOBAL expire_logs_days = -1;
 Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 Warning	1292	Truncated incorrect expire_logs_days value: '-1'
 needs to've been adjusted (0)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 0
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET GLOBAL expire_logs_days = 11;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @old_mode=@@sql_mode;
 SET SESSION sql_mode = 'TRADITIONAL';
 SET GLOBAL expire_logs_days = 100;
@@ -1448,21 +1407,35 @@ needs to be unchanged (11)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 11
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET SESSION sql_mode = @old_mode;
 SET GLOBAL expire_logs_days = 100;
 Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 Warning	1292	Truncated incorrect expire_logs_days value: '100'
 needs to've been adjusted (99)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET GLOBAL expire_logs_days = 11;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET GLOBAL expire_logs_days = 99;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 needs to pass with no warnings (99)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET GLOBAL expire_logs_days = @old_eld;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
+SET GLOBAL binlog_expire_logs_seconds= @old_seconds;
 SET GLOBAL auto_increment_offset=-1;
 Warnings:
 Warning	1292	Truncated incorrect auto_increment_offset value: '-1'
@@ -1513,7 +1486,7 @@ DELETE FROM t1 ORDER BY (@@GLOBAL.INIT_FILE) ASC LIMIT 10;
 SET @@sql_safe_updates= @bug42778;
 DROP TABLE t1;
 #
-# BUG#10206 - InnoDB: Transaction requiring Max_BinLog_Cache_size > 4GB always rollsback
+# BUG#10206 -  Transaction requiring Max_BinLog_Cache_size > 4GB always rollsback
 #
 SET @old_max_binlog_cache_size = @@GLOBAL.max_binlog_cache_size;
 # Set the max_binlog_cache_size to size more than 4GB. 
@@ -1540,7 +1513,7 @@ SET @kcbs=@@global.key_cache_block_size;
 throw errors in STRICT mode
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SET @@global.max_binlog_cache_size=-1;
 ERROR 42000: Variable 'max_binlog_cache_size' can't be set to the value of '-1'
 SET @@global.max_join_size=0;
@@ -1577,7 +1550,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(1) unsigned NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SET @@global.max_binlog_cache_size=DEFAULT;
 SET @@global.binlog_cache_size=DEFAULT;
@@ -1599,7 +1572,7 @@ SELECT @@sql_notes;
 1
 
 SET @@sql_notes = OF;
-ERROR 42000: Variable 'sql_notes' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@sql_notes;
 @@sql_notes
 1
@@ -1620,7 +1593,7 @@ SELECT @@delay_key_write;
 ON
 
 SET GLOBAL delay_key_write = OF;
-ERROR 42000: Variable 'delay_key_write' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@delay_key_write;
 @@delay_key_write
 ON
@@ -1652,7 +1625,7 @@ SELECT @@sql_safe_updates;
 1
 
 SET @@sql_safe_updates = OF;
-ERROR 42000: Variable 'sql_safe_updates' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@sql_safe_updates;
 @@sql_safe_updates
 1
@@ -1673,7 +1646,7 @@ SELECT @@foreign_key_checks;
 1
 
 SET @@foreign_key_checks = OF;
-ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@foreign_key_checks;
 @@foreign_key_checks
 1
@@ -1694,7 +1667,7 @@ SELECT @@unique_checks;
 1
 
 SET @@unique_checks = OF;
-ERROR 42000: Variable 'unique_checks' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@unique_checks;
 @@unique_checks
 1
@@ -1715,7 +1688,7 @@ SELECT @@sql_buffer_result;
 1
 
 SET @@sql_buffer_result = OF;
-ERROR 42000: Variable 'sql_buffer_result' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@sql_buffer_result;
 @@sql_buffer_result
 1
@@ -1736,7 +1709,7 @@ SELECT @@sql_quote_show_create;
 1
 
 SET @@sql_quote_show_create = OF;
-ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@sql_quote_show_create;
 @@sql_quote_show_create
 1
@@ -1798,8 +1771,8 @@ End of 5.5 tests
 # Bug#57035 'ulonglong sql_mode' stored into ulong, is risky and causes
 #           compiler warning
 #
-SET @@sql_mode= 4294967296;
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '4294967296'
+SET @@sql_mode= 8589934592;
+ERROR 42000: Variable 'sql_mode' can't be set to the value of '8589934592'
 #
 # Bug #59860: log-slow-admin-statements and log-slow-slave-statements not displayed
 #
@@ -1811,16 +1784,16 @@ set global log_slow_admin_statements = on;
 show global variables like 'log_slow_admin_statements';
 Variable_name	Value
 log_slow_admin_statements	ON
-select * from information_schema.global_variables where variable_name like 'log_slow_admin_statements';
+select * from performance_schema.global_variables where variable_name like 'log_slow_admin_statements';
 VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_ADMIN_STATEMENTS	ON
+log_slow_admin_statements	ON
 set global log_slow_slave_statements = on;
 show global variables like 'log_slow_slave_statements';
 Variable_name	Value
 log_slow_slave_statements	ON
-select * from information_schema.global_variables where variable_name like 'log_slow_slave_statements';
+select * from performance_schema.global_variables where variable_name like 'log_slow_slave_statements';
 VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
+log_slow_slave_statements	ON
 set global log_slow_admin_statements = default;
 set global log_slow_slave_statements = default;
 #
@@ -1828,4 +1801,180 @@ set global log_slow_slave_statements = default;
 #
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
-sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+---- Init ----
+set @my_slave_net_timeout         =@@global.slave_net_timeout;
+---- Test ----
+set global slave_net_timeout=100;
+set global sql_slave_skip_counter=100;
+show variables like 'slave_compressed_protocol';
+Variable_name	Value
+slave_compressed_protocol	OFF
+show variables like 'slave_load_tmpdir';
+Variable_name	Value
+slave_load_tmpdir	SLAVE_LOAD_TMPDIR
+show variables like 'slave_skip_errors';
+Variable_name	Value
+slave_skip_errors	OFF
+---- Clean Up ----
+set global slave_net_timeout=default;
+set global sql_slave_skip_counter= 0;
+set @@global.slave_net_timeout= @my_slave_net_timeout;
+
+#
+SHOW VARIABLES like 'log_slave_updates';
+Variable_name	Value
+log_slave_updates	ON
+SELECT @@session.log_slave_updates;
+ERROR HY000: Variable 'log_slave_updates' is a GLOBAL variable
+SELECT @@global.log_slave_updates;
+@@global.log_slave_updates
+1
+SET @@session.log_slave_updates= true;
+ERROR HY000: Variable 'log_slave_updates' is a read only variable
+SET @@global.log_slave_updates= true;
+ERROR HY000: Variable 'log_slave_updates' is a read only variable
+#
+SHOW VARIABLES like 'relay_log';
+Variable_name	Value
+relay_log	hostname-relay-bin
+SELECT @@session.relay_log;
+ERROR HY000: Variable 'relay_log' is a GLOBAL variable
+SELECT @@global.relay_log;
+@@global.relay_log
+hostname-relay-bin
+SET @@session.relay_log= 'x';
+ERROR HY000: Variable 'relay_log' is a read only variable
+SET @@global.relay_log= 'x';
+ERROR HY000: Variable 'relay_log' is a read only variable
+#
+SHOW VARIABLES like 'relay_log_basename';
+Variable_name	Value
+relay_log_basename	MYSQLTEST_VARDIR/mysqld.1/data/hostname-relay-bin
+SELECT @@session.relay_log_basename;
+ERROR HY000: Variable 'relay_log_basename' is a GLOBAL variable
+SELECT @@global.relay_log_basename;
+@@global.relay_log_basename
+MYSQLTEST_VARDIR/mysqld.1/data/hostname-relay-bin
+SET @@session.relay_log_basename= 'x';
+ERROR HY000: Variable 'relay_log_basename' is a read only variable
+SET @@global.relay_log_basename= 'x';
+ERROR HY000: Variable 'relay_log_basename' is a read only variable
+#
+SHOW VARIABLES like 'log_bin_basename';
+Variable_name	Value
+log_bin_basename	#
+SELECT @@session.log_bin_basename;
+ERROR HY000: Variable 'log_bin_basename' is a GLOBAL variable
+SELECT @@global.log_bin_basename;
+@@global.log_bin_basename
+#
+SET @@session.log_bin_basename= 'x';
+ERROR HY000: Variable 'log_bin_basename' is a read only variable
+SET @@global.log_bin_basename= 'x';
+ERROR HY000: Variable 'log_bin_basename' is a read only variable
+#
+SHOW VARIABLES like 'relay_log_index';
+Variable_name	Value
+relay_log_index	MYSQLTEST_VARDIR/mysqld.1/data/hostname-relay-bin.index
+SELECT @@session.relay_log_index;
+ERROR HY000: Variable 'relay_log_index' is a GLOBAL variable
+SELECT @@global.relay_log_index;
+@@global.relay_log_index
+MYSQLTEST_VARDIR/mysqld.1/data/hostname-relay-bin.index
+SET @@session.relay_log_index= 'x';
+ERROR HY000: Variable 'relay_log_index' is a read only variable
+SET @@global.relay_log_index= 'x';
+ERROR HY000: Variable 'relay_log_index' is a read only variable
+#
+SHOW VARIABLES like 'log_bin_index';
+Variable_name	Value
+log_bin_index	#
+SELECT @@session.log_bin_index;
+ERROR HY000: Variable 'log_bin_index' is a GLOBAL variable
+SELECT @@global.log_bin_index;
+@@global.log_bin_index
+#
+SET @@session.log_bin_index= 'x';
+ERROR HY000: Variable 'log_bin_index' is a read only variable
+SET @@global.log_bin_index= 'x';
+ERROR HY000: Variable 'log_bin_index' is a read only variable
+#
+SHOW VARIABLES like 'relay_log_info_file';
+Variable_name	Value
+relay_log_info_file	relay-log.info
+SELECT @@session.relay_log_info_file;
+ERROR HY000: Variable 'relay_log_info_file' is a GLOBAL variable
+SELECT @@global.relay_log_info_file;
+@@global.relay_log_info_file
+relay-log.info
+SET @@session.relay_log_info_file= 'x';
+ERROR HY000: Variable 'relay_log_info_file' is a read only variable
+SET @@global.relay_log_info_file= 'x';
+ERROR HY000: Variable 'relay_log_info_file' is a read only variable
+#
+SHOW VARIABLES like 'relay_log_space_limit';
+Variable_name	Value
+relay_log_space_limit	0
+SELECT @@session.relay_log_space_limit;
+ERROR HY000: Variable 'relay_log_space_limit' is a GLOBAL variable
+SELECT @@global.relay_log_space_limit;
+@@global.relay_log_space_limit
+0
+SET @@session.relay_log_space_limit= 7;
+ERROR HY000: Variable 'relay_log_space_limit' is a read only variable
+SET @@global.relay_log_space_limit= 7;
+ERROR HY000: Variable 'relay_log_space_limit' is a read only variable
+#
+SHOW VARIABLES like 'slave_load_tmpdir';
+Variable_name	Value
+slave_load_tmpdir	#
+SELECT @@session.slave_load_tmpdir;
+ERROR HY000: Variable 'slave_load_tmpdir' is a GLOBAL variable
+SELECT @@global.slave_load_tmpdir;
+@@global.slave_load_tmpdir
+#
+SET @@session.slave_load_tmpdir= 'x';
+ERROR HY000: Variable 'slave_load_tmpdir' is a read only variable
+SET @@global.slave_load_tmpdir= 'x';
+ERROR HY000: Variable 'slave_load_tmpdir' is a read only variable
+#
+SHOW VARIABLES like 'slave_skip_errors';
+Variable_name	Value
+slave_skip_errors	OFF
+SELECT @@session.slave_skip_errors;
+ERROR HY000: Variable 'slave_skip_errors' is a GLOBAL variable
+SELECT @@global.slave_skip_errors;
+@@global.slave_skip_errors
+OFF
+SET @@session.slave_skip_errors= 7;
+ERROR HY000: Variable 'slave_skip_errors' is a read only variable
+SET @@global.slave_skip_errors= 7;
+ERROR HY000: Variable 'slave_skip_errors' is a read only variable
+#
+# Bug #11766769 : 59959: SMALL VALUES OF --MAX-ALLOWED-PACKET 
+#   ARE NOT BEING HONORED
+#
+CREATE TABLE t1 (a MEDIUMTEXT);
+SET GLOBAL max_allowed_packet=2048;
+Warnings:
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+SET GLOBAL net_buffer_length=4096;
+Warnings:
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+SHOW SESSION VARIABLES LIKE 'max_allowed_packet';
+Variable_name	Value
+max_allowed_packet	2048
+SHOW SESSION VARIABLES LIKE 'net_buffer_length';
+Variable_name	Value
+net_buffer_length	4096
+Got one of the listed errors
+SELECT LENGTH(a) FROM t1;
+LENGTH(a)
+SET GLOBAL max_allowed_packet=default;
+SET GLOBAL net_buffer_length=default;
+DROP TABLE t1;
+End of 5.1 tests
+SHOW VARIABLES like 'slave_skip_errors';
+Variable_name	Value
+slave_skip_errors	OFF

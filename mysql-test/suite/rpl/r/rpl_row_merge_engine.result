@@ -7,8 +7,9 @@ CREATE TABLE t1 (a int) ENGINE=MyISAM;
 CREATE TABLE t2 (a int) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1), (2), (3);
 INSERT INTO t2 VALUES (4), (5), (6);
-CREATE TABLE IF NOT EXISTS t1_merge LIKE t1;
-ALTER TABLE t1_merge ENGINE=MERGE UNION (t2, t1);
+CREATE TEMPORARY TABLE IF NOT EXISTS tt1_merge LIKE t1;
+ALTER TABLE tt1_merge ENGINE=MERGE UNION (t2, t1);
+CREATE TABLE t1_merge LIKE tt1_merge;
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:test.t1, slave:test.t1]
 include/diff_tables.inc [master:test.t2, slave:test.t2]

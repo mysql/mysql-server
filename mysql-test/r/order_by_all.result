@@ -1,8 +1,6 @@
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 drop table if exists t1,t2,t3;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (
 id int(6) DEFAULT '0' NOT NULL,
 idservice int(5),
@@ -283,9 +281,9 @@ favo_muziek varchar(30) NOT NULL default '',
 info text NOT NULL default '',
 ipnr varchar(30) NOT NULL default '',
 PRIMARY KEY  (member_id)
-) ENGINE=MyISAM PACK_KEYS=1;
+) charset utf8mb4 ENGINE=MyISAM PACK_KEYS=1;
 Warnings:
-Warning	1101	BLOB/TEXT column 'info' can't have a default value
+Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'info' can't have a default value
 insert into t1 (member_id) values (1),(2),(3);
 select member_id, nickname, voornaam FROM t1
 ORDER by lastchange_datum DESC LIMIT 2;
@@ -293,11 +291,11 @@ member_id	nickname	voornaam
 1		
 2		
 drop table t1;
-create table t1 (a int not null, b int, c varchar(10), key (a, b, c));
+create table t1 (a int not null, b int, c varchar(10), key (a, b, c)) charset utf8mb4;
 insert into t1 values (1, NULL, NULL), (1, NULL, 'b'), (1, 1, NULL), (1, 1, 'b'), (1, 1, 'b'), (2, 1, 'a'), (2, 1, 'b'), (2, 2, 'a'), (2, 2, 'b'), (2, 3, 'c'),(1,3,'b');
 explain select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	22	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	52	NULL	2	100.00	Using where; Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (((`test`.`t1`.`c` = 'b') and (`test`.`t1`.`a` = 1) and isnull(`test`.`t1`.`b`)) or (`test`.`t1`.`a` > 2)) order by `test`.`t1`.`a` desc
 select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
@@ -305,7 +303,51 @@ a	b	c
 1	NULL	b
 explain select * from t1 where a >= 1 and a < 3 order by a desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	4	NULL	10	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	4	NULL	10	100.00	Using where; Backward index scan; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` >= 1) and (`test`.`t1`.`a` < 3)) order by `test`.`t1`.`a` desc
+explain format=json select * from t1 where a >= 1 and a < 3 order by a desc;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.51"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "access_type": "range",
+        "possible_keys": [
+          "a"
+        ],
+        "key": "a",
+        "used_key_parts": [
+          "a"
+        ],
+        "key_length": "4",
+        "rows_examined_per_scan": 10,
+        "rows_produced_per_join": 10,
+        "filtered": "100.00",
+        "backward_index_scan": true,
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "1.51",
+          "eval_cost": "1.00",
+          "prefix_cost": "2.51",
+          "data_read_per_join": "560"
+        },
+        "used_columns": [
+          "a",
+          "b",
+          "c"
+        ],
+        "attached_condition": "((`test`.`t1`.`a` >= 1) and (`test`.`t1`.`a` < 3))"
+      }
+    }
+  }
+}
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` >= 1) and (`test`.`t1`.`a` < 3)) order by `test`.`t1`.`a` desc
 select * from t1 where a >= 1 and a < 3 order by a desc;
@@ -323,7 +365,7 @@ a	b	c
 1	NULL	NULL
 explain select * from t1 where a = 1 order by a desc, b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	4	const	5	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	a	a	4	const	5	100.00	Using where; Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 1) order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
 select * from t1 where a = 1 order by a desc, b desc;
@@ -345,12 +387,12 @@ a	b	c
 1	NULL	b
 explain select * from t1 where a >= 1 and a < 3 and b >0 order by a desc,b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	9	NULL	8	33.33	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	9	NULL	8	33.33	Using where; Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` >= 1) and (`test`.`t1`.`a` < 3) and (`test`.`t1`.`b` > 0)) order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
 explain select * from t1 where a = 2 and b >0 order by a desc,b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	9	NULL	5	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	9	NULL	5	100.00	Using where; Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and (`test`.`t1`.`b` > 0)) order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
 explain select * from t1 where a = 2 and b is null order by a desc,b desc;
@@ -361,22 +403,22 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 explain select * from t1 where a = 2 and (b is null or b > 0) order by a
 desc,b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	9	NULL	6	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	9	NULL	6	100.00	Using where; Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and (isnull(`test`.`t1`.`b`) or (`test`.`t1`.`b` > 0))) order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
 explain select * from t1 where a = 2 and b > 0 order by a desc,b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	9	NULL	5	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	9	NULL	5	100.00	Using where; Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and (`test`.`t1`.`b` > 0)) order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
 explain select * from t1 where a = 2 and b < 2 order by a desc,b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	9	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	9	NULL	2	100.00	Using where; Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and (`test`.`t1`.`b` < 2)) order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
 explain select * from t1 where a = 1 order by b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	4	const	5	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	a	a	4	const	5	100.00	Using where; Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 1) order by `test`.`t1`.`b` desc
 select * from t1 where a = 1 order by b desc;
@@ -395,7 +437,7 @@ Warning	1265	Data truncated for column 'b' at row 2
 Warning	1265	Data truncated for column 'c' at row 3
 explain select * from t1 order by a, b, c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	a	20	NULL	11	100.00	Using index
+1	SIMPLE	t1	NULL	index	NULL	a	50	NULL	11	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c`
 select * from t1 order by a, b, c;
@@ -413,7 +455,7 @@ a	b	c
 2	3	c
 explain select * from t1 order by a desc, b desc, c desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	a	20	NULL	11	100.00	Using index
+1	SIMPLE	t1	NULL	index	NULL	a	50	NULL	11	100.00	Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc,`test`.`t1`.`c` desc
 select * from t1 order by a desc, b desc, c desc;
@@ -431,7 +473,7 @@ a	b	c
 1	0	
 explain select * from t1 where (a = 1 and b = 1 and c = 'b') or (a > 2) order by a desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	20	NULL	3	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	50	NULL	3	100.00	Using where; Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (((`test`.`t1`.`c` = 'b') and (`test`.`t1`.`b` = 1) and (`test`.`t1`.`a` = 1)) or (`test`.`t1`.`a` > 2)) order by `test`.`t1`.`a` desc
 select * from t1 where (a = 1 and b = 1 and c = 'b') or (a > 2) order by a desc;
@@ -440,7 +482,7 @@ a	b	c
 1	1	b
 explain select * from t1 where a < 2 and b <= 1 order by a desc, b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	4	NULL	6	33.33	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	4	NULL	6	33.33	Using where; Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` < 2) and (`test`.`t1`.`b` <= 1)) order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
 select * from t1 where a < 2 and b <= 1 order by a desc, b desc;
@@ -466,7 +508,7 @@ a	b	c
 1	1	
 explain select * from t1 where a between 1 and 3 and b <= 1 order by a desc, b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	8	NULL	10	33.33	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	8	NULL	10	33.33	Using where; Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` between 1 and 3) and (`test`.`t1`.`b` <= 1)) order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
 select * from t1 where a between 1 and 3 and b <= 1 order by a desc, b desc;
@@ -480,7 +522,7 @@ a	b	c
 1	0	
 explain select * from t1 where a between 0 and 1 order by a desc, b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	4	NULL	5	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	4	NULL	5	100.00	Using where; Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` between 0 and 1) order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
 select * from t1 where a between 0 and 1 order by a desc, b desc;
@@ -533,8 +575,8 @@ gid	sid	uid
 103853	5	250
 EXPLAIN select t1.gid, t2.sid, t3.uid from t3, t2, t1 where t2.gid = t1.gid and t2.uid = t3.uid order by t1.gid, t3.uid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	PRIMARY	PRIMARY	2	NULL	6	100.00	Using index; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	PRIMARY,uid	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	PRIMARY,uid	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	2	test.t2.uid	1	100.00	Using where; Using index
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.gid	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`gid` AS `gid`,`test`.`t2`.`sid` AS `sid`,`test`.`t3`.`uid` AS `uid` from `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`gid` = `test`.`t2`.`gid`) and (`test`.`t2`.`uid` = `test`.`t3`.`uid`)) order by `test`.`t1`.`gid`,`test`.`t3`.`uid`
@@ -546,9 +588,9 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`gid` AS `gid`,`test`.`t3`.`uid` AS `uid` from `test`.`t1` join `test`.`t3` where (`test`.`t1`.`gid` = `test`.`t3`.`uid`) order by `test`.`t1`.`gid`,`test`.`t3`.`skr`
 EXPLAIN SELECT t1.gid, t2.sid, t3.uid from t2, t1, t3 where t2.gid = t1.gid and t2.uid = t3.uid order by t3.uid, t1.gid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	PRIMARY	PRIMARY	2	NULL	6	100.00	Using index; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	PRIMARY,uid	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	PRIMARY,uid	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.gid	1	100.00	Using index
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	2	test.t2.uid	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`gid` AS `gid`,`test`.`t2`.`sid` AS `sid`,`test`.`t3`.`uid` AS `uid` from `test`.`t2` join `test`.`t1` join `test`.`t3` where ((`test`.`t1`.`gid` = `test`.`t2`.`gid`) and (`test`.`t2`.`uid` = `test`.`t3`.`uid`)) order by `test`.`t3`.`uid`,`test`.`t1`.`gid`
 EXPLAIN SELECT t1.gid, t3.uid from t1, t3 where t1.gid = t3.uid order by t3.skr,t1.gid;
@@ -649,11 +691,11 @@ StringVal mediumtext,
 KEY FieldKey (FieldKey),
 KEY LongField (FieldKey,LongVal),
 KEY StringField (FieldKey,StringVal(32))
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1'),('0',1,'2'),('1',2,'1'),('1',1,'3'), ('1',0,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('3',2,'1'),('3',1,'2'),('3','3','3');
 EXPLAIN SELECT * FROM t1 WHERE FieldKey = '1' ORDER BY LongVal;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	FieldKey,LongField,StringField	LongField	38	const	3	100.00	Using index condition
+1	SIMPLE	t1	NULL	ref	FieldKey,LongField,StringField	LongField	146	const	3	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FieldKey` AS `FieldKey`,`test`.`t1`.`LongVal` AS `LongVal`,`test`.`t1`.`StringVal` AS `StringVal` from `test`.`t1` where (`test`.`t1`.`FieldKey` = '1') order by `test`.`t1`.`LongVal`
 SELECT * FROM t1 WHERE FieldKey = '1' ORDER BY LongVal;
@@ -663,7 +705,7 @@ FieldKey	LongVal	StringVal
 1	2	1
 EXPLAIN SELECT * FROM t1 ignore index (FieldKey, LongField) WHERE FieldKey > '2' ORDER BY LongVal;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	StringField	StringField	38	NULL	4	100.00	Using where; Using filesort
+1	SIMPLE	t1	NULL	range	StringField	StringField	146	NULL	4	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FieldKey` AS `FieldKey`,`test`.`t1`.`LongVal` AS `LongVal`,`test`.`t1`.`StringVal` AS `StringVal` from `test`.`t1` IGNORE INDEX (`LongField`) IGNORE INDEX (`FieldKey`) where (`test`.`t1`.`FieldKey` > '2') order by `test`.`t1`.`LongVal`
 SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
@@ -673,7 +715,7 @@ FieldKey	LongVal	StringVal
 3	3	3
 EXPLAIN SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY FieldKey, LongVal;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	FieldKey,LongField,StringField	LongField	38	NULL	4	100.00	Using index condition
+1	SIMPLE	t1	NULL	range	FieldKey,LongField,StringField	LongField	146	NULL	4	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FieldKey` AS `FieldKey`,`test`.`t1`.`LongVal` AS `LongVal`,`test`.`t1`.`StringVal` AS `StringVal` from `test`.`t1` where (`test`.`t1`.`FieldKey` > '2') order by `test`.`t1`.`FieldKey`,`test`.`t1`.`LongVal`
 SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY FieldKey, LongVal;
@@ -809,7 +851,7 @@ col2	col	col
 2	2	2
 1	3	3
 drop table t1, t2;
-create table t1 (a char(25));
+create table t1 (a char(25)) charset latin1;
 insert into t1 set a = repeat('x', 20);
 insert into t1 set a = concat(repeat('x', 19), 'z');
 insert into t1 set a = concat(repeat('x', 19), 'ab');
@@ -923,8 +965,8 @@ test1
 test2
 SELECT a + 1 AS num FROM t1 GROUP BY 30 - num;
 num
-3
 2
+3
 SELECT a + 1 AS num FROM t1 HAVING 30 - num;
 num
 2
@@ -952,15 +994,15 @@ ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
 UPDATE bug25126 SET val = 1 ORDER BY val, MissingCol;
 ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
 UPDATE bug25126 SET val = MissingCol ORDER BY MissingCol;
-ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+ERROR 42S22: Unknown column 'MissingCol' in 'field list'
 UPDATE bug25126 SET MissingCol = 1 ORDER BY val, MissingCol;
-ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+ERROR 42S22: Unknown column 'MissingCol' in 'field list'
 UPDATE bug25126 SET MissingCol = 1 ORDER BY MissingCol;
-ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+ERROR 42S22: Unknown column 'MissingCol' in 'field list'
 UPDATE bug25126 SET MissingCol = val ORDER BY MissingCol;
-ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+ERROR 42S22: Unknown column 'MissingCol' in 'field list'
 UPDATE bug25126 SET MissingCol = MissingCol ORDER BY MissingCol;
-ERROR 42S22: Unknown column 'MissingCol' in 'order clause'
+ERROR 42S22: Unknown column 'MissingCol' in 'field list'
 DROP TABLE bug25126;
 CREATE TABLE t1 (a int);
 SELECT p.a AS val, q.a AS val1 FROM t1 p, t1 q ORDER BY val > 1;
@@ -1018,16 +1060,16 @@ SELECT IF(a IN (1,2), a, '') as x1, IF(a NOT IN (1,2), a, '') as x2
 FROM t1 GROUP BY x1, x2;
 x1	x2
 	3
+2	
 	4
 1	
-2	
 SELECT IF(a IN (1,2), a, '') as x1, IF(a NOT IN (1,2), a, '') as x2
 FROM t1 GROUP BY x1, IF(a NOT IN (1,2), a, '');
 x1	x2
 	3
+2	
 	4
 1	
-2	
 SELECT a, a IN (1,2) FROM t1 ORDER BY a IN (1,2);
 a	a IN (1,2)
 3	0
@@ -1070,7 +1112,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary; Using filesort
 1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `a`,`test`.`t2`.`b` AS `c` from `test`.`t1` left join `test`.`t1` `t2` on(((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`a` = 2))) where 1 order by `c`
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `a`,`test`.`t2`.`b` AS `c` from `test`.`t1` left join `test`.`t1` `t2` on(((`test`.`t1`.`a` = 2) and (`test`.`t2`.`a` = 2))) where 1 order by `c`
 SELECT t2.b as c FROM 
 t1 LEFT JOIN t1 t2 ON (t1.a = t2.a AND t2.a = 2) 
 ORDER BY c;
@@ -1221,12 +1263,13 @@ INSERT INTO t1 SELECT a + 8, b + 8 FROM t1;
 INSERT INTO t1 SELECT a +16, b +16 FROM t1;
 INSERT INTO t1 SELECT a +32, b +32 FROM t1;
 INSERT INTO t1 SELECT a +64, b +64 FROM t1;
-EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (a, ab) GROUP BY a;
+EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (PRIMARY, ab) GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,ab	ab	4	NULL	13	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	PRIMARY,ab	ab	4	NULL	13	100.00	Using index for group-by; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX FOR GROUP BY (`ab`) IGNORE INDEX FOR GROUP BY (`a`) group by `test`.`t1`.`a`
-SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (a, ab) GROUP BY a;
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX FOR GROUP BY (`ab`) IGNORE INDEX FOR GROUP BY (PRIMARY) group by `test`.`t1`.`a`
+flush status;
+SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (PRIMARY, ab) GROUP BY a;
 a
 1
 2
@@ -1356,15 +1399,16 @@ a
 126
 127
 128
-SELECT @tmp_tables_after = @tmp_tables_before ;
-@tmp_tables_after = @tmp_tables_before
-1
-EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (a, ab) ORDER BY a;
+show status like 'Created_tmp_tables';
+Variable_name	Value
+Created_tmp_tables	1
+EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY, ab) ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	128	100.00	Using index
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	128	100.00	Using index; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX FOR ORDER BY (`ab`) IGNORE INDEX FOR ORDER BY (`a`) order by `test`.`t1`.`a`
-SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (a, ab) ORDER BY a;
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX FOR ORDER BY (`ab`) IGNORE INDEX FOR ORDER BY (PRIMARY) order by `test`.`t1`.`a`
+flush status;
+SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY, ab) ORDER BY a;
 a
 1
 2
@@ -1494,9 +1538,283 @@ a
 126
 127
 128
-SELECT @tmp_tables_after = @tmp_tables_before;
-@tmp_tables_after = @tmp_tables_before
+show status like 'Created_tmp_tables';
+Variable_name	Value
+Created_tmp_tables	0
+flush status;
+EXPLAIN SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	PRIMARY,ab	NULL	NULL	NULL	128	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX (`ab`) IGNORE INDEX (PRIMARY) group by `test`.`t1`.`a`
+SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) GROUP BY a;
+a
 1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+EXPLAIN SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) ORDER BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX (`ab`) IGNORE INDEX (PRIMARY) order by `test`.`t1`.`a`
+SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) ORDER BY a;
+a
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+show status like 'Created_tmp_tables';
+Variable_name	Value
+Created_tmp_tables	0
 DROP TABLE t1;
 #
 # Bug#31590: Wrong error message on sort buffer being too small.
@@ -1563,17 +1881,19 @@ col
 DROP TABLE t1;
 End of 5.0 tests
 CREATE TABLE t2 (a varchar(32), b int(11), c float, d double, 
-UNIQUE KEY a (a,b,c), KEY b (b), KEY c (c));
-CREATE TABLE t1 (a varchar(32), b char(3), UNIQUE KEY a (a,b), KEY b (b));
-CREATE TABLE t3 (a varchar(32), b char(3), UNIQUE KEY a (a,b));
+UNIQUE KEY a (a,b,c), KEY b (b), KEY c (c)) charset utf8mb4;
+CREATE TABLE t1 (a varchar(32), b char(3), UNIQUE KEY a (a,b), KEY b (b))
+charset utf8mb4;
+CREATE TABLE t3 (a varchar(32), b char(3), UNIQUE KEY a (a,b))
+charset utf8mb4;
 INSERT INTO t3 SELECT * FROM t1;
 EXPLAIN
 SELECT d FROM t1, t2
 WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
 ORDER BY t2.c LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a,b	b	4	const	4	100.00	Using where; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ref	a,b,c	a	40	test.t1.a,const	11	79.85	Using index condition
+1	SIMPLE	t1	NULL	ref	a,b	b	13	const	3	100.00	Using where; Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ref	a,b,c	a	136	test.t1.a,const	11	79.85	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`b` = 'DE') and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`b` = 14) and (5.1 < `test`.`t2`.`c`)) order by `test`.`t2`.`c` limit 1
 SELECT d FROM t1, t2
@@ -1587,7 +1907,7 @@ WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
 ORDER BY t2.c LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	a,b,c	c	5	NULL	420	26.43	Using index condition; Using where
-1	SIMPLE	t1	NULL	ref	a	a	39	test.t2.a,const	10	100.00	Using index
+1	SIMPLE	t1	NULL	ref	a	a	144	test.t2.a,const	10	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`d` AS `d` from `test`.`t3` `t1` join `test`.`t2` where ((`test`.`t1`.`b` = 'DE') and (`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`b` = 14) and (5.1 < `test`.`t2`.`c`)) order by `test`.`t2`.`c` limit 1
 SELECT d FROM t3 AS t1, t2 AS t2 
@@ -1599,7 +1919,7 @@ DROP TABLE t1,t2,t3;
 #
 # WL#1393 - Optimizing filesort with small limit
 #
-CREATE TABLE t1(f0 int auto_increment primary key, f1 int, f2 varchar(200));
+CREATE TABLE t1(f0 int auto_increment primary key, f1 int, f2 varchar(200)) charset latin1;
 INSERT INTO t1(f1, f2) VALUES 
 (0,"0"),(1,"1"),(2,"2"),(3,"3"),(4,"4"),(5,"5"),
 (6,"6"),(7,"7"),(8,"8"),(9,"9"),(10,"10"),
@@ -2516,6 +2836,8 @@ KEY (b, c),
 KEY (b, a, c)
 )
 DEFAULT CHARSET = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES 
 (1,  1, 1),
 (2,  2, 2),
@@ -2526,48 +2848,48 @@ INSERT INTO t1 VALUES
 (7,  7, 7),
 (8,  8, 8),
 (9,  9, 9);
-INSERT INTO t1 SELECT a + 10,  b, c FROM t1;
-INSERT INTO t1 SELECT a + 20,  b, c FROM t1;
-INSERT INTO t1 SELECT a + 40,  b, c FROM t1;
-INSERT INTO t1 SELECT a + 80,  b, c FROM t1;
-INSERT INTO t1 SELECT a + 160, b, c FROM t1;
-INSERT INTO t1 SELECT a + 320, b, c FROM t1;
-INSERT INTO t1 SELECT a + 640, b, c FROM t1;
-INSERT INTO t1 SELECT a + 1280, b, c FROM t1 LIMIT 80;
+INSERT INTO t1 SELECT a + 10,  b, c  + 10   FROM t1;
+INSERT INTO t1 SELECT a + 20,  b, c  + 20   FROM t1;
+INSERT INTO t1 SELECT a + 40,  b, c  + 40   FROM t1;
+INSERT INTO t1 SELECT a + 80,  b, c  + 80   FROM t1;
+INSERT INTO t1 SELECT a + 160, b, c  + 160  FROM t1;
+INSERT INTO t1 SELECT a + 320, b, c  + 320  FROM t1;
+INSERT INTO t1 SELECT a + 640, b, c  + 640  FROM t1;
+INSERT INTO t1 SELECT a + 1280, b, c + 1280 FROM t1 LIMIT 80;
 EXPLAIN
 SELECT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b,b_2	b	4	NULL	226	100.00	Using index condition
+1	SIMPLE	t1	NULL	range	b,b_2	b	4	NULL	200	100.00	Using index condition; Backward index scan
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`b` = 1) order by `test`.`t1`.`c` desc limit 9
 SELECT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 9;
 a
-2071
-2061
-2051
-2041
-2031
-2021
-2011
-2001
-1991
+991
+981
+971
+961
+951
+941
+931
+921
+911
 EXPLAIN
 SELECT DISTINCT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 0, 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b,b_2	b	4	NULL	226	100.00	Using index condition; Using temporary
+1	SIMPLE	t1	NULL	ref	b,b_2	b_2	4	const	211	100.00	Using where; Using index; Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`b` = 1) order by `test`.`t1`.`c` desc limit 0,9
 SELECT DISTINCT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 0, 9;
 a
-2071
-2061
-2051
-2041
-2031
-2021
-2011
-2001
-1991
+991
+981
+971
+961
+951
+941
+931
+921
+911
 DROP TABLE t1;
 #
 # Bug #43029: FORCE INDEX FOR ORDER BY is ignored when join buffering 
@@ -2640,7 +2962,7 @@ CREATE TABLE t1 (a INT,KEY (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 EXPLAIN SELECT DISTINCT a,1 FROM t1 WHERE a <> 1 ORDER BY a DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	a	a	5	NULL	10	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	a	a	5	NULL	10	100.00	Using where; Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a`,1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` <> 1) order by `test`.`t1`.`a` desc
 SELECT DISTINCT a,1 FROM t1 WHERE a <> 1 ORDER BY a DESC;
@@ -2672,7 +2994,7 @@ CREATE TABLE t2 (i2 integer NOT NULL PRIMARY KEY);
 CREATE TABLE t3 (i3 integer);
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11), (12);
 INSERT INTO t2 SELECT * FROM t1;
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT t1.*, t2.* FROM t1 JOIN t2 ON t1.i1 = t2.i2 
 LEFT JOIN t3 ON t2.i2 = t3.i3
 ORDER BY t1.i1 LIMIT 5;
@@ -2681,7 +3003,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	5	100.00	Using index
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.i1	1	100.00	Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t2`.`i2` AS `i2` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`i2` = `test`.`t1`.`i1`) order by `test`.`t1`.`i1` limit 5
 SELECT t1.*, t2.* FROM t1 JOIN t2 ON t1.i1 = t2.i2 
 LEFT JOIN t3 ON t2.i2 = t3.i3
@@ -2771,7 +3092,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	8	100.00	Using index
 1	SIMPLE	t2	NULL	ref	i_a	i_a	5	test.t1.a	2	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`)) where 1 order by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1 order by `test`.`t1`.`a`
 # Query above used to be explained identical to this:
 EXPLAIN
 SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 8;
@@ -2779,7 +3100,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	8	100.00	Using index
 1	SIMPLE	t2	NULL	ref	i_a	i_a	5	test.t1.a	2	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`)) where 1 order by `test`.`t1`.`a` limit 8
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1 order by `test`.`t1`.`a` limit 8
 # A really high limit was required to give the correct explain
 EXPLAIN
 SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 1000;
@@ -2787,7 +3108,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	8	100.00	Using index
 1	SIMPLE	t2	NULL	ref	i_a	i_a	5	test.t1.a	2	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`)) where 1 order by `test`.`t1`.`a` limit 1000
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1 order by `test`.`t1`.`a` limit 1000
 DROP TABLE t1, t2;
 #
 # Bug #13949068 ASSERT TAB->REF.KEY == REF_KEY IN
@@ -2840,4 +3161,39 @@ NULL	3
 DROP VIEW view_t1;
 DROP TABLE t1, t2;
 SET sql_mode = default;
+#
+# Bug#20455386 INVALID WRITE IN COPY_FIELD::SET CAUSE CRASH WITH TMP TABLES
+#
+CREATE TABLE t1(a INT) ENGINE=INNODB;
+CREATE TABLE t2(c INT) ENGINE=INNODB;
+CREATE TABLE t3(b BLOB NOT NULL) ENGINE=INNODB;
+SELECT
+(SELECT 1 FROM t1
+WHERE (SELECT c FROM t2 ORDER BY COUNT(t3.b ))
+)
+FROM t3;
+(SELECT 1 FROM t1
+WHERE (SELECT c FROM t2 ORDER BY COUNT(t3.b ))
+)
+NULL
+DROP TABLE t1,t2,t3;
+#
+# Bug#16833464: Presence of ORDER BY changes data type of column in
+#               CREATE TABLE SELECT
+CREATE TABLE z1 (c05 TIME);
+(SELECT * FROM z1 ORDER BY '1') ORDER BY '1';
+c05
+CREATE TABLE z2 (SELECT * FROM z1 ORDER BY '1') ORDER BY '1';
+CREATE TABLE z3 (SELECT * FROM z1) ORDER BY '1';
+SHOW CREATE TABLE z2;
+Table	Create Table
+z2	CREATE TABLE `z2` (
+  `c05` time DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE z3;
+Table	Create Table
+z3	CREATE TABLE `z3` (
+  `c05` time DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE z1, z2, z3;
 set optimizer_switch=default;

@@ -2,7 +2,6 @@
 --echo # Basic test for innodb_fil_make_page_dirty_debug.
 --echo #
 
---source include/have_innodb.inc
 
 # The config variable is a debug variable
 -- source include/have_debug.inc
@@ -23,7 +22,7 @@ set innodb_fil_make_page_dirty_debug = ON;
 
 --echo # An example usage.
 create table t1 (f1 int primary key) engine = innodb;
-select space from information_schema.innodb_sys_tables
+select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 set global innodb_saved_page_number_debug = 0;
 set global innodb_fil_make_page_dirty_debug = @space_id;

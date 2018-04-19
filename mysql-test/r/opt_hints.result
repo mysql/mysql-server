@@ -42,7 +42,7 @@ f1
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_last	0
 Handler_read_next	2
 Handler_read_prev	0
@@ -65,14 +65,14 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx	PRIMARY	4	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx	f2_idx	4	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`f1` AS `f1` from `test`.`t3` where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33))
 # Turn off range access for PRIMARY key
 # Should use range access by f2_idx key
 EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx	f2_idx	4	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx	f2_idx	4	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t3`@`select#1` `PRIMARY`) */ `test`.`t3`.`f1` AS `f1` from `test`.`t3` where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33))
 # Turn off range access for PRIMARY & f2_idx keys
@@ -99,44 +99,44 @@ Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t3`@`select#1` `PRIMA
 # NO_ICP hint testing
 set optimizer_switch='index_condition_pushdown=on';
 EXPLAIN SELECT  f2 FROM
-(SELECT f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
-WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+(SELECT f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
+WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	PRIMARY,f2_idx,f3_idx	f3_idx	35	const	16	96.43	Using index condition
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	135	NULL	10	100.00	Using index condition
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))
+Note	1003	/* select#1 */ select `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 27) and (`test`.`t3`.`f1` > 27))
 EXPLAIN SELECT /*+ NO_ICP(t3@qb1 f3_idx) */ f2 FROM
-(SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
-WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+(SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
+WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	PRIMARY,f2_idx,f3_idx	f3_idx	35	const	16	96.43	Using where
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	135	NULL	10	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`QB1` `f3_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))
+Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`QB1` `f3_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 27) and (`test`.`t3`.`f1` > 27))
 EXPLAIN SELECT /*+ NO_ICP(t3@qb1) */ f2 FROM
-(SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
-WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+(SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
+WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	PRIMARY,f2_idx,f3_idx	f3_idx	35	const	16	96.43	Using where
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	135	NULL	10	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`QB1`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))
+Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`QB1`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 27) and (`test`.`t3`.`f1` > 27))
 # Expected warning for f1_idx key, unresolved name.
 EXPLAIN SELECT f2 FROM
-(SELECT /*+ NO_ICP(t3 f3_idx, f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
-WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+(SELECT /*+ NO_ICP(t3 f3_idx, f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
+WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	PRIMARY,f2_idx,f3_idx	f3_idx	35	const	16	96.43	Using where
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	135	NULL	10	100.00	Using where
 Warnings:
 Warning	3128	Unresolved name `t3`@`select#2` `f1_idx` for NO_ICP hint
-Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`select#2` `f3_idx`) NO_ICP(`t3`@`select#2` `f2_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))
+Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`select#2` `f3_idx`) NO_ICP(`t3`@`select#2` `f2_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 27) and (`test`.`t3`.`f1` > 27))
 # ICP should still be used.
 EXPLAIN SELECT f2 FROM
-(SELECT /*+ NO_ICP(t3 f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
-WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+(SELECT /*+ NO_ICP(t3 f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
+WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	PRIMARY,f2_idx,f3_idx	f3_idx	35	const	16	96.43	Using index condition
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	135	NULL	10	100.00	Using index condition
 Warnings:
 Warning	3128	Unresolved name `t3`@`select#2` `f1_idx` for NO_ICP hint
-Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`select#2` `f2_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))
+Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`select#2` `f2_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 27) and (`test`.`t3`.`f1` > 27))
 # BKA & NO_BKA hint testing
 set optimizer_switch=default;
 set optimizer_switch='batched_key_access=off,mrr_cost_based=off';
@@ -152,7 +152,7 @@ f1	f2	f3
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
+Handler_read_key	9
 Handler_read_last	0
 Handler_read_next	4
 Handler_read_prev	0
@@ -315,9 +315,9 @@ SET f3 = 'mnbv' WHERE f1 > 30 AND f1 < 33 AND (t3.f1, t3.f2, t3.f3) IN
 (SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
 t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t3	NULL	range	PRIMARY,f2_idx	PRIMARY	4	const	1	100.00	Using where
+1	UPDATE	t3	NULL	range	PRIMARY,f2_idx	PRIMARY	4	const	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ref	f1	f1	8	func,func	2	10.00	Using index condition; Using where
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
 # Turn off range access for PRIMARY key.
 # Range access should be used for f2_idx key.
 EXPLAIN UPDATE /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY) */ t3
@@ -325,17 +325,17 @@ SET f3 = 'mnbv' WHERE f1 > 30 AND f1 < 33 AND (t3.f1, t3.f2, t3.f3) IN
 (SELECT /*+ BKA(t2) NO_BNL(t1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
 t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t3	NULL	range	f2_idx	f2_idx	4	const	1	100.00	Using where
+1	UPDATE	t3	NULL	range	f2_idx	f2_idx	4	const	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ref	f1	f1	8	func,func	2	10.00	Using index condition; Using where
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 EXPLAIN DELETE FROM t3
 WHERE f1 > 30 AND f1 < 33 AND (t3.f1, t3.f2, t3.f3) IN
 (SELECT /*+ QB_NAME(qb1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
 t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t3	NULL	range	PRIMARY,f2_idx	PRIMARY	4	const	1	100.00	Using where
+1	DELETE	t3	NULL	range	PRIMARY,f2_idx	PRIMARY	4	const	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ref	f1	f1	8	func,func	2	10.00	Using index condition; Using where
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
 # Turn off range access. Range access should not be used.
 # Turn off BNL. BNL should not be used.
 EXPLAIN DELETE /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY, f2_idx) NO_BNL(t1@QB1) */ FROM t3
@@ -345,7 +345,7 @@ t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t3	NULL	ALL	NULL	NULL	NULL	NULL	56	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ref	f1	f1	8	func,func	2	10.00	Using index condition; Using where
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 EXPLAIN INSERT INTO t3(f1, f2, f3)
 (SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
 t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
@@ -469,7 +469,7 @@ EXPLAIN SELECT /*+ BKA(qb1 t3@qb1) */ f2 FROM
 (SELECT /*+ QB_NAME(qb1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
 WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	39	NULL	16	100.00	Using index condition; Using MRR
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	135	NULL	16	100.00	Using index condition; Using MRR
 Warnings:
 Warning	1064	Optimizer hint syntax error near 't3@qb1) */ f2 FROM
 (SELECT /*+ QB_NAME(qb1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 A' at line 1
@@ -529,7 +529,6 @@ Handler_read_rnd	4
 Handler_read_rnd_next	4
 PREPARE stmt1 FROM "SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1) AS s1";
-RESET QUERY CACHE;
 FLUSH STATUS;
 EXECUTE stmt1;
 f1	f2	f3
@@ -546,7 +545,6 @@ Handler_read_next	20
 Handler_read_prev	0
 Handler_read_rnd	4
 Handler_read_rnd_next	4
-RESET QUERY CACHE;
 FLUSH STATUS;
 EXECUTE stmt1;
 f1	f2	f3
@@ -698,39 +696,43 @@ SET optimizer_prune_level = 0;
 EXPLAIN SELECT /*+ QB_NAME(q) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using where; Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ref	a	a	5	test.t3.b	1	100.00	Using index; End temporary
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	SIMPLE	t2	NULL	ref	a	a	5	<subquery2>.b	1	100.00	Using index
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+2	MATERIALIZED	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using index
+2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t4`.`b` = `test`.`t3`.`b`) and (`test`.`t2`.`a` = `test`.`t3`.`b`) and (`test`.`t1`.`b` = `test`.`t3`.`b`))
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t2`.`a` = `<subquery2>`.`b`) and (`test`.`t1`.`b` = `<subquery2>`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL() */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using where; Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ref	a	a	5	test.t3.b	1	100.00	Using index; End temporary
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	SIMPLE	t2	NULL	ref	a	a	5	<subquery2>.b	1	100.00	Using index
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+2	MATERIALIZED	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using index
+2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(@`q`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t4`.`b` = `test`.`t3`.`b`) and (`test`.`t2`.`a` = `test`.`t3`.`b`) and (`test`.`t1`.`b` = `test`.`t3`.`b`))
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(@`q`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t2`.`a` = `<subquery2>`.`b`) and (`test`.`t1`.`b` = `<subquery2>`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t1, t2) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using where; Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ref	a	a	5	test.t3.b	1	100.00	Using index; End temporary
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	SIMPLE	t2	NULL	ref	a	a	5	<subquery2>.b	1	100.00	Using index
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+2	MATERIALIZED	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using index
+2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(`t1`@`q`) NO_BNL(`t2`@`q`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t4`.`b` = `test`.`t3`.`b`) and (`test`.`t2`.`a` = `test`.`t3`.`b`) and (`test`.`t1`.`b` = `test`.`t3`.`b`))
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(`t1`@`q`) NO_BNL(`t2`@`q`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t2`.`a` = `<subquery2>`.`b`) and (`test`.`t1`.`b` = `<subquery2>`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using where; Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-1	SIMPLE	t2	NULL	ref	a	a	5	test.t3.b	1	100.00	Using index; End temporary
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	SIMPLE	t2	NULL	ref	a	a	5	<subquery2>.b	1	100.00	Using index
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+2	MATERIALIZED	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using index
+2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t4`.`b` = `test`.`t3`.`b`) and (`test`.`t2`.`a` = `test`.`t3`.`b`) and (`test`.`t1`.`b` = `test`.`t3`.`b`))
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t2`.`a` = `<subquery2>`.`b`) and (`test`.`t1`.`b` = `<subquery2>`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t4@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -744,30 +746,33 @@ Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(`t4`@`subq1`) */ `test`.
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t3@subq1,t4@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using where; Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-1	SIMPLE	t2	NULL	ref	a	a	5	test.t3.b	1	100.00	Using index; End temporary
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	SIMPLE	t2	NULL	ref	a	a	5	<subquery2>.b	1	100.00	Using index
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+2	MATERIALIZED	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using index
+2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(`t3`@`subq1`) NO_BNL(`t4`@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t4`.`b` = `test`.`t3`.`b`) and (`test`.`t2`.`a` = `test`.`t3`.`b`) and (`test`.`t1`.`b` = `test`.`t3`.`b`))
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(`t3`@`subq1`) NO_BNL(`t4`@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t2`.`a` = `<subquery2>`.`b`) and (`test`.`t1`.`b` = `<subquery2>`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(@subq1 t3, t4) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using where; Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-1	SIMPLE	t2	NULL	ref	a	a	5	test.t3.b	1	100.00	Using index; End temporary
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	SIMPLE	t2	NULL	ref	a	a	5	<subquery2>.b	1	100.00	Using index
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+2	MATERIALIZED	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using index
+2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(`t3`@`subq1`) NO_BNL(`t4`@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t4`.`b` = `test`.`t3`.`b`) and (`test`.`t2`.`a` = `test`.`t3`.`b`) and (`test`.`t1`.`b` = `test`.`t3`.`b`))
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(`t3`@`subq1`) NO_BNL(`t4`@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t2`.`a` = `<subquery2>`.`b`) and (`test`.`t1`.`b` = `<subquery2>`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
 EXPLAIN SELECT /*+ QB_NAME(q) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1)  NO_BNL(t3, t4) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using where; Using index; Start temporary
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-1	SIMPLE	t2	NULL	ref	a	a	5	test.t3.b	1	100.00	Using index; End temporary
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	SIMPLE	t2	NULL	ref	a	a	5	<subquery2>.b	1	100.00	Using index
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+2	MATERIALIZED	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using index
+2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(`t3`@`subq1`) NO_BNL(`t4`@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t4`.`b` = `test`.`t3`.`b`) and (`test`.`t2`.`a` = `test`.`t3`.`b`) and (`test`.`t1`.`b` = `test`.`t3`.`b`))
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q`) NO_BNL(`t3`@`subq1`) NO_BNL(`t4`@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t2`.`a` = `<subquery2>`.`b`) and (`test`.`t1`.`b` = `<subquery2>`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
 SET optimizer_prune_level = DEFAULT;
 DROP TABLE t1, t2, t3;
 # MRR & NO_MRR hint testing
@@ -794,7 +799,7 @@ f1	f2	f3
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	3
+Handler_read_key	6
 Handler_read_last	0
 Handler_read_next	2
 Handler_read_prev	0
@@ -851,11 +856,11 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select /*+ MRR(`t1`@`select#1`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 # Turn on MRR. MRR should be used.
-EXPLAIN SELECT /*+ MRR(t1 idx2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+EXPLAIN SELECT /*+ MRR(t1 IDX2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	idx1,idx2	idx2	4	NULL	2	100.00	Using index condition; Using where; Using MRR
 Warnings:
-Note	1003	/* select#1 */ select /*+ MRR(`t1`@`select#1` `idx2`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
+Note	1003	/* select#1 */ select /*+ MRR(`t1`@`select#1` `IDX2`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 # Turn on MRR for unused key. MRR should not be used.
 EXPLAIN SELECT /*+ MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -881,12 +886,392 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select /*+ MRR(`t1`@`select#1` `idx2`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 # Turn on MRR for unused key. MRR should not be used.
-EXPLAIN SELECT /*+ MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+EXPLAIN SELECT /*+ MRR(t1 IDX1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	idx1,idx2	idx2	4	NULL	2	100.00	Using index condition; Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ MRR(`t1`@`select#1` `idx1`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
+Note	1003	/* select#1 */ select /*+ MRR(`t1`@`select#1` `IDX1`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` <= 3) and (3 <= `test`.`t1`.`f3`))
 DROP TABLE t1;
+#
+# Bug#21205282 CRASH/ASSERTION IN JOIN_CACHE::SET_MATCH_FLAG_IF_NONE WITH NO_BNL HINT
+#
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1);
+SET optimizer_switch='block_nested_loop=on';
+EXPLAIN SELECT 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on(1) left join (`test`.`t` `t3` left join `test`.`t` `t4` on(1)) on(1) where 1
+EXPLAIN SELECT /*+ NO_BNL(t1) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t1`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on(1) left join (`test`.`t` `t3` left join `test`.`t` `t4` on(1)) on(1) where 1
+EXPLAIN SELECT /*+ NO_BNL(t2) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t2`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on(1) left join (`test`.`t` `t3` left join `test`.`t` `t4` on(1)) on(1) where 1
+EXPLAIN SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t3`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on(1) left join (`test`.`t` `t3` left join `test`.`t` `t4` on(1)) on(1) where 1
+EXPLAIN SELECT /*+ NO_BNL(t4) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t4`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join `test`.`t` `t2` on(1) left join (`test`.`t` `t3` left join `test`.`t` `t4` on(1)) on(1) where 1
+EXPLAIN SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 LEFT JOIN t t4 ON 1) ON 1 WHERE 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t3`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(1) left join `test`.`t` `t4` on(1)) on(1) where 1
+SELECT /*+ NO_BNL(t4) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+1
+1
+SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 LEFT JOIN t t4 ON 1) ON 1 WHERE 1;
+1
+1
+SET optimizer_switch='block_nested_loop=off';
+EXPLAIN SELECT 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(1) join `test`.`t` `t4`) on((1 and 1)) where 1
+EXPLAIN SELECT /*+ BNL(t1) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t1`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(1) join `test`.`t` `t4`) on((1 and 1)) where 1
+EXPLAIN SELECT /*+ BNL(t2) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(1) join `test`.`t` `t4`) on((1 and 1)) where 1
+EXPLAIN SELECT /*+ BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t3`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(1) join `test`.`t` `t4`) on((1 and 1)) where 1
+EXPLAIN SELECT /*+ BNL(t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t4`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(1) join `test`.`t` `t4`) on((1 and 1)) where 1
+EXPLAIN SELECT /*+ BNL(t2, t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) BNL(`t3`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(1) join `test`.`t` `t4`) on((1 and 1)) where 1
+EXPLAIN SELECT /*+ BNL(t3, t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t3`@`select#1`) BNL(`t4`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(1) join `test`.`t` `t4`) on((1 and 1)) where 1
+EXPLAIN SELECT /*+ BNL(t2, t3, t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) BNL(`t3`@`select#1`) BNL(`t4`@`select#1`) */ 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on(1) join `test`.`t` `t4`) on((1 and 1)) where 1
+DROP TABLE t;
+CREATE TABLE t(a INT, b INT, KEY k(a));
+INSERT INTO t VALUES (1,1);
+EXPLAIN SELECT * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t3	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`a` = `test`.`t1`.`a`)) left join `test`.`t` `t4` on((`test`.`t4`.`a` = `test`.`t1`.`a`))) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t3	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`a` = `test`.`t1`.`a`)) left join `test`.`t` `t4` on((`test`.`t4`.`a` = `test`.`t1`.`a`))) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+EXPLAIN SELECT /*+ BKA(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t3	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`a` = `test`.`t1`.`a`)) left join `test`.`t` `t4` on((`test`.`t4`.`a` = `test`.`t1`.`a`))) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+EXPLAIN SELECT /*+ BKA(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t3	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t3`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`a` = `test`.`t1`.`a`)) left join `test`.`t` `t4` on((`test`.`t4`.`a` = `test`.`t1`.`a`))) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t3	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t4`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`a` = `test`.`t1`.`a`)) left join `test`.`t` `t4` on((`test`.`t4`.`a` = `test`.`t1`.`a`))) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+EXPLAIN SELECT /*+ BKA(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t3	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) BKA(`t3`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`a` = `test`.`t1`.`a`)) left join `test`.`t` `t4` on((`test`.`t4`.`a` = `test`.`t1`.`a`))) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+EXPLAIN SELECT /*+ BKA(t2, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t3	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) BKA(`t4`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`a` = `test`.`t1`.`a`)) left join `test`.`t` `t4` on((`test`.`t4`.`a` = `test`.`t1`.`a`))) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+EXPLAIN SELECT /*+ BKA(t2, t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t3	NULL	ref	k	k	5	test.t1.a	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t1.a	1	100.00	Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) BKA(`t3`@`select#1`) BKA(`t4`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`a` = `test`.`t1`.`a`)) left join `test`.`t` `t4` on((`test`.`t4`.`a` = `test`.`t1`.`a`))) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+SET optimizer_switch='block_nested_loop=on,batched_key_access=on,mrr_cost_based=off';
+EXPLAIN SELECT * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`b` = `test`.`t2`.`b`)) left join `test`.`t` `t4` on((`test`.`t4`.`b` = `test`.`t3`.`b`)) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN SELECT /*+ NO_BKA(t1) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BKA(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`b` = `test`.`t2`.`b`)) left join `test`.`t` `t4` on((`test`.`t4`.`b` = `test`.`t3`.`b`)) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN SELECT /*+ NO_BKA(t2) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BKA(`t2`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`b` = `test`.`t2`.`b`)) left join `test`.`t` `t4` on((`test`.`t4`.`b` = `test`.`t3`.`b`)) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN SELECT /*+ NO_BNL(t3) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t3`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`b` = `test`.`t2`.`b`)) left join `test`.`t` `t4` on((`test`.`t4`.`b` = `test`.`t3`.`b`)) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN SELECT /*+ NO_BNL(t4) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t4`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`b` = `test`.`t2`.`b`)) left join `test`.`t` `t4` on((`test`.`t4`.`b` = `test`.`t3`.`b`)) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN SELECT /*+ NO_BKA(t2) NO_BNL(t3) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BKA(`t2`@`select#1`) NO_BNL(`t3`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`b` = `test`.`t2`.`b`)) left join `test`.`t` `t4` on((`test`.`t4`.`b` = `test`.`t3`.`b`)) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN SELECT /*+ NO_BNL(t3) NO_BKA(t4) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t3`@`select#1`) NO_BKA(`t4`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`b` = `test`.`t2`.`b`)) left join `test`.`t` `t4` on((`test`.`t4`.`b` = `test`.`t3`.`b`)) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN SELECT /*+ NO_BKA(t2) NO_BNL(t3) NO_BKA(t4) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.a	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BKA(`t2`@`select#1`) NO_BNL(`t3`@`select#1`) NO_BKA(`t4`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`test`.`t3`.`b` = `test`.`t2`.`b`)) left join `test`.`t` `t4` on((`test`.`t4`.`b` = `test`.`t3`.`b`)) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+SET optimizer_switch='batched_key_access=off';
+EXPLAIN SELECT * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t3.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on(((`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`))) where 1
+EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t3.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on(((`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`))) where 1
+EXPLAIN SELECT /*+ NO_BNL(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t3.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t2`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on(((`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`))) where 1
+EXPLAIN SELECT /*+ BNL(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t3.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t3`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on(((`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`))) where 1
+EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t3.a	1	100.00	Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t4`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on(((`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`))) where 1
+EXPLAIN SELECT /*+ BNL(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t3.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) BNL(`t3`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on(((`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`))) where 1
+EXPLAIN SELECT /*+ BKA(t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t3.a	1	100.00	Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t3`@`select#1`) BKA(`t4`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on(((`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`))) where 1
+SET optimizer_switch='block_nested_loop=off';
+EXPLAIN SELECT * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t3.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on(((`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`))) where 1
+EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t3.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on(((`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`))) where 1
+EXPLAIN SELECT /*+ BNL(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t3.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on(((`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`))) where 1
+EXPLAIN SELECT /*+ BNL(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t3.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t3`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on(((`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`))) where 1
+EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t3.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t4`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on(((`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`))) where 1
+EXPLAIN SELECT /*+ BNL(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t3.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) BNL(`t3`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on(((`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`))) where 1
+EXPLAIN SELECT /*+ BKA(t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t3.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(`t3`@`select#1`) BKA(`t4`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on(((`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`))) where 1
+EXPLAIN SELECT /*+ BNL(t2, t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	k	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ref	k	k	5	test.t3.a	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ BNL(`t2`@`select#1`) BNL(`t3`@`select#1`) BNL(`t4`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4`) on(((`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`))) where 1
+DROP TABLE t;
 set optimizer_switch=default;
 #
 # Duplicate hints
@@ -910,28 +1295,11 @@ i
 Warnings:
 Warning	3126	Hint NO_ICP(`t1`@`q1` `PRIMARY` ) is ignored as conflicting/duplicated
 DROP TABLE t1;
-# MAX_EXECUTION_TIME hint testing
-CREATE TABLE t1 (a INT, b VARCHAR(300));
-INSERT INTO t1 VALUES (1, 'string');
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-SELECT /*+ MAX_EXECUTION_TIME(1) */ * FROM t1 a, t1 b, t1 c;
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
-EXPLAIN SELECT /*+ MAX_EXECUTION_TIME(2) MAX_EXECUTION_TIME(10) */ * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2048	100.00	NULL
-Warnings:
-Warning	3126	Hint MAX_EXECUTION_TIME(10) is ignored as conflicting/duplicated
-Note	1003	/* select#1 */ select /*+ MAX_EXECUTION_TIME(2) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`
+#
+# Bug#21192857 ASSERTION FAILED: KEYINFO_ARRAY.SIZE() == 0, FILE OPT_HINTS.CC:280
+#
+CREATE TABLE t1(a INT, KEY(a));
+INSERT INTO t1(a) SELECT /*+ NO_RANGE_OPTIMIZATION(t1 a)*/ 1 FROM t1;
 DROP TABLE t1;
 # WL#8016 Parser for optimizer hints
 CREATE TABLE t1 (i INT, j INT);
@@ -979,22 +1347,22 @@ SELECT /*+ `@` */ 1;
 1
 1
 Warnings:
-Warning	1064	Optimizer hint syntax error near '@` */ 1' at line 1
+Warning	1064	Optimizer hint syntax error near '`@` */ 1' at line 1
 SELECT /*+ `@foo` */ 1;
 1
 1
 Warnings:
-Warning	1064	Optimizer hint syntax error near '@foo` */ 1' at line 1
+Warning	1064	Optimizer hint syntax error near '`@foo` */ 1' at line 1
 SELECT /*+ `foo@bar` */ 1;
 1
 1
 Warnings:
-Warning	1064	Optimizer hint syntax error near 'foo@bar` */ 1' at line 1
+Warning	1064	Optimizer hint syntax error near '`foo@bar` */ 1' at line 1
 SELECT /*+ `foo @bar` */ 1;
 1
 1
 Warnings:
-Warning	1064	Optimizer hint syntax error near 'foo @bar` */ 1' at line 1
+Warning	1064	Optimizer hint syntax error near '`foo @bar` */ 1' at line 1
 SELECT /*+ BKA( @) */ 1;
 1
 1
@@ -1149,8 +1517,6 @@ Warnings:
 Warning	3127	Query block name `select#1` is not found for BKA hint
 DROP TABLE ` quoted name тест`;
 SET SQL_MODE = 'ANSI_QUOTES';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE " quoted name тест" (i INT);
 SELECT /*+ BKA(" quoted name тест") */ 1 FROM t1;
 1
@@ -1206,9 +1572,11 @@ EXPLAIN SELECT /*+ QB_NAME(``) */ 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1064	Optimizer hint syntax error near '`) */ 1' at line 1
+Warning	1064	Optimizer hint syntax error near '``) */ 1' at line 1
 Note	1003	/* select#1 */ select 1 AS `1`
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 EXPLAIN SELECT /*+ QB_NAME(`�``�`) */ 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -1241,42 +1609,8 @@ Warning	3127	Query block name `таблица` is not found for BKA hint
 SELECT /*+ NO_ICP(`�`) */ 1 FROM t1;
 1
 Warnings:
-Warning	1064	Optimizer hint syntax error near '?`) */ 1 FROM t1' at line 1
+Warning	1064	Optimizer hint syntax error near '`?`) */ 1 FROM t1' at line 1
 DROP TABLE таблица;
-
-# test the MAX_EXECUTION_TIME hint for SELECT statements:
-
-INSERT INTO t1 VALUES (1, 1), (2, 2);
-SELECT /*+ MAX_EXECUTION_TIME(4294967296) */ 1 FROM t1;
-1
-1
-1
-Warnings:
-Warning	1064	Unsupported MAX_EXECUTION_TIME near ') */ 1 FROM t1' at line 1
-SELECT /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1;
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
-SELECT  /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1 UNION SELECT 1, 2, 3;
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
-(SELECT /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1) UNION (SELECT 1, 2, 3);
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
-((SELECT  /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1));
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
-
-# only SELECT statements supports the MAX_EXECUTION_TIME hint (warning):
-
-CREATE TABLE t2 (i INT);
-INSERT /*+ MAX_EXECUTION_TIME(1) */ INTO t2 SELECT 1;
-Warnings:
-Warning	3125	MAX_EXECUTION_TIME hint is supported by SELECT statements only
-REPLACE /*+ MAX_EXECUTION_TIME(1) */ INTO t2 SELECT 1;
-Warnings:
-Warning	3125	MAX_EXECUTION_TIME hint is supported by SELECT statements only
-UPDATE /*+ MAX_EXECUTION_TIME(1) */ t2 SET i = 1;
-Warnings:
-Warning	3125	MAX_EXECUTION_TIME hint is supported by SELECT statements only
-DELETE /*+ MAX_EXECUTION_TIME(1) */ FROM t2 WHERE i = 1;
-Warnings:
-Warning	3125	MAX_EXECUTION_TIME hint is supported by SELECT statements only
 
 # derived tables and other subqueries:
 
@@ -1338,6 +1672,7 @@ Warning	1064	Optimizer hint syntax error near '( */ 1' at line 1
 1
 Warnings:
 Warning	1064	Optimizer hint syntax error near ') */ 1)' at line 1
+INSERT INTO t1 VALUES (1, 1), (2, 2);
 
 # wrong place for hint, so recognize that stuff as a regular commentary:
 
@@ -1385,6 +1720,442 @@ SELECT
 1
 Warnings:
 Warning	1064	Optimizer hint syntax error near '? bad syntax */ 1' at line 2
-DROP TABLE t1, t2;
+DROP TABLE t1;
+#
+# Bug #21095608: OPTIMIZER HINT PARSER DOESN'T ACCEPT NUMBER-PREFIXED
+#                QUERY BLOCK NAMES AFTER @
+#
+CREATE TABLE t1 (i INT);
+EXPLAIN SELECT /*+ QB_NAME(1a) BKA(t1@1a) */ 1 FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`1a`) BKA(`t1`@`1a`) */ 1 AS `1` from `test`.`t1`
+DROP TABLE t1;
+#
+# Bug #21148405: OPTIMIZER HINTS: READ OF FREE MEMORY FOR INVALID HINTS
+#
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE cur1 CURSOR FOR  SELECT /*+ NO_MRR(q w)*/1;
+OPEN cur1;
+END|
+CALL p1();
+Warnings:
+Warning	3128	Unresolved name `q`@`select#1` `w` for NO_MRR hint
+CALL p1();
+Warnings:
+Warning	3128	Unresolved name `q`@`select#1` `w` for NO_MRR hint
+DROP PROCEDURE p1;
+#
+# WL#9307 MERGE/NO_MERGE hint for derived table, view
+#
+create table t1(a int);
+explain select * from (select * from t1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ merge(dt) */ * from (select * from t1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`dt`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ no_merge(dt) */ * from (select * from t1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`select#1`) */ `dt`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt`
+# Also testing that case of letters is irrelevant.
+explain select /*+ no_mERge(dt) */ * from (select * from t1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`select#1`) */ `dt`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt`
+create view v1 as (select * from t1);
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`v1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ no_merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `v1`.`a` AS `a` from `test`.`v1`
+drop view v1;
+# hint is OVERRIDDEN by algorithm=
+create algorithm=merge view v1 as (select * from t1);
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`v1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ no_merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+drop view v1;
+create algorithm=temptable view v1 as (select * from t1);
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+explain select /*+ merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`v1`@`select#1`) */ `v1`.`a` AS `a` from `test`.`v1`
+explain select /*+ no_merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `v1`.`a` AS `a` from `test`.`v1`
+drop view v1;
+# hint OVERRIDES optimizer_switch
+set optimizer_switch="derived_merge=off";
+explain select * from (select * from t1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt`
+explain select /*+ merge(dt) */ * from (select * from t1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`dt`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ no_merge(dt) */ * from (select * from t1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`select#1`) */ `dt`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt`
+create view v1 as (select * from t1);
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+explain select /*+ merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`v1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ no_merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `v1`.`a` AS `a` from `test`.`v1`
+drop view v1;
+set optimizer_switch=default;
+# Can apply to certain derived tables
+create table t2(a int, b int);
+create table t3 like t2;
+explain select /*+ no_merge(dt) merge(dt2) */ *
+from (select * from t1) as dt, (select * from t2) as dt2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`select#1`) MERGE(`dt2`@`select#1`) */ `dt`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` join `test`.`t2`
+# Or to all:
+explain select /*+ no_merge() */ *
+from (select * from t1) as dt, (select * from t2) as dt2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(@`select#1`) */ `dt`.`a` AS `a`,`dt2`.`a` AS `a`,`dt2`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` join (/* select#3 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) `dt2`
+# And be specified in outer blocks, with naming:
+explain select /*+ no_merge(dt@qb1) merge(dt2@qb1) */ * from t1 where a =
+(select /*+ qb_name(qb1) */ 3
+from (select * from t1) as dt, (select * from t2) as dt2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`qb1`) MERGE(`dt2`@`qb1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select /*+ QB_NAME(`qb1`) */ 3 from (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` join `test`.`t2`))
+# with another syntax:
+explain select /*+ no_merge(@qb1 dt) merge(@qb1 dt2) */ * from t1 where a =
+(select /*+ qb_name(qb1) */ 3
+from (select * from t1) as dt, (select * from t2) as dt2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`qb1`) MERGE(`dt2`@`qb1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select /*+ QB_NAME(`qb1`) */ 3 from (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` join `test`.`t2`))
+# A hint can list more than one table
+explain select /*+ merge(dt2) no_merge(dt,dt3) */ *
+from (select * from t1) as dt, (select * from t2) as dt2,
+(select * from t3) as dt3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+4	DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`dt2`@`select#1`) NO_MERGE(`dt`@`select#1`) NO_MERGE(`dt3`@`select#1`) */ `dt`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`dt3`.`a` AS `a`,`dt3`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` join `test`.`t2` join (/* select#4 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3`) `dt3`
+# Merge hint OVERRIDES heuristics, for example the one which
+# materializes when user variables are set.
+explain select * from
+(
+select * from t1
+where (1,a,2) =  (
+select @n:=@n+1, t2.a, sum(t2.b)
+from (select @n:=1) as dt, t2
+group by t2.a
+)
+) as dt2
+;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+3	UNCACHEABLE SUBQUERY	<derived4>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+3	UNCACHEABLE SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+4	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select `dt2`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((1,`test`.`t1`.`a`,2) = (/* select#3 */ select (@n:=((@`n`) + 1)),`test`.`t2`.`a`,sum(`test`.`t2`.`b`) from `test`.`t2` group by `test`.`t2`.`a`))) `dt2`
+explain select /*+ merge(dt2) */ * from
+(
+select * from t1
+where (1,a,2) =  (
+select @n:=@n+1, t2.a, sum(t2.b)
+from (select @n:=1) as dt, t2
+group by t2.a
+)
+) as dt2
+;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+3	UNCACHEABLE SUBQUERY	<derived4>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+3	UNCACHEABLE SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+4	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`dt2`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where ((1,`test`.`t1`.`a`,2) = (/* select#3 */ select (@n:=((@`n`) + 1)),`test`.`t2`.`a`,sum(`test`.`t2`.`b`) from `test`.`t2` group by `test`.`t2`.`a`))
+# ALGORITHM clause overrides heuristics too
+create view v1 as select (select t1.a from t1 where t1.a=t2.a) from t2;
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select `v1`.`(select t1.a from t1 where t1.a=t2.a)` AS `(select t1.a from t1 where t1.a=t2.a)` from `test`.`v1`
+drop view v1;
+create algorithm=merge view v1 as select (select t1.a from t1 where t1.a=t2.a) from t2;
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select (/* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`a`)) AS `(select t1.a from t1 where t1.a=t2.a)` from `test`.`t2`
+drop view v1;
+# Hint for index is useless and should be ignored
+select /*+ no_mrr(dt idx1) */ * from (select 1 from t1 limit 1) dt;
+1
+Warnings:
+Warning	3128	Unresolved name `dt`@`select#1` `idx1` for NO_MRR hint
+select /*+ no_mrr(dt idx1) */ * from (select 1 from t1) dt;
+1
+Warnings:
+Warning	3128	Unresolved name `dt`@`select#1` `idx1` for NO_MRR hint
+# Hint for UPDATE
+insert into t1 values(1),(2);
+create view v1 as
+select  * from t1 where a <> 0;
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain update t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+update t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
+select * from t3;
+a	b
+11	1
+12	2
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain update /*+ no_merge(v1) */ t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+update /*+ no_merge(v1) */ t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
+select * from t3;
+a	b
+11	1
+12	2
+# Update v1
+delete from t3;
+insert into t3 values(1,1),(2,2);
+delete from t1;
+insert into t1 values(1),(2);
+explain update t3, v1 set v1.a=t3.a+10 where t3.a-v1.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+update t3, v1 set v1.a=t3.a+10 where t3.a-v1.a=0;
+select * from t1;
+a
+11
+12
+delete from t1;
+insert into t1 values(1),(2);
+update /*+ no_merge(v1) */ t3, v1 set v1.a=t3.a+10 where t3.a-v1.a=0;
+ERROR HY000: The target table v1 of the UPDATE is not updatable
+select * from t1;
+a
+1
+2
+# A derived table in UPDATE
+delete from t1;
+insert into t1 values(1),(2);
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain update t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+update t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
+select * from t3;
+a	b
+11	1
+12	2
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain update /*+ no_merge(dt) */ t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+update /*+ no_merge(dt) */ t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
+select * from t3;
+a	b
+11	1
+12	2
+# A derived table in first-level subquery of UPDATE, the update
+# target not being in the derived table. Before the WL, the
+# derived table would always be materialized; now it's only
+# heuristic and can be overridden.
+delete from t1;
+insert into t1 values(1),(2);
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain update t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+from (select * from t1 where a>1) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+update t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+from (select * from t1 where a>1) dt);
+select * from t3;
+a	b
+1	1
+2	NULL
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain update /*+ merge(dt@sub) */ t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+from (select * from t1 where a>1) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+update /*+ merge(dt@sub) */ t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+from (select * from t1 where a>1) dt);
+select * from t3;
+a	b
+1	1
+2	NULL
+# A derived table in UPDATE, the update target being in the
+# derived table.
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain update t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+from (select * from t3 where b>1) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	NULL
+3	DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+update t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+from (select * from t3 where b>1) dt);
+select * from t3;
+a	b
+1	1
+2	NULL
+delete from t3;
+insert into t3 values(1,1),(2,2);
+# The heuristic which materializes, intends to allow the query;
+# if you disable it, the query cannot run:
+update /*+ merge(dt@sub) */ t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+from (select * from t3 where b>1) dt);
+ERROR HY000: You can't specify target table 't3' for update in FROM clause
+select * from t3;
+a	b
+1	1
+2	2
+# DELETE.
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain delete t3.* from t3, v1 where t3.a-v1.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	DELETE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+delete t3.* from t3, v1 where t3.a-v1.a=0;
+select * from t3;
+a	b
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain delete /*+ no_merge(v1) */ t3.* from t3, v1 where t3.a-v1.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+delete /*+ no_merge(v1) */ t3.* from t3, v1 where t3.a-v1.a=0;
+select * from t3;
+a	b
+drop view v1;
+drop table t1,t2,t3;
+#
+# Unbalanced commentary test
+#
 SELECT /*+ 10;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/*+ 10' at line 1

@@ -41,14 +41,22 @@
 if (`select '$crash_safe_small' <> ''`)
 {
   --echo 'Small rpl_mts_crash_safe'
-  let $max_groups=2;
-  let $max_workers=2;
+  let $max_groups= 4;
+  let $max_workers= 4;
+  # Bug#18890771: RPL.RPL_STM_MIXED_MTS_REC_CRASH_SAFE_SMALL NOT SUITABLE FOR
+  # PER PUSH RUNS: Declaring the four maximum numbers corresponding to the
+  # initial four while loop variables below. These maximum numbers are further
+  # used in while loops.
+  let $max_count_debug_groups= 3;
+  let $max_count_workers= 4;
+  let $max_count_checkpoint= 2;
+  let $max_count_groups= 4;
 }
 if (`select '$crash_safe_small' = ''`)
 {
   --echo 'Big rpl_mts_crash_safe'
-  let $max_groups=3;
-  let $max_workers=3;
+  let $max_groups= 3;
+  let $max_workers= 3;
 }
 --let $verbose= 0
 --connection master
@@ -58,41 +66,67 @@ if (`select '$crash_safe_small' = ''`)
 
 
 --echo ########################################################################
---echo #                                TEST 
+--echo #                                TEST
 --echo ########################################################################
-let $count_debug_groups=1;
+let $count_debug_groups= 1;
 while ($count_debug_groups <= $max_groups)
 {
-  let $count_workers=1;
+  let $count_workers= 1;
   while ($count_workers <= $max_workers)
   {
-    let $count_checkpoint=0;
+    let $count_checkpoint= 0;
     while ($count_checkpoint <= $count_debug_groups)
     {
-      let $count_groups=$count_debug_groups;
+      let $count_groups= $count_debug_groups;
       while ($count_groups <= $max_groups)
       {
-        --connection slave
-        --eval SET @@global.slave_parallel_workers= $count_workers
-        --eval SET @@global.slave_checkpoint_period= $count_checkpoint
-        let $count_transactions=1;
-        while ($count_transactions <= $count_groups)
+        # Bug#18890771: RPL.RPL_STM_MIXED_MTS_REC_CRASH_SAFE_SMALL NOT SUITABLE
+        # FOR PER PUSH RUN: Entering into the two innermost while loops only if
+        # the current four while loop variables are equal to the corresponding
+        # four maximum numbers.
+        --let $equal= 1
+        if (`select '$crash_safe_small' <> ''`)
         {
-          let $count_database=1;
-          while ($count_database <= $count_workers)
+          --let $equal= 0
+          if ($count_debug_groups == $max_count_debug_groups)
           {
-            --connection master
-            --let $database_name=test_$count_database
-            --echo Generating Number of Workers $count_workers --- Number of Groups per worker $count_groups --- Debugging Groups $count_debug_groups --- Database $database_name
-            --let $commands= B T T C
-            --source extra/rpl_tests/rpl_mts_crash_safe.inc
-            inc $count_database;
+            if ($count_workers == $max_count_workers)
+            {
+              if ($count_checkpoint == $max_count_checkpoint)
+              {
+                if ($count_groups == $max_count_groups)
+                  {
+                    --let $equal= 1
+                  }
+              }
+            }
           }
-          inc $count_transactions;
         }
-        --echo ----Executing----
-        --let $commands= recovery
-        --source extra/rpl_tests/rpl_mts_crash_safe.inc
+        if ($equal == 1)
+        {
+          --connection slave
+          --eval SET @@global.slave_parallel_workers= $count_workers
+          --eval SET @@global.slave_checkpoint_period= $count_checkpoint
+          let $count_transactions= 1;
+          while ($count_transactions <= $count_groups)
+          {
+            let $count_database= 1;
+            while ($count_database <= $count_workers)
+            {
+              --connection master
+              --let $database_name= test_$count_database
+              --echo Generating Number of Workers $count_workers --- Number of Groups per worker $count_groups --- Debugging Groups $count_debug_groups --- Database $database_name
+              --let $commands= B T T C
+              --source extra/rpl_tests/rpl_mts_crash_safe.inc
+              inc $count_database;
+            }
+            inc $count_transactions;
+          }
+          --let $include_silent= 0
+          --echo ----Executing----
+          --let $commands= recovery
+          --source extra/rpl_tests/rpl_mts_crash_safe.inc
+        }
         inc $count_groups;
       }
       inc $count_checkpoint;

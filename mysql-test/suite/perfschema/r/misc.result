@@ -52,7 +52,7 @@ SELECT object_schema, object_name FROM performance_schema.objects_summary_global
 WHERE object_schema='test';
 object_schema	object_name
 create table performance_schema.t1(a int);
-ERROR 42000: CREATE command denied to user 'root'@'localhost' for table 't1'
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
 WHERE object_schema='test';
 object_schema	object_name
@@ -89,31 +89,17 @@ FROM performance_schema.table_io_waits_summary_by_index_usage
 WHERE object_schema = 'test'
    AND object_name = 't_60905';
 object_schema	object_name	index_name	count_fetch	count_insert	count_update	count_delete
-test	t_60905	(index 0)	2	0	0	1
-test	t_60905	NULL	5	5	0	1
-flush table t_60905;
-SELECT object_schema,
-object_name,
-index_name,
-count_fetch,
-count_insert,
-count_update,
-count_delete
-FROM performance_schema.table_io_waits_summary_by_index_usage
-WHERE object_schema = 'test'
-   AND object_name = 't_60905';
-object_schema	object_name	index_name	count_fetch	count_insert	count_update	count_delete
 test	t_60905	i	2	0	0	1
 test	t_60905	NULL	5	5	0	1
 DROP TABLE t_60905;
 show global variables like "performance_schema_max_thread_instances";
 Variable_name	Value
-performance_schema_max_thread_instances	200
+performance_schema_max_thread_instances	-1
 explain select * from performance_schema.threads;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	threads	NULL	ALL	NULL	NULL	NULL	NULL	256	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID`,`performance_schema`.`threads`.`NAME` AS `NAME`,`performance_schema`.`threads`.`TYPE` AS `TYPE`,`performance_schema`.`threads`.`PROCESSLIST_ID` AS `PROCESSLIST_ID`,`performance_schema`.`threads`.`PROCESSLIST_USER` AS `PROCESSLIST_USER`,`performance_schema`.`threads`.`PROCESSLIST_HOST` AS `PROCESSLIST_HOST`,`performance_schema`.`threads`.`PROCESSLIST_DB` AS `PROCESSLIST_DB`,`performance_schema`.`threads`.`PROCESSLIST_COMMAND` AS `PROCESSLIST_COMMAND`,`performance_schema`.`threads`.`PROCESSLIST_TIME` AS `PROCESSLIST_TIME`,`performance_schema`.`threads`.`PROCESSLIST_STATE` AS `PROCESSLIST_STATE`,`performance_schema`.`threads`.`PROCESSLIST_INFO` AS `PROCESSLIST_INFO`,`performance_schema`.`threads`.`PARENT_THREAD_ID` AS `PARENT_THREAD_ID`,`performance_schema`.`threads`.`ROLE` AS `ROLE`,`performance_schema`.`threads`.`INSTRUMENTED` AS `INSTRUMENTED` from `performance_schema`.`threads`
+Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID`,`performance_schema`.`threads`.`NAME` AS `NAME`,`performance_schema`.`threads`.`TYPE` AS `TYPE`,`performance_schema`.`threads`.`PROCESSLIST_ID` AS `PROCESSLIST_ID`,`performance_schema`.`threads`.`PROCESSLIST_USER` AS `PROCESSLIST_USER`,`performance_schema`.`threads`.`PROCESSLIST_HOST` AS `PROCESSLIST_HOST`,`performance_schema`.`threads`.`PROCESSLIST_DB` AS `PROCESSLIST_DB`,`performance_schema`.`threads`.`PROCESSLIST_COMMAND` AS `PROCESSLIST_COMMAND`,`performance_schema`.`threads`.`PROCESSLIST_TIME` AS `PROCESSLIST_TIME`,`performance_schema`.`threads`.`PROCESSLIST_STATE` AS `PROCESSLIST_STATE`,`performance_schema`.`threads`.`PROCESSLIST_INFO` AS `PROCESSLIST_INFO`,`performance_schema`.`threads`.`PARENT_THREAD_ID` AS `PARENT_THREAD_ID`,`performance_schema`.`threads`.`ROLE` AS `ROLE`,`performance_schema`.`threads`.`INSTRUMENTED` AS `INSTRUMENTED`,`performance_schema`.`threads`.`HISTORY` AS `HISTORY`,`performance_schema`.`threads`.`CONNECTION_TYPE` AS `CONNECTION_TYPE`,`performance_schema`.`threads`.`THREAD_OS_ID` AS `THREAD_OS_ID`,`performance_schema`.`threads`.`RESOURCE_GROUP` AS `RESOURCE_GROUP` from `performance_schema`.`threads`
 use performance_schema;
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
@@ -122,3 +108,101 @@ Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	E
 show events where Db= 'performance_schema';
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 use test;
+use test;
+truncate performance_schema.events_statements_history;
+truncate performance_schema.events_statements_history_long;
+select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+
+select mysql_errno, returned_sqlstate, message_text, errors, warnings
+from performance_schema.events_statements_history where errors > 0;
+mysql_errno	returned_sqlstate	message_text	errors	warnings
+1146	42S02	Table 'test.t1' doesn't exist	1	0
+
+select mysql_errno, returned_sqlstate, message_text, errors, warnings from 
+performance_schema.events_statements_history_long where errors > 0;
+mysql_errno	returned_sqlstate	message_text	errors	warnings
+1146	42S02	Table 'test.t1' doesn't exist	1	0
+use performance_schema;
+truncate performance_schema.events_statements_history;
+set names latin1;
+select 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' AS A;
+A
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+select _utf8mb4 'Ð²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑ' as B;
+B
+вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�вас�
+select count(*) from events_statements_history where sql_text like "%...";
+count(*)
+2
+drop table if exists test.t1;
+insert into performance_schema.setup_objects
+values ('TABLE', 'test', 't1', 'YES', 'YES');
+create table test.t1 (a int, b int, primary key (a), key my_index(b));
+insert into test.t1 values (1, 2), (3, 4), (5, 6);
+flush table test.t1;
+select * from test.t1 where a = 3;
+a	b
+3	4
+select * from test.t1 where b = 4;
+a	b
+3	4
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
+from performance_schema.table_lock_waits_summary_by_table
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR
+TABLE	test	t1	3
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	COUNT_STAR
+TABLE	test	t1	PRIMARY	1
+TABLE	test	t1	my_index	1
+TABLE	test	t1	NULL	3
+update performance_schema.setup_objects
+set timed = 'NO' where OBJECT_NAME = 't1';
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
+from performance_schema.table_lock_waits_summary_by_table
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR
+TABLE	test	t1	3
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	COUNT_STAR
+TABLE	test	t1	PRIMARY	1
+TABLE	test	t1	my_index	1
+TABLE	test	t1	NULL	3
+update performance_schema.setup_objects
+set enabled = 'NO' where OBJECT_NAME = 't1';
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
+from performance_schema.table_lock_waits_summary_by_table
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR
+TABLE	test	t1	3
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	COUNT_STAR
+TABLE	test	t1	PRIMARY	1
+TABLE	test	t1	my_index	1
+TABLE	test	t1	NULL	3
+update performance_schema.setup_objects
+set enabled = 'YES' where OBJECT_NAME = 't1';
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
+from performance_schema.table_lock_waits_summary_by_table
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR
+TABLE	test	t1	3
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_NAME = 't1';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	COUNT_STAR
+TABLE	test	t1	PRIMARY	1
+TABLE	test	t1	my_index	1
+TABLE	test	t1	NULL	3
+drop table test.t1;
+delete from performance_schema.setup_objects
+where (OBJECT_TYPE = 'TABLE')
+and (OBJECT_SCHEMA = 'test')
+and (OBJECT_NAME = 't1');

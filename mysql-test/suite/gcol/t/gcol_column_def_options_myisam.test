@@ -36,6 +36,8 @@ eval SET @@session.default_storage_engine = 'MyISAM';
 
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines
+let $support_virtual_index= 0;
+let $support_native_partitioning= 0;
 --source suite/gcol/inc/gcol_column_def_options.inc
 
 #------------------------------------------------------------------------------#

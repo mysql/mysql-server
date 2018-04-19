@@ -1,0 +1,94 @@
+--source include/big_test.inc
+--source include/have_validate_password_plugin.inc
+
+
+let BASEDIR= `select @@basedir`;
+let DDIR=$MYSQL_TMP_DIR/installdb_test;
+let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
+let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/tiny_bootstrap.sql;
+
+--echo # shut server down
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo # Server is down
+
+
+--echo #
+--echo # Try --initialize with --init-file [UN]INSTALL PLUGIN
+--echo #
+
+--echo # Create the bootstrap file
+--perl
+  use strict;
+  my $bootstrap_file= $ENV{'BOOTSTRAP_SQL'} or die;
+  open(OUT_FILE, "> $bootstrap_file") or die;
+
+  print OUT_FILE "INSTALL PLUGIN validate_password SONAME '" or die;
+  print OUT_FILE $ENV{'VALIDATE_PASSWORD'} or die;
+  print OUT_FILE "';\n" or die;
+
+  print OUT_FILE "CREATE TABLE mysql.t1 AS SELECT * FROM INFORMATION_SCHEMA.plugins;\n" or die;
+  print OUT_FILE "UNINSTALL PLUGIN validate_password;\n" or die;
+
+  print OUT_FILE "INSTALL PLUGIN validate_password SONAME '" or die;
+  print OUT_FILE $ENV{'VALIDATE_PASSWORD'} or die;
+  print OUT_FILE "';\n" or die;
+
+  print OUT_FILE "CREATE DATABASE test;\n" or die;
+
+  close(OUT_FILE);
+EOF
+
+--echo # Run the server with --initialize --init-file
+--exec $MYSQLD $extra_args --initialize-insecure $VALIDATE_PASSWORD_OPT --datadir=$DDIR --init-file=$BOOTSTRAP_SQL > $MYSQLD_LOG 2>&1
+
+--echo # Restart the server against DDIR
+--exec echo "restart:--datadir=$DDIR $VALIDATE_PASSWORD_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # connect as root
+connect(root_con,localhost,root,,mysql);
+
+--echo # Check the status of the plugin as loaded by --init-file
+SELECT PLUGIN_STATUS FROM mysql.t1
+  WHERE PLUGIN_NAME = 'validate_password';
+
+--echo # Check the current status of the plugin
+SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.plugins
+  WHERE PLUGIN_NAME = 'validate_password';
+
+--echo # must work as the plugin must be loaded at startup
+UNINSTALL PLUGIN validate_password;
+
+--echo # shut server down
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo # Server is down
+
+--echo # close the test connection
+connection default;
+disconnect root_con;
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # delete datadir
+--force-rmdir $DDIR
+
+--echo # delete the bootsrap file
+remove_file $BOOTSTRAP_SQL;
+
+
+--echo #
+--echo # Cleanup
+--echo #
+--echo # Restarting the server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # End of 5.7 tests

@@ -1,0 +1,40 @@
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v_t1;
+--enable_warnings
+
+# Create a base table and a view
+CREATE TABLE t1 (id INT PRIMARY KEY);
+CREATE view v_t1 AS SELECT * FROM t1;
+
+# Verify the base table and view is supported
+CALL sys.table_exists('test', 't1', @exists);
+SELECT @exists;
+
+CALL sys.table_exists('test', 'v_t1', @exists);
+SELECT @exists;
+
+# Replace the base table with a temporary table
+CREATE TEMPORARY TABLE t1 (id INT PRIMARY KEY);
+CALL sys.table_exists('test', 't1', @exists);
+SELECT @exists;
+
+# Try a non-existing table
+CALL sys.table_exists('test', 't2', @exists);
+SELECT @exists;
+
+# Try variables longer than expected
+SET @identifier := REPEAT('a', 65);
+
+-- error 1406
+CALL sys.table_exists(@identifier, 't1', @exists);
+
+-- error 1406
+CALL sys.table_exists('test', @identifier, @exists);
+
+# Clean up
+DROP TEMPORARY TABLE t1;
+DROP TABLE t1;
+DROP VIEW v_t1;
+SET @identifier := NULL;

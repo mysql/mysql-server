@@ -2,6 +2,10 @@
 # Metadata lock handling for stored procedures and
 # functions.
 #
+
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
+
 --echo # 
 --echo # Test coverage for changes performed by the fix
 --echo # for Bug#30977 "Concurrent statement using stored function
@@ -391,56 +395,6 @@ reap;
 connection default;
 drop function f1;
 drop procedure p1;
-
---echo # 
---echo # 4) MDL lock should not be taken for 
---echo # unrolled CALL statements.
---echo # The primary goal of metadata locks is a consistent binary log.
---echo # When a call statement is unrolled, it doesn't get to the
---echo # binary log, instead the statements that are contained
---echo # in the procedure body do. This can nest to any level.
---echo #
-create procedure p1() begin end;
-create procedure p2() begin end;
-create table t1 (a int);
-delimiter |;
-create procedure p3()
-begin
-  call p1();
-  call p1();
-  call p2();
-end|
-create procedure p4()
-begin
-  call p1();
-  call p1();
-  call p2();
-  call p2();
-  call p3();
-end|
-delimiter ;|
-begin;
-select * from t1;
-savepoint sv;
-call p4();
---echo # Prepared statement should not add any locks either.
-prepare stmt from "call p4()";
-execute stmt;
-execute stmt;
---echo # --> connection con1
-connection con1;
-drop procedure p1;
-drop procedure p2;
-drop procedure p3;
-drop procedure p4;
---echo # --> connection default
-connection default;
---echo # This is to verify there was no implicit commit.
-rollback to savepoint sv;
---error ER_SP_DOES_NOT_EXIST
-call p4();
-commit;
-drop table t1;
 
 --echo #
 --echo # 5) Locks should be taken on routines
@@ -906,7 +860,8 @@ connection default;
 delimiter |;
 CREATE PROCEDURE p1()
 BEGIN
-  SELECT get_lock("test", 10);
+  SHOW CREATE PROCEDURE p1;
+  SELECT get_lock("test", 100000);
   SHOW CREATE PROCEDURE p1;
 END|
 delimiter ;|
@@ -927,7 +882,7 @@ connection con2;
 --echo # Connection 3
 connection con3;
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist 
-  WHERE state='User lock' and info='SELECT get_lock("test", 10)';
+  WHERE state='User lock' and info='SELECT get_lock("test", 100000)';
 --source include/wait_condition.inc
 --echo # Alter p1
 DROP PROCEDURE p1;

@@ -1,0 +1,14 @@
+CREATE RESOURCE GROUP test TYPE=USER VCPU=1-3 THREAD_PRIORITY=5;
+ERROR HY000: Feature Resource Groups is unsupported (Platform Unsupported).
+ALTER RESOURCE GROUP test VCPU=0;
+ERROR HY000: Feature Resource Groups is unsupported (Platform Unsupported).
+DROP RESOURCE GROUP test;
+ERROR HY000: Feature Resource Groups is unsupported (Platform Unsupported).
+SET RESOURCE GROUP test TO 4;
+ERROR HY000: Feature Resource Groups is unsupported (Platform Unsupported).
+SET RESOURCE GROUP test TO (4,5);
+ERROR HY000: Feature Resource Groups is unsupported (Platform Unsupported).
+SET RESOURCE GROUP test;
+ERROR HY000: Feature Resource Groups is unsupported (Platform Unsupported).
+SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS;
+RESOURCE_GROUP_NAME	RESOURCE_GROUP_TYPE	RESOURCE_GROUP_ENABLED	VCPU_IDS	THREAD_PRIORITY

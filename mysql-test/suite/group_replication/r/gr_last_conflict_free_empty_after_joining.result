@@ -1,0 +1,225 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+#########################################################################
+# 1) Configure a replication group with 2 members
+#########################################################################
+
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+#########################################################################
+# 2) Execute a transaction on the first member
+#########################################################################
+
+[connection server1]
+CREATE TABLE t1 (a INT PRIMARY KEY);
+include/rpl_sync.inc
+
+#########################################################################
+# 3) Verify that the LAST_CONFLICT_FREE_TRANSACTION field of the
+# performance_schema.replication_group_members table has the same value
+# between members
+#########################################################################
+
+[connection server2]
+[connection server1]
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+FROM performance_schema.replication_group_member_stats gms
+JOIN performance_schema.replication_group_members gm
+ON gms.MEMBER_ID=gm.MEMBER_ID
+ORDER BY gm.MEMBER_PORT ASC;
+MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:3
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:3
+[connection server2]
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+FROM performance_schema.replication_group_member_stats gms
+JOIN performance_schema.replication_group_members gm
+ON gms.MEMBER_ID=gm.MEMBER_ID
+ORDER BY gm.MEMBER_PORT ASC;
+MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:3
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:3
+
+#########################################################################
+# 4) Restart group replication on member 2
+#########################################################################
+
+include/stop_group_replication.inc
+include/start_group_replication.inc
+
+#########################################################################
+# 5) Verify that the LAST_CONFLICT_FREE_TRANSACTION field of the second
+# member is empty (due to restart of the plugin) on both members
+#########################################################################
+
+[connection server1]
+[connection server2]
+[connection server1]
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+FROM performance_schema.replication_group_member_stats gms
+JOIN performance_schema.replication_group_members gm
+ON gms.MEMBER_ID=gm.MEMBER_ID
+ORDER BY gm.MEMBER_PORT ASC;
+MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:3
+SERVER2	
+[connection server2]
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+FROM performance_schema.replication_group_member_stats gms
+JOIN performance_schema.replication_group_members gm
+ON gms.MEMBER_ID=gm.MEMBER_ID
+ORDER BY gm.MEMBER_PORT ASC;
+MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:3
+SERVER2	
+
+#########################################################################
+# 6) Add a new member
+#########################################################################
+
+[connection server3]
+include/start_group_replication.inc
+
+#########################################################################
+# 7) Verify that this new member has an empty
+# LAST_CONFLICT_FREE_TRANSACTION on himself and in the rest of the
+# group
+#########################################################################
+
+[connection server1]
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+FROM performance_schema.replication_group_member_stats gms
+JOIN performance_schema.replication_group_members gm
+ON gms.MEMBER_ID=gm.MEMBER_ID
+ORDER BY gm.MEMBER_PORT ASC;
+MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:3
+SERVER2	
+SERVER3	
+[connection server2]
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+FROM performance_schema.replication_group_member_stats gms
+JOIN performance_schema.replication_group_members gm
+ON gms.MEMBER_ID=gm.MEMBER_ID
+ORDER BY gm.MEMBER_PORT ASC;
+MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:3
+SERVER2	
+SERVER3	
+[connection server3]
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+FROM performance_schema.replication_group_member_stats gms
+JOIN performance_schema.replication_group_members gm
+ON gms.MEMBER_ID=gm.MEMBER_ID
+ORDER BY gm.MEMBER_PORT ASC;
+MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:3
+SERVER2	
+SERVER3	
+
+#########################################################################
+# 8) Execute a new transaction
+#########################################################################
+
+[connection server1]
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+
+#########################################################################
+# 9) Verify that everyone has a conflict free transaction executed
+#########################################################################
+
+[connection server1]
+[connection server2]
+[connection server3]
+[connection server1]
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+FROM performance_schema.replication_group_member_stats gms
+JOIN performance_schema.replication_group_members gm
+ON gms.MEMBER_ID=gm.MEMBER_ID
+ORDER BY gm.MEMBER_PORT ASC;
+MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:6
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:6
+SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:6
+[connection server2]
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+FROM performance_schema.replication_group_member_stats gms
+JOIN performance_schema.replication_group_members gm
+ON gms.MEMBER_ID=gm.MEMBER_ID
+ORDER BY gm.MEMBER_PORT ASC;
+MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:6
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:6
+SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:6
+[connection server3]
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+FROM performance_schema.replication_group_member_stats gms
+JOIN performance_schema.replication_group_members gm
+ON gms.MEMBER_ID=gm.MEMBER_ID
+ORDER BY gm.MEMBER_PORT ASC;
+MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:6
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:6
+SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:6
+
+#########################################################################
+# 10) Restart group replication on member 1
+#########################################################################
+
+[connection server1]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+
+#########################################################################
+# 11) Verify that member 1 has no conflict free transaction on the group
+#########################################################################
+
+[connection server1]
+[connection server2]
+[connection server3]
+[connection server1]
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+FROM performance_schema.replication_group_member_stats gms
+JOIN performance_schema.replication_group_members gm
+ON gms.MEMBER_ID=gm.MEMBER_ID
+ORDER BY gm.MEMBER_PORT ASC;
+MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
+SERVER1	
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:6
+SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:6
+[connection server2]
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+FROM performance_schema.replication_group_member_stats gms
+JOIN performance_schema.replication_group_members gm
+ON gms.MEMBER_ID=gm.MEMBER_ID
+ORDER BY gm.MEMBER_PORT ASC;
+MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
+SERVER1	
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:6
+SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:6
+[connection server3]
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+FROM performance_schema.replication_group_member_stats gms
+JOIN performance_schema.replication_group_members gm
+ON gms.MEMBER_ID=gm.MEMBER_ID
+ORDER BY gm.MEMBER_PORT ASC;
+MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
+SERVER1	
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:6
+SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:6
+
+#########################################################################
+# 12) Cleanup
+#########################################################################
+
+DROP TABLE t1;
+include/rpl_sync.inc
+include/group_replication_end.inc

@@ -1,0 +1,39 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+[connection server2]
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+USE test;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET c1=2 WHERE c1=0;
+
+[connection server3]
+include/assert.inc ['There is a value 1 in table t1']
+include/assert.inc ['There is a value 2 in table t1']
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+USE test;
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (0);
+INSERT INTO t2 VALUES (1);
+UPDATE t2 SET c1=2 WHERE c1=0;
+include/rpl_sync.inc
+
+[connection server1]
+include/assert.inc ['Checking the number of records in test.t2']
+
+[connection server2]
+include/assert.inc ['Checking the number of records in test.t2']
+Occurrences of 'View_change_log_event' in the input file: 3
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+include/group_replication_end.inc

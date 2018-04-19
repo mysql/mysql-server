@@ -32,7 +32,7 @@ SELECT * FROM test.t2;
 c1	c2	c1
 abc	def	abc
 Warnings:
-Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = t2.c1' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = t2.c1' by a query rewrite plugin
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT c2 FROM test.t1', 'SELECT * FROM test.t1' );
 CALL query_rewrite.flush_rewrite_rules();
@@ -50,12 +50,14 @@ abc	def
 ghi	klm
 nop	qrs
 Warnings:
-Note	1105	Query 'SELECT c2 FROM test.t1' rewritten to 'SELECT * FROM test.t1' by plugin: Rewriter.
+Note	1105	Query 'SELECT c2 FROM test.t1' rewritten to 'SELECT * FROM test.t1' by a query rewrite plugin
 # Check that the old rewrites still work.
 SELECT * FROM test.t2;
 c1	c2	c1
 abc	def	abc
 Warnings:
-Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = t2.c1' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = t2.c1' by a query rewrite plugin
 DROP TABLE t1, t2;
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

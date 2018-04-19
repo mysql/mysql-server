@@ -1,0 +1,88 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# 1. Setup the first member (M1) with a recovery user that requires SSL
+#    with ssl_fips_mode= 'ON'.
+#
+[connection server1]
+SET SESSION sql_log_bin= 0;
+CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
+GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+SET SESSION sql_log_bin= 1;
+SET @ssl_fips_mode_save= @@GLOBAL.ssl_fips_mode;
+SET @@GLOBAL.ssl_fips_mode= 'ON';
+#
+# 2. Start and bootstrap M1.
+#
+include/start_and_bootstrap_group_replication.inc
+#
+# 3. Insert some data and verify that it gives warning for MD5().
+#
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, hash CHAR(32)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'test');
+INSERT INTO t1 VALUES (2, MD5(8));
+Warnings:
+Warning	11272	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	11272	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
+#
+# 4. Configure joining member (M2) to use SSL and Fips mode options on recovery.
+#    Start GR on M2. Check the data is there.
+#
+[connection server2]
+SET @group_replication_recovery_use_ssl_save= @@GLOBAL.group_replication_recovery_use_ssl;
+SET @group_replication_recovery_ssl_ca_save= @@GLOBAL.group_replication_recovery_ssl_ca;
+SET @group_replication_recovery_ssl_cert_save= @@GLOBAL.group_replication_recovery_ssl_cert;
+SET @group_replication_recovery_ssl_key_save= @@GLOBAL.group_replication_recovery_ssl_key;
+SET @group_replication_recovery_ssl_cipher_save= @@GLOBAL.group_replication_recovery_ssl_cipher;
+SET @group_replication_recovery_retry_count_save= @@GLOBAL.group_replication_recovery_retry_count;
+CHANGE MASTER TO MASTER_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
+SET GLOBAL group_replication_recovery_use_ssl= 1;
+SET GLOBAL group_replication_recovery_ssl_ca= 'MYSQL_TEST_DIR/std_data/cacert.pem';
+SET GLOBAL group_replication_recovery_ssl_cert= 'MYSQL_TEST_DIR/std_data/client-cert.pem';
+SET GLOBAL group_replication_recovery_ssl_key= 'MYSQL_TEST_DIR/std_data/client-key.pem';
+SET @ssl_fips_mode_save= @@GLOBAL.ssl_fips_mode;
+SET @@GLOBAL.ssl_fips_mode= 'ON';
+include/start_group_replication.inc
+#
+# Check the data is there
+#
+include/assert.inc [On the recovered member, the table should exist and have 1 elements;]
+DROP TABLE t1;
+include/rpl_sync.inc
+#
+# 5. Restart M2 with weak cipher with Fips mode ON and verify it
+#    does not start.
+#
+include/stop_group_replication.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials and all MEMBER_HOST column values of performance_schema.replication_group_members table are correct and DNS resolvable.");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+SET GLOBAL group_replication_recovery_ssl_cipher= 'CAMELLIA256-SHA';
+SET GLOBAL group_replication_recovery_retry_count= 1;
+include/start_group_replication.inc
+include/stop_group_replication.inc
+#
+# Clean up
+#
+SET @@GLOBAL.ssl_fips_mode= @ssl_fips_mode_save;
+SET @@GLOBAL.group_replication_recovery_use_ssl= @group_replication_recovery_use_ssl_save;
+SET @@GLOBAL.group_replication_recovery_ssl_ca= @group_replication_recovery_ssl_ca_save;
+SET @@GLOBAL.group_replication_recovery_ssl_cert= @group_replication_recovery_ssl_cert_save;
+SET @@GLOBAL.group_replication_recovery_ssl_key= @group_replication_recovery_ssl_key_save;
+SET @@GLOBAL.group_replication_recovery_ssl_cipher= @group_replication_recovery_ssl_cipher_save;
+SET @@GLOBAL.group_replication_recovery_retry_count= @group_replication_recovery_retry_count_save;
+[connection server1]
+SET @@GLOBAL.ssl_fips_mode= @ssl_fips_mode_save;
+SET SESSION sql_log_bin= 0;
+DROP USER 'rec_ssl_user';
+SET SESSION sql_log_bin= 1;
+include/group_replication_end.inc

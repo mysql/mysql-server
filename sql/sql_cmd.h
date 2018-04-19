@@ -1,111 +1,41 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file Representation of an SQL command.
+  @file sql/sql_cmd.h
+  Representation of an SQL command.
 */
 
 #ifndef SQL_CMD_INCLUDED
 #define SQL_CMD_INCLUDED
 
-#include "sql_alloc.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+
 class THD;
-
-/*
-  When a command is added here, be sure it's also added in mysqld.cc
-  in "struct show_var_st status_vars[]= {" ...
-
-  If the command returns a result set or is not allowed in stored
-  functions or triggers, please also make sure that
-  sp_get_flags_for_command (sp_head.cc) returns proper flags for the
-  added SQLCOM_.
-*/
-
-enum enum_sql_command {
-  SQLCOM_SELECT, SQLCOM_CREATE_TABLE, SQLCOM_CREATE_INDEX, SQLCOM_ALTER_TABLE,
-  SQLCOM_UPDATE, SQLCOM_INSERT, SQLCOM_INSERT_SELECT,
-  SQLCOM_DELETE, SQLCOM_TRUNCATE, SQLCOM_DROP_TABLE, SQLCOM_DROP_INDEX,
-
-  SQLCOM_SHOW_DATABASES, SQLCOM_SHOW_TABLES, SQLCOM_SHOW_FIELDS,
-  SQLCOM_SHOW_KEYS, SQLCOM_SHOW_VARIABLES, SQLCOM_SHOW_STATUS,
-  SQLCOM_SHOW_ENGINE_LOGS, SQLCOM_SHOW_ENGINE_STATUS, SQLCOM_SHOW_ENGINE_MUTEX,
-  SQLCOM_SHOW_PROCESSLIST, SQLCOM_SHOW_MASTER_STAT, SQLCOM_SHOW_SLAVE_STAT,
-  SQLCOM_SHOW_GRANTS, SQLCOM_SHOW_CREATE, SQLCOM_SHOW_CHARSETS,
-  SQLCOM_SHOW_COLLATIONS, SQLCOM_SHOW_CREATE_DB, SQLCOM_SHOW_TABLE_STATUS,
-  SQLCOM_SHOW_TRIGGERS,
-
-  SQLCOM_LOAD,SQLCOM_SET_OPTION,SQLCOM_LOCK_TABLES,SQLCOM_UNLOCK_TABLES,
-  SQLCOM_GRANT,
-  SQLCOM_CHANGE_DB, SQLCOM_CREATE_DB, SQLCOM_DROP_DB, SQLCOM_ALTER_DB,
-  SQLCOM_REPAIR, SQLCOM_REPLACE, SQLCOM_REPLACE_SELECT,
-  SQLCOM_CREATE_FUNCTION, SQLCOM_DROP_FUNCTION,
-  SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK,
-  SQLCOM_ASSIGN_TO_KEYCACHE, SQLCOM_PRELOAD_KEYS,
-  SQLCOM_FLUSH, SQLCOM_KILL, SQLCOM_ANALYZE,
-  SQLCOM_ROLLBACK, SQLCOM_ROLLBACK_TO_SAVEPOINT,
-  SQLCOM_COMMIT, SQLCOM_SAVEPOINT, SQLCOM_RELEASE_SAVEPOINT,
-  SQLCOM_SLAVE_START, SQLCOM_SLAVE_STOP,
-  SQLCOM_START_GROUP_REPLICATION, SQLCOM_STOP_GROUP_REPLICATION,
-  SQLCOM_BEGIN, SQLCOM_CHANGE_MASTER, SQLCOM_CHANGE_REPLICATION_FILTER,
-  SQLCOM_RENAME_TABLE,  
-  SQLCOM_RESET, SQLCOM_PURGE, SQLCOM_PURGE_BEFORE, SQLCOM_SHOW_BINLOGS,
-  SQLCOM_SHOW_OPEN_TABLES,
-  SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
-  SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI, SQLCOM_UPDATE_MULTI,
-  SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_DO,
-  SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
-  SQLCOM_SHOW_STORAGE_ENGINES, SQLCOM_SHOW_PRIVILEGES,
-  SQLCOM_HELP, SQLCOM_CREATE_USER, SQLCOM_DROP_USER, SQLCOM_RENAME_USER,
-  SQLCOM_REVOKE_ALL, SQLCOM_CHECKSUM,
-  SQLCOM_CREATE_PROCEDURE, SQLCOM_CREATE_SPFUNCTION, SQLCOM_CALL,
-  SQLCOM_DROP_PROCEDURE, SQLCOM_ALTER_PROCEDURE,SQLCOM_ALTER_FUNCTION,
-  SQLCOM_SHOW_CREATE_PROC, SQLCOM_SHOW_CREATE_FUNC,
-  SQLCOM_SHOW_STATUS_PROC, SQLCOM_SHOW_STATUS_FUNC,
-  SQLCOM_PREPARE, SQLCOM_EXECUTE, SQLCOM_DEALLOCATE_PREPARE,
-  SQLCOM_CREATE_VIEW, SQLCOM_DROP_VIEW,
-  SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER,
-  SQLCOM_XA_START, SQLCOM_XA_END, SQLCOM_XA_PREPARE,
-  SQLCOM_XA_COMMIT, SQLCOM_XA_ROLLBACK, SQLCOM_XA_RECOVER,
-  SQLCOM_SHOW_PROC_CODE, SQLCOM_SHOW_FUNC_CODE,
-  SQLCOM_ALTER_TABLESPACE,
-  SQLCOM_INSTALL_PLUGIN, SQLCOM_UNINSTALL_PLUGIN,
-  SQLCOM_BINLOG_BASE64_EVENT,
-  SQLCOM_SHOW_PLUGINS,
-  SQLCOM_CREATE_SERVER, SQLCOM_DROP_SERVER, SQLCOM_ALTER_SERVER,
-  SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
-  SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS,
-  SQLCOM_SHOW_CREATE_TRIGGER,
-  SQLCOM_ALTER_DB_UPGRADE,
-  SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
-  SQLCOM_SIGNAL, SQLCOM_RESIGNAL,
-  SQLCOM_SHOW_RELAYLOG_EVENTS,
-  SQLCOM_GET_DIAGNOSTICS,
-  SQLCOM_ALTER_USER,
-  SQLCOM_EXPLAIN_OTHER,
-  SQLCOM_SHOW_CREATE_USER,
-
-  /*
-    When a command is added here, be sure it's also added in mysqld.cc
-    in "struct show_var_st status_vars[]= {" ...
-  */
-  /* This should be the last !!! */
-  SQLCOM_END
-};
+class Prepared_statement;
 
 /**
-  @class Sql_cmd - Representation of an SQL command.
+  Representation of an SQL command.
 
   This class is an interface between the parser and the runtime.
   The parser builds the appropriate derived classes of Sql_cmd
@@ -122,27 +52,44 @@ enum enum_sql_command {
   The recommended name of a derived class of Sql_cmd is Sql_cmd_<derived>.
 
   Notice that the Sql_cmd class should not be confused with the Statement class.
-  Statement is a class that is used to manage an SQL command or a set 
+  Statement is a class that is used to manage an SQL command or a set
   of SQL commands. When the SQL statement text is analyzed, the parser will
   create one or more Sql_cmd objects to represent the actual SQL commands.
 */
-class Sql_cmd : public Sql_alloc
-{
-private:
-  Sql_cmd(const Sql_cmd &);         // No copy constructor wanted
-  void operator=(Sql_cmd &);        // No assignment operator wanted
+class Sql_cmd {
+ private:
+  Sql_cmd(const Sql_cmd &);   // No copy constructor wanted
+  void operator=(Sql_cmd &);  // No assignment operator wanted
 
-public:
+ public:
   /**
     @brief Return the command code for this statement
   */
   virtual enum_sql_command sql_command_code() const = 0;
 
+  /// @return true if this statement is prepared
+  bool is_prepared() const { return m_prepared; }
+
+  /**
+    Prepare this SQL statement.
+
+    @param thd the current thread
+
+    @returns false if success, true if error
+  */
+  virtual bool prepare(THD *thd MY_ATTRIBUTE((unused))) {
+    // Default behavior for a statement is to have no preparation code.
+    /* purecov: begin inspected */
+    DBUG_ASSERT(!is_prepared());
+    set_prepared();
+    return false;
+    /* purecov: end */
+  }
+
   /**
     Execute this SQL statement.
     @param thd the current thread.
-    @retval false on success.
-    @retval true on error
+    @returns false if success, true if error
   */
   virtual bool execute(THD *thd) = 0;
 
@@ -151,26 +98,71 @@ public:
 
     @see reinit_stmt_before_use()
 
-    @node Currently this function is overloaded for INSERT/REPLACE stmts only.
+    @note Currently this function is overloaded for INSERT/REPLACE stmts only.
 
     @param thd  Current THD.
   */
-  virtual void cleanup(THD *thd) {}
+  virtual void cleanup(THD *thd MY_ATTRIBUTE((unused))) {}
 
-protected:
-  Sql_cmd()
-  {}
+  /// Set the owning prepared statement
+  void set_owner(Prepared_statement *stmt) { m_owner = stmt; }
 
-  virtual ~Sql_cmd()
-  {
+  /// Get the owning prepared statement
+  Prepared_statement *get_owner() { return m_owner; }
+
+  /// @return true if SQL command is a DML statement
+  virtual bool is_dml() const { return false; }
+
+  /// @return true if implemented as single table plan, DML statement only
+  virtual bool is_single_table_plan() const {
+    /* purecov: begin inspected */
+    DBUG_ASSERT(is_dml());
+    return false;
+    /* purecov: end */
+  }
+
+  /**
+    Temporary function used to "unprepare" a prepared statement after
+    preparation, so that a subsequent execute statement will reprepare it.
+    This is done because UNIT::cleanup() will un-resolve all resolved QBs.
+  */
+  virtual void unprepare(THD *thd MY_ATTRIBUTE((unused))) {
+    DBUG_ASSERT(is_prepared());
+    m_prepared = false;
+  }
+
+ protected:
+  Sql_cmd() : m_owner(nullptr), m_prepared(false), prepare_only(true) {}
+
+  virtual ~Sql_cmd() {
     /*
       Sql_cmd objects are allocated in thd->mem_root.
       In MySQL, the C++ destructor is never called, the underlying MEM_ROOT is
       simply destroyed instead.
       Do not rely on the destructor for any cleanup.
     */
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
   }
+
+  /**
+    @return true if object represents a preparable statement, ie. a query
+    that is prepared with a PREPARE statement and executed with an EXECUTE
+    statement. False is returned for regular statements (non-preparable
+    statements) that are executed directly.
+    @todo replace with "m_owner != nullptr" when prepare-once is implemented
+  */
+  bool needs_explicit_preparation() const { return prepare_only; }
+
+  /// Set this statement as prepared
+  void set_prepared() { m_prepared = true; }
+
+ private:
+  Prepared_statement
+      *m_owner;     /// Owning prepared statement, nullptr if non-prep.
+  bool m_prepared;  /// True when statement has been prepared
+ protected:
+  bool prepare_only;  /// @see needs_explicit_preparation
+                      /// @todo remove when prepare-once is implemented
 };
 
-#endif // SQL_CMD_INCLUDED
+#endif  // SQL_CMD_INCLUDED

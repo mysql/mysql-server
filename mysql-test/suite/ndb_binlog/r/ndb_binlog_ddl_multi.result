@@ -1,59 +1,50 @@
-drop database if exists mysqltest;
-drop table if exists t1,t2,t3;
-drop database if exists mysqltest;
-drop table if exists t1,t2,t3;
 reset master;
 reset master;
 create database mysqltest;
 use mysqltest;
 create table t1 (a int primary key) engine=ndb;
 create table t2 (a int primary key) engine=ndb;
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	2	#	create database mysqltest
-mysqld-bin.000001	#	Query	2	#	use `mysqltest`; create table t1 (a int primary key) engine=ndb
-mysqld-bin.000001	#	Query	2	#	use `test`; create table t2 (a int primary key) engine=ndb
-show binlog events from <binlog_start>;
+binlog.000001	#	Query	#	#	create database mysqltest
+binlog.000001	#	Query	#	#	use `mysqltest`; create table t1 (a int primary key) engine=ndb
+binlog.000001	#	Query	#	#	use `test`; create table t2 (a int primary key) engine=ndb
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	1	#	create database mysqltest
-mysqld-bin.000001	#	Query	1	#	use `mysqltest`; create table t1 (a int primary key) engine=ndb
-mysqld-bin.000001	#	Query	1	#	use `test`; create table t2 (a int primary key) engine=ndb
+binlog.000001	#	Query	#	#	create database mysqltest
+binlog.000001	#	Query	#	#	use `mysqltest`; create table t1 (a int primary key) engine=ndb
+binlog.000001	#	Query	#	#	use `test`; create table t2 (a int primary key) engine=ndb
 reset master;
 reset master;
 alter table t2 add column (b int);
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
-show binlog events from <binlog_start>;
+Warning	1478	Converted FIXED field 'b' to DYNAMIC to enable online ADD COLUMN
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	1	#	use `test`; alter table t2 add column (b int)
+binlog.000001	#	Query	#	#	use `test`; alter table t2 add column (b int)
 reset master;
 reset master;
 ALTER DATABASE mysqltest CHARACTER SET latin1;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	ALTER DATABASE mysqltest CHARACTER SET latin1
 drop table mysqltest.t1;
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	1	#	ALTER DATABASE mysqltest CHARACTER SET latin1
-mysqld-bin.000001	#	Query	1	#	use `mysqltest`; drop table `mysqltest`.`t1`
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	1	#	ALTER DATABASE mysqltest CHARACTER SET latin1
-mysqld-bin.000001	#	Query	1	#	use `mysqltest`; drop table `mysqltest`.`t1`
 reset master;
 reset master;
 use test;
 insert into t2 values (1,2);
 drop database mysqltest;
 create table t1 (a int primary key) engine=ndb;
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	2	#	BEGIN
-mysqld-bin.000001	#	Table_map	2	#	table_id: # (test.t2)
-mysqld-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows	2	#	table_id: #
-mysqld-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
-mysqld-bin.000001	#	Query	2	#	COMMIT
-mysqld-bin.000001	#	Query	2	#	drop database mysqltest
-mysqld-bin.000001	#	Query	2	#	use `test`; create table t1 (a int primary key) engine=ndb
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.t2)
+binlog.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+binlog.000001	#	Write_rows	#	#	table_id: #
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	drop database mysqltest
+binlog.000001	#	Query	#	#	use `test`; create table t1 (a int primary key) engine=ndb
 drop table t2;
 reset master;
 reset master;
@@ -73,77 +64,39 @@ INITIAL_SIZE 12M
 ENGINE NDB;
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE = 4M 
-ENGINE=NDB;
+INITIAL_SIZE = 4M;
 ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile.dat' 
-ENGINE = NDB;
-ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile02.dat' 
-ENGINE = NDB;
-DROP TABLESPACE ts1 
-ENGINE = NDB;
+DROP DATAFILE 'datafile.dat';
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile02.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	2	#	CREATE LOGFILE GROUP lg1
+binlog.000001	#	Query	#	#	CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
 UNDO_BUFFER_SIZE = 1M
 ENGINE=NDB
-mysqld-bin.000001	#	Query	2	#	ALTER LOGFILE GROUP lg1
+binlog.000001	#	Query	#	#	ALTER LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile02.dat'
 INITIAL_SIZE = 4M 
 ENGINE=NDB
-mysqld-bin.000001	#	Query	2	#	CREATE TABLESPACE ts1
+binlog.000001	#	Query	#	#	CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M
 ENGINE NDB
-mysqld-bin.000001	#	Query	2	#	ALTER TABLESPACE ts1
+binlog.000001	#	Query	#	#	ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE = 4M 
-ENGINE=NDB
-mysqld-bin.000001	#	Query	2	#	ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile.dat' 
-ENGINE = NDB
-mysqld-bin.000001	#	Query	2	#	ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile02.dat' 
-ENGINE = NDB
-mysqld-bin.000001	#	Query	2	#	DROP TABLESPACE ts1 
-ENGINE = NDB
-mysqld-bin.000001	#	Query	2	#	DROP LOGFILE GROUP lg1 
-ENGINE =NDB
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	2	#	CREATE LOGFILE GROUP lg1
-ADD UNDOFILE 'undofile.dat'
-INITIAL_SIZE 16M
-UNDO_BUFFER_SIZE = 1M
-ENGINE=NDB
-mysqld-bin.000001	#	Query	2	#	ALTER LOGFILE GROUP lg1
-ADD UNDOFILE 'undofile02.dat'
-INITIAL_SIZE = 4M 
-ENGINE=NDB
-mysqld-bin.000001	#	Query	2	#	CREATE TABLESPACE ts1
-ADD DATAFILE 'datafile.dat'
-USE LOGFILE GROUP lg1
-INITIAL_SIZE 12M
-ENGINE NDB
-mysqld-bin.000001	#	Query	2	#	ALTER TABLESPACE ts1
-ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE = 4M 
-ENGINE=NDB
-mysqld-bin.000001	#	Query	2	#	ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile.dat' 
-ENGINE = NDB
-mysqld-bin.000001	#	Query	2	#	ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile02.dat' 
-ENGINE = NDB
-mysqld-bin.000001	#	Query	2	#	DROP TABLESPACE ts1 
-ENGINE = NDB
-mysqld-bin.000001	#	Query	2	#	DROP LOGFILE GROUP lg1 
+INITIAL_SIZE = 4M
+binlog.000001	#	Query	#	#	ALTER TABLESPACE ts1 
+DROP DATAFILE 'datafile.dat'
+binlog.000001	#	Query	#	#	ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile02.dat'
+binlog.000001	#	Query	#	#	DROP TABLESPACE ts1
+binlog.000001	#	Query	#	#	DROP LOGFILE GROUP lg1 
 ENGINE =NDB
 drop table t1;
 reset master;
@@ -156,15 +109,15 @@ create table t1 (a int key) engine=ndb;
 create table t2 (a int key) engine=ndb;
 create table t3 (a int key) engine=ndb;
 rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	2	#	use `test`; create table t1 (a int key) engine=ndb
-mysqld-bin.000001	#	Query	2	#	use `test`; create table t2 (a int key) engine=ndb
-mysqld-bin.000001	#	Query	2	#	use `test`; create table t3 (a int key) engine=ndb
-mysqld-bin.000001	#	Query	2	#	use `test`; rename table `test`.`t3` to `test`.`t4`
-mysqld-bin.000001	#	Query	2	#	use `test`; rename table `test`.`t2` to `test`.`t3`
-mysqld-bin.000001	#	Query	2	#	use `test`; rename table `test`.`t1` to `test`.`t2`
-mysqld-bin.000001	#	Query	2	#	use `test`; rename table `test`.`t4` to `test`.`t1`
+binlog.000001	#	Query	#	#	use `test`; create table t1 (a int key) engine=ndb
+binlog.000001	#	Query	#	#	use `test`; create table t2 (a int key) engine=ndb
+binlog.000001	#	Query	#	#	use `test`; create table t3 (a int key) engine=ndb
+binlog.000001	#	Query	#	#	use `test`; rename table `test`.`t3` to `test`.`t4`
+binlog.000001	#	Query	#	#	use `test`; rename table `test`.`t2` to `test`.`t3`
+binlog.000001	#	Query	#	#	use `test`; rename table `test`.`t1` to `test`.`t2`
+binlog.000001	#	Query	#	#	use `test`; rename table `test`.`t4` to `test`.`t1`
 drop table t1;
 drop table t2;
 drop table t3;
@@ -179,20 +132,130 @@ insert into t1 values(1);
 rename table t1 to t2;
 insert into t2 values(2);
 drop table t2;
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	2	#	use `test`; create table t1 (a int key) engine=ndb
-mysqld-bin.000001	#	Query	2	#	BEGIN
-mysqld-bin.000001	#	Table_map	2	#	table_id: # (test.t1)
-mysqld-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows	2	#	table_id: #
-mysqld-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
-mysqld-bin.000001	#	Query	2	#	COMMIT
-mysqld-bin.000001	#	Query	2	#	use `test`; rename table `test`.`t1` to `test`.`t2`
-mysqld-bin.000001	#	Query	2	#	BEGIN
-mysqld-bin.000001	#	Table_map	2	#	table_id: # (test.t2)
-mysqld-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows	2	#	table_id: #
-mysqld-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
-mysqld-bin.000001	#	Query	2	#	COMMIT
-mysqld-bin.000001	#	Query	2	#	use `test`; DROP TABLE `t2` /* generated by server */
+binlog.000001	#	Query	#	#	use `test`; create table t1 (a int key) engine=ndb
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.t1)
+binlog.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+binlog.000001	#	Write_rows	#	#	table_id: #
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	use `test`; rename table `test`.`t1` to `test`.`t2`
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.t2)
+binlog.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+binlog.000001	#	Write_rows	#	#	table_id: #
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	use `test`; DROP TABLE `t2` /* generated by server */
+reset master;
+reset master;
+use test;
+The relative order between DML and DDL statements below are
+expected to follow the same order in binlog as shown below.
+create database mysqltest;
+create table t1 (a int primary key) engine=ndb;
+insert into t1 values (1);
+drop database mysqltest;
+drop table t1;
+create database mysqltest;
+create table t1 (a int primary key) engine=ndb;
+insert into t1 values (1);
+drop database mysqltest;
+drop table t1;
+create database mysqltest;
+create table t1 (a int primary key) engine=ndb;
+insert into t1 values (1);
+drop database mysqltest;
+drop table t1;
+create database mysqltest;
+create table t1 (a int primary key) engine=ndb;
+insert into t1 values (1);
+drop database mysqltest;
+drop table t1;
+create database mysqltest;
+create table t1 (a int primary key) engine=ndb;
+insert into t1 values (1);
+drop database mysqltest;
+drop table t1;
+create table dummy (dummyk int primary key) engine = ndb;
+drop table dummy;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	create database mysqltest
+binlog.000001	#	Query	#	#	use `test`; create table t1 (a int primary key) engine=ndb
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.t1)
+binlog.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+binlog.000001	#	Write_rows	#	#	table_id: #
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	drop database mysqltest
+binlog.000001	#	Query	#	#	use `test`; drop table `test`.`t1`
+binlog.000001	#	Query	#	#	create database mysqltest
+binlog.000001	#	Query	#	#	use `test`; create table t1 (a int primary key) engine=ndb
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.t1)
+binlog.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+binlog.000001	#	Write_rows	#	#	table_id: #
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	drop database mysqltest
+binlog.000001	#	Query	#	#	use `test`; drop table `test`.`t1`
+binlog.000001	#	Query	#	#	create database mysqltest
+binlog.000001	#	Query	#	#	use `test`; create table t1 (a int primary key) engine=ndb
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.t1)
+binlog.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+binlog.000001	#	Write_rows	#	#	table_id: #
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	drop database mysqltest
+binlog.000001	#	Query	#	#	use `test`; drop table `test`.`t1`
+binlog.000001	#	Query	#	#	create database mysqltest
+binlog.000001	#	Query	#	#	use `test`; create table t1 (a int primary key) engine=ndb
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.t1)
+binlog.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+binlog.000001	#	Write_rows	#	#	table_id: #
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	drop database mysqltest
+binlog.000001	#	Query	#	#	use `test`; drop table `test`.`t1`
+binlog.000001	#	Query	#	#	create database mysqltest
+binlog.000001	#	Query	#	#	use `test`; create table t1 (a int primary key) engine=ndb
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.t1)
+binlog.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+binlog.000001	#	Write_rows	#	#	table_id: #
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	drop database mysqltest
+binlog.000001	#	Query	#	#	use `test`; drop table `test`.`t1`
+binlog.000001	#	Query	#	#	use `test`; create table dummy (dummyk int primary key) engine = ndb
+binlog.000001	#	Query	#	#	use `test`; DROP TABLE `dummy` /* generated by server */
+CREATE TABLE progress(
+cnt int, stop_flag int
+) ENGINE NDB;
+insert into progress value(0,0);
+Start background load distributing schema changes.
+call p1();
+Restart mysqld 'server2'
+# restart
+Checking for schema ops. still making progress
+Restart mysqld 'server2'
+# restart
+Checking for schema ops. still making progress
+Restart mysqld 'server2'
+# restart
+Checking for schema ops. still making progress
+Restart mysqld 'server2'
+# restart
+Checking for schema ops. still making progress
+Stopping background load distributing schema changes.
+update progress set stop_flag=1;
+Wait for background schema distribution load to complete.
+Cleanup
+drop procedure p1;
+drop table progress;

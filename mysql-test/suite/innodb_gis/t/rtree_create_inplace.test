@@ -1,11 +1,10 @@
 # This is to test create GIS index with algorithm=inplace.
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/no_valgrind_without_big.inc
 
 # Create table with geometry column
-CREATE TABLE t1 (c1 INT, c2 GEOMETRY NOT NULL, c3 GEOMETRY NOT NULL) ENGINE=INNODB;
+CREATE TABLE t1 (c1 INT, c2 GEOMETRY NOT NULL SRID 0, c3 GEOMETRY NOT NULL SRID 0) ENGINE=INNODB;
 
 # Insert enough values
 INSERT INTO t1 VALUES(1, Point(1,1), ST_GeomFromText('POLYGON (( 0 -1, 0  1, 2  1, 2 -1, 0 -1))'));

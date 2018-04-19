@@ -1,0 +1,56 @@
+--source include/have_ndb.inc
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 8M
+EXTENT_SIZE 256k
+ENGINE NDB;
+
+--echo #
+--echo # Check that tablespace are still used by table after altering
+--echo # a table  so that no columns are on disk
+--echo #
+
+--echo # Create table with tablespace and one column stored on disk
+CREATE TABLE t1(
+  a INT STORAGE DISK
+)
+TABLESPACE ts1
+ENGINE NDB;
+
+--echo # Change the storage of the column from disk to memory
+ALTER TABLE t1 CHANGE COLUMN a a INT STORAGE MEMORY;
+
+DROP TABLE t1;
+
+--echo # Check that it's not possible to create table with storage disk
+--echo # without tablespace(i.e tablespace is required)
+--error ER_MISSING_HA_CREATE_OPTION
+CREATE TABLE t1(
+  a INT STORAGE DISK
+)
+STORAGE DISK
+ENGINE NDB;
+
+
+# Remove datafile from tablespace
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+
+# Drop tablespace
+DROP TABLESPACE ts1;
+
+# Drop logfile group
+DROP LOGFILE GROUP lg1
+  ENGINE=NDB;
+
+
+
+

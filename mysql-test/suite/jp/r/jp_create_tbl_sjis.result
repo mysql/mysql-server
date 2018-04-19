@@ -61,10 +61,10 @@ Field	Type	Null	Key	Default	Extra
 ∏∏∏	char(1)	YES		NULL	
 DESC `¥¥¥`;
 Field	Type	Null	Key	Default	Extra
-πππ	char(1)	YES		NULL	
+πππ	char(1)	YES		NULL	NULL
 DESC `µµµ`;
 Field	Type	Null	Key	Default	Extra
-∫∫∫	char(1)	YES		NULL	
+∫∫∫	char(1)	YES		NULL	NULL
 DESC `Ç†Ç†Ç†`;
 Field	Type	Null	Key	Default	Extra
 Ç©Ç©Ç©	char(1)	YES		NULL	
@@ -76,10 +76,10 @@ Field	Type	Null	Key	Default	Extra
 Ç≠Ç≠Ç≠	char(1)	YES		NULL	
 DESC `Ç¶Ç¶Ç¶`;
 Field	Type	Null	Key	Default	Extra
-ÇØÇØÇØ	char(1)	YES		NULL	
+ÇØÇØÇØ	char(1)	YES		NULL	NULL
 DESC `Ç®Ç®Ç®`;
 Field	Type	Null	Key	Default	Extra
-Ç±Ç±Ç±	char(1)	YES		NULL	
+Ç±Ç±Ç±	char(1)	YES		NULL	NULL
 DESC `É\É\É\`;
 Field	Type	Null	Key	Default	Extra
 â\â\â\	char(1)	YES		NULL	
@@ -91,10 +91,10 @@ Field	Type	Null	Key	Default	Extra
 ê\ê\ê\	char(1)	YES		NULL	
 DESC `ó\ó\ó\`;
 Field	Type	Null	Key	Default	Extra
-ì\ì\ì\	char(1)	YES		NULL	
+ì\ì\ì\	char(1)	YES		NULL	NULL
 DESC `ç\ç\ç\`;
 Field	Type	Null	Key	Default	Extra
-î\î\î\	char(1)	YES		NULL	
+î\î\î\	char(1)	YES		NULL	NULL
 SHOW CREATE TABLE `±±±`;
 Table	Create Table
 ±±±	CREATE TABLE `±±±` (
@@ -229,10 +229,10 @@ Field	Type	Null	Key	Default	Extra
 ∏∏∏	char(1)	YES		NULL	
 DESC `¥¥¥`;
 Field	Type	Null	Key	Default	Extra
-πππ	char(1)	YES		NULL	
+πππ	char(1)	YES		NULL	NULL
 DESC `µµµ`;
 Field	Type	Null	Key	Default	Extra
-∫∫∫	char(1)	YES		NULL	
+∫∫∫	char(1)	YES		NULL	NULL
 DESC `Ç†Ç†Ç†`;
 Field	Type	Null	Key	Default	Extra
 Ç©Ç©Ç©	char(1)	YES		NULL	
@@ -244,10 +244,10 @@ Field	Type	Null	Key	Default	Extra
 Ç≠Ç≠Ç≠	char(1)	YES		NULL	
 DESC `Ç¶Ç¶Ç¶`;
 Field	Type	Null	Key	Default	Extra
-ÇØÇØÇØ	char(1)	YES		NULL	
+ÇØÇØÇØ	char(1)	YES		NULL	NULL
 DESC `Ç®Ç®Ç®`;
 Field	Type	Null	Key	Default	Extra
-Ç±Ç±Ç±	char(1)	YES		NULL	
+Ç±Ç±Ç±	char(1)	YES		NULL	NULL
 DESC `É\É\É\`;
 Field	Type	Null	Key	Default	Extra
 â\â\â\	char(1)	YES		NULL	
@@ -259,10 +259,10 @@ Field	Type	Null	Key	Default	Extra
 ê\ê\ê\	char(1)	YES		NULL	
 DESC `ó\ó\ó\`;
 Field	Type	Null	Key	Default	Extra
-ì\ì\ì\	char(1)	YES		NULL	
+ì\ì\ì\	char(1)	YES		NULL	NULL
 DESC `ç\ç\ç\`;
 Field	Type	Null	Key	Default	Extra
-î\î\î\	char(1)	YES		NULL	
+î\î\î\	char(1)	YES		NULL	NULL
 SHOW CREATE TABLE `±±±`;
 Table	Create Table
 ±±±	CREATE TABLE `±±±` (
@@ -397,10 +397,10 @@ Field	Type	Null	Key	Default	Extra
 ∏∏∏	char(1)	YES		NULL	
 DESC `¥¥¥`;
 Field	Type	Null	Key	Default	Extra
-πππ	char(1)	YES		NULL	
+πππ	char(1)	YES		NULL	NULL
 DESC `µµµ`;
 Field	Type	Null	Key	Default	Extra
-∫∫∫	char(1)	YES		NULL	
+∫∫∫	char(1)	YES		NULL	NULL
 DESC `Ç†Ç†Ç†`;
 Field	Type	Null	Key	Default	Extra
 Ç©Ç©Ç©	char(1)	YES		NULL	
@@ -412,10 +412,10 @@ Field	Type	Null	Key	Default	Extra
 Ç≠Ç≠Ç≠	char(1)	YES		NULL	
 DESC `Ç¶Ç¶Ç¶`;
 Field	Type	Null	Key	Default	Extra
-ÇØÇØÇØ	char(1)	YES		NULL	
+ÇØÇØÇØ	char(1)	YES		NULL	NULL
 DESC `Ç®Ç®Ç®`;
 Field	Type	Null	Key	Default	Extra
-Ç±Ç±Ç±	char(1)	YES		NULL	
+Ç±Ç±Ç±	char(1)	YES		NULL	NULL
 DESC `É\É\É\`;
 Field	Type	Null	Key	Default	Extra
 â\â\â\	char(1)	YES		NULL	
@@ -427,10 +427,10 @@ Field	Type	Null	Key	Default	Extra
 ê\ê\ê\	char(1)	YES		NULL	
 DESC `ó\ó\ó\`;
 Field	Type	Null	Key	Default	Extra
-ì\ì\ì\	char(1)	YES		NULL	
+ì\ì\ì\	char(1)	YES		NULL	NULL
 DESC `ç\ç\ç\`;
 Field	Type	Null	Key	Default	Extra
-î\î\î\	char(1)	YES		NULL	
+î\î\î\	char(1)	YES		NULL	NULL
 SHOW CREATE TABLE `±±±`;
 Table	Create Table
 ±±±	CREATE TABLE `±±±` (

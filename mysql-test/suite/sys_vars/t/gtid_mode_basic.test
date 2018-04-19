@@ -1,8 +1,7 @@
---source include/not_embedded.inc
---source include/not_gtid_enabled.inc
 
 # default value
 
+RESET MASTER;
 SET @start_global_value = @@global.gtid_mode;
 SELECT @start_global_value;
 
@@ -15,11 +14,15 @@ SET @@global.enforce_gtid_consistency = ON;
 select @@global.gtid_mode;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.gtid_mode;
+--error ER_GLOBAL_VARIABLE
+set gtid_mode = @start_global_value;
+--error ER_GLOBAL_VARIABLE
+set @@session.gtid_mode = @start_global_value;
 show global variables like 'gtid_mode';
 show session variables like 'gtid_mode';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='gtid_mode';
-select * from information_schema.session_variables where variable_name='gtid_mode';
+select * from performance_schema.global_variables where variable_name='gtid_mode';
+select * from performance_schema.session_variables where variable_name='gtid_mode';
 --enable_warnings
 
 #
@@ -105,10 +108,68 @@ set global gtid_mode = on_permissive;
 --error ER_CANT_SET_GTID_MODE
 set global gtid_mode = on;
 
-# Set back to default
-set global gtid_mode = ON_PERMISSIVE;
-set global gtid_mode = Off_Permissive;
-set global gtid_mode = off;
+#
+# WL6591 Restore backup on existing GTID-aware server - make
+# GTID_PURGED settable always.
+# OWNED_GTIDs constraints: in-progress
+# transactions' gtids must not overlap with the assigned value.
+#
+RESET MASTER;
+--connect (con1,localhost,root,,,,)
+SET @@GTID_NEXT='11111111-1111-1111-1111-111111111111:1';
+BEGIN;
+
+--connection default
+--error ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
+SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:1-2';
+# --error 0
+SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:2-2';
+--error ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
+SET @@global.gtid_purged= '+11111111-1111-1111-1111-111111111111:1-1';
+# --error 0
+SET @@global.gtid_purged= '+11111111-1111-1111-1111-111111111111:3-3';
+SELECT @@global.gtid_purged;
+
+--connection con1
+ROLLBACK;
+
+--connection default
+
+# test gtid_mode changes with autocommit off
+
+CREATE TABLE t1 (a INT);
+SET AUTOCOMMIT = 0;
+
+## Confirm that gtid_mode cannot be changed when a transaction
+## is in progress and gtid_next is set to 'UUID:No'.
+SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+INSERT INTO t1 VALUES (1);
+# transaction in progress, gtid_mode variable cannot be changed
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET GLOBAL GTID_MODE = 'off_permissive';
+COMMIT;
+
+## Confirm that gtid_mode cannot be changed when gtid_mode is
+## set to 'UUID:No'.
+SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+# GTID_NEXT was set, gtid_mode variable cannot be changed
+--error ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID
+SET GLOBAL GTID_MODE = 'off_permissive';
+COMMIT;
+
+## Confirm that gtid_mode cannot be changed during an anonymous
+## transaction.
+SET GTID_NEXT = 'ANONYMOUS';
+--error ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID
+SET GLOBAL GTID_MODE = 'off_permissive';
+COMMIT;
+
+# Set back to default and cleanup
+SET AUTOCOMMIT = 1;
+SET SESSION GTID_NEXT = 'AUTOMATIC';
+DROP TABLE t1;
+SET GLOBAL GTID_MODE ='off_permissive';
+SET GLOBAL GTID_MODE = 'off';
 
 SET @@global.enforce_gtid_consistency = @start_enforce_gtid_consistency;
 

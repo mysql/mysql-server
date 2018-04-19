@@ -33,4 +33,4 @@ SELECT count(*) from t1;
 count(*)
 0
 DROP TABLE t1;
-SET @@global.local_infile = 1;
+SET @@global.local_infile = 0;

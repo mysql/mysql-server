@@ -1,7 +1,15 @@
-
--- source include/not_embedded.inc
+# Should be tested against "binlog disabled" server
+-- source include/not_log_bin.inc
 
 # BUG#50780: 'show binary logs' debug assertion when binary logging is disabled
 
 -- error ER_NO_BINARY_LOGGING
 SHOW BINARY LOGS;
+
+--echo #
+--echo # Verify that The log-slave-updates and slave-preserve-commit-order
+--echo # are disabled if binary log is disabled.
+--echo #
+SELECT @@GLOBAL.log_bin;
+SELECT @@GLOBAL.log_slave_updates;
+SELECT @@GLOBAL.slave_preserve_commit_order;

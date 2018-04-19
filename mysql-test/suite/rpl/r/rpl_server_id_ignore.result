@@ -58,80 +58,46 @@ include/sync_slave_sql_with_master.inc
 # === Bug#18192817 IGNORE_SERVER_IDS IS SHOWING DUPLICATE SERVER IDS ===
 include/stop_slave.inc
 The list should have 0 elements.
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Replicate_Ignore_Server_Ids = ''
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420);
 The list should have 4 elements.
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Replicate_Ignore_Server_Ids = '110, 220, 330, 420'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (110,220,330,420);
 The list should still have only 4 elements.
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Replicate_Ignore_Server_Ids = '110, 220, 330, 420'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 ISSUE WAS HERE: All server ids should be stored and showed only once, while they are set twice or even more.
 The list should have 5 elements.
 CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,220,330,420);
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Replicate_Ignore_Server_Ids = '110, 111, 220, 330, 420'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,330,420);
 The list should have 6 elements.
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Replicate_Ignore_Server_Ids = '110, 111, 220, 221, 330, 420'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,331,420);
 The list should have 7 elements.
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Replicate_Ignore_Server_Ids = '110, 111, 220, 221, 330, 331, 420'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,331,421);
 The list should have 8 elements.
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Replicate_Ignore_Server_Ids = '110, 111, 220, 221, 330, 331, 420, 421'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 CHANGE MASTER TO IGNORE_SERVER_IDS= ();
 The list should have NO elements.
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Replicate_Ignore_Server_Ids = ''
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 # === Bug #18593479: ON MASTER_INFO_REPOSITORY CHANGE, ===
 # === IGNORE_SERVER_IDS DOUBLES WITH DUP VALUES        ===
 SET GLOBAL master_info_repository= 'FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 CHANGE MASTER TO IGNORE_SERVER_IDS= (5,10,15);
 include/start_slave.inc
 Expect 3 elements.
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Replicate_Ignore_Server_Ids = '5, 10, 15'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 include/stop_slave.inc
 SET GLOBAL master_info_repository= 'TABLE';
@@ -139,23 +105,17 @@ include/start_slave.inc
 
 ISSUE WAS HERE: Due to buggy behaviour, we woule see 6 elements here.
 Expect 3 elements ONLY to verify the fix when changing from FILE->TABLE.
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Replicate_Ignore_Server_Ids = '5, 10, 15'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 include/stop_slave.inc
 SET GLOBAL master_info_repository= 'FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 include/start_slave.inc
 
 ISSUE WAS HERE TOO: Due to buggy behaviour, we woule see 12 elements here.
 Expect 3 elements ONLY to verify the fix when changinf from TABLE->FILE.
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Replicate_Ignore_Server_Ids = '5, 10, 15'
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 include/stop_slave.inc
 CHANGE MASTER TO IGNORE_SERVER_IDS= ();

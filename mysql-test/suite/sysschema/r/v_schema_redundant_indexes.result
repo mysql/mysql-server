@@ -1,0 +1,37 @@
+DESC sys.schema_redundant_indexes;
+Field	Type	Null	Key	Default	Extra
+table_schema	varchar(64)	NO		NULL	
+table_name	varchar(64)	NO		NULL	
+redundant_index_name	varchar(64)	YES		NULL	
+redundant_index_columns	text	YES		NULL	
+redundant_index_non_unique	int(1)	YES		NULL	
+dominant_index_name	varchar(64)	YES		NULL	
+dominant_index_columns	text	YES		NULL	
+dominant_index_non_unique	int(1)	YES		NULL	
+subpart_exists	int(1)	NO		0	
+sql_drop_index	varchar(223)	YES		NULL	
+SELECT * FROM sys.schema_redundant_indexes;
+DESC sys.x$schema_flattened_keys;
+Field	Type	Null	Key	Default	Extra
+table_schema	varchar(64)	NO		NULL	
+table_name	varchar(64)	NO		NULL	
+index_name	varchar(64)	YES		NULL	
+non_unique	int(1)	YES		NULL	
+subpart_exists	bigint(1)	YES		NULL	
+index_columns	text	YES		NULL	
+SELECT * FROM sys.x$schema_flattened_keys;
+CREATE DATABASE rkey;
+CREATE TABLE rkey.rkey (
+i INT,
+j INT,
+k INT,
+PRIMARY KEY (i),
+KEY (j),
+KEY (j, k),
+KEY (i, j, k)
+);
+SELECT * FROM sys.schema_redundant_indexes ORDER BY table_name, dominant_index_name;
+table_schema	table_name	redundant_index_name	redundant_index_columns	redundant_index_non_unique	dominant_index_name	dominant_index_columns	dominant_index_non_unique	subpart_exists	sql_drop_index
+rkey	rkey	j	j	1	j_2	j,k	1	0	ALTER TABLE `rkey`.`rkey` DROP INDEX `j`
+rkey	rkey	i	i,j,k	1	PRIMARY	i	0	0	ALTER TABLE `rkey`.`rkey` DROP INDEX `i`
+DROP DATABASE rkey;

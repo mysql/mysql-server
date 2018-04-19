@@ -8,16 +8,13 @@ sys
 test
 select count(*) from performance_schema.performance_timers;
 count(*)
-5
+4
 select count(*) from performance_schema.setup_consumers;
 count(*)
 15
 select count(*) > 4 from performance_schema.setup_instruments;
 count(*) > 4
 1
-select count(*) from performance_schema.setup_timers;
-count(*)
-5
 select * from performance_schema.accounts;
 select * from performance_schema.cond_instances;
 select * from performance_schema.events_stages_current;
@@ -29,6 +26,8 @@ select * from performance_schema.events_stages_summary_by_thread_by_event_name;
 select * from performance_schema.events_stages_summary_by_user_by_event_name;
 select * from performance_schema.events_stages_summary_global_by_event_name;
 select * from performance_schema.events_statements_current;
+select * from performance_schema.events_statements_histogram_by_digest;
+select * from performance_schema.events_statements_histogram_global;
 select * from performance_schema.events_statements_history;
 select * from performance_schema.events_statements_history_long;
 select * from performance_schema.events_statements_summary_by_account_by_event_name;
@@ -59,6 +58,11 @@ select * from performance_schema.memory_summary_by_host_by_event_name;
 select * from performance_schema.memory_summary_by_thread_by_event_name;
 select * from performance_schema.memory_summary_by_user_by_event_name;
 select * from performance_schema.memory_summary_global_by_event_name;
+select * from performance_schema.events_errors_summary_by_account_by_error;
+select * from performance_schema.events_errors_summary_by_host_by_error;
+select * from performance_schema.events_errors_summary_by_thread_by_error;
+select * from performance_schema.events_errors_summary_by_user_by_error;
+select * from performance_schema.events_errors_summary_global_by_error;
 select * from performance_schema.file_instances;
 select * from performance_schema.file_summary_by_event_name;
 select * from performance_schema.file_summary_by_instance;
@@ -74,13 +78,15 @@ select * from performance_schema.mutex_instances;
 select * from performance_schema.objects_summary_global_by_type;
 select * from performance_schema.performance_timers;
 select * from performance_schema.rwlock_instances;
+select * from performance_schema.data_locks;
+select * from performance_schema.data_lock_waits;
 select * from performance_schema.session_account_connect_attrs;
 select * from performance_schema.session_connect_attrs;
 select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
-select * from performance_schema.setup_timers;
+select * from performance_schema.setup_threads;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
 select * from performance_schema.socket_summary_by_event_name;
@@ -105,49 +111,6 @@ select * from performance_schema.session_status;
 select * from performance_schema.global_variables;
 select * from performance_schema.variables_by_thread;
 select * from performance_schema.session_variables;
-show global variables like "performance_schema%";
-Variable_name	Value
-performance_schema	ON
-performance_schema_accounts_size	0
-performance_schema_digests_size	0
-performance_schema_events_stages_history_long_size	0
-performance_schema_events_stages_history_size	0
-performance_schema_events_statements_history_long_size	0
-performance_schema_events_statements_history_size	0
-performance_schema_events_transactions_history_long_size	1000
-performance_schema_events_transactions_history_size	10
-performance_schema_events_waits_history_long_size	0
-performance_schema_events_waits_history_size	0
-performance_schema_hosts_size	0
-performance_schema_max_cond_classes	0
-performance_schema_max_cond_instances	0
-performance_schema_max_file_classes	0
-performance_schema_max_file_handles	0
-performance_schema_max_file_instances	0
-performance_schema_max_index_stat	0
-performance_schema_max_memory_classes	0
-performance_schema_max_metadata_locks	0
-performance_schema_max_mutex_classes	0
-performance_schema_max_mutex_instances	0
-performance_schema_max_prepared_statements_instances	100
-performance_schema_max_program_instances	0
-performance_schema_max_rwlock_classes	0
-performance_schema_max_rwlock_instances	0
-performance_schema_max_socket_classes	0
-performance_schema_max_socket_instances	0
-performance_schema_max_sql_text_length	1024
-performance_schema_max_stage_classes	0
-performance_schema_max_statement_classes	0
-performance_schema_max_statement_stack	1
-performance_schema_max_table_handles	0
-performance_schema_max_table_instances	0
-performance_schema_max_table_lock_stat	0
-performance_schema_max_thread_classes	0
-performance_schema_max_thread_instances	0
-performance_schema_session_connect_attrs_size	0
-performance_schema_setup_actors_size	0
-performance_schema_setup_objects_size	0
-performance_schema_users_size	0
 show engine PERFORMANCE_SCHEMA status;
 show global status like "performance_schema%";
 show global variables like "performance_schema%";
@@ -155,6 +118,7 @@ Variable_name	Value
 performance_schema	ON
 performance_schema_accounts_size	0
 performance_schema_digests_size	0
+performance_schema_error_size	0
 performance_schema_events_stages_history_long_size	0
 performance_schema_events_stages_history_size	0
 performance_schema_events_statements_history_long_size	0
@@ -166,6 +130,8 @@ performance_schema_events_waits_history_size	0
 performance_schema_hosts_size	0
 performance_schema_max_cond_classes	0
 performance_schema_max_cond_instances	0
+performance_schema_max_digest_length	1024
+performance_schema_max_digest_sample_age	60
 performance_schema_max_file_classes	0
 performance_schema_max_file_handles	0
 performance_schema_max_file_instances	0
@@ -174,7 +140,7 @@ performance_schema_max_memory_classes	0
 performance_schema_max_metadata_locks	0
 performance_schema_max_mutex_classes	0
 performance_schema_max_mutex_instances	0
-performance_schema_max_prepared_statements_instances	100
+performance_schema_max_prepared_statements_instances	-1
 performance_schema_max_program_instances	0
 performance_schema_max_rwlock_classes	0
 performance_schema_max_rwlock_instances	0
@@ -195,89 +161,94 @@ performance_schema_setup_objects_size	0
 performance_schema_users_size	0
 select * from performance_schema.setup_instruments
 order by name;
-NAME	ENABLED	TIMED
-idle	YES	YES
-memory/performance_schema/accounts	YES	NO
-memory/performance_schema/cond_class	YES	NO
-memory/performance_schema/cond_instances	YES	NO
-memory/performance_schema/events_stages_history	YES	NO
-memory/performance_schema/events_stages_history_long	YES	NO
-memory/performance_schema/events_stages_summary_by_account_by_event_name	YES	NO
-memory/performance_schema/events_stages_summary_by_host_by_event_name	YES	NO
-memory/performance_schema/events_stages_summary_by_thread_by_event_name	YES	NO
-memory/performance_schema/events_stages_summary_by_user_by_event_name	YES	NO
-memory/performance_schema/events_stages_summary_global_by_event_name	YES	NO
-memory/performance_schema/events_statements_current	YES	NO
-memory/performance_schema/events_statements_current.sqltext	YES	NO
-memory/performance_schema/events_statements_current.tokens	YES	NO
-memory/performance_schema/events_statements_history	YES	NO
-memory/performance_schema/events_statements_history.sqltext	YES	NO
-memory/performance_schema/events_statements_history.tokens	YES	NO
-memory/performance_schema/events_statements_history_long	YES	NO
-memory/performance_schema/events_statements_history_long.sqltext	YES	NO
-memory/performance_schema/events_statements_history_long.tokens	YES	NO
-memory/performance_schema/events_statements_summary_by_account_by_event_name	YES	NO
-memory/performance_schema/events_statements_summary_by_digest	YES	NO
-memory/performance_schema/events_statements_summary_by_digest.tokens	YES	NO
-memory/performance_schema/events_statements_summary_by_host_by_event_name	YES	NO
-memory/performance_schema/events_statements_summary_by_program	YES	NO
-memory/performance_schema/events_statements_summary_by_thread_by_event_name	YES	NO
-memory/performance_schema/events_statements_summary_by_user_by_event_name	YES	NO
-memory/performance_schema/events_statements_summary_global_by_event_name	YES	NO
-memory/performance_schema/events_transactions_history	YES	NO
-memory/performance_schema/events_transactions_history_long	YES	NO
-memory/performance_schema/events_transactions_summary_by_account_by_event_name	YES	NO
-memory/performance_schema/events_transactions_summary_by_host_by_event_name	YES	NO
-memory/performance_schema/events_transactions_summary_by_thread_by_event_name	YES	NO
-memory/performance_schema/events_transactions_summary_by_user_by_event_name	YES	NO
-memory/performance_schema/events_waits_history	YES	NO
-memory/performance_schema/events_waits_history_long	YES	NO
-memory/performance_schema/events_waits_summary_by_account_by_event_name	YES	NO
-memory/performance_schema/events_waits_summary_by_host_by_event_name	YES	NO
-memory/performance_schema/events_waits_summary_by_thread_by_event_name	YES	NO
-memory/performance_schema/events_waits_summary_by_user_by_event_name	YES	NO
-memory/performance_schema/file_class	YES	NO
-memory/performance_schema/file_handle	YES	NO
-memory/performance_schema/file_instances	YES	NO
-memory/performance_schema/hosts	YES	NO
-memory/performance_schema/memory_class	YES	NO
-memory/performance_schema/memory_summary_by_account_by_event_name	YES	NO
-memory/performance_schema/memory_summary_by_host_by_event_name	YES	NO
-memory/performance_schema/memory_summary_by_thread_by_event_name	YES	NO
-memory/performance_schema/memory_summary_by_user_by_event_name	YES	NO
-memory/performance_schema/memory_summary_global_by_event_name	YES	NO
-memory/performance_schema/metadata_locks	YES	NO
-memory/performance_schema/mutex_class	YES	NO
-memory/performance_schema/mutex_instances	YES	NO
-memory/performance_schema/prepared_statements_instances	YES	NO
-memory/performance_schema/rwlock_class	YES	NO
-memory/performance_schema/rwlock_instances	YES	NO
-memory/performance_schema/scalable_buffer	YES	NO
-memory/performance_schema/session_connect_attrs	YES	NO
-memory/performance_schema/setup_actors	YES	NO
-memory/performance_schema/setup_objects	YES	NO
-memory/performance_schema/socket_class	YES	NO
-memory/performance_schema/socket_instances	YES	NO
-memory/performance_schema/stage_class	YES	NO
-memory/performance_schema/statement_class	YES	NO
-memory/performance_schema/table_handles	YES	NO
-memory/performance_schema/table_io_waits_summary_by_index_usage	YES	NO
-memory/performance_schema/table_lock_waits_summary_by_table	YES	NO
-memory/performance_schema/table_shares	YES	NO
-memory/performance_schema/threads	YES	NO
-memory/performance_schema/thread_class	YES	NO
-memory/performance_schema/users	YES	NO
-transaction	YES	YES
-wait/io/table/sql/handler	YES	YES
-wait/lock/metadata/sql/mdl	YES	YES
-wait/lock/table/sql/handler	YES	YES
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+error	YES	NULL		0	NULL
+idle	YES	YES	user	0	NULL
+memory/performance_schema/accounts	YES	NULL	global_statistics	1	Memory used for table performance_schema.accounts
+memory/performance_schema/cond_class	YES	NULL	global_statistics	1	Memory used for cond instrument classes
+memory/performance_schema/cond_instances	YES	NULL	global_statistics	1	Memory used for table performance_schema.cond_instances
+memory/performance_schema/events_errors_summary_by_account_by_error	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_errors_summary_by_account_by_error
+memory/performance_schema/events_errors_summary_by_host_by_error	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_errors_summary_by_host_by_error
+memory/performance_schema/events_errors_summary_by_thread_by_error	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_errors_summary_by_thread_by_error
+memory/performance_schema/events_errors_summary_by_user_by_error	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_errors_summary_by_user_by_error
+memory/performance_schema/events_errors_summary_global_by_error	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_errors_summary_global_by_error
+memory/performance_schema/events_stages_history	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_stages_history
+memory/performance_schema/events_stages_history_long	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_stages_history_long
+memory/performance_schema/events_stages_summary_by_account_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_stages_summary_by_account_by_event_name
+memory/performance_schema/events_stages_summary_by_host_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_stages_summary_by_host_by_event_name
+memory/performance_schema/events_stages_summary_by_thread_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_stages_summary_by_thread_by_event_name
+memory/performance_schema/events_stages_summary_by_user_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_stages_summary_by_user_by_event_name
+memory/performance_schema/events_stages_summary_global_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_stages_summary_global_by_event_name
+memory/performance_schema/events_statements_current	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_current
+memory/performance_schema/events_statements_current.digest_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_current, column digest_text
+memory/performance_schema/events_statements_current.sql_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_current, column sql_text
+memory/performance_schema/events_statements_history	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_history
+memory/performance_schema/events_statements_history_long	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_history_long
+memory/performance_schema/events_statements_history_long.digest_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_history_long, column digest_text
+memory/performance_schema/events_statements_history_long.sql_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_history_long, column sql_text
+memory/performance_schema/events_statements_history.digest_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_history, column digest_text
+memory/performance_schema/events_statements_history.sql_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_history, column sql_text
+memory/performance_schema/events_statements_summary_by_account_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_summary_by_account_by_event_name
+memory/performance_schema/events_statements_summary_by_digest	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_summary_by_digest
+memory/performance_schema/events_statements_summary_by_digest.digest_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_summary_by_digest, column digest_text
+memory/performance_schema/events_statements_summary_by_host_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_summary_by_host_by_event_name
+memory/performance_schema/events_statements_summary_by_program	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_summary_by_program
+memory/performance_schema/events_statements_summary_by_thread_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_summary_by_thread_by_event_name
+memory/performance_schema/events_statements_summary_by_user_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_summary_by_user_by_event_name
+memory/performance_schema/events_statements_summary_global_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_summary_global_by_event_name
+memory/performance_schema/events_transactions_history	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_transactions_history
+memory/performance_schema/events_transactions_history_long	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_transactions_history_long
+memory/performance_schema/events_transactions_summary_by_account_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_transactions_summary_by_account_by_event_name
+memory/performance_schema/events_transactions_summary_by_host_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_transactions_summary_by_host_by_event_name
+memory/performance_schema/events_transactions_summary_by_thread_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_transactions_summary_by_thread_by_event_name
+memory/performance_schema/events_transactions_summary_by_user_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_transactions_summary_by_user_by_event_name
+memory/performance_schema/events_waits_history	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_waits_history
+memory/performance_schema/events_waits_history_long	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_waits_history_long
+memory/performance_schema/events_waits_summary_by_account_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_waits_summary_by_account_by_event_name
+memory/performance_schema/events_waits_summary_by_host_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_waits_summary_by_host_by_event_name
+memory/performance_schema/events_waits_summary_by_thread_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_waits_summary_by_thread_by_event_name
+memory/performance_schema/events_waits_summary_by_user_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_waits_summary_by_user_by_event_name
+memory/performance_schema/file_class	YES	NULL	global_statistics	1	Memory used for file instrument classes
+memory/performance_schema/file_handle	YES	NULL	global_statistics	1	Memory used for table performance_schema.file_handle
+memory/performance_schema/file_instances	YES	NULL	global_statistics	1	Memory used for table performance_schema.file_instances
+memory/performance_schema/hosts	YES	NULL	global_statistics	1	Memory used for table performance_schema.hosts
+memory/performance_schema/memory_class	YES	NULL	global_statistics	1	Memory used for memory instrument classes
+memory/performance_schema/memory_summary_by_account_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.memory_summary_by_account_by_event_name
+memory/performance_schema/memory_summary_by_host_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.memory_summary_by_host_by_event_name
+memory/performance_schema/memory_summary_by_thread_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.memory_summary_by_thread_by_event_name
+memory/performance_schema/memory_summary_by_user_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.memory_summary_by_user_by_event_name
+memory/performance_schema/memory_summary_global_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.memory_summary_global_by_event_name
+memory/performance_schema/metadata_locks	YES	NULL	global_statistics	1	Memory used for table performance_schema.metadata_locks
+memory/performance_schema/mutex_class	YES	NULL	global_statistics	1	Memory used for mutex instrument classes
+memory/performance_schema/mutex_instances	YES	NULL	global_statistics	1	Memory used for table performance_schema.mutex_instances
+memory/performance_schema/prepared_statements_instances	YES	NULL	global_statistics	1	Memory used for table performance_schema.prepared_statements_instances
+memory/performance_schema/rwlock_class	YES	NULL	global_statistics	1	Memory used for rwlock instrument classes
+memory/performance_schema/rwlock_instances	YES	NULL	global_statistics	1	Memory used for table performance_schema.rwlock_instances
+memory/performance_schema/scalable_buffer	YES	NULL	global_statistics	1	Memory used for scalable buffers
+memory/performance_schema/session_connect_attrs	YES	NULL	global_statistics	1	Memory used for table performance_schema.session_connect_attrs
+memory/performance_schema/setup_actors	YES	NULL	global_statistics	1	Memory used for table performance_schema.setup_actors
+memory/performance_schema/setup_objects	YES	NULL	global_statistics	1	Memory used for table performance_schema.setup_objects
+memory/performance_schema/socket_class	YES	NULL	global_statistics	1	Memory used for socket instrument classes
+memory/performance_schema/socket_instances	YES	NULL	global_statistics	1	Memory used for table performance_schema.socket_instances
+memory/performance_schema/stage_class	YES	NULL	global_statistics	1	Memory used for stage instrument classes
+memory/performance_schema/statement_class	YES	NULL	global_statistics	1	Memory used for statement instrument classes
+memory/performance_schema/table_handles	YES	NULL	global_statistics	1	Memory used for table performance_schema.table_handles
+memory/performance_schema/table_io_waits_summary_by_index_usage	YES	NULL	global_statistics	1	Memory used for table performance_schema.table_io_waits_summary_by_index_usage
+memory/performance_schema/table_lock_waits_summary_by_table	YES	NULL	global_statistics	1	Memory used for table performance_schema.table_lock_waits_summary_by_table
+memory/performance_schema/table_shares	YES	NULL	global_statistics	1	Memory used for table performance_schema.table_shares
+memory/performance_schema/thread_class	YES	NULL	global_statistics	1	Memory used for thread instrument classes
+memory/performance_schema/threads	YES	NULL	global_statistics	1	Memory used for table performance_schema.threads
+memory/performance_schema/users	YES	NULL	global_statistics	1	Memory used for table performance_schema.users
+transaction	YES	YES		0	NULL
+wait/io/table/sql/handler	YES	YES		0	NULL
+wait/lock/metadata/sql/mdl	YES	YES		0	NULL
+wait/lock/table/sql/handler	YES	YES		0	NULL
 select TIMER_NAME from performance_schema.performance_timers;
 TIMER_NAME
 CYCLE
 NANOSECOND
 MICROSECOND
 MILLISECOND
-TICK
 select * from performance_schema.setup_consumers;
 NAME	ENABLED
 events_stages_current	YES
@@ -295,13 +266,6 @@ events_waits_history_long	YES
 global_instrumentation	YES
 thread_instrumentation	YES
 statements_digest	YES
-select NAME from performance_schema.setup_timers;
-NAME
-idle
-wait
-stage
-statement
-transaction
 select * from performance_schema.accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 select * from performance_schema.cond_instances;
@@ -369,7 +333,7 @@ FILE_NAME	EVENT_NAME	OBJECT_INSTANCE_BEGIN	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_W
 select * from performance_schema.hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 select * from performance_schema.metadata_locks;
-OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_INSTANCE_BEGIN	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS	SOURCE	OWNER_THREAD_ID	OWNER_EVENT_ID
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COLUMN_NAME	OBJECT_INSTANCE_BEGIN	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS	SOURCE	OWNER_THREAD_ID	OWNER_EVENT_ID
 select * from performance_schema.mutex_instances;
 NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID
 select * from performance_schema.objects_summary_global_by_type;
@@ -381,7 +345,7 @@ PROCESSLIST_ID	ATTR_NAME	ATTR_VALUE	ORDINAL_POSITION
 select * from performance_schema.session_connect_attrs;
 PROCESSLIST_ID	ATTR_NAME	ATTR_VALUE	ORDINAL_POSITION
 select * from performance_schema.setup_actors;
-HOST	USER	ROLE	ENABLED
+HOST	USER	ROLE	ENABLED	HISTORY
 select * from performance_schema.setup_objects;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
 select * from performance_schema.socket_instances;
@@ -393,6 +357,6 @@ EVENT_NAME	OBJECT_INSTANCE_BEGIN	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TI
 select * from performance_schema.table_handles;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_INSTANCE_BEGIN	OWNER_THREAD_ID	OWNER_EVENT_ID	INTERNAL_LOCK	EXTERNAL_LOCK
 select * from performance_schema.threads;
-THREAD_ID	NAME	TYPE	PROCESSLIST_ID	PROCESSLIST_USER	PROCESSLIST_HOST	PROCESSLIST_DB	PROCESSLIST_COMMAND	PROCESSLIST_TIME	PROCESSLIST_STATE	PROCESSLIST_INFO	PARENT_THREAD_ID	ROLE	INSTRUMENTED
+THREAD_ID	NAME	TYPE	PROCESSLIST_ID	PROCESSLIST_USER	PROCESSLIST_HOST	PROCESSLIST_DB	PROCESSLIST_COMMAND	PROCESSLIST_TIME	PROCESSLIST_STATE	PROCESSLIST_INFO	PARENT_THREAD_ID	ROLE	INSTRUMENTED	HISTORY	CONNECTION_TYPE	THREAD_OS_ID	RESOURCE_GROUP
 select * from performance_schema.users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS

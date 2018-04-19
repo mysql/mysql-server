@@ -3,44 +3,6 @@ CALL mtr.add_suppression("Dictionary file not specified");
 # Tests for deprecation warnings introduced by wl#6443
 #
 # System variables
-select @@global.max_tmp_tables;
-@@global.max_tmp_tables
-32
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
-select @@local.max_tmp_tables;
-@@local.max_tmp_tables
-32
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
-set @default_max_tmp_tables= @@global.max_tmp_tables;
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
-select @@global.date_format;
-@@global.date_format
-%Y-%m-%d
-Warnings:
-Warning	1287	'@@date_format' is deprecated and will be removed in a future release.
-select @@global.time_format;
-@@global.time_format
-%H:%i:%s
-Warnings:
-Warning	1287	'@@time_format' is deprecated and will be removed in a future release.
-select @@global.datetime_format;
-@@global.datetime_format
-%Y-%m-%d %H:%i:%s
-Warnings:
-Warning	1287	'@@datetime_format' is deprecated and will be removed in a future release.
-set @@global.max_tmp_tables= 64;
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
-set @@global.max_tmp_tables= @@global.max_tmp_tables;
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
-set @@global.max_tmp_tables= @default_max_tmp_tables;
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
 select @@global.profiling;
 @@global.profiling
 0
@@ -96,9 +58,13 @@ Warnings:
 Warning	1287	'SHOW PROFILES' is deprecated and will be removed in a future release. Please use Performance Schema instead
 # --plugin-xyz
 INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
 # restarting the server
 # Restart server.
 UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
 # Search for deprecation warnings in error log.
 # YMMDD HH:MM:SS [Warning] The syntax 'plugin-validate-password-length' is deprecated and will be removed in a future release. Please use validate-password-length instead.
 Deprecation warning count : 1
@@ -108,13 +74,15 @@ count(*)
 0
 create table mysql.host(c1 int) engine MyISAM;
 insert into mysql.host values(1);
-mysql_upgrade: [Warning] 1642: Table mysql.host is not empty. It is deprecated and will be removed in a future release.
+mysql_upgrade: (non fatal) [WARNING] 1642: Table mysql.host is not empty. It is deprecated and will be removed in a future release.
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
-mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
@@ -123,11 +91,11 @@ mysql.help_topic                                   OK
 mysql.host                                         OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
-mysql.ndb_binlog_index                             OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
-mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -149,13 +117,15 @@ create view mysql.host as select HOST from mysql.db;
 create user 'wl6443_u1'@'10.10.10.1' identified by 'sql';
 select count(*) from mysql.host;
 count(*)
-2
+3
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
-mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
@@ -163,11 +133,11 @@ mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
-mysql.ndb_binlog_index                             OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
-mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -187,11 +157,13 @@ sys.sys_config                                     OK
 drop view mysql.host;
 drop user 'wl6443_u1'@'10.10.10.1';
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
-mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
@@ -199,11 +171,11 @@ mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
-mysql.ndb_binlog_index                             OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
-mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK

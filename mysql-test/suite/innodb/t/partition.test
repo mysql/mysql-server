@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 --echo #
 --echo # Test of optimizer estimates
@@ -54,10 +53,19 @@ DROP TABLE t0;
 
 ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN 1 AND 450 AND b BETWEEN 1 AND 10;
+
+--disable_warnings
+# Access session_status, so that the session_status metadata is accessed and
+# kept in DD cache. Else the HANDLER_READ_KEY would increment more than
+# required.
+SELECT * FROM performance_schema.session_status
+WHERE VARIABLE_NAME LIKE 'dummy';
+--enable_warnings
+
 FLUSH STATUS;
 --sorted_result
 SELECT * FROM t1 WHERE a BETWEEN 1 AND 450 AND b BETWEEN 1 AND 10;
-let $get_handler_status_counts= SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+let $get_handler_status_counts= SELECT * FROM performance_schema.session_status
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 --source include/get_handler_status_counts.inc
 
@@ -123,3 +131,759 @@ SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 DELETE FROM t1 WHERE a BETWEEN 0 AND 20 OR b BETWEEN 10 AND 20;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#20584754: CAN'T FIND RECORD IN 'TABLE100_KEY_PK_PARTS_2_DATETIME_3'
+--echo #
+let $MYSQLD_DATADIR=`SELECT @@datadir`;
+CREATE TABLE `t1` (
+  `c1` tinyint unsigned DEFAULT NULL,
+  `c2` char(1) DEFAULT NULL,
+  `pk` tinyint NOT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `c1` (`c1`),
+  KEY `c2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (pk)
+PARTITIONS 2 */;
+
+--echo # Create the dataset in a separate table, so it can be loaded
+--echo # directly without update/delete which may give unstable EXPLAIN
+--echo # due to background pruning.
+CREATE TABLE t0
+(a tinyint not null auto_increment primary key,
+ b char(1) DEFAULT 'a',
+ c tinyint DEFAULT 1);
+INSERT INTO t0 (a) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+INSERT INTO t0 (a) SELECT NULL FROM t0, t0 t0_2 LIMIT 50;
+UPDATE t0 SET c = NULL WHERE a IN (2,3,6,13,18);
+INSERT INTO t1 SELECT c,b,a FROM t0;
+DROP TABLE t0;
+
+ANALYZE TABLE t1;
+
+--replace_column 10 #
+EXPLAIN SELECT
+pk
+FROM `t1`
+WHERE `c1` IS  NULL OR `c2` = '0';
+
+SELECT
+pk
+FROM `t1`
+WHERE `c1` IS  NULL OR `c2` = '0';
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#20516390: PARTITIONED TABLE, TBLSPACE MOVE, ALTER, ASSERT
+--echo # !(M_FILE_PER_TABLE && M_USE_SHAR
+--echo #
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLE t1
+(a int not null,
+ d int not null,
+ b varchar(198) not null,
+ c varchar(177),
+ index(d),
+ index(a),
+ PRIMARY KEY (b(10), a, d),
+ INDEX (c(95), b(95)),
+ INDEX (b(5), c(10), a))
+ENGINE=InnoDB stats_persistent=DEFAULT
+PARTITION BY LINEAR HASH(d) PARTITIONS 2;
+ALTER TABLE t1 TABLESPACE ts1;
+ALTER TABLE t1 DROP PRIMARY KEY, ALGORITHM=DEFAULT;
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+
+--echo #
+--echo # Bug #20593808: CRASH WITH PARTITIONED TABLES
+--echo # MULTITABLE DELETE
+--echo #
+
+--echo Test DML with index scan on partitioned table
+--echo #1. test delete with join using PK index scan on partitioned table
+eval CREATE TABLE t1 (
+  col_1_int int,
+  col_2_text text)
+  ENGINE=InnoDB;
+
+SHOW CREATE TABLE t1;
+
+--echo #insert two records in t1
+INSERT INTO t1 VALUES (5, 'row to delete');
+INSERT INTO t1 VALUES (3, 'row to keep');
+
+SELECT * FROM t1 ORDER BY col_1_int;
+
+eval CREATE TABLE t2 (
+  col_1_int int,
+  col_2_int int,
+  col_3_text text,
+  PRIMARY KEY(col_1_int, col_3_text(100)),
+  KEY idx1 (col_2_int, col_1_int))
+  ENGINE=InnoDB
+  PARTITION BY KEY(col_1_int) partitions 5;
+
+SHOW CREATE TABLE t2;
+
+--echo #insert five records in t2
+INSERT INTO t2 VALUES (91, 11, 'bigger value for no-op');
+INSERT INTO t2 VALUES ( 4, 25, 'smaller value to trigger delete');
+INSERT INTO t2 VALUES (35, 33, 'bigger value for no-op addlen');
+INSERT INTO t2 VALUES (55, 42, 'bigger value for no-op addlen + addlen + addlen');
+INSERT INTO t2 VALUES (82, 54, 'bigger value for no-op addlen + addlen');
+
+SELECT * FROM t2 ORDER BY col_1_int;
+
+--echo # test delete with join and index scan
+DELETE t1 FROM t2, t1  WHERE t2.col_1_int <= t1.col_1_int;
+
+--echo expect one record
+SELECT * FROM t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo #2. test delete with join using secondary index scan on partitioned table
+eval CREATE TABLE t1 (
+  col_1_int int,
+  col_2_text text)
+  ENGINE=InnoDB;
+
+SHOW CREATE TABLE t1;
+
+--echo #insert two records in t1
+INSERT INTO t1 VALUES (5, 'row to delete');
+INSERT INTO t1 VALUES (3, 'row to keep');
+
+SELECT * FROM t1 ORDER BY col_1_int;
+
+eval CREATE TABLE t2 (
+  col_1_int int,
+  col_2_int int,
+  col_3_text text,
+  PRIMARY KEY(col_2_int, col_1_int),
+  KEY idx1(col_1_int, col_3_text(100)))
+  ENGINE=InnoDB
+  PARTITION BY KEY(col_2_int) partitions 5;
+
+SHOW CREATE TABLE t2;
+
+--echo #insert five records in t2
+INSERT INTO t2 VALUES (91, 11, 'bigger value for no-op');
+INSERT INTO t2 VALUES ( 4, 25, 'smaller value to trigger delete');
+INSERT INTO t2 VALUES (35, 33, 'bigger value for no-op addlen');
+INSERT INTO t2 VALUES (55, 42, 'bigger value for no-op addlen + addlen + addlen');
+INSERT INTO t2 VALUES (82, 54, 'bigger value for no-op addlen + addlen');
+
+SELECT * FROM t2 ORDER BY col_1_int;
+
+--echo # test delete with join and index scan
+DELETE t1 FROM t2, t1  WHERE t2.col_1_int <= t1.col_1_int;
+
+--echo expect one record
+SELECT * FROM t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo #
+--echo # Bug #20949314: PARTITION_HELPER::PH_RND_INIT(BOOL): ASSERTION
+--echo #
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (3), (4), (5), (1), (2);
+
+CREATE TABLE t2 PARTITION BY KEY (c1) PARTITIONS 3
+AS
+SELECT * FROM t1;
+
+DELETE A FROM t1 AS A WHERE A.c1 IN
+(SELECT c1 FROM t2 AS B WHERE B.c1 = A.c1);
+
+SELECT * from t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo #
+--echo # Bug#21211524: CRASH IN ACTUAL_KEY_PARTS WITH PARTITIONED TABLES
+--echo #
+CREATE TABLE t1(
+  col1 SET('') CHARACTER SET UTF16 COLLATE UTF16_SPANISH_CI,
+  col2 INT,
+  PRIMARY KEY (col2, col1),
+  UNIQUE KEY (col1, col2))
+  ENGINE=INNODB
+  PARTITION BY KEY (col1);
+
+SELECT * from t1 WHERE col1 BETWEEN 0x92 AND "";
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#21794110: ASSERTION `MP->COUNT > 0 && MY_THREAD_EQUAL
+--echo #
+
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 CHAR(10))
+ENGINE=INNODB
+PARTITION BY HASH(col1) PARTITIONS 2;
+
+INSERT INTO t1 VALUES(0, 'string1');
+ALTER TABLE t1 CHANGE col1 col1 INT UNSIGNED AUTO_INCREMENT;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#21620577: ASSERTION H->ACTIVE_INDEX == 64
+--echo #
+
+CREATE TABLE t1(col1 YEAR(4) not null, col2 int, KEY(col1), KEY(col1, col2))
+ENGINE=INNODB
+PARTITION BY KEY(col1) PARTITIONS 2;
+
+INSERT INTO t1 VALUES('2015', 10);
+
+SELECT /*+ bka()*/ a.col2 from t1 AS a
+RIGHT JOIN t1 AS b on a.col1<=>null
+RIGHT JOIN t1 AS c on 1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#21754608: HANDLE_FATAL_SIGNAL PARTITION_HELPER::PH_READ_RANGE_FIRST
+--echo #
+
+CREATE TABLE t1(col1 int PRIMARY KEY, col2 int, col3 int)
+ENGINE=INNODB
+PARTITION BY LIST(col1) PARTITIONS 2
+   (PARTITION p0 VALUES IN (11,12),
+    PARTITION p1 VALUES IN (0,1));
+
+INSERT INTO t1 values(1, 10, 100);
+
+--disable_warnings
+SELECT * from t1 WHERE col1 BETWEEN '2000-01-01 01:02:00' AND '2000-01-01 01:03:00';
+--enable_warnings
+
+DROP TABLE t1;
+
+# WL6378_ALTER_PARTITION_TABLESPACE
+# Reason for disabling the test is that, the following fix does
+# not completely fix the behaviour of ALTER TABLE on a table with
+# partitions using separate tablespace. A new bug Bug#21914047
+# is filed on trunk/5.7, which with slight modification to below test
+# case causes server to dump. After talking to Deb (InnoDB) it
+# seem that the behavior of such a ALTER is not documented yet.
+# So, we are disabling this case until the above bug is fixed.
+#--echo #
+#--echo # Bug#21755994 ALTER INPLACE CRASHES ON A INNODB TABLE WITH PARTITION ON SEPARATE TABLESPACE
+#--echo #
+#
+#CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+#
+#CREATE TABLE t1 ( a INT NOT NULL, PRIMARY KEY (a))
+#ENGINE=InnoDB
+#PARTITION BY RANGE (a) PARTITIONS 3
+#( PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1,
+#  PARTITION P2 VALUES LESS THAN (4) TABLESPACE `innodb_system`,
+#  PARTITION P3 VALUES LESS THAN (6));
+#
+#ALTER TABLE t1 ADD COLUMN f int;
+#
+#DROP TABLE t1;
+#DROP TABLESPACE ts1;
+
+--echo #
+--echo # Bug#21796845 ASSERT ERR == DB_SUCCESS, ROW_QUIESCE_TABLE_START(), FLUSH TABLES FOR EXPORT
+--echo #
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+
+CREATE TABLE t1 (a INT, b INT) ENGINE = InnoDB
+     PARTITION BY RANGE(a) (
+     PARTITION p1 VALUES LESS THAN (100) TABLESPACE innodb_system,
+     PARTITION p2 VALUES LESS THAN (200),
+     PARTITION p3 VALUES LESS THAN (300) TABLESPACE ts1,
+     PARTITION p4 VALUES LESS THAN (400) TABLESPACE innodb_system);
+
+FLUSH table t1 FOR EXPORT;
+UNLOCK TABLES;
+
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+
+--echo #
+--echo # Bug#21957001 INNODB: FAILING ASSERTION: 0 IN FILE HA_INNOPART.CC LINE 3526
+--echo #
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Trying to access missing tablespace .*");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Missing .ibd file for table `test`\.`t1` .* ");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics for table .*");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot open datafile for read-only:");
+
+CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
+
+ALTER TABLE t1 DISCARD PARTITION p3 TABLESPACE;
+ANALYZE TABLE t1;
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+
+ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
+ANALYZE TABLE t1;
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+
+ALTER TABLE t1 DISCARD PARTITION p2 TABLESPACE;
+ANALYZE TABLE t1;
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+
+ALTER TABLE t1 DISCARD PARTITION p0 TABLESPACE;
+ANALYZE TABLE t1;
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+
+DROP TABLE t1;
+
+CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+ANALYZE TABLE t1;
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#21864838: SIG11 IN FIELD_BLOB::CMP| AT SQL/FIELD.CC
+--echo #
+
+CREATE TABLE t1 (col1 INT PRIMARY KEY, col2 VARCHAR(1), col3 BLOB AS (REPEAT(col2, 500)) VIRTUAL, KEY(col3(100)))
+ENGINE=INNODB
+PARTITION BY HASH(col1) PARTITIONS 2;
+
+CREATE TABLE t2 (col1 INT PRIMARY KEY, col2 VARCHAR(1), col3 BLOB AS (REPEAT(col2, 500)) VIRTUAL, KEY(col3(100)))
+ENGINE=INNODB
+PARTITION BY HASH(col1) PARTITIONS 2;
+
+INSERT INTO t1 (col1, col2) VALUES(1, 'd'), (2, 'c'), (3, 'b'), (4, 'a');
+INSERT INTO t2 (col1, col2) VALUES(1, 'd'), (2, 'c'), (3, 'b'), (4, 'a');
+
+SELECT t1.col1 FROM t1, t2 where t1.col1 = 3 AND t1.col3 = t2.col3 ORDER BY t2.col1 DESC;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo #
+--echo # Bug #21881155: UNINTIALIZED READ IN KEY_REC_CMP CAUSE CRASH LATER
+--echo #
+
+CREATE TABLE t1 (col1 int, col2 BLOB AS ('a') VIRTUAL, col3 INT,
+PRIMARY KEY(col1), KEY (col3, col2(1), col1))
+ENGINE=INNODB
+PARTITION BY KEY (col1) PARTITIONS 2;
+
+INSERT INTO t1(col1) values (1),(2);
+SELECT 1 FROM t1 WHERE col2 > 'a' GROUP BY col3;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#21914047 SHOW CREATE DUMPS AFTER ALTER ON INNODB TABLE WITH PARTITIONS USING TABLESPACE
+--echo #
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
+
+CREATE TABLE t1 (a INT NOT NULL, PRIMARY KEY (a))
+ENGINE=InnoDB TABLESPACE ts2
+PARTITION BY RANGE(a)
+PARTITIONS 4
+ ( PARTITION p1 VALUES LESS THAN (2) TABLESPACE ts1,
+   PARTITION p2 VALUES LESS THAN (4) TABLESPACE innodb_system,
+   PARTITION p3 VALUES LESS THAN (6),
+   PARTITION p4  VALUES LESS THAN (8) TABLESPACE innodb_file_per_table);
+
+SHOW CREATE TABLE t1;
+
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+--replace_result #P# #p#
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+
+ALTER TABLE t1 ADD COLUMN b int;
+SHOW CREATE TABLE t1;
+
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+--replace_result #P# #p#
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+
+ALTER TABLE t1 ADD COLUMN c int, TABLESPACE ts1;
+SHOW CREATE TABLE t1;
+
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+--replace_result #P# #p#
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+
+ALTER TABLE t1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10) TABLESPACE ts2);
+SHOW CREATE TABLE t1;
+
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+--replace_result #P# #p#
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+
+ALTER TABLE t1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (12));
+SHOW CREATE TABLE t1;
+
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+--replace_result #P# #p#
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+
+ALTER TABLE t1 REORGANIZE PARTITION p4 INTO (PARTITION p4 VALUES LESS THAN (8));
+SHOW CREATE TABLE t1;
+
+--replace_result #P# #p#
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+
+ALTER TABLE t1 REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN (6) TABLESPACE innodb_system);
+SHOW CREATE TABLE t1;
+
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+--replace_result #P# #p#
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT NOT NULL, PRIMARY KEY (a))
+ENGINE=InnoDB
+PARTITION BY RANGE(a)
+PARTITIONS 4
+ ( PARTITION p1 VALUES LESS THAN (2) TABLESPACE ts1,
+   PARTITION p2 VALUES LESS THAN (4) TABLESPACE innodb_system,
+   PARTITION p3 VALUES LESS THAN (6),
+   PARTITION p4  VALUES LESS THAN (8) TABLESPACE innodb_file_per_table);
+
+SHOW CREATE TABLE t1;
+
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+--replace_result #P# #p#
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+
+ALTER TABLE t1 ADD COLUMN b int;
+SHOW CREATE TABLE t1;
+
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+--replace_result #P# #p#
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+
+ALTER TABLE t1 ADD COLUMN c int, TABLESPACE ts1;
+SHOW CREATE TABLE t1;
+
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+--replace_result #P# #p#
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+
+ALTER TABLE t1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10) TABLESPACE ts2);
+SHOW CREATE TABLE t1;
+
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+--replace_result #P# #p#
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+
+ALTER TABLE t1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (12));
+SHOW CREATE TABLE t1;
+
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+--replace_result #P# #p#
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+
+ALTER TABLE t1 REORGANIZE PARTITION p4 INTO (PARTITION p4 VALUES LESS THAN (8));
+SHOW CREATE TABLE t1;
+
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+--replace_result #P# #p#
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+
+ALTER TABLE t1 REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN (6) TABLESPACE innodb_system);
+SHOW CREATE TABLE t1;
+
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+--replace_result #P# #p#
+SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+FROM information_schema.innodb_tables A
+LEFT JOIN
+information_schema.innodb_tablespaces B
+ON A.SPACE = B.SPACE
+WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+
+--echo #
+--echo # Bug#22245554 OUTPUT OF SHOW CREATE TABLE INVOLVING PARTITION TABLESPACE
+--echo # LEADS TO CONFUSION
+--echo #
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+
+--let $innodb_file_per_table=`select @@innodb_file_per_table`
+
+--let $TABLESPACE1=
+--let $TABLESPACE2=TABLESPACE innodb_system
+--let $TABLESPACE3=TABLESPACE innodb_file_per_table
+--let $TABLESPACE4=
+
+--let $INNODB_FILE_PER_TABLE_FOR_CREATE=OFF
+--let $INNODB_FILE_PER_TABLE_FOR_ALTER=ON
+--echo # CASE A
+--echo # file_per_table OFF for CREATE, ON for ALTER
+--source suite/innodb/include/create_alter_partition.inc
+
+--let $INNODB_FILE_PER_TABLE_FOR_CREATE=ON
+--let $INNODB_FILE_PER_TABLE_FOR_ALTER=OFF
+--echo # CASE B
+--echo # file_per_table ON for CREATE, OFF for ALTER
+--source suite/innodb/include/create_alter_partition.inc
+
+--let $TABLESPACE1=
+--let $TABLESPACE2=
+--let $TABLESPACE3=
+--let $TABLESPACE4=
+
+--let $INNODB_FILE_PER_TABLE_FOR_CREATE=OFF
+--let $INNODB_FILE_PER_TABLE_FOR_ALTER=OFF
+--echo # CASE C
+--echo # file_per_table OFF for CREATE, OFF for ALTER
+--source suite/innodb/include/create_alter_partition.inc
+
+--let $INNODB_FILE_PER_TABLE_FOR_CREATE=ON
+--let $INNODB_FILE_PER_TABLE_FOR_ALTER=ON
+--echo # CASE D
+--echo # file_per_table ON for CREATE, ON for ALTER
+--source suite/innodb/include/create_alter_partition.inc
+
+--let $INNODB_FILE_PER_TABLE_FOR_CREATE=ON
+--let $INNODB_FILE_PER_TABLE_FOR_ALTER=OFF
+--echo # CASE E
+--echo # file_per_table ON for CREATE, OFF for ALTER
+--source suite/innodb/include/create_alter_partition.inc
+
+--eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table
+
+DROP TABLESPACE ts1;
+--echo # Bug#22444530 - GCOLS + PARTITIONED TABLE, CRASH IN
+--echo #
+set sql_mode='';
+create table t (
+   a int not null,
+   b int generated always as (1) virtual not null,
+   c int generated always as (1) virtual not null,
+   key (c)
+) engine=innodb partition by key (a) partitions 2;
+insert into t(a) values(1);
+select b from t group by c;
+
+drop table t;
+
+# Make column b a BLOB
+create table t (
+   a int not null,
+   b blob generated always as ("a") virtual not null,
+   c int generated always as (1) virtual not null,
+   key (c)
+) engine=innodb partition by key (a) partitions 2;
+insert into t(a) values(1);
+select b from t group by c;
+
+drop table t;
+
+--echo #
+--echo # Bug#23037025 COL+PARTITION SIG11 IN ROW_SEL_STORE_MYSQL_REC
+--echo #
+set sql_mode='';
+
+CREATE TABLE t1 (
+   col1 INT,
+   col2 INT AS (col1) VIRTUAL NOT NULL,
+   col3 INT AS (1) VIRTUAL,
+   KEY (col3)
+) ENGINE=INNODB PARTITION BY KEY (col1) PARTITIONS 2;
+
+CREATE TABLE t2 (col1 INTEGER);
+CREATE TABLE t3 (col1 INTEGER);
+
+CREATE TRIGGER t2_trig1 BEFORE INSERT ON t2 FOR EACH ROW
+  INSERT INTO t3 SELECT col2 FROM t1 GROUP BY col3;
+
+--disable_warnings
+INSERT IGNORE INTO t1(col1) values(NULL);
+--enable_warnings
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t2 VALUES(1);
+
+DROP TRIGGER t2_trig1;
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#23194259 ASSERTION FAILURE:TRX0TRX.H:1416:SRV_READ_ONLY_MODE
+--echo #
+
+CREATE TABLE t1(col1 INT AS(1), KEY(col1))
+ENGINE=INNODB
+PARTITION BY KEY(col1) PARTITIONS 2;
+
+SELECT * FROM t1 WHERE sha(uuid_short());
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25516367 - CRASH IN HA_INNOBASE::COMMIT_INPLACE_ALTER_TABLE_IMPL
+--echo #
+
+CREATE TABLESPACE s1 ADD DATAFILE '1.ibd' ENGINE = InnoDB;
+CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB ROW_FORMAT = DYNAMIC TABLESPACE s1;
+
+ALTER TABLE t1 PARTITION BY RANGE(col1)
+( PARTITION p0 VALUES LESS THAN (128), PARTITION p3 VALUES LESS THAN MAXVALUE );
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 ROW_FORMAT = COMPRESSED;
+
+DROP TABLE t1;
+DROP TABLESPACE s1;
+
+--echo #
+--echo # This checks if operation bit is set properly for REORGANIZE PARTITION
+--echo #
+
+CREATE TABLE t1 (a INTEGER, b INTEGER NOT NULL, KEY(b)) ENGINE = INNODB /*!50100 PARTITION BY KEY(b) PARTITIONS 3 */;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 REORGANIZE PARTITION;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo # Ignore incompatible options of a table which was created in not strict mode
+
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 0;
+SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
+SET SESSION innodb_strict_mode = 0;
+
+CREATE TABLE t1(a INT NOT NULL, d INT NOT NULL, KEY(a), KEY(d)) ENGINE = InnoDB PARTITION BY HASH(d) PARTITIONS 02;
+
+SET SESSION innodb_strict_mode = 0;
+
+# To prevent the compression warning differences in different platform
+--disable_warnings
+
+ALTER TABLE t1 COMPRESSION='zlib', ALGORITHM=INPLACE;
+
+ALTER TABLE t1 TABLESPACE innodb_system, ALGORITHM=INPLACE, LOCK=DEFAULT;
+
+OPTIMIZE TABLE t1;
+
+--enable_warnings
+
+SHOW CREATE TABLE t1;
+
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
+SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
+
+--source include/restart_mysqld.inc
+
+CHECK TABLE t1;
+
+INSERT INTO t1 VALUES(0, 1), (2, 3), (5, 6), (10, 11);
+
+SELECT * FROM t1 ORDER BY a;
+
+DROP TABLE t1;
+
+
+--echo # DATA DIRECTORY should be read correctly after restart
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1 (a INT, b INT) PARTITION BY RANGE(a)
+(PARTITION P0 VALUES LESS THAN (10) DATA DIRECTORY '$MYSQL_TMP_DIR',
+ PARTITION p1 VALUES LESS THAN (20) DATA DIRECTORY '$MYSQL_TMP_DIR');
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+--source include/restart_mysqld.inc
+
+TRUNCATE TABLE t1;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+# Remove directory left behind by the above
+--rmdir $MYSQL_TMP_DIR/test

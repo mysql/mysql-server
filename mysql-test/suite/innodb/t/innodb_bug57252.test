@@ -3,7 +3,6 @@
 # http://bugs.mysql.com/57252
 #
 
--- source include/have_innodb.inc
 
 -- disable_query_log
 -- disable_result_log
@@ -13,7 +12,7 @@ SET @innodb_stats_on_metadata_orig = @@innodb_stats_on_metadata;
 CREATE TABLE bug57252 (a INT, KEY akey (a)) ENGINE=INNODB STATS_PERSISTENT=0;
 
 BEGIN;
-let $i = 10;
+let $i = 19;
 while ($i) {
 	eval INSERT INTO bug57252 VALUES ($i);
 	dec $i;
@@ -27,6 +26,9 @@ SET GLOBAL innodb_stats_on_metadata=0;
 # this calls ::info() without HA_STATUS_CONST and so
 # index->stat_n_diff_key_vals[] is not copied to the mysql-visible
 # rec_per_key
+
+# Cardinality value return by InnoDB is not correct. Masking
+# cardinality value to make test consistent until Bug#25539486 is fixed.
 SELECT cardinality FROM information_schema.statistics
 WHERE table_name='bug57252' AND index_name='akey';
 

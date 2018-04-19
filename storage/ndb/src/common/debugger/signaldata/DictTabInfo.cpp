@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -48,6 +55,7 @@ DictTabInfo::TableMapping[] = {
   DTIMAP(Table, CustomTriggerId, CustomTriggerId),
   DTIMAP2(Table, FrmLen, FrmLen, 0, MAX_FRM_DATA_SIZE),
   DTIMAPB(Table, FrmData, FrmData, 0, MAX_FRM_DATA_SIZE, FrmLen),
+  DTIMAP(Table, PartitionBalance, PartitionBalance),
   DTIMAP2(Table, FragmentCount, FragmentCount, 0, MAX_NDB_PARTITIONS),
   DTIMAP2(Table, ReplicaDataLen, ReplicaDataLen, 0, MAX_FRAGMENT_DATA_BYTES),
   DTIMAPB(Table, ReplicaData, ReplicaData, 0, MAX_FRAGMENT_DATA_BYTES, ReplicaDataLen),
@@ -76,6 +84,10 @@ DictTabInfo::TableMapping[] = {
   DTIMAP(Table, TableStorageType, TableStorageType),
   DTIMAP(Table, ExtraRowGCIBits, ExtraRowGCIBits),
   DTIMAP(Table, ExtraRowAuthorBits, ExtraRowAuthorBits),
+  DTIMAP(Table, ReadBackupFlag, ReadBackupFlag),
+  DTIMAP(Table, FullyReplicatedFlag, FullyReplicatedFlag),
+  DTIMAP(Table, PartitionCount, PartitionCount),
+  DTIMAP(Table, FullyReplicatedTriggerId, FullyReplicatedTriggerId),
   DTIBREAK(AttributeName)
 };
 
@@ -165,7 +177,9 @@ DictTabInfo::Table::init(){
   memset(ReplicaData, 0, sizeof(ReplicaData));
   memset(RangeListData, 0, sizeof(RangeListData));
   memset(TablespaceData, 0, sizeof(TablespaceData));
+  PartitionBalance = NDB_PARTITION_BALANCE_FOR_RP_BY_LDM;
   FragmentCount = 0;
+  PartitionCount = 0;
   TablespaceId = RNIL;
   TablespaceVersion = ~0;
   MaxRowsLow = 0;
@@ -190,6 +204,11 @@ DictTabInfo::Table::init(){
 
   ExtraRowGCIBits = 0;
   ExtraRowAuthorBits = 0;
+
+  ReadBackupFlag = 0;
+  FullyReplicatedFlag = 0;
+  FullyReplicatedTriggerId = RNIL;
+  PartitionCount = 0;
 }
 
 void

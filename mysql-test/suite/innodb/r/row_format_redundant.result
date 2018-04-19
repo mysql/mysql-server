@@ -1,0 +1,54 @@
+#
+# Bug#21644827 - FTS, ASSERT !SRV_READ_ONLY_MODE || M_IMPL.M_LOG_MODE ==
+#                MTR_LOG_NO_REDO
+#
+create table t1 (a int not null, d varchar(15) not null, b
+varchar(198) not null, c char(156),
+fulltext ftsic(c)) engine=InnoDB
+row_format=redundant;
+insert into t1 values(123, 'abcdef', 'jghikl', 'mnop');
+insert into t1 values(456, 'abcdef', 'jghikl', 'mnop');
+insert into t1 values(789, 'abcdef', 'jghikl', 'mnop');
+insert into t1 values(134, 'kasdfsdsadf', 'adfjlasdkfjasd', 'adfsadflkasdasdfljasdf');
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+SET GLOBAL innodb_file_per_table=OFF;
+create table t2 (a int not null, d varchar(15) not null, b
+varchar(198) not null, c char(156), fulltext ftsic(c)) engine=InnoDB
+row_format=redundant;
+insert into t2 select * from t1;
+create table t3 (a int not null, d varchar(15) not null, b varchar(198),
+c varchar(150), index k1(c(99), b(56)), index k2(b(5), c(10))) engine=InnoDB
+row_format=redundant;
+insert into t3 values(444, 'dddd', 'bbbbb', 'aaaaa');
+insert into t3 values(555, 'eeee', 'ccccc', 'aaaaa');
+SET GLOBAL innodb_fast_shutdown=0;
+# restart: --innodb-read-only
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+4096
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+4096
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+2
+# restart
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+TRUNCATE TABLE t3;
+# restart: --debug=d,ib_table_invalid_flags
+SELECT * FROM t1;
+a	d	b	c
+# restart
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;

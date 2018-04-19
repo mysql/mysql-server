@@ -1,5 +1,4 @@
---source include/have_gb18030.inc
---source include/have_innodb.inc
+--character_set gb18030
 
 # Use the following chars to get single bytes
 # 亗儎厗噲墛悜挀敃牎ⅲぅ焙患骄 櫄枟
@@ -13,7 +12,10 @@ SET CHARACTER_SET_DATABASE = gb18030;
 CREATE DATABASE `中文`;
 CREATE DATABASE `数据库`;
 
-SELECT schema_name, HEX(schema_name) FROM information_schema.schemata WHERE schema_name NOT IN ('mtr', 'sys');
+SELECT schema_name, HEX(schema_name)
+  FROM information_schema.schemata
+  WHERE schema_name NOT IN ('mtr', 'sys')
+  ORDER BY schema_name;
 
 USE `数据库`;
 USE `中文`;

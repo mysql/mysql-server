@@ -1,28 +1,32 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public Licensein
- as published by the Free Software Foundation; version 2 of
- the License.
- 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU General Public License for more details.
- 
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License, version 2.0, for more details.
+
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include <my_config.h>
+#include "my_config.h"
 #include <stdio.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <sys/errno.h>
-#define __STDC_FORMAT_MACROS 
 #include <inttypes.h>
 
 /* Memcache headers */
@@ -47,20 +51,13 @@ extern "C" {
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
-/* Lock that protects online reconfiguration */
-static pthread_rwlock_t reconf_lock = PTHREAD_RWLOCK_INITIALIZER;
-
 /* Scheduler Global singleton */
 static S::SchedulerGlobal * s_global;
 
-/* Global scheduler generation number */
-static int sched_generation_number;
-
 /* SchedulerGlobal methods */
-S::SchedulerGlobal::SchedulerGlobal(Configuration *cf) : 
-  conf(cf) 
-{ 
-  generation = sched_generation_number;
+S::SchedulerGlobal::SchedulerGlobal(int _nthreads) :
+  GlobalConfigManager(_nthreads)
+{
 }
 
 
@@ -68,7 +65,6 @@ void S::SchedulerGlobal::init(const scheduler_options *sched_opts) {
   DEBUG_ENTER_METHOD("S::SchedulerGlobal::init");
 
   /* Set member variables */
-  nthreads = sched_opts->nthreads;
   config_string = sched_opts->config_string;
   parse_config_string(nthreads, config_string);
   options.max_clients = sched_opts->max_clients;
@@ -87,10 +83,6 @@ void S::SchedulerGlobal::init(const scheduler_options *sched_opts) {
     c->nreferences += 1;
   }
 
-  /* Initialize the list that will hold WorkerConnections */
-  workerConnections = (WorkerConnection **) calloc(sizeof(void *), nthreads * nclusters);  
-  
-  
   /* Initialize the WorkerConnections */
   for(int t = 0 ; t < nthreads ; t++) {
     for(int c = 0 ; c < nclusters ; c++) {
@@ -98,7 +90,10 @@ void S::SchedulerGlobal::init(const scheduler_options *sched_opts) {
       * wc_cell = new WorkerConnection(this, t, c);
     }
   }
-    
+
+  /* Build Configurations for WorkerConnections */
+  configureSchedulers();
+
   /* Start the send & poll threads for each connection */
   for(int i = 0 ; i < nclusters ; i++) 
     clusters[i]->startThreads();
@@ -111,19 +106,6 @@ void S::SchedulerGlobal::init(const scheduler_options *sched_opts) {
 
   /* Now Running */
   running = true;
-}
-
-
-void S::SchedulerGlobal::reconfigure(Configuration * new_cf) {
-  conf = new_cf;
-  generation++;
-  
-  for(int i = 0; i < nclusters ; i++) {
-    for(int j = 0; j < options.n_worker_threads; j++) {
-      WorkerConnection *wc = * (getWorkerConnectionPtr(j, i));
-      wc->reconfigure(new_cf);
-    }
-  }
 }
 
 
@@ -156,9 +138,6 @@ void S::SchedulerGlobal::shutdown() {
       }
     }
     
-    /* Then free the list of WorkerConnections */
-    free(workerConnections);
-
     /* Shutdown now */
     logger->log(LOG_WARNING, 0, "Shutdown completed.");
     running = false;
@@ -210,7 +189,7 @@ void S::SchedulerGlobal::parse_config_string(int nthreads, const char *str) {
   /* Test validity of configuration */
   if(options.force_send < 0 || options.force_send > 2) {
     logger->log(LOG_WARNING, 0, "Invalid scheduler configuration.\n");
-    assert(options.force_send >= 0 || options.force_send <= 2);
+    assert(options.force_send >= 0 && options.force_send <= 2);
   }
   if(options.n_connections < 0 || options.n_connections > 4) {
     logger->log(LOG_WARNING, 0, "Invalid scheduler configuration.\n");
@@ -231,21 +210,8 @@ void S::SchedulerGlobal::add_stats(const char *stat_key,
                                    ADD_STAT add_stat, 
                                    const void *cookie) {
   if(strncasecmp(stat_key, "reconf", 6) == 0) {
-    char gen_number_buffer[16];
-    const char *status;
-    char *gen = gen_number_buffer;
-        
-    if(pthread_rwlock_tryrdlock(& reconf_lock) == 0) {
-      status = "Running";
-      snprintf(gen, 16, "%d", generation);
-      pthread_rwlock_unlock(& reconf_lock);
-    }
-    else {
-      status = "Loading";
-      snprintf(gen, 16, "%d", generation + 1);
-    }
-    add_stat(status, strlen(status), gen, strlen(gen), cookie);
-    DEBUG_PRINT(" reconf; %s %s", status, gen);
+    WorkerConnection ** wc = getWorkerConnectionPtr(0,0);
+    (* wc)->add_stats(stat_key, add_stat, cookie);
   }
   else {
     DEBUG_PRINT(" scheduler");
@@ -264,8 +230,7 @@ void S::SchedulerWorker::init(int my_thread,
    * This will start the send & poll threads for each connection.
    */
   if(my_thread == 0) {
-    sched_generation_number = 1;
-    s_global = new SchedulerGlobal(& get_Configuration());
+    s_global = new SchedulerGlobal(options->nthreads);
     s_global->init(options);
   }
   
@@ -275,20 +240,14 @@ void S::SchedulerWorker::init(int my_thread,
 
 
 void S::SchedulerWorker::shutdown() {
-  s_global->shutdown();
+  if(id == 0)
+    s_global->shutdown();
 }
 
 
-void S::SchedulerWorker::attach_thread(thread_identifier *parent) {
-  DEBUG_ENTER();
-  
-  pipeline = parent->pipeline;
-  
-  if(id == 0) {
-    s_global->engine = pipeline->engine;
-  }
-  
-  logger->log(LOG_WARNING, 0, "Pipeline %d attached to S scheduler.\n", id);
+S::SchedulerWorker::~SchedulerWorker() {
+  if(id == 0)
+    delete s_global;
 }
 
 
@@ -296,25 +255,10 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
   int c = item->prefix_info.cluster_id;
   ENGINE_ERROR_CODE response_code;
   NdbInstance *inst = 0;
-  S::WorkerConnection *wc;
   const KeyPrefix *pfx;
-  
-  DEBUG_PRINT("SchedulerWorker / config gen. %d", s_global->generation);
+  S::WorkerConnection *wc;
 
-  /* ACQUIRE READ LOCK */
-  if(pthread_rwlock_rdlock(& reconf_lock) == 0) {
-    wc = * (s_global->getWorkerConnectionPtr(id, c));
-    pfx = s_global->conf->getPrefixByInfo(item->prefix_info);
-    pthread_rwlock_unlock(& reconf_lock);
-  }
-  else {
-    log_app_error(& AppError29001_ReconfLock);
-    return ENGINE_TMPFAIL;
-  }
-  /* READ LOCK RELEASED */
-  
-  item->base.nsuffix = item->base.nkey - pfx->prefix_len;
- 
+  wc = * (s_global->getWorkerConnectionPtr(id, c));
   if(wc == 0) return ENGINE_FAILED;
     
   if(wc->freelist) {                 /* Get the next NDB from the freelist. */
@@ -343,9 +287,9 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
   
   assert(inst);
   inst->link_workitem(item);
-  
+
   // Fetch the query plan for this prefix.
-  item->plan = wc->plan_set->getPlanForPrefix(pfx);
+  pfx = wc->setQueryPlanInWorkitem(item);
   if(! item->plan) {
     DEBUG_PRINT("getPlanForPrefix() failure");
     return ENGINE_FAILED;
@@ -369,28 +313,9 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
         
     response_code = ENGINE_EWOULDBLOCK;
   }
-  else {  
-    switch(op_status) {
-     case op_not_supported:
-        DEBUG_PRINT("op_status is op_not_supported");
-        response_code = ENGINE_ENOTSUP;
-        break;
-      case op_bad_key:
-        DEBUG_PRINT("op_status is op_bad_key");
-        response_code = ENGINE_EINVAL;
-        break;
-      case op_overflow:
-        DEBUG_PRINT("op_status is op_overflow");
-        response_code = ENGINE_E2BIG;
-        break;
-      case op_failed:
-        DEBUG_PRINT("op_status is op_failed");
-        response_code = ENGINE_FAILED;
-        break;
-      default:
-        DEBUG_PRINT("UNEXPECTED: op_status is %d", op_status);
-        response_code = ENGINE_FAILED;
-    }
+  else {
+    /* Status is not op_prepared, but rather some error status */
+    response_code = item->status->status;
   }
   
   return response_code;
@@ -403,6 +328,19 @@ void S::SchedulerWorker::prepare(NdbTransaction * tx,
                                  workitem * item, prepare_flags flags) { 
   tx->executeAsynchPrepare(execType, callback, (void *) item);
   if(flags == RESCHEDULE) item->base.reschedule = 1;
+}
+
+
+void S::SchedulerWorker::close(NdbTransaction *tx, workitem *item) {
+  Uint64 nwaits_pre, nwaits_post;
+  Ndb * & ndb = item->ndb_instance->db;
+
+  nwaits_pre  = ndb->getClientStat(Ndb::WaitExecCompleteCount);
+  tx->close();
+  nwaits_post = ndb->getClientStat(Ndb::WaitExecCompleteCount);
+
+  if(nwaits_post > nwaits_pre) 
+    log_app_error(& AppError29023_SyncClose);
 }
 
 
@@ -421,7 +359,7 @@ void S::SchedulerWorker::release(workitem *item) {
     if(wc && ! wc->sendqueue->is_aborted()) {
       inst->next = wc->freelist;
       wc->freelist = inst;
-      DEBUG_PRINT("Returned NdbInstance to freelist.");
+      // DEBUG_PRINT("Returned NdbInstance to freelist.");
     }
     else {
       /* We are in the midst of shutting down (and possibly reconfiguring) */
@@ -431,20 +369,8 @@ void S::SchedulerWorker::release(workitem *item) {
 }
 
 
-/* This is a partial implementation of online reconfiguration.
-   It can replace KeyPrefix mappings, but not add a cluster at runtime 
-   (nor will it catch an attempt to do so -- which will eventually lead to
-   a crash after a getWorkerConnectionPtr()).    
-*/
 bool S::SchedulerWorker::global_reconfigure(Configuration *new_cf) {
-  bool r = false;
-  
-  if(pthread_rwlock_wrlock(& reconf_lock) == 0) {
-    s_global->reconfigure(new_cf);
-    pthread_rwlock_unlock(& reconf_lock);
-    r = true;
-  }
-  return r;
+  return s_global->reconfigure(new_cf);
 }
 
 
@@ -556,20 +482,16 @@ NdbInstance * S::WorkerConnection::newNdbInstance() {
 
 
 S::WorkerConnection::WorkerConnection(SchedulerGlobal *global,
-                                      int thd_id, int cluster_id) {
+                                      int thd_id, int cluster_id) :
+  SchedulerConfigManager(thd_id, cluster_id)
+{
   S::Cluster *cl = global->clusters[cluster_id];  
-  Configuration *conf = global->conf;
 
   id.thd = thd_id;
   id.cluster = cluster_id;
   id.conn = thd_id % cl->nconnections;  // round-robin assignment
   conn = cl->connections[id.conn];
   id.node = conn->node_id;
-
-  /* Build the plan_set and all QueryPlans */
-  old_plan_set = 0;
-  plan_set = new ConnQueryPlanSet(conn->conn, conf->nprefixes);
-  plan_set->buildSetForConfiguration(conf, cluster_id);
 
   /* How many NDB instances to start initially */
   instances.initial = conn->instances.initial / conn->n_workers;
@@ -594,45 +516,26 @@ S::WorkerConnection::WorkerConnection(SchedulerGlobal *global,
   /* Hoard a transaction (an API connect record) for each Ndb object.  This
    * first call to startTransaction() will send TC_SEIZEREQ and wait for a 
    * reply, but later at runtime startTransaction() should return immediately.
-   * Also, pre-build a QueryPlan for each NDB instance.
    */
-  QueryPlan *plan;
-  const KeyPrefix *prefix = conf->getNextPrefixForCluster(id.cluster, NULL);
-  if(prefix) {
-    NdbTransaction ** txlist = new NdbTransaction * [instances.current];
-    int i = 0;
+  NdbTransaction ** txlist = new NdbTransaction * [instances.current];
+  int i = 0;
 
-    // Open them all.
-    for(NdbInstance *inst = freelist; inst != 0 ;inst=inst->next, i++) {
-      NdbTransaction *tx;
-      plan = plan_set->getPlanForPrefix(prefix);
-      tx = inst->db->startTransaction();
-      if(! tx) logger->log(LOG_WARNING, 0, inst->db->getNdbError().message);
-      txlist[i] = tx;
-    }
-    
-    // Close them all.
-    for(i = 0 ; i < instances.current ; i++) {
+  // Open them all.
+  for(NdbInstance *inst = freelist; inst != 0 ;inst=inst->next, i++) {
+    NdbTransaction *tx;
+    tx = inst->db->startTransaction();
+    if(! tx) log_ndb_error(inst->db->getNdbError());
+    txlist[i] = tx;
+  }
+
+  // Close them all.
+  for(i = 0 ; i < instances.current ; i++) {
+    if(txlist[i])
       txlist[i]->close();
-    }    
-    
-    // Free the list.
-    delete[] txlist;
   }
-}
 
-
-void S::WorkerConnection::reconfigure(Configuration *new_cf) {
-  if(old_plan_set) {  /* Garbage collect the old old plans */
-    delete old_plan_set;
-  }
-  old_plan_set = plan_set;
-  
-  ConnQueryPlanSet *new_plans = 
-    new ConnQueryPlanSet(conn->conn, new_cf->nprefixes);
-  new_plans->buildSetForConfiguration(new_cf, id.cluster);
-  
-  plan_set = new_plans;
+  // Free the list.
+  delete[] txlist;
 }
 
 
@@ -649,13 +552,7 @@ S::WorkerConnection::~WorkerConnection() {
     
   /* Delete the sendqueue */
   delete sendqueue;
-  
-  /* Delete the current QueryPlans (and maybe the previous ones, too) */
-  delete plan_set;
-  if(old_plan_set) {
-    delete old_plan_set;
-  }
-}  
+}
 
 
 /* Connection methods */
@@ -930,9 +827,8 @@ void * S::Connection::run_ndb_poll_thread() {
   DEBUG_ENTER();
 
   NdbInstance *inst;
-  Ndb ** ready_list;
   int wait_timeout_millisec = 5000;
-  int min_ready;
+  int pct_ready;
   int in_flight = 0;
   
   while(1) {
@@ -947,24 +843,24 @@ void * S::Connection::run_ndb_poll_thread() {
       inst->next = 0;
       DEBUG_PRINT(" ** adding %d.%d to wait group ** ",
                   inst->wqitem->pipeline->id, inst->wqitem->id);
-      pollgroup->addNdb(inst->db);
-      n_added++;
-      in_flight++;
+      if(! pollgroup->push(inst->db)) {
+        n_added++;
+        in_flight++;
+      }
     }
 
     /* What's the minimum number of ready Ndb's to wake up for? */
-    int n = n_added / 4;
-    min_ready = n > 0 ? n : 1;
+    pct_ready = (n_added > 4) ? 25 : 1;
         
     /* Wait until something is ready to poll */
-    int nwaiting = pollgroup->wait(ready_list, wait_timeout_millisec, min_ready);
+    int nwaiting = pollgroup->wait(wait_timeout_millisec, pct_ready);
 
     /* Poll the ones that are ready */
     if(nwaiting > 0) {
       for(int i = 0; i < nwaiting ; i++) {
         in_flight--;
         assert(in_flight >= 0);
-        Ndb *db = ready_list[i];
+        Ndb *db = pollgroup->pop();
         inst = (NdbInstance *) db->getCustomData();
         DEBUG_PRINT("Polling %d.%d", inst->wqitem->pipeline->id, inst->wqitem->id);
         db->pollNdb(0, 1);
@@ -981,13 +877,13 @@ void * S::Connection::run_ndb_poll_thread() {
         }
         else {
           // Scheduler yielded. Notify memcached that the operation is complete.
-          const SERVER_COOKIE_API *api = s_global->engine->server.cookie;
-          api->notify_io_complete(inst->wqitem->cookie, ENGINE_SUCCESS);
+          DEBUG_PRINT("item_io_complete for %d.%d",
+                      inst->wqitem->pipeline->id, inst->wqitem->id);
+          item_io_complete(inst->wqitem);
         }
       }
     }
   }
-  return 0; /* not reached */
   return 0; /* not reached */
 }
 

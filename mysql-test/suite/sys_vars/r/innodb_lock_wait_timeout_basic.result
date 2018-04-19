@@ -18,7 +18,7 @@ SELECT @@session.innodb_lock_wait_timeout;
 60
 '#---------------------BS_STVARS_032_03----------------------#'
 SELECT @@GLOBAL.innodb_lock_wait_timeout = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_lock_wait_timeout';
 @@GLOBAL.innodb_lock_wait_timeout = VARIABLE_VALUE
 1
@@ -28,7 +28,7 @@ COUNT(@@GLOBAL.innodb_lock_wait_timeout)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_lock_wait_timeout';
 COUNT(VARIABLE_VALUE)
 1

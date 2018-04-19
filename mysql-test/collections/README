@@ -1,11 +1,11 @@
 This directory contains collections of test runs that we run during our
 integration and release testing. These files are not directly useful 
 outside this context, but need to be part of the source repository 
-and are included for reference.Each file contains zero or more lines,
+and are included for reference. Each file contains zero or more lines,
 with one invocation of mysql-test-run.pl on each. These invocations are
 written so that, with the assumption that perl is in your search path,
-any collection can run as a shell script or a batch file, with the parent
-mysql-test directory being the current working directory.
+any collection can in principle run as a shell script or a batch file,
+with the parent mysql-test directory being the current working directory.
 
 During integration testing, we choose the collection to run by following
 these steps:
@@ -18,6 +18,9 @@ these steps:
 2) If there is a collection that has the same name as the branch we're
    testing plus the extension as determined in step 1, we choose that
    collection.
+
+2b) If we are running a valgrind test and there is a collection with
+    the chosen name and the suffix "-valgrind" we choose that instead.
 
 3) If the branch is unknown or we have removed all characters from it
    and still not found a matching collection, we choose the name "default"
@@ -38,3 +41,37 @@ CMake will create a new file without the .in suffix where
 the include lines are replaced with the contents of the referred
 file. Filename is local to the collections directory, and includes do
 not nest.
+
+Notes on some of the mysql-test-run.pl arguments and how they work in
+our continous intergation test framework. These are mostly for those
+writing or editing such files as they are specific to that setup.
+
+1) The --comment argument produces a header which is parsed by the log
+   analyzer to produce an entry for the result summary, seen as the
+   name of the test batch. The names should be unique. Also, avoid too
+   long names as it may clutter the presentation.
+
+2) Do not use --mem, use --vardir instead. Before the test is run, a
+   host specific ramdisk path is prepended to the vardir argument to
+   ensure that tests always run on ramdisk. This also works on Windows
+   or Mac OSX where --mem is not supported.
+
+3) The name of the --vardir directory must start with 'var' in order for
+   the test results to be correctly included in the result
+   tarballs. They should also be unique across the collection file to
+   avoid clashes. If --vardir is not specified, the --comment name will
+   be used with a prefix "var-".
+
+4) Any --parallel setting will be overridden by a host specific
+   setting (which may be modified by branch; e.g. some hosts may need a
+   lower setting for cluster). Most hosts use 8. It does not hurt to
+   add --parallel=auto but this will only have effect should we have
+   forgotten to set a parallel setting for a host.
+
+There are some files called disabled-*.list which are referenced in the
+commands in the default.* files to explicitly disable some tests.
+
+disabled-asan.list contains a list of tests to be disabled for asan
+test runs. This is done automatically by the test framework. A similar
+test list may be added for valgrind, which will then be disabled in
+valgrind tests.

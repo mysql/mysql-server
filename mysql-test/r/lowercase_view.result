@@ -1,3 +1,8 @@
+# Preparation: Shut server down.
+# 1 First start the server with --initialize and --lower-case-table-names=1.
+#   We need to make sure l-c-t-n is set during database initialization.
+#   Otherwise the mysql.tables.name do not pick right collation.
+# 2 Restart the server against DDIR
 drop table if exists t1Aa,t2Aa,v1Aa,v2Aa;
 drop view if exists t1Aa,t2Aa,v1Aa,v2Aa;
 drop database if exists MySQLTest;
@@ -7,7 +12,7 @@ create table TaB (Field int);
 create view ViE as select * from TAb;
 show create table VIe;
 View	Create View	character_set_client	collation_connection
-vie	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `vie` AS select `tab`.`Field` AS `Field` from `tab`	latin1	latin1_swedish_ci
+vie	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `vie` AS select `tab`.`Field` AS `Field` from `tab`	utf8mb4	utf8mb4_0900_ai_ci
 drop database MySQLTest;
 use test;
 create table t1Aa (col1 int);
@@ -119,7 +124,7 @@ create table t1Aa (col1 int);
 create view v1Aa as select col1 from t1Aa as AaA;
 show create view v1AA;
 View	Create View	character_set_client	collation_connection
-v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1aa` AS select `aaa`.`col1` AS `col1` from `t1aa` `aaa`	latin1	latin1_swedish_ci
+v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1aa` AS select `aaa`.`col1` AS `col1` from `t1aa` `aaa`	utf8mb4	utf8mb4_0900_ai_ci
 drop view v1AA;
 select Aaa.col1 from t1Aa as AaA;
 col1
@@ -128,7 +133,7 @@ drop view v1AA;
 create view v1Aa as select AaA.col1 from t1Aa as AaA;
 show create view v1AA;
 View	Create View	character_set_client	collation_connection
-v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1aa` AS select `aaa`.`col1` AS `col1` from `t1aa` `aaa`	latin1	latin1_swedish_ci
+v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1aa` AS select `aaa`.`col1` AS `col1` from `t1aa` `aaa`	utf8mb4	utf8mb4_0900_ai_ci
 drop view v1AA;
 drop table t1Aa;
 CREATE TABLE  t1 (a int, b int);
@@ -142,7 +147,7 @@ CREATE OR REPLACE VIEW v1 AS
 select X.a from t1 AS X group by X.b having (X.a = 1);
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `x`.`a` AS `a` from `t1` `x` group by `x`.`b` having (`x`.`a` = 1)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `x`.`a` AS `a` from `t1` `x` group by `x`.`b` having (`x`.`a` = 1)	utf8mb4	utf8mb4_0900_ai_ci
 SELECT * FROM v1;
 a
 DROP VIEW v1;
@@ -165,3 +170,6 @@ count(*)
 1
 DROP TABLE `ttt`;
 End of 5.0 tests.
+# Shut server down.
+#
+# Cleanup: Restarting the server against default datadir.

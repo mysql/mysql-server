@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -18,26 +25,44 @@
 #ifndef NDB_GLOBAL_H
 #define NDB_GLOBAL_H
 
-#ifdef _WIN32
-/* Workaround for Bug#32082: VOID refdefinition results in compile errors */
-#ifndef DONT_DEFINE_VOID
-#define DONT_DEFINE_VOID
-#endif
-#endif
-
-#include <my_global.h>
+#include <errno.h>
+#include <math.h>
+#include <stddef.h>
+#include <stdio.h>
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_systime.h"
+#include <mysql/service_mysql_alloc.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#ifdef _WIN32
-#include <process.h>
+
+/* Legacy definitions. */
+#ifndef TRUE
+#define TRUE true
+#define FALSE false
 #endif
 
+/*
+  Custom version of standard offsetof() macro which can be used to get
+  offsets of members in class for non-POD types (according to the current
+  version of C++ standard offsetof() macro can't be used in such cases and
+  attempt to do so causes warnings to be emitted, OTOH in many cases it is
+  still OK to assume that all instances of the class has the same offsets
+  for the same members).
+
+  This is temporary solution which should be removed once File_parser class
+  and related routines are refactored.
+*/
+
+#define my_offsetof(TYPE, MEMBER) \
+        ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
+
 #if defined __GNUC__
-# define ATTRIBUTE_FORMAT(style, m, n) __attribute__((format(style, m, n)))
+# define ATTRIBUTE_FORMAT(style, m, n) MY_ATTRIBUTE((format(style, m, n)))
 #else
 # define ATTRIBUTE_FORMAT(style, m, n)
 #endif
@@ -54,20 +79,19 @@
 #define NDB_PORT 1186
 #endif
 
-#if defined(_WIN32)
-#define NDB_WIN32 1
-#define NDB_WIN 1
-#define PATH_MAX 256
+#ifdef _WIN32
 #define DIR_SEPARATOR "\\"
+#else
+#define DIR_SEPARATOR "/"
+#endif
+
+#if defined(_WIN32)
+#define PATH_MAX 256
 
 /* Disable a few compiler warnings on Windows */
 /* 4355: 'this': used in base member initializer list */
 #pragma warning(disable: 4355)
 
-#else
-#undef NDB_WIN32
-#undef NDB_WIN
-#define DIR_SEPARATOR "/"
 #endif
 
 #if ! (NDB_SIZEOF_CHAR == SIZEOF_CHAR)
@@ -87,7 +111,7 @@
 #ifdef _AIX
 #undef _H_STRINGS
 #endif
-#include <m_string.h>
+#include "m_string.h"
 
 #ifndef NDB_REMOVE_BZERO
 /*
@@ -107,7 +131,7 @@
 #endif
 #endif
 
-#include <m_ctype.h>
+#include "m_ctype.h"
 #include <ctype.h>
 
 #ifdef HAVE_STDARG_H
@@ -162,6 +186,10 @@ extern "C" {
 }
 #endif
 
+#ifdef  __cplusplus
+#include <new>
+#endif
+
 #include "ndb_init.h"
 
 #ifndef PATH_MAX
@@ -214,27 +242,9 @@ extern "C" {
      if the expression is false.
 */
 
-#if (_MSC_VER > 1500) || (defined __GXX_EXPERIMENTAL_CXX0X__)
-
-/*
-  Prefer to use the 'static_assert' function from C++0x
-  to get best error message
-*/
 #define NDB_STATIC_ASSERT(expr) static_assert(expr, #expr)
 
-#else
-
-/*
-  Fallback to use home grown solution
-  (i.e use mysys version)
-*/
-
-#define NDB_STATIC_ASSERT(expr) compile_time_assert(expr)
-
-#endif
-
-
-#if (_MSC_VER > 1500)
+#if defined(_WIN32) && (_MSC_VER > 1500)
 #define HAVE___HAS_TRIVIAL_CONSTRUCTOR
 #define HAVE___IS_POD
 #endif
@@ -260,21 +270,30 @@ extern "C" {
 #endif
 
 /**
- *  __attribute__((noreturn)) was introduce in gcc 2.5
+ *  MY_ATTRIBUTE((noreturn)) was introduce in gcc 2.5
  */
-#if (GCC_VERSION >= 2005)
-#define ATTRIBUTE_NORETURN __attribute__((noreturn))
+#ifdef __GNUC__
+#define ATTRIBUTE_NORETURN MY_ATTRIBUTE((noreturn))
 #else
 #define ATTRIBUTE_NORETURN
 #endif
 
 /**
- *  __attribute__((noinline)) was introduce in gcc 3.1
+ *  MY_ATTRIBUTE((noinline)) was introduce in gcc 3.1
  */
-#if (GCC_VERSION >= 3001)
-#define ATTRIBUTE_NOINLINE __attribute__((noinline))
+#ifdef __GNUC__
+#define ATTRIBUTE_NOINLINE MY_ATTRIBUTE((noinline))
 #else
 #define ATTRIBUTE_NOINLINE
+#endif
+
+/**
+ *  Attribute used for unused function arguments
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#define ATTRIBUTE_UNUSED __attribute__((unused))
+#else
+#define ATTRIBUTE_UNUSED
 #endif
 
 /**
@@ -292,14 +311,13 @@ extern "C" {
 /*
  * require is like a normal assert, only it's always on (eg. in release)
  */
-C_MODE_START
-/** see below */
-typedef int(*RequirePrinter)(const char *fmt, ...);
+typedef int(*RequirePrinter)(const char *fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
 void require_failed(int exitcode, RequirePrinter p,
                     const char* expr, const char* file, int line)
                     ATTRIBUTE_NORETURN;
-int ndbout_printer(const char * fmt, ...);
-C_MODE_END
+int ndbout_printer(const char * fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
 /*
  *  this allows for an exit() call if exitcode is not zero
  *  and takes a Printer to print the error

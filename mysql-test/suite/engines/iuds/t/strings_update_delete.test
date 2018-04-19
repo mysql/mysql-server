@@ -138,11 +138,10 @@ eval INSERT INTO t18 VALUES('SIZE', 'SMALL1');
 --sorted_result
 SELECT * FROM t18 WHERE c2=0;
  EXPLAIN SELECT * FROM t18 WHERE c2=0; 
-eval SET sql_mode= 'STRICT_ALL_TABLES';
+eval SET sql_mode= default;
 --error 1265
 eval INSERT INTO t18 VALUES('SIZE','SMALL2'); 
 --sorted_result
 SELECT * FROM t18 WHERE c2=0;
  DROP TABLE t17,t18;
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18;
-SET sql_mode=default;

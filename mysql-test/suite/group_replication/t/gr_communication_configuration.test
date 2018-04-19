@@ -1,0 +1,282 @@
+################################################################################
+# The test verifies the 'START GROUP_REPLICATION' behavior with different GR
+# configuration variables.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Try setting invalid values to group_replication_bootstrap_group variable.
+#    It must fail.
+# 2. Try start Group Replication on M1 without configuring any communication
+#    engine parameter, start must fail.
+# 3. Try start Group Replication on M1 with only bootstrap parameter enabled,
+#    start must fail.
+# 4. Try start Group Replication on M1 with invalid local_address parameter set,
+#    start must fail.
+# 5. Try start Group Replication on M1 with only local_address parameter set,
+#    start must fail.
+# 6. Try start Group Replication on M1 with bootstrap parameter enabled and
+#    group_seeds, start must fail on M1.
+# 7. Try start Group Replication on M1 with bootstrap parameter enabled and
+#    local_address, start must succeed on M1. M1 should come ONLINE.
+# 8. Try start Group Replication on M2 with invalid group_seeds, start must
+#    fail.
+# 9. Try start Group Replication on M2 with invalid group_seeds, start must
+#    fail.
+# 10. Try start Group Replication on server2 with
+#     local_address and group_seeds set to NULL, start
+#     must fail.
+# 11. Try start Group Replication on M2 with valid local_address and
+#     group_seeds, start must succeed. M2 should come ONLINE.
+# 12. We must have a group with two members.
+# 13. Clean up.
+################################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+# Suppress expected errors on error log.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Unable to initialize the group communication engine");
+call mtr.add_suppression("Error on group communication engine initialization");
+call mtr.add_suppression("Error on group communication engine start");
+call mtr.add_suppression("Invalid hostname or IP address \\(.*\\) assigned to the parameter local_node!");
+call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
+call mtr.add_suppression("\\[GCS\\] Unable to join the group: peers not configured.");
+call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
+call mtr.add_suppression("\\[GCS\\] None of the provided peer address is valid.");
+call mtr.add_suppression("\\[GCS\\] read failed");
+SET SESSION sql_log_bin= 1;
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Unable to initialize the group communication engine");
+call mtr.add_suppression("Error on group communication engine initialization");
+call mtr.add_suppression("Peer address .* is not valid.");
+call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
+call mtr.add_suppression("\\[GCS\\] The group_name, peer_nodes, local_node or bootstrap_group parameters were not specified.");
+call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
+call mtr.add_suppression("\\[GCS\\] None of the provided peer address is valid.");
+call mtr.add_suppression("\\[GCS\\] read failed");
+SET SESSION sql_log_bin= 1;
+
+# Hide generated group name from result file.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--disable_query_log
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--enable_query_log
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--disable_query_log
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--enable_query_log
+
+# Save XCom configuration.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @local_address= @@GLOBAL.group_replication_local_address;
+SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @local_address= @@GLOBAL.group_replication_local_address;
+SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+
+# Clear XCom configuration on all servers.
+--source include/gr_clear_configuration.inc
+
+--echo #######################################################
+--echo #  1. Try setting bootstrap_group variable with invalid
+--echo #     values. It must fail.
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_bootstrap_group= NULL;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_bootstrap_group= "a";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_bootstrap_group= 1.2;
+
+--echo #######################################################
+--echo #  2. Try start Group Replication without configure any
+--echo #     communication engine parameter, start must fail.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+START GROUP_REPLICATION;
+
+--let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $assert_text= The value of member_state must be offline
+--let $assert_cond= "$member_state" = "OFFLINE"
+--source include/assert.inc
+
+
+--echo #######################################################
+--echo #  3. Try start Group Replication with only bootstrap
+--echo #     parameter enabled, start must fail.
+SET GLOBAL group_replication_bootstrap_group= 1;
+SET GLOBAL group_replication_local_address= "";
+SET GLOBAL group_replication_group_seeds= "";
+--error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+START GROUP_REPLICATION;
+
+--let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $assert_text= The value of member_state must be offline
+--let $assert_cond= "$member_state" = "OFFLINE"
+--source include/assert.inc
+
+
+--echo #######################################################
+--echo #  4. Try start Group Replication with invalid
+--echo #     local_address parameter set, start must fail.
+SET GLOBAL group_replication_bootstrap_group= 0;
+SET GLOBAL group_replication_local_address= "ola";
+SET GLOBAL group_replication_group_seeds= "";
+--error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+START GROUP_REPLICATION;
+
+--let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $assert_text= The value of member_state must be offline
+--let $assert_cond= "$member_state" = "OFFLINE"
+--source include/assert.inc
+
+
+--echo #######################################################
+--echo #  5. Try start Group Replication with only local_address
+--echo #     parameter set, start must fail.
+SET GLOBAL group_replication_bootstrap_group= 0;
+SET GLOBAL group_replication_local_address= @local_address;
+SET GLOBAL group_replication_group_seeds= "";
+--error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR
+START GROUP_REPLICATION;
+
+--let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $assert_text= The value of member_state must be offline
+--let $assert_cond= "$member_state" = "OFFLINE"
+--source include/assert.inc
+
+
+--echo #######################################################
+--echo #  6. Try start Group Replication with bootstrap
+--echo #     parameter enable and group_seeds, start must
+--echo #     fail.
+SET GLOBAL group_replication_bootstrap_group= 1;
+SET GLOBAL group_replication_local_address= "";
+SET GLOBAL group_replication_group_seeds= @group_seeds;
+--error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+START GROUP_REPLICATION;
+
+--let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $assert_text= The value of member_state must be offline
+--let $assert_cond= "$member_state" = "OFFLINE"
+--source include/assert.inc
+
+
+--echo #######################################################
+--echo #  7. Try start Group Replication with bootstrap
+--echo #     parameter enable and local_address, start must
+--echo #     succeed.
+SET GLOBAL group_replication_bootstrap_group= 1;
+SET GLOBAL group_replication_local_address= @local_address;
+SET GLOBAL group_replication_group_seeds= "";
+
+# Need to execute change master again as the clear configuration above resets
+# the recovery channel created in the beginning.
+--disable_warnings
+CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+--enable_warnings
+
+--source include/start_group_replication.inc
+
+
+--echo #######################################################
+--echo #  8. Try start Group Replication on server2 with invalid
+--echo #     invalid group_seeds, start must fail.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_bootstrap_group= 0;
+SET GLOBAL group_replication_local_address= @local_address;
+SET GLOBAL group_replication_group_seeds= "ola";
+--error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+START GROUP_REPLICATION;
+
+--let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $assert_text= The value of member_state must be offline
+--let $assert_cond= "$member_state" = "OFFLINE"
+--source include/assert.inc
+
+
+--echo #######################################################
+--echo #  9. Try start Group Replication on server2 with
+--echo #     invalid group_seeds, start must fail.
+SET GLOBAL group_replication_bootstrap_group= 0;
+SET GLOBAL group_replication_local_address= @local_address;
+--let $invalid= `SELECT REPLACE(@group_seeds, ',', ';')`
+--disable_query_log
+--eval SET GLOBAL group_replication_group_seeds= "$invalid"
+--enable_query_log
+--error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+START GROUP_REPLICATION;
+
+--let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $assert_text= The value of member_state must be offline
+--let $assert_cond= "$member_state" = "OFFLINE"
+--source include/assert.inc
+
+
+--echo #######################################################
+--echo #  10. Try start Group Replication on server2 with
+--echo #      local_address and group_seeds set to NULL, start
+--echo #      must fail.
+SET GLOBAL group_replication_bootstrap_group= 0;
+SET GLOBAL group_replication_local_address= NULL;
+SET GLOBAL group_replication_group_seeds= NULL;
+--error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+START GROUP_REPLICATION;
+
+--let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $assert_text= The value of member_state must be offline
+--let $assert_cond= "$member_state" = "OFFLINE"
+--source include/assert.inc
+
+
+--echo #######################################################
+--echo #  11. Try start Group Replication on server2 with valid
+--echo #      local_address and some invalid group_seeds, start must
+--echo #      succeed.
+SET GLOBAL group_replication_bootstrap_group= 0;
+SET GLOBAL group_replication_local_address= @local_address;
+
+--let $invalid_with_valid= `SELECT CONCAT(@group_seeds, ',', 'ola:1234')`
+--disable_query_log
+--eval SET GLOBAL group_replication_group_seeds= "$invalid_with_valid"
+--enable_query_log
+
+# Need to execute change master again as the clear configuration above resets
+# the recovery channel created in the beginning.
+--disable_warnings
+CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+--enable_warnings
+
+--source include/start_group_replication.inc
+
+
+--echo #######################################################
+--echo #  12. We must have a group with two members.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--echo #######################################################
+--echo #  13. Cleanup.
+SET GLOBAL group_replication_group_seeds= @group_seeds;
+--source include/group_replication_end.inc

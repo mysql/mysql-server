@@ -1,6 +1,5 @@
 # Testing of "strict" mode
 
--- source include/have_innodb.inc
 
 set @org_mode=@@sql_mode;
 set @@sql_mode='ansi,traditional';
@@ -40,17 +39,20 @@ INSERT INTO t1 VALUES ('59');
 
 # Test the different related modes
 set @@sql_mode='STRICT_ALL_TABLES';
-INSERT IGNORE INTO t1 VALUES('2004-01-03'),('2004-0-31');
+INSERT INTO t1 VALUES('2004-01-03'),('2004-0-31');
+set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
 --error 1292
 INSERT INTO t1 VALUES('2004-0-30');
 --error 1292
 INSERT INTO t1 VALUES('2004-01-04'),('2004-0-31'),('2004-01-05');
-INSERT IGNORE INTO t1 VALUES('0000-00-00');
+
+INSERT INTO t1 VALUES('0000-00-00');
 INSERT IGNORE INTO t1 VALUES('2004-0-29');
+set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE';
 --error 1292
 INSERT INTO t1 VALUES('0000-00-00');
 INSERT IGNORE INTO t1 VALUES('0000-00-00');
-INSERT IGNORE INTO t1 VALUES ('2004-0-30');
+INSERT INTO t1 VALUES ('2004-0-30');
 --error 1292
 INSERT INTO t1 VALUES ('2004-2-30');
 set @@sql_mode='STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
@@ -168,8 +170,9 @@ INSERT INTO t1 VALUES('2004-10-32 15:30:00');
 --error 1292
 INSERT INTO t1 VALUES('2004-02-30 15:30:04');
 INSERT IGNORE INTO t1 VALUES('0000-00-00 00:00:00');
-set @@sql_mode='STRICT_ALL_TABLES';
-INSERT IGNORE INTO t1 VALUES('0000-00-00 00:00:00');
+set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
+INSERT INTO t1 VALUES('0000-00-00 00:00:00');
+set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE';
 --error 1292
 INSERT INTO t1 VALUES('0000-00-00 00:00:00');
 set @@sql_mode='ansi,traditional';
@@ -472,8 +475,8 @@ UPDATE t1 SET col1 = col1 - 50 WHERE col1 < 0;
 UPDATE t1 SET col2=col2 + 50 WHERE col2 > 0;
 --error 1365
 UPDATE t1 SET col1=col1 / 0 WHERE col1 > 0;
-set @@sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
-INSERT IGNORE INTO t1 values (1/0,1/0);
+set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO';
+INSERT INTO t1 values (1/0,1/0);
 set @@sql_mode='ansi,traditional';
 SELECT MOD(col1,0) FROM t1 WHERE col1 > 0 LIMIT 2;
 # Should return SQLSTATE 22018 invalid character value for cast
@@ -809,7 +812,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (col1 DOUBLE PRECISION, col2 DOUBLE PRECISION UNSIGNED);
 INSERT INTO t1 VALUES (-2.2E-307,0),(2E-307,0),(+1.7E+308,+1.7E+308);
 INSERT INTO t1 VALUES ('-2.2E-307',0),('-2E-307',0),('+1.7E+308','+1.7E+308');
-# We don't give warnings for underflow
+# We do not give warnings for underflow
 INSERT INTO t1 (col1) VALUES (-2.2E-330);
 --error 1367,1264
 INSERT INTO t1 (col1) VALUES (+1.7E+309);
@@ -1013,9 +1016,9 @@ insert into t1 (col1) values (convert('0000-00-00',date));
 --error 1292
 insert into t1 (col1) values (cast('0000-00-00' as date));
 
-set sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
-insert ignore into t1 values (0,0,0);
-insert ignore into t1 values (0.0,0.0,0.0);
+set sql_mode='NO_ZERO_DATE';
+insert into t1 values (0,0,0);
+insert into t1 values (0.0,0.0,0.0);
 drop table t1;
 set sql_mode='traditional';
 create table t1 (col1 date);
@@ -1098,7 +1101,7 @@ DROP TABLE t1;
 
 set @@sql_mode='traditional';
 --error 1074
-create table t1(a varchar(65537));
+create table t1(a varchar(65537)) charset latin1;
 --error 1074
 create table t1(a varbinary(65537));
 
@@ -1345,7 +1348,7 @@ create table t1 (f1 enum('a','a'));
 #
 # Bug #22824: strict, datetime, NULL, wrong warning
 #
-set @@sql_mode='STRICT_ALL_TABLES';
+set @@sql_mode='NO_ZERO_DATE';
 create table t1(a datetime not null);
 select count(*) from t1 where a is null;
 drop table t1;
@@ -1361,9 +1364,9 @@ drop table t1;
 --echo #
 
 --echo #
---echo # STR_TO_DATE did not return NULL (with warning)
+--echo # STR_TO_DATE  with NO_ZERO_DATE did not return NULL (with warning)
 --echo # in get_date(). Only did in val_str() and val_int().
-SET sql_mode='STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
+SET sql_mode='NO_ZERO_DATE';
 SELECT
   STR_TO_DATE('2001','%Y'),
   CONCAT(STR_TO_DATE('2001','%Y')),
@@ -1374,24 +1377,16 @@ SELECT
 --echo #
 
 --echo #
---echo # WL#7467 : Deprecate (5.6) and remove (5.7) ERROR_FOR_DIVISION_BY_ZERO, 
---echo #           NO_ZERO_DATE, NO_ZERO_IN_DATE SQL MODES and make their
---echo #           functionality part of STRICT MODE
+--echo # WL#7467 : Deprecate ERROR_FOR_DIVISION_BY_ZERO, NO_ZERO_DATE,
+--echo #             NO_ZERO_IN_DATE SQL MODES and make their
+--echo #             functionality part of STRICT MODE
 --echo #
---echo # Previously, insertion of ZERO dates used to give error if STRICT MODE 
---echo # was enabled with NO_ZERO_DATE and NO_ZERO_IN_DATE modes. Also Division
+--echo # Insertion of ZERO dates gives error if STRICT MODE
+--echo # is enabled with NO_ZERO_DATE and NO_ZERO_IN_DATE modes. Also Division
 --echo # by Zero would cause the statement to fail if STRICT MODE was enabled
 --echo # with ERROR_FOR_DIVISION_BY_ZERO mode.
---echo # With the implementation of this Worklog, since the functionality of 
---echo # NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO has 
---echo # become part of STRICT MODE, DML statements inserting Invalid dates or
---echo # causing division by zero errors are rejected when STRICT MODE is enabled.
---echo # However, if the user still wants to insert invalid dates in
---echo # in STRICT MODE, or does not want the statement to fail in case of division
---echo # by zero error, the same previous behaviour can be achieved by using
---echo # IGNORE keyword along with the supported DML statements.
 --echo #
-SET @@sql_mode = 'STRICT_ALL_TABLES';
+SET @@sql_mode = 'ERROR_FOR_DIVISION_BY_ZERO,NO_ZERO_DATE,NO_ZERO_IN_DATE,STRICT_ALL_TABLES';
 CREATE TABLE t1 (a DATE);
 
 --error ER_TRUNCATED_WRONG_VALUE
@@ -1454,7 +1449,7 @@ SET sql_mode=@org_mode;
 --echo # BUG 11756690 - ERROR 22012 DIVISION BY 0 HANDLED BY HANDLER FOR SQLSTATE 23000 (ER_DUP_ENTRY)
 --echo #
 
-SET sql_mode = 'STRICT_ALL_TABLES';
+SET sql_mode = 'ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES';
 
 DELIMITER |;
 

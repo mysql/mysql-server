@@ -1,0 +1,356 @@
+##################################################################
+# Author: JBM                                                    #
+# Date: 2006-02-22                                               #
+# Purpose: To test changes to mysqlbinlog for row based bin logs #
+# We are using .opt file since we need small binlog size         #
+##################################################################
+--source include/not_group_replication_plugin.inc
+--source include/big_test.inc
+# Include Section
+# Make sure that we have row based bin log
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+# Setup Section
+# we need this for getting fixed timestamps inside of this test
+
+--disable_query_log ONCE
+select "---Setup Section  --" as "";
+
+set timestamp=1000000000;
+
+--disable_warnings ONCE
+DROP TABLE IF EXISTS t1,t2,t3;
+
+connection master;
+CREATE TABLE t1(word VARCHAR(20));
+CREATE TABLE t2(id INT AUTO_INCREMENT NOT NULL PRIMARY KEY);
+# After WL#7319, the Anonymous_Gtid on the original master will have 7 bytes
+# less than any server applying the same transaction.
+# Since these positions will be tested against this binlog after it is applied
+# using mysqlbinlog, we need to consider the three transactions that occurred
+# previously and, therefore, add 21 bytes to the start position.
+--let $m_position= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $position=`select $m_position + 21`
+
+CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT); 
+
+# In addition to the 21 bytes of the three previous transactions, we add
+# extra 7 to account for this transaction.
+--let $m_stop_position=query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $stop_position=`select $m_stop_position + 28`
+--let $stop_position1=`select $stop_position - 1`
+
+--let $binlog_start_pos=query_get_value(SHOW BINLOG EVENTS LIMIT 1, End_log_pos, 1)
+# Test Section
+# Lets start by putting some data into the tables.
+
+--disable_query_log
+INSERT INTO t1 VALUES ("abirvalg");
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+
+# d1 length 3000
+set @d1 = 'dd1';
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+
+let $count=500;
+while ($count)
+{
+ INSERT INTO t2 VALUES (NULL);
+ eval INSERT INTO t3 VALUES ($count,@d1,'20060222000000','Tested in Texas',$count*2.2);  
+ dec $count;
+}
+--enable_query_log
+
+
+--disable_query_log ONCE
+select "---Test1 check table load  --" as "";
+
+# Lets Check the tables on the Master
+SELECT COUNT(*) from t1;
+SELECT COUNT(*) from t2;
+SELECT COUNT(*) from t3;
+SELECT * FROM t1 ORDER BY word LIMIT 5;
+SELECT * FROM t2 ORDER BY id LIMIT 5;
+SELECT c1, c3, c4, c5  FROM t3 ORDER BY c1 LIMIT 5;
+
+# Should have the same on the slave;
+ 
+sync_slave_with_master;
+SELECT COUNT(*) from t1;
+SELECT COUNT(*) from t2;
+SELECT COUNT(*) from t3;
+SELECT * FROM t1 ORDER BY word LIMIT 5;
+SELECT * FROM t2 ORDER BY id LIMIT 5;
+SELECT c1, c3, c4, c5  FROM t3 ORDER BY c1 LIMIT 5;
+
+# Okay time to get busy, back to master
+
+connection master;
+
+# simple query to show more in second binlog
+insert into t1 values ("Alas");
+flush logs;
+
+# delimiters are for easier debugging in future
+--disable_query_log ONCE
+select "--- Test 1 Dump binlog to file --" as "";
+
+#
+#  Prepare local temporary file to recreate what we have currently.
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/master.sql
+
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000002 >> $MYSQLTEST_VARDIR/tmp/master.sql
+
+# Now that we have our file, lets get rid of the current database.
+# Cleanup the master and the slave and try to recreate.
+--disable_query_log ONCE
+select "--- Test 1 delete tables, clean master and slave  --" as "";
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+sync_slave_with_master;
+#we expect STOP SLAVE to produce a warning as the slave is stopped
+#(the server was started with skip-slave-start)
+--disable_warnings
+stop slave;
+--source include/wait_for_slave_to_stop.inc
+--enable_warnings
+connection master;
+reset master;
+connection slave;
+reset slave;
+reset master;
+start slave;
+--source include/wait_for_slave_to_start.inc
+connection master;
+
+# We should be clean at this point, now we will run in the file from above.
+--disable_query_log ONCE
+select "--- Test 1 Load from Dump binlog file --" as "";
+
+--exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/master.sql"
+
+--disable_query_log ONCE
+select "--- Test 1 Check Load Results --" as "";
+
+# Lets Check the tables on the Master
+SELECT COUNT(*) from t1;
+SELECT COUNT(*) from t2;
+SELECT COUNT(*) from t3;
+SELECT * FROM t1 ORDER BY word LIMIT 5;
+SELECT * FROM t2 ORDER BY id LIMIT 5;
+SELECT c1, c3, c4, c5  FROM t3 ORDER BY c1 LIMIT 5;
+
+# Should have the same on the slave;
+
+sync_slave_with_master;
+SELECT COUNT(*) from t1;
+SELECT COUNT(*) from t2;
+SELECT COUNT(*) from t3;
+SELECT * FROM t1 ORDER BY word LIMIT 5;
+SELECT * FROM t2 ORDER BY id LIMIT 5;
+SELECT c1, c3, c4, c5  FROM t3 ORDER BY c1 LIMIT 5;
+connection master;
+
+# We should be gold by the time, so I will get rid of our file.
+
+remove_file $MYSQLTEST_VARDIR/tmp/master.sql;
+
+
+# this test for start-position option
+# By setting this position to 416, we should only get the create of t3
+--disable_query_log ONCE
+select "--- Test 2 position test --" as "";
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=$position --stop-position=$stop_position $MYSQLD_DATADIR/master-bin.000001
+--source include/mysqlbinlog.inc
+
+# These are tests for remote binlog.
+# They should return the same as previous test.
+
+--disable_query_log ONCE
+select "--- Test 3 First Remote test --" as "";
+
+# This is broken now
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --stop-position=$stop_position --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
+--source include/mysqlbinlog.inc
+
+--disable_query_log ONCE
+select "--- Test 4 Second Remote test --" as "";
+--exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 > $MYSQLTEST_VARDIR/tmp/remote.sql
+
+--exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002 >> $MYSQLTEST_VARDIR/tmp/remote.sql
+
+# Now that we have our file, lets get rid of the current database.
+# Cleanup the master and the slave and try to recreate.
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+sync_slave_with_master;
+
+#we expect STOP SLAVE to produce a warning as the slave is stopped
+#(the server was started with skip-slave-start)
+
+--disable_warnings
+stop slave;
+--source include/wait_for_slave_to_stop.inc
+--enable_warnings
+connection master;
+reset master;
+connection slave;
+reset slave;
+reset master;
+start slave;
+--source include/wait_for_slave_to_start.inc
+connection master;
+
+# We should be clean at this point, now we will run in the file from above.
+
+--exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/remote.sql"
+
+# Lets Check the tables on the Master
+
+SELECT COUNT(*) from t1;
+SELECT COUNT(*) from t2;
+SELECT COUNT(*) from t3;
+SELECT * FROM t1 ORDER BY word LIMIT 5;
+SELECT * FROM t2 ORDER BY id LIMIT 5;
+SELECT c1, c3, c4, c5  FROM t3 ORDER BY c1 LIMIT 5;
+
+# Should have the same on the slave;
+
+sync_slave_with_master;
+SELECT COUNT(*) from t1;
+SELECT COUNT(*) from t2;
+SELECT COUNT(*) from t3;
+SELECT * FROM t1 ORDER BY word LIMIT 5;
+SELECT * FROM t2 ORDER BY id LIMIT 5;
+SELECT c1, c3, c4, c5  FROM t3 ORDER BY c1 LIMIT 5;
+connection master;
+
+# We should be gold by the time, so I will get rid of our file.
+
+--remove_file $MYSQLTEST_VARDIR/tmp/remote.sql
+################### End Bug 17654 ######################
+
+# What is the point of this test? It seems entirely pointless. It
+# might make sense for statement-based replication, but for row-based
+# replication the LOAD DATA INFILE is printed just as empty
+# transactions. /Matz
+
+# LOAD DATA
+
+--disable_query_log ONCE
+select "--- Test 5 LOAD DATA --" as "";
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --stop-position=$binlog_start_pos --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
+--source include/mysqlbinlog.inc
+
+# Bug#7853 (mysqlbinlog does not accept input from stdin)
+
+--disable_query_log ONCE
+select "--- Test 6 reading stdin --" as "";
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--let $mysqlbinlog_parameters= --short-form --stop-position=$stop_position1 - < $MYSQLD_DATADIR/master-bin.000001
+--source include/mysqlbinlog.inc
+
+--disable_query_log ONCE
+select "--- Test 7 reading stdin w/position --" as "";
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--let $mysqlbinlog_parameters= --short-form --start-position=$position --stop-position=$stop_position - < $MYSQLD_DATADIR/master-bin.000001
+--source include/mysqlbinlog.inc
+       
+# Bug#16217 (mysql client did not know how not switch its internal charset)
+--disable_query_log ONCE
+select "--- Test 8 switch internal charset --" as "";
+sync_slave_with_master;
+
+#we expect STOP SLAVE to produce a warning as the slave is stopped
+#(the server was started with skip-slave-start)
+
+--disable_warnings
+stop slave;
+--source include/wait_for_slave_to_stop.inc
+--enable_warnings
+connection master;
+reset master;
+connection slave;
+reset slave;
+reset master;
+start slave;
+--source include/wait_for_slave_to_start.inc
+connection master;
+
+create table t4 (f text character set utf8);
+create table t5 (f text character set cp932); 
+--character_set utf8
+--execw $MYSQL --default-character-set=utf8 test -e "insert into t4 values(_utf8'ã‚½')"
+--character_set cp932
+--execw $MYSQL --default-character-set=cp932 test -e "insert into t5 values(_cp932'ƒ\');"
+--character_set latin1
+let $MYSQLD_DATADIR= `select @@datadir;`;
+flush logs;
+rename table t4 to t04, t5 to t05;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 | $MYSQL --default-character-set=utf8
+# original and recovered data must be equal
+select HEX(f) from t04;
+select HEX(f) from t4;
+select HEX(f) from t05;
+select HEX(f) from t5;
+
+# slave should have same 
+sync_slave_with_master;
+select HEX(f) from t04;
+select HEX(f) from t4;
+select HEX(f) from t05;
+select HEX(f) from t5;
+
+--disable_query_log ONCE
+select "--- Test cleanup --" as "";
+# clean up
+connection master;
+sync_slave_with_master;
+
+connection master;
+
+# BUG#17654 also test mysqlbinlog to ensure it can read the binlog from a remote server 
+# and ensure that the results are the same as if read from a file (the same file).
+
+--disable_warnings ONCE
+DROP TABLE IF EXISTS t1;
+
+CREATE TABLE t1 (a INT NOT NULL KEY, b INT);
+
+INSERT INTO t1 VALUES(1,1);
+
+SELECT * FROM t1;
+
+let $MYSQLD_DATADIR= `select @@datadir;`;
+
+FLUSH LOGS;
+
+--exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 > $MYSQLTEST_VARDIR/tmp/remote.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/local.sql
+
+--diff_files $MYSQLTEST_VARDIR/tmp/local.sql $MYSQLTEST_VARDIR/tmp/remote.sql
+
+--remove_file $MYSQLTEST_VARDIR/tmp/remote.sql
+
+--remove_file $MYSQLTEST_VARDIR/tmp/local.sql
+
+DROP TABLE IF EXISTS t1, t2, t3, t04, t05, t4, t5; 
+sync_slave_with_master;
+
+# End of 4.1 tests
+--source include/rpl_end.inc

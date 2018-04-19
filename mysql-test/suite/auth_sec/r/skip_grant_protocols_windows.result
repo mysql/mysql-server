@@ -1,0 +1,117 @@
+
+# Set different paths for --datadir
+
+# Create custom datadir path
+
+# Run the bootstrap command to create a new datadir
+
+# Start the DB server with the new datadir
+# restart: --datadir=MYSQLD_DATADIR1
+SELECT current_user;
+current_user
+root@localhost
+SELECT user, plugin FROM mysql.user;
+user	plugin
+mysql.infoschema	mysql_native_password
+mysql.session	mysql_native_password
+mysql.sys	mysql_native_password
+root	caching_sha2_password
+
+# Set the password for the root user
+SET PASSWORD = 'passwd';
+
+# Create a new user with non-default plugin
+CREATE USER 'native_user' IDENTIFIED WITH 'mysql_native_password' BY 'passwd';
+
+
+# Restart the server with --skip-grant-tables, --shared-memory options
+# enabled and new datadir
+# restart: --skip-grant-tables --shared-memory --datadir=MYSQLD_DATADIR1
+
+# connect the root user which uses the default auth plugin
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+connection_type
+Shared Memory
+SELECT CURRENT_USER;
+CURRENT_USER
+skip-grants user@skip-grants host
+
+# connect the root user which uses the mysql_native_password auth plugin
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+connection_type
+Shared Memory
+SELECT CURRENT_USER;
+CURRENT_USER
+skip-grants user@skip-grants host
+
+# connect the user which uses the non-default auth plugin
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+connection_type
+Shared Memory
+SELECT CURRENT_USER;
+CURRENT_USER
+skip-grants user@skip-grants host
+
+# connect the native_user user which uses corresponding
+# mysql_native_password auth plugin
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+connection_type
+Shared Memory
+SELECT CURRENT_USER;
+CURRENT_USER
+skip-grants user@skip-grants host
+
+# Restart the server with --skip-grant-tables, --enable-named-pipe
+# options enabled and new datadir
+# restart: --skip-grant-tables --enable-named-pipe --datadir=MYSQLD_DATADIR1
+
+# connect the root user which uses the default auth plugin
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+connection_type
+Named Pipe
+SELECT CURRENT_USER;
+CURRENT_USER
+skip-grants user@skip-grants host
+
+# connect the root user which uses the mysql_native_password auth plugin
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+connection_type
+Named Pipe
+SELECT CURRENT_USER;
+CURRENT_USER
+skip-grants user@skip-grants host
+
+# connect the user which uses the non-default auth plugin
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+connection_type
+Named Pipe
+SELECT CURRENT_USER;
+CURRENT_USER
+skip-grants user@skip-grants host
+
+# connect the native_user user which uses corresponding
+# mysql_native_password auth plugin
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+connection_type
+Named Pipe
+SELECT CURRENT_USER;
+CURRENT_USER
+skip-grants user@skip-grants host
+# since we didn't specify server's public keys explicitly,
+# following insecure connections must fail with
+# error: Authentication requires secure connection.
+
+# connect the root user which uses the default auth plugin
+# error 1
+
+# connect the root user which uses the mysql_native_password auth plugin
+# error 1
+
+# connect the root user which uses the non-default auth plugin
+# error 1
+
+# connect the native user plugin user which uses corresponding plugin
+# error 1
+
+# Cleanup
+# restart

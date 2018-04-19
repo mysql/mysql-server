@@ -1,19 +1,19 @@
 #
 # only global
 #
---replace_result 196608 262144
+--replace_result 196608 262144 393216 262144 524288 262144 286720 262144 573440 262144 221184 262144
 select @@global.thread_stack;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.thread_stack;
---replace_result 196608 262144
+--replace_result 196608 262144 393216 262144 524288 262144 286720 262144 573440 262144 221184 262144
 show global variables like 'thread_stack';
---replace_result 196608 262144
+--replace_result 196608 262144 393216 262144 524288 262144 286720 262144 573440 262144 221184 262144
 show session variables like 'thread_stack';
 --disable_warnings
---replace_result 196608 262144
-select * from information_schema.global_variables where variable_name='thread_stack';
---replace_result 196608 262144
-select * from information_schema.session_variables where variable_name='thread_stack';
+--replace_result 196608 262144 393216 262144 524288 262144 286720 262144 573440 262144 221184 262144
+select * from performance_schema.global_variables where variable_name='thread_stack';
+--replace_result 196608 262144 393216 262144 524288 262144 286720 262144 573440 262144 221184 262144
+select * from performance_schema.session_variables where variable_name='thread_stack';
 --enable_warnings
 
 #

@@ -1,0 +1,4 @@
+# Test handler operation on  partitioned table
+
+let $ENGINE=InnoDB;
+--source suite/parts/inc/partition-dml-1-12.inc

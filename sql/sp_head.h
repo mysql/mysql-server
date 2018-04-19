@@ -1,13 +1,20 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,9 +23,37 @@
 #ifndef _SP_HEAD_H_
 #define _SP_HEAD_H_
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_class.h"                          // THD
-#include "mem_root_array.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <string>
+
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "map_helpers.h"
+#include "my_alloc.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/components/services/psi_statement_bits.h"
+#include "mysqld_error.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/field.h"
+#include "sql/mem_root_array.h"  // Mem_root_array
+#include "sql/set_var.h"
+#include "sql/sql_class.h"  // Query_arena
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+
+class Item;
+class Item_trigger_field;
+class Sroutine_hash_entry;
+class Table_trigger_field_support;
+class sp_head;
+struct MY_BITMAP;
 
 /**
   @defgroup Stored_Routines Stored Routines
@@ -28,6 +63,7 @@
 
 class sp_branch_instr;
 class sp_instr;
+class sp_label;
 class sp_lex_branch_instr;
 class sp_pcontext;
 
@@ -41,22 +77,6 @@ class sp_pcontext;
 void init_sp_psi_keys(void);
 #endif
 
-
-///////////////////////////////////////////////////////////////////////////
-
-/**
-  sp_printable defines an interface which should be implemented if a class wants
-  report some internal information about its state.
-*/
-class sp_printable
-{
-public:
-  virtual void print(String *str) = 0;
-
-  virtual ~sp_printable()
-  { }
-};
-
 ///////////////////////////////////////////////////////////////////////////
 
 /**
@@ -64,39 +84,31 @@ public:
   programs (stored routines, triggers, events).
 */
 
-class Stored_program_creation_ctx : public Default_object_creation_ctx
-{
-public:
-  const CHARSET_INFO *get_db_cl()
-  {
-    return m_db_cl;
-  }
+class Stored_program_creation_ctx : public Default_object_creation_ctx {
+ public:
+  const CHARSET_INFO *get_db_cl() { return m_db_cl; }
 
-public:
+ public:
   virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) = 0;
 
-protected:
+ protected:
   Stored_program_creation_ctx(THD *thd)
-    : Default_object_creation_ctx(thd),
-      m_db_cl(thd->variables.collation_database)
-  { }
+      : Default_object_creation_ctx(thd),
+        m_db_cl(thd->variables.collation_database) {}
 
   Stored_program_creation_ctx(const CHARSET_INFO *client_cs,
                               const CHARSET_INFO *connection_cl,
                               const CHARSET_INFO *db_cl)
-    : Default_object_creation_ctx(client_cs, connection_cl),
-      m_db_cl(db_cl)
-  { }
+      : Default_object_creation_ctx(client_cs, connection_cl), m_db_cl(db_cl) {}
 
-protected:
-  virtual void change_env(THD *thd) const
-  {
-    thd->variables.collation_database= m_db_cl;
+ protected:
+  virtual void change_env(THD *thd) const {
+    thd->variables.collation_database = m_db_cl;
 
     Default_object_creation_ctx::change_env(thd);
   }
 
-protected:
+ protected:
   /**
     db_cl stores the value of the database collation. Both character set
     and collation attributes are used.
@@ -109,27 +121,24 @@ protected:
 
 ///////////////////////////////////////////////////////////////////////////
 
-class sp_name : public Sql_alloc
-{
-public:
-
+class sp_name {
+ public:
   LEX_CSTRING m_db;
   LEX_STRING m_name;
   LEX_STRING m_qname;
-  bool       m_explicit_name;                   /**< Prepend the db name? */
+  bool m_explicit_name; /**< Prepend the db name? */
 
   sp_name(const LEX_CSTRING &db, const LEX_STRING &name, bool use_explicit_name)
-    : m_db(db), m_name(name), m_explicit_name(use_explicit_name)
-  {
-    m_qname.str= 0;
-    m_qname.length= 0;
+      : m_db(db), m_name(name), m_explicit_name(use_explicit_name) {
+    m_qname.str = 0;
+    m_qname.length = 0;
   }
 
-  /** Create temporary sp_name object from MDL key. */
-  sp_name(const MDL_key *key, char *qname_buff);
+  /** Create temporary sp_name object for Sroutine_hash_entry. */
+  sp_name(const Sroutine_hash_entry *rt, char *qname_buff);
 
   // Init. the qualified name from the db and name.
-  void init_qname(THD *thd);	// thd for memroot allocation
+  void init_qname(THD *thd);  // thd for memroot allocation
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -138,27 +147,23 @@ public:
   sp_parser_data provides a scope for attributes used at the SP-parsing
   stage only.
 */
-class sp_parser_data
-{
-private:
-  struct Backpatch_info
-  {
+class sp_parser_data {
+ private:
+  struct Backpatch_info {
     sp_label *label;
     sp_branch_instr *instr;
   };
 
-public:
-  sp_parser_data() :
-    m_expr_start_ptr(NULL),
-    m_current_stmt_start_ptr(NULL),
-    m_option_start_ptr(NULL),
-    m_param_start_ptr(NULL),
-    m_param_end_ptr(NULL),
-    m_body_start_ptr(NULL),
-    m_cont_level(0),
-    m_saved_memroot(NULL),
-    m_saved_free_list(NULL)
-  { }
+ public:
+  sp_parser_data()
+      : m_current_stmt_start_ptr(NULL),
+        m_option_start_ptr(NULL),
+        m_param_start_ptr(NULL),
+        m_param_end_ptr(NULL),
+        m_body_start_ptr(NULL),
+        m_cont_level(0),
+        m_saved_memroot(NULL),
+        m_saved_free_list(NULL) {}
 
   ///////////////////////////////////////////////////////////////////////
 
@@ -182,36 +187,33 @@ public:
 
     @param thd  Thread context.
   */
-  void finish_parsing_sp_body(THD *thd)
-  {
+  void finish_parsing_sp_body(THD *thd) {
     /*
       In some cases the parser detects a syntax error and calls
       LEX::cleanup_lex_after_parse_error() method only after finishing parsing
-      the whole routine. In such a situation sp_head::restore_thd_mem_root() will
-      be called twice - the first time as part of normal parsing process and the
-      second time by cleanup_lex_after_parse_error().
+      the whole routine. In such a situation sp_head::restore_thd_mem_root()
+      will be called twice - the first time as part of normal parsing process
+      and the second time by cleanup_lex_after_parse_error().
 
       To avoid ruining active arena/mem_root state in this case we skip
-      restoration of old arena/mem_root if this method has been already called for
-      this routine.
+      restoration of old arena/mem_root if this method has been already called
+      for this routine.
     */
-    if (!is_parsing_sp_body())
-      return;
+    if (!is_parsing_sp_body()) return;
 
     thd->free_items();
-    thd->mem_root= m_saved_memroot;
-    thd->free_list= m_saved_free_list;
+    thd->mem_root = m_saved_memroot;
+    thd->free_list = m_saved_free_list;
 
-    m_saved_memroot= NULL;
-    m_saved_free_list= NULL;
+    m_saved_memroot = NULL;
+    m_saved_free_list = NULL;
   }
 
   /**
     @retval true if SP-body statement is being parsed.
     @retval false otherwise.
   */
-  bool is_parsing_sp_body() const
-  { return m_saved_memroot != NULL; }
+  bool is_parsing_sp_body() const { return m_saved_memroot != NULL; }
 
   ///////////////////////////////////////////////////////////////////////
 
@@ -219,87 +221,43 @@ public:
 
   ///////////////////////////////////////////////////////////////////////
 
-  /**
-    Retrieve expression start pointer in the query string.
-
-    This function is named 'pop' to highlight that it changes the internal
-    state, and two subsequent calls may not return same value.
-
-    @note It's true only in the debug mode, but this check is very useful in
-    the parser to ensure we "pop" every "pushed" pointer, because we have
-    lots of branches, and it's pretty easy to forget something somewhere.
-  */
-  const char *pop_expr_start_ptr()
-  {
-#ifndef DBUG_OFF
-    DBUG_ASSERT(m_expr_start_ptr);
-    const char *p= m_expr_start_ptr;
-    m_expr_start_ptr= NULL;
-    return p;
-#else
-    return m_expr_start_ptr;
-#endif
+  const char *get_current_stmt_start_ptr() const {
+    return m_current_stmt_start_ptr;
   }
 
-  /**
-    Remember expression start pointer in the query string.
-
-    This function is named 'push' to highlight that the pointer must be
-    retrieved (pop) later.
-
-    @sa the note for pop_expr_start_ptr().
-  */
-  void push_expr_start_ptr(const char *expr_start_ptr)
-  {
-    DBUG_ASSERT(!m_expr_start_ptr);
-    m_expr_start_ptr= expr_start_ptr;
+  void set_current_stmt_start_ptr(const char *stmt_start_ptr) {
+    m_current_stmt_start_ptr = stmt_start_ptr;
   }
 
   ///////////////////////////////////////////////////////////////////////
 
-  const char *get_current_stmt_start_ptr() const
-  { return m_current_stmt_start_ptr; }
+  const char *get_option_start_ptr() const { return m_option_start_ptr; }
 
-  void set_current_stmt_start_ptr(const char *stmt_start_ptr)
-  { m_current_stmt_start_ptr= stmt_start_ptr; }
-
-  ///////////////////////////////////////////////////////////////////////
-
-  const char *get_option_start_ptr() const
-  { return m_option_start_ptr; }
-
-  void set_option_start_ptr(const char *option_start_ptr)
-  { m_option_start_ptr= option_start_ptr; }
+  void set_option_start_ptr(const char *option_start_ptr) {
+    m_option_start_ptr = option_start_ptr;
+  }
 
   ///////////////////////////////////////////////////////////////////////
 
-  const char *get_parameter_start_ptr() const
-  { return m_param_start_ptr; }
+  const char *get_parameter_start_ptr() const { return m_param_start_ptr; }
 
-  void set_parameter_start_ptr(const char *ptr)
-  { m_param_start_ptr= ptr; }
+  void set_parameter_start_ptr(const char *ptr) { m_param_start_ptr = ptr; }
 
-  const char *get_parameter_end_ptr() const
-  { return m_param_end_ptr; }
+  const char *get_parameter_end_ptr() const { return m_param_end_ptr; }
 
-  void set_parameter_end_ptr(const char *ptr)
-  { m_param_end_ptr= ptr; }
+  void set_parameter_end_ptr(const char *ptr) { m_param_end_ptr = ptr; }
 
   ///////////////////////////////////////////////////////////////////////
 
-  const char *get_body_start_ptr() const
-  { return m_body_start_ptr; }
+  const char *get_body_start_ptr() const { return m_body_start_ptr; }
 
-  void set_body_start_ptr(const char *ptr)
-  { m_body_start_ptr= ptr; }
+  void set_body_start_ptr(const char *ptr) { m_body_start_ptr = ptr; }
 
   ///////////////////////////////////////////////////////////////////////
 
-  void push_lex(LEX *lex)
-  { m_lex_stack.push_front(lex); }
+  void push_lex(LEX *lex) { m_lex_stack.push_front(lex); }
 
-  LEX *pop_lex()
-  { return m_lex_stack.pop(); }
+  LEX *pop_lex() { return m_lex_stack.pop(); }
 
   ///////////////////////////////////////////////////////////////////////
   // Backpatch-list operations.
@@ -349,8 +307,7 @@ public:
 
     @return false always.
   */
-  bool new_cont_backpatch()
-  {
+  bool new_cont_backpatch() {
     ++m_cont_level;
     return false;
   }
@@ -371,10 +328,7 @@ public:
   */
   void do_cont_backpatch(uint dest);
 
-private:
-  /// Start of the expression query string (any but SET-expression).
-  const char *m_expr_start_ptr;
-
+ private:
   /// Start of the current statement's query string.
   const char *m_current_stmt_start_ptr;
 
@@ -441,26 +395,28 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
+struct SP_TABLE;
+
 /**
   sp_head represents one instance of a stored program. It might be of any type
   (stored procedure, function, trigger, event).
 */
-class sp_head : private Query_arena
-{
-public:
+class sp_head : private Query_arena {
+ public:
   /** Possible values of m_flags */
   enum {
-    HAS_RETURN= 1,              // For FUNCTIONs only: is set if has RETURN
-    MULTI_RESULTS= 8,           // Is set if a procedure with SELECT(s)
-    CONTAINS_DYNAMIC_SQL= 16,   // Is set if a procedure with PREPARE/EXECUTE
-    IS_INVOKED= 32,             // Is set if this sp_head is being used
-    HAS_SET_AUTOCOMMIT_STMT= 64,// Is set if a procedure with 'set autocommit'
+    HAS_RETURN = 1,             // For FUNCTIONs only: is set if has RETURN
+    MULTI_RESULTS = 8,          // Is set if a procedure with SELECT(s)
+    CONTAINS_DYNAMIC_SQL = 16,  // Is set if a procedure with PREPARE/EXECUTE
+    IS_INVOKED = 32,            // Is set if this sp_head is being used
+    HAS_SET_AUTOCOMMIT_STMT =
+        64,  // Is set if a procedure with 'set autocommit'
     /* Is set if a procedure with COMMIT (implicit or explicit) | ROLLBACK */
-    HAS_COMMIT_OR_ROLLBACK= 128,
-    LOG_SLOW_STATEMENTS= 256,   // Used by events
-    LOG_GENERAL_LOG= 512,        // Used by events
-    HAS_SQLCOM_RESET= 1024,
-    HAS_SQLCOM_FLUSH= 2048,
+    HAS_COMMIT_OR_ROLLBACK = 128,
+    LOG_SLOW_STATEMENTS = 256,  // Used by events
+    LOG_GENERAL_LOG = 512,      // Used by events
+    HAS_SQLCOM_RESET = 1024,
+    HAS_SQLCOM_FLUSH = 2048,
 
     /**
       Marks routines that directly (i.e. not by calling other routines)
@@ -474,10 +430,10 @@ public:
       b) because in CONTAINS SQL case they don't provide enough
       information anyway.
      */
-    MODIFIES_DATA= 4096
+    MODIFIES_DATA = 4096
   };
 
-public:
+ public:
   /************************************************************************
     Public attributes.
   ************************************************************************/
@@ -513,10 +469,10 @@ public:
   */
   sql_mode_t m_sql_mode;
 
-  /// Fully qualified name (<db name>.<sp name>).
+  /// Fully qualified name (@<db name@>.@<sp name@>).
   LEX_STRING m_qname;
 
-  bool m_explicit_name;         ///< Prepend the db name? */
+  bool m_explicit_name;  ///< Prepend the db name? */
 
   LEX_STRING m_db;
   LEX_STRING m_name;
@@ -530,7 +486,8 @@ public:
   longlong m_created;
   longlong m_modified;
 
-  /// Recursion level of the current SP instance. The levels are numbered from 0.
+  /// Recursion level of the current SP instance. The levels are numbered from
+  /// 0.
   ulong m_recursion_level;
 
   /**
@@ -565,8 +522,11 @@ public:
     set are not linked in one list. Because of this we are able save memory
     by using for this set same objects that are used in 'sroutines' sets
     for statements of which this stored routine consists.
+
+    See Sroutine_hash_entry for explanation why this hash uses binary
+    key comparison.
   */
-  HASH m_sroutines;
+  malloc_unordered_map<std::string, Sroutine_hash_entry *> m_sroutines;
 
   /*
     Security context for stored routine which should be run under
@@ -585,7 +545,7 @@ public:
     binding these fields to TABLE object at table open (although for latter
     pointer to table being opened is probably enough).
   */
-  SQL_I_List<SQL_I_List<Item_trigger_field> > m_list_of_trig_fields_item_lists;
+  SQL_I_List<SQL_I_List<Item_trigger_field>> m_list_of_trig_fields_item_lists;
   /**
     List of all the Item_trigger_field items created while parsing
     sp instruction. After parsing, in add_instr method this list
@@ -600,32 +560,28 @@ public:
   /// The Table_trigger_dispatcher instance, where this trigger belongs to.
   class Table_trigger_dispatcher *m_trg_list;
 
-public:
-  static void *operator new(size_t size) throw ();
-  static void operator delete(void *ptr, size_t size) throw ();
-
-  ~sp_head();
+ public:
+  static void destroy(sp_head *sp);
 
   /// Is this routine being executed?
-  bool is_invoked() const
-  { return m_flags & IS_INVOKED; }
+  bool is_invoked() const { return m_flags & IS_INVOKED; }
 
   /**
     Get the value of the SP cache version, as remembered
     when the routine was inserted into the cache.
   */
-  int64 sp_cache_version() const
-  { return m_sp_cache_version; }
+  int64 sp_cache_version() const { return m_sp_cache_version; }
 
   /// Set the value of the SP cache version.
-  void set_sp_cache_version(int64 sp_cache_version)
-  { m_sp_cache_version= sp_cache_version; }
+  void set_sp_cache_version(int64 sp_cache_version) {
+    m_sp_cache_version = sp_cache_version;
+  }
 
-  Stored_program_creation_ctx *get_creation_ctx()
-  { return m_creation_ctx; }
+  Stored_program_creation_ctx *get_creation_ctx() { return m_creation_ctx; }
 
-  void set_creation_ctx(Stored_program_creation_ctx *creation_ctx)
-  { m_creation_ctx= creation_ctx->clone(mem_root); }
+  void set_creation_ctx(Stored_program_creation_ctx *creation_ctx) {
+    m_creation_ctx = creation_ctx->clone(mem_root);
+  }
 
   /// Set the body-definition start position.
   void set_body_start(THD *thd, const char *begin_ptr);
@@ -633,8 +589,7 @@ public:
   /// Set the statement-definition (body-definition) end position.
   void set_body_end(THD *thd);
 
-  bool setup_trigger_fields(THD *thd,
-                            Table_trigger_field_support *tfs,
+  bool setup_trigger_fields(THD *thd, Table_trigger_field_support *tfs,
                             GRANT_INFO *subject_table_grant,
                             bool need_fix_fields);
 
@@ -652,22 +607,20 @@ public:
     - restores security context
 
     @param thd               Thread context
-    @param db                database name
-    @param table             table name
+    @param db_name           database name
+    @param table_name        table name
     @param grant_info        GRANT_INFO structure to be filled with
                              information about definer's privileges
                              on subject table
 
     @todo
-      - TODO: we should create sp_rcontext once per command and reuse it
+      We should create sp_rcontext once per command and reuse it
       on subsequent executions of a trigger.
 
     @return Error status.
   */
-  bool execute_trigger(THD *thd,
-                       const LEX_CSTRING &db_name,
-                       const LEX_CSTRING &table_name,
-                       GRANT_INFO *grant_info);
+  bool execute_trigger(THD *thd, const LEX_CSTRING &db_name,
+                       const LEX_CSTRING &table_name, GRANT_INFO *grant_info);
 
   /**
     Execute a function.
@@ -681,11 +634,11 @@ public:
      - restores security context
 
     @param thd               Thread context.
-    @param argp              Passed arguments (these are items from containing
+    @param args              Passed arguments (these are items from containing
                              statement?)
     @param argcount          Number of passed arguments. We need to check if
                              this is correct.
-    @param return_value_fld  Save result here.
+    @param return_fld        Save result here.
 
     @todo
       We should create sp_rcontext once per command and reuse
@@ -720,17 +673,6 @@ public:
   bool execute_procedure(THD *thd, List<Item> *args);
 
   /**
-    Implement SHOW CREATE statement for stored routines.
-
-    @param thd  Thread context.
-    @param type         Stored routine type
-                        (SP_TYPE_PROCEDURE or SP_TYPE_FUNCTION)
-
-    @return Error status.
-  */
-  bool show_create_routine(THD *thd, enum_sp_type type);
-
-  /**
     Add instruction to SP.
 
     @param thd    Thread context.
@@ -746,14 +688,11 @@ public:
 
     @sa Comment for MODIFIES_DATA flag.
   */
-  bool modifies_data() const
-  { return m_flags & MODIFIES_DATA; }
+  bool modifies_data() const { return m_flags & MODIFIES_DATA; }
 
-  uint instructions()
-  { return static_cast<uint>(m_instructions.size()); }
+  uint instructions() { return static_cast<uint>(m_instructions.size()); }
 
-  sp_instr *last_instruction()
-  { return m_instructions.back(); }
+  sp_instr *last_instruction() { return m_instructions.back(); }
 
   /**
     Reset LEX-object during parsing, before we parse a sub statement.
@@ -773,14 +712,10 @@ public:
   */
   bool restore_lex(THD *thd);
 
-  char *name(uint *lenp = 0) const
-  {
-    if (lenp)
-      *lenp= (uint) m_name.length;
+  char *name(uint *lenp = 0) const {
+    if (lenp) *lenp = (uint)m_name.length;
     return m_name.str;
   }
-
-  char *create_string(THD *thd, ulong *lenp);
 
   /**
     Create Field-object corresponding to the RETURN field of a stored function.
@@ -793,13 +728,10 @@ public:
     @return newly created and initialized Field-instance,
     or NULL in case of error.
   */
-  Field *create_result_field(size_t field_max_length,
-                             const char *field_name,
+  Field *create_result_field(size_t field_max_length, const char *field_name,
                              TABLE *table);
 
-  void set_info(longlong created,
-                longlong modified,
-		st_sp_chistics *chistics,
+  void set_info(longlong created, longlong modified, st_sp_chistics *chistics,
                 sql_mode_t sql_mode);
 
   void set_definer(const char *definer, size_t definerlen);
@@ -838,9 +770,8 @@ public:
     passed here, so it get's converted to MAX_INT, and the result of the
     function call is NULL.
   */
-  sp_instr *get_instr(uint i)
-  {
-    return (i < (uint) m_instructions.size()) ? m_instructions.at(i) : NULL;
+  sp_instr *get_instr(uint i) {
+    return (i < (uint)m_instructions.size()) ? m_instructions.at(i) : NULL;
   }
 
   /**
@@ -858,8 +789,8 @@ public:
                                           will be added (or to its root).
     @param[in] sql_command                SQL-command for which we are adding
                                           elements to the table list.
-    @param[in] belong_to_view             Uppermost view which uses this routine,
-                                          NULL if none.
+    @param[in] belong_to_view             Uppermost view which uses this
+    routine, NULL if none.
   */
   void add_used_tables_to_table_list(THD *thd,
                                      TABLE_LIST ***query_tables_last_ptr,
@@ -871,8 +802,7 @@ public:
     in a stored function or trigger, and set an appropriate error message
     if this is the case.
   */
-  bool is_not_allowed_in_function(const char *where)
-  {
+  bool is_not_allowed_in_function(const char *where) {
     if (m_flags & CONTAINS_DYNAMIC_SQL)
       my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "Dynamic SQL");
     else if (m_flags & MULTI_RESULTS)
@@ -886,9 +816,9 @@ public:
     else if (m_flags & HAS_SQLCOM_FLUSH)
       my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
 
-    return MY_TEST(m_flags &
-                   (CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT|
-                    HAS_COMMIT_OR_ROLLBACK|HAS_SQLCOM_RESET|HAS_SQLCOM_FLUSH));
+    return (m_flags &
+            (CONTAINS_DYNAMIC_SQL | MULTI_RESULTS | HAS_SET_AUTOCOMMIT_STMT |
+             HAS_COMMIT_OR_ROLLBACK | HAS_SQLCOM_RESET | HAS_SQLCOM_FLUSH));
   }
 
 #ifndef DBUG_OFF
@@ -904,8 +834,7 @@ public:
     to propagate upwards to the Query_tables_list of the caller (when
     a property of a sp_head needs to "taint" the calling statement).
   */
-  void propagate_attributes(Query_tables_list *prelocking_ctx)
-  {
+  void propagate_attributes(Query_tables_list *prelocking_ctx) {
     /*
       If this routine needs row-based binary logging, the entire top statement
       too (we cannot switch from statement-based to row-based only for this
@@ -914,63 +843,66 @@ public:
     */
     DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
                         prelocking_ctx->get_stmt_unsafe_flags()));
-    DBUG_PRINT("info", ("sp_head(0x%p=%s)->unsafe_flags: 0x%x",
-                        this, name(), unsafe_flags));
+    DBUG_PRINT("info", ("sp_head(0x%p=%s)->unsafe_flags: 0x%x", this, name(),
+                        unsafe_flags));
     prelocking_ctx->set_stmt_unsafe_flags(unsafe_flags);
   }
 
   /**
     @return root parsing context for this stored program.
   */
-  sp_pcontext *get_root_parsing_context() const
-  { return const_cast<sp_pcontext *> (m_root_parsing_ctx); }
+  sp_pcontext *get_root_parsing_context() const {
+    return const_cast<sp_pcontext *>(m_root_parsing_ctx);
+  }
 
   /**
     @return SP-persistent mem-root. Instructions and expressions are stored in
     its memory between executions.
   */
-  MEM_ROOT *get_persistent_mem_root() const
-  { return const_cast<MEM_ROOT *> (&main_mem_root); }
+  MEM_ROOT *get_persistent_mem_root() const {
+    return const_cast<MEM_ROOT *>(&main_mem_root);
+  }
 
   /**
     @return currently used mem-root.
   */
-  MEM_ROOT *get_current_mem_root() const
-  { return const_cast<MEM_ROOT *> (mem_root); }
+  MEM_ROOT *get_current_mem_root() const {
+    return const_cast<MEM_ROOT *>(mem_root);
+  }
 
   /**
     Check if a user has access right to a SP.
 
     @param      thd          Thread context.
-    @param[out] full_access  Set to 1 if the user has SELECT
-                             to the 'mysql.proc' table or is
-                             the owner of the stored program.
+    @param[out] full_access  Set to 1 if the user is the owner
+                             of the stored program.
 
     @return Error status.
   */
   bool check_show_access(THD *thd, bool *full_access);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /**
-    Change routine security context, and check if there is an EXECUTE privilege in
-    new context. If there is no EXECUTE privilege, change the context back and
-    return an error.
+    Change routine security context, and check if there is an EXECUTE privilege
+    in new context. If there is no EXECUTE privilege, change the context back
+    and return an error.
 
     @param      thd      Thread context.
     @param[out] save_ctx Where to save the old security context.
 
-    @todo Cache if the definer has the rights to use the object on the first usage
-    and reset the cache only if someone does a GRANT statement that 'may' affect
-    this.
+    @todo Cache if the definer has the rights to use the object on the first
+    usage and reset the cache only if someone does a GRANT statement that 'may'
+    affect this.
 
     @return Error status.
   */
   bool set_security_ctx(THD *thd, Security_context **save_ctx);
-#endif
 
-private:
+ private:
   /// Use sp_start_parsing() to create instances of sp_head.
-  sp_head(enum_sp_type type);
+  sp_head(MEM_ROOT &&mem_root, enum_sp_type type);
+
+  /// Use destroy() to destoy instances of sp_head.
+  ~sp_head();
 
   /// SP-persistent memory root (for instructions and expressions).
   MEM_ROOT main_mem_root;
@@ -979,7 +911,7 @@ private:
   sp_pcontext *m_root_parsing_ctx;
 
   /// The SP-instructions.
-  Mem_root_array<sp_instr *, true> m_instructions;
+  Mem_root_array<sp_instr *> m_instructions;
 
   /**
     Multi-set representing optimized list of tables to be locked by this
@@ -990,7 +922,15 @@ private:
     We do so because the same instance of sp_head may be called both
     in prelocked mode and in non-prelocked mode.
   */
-  HASH m_sptabs;
+  collation_unordered_map<std::string, SP_TABLE *> m_sptabs;
+
+  /*
+    The same information as in m_sptabs, but sorted (by an arbitrary key).
+    This is useful to get consistent locking order, which makes MTR tests
+    more deterministic across platforms. It does not have a bearing on the
+    actual behavior of the server.
+  */
+  std::vector<SP_TABLE *> m_sptabs_sorted;
 
   /**
     Version of the stored routine cache at the moment when the
@@ -1010,7 +950,7 @@ private:
   /// Flags of LEX::enum_binlog_stmt_unsafe.
   uint32 unsafe_flags;
 
-private:
+ private:
   /// Copy sp name from parser.
   void init_sp_name(THD *thd, sp_name *spname);
 
@@ -1054,7 +994,8 @@ private:
   */
   bool merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check);
 
-  friend sp_head *sp_start_parsing(THD *, enum_sp_type, sp_name *);
+  friend sp_head *sp_start_parsing(THD *thd, enum_sp_type sp_type,
+                                   sp_name *sp_name);
 
   // Prevent use of copy constructor and assignment operator.
   sp_head(const sp_head &);

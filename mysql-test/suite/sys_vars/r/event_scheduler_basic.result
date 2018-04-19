@@ -1,12 +1,12 @@
 SET @start_value = @@global.event_scheduler;
 SELECT @start_value;
 @start_value
-OFF
+ON
 '#---------------------FN_DYNVARS_004_01-------------------------#'
 SET @@global.event_scheduler = DEFAULT;
 SELECT @@global.event_scheduler;
 @@global.event_scheduler
-OFF
+ON
 '#--------------------FN_DYNVARS_004_02------------------------#'
 SET @@global.event_scheduler = ON;
 SELECT @@global.event_scheduler;
@@ -53,7 +53,7 @@ SELECT @@session.event_scheduler;
 ERROR HY000: Variable 'event_scheduler' is a GLOBAL variable
 '#----------------------FN_DYNVARS_004_05------------------------#'
 SELECT @@global.event_scheduler = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='event_scheduler';
 @@global.event_scheduler = VARIABLE_VALUE
 1
@@ -96,4 +96,5 @@ ERROR 42S22: Unknown column 'event_scheduler' in 'field list'
 SET @@global.event_scheduler = @start_value;
 SELECT @@global.event_scheduler;
 @@global.event_scheduler
-OFF
+ON
+# restart

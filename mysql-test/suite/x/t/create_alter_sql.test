@@ -1,0 +1,159 @@
+########### ../t/create_alter_sql.test                    #############
+##                                                                    #
+## This test runs aims to run CREATE statement varaiant /ALTER/       #
+## CREATE INDEX with mysqlxtest client.                               #
+## Test covers                                                        #
+##  - Create statement with supported data type                       #
+##  - Create statement syntax for                                     #
+##    a) plain create table statement                                 #
+##    b) Create ... like ...                                          #
+##    c) create ...select ..                                          #
+##    d) create with column definition                                #
+##    e) create with table option                                     #
+##  - ALTER statement with ADD/DROP column,ADD/DROP INDEX,ALGORITHM   #
+##    options                                                         #
+##  - CREATE/DROP INDEX                                               #
+##                                                                    #
+#######################################################################
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+-->sql
+#-- "Creating database for testcase"
+DROP DATABASE IF EXISTS xplugintest;
+CREATE DATABASE xplugintest;
+USE xplugintest;
+#-- "Create table with different data type (add other when support is added)"
+CREATE TABLE t1 ( col1 INT , col2 FLOAT(7,4), col3 REAL(7,4) , col4 VARCHAR(20) , col5 BLOB ) ;
+#-- "Json table"
+CREATE TABLE t2 ( col1 INT , col2 DOUBLE(7,4), col3 DECIMAL(7,4) , col4 VARCHAR(20) , col5 BLOB , col6 JSON ) ;
+#-- "Termporary Table"
+CREATE TEMPORARY TABLE t3 ( col1 INT , col2 DOUBLE(7,4), col3 DECIMAL(7,4) , col4 VARCHAR(20) , col5 BLOB , col6 JSON ) ;
+#-- "Partition table"
+CREATE TABLE t6 (val INT , col2 JSON) PARTITION BY LIST(val)( PARTITION mypart1 VALUES IN (1,3,5), PARTITION MyPart2 VALUES IN (2,4,6) );
+#-- "Table with constraint at column_definition"
+#-- " With Index (Primary , unique) , not null , defaukt constraint"
+CREATE TABLE t7 ( col1 INT PRIMARY KEY , col2 DOUBLE(7,4) UNIQUE KEY, col3 DECIMAL(7,4) NOT NULL COMMENT 'not_null', col4 VARCHAR(20) DEFAULT 'xyz' , col5 BLOB , col6 JSON ) ;
+#-- "Table with foreign key constraint"
+CREATE TABLE t8 ( col1 INT REFERENCES t7(col1), col6 JSON ) ;
+#-- "Table with constraint"
+CREATE TABLE t9 ( col1 INT NOT NULL AUTO_INCREMENT, col2 DOUBLE(7,4) , col3 DECIMAL(7,4) COMMENT 'Test', col4 VARCHAR(20) DEFAULT 'xyz' , col5 BLOB , col6 JSON , PRIMARY KEY (col1), INDEX `idx1` (col2) , UNIQUE KEY `idx2` (col4) ) ;
+#-- "Table with constraint at table_option"
+CREATE TABLE t10 ( col1 INT NOT NULL AUTO_INCREMENT, col2 DOUBLE(7,4) , col3 DECIMAL(7,4) COMMENT 'Test', col4 VARCHAR(20) DEFAULT 'xyz' , col5 BLOB , col6 JSON , PRIMARY KEY (col1), INDEX `idx1` (col2) , UNIQUE KEY `idx2` (col4) ) ENGINE = Innodb , MAX_ROWS=100 ;
+#-- "Create table using prepared statement"
+SET @tabname = 't11';
+SET @stmt1 = CONCAT('CREATE TABLE ',@tabname ,' ( col1 INT , col2 DOUBLE(7,4), col3 DECIMAL(7,4) , col4 VARCHAR(20) , col5 BLOB , col6 JSON)');
+PREPARE stmt2 FROM @stmt1;
+EXECUTE stmt2 ;
+DROP TABLE t11;
+EXECUTE stmt2 ;
+DEALLOCATE PREPARE stmt2;
+
+#-- "Insert row"
+INSERT INTO t1 VALUES (1, 999.10009 , 999.10009 , 'Row one' , REPEAT('t1r1',512));
+INSERT INTO t2 VALUES (1, 999.10009,  999.10009 , 'Row one' , REPEAT('t2r1',512) ,'{"a":"b", "c":"d","ab":"abc", "bc": ["x", "y"]}' );
+INSERT INTO t3 VALUES (1, 999.10009,  999.10009 , 'Row one' , REPEAT('t3r1',512) ,'{"a":"b", "c":"d","ab":"abc", "bc": ["x", "y"]}' );
+INSERT INTO t6 VALUES (1, '{"a":"b", "c":"d","ab":"abc", "bc": ["x", "y"]}' );
+INSERT INTO t7 VALUES (1, 999.10009,  999.10009 , 'Row one' , REPEAT('t7r1',512) ,'{"a":"b", "c":"d","ab":"abc", "bc": ["x", "y"]}' );
+INSERT INTO t8 VALUES (1, '{"a":"b", "c":"d","ab":"abc", "bc": ["x", "y"]}' );
+INSERT INTO t9 VALUES (1, 999.10009,  999.10009 , 'Row one' , REPEAT('t9r1',512) ,'{"a":"b", "c":"d","ab":"abc", "bc": ["x", "y"]}' );
+INSERT INTO t10 VALUES (1, 999.10009,  999.10009 , 'Row one' , REPEAT('t10r1',512) ,'{"a":"b", "c":"d","ab":"abc", "bc": ["x", "y"]}' );
+INSERT INTO t11 VALUES (1, 999.10009,  999.10009 , 'Row one' , REPEAT('t10r1',512) ,'{"a":"b", "c":"d","ab":"abc", "bc": ["x", "y"]}' );
+
+#-- "Create table using LIKE"
+CREATE TABLE t4 LIKE t2;
+#-- "Create table using SELECT"
+CREATE TABLE t5 SELECT col1,col6 FROM t2;
+
+
+#-- "Verify Added row"
+SELECT col1,col2,col3,col4,SUBSTR(col5,1,10) FROM t1;
+SELECT col1,col2,col3,col4,SUBSTR(col5,1,10),col6 FROM t2;
+SELECT col1,col2,col3,col4,SUBSTR(col5,1,10),col6 FROM t3;
+SELECT * FROM t4;
+SELECT * FROM t5;
+SELECT * FROM t6;
+SELECT col1,col2,col3,col4,SUBSTR(col5,1,10),col6 FROM t7;
+SELECT * FROM t8;
+SELECT col1,col2,col3,col4,SUBSTR(col5,1,10),col6 FROM t9;
+SELECT col1,col2,col3,col4,SUBSTR(col5,1,10),col6 FROM t10;
+SELECT col1,col2,col3,col4,SUBSTR(col5,1,10),col6 FROM t11;
+
+
+#-- "Negative cases of create"
+#-- "Try to create same table"
+-->endsql
+-->expecterror 1050
+-->sql
+CREATE TABLE t1 ( col1 INT , col2 DOUBLE(7,4), col3 DECIMAL(7,4) , col4 VARCHAR(20) , col5 BLOB ) ;
+#-- "Incorrect data type"
+-->endsql
+-->expecterror 1064
+-->sql
+CREATE TABLE t1 ( col1 INVALID_DATA_TYPE , col2 JSON) ;
+#-- "Incorrect column option"
+-->endsql
+-->expecterror 1171
+-->sql
+CREATE TABLE t1 ( col1 INT NULL PRIMARY KEY , col2 JSON) ;
+#-- "Incorrect constraint"
+-->endsql
+-->expecterror 1072
+-->sql
+CREATE TABLE t1 ( col1 INT NULL , col2 JSON,PRIMARY KEY(col3)) ;
+#-- "Incorrect table option"
+-->endsql
+-->expecterror 1286
+-->sql
+CREATE TABLE t1 ( col1 INT NULL , col2 JSON) ENGINE=INVALID;
+#-- "Can not create table until lock is released"
+LOCK TABLES t1 READ;
+-->endsql
+-->expecterror 1100
+-->sql
+CREATE TABLE t2 ( col1 INT );
+UNLOCK TABLES;
+
+
+
+#-- "ALTER TABLE commands"
+ALTER TABLE t2 ADD COLUMN (col7 JSON), 
+               ADD COLUMN (col8 JSON DEFAULT NULL),
+               ADD COLUMN (col9 VARCHAR(100) DEFAULT 'testdata'),
+               ADD INDEX `idx9` (col9),
+               ADD FULLTEXT INDEX `idx_fulltext` (col9);
+SELECT col1,col2,col3,col4,SUBSTR(col5,1,10),col6,col7,col8,col9 FROM t2;
+ALTER TABLE t2 DROP INDEX `idx_fulltext` , ALGORITHM=COPY;
+ALTER TABLE t2 DROP INDEX `idx9` , ALGORITHM=INPLACE;
+ALTER TABLE t2 DROP COLUMN col7 , ALGORITHM=INPLACE;
+SELECT col1,col2,col3,col4,SUBSTR(col5,1,10),col6,col8,col9 FROM t2;
+ALTER TABLE t6 REMOVE PARTITIONING;
+SHOW CREATE TABLE t2;
+SELECT * FROM t6;
+
+#-- "CREATE INDEX"
+CREATE INDEX `idx9` ON t2 ( col9(50) ) USING BTREE ALGORITHM=DEFAULT LOCK=SHARED;
+CREATE UNIQUE INDEX `idx5` ON t2 (col9(50)) ;
+CREATE FULLTEXT INDEX `idx_fulltext` ON t2 (col9);
+SELECT col1,col2,col3,col4,SUBSTR(col5,1,10),col6,col8,col9 FROM t2;
+ALTER TABLE t2 ADD PRIMARY KEY (col1);
+DROP INDEX `idx9` ON t2 ALGORITHM=DEFAULT LOCK=SHARED;
+DROP INDEX `idx5` ON t2 ;
+DROP INDEX `PRIMARY` ON t2;
+SHOW CREATE TABLE t2;
+
+-->endsql
+## Cleanup
+-->sql
+DROP DATABASE IF EXISTS xplugintest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--source include/xplugin_drop_user.inc

@@ -1,18 +1,24 @@
-
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #
 
 #
@@ -44,7 +50,6 @@ INCLUDE(CheckCSourceCompiles)
 INCLUDE(CheckCXXSourceCompiles)
 INCLUDE(CheckCXXSourceRuns)
 INCLUDE(ndb_require_variable)
-INCLUDE(ndb_check_mysql_include_file)
 
 CHECK_FUNCTION_EXISTS(posix_memalign HAVE_POSIX_MEMALIGN)
 CHECK_FUNCTION_EXISTS(clock_gettime HAVE_CLOCK_GETTIME)
@@ -62,19 +67,32 @@ CHECK_FUNCTION_EXISTS(sysconf HAVE_SYSCONF)
 CHECK_FUNCTION_EXISTS(directio HAVE_DIRECTIO)
 CHECK_FUNCTION_EXISTS(atomic_swap_32 HAVE_ATOMIC_SWAP32)
 CHECK_FUNCTION_EXISTS(mlock HAVE_MLOCK)
-CHECK_FUNCTION_EXISTS(ffs HAVE_FFS)
 CHECK_FUNCTION_EXISTS(pthread_mutexattr_init HAVE_PTHREAD_MUTEXATTR_INIT)
 CHECK_FUNCTION_EXISTS(pthread_mutexattr_settype HAVE_PTHREAD_MUTEXATTR_SETTYPE)
 CHECK_FUNCTION_EXISTS(pthread_setschedparam HAVE_PTHREAD_SETSCHEDPARAM)
-CHECK_FUNCTION_EXISTS(bzero HAVE_BZERO)
+CHECK_FUNCTION_EXISTS(priocntl HAVE_PRIOCNTL)
+CHECK_FUNCTION_EXISTS(processor_affinity HAVE_PROCESSOR_AFFINITY)
+CHECK_FUNCTION_EXISTS(cpuset_setaffinity HAVE_CPUSET_SETAFFINITY)
+CHECK_FUNCTION_EXISTS(setpriority HAVE_SETPRIORITY)
+
+CHECK_SYMBOL_EXISTS(bzero "strings.h" HAVE_BZERO)
+CHECK_SYMBOL_EXISTS(ffs "strings.h" HAVE_FFS)
 
 CHECK_INCLUDE_FILES(sun_prefetch.h HAVE_SUN_PREFETCH_H)
+CHECK_INCLUDE_FILES(Processtopologyapi.h HAVE_PROCESSTOPOLOGYAPI_H)
+CHECK_INCLUDE_FILES(Processthreadsapi.h HAVE_PROCESSTHREADSAPI_H)
+CHECK_INCLUDE_FILES(ncursesw/curses.h HAVE_NCURSESW_CURSES_H)
+CHECK_INCLUDE_FILES(ncursesw.h HAVE_NCURSESW_H)
+CHECK_INCLUDE_FILES(ncurses.h HAVE_NCURSES_H)
+CHECK_INCLUDE_FILES(ncurses/curses.h HAVE_NCURSES_CURSES_H)
 
 CHECK_CXX_SOURCE_RUNS("
+template<class T> void ignore(const T&) {}
 unsigned A = 7;
 int main()
 {
   unsigned a = __builtin_ffs(A);
+  ignore(a);
   return 0;
 }"
 HAVE___BUILTIN_FFS)
@@ -84,7 +102,7 @@ unsigned A = 7;
 int main()
 {
   unsigned a = __builtin_ctz(A);
-  return 0;
+  return (int)a;
 }"
 HAVE___BUILTIN_CTZ)
 
@@ -93,7 +111,7 @@ unsigned A = 7;
 int main()
 {
   unsigned a = __builtin_clz(A);
-  return 0;
+  return (int)a;
 }"
 HAVE___BUILTIN_CLZ)
 
@@ -119,6 +137,29 @@ int main()
 }"
 HAVE__BITSCANREVERSE)
 
+#Mac OS X thread CPU usage
+CHECK_CXX_SOURCE_COMPILES("
+#include <mach/mach_init.h>
+#include <mach/thread_act.h>
+#include <mach/mach_port.h>
+int main()
+{
+mach_port_t thread_port;
+kern_return_t ret_code;
+mach_msg_type_number_t basic_info_count;
+thread_basic_info_data_t basic_info;
+mach_port_t current_task = mach_task_self();
+
+thread_port = mach_thread_self();
+ret_code = thread_info(thread_port,
+                       THREAD_BASIC_INFO,
+                       (thread_info_t) &basic_info,
+                       &basic_info_count);
+mach_port_deallocate(current_task, thread_port);
+return ret_code;
+}"
+HAVE_MAC_OS_X_THREAD_INFO)
+
 # Linux scheduling and locking support
 CHECK_C_SOURCE_COMPILES("
 #ifndef _GNU_SOURCE
@@ -128,6 +169,7 @@ CHECK_C_SOURCE_COMPILES("
 #include <unistd.h>
 #include <sched.h>
 #include <sys/syscall.h>
+#include <stdlib.h>
 int main()
 {
   const cpu_set_t *p= (const cpu_set_t*)0;
@@ -135,8 +177,9 @@ int main()
   int policy = 0;
   pid_t tid = (unsigned)syscall(SYS_gettid);
   tid = getpid();
-  int ret = sched_setaffinity(tid, sizeof(* p), p);
-  ret = sched_setscheduler(tid, policy, &loc_sched_param);
+  sched_setaffinity(tid, sizeof(* p), p);
+  sched_setscheduler(tid, policy, &loc_sched_param);
+  return 0;
 }"
 HAVE_LINUX_SCHEDULING)
 
@@ -150,7 +193,7 @@ int main()
 {
   processorid_t cpu_id = (processorid_t)0;
   id_t tid = _lwp_self();
-  int ret = processor_bind(P_LWPID, tid, cpu_id, 0);
+  processor_bind(P_LWPID, tid, cpu_id, 0);
 }"
 HAVE_SOLARIS_AFFINITY)
 
@@ -162,7 +205,7 @@ CHECK_C_SOURCE_COMPILES("
 #include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
-#include <sys/syscall.h>]
+#include <sys/syscall.h>
 #define FUTEX_WAIT        0
 #define FUTEX_WAKE        1
 #define FUTEX_FD          2
@@ -176,6 +219,90 @@ int main()
 }"
 HAVE_LINUX_FUTEX)
 
+IF (NOT WIN32 AND NOT SOLARIS)
+  FIND_LIBRARY(NCURSESW_LIB
+               NAMES ncursesw)
+  IF (NOT NCURSESW_LIB)
+    FIND_LIBRARY(NCURSESW_LIB
+                 NAMES ncurses)
+  ENDIF()
+  CHECK_LIBRARY_EXISTS("${NCURSESW_LIB}"
+    stdscr "" NCURSES_HAS_STDSCR)
+  IF(NOT NCURSES_HAS_STDSCR)
+    FIND_LIBRARY(NCURSES_TINFO_LIB
+                 NAMES tinfo)
+    CHECK_LIBRARY_EXISTS("${NCURSES_TINFO_LIB}"
+      stdscr "" TINFO_HAS_STDSCR)
+    IF(TINFO_HAS_STDSCR)
+      SET(CMAKE_REQUIRED_LIBRARIES ${NCURSES_TINFO_LIB} ${NCURSESW_LIB})
+    ELSE()
+      SET(CMAKE_REQUIRED_LIBRARIES ${NCURSESW_LIB})
+    ENDIF()
+  ELSE()
+    SET(CMAKE_REQUIRED_LIBRARIES ${NCURSESW_LIB})
+  ENDIF()
+
+  CHECK_CXX_SOURCE_COMPILES("
+#define _XOPEN_SOURCE_EXTENDED
+#include <curses.h>
+#include <stdlib.h>
+int main()
+{
+  wcstombs(NULL, NULL, 0);
+  addstr(NULL);
+  return 0;
+}"
+  HAVE_NCURSESW_1 )
+
+  CHECK_CXX_SOURCE_COMPILES("
+#define _XOPEN_SOURCE_EXTENDED
+#include <ncursesw/curses.h>
+#include <stdlib.h>
+int main()
+{
+  wcstombs(NULL, NULL, 0);
+  addstr(NULL);
+  return 0;
+}"
+  HAVE_NCURSESW_2 )
+
+  CHECK_CXX_SOURCE_COMPILES("
+#define _XOPEN_SOURCE_EXTENDED
+#include <ncurses/curses.h>
+#include <stdlib.h>
+int main()
+{
+  wcstombs(NULL, NULL, 0);
+  addstr(NULL);
+  return 0;
+}"
+  HAVE_NCURSESW_3 )
+
+  CHECK_CXX_SOURCE_COMPILES("
+#define _XOPEN_SOURCE_EXTENDED
+#include <ncurses.h>
+#include <stdlib.h>
+int main()
+{
+  wcstombs(NULL, NULL, 0);
+  addstr(NULL);
+  return 0;
+}"
+  HAVE_NCURSESW_4 )
+
+  CHECK_CXX_SOURCE_COMPILES("
+#define _XOPEN_SOURCE_EXTENDED
+#include <ncursesw.h>
+#include <stdlib.h>
+int main()
+{
+  wcstombs(NULL, NULL, 0);
+  addstr(NULL);
+  return 0;
+}"
+  HAVE_NCURSESW_5 )
+ENDIF()
+
 OPTION(WITH_NDBMTD
   "Build the MySQL Cluster multithreadded data node" ON)
 
@@ -185,11 +312,6 @@ IF(WITH_NDB_PORT GREATER 0)
   SET(NDB_PORT ${WITH_NDB_PORT})
   MESSAGE(STATUS "Setting MySQL Cluster management server port to ${NDB_PORT}")
 ENDIF()
-
-#
-# Check which MySQL include files exists
-#
-NDB_CHECK_MYSQL_INCLUDE_FILE(my_default.h HAVE_MY_DEFAULT_H)
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/include/ndb_config.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/include/ndb_config.h)
@@ -205,10 +327,9 @@ IF(NOT DEFINED WITH_ZLIB)
   # Hardcode use of the bundled zlib if not set by MySQL
   MESSAGE(STATUS "Using bundled zlib (hardcoded)")
   SET(ZLIB_LIBRARY zlib)
-  SET(ZLIB_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/zlib)
+  INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_SOURCE_DIR}/extra/zlib)
 ENDIF()
 NDB_REQUIRE_VARIABLE(ZLIB_LIBRARY)
-NDB_REQUIRE_VARIABLE(ZLIB_INCLUDE_DIR)
 
 IF(WITH_CLASSPATH)
   MESSAGE(STATUS "Using supplied classpath: ${WITH_CLASSPATH}")

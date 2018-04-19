@@ -202,11 +202,137 @@ DROP TABLE t5;
 --source include/sync_slave_sql_with_master.inc
 # End of Test cases for Bug#18860225
 
--- connection slave
+# Test cases for BUG#26137159
+# Verify that update and delete operations can be safely replicated when the
+# partition function does not include the key used in the index
 
-SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
+SET @@global.slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
+
+call mtr.add_suppression("Could not execute Delete_rows event on table test.t6");
+call mtr.add_suppression("Could not execute Update_rows event on table test.t6");
+call mtr.add_suppression("Can't find record in 't6'");
+# when mts is enabled
+call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+
+--let $i= 1
+
+while ($i<3)
+{
+  # Check that the slave can delete/update a value that is not the index key
+  --source include/rpl_connection_master.inc
+  CREATE TABLE t6(num INT, year INT, KEY year (year))
+    PARTITION BY HASH(num) PARTITIONS 5;
+  INSERT INTO t6 VALUES(6, 1977);
+  INSERT INTO t6 VALUES(1, 1983);
+  INSERT INTO t6 VALUES(9, 1977);
+  if ($i==1)
+  {
+    DELETE FROM t6 WHERE num= 9;
+  }
+  if ($i==2)
+  {
+    UPDATE t6 SET num= 10 WHERE num= 9;
+  }
+  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl_connection_master.inc
+  --let $diff_tables= master:t6, slave:t6
+  --source include/diff_tables.inc
+  DROP TABLE t6;
+  --source include/sync_slave_sql_with_master.inc
+
+  # Check that the slave can delete/update a repeated value that is not the
+  # index key
+  --source include/rpl_connection_master.inc
+  CREATE TABLE t6(num INT, year INT, KEY year (year))
+    PARTITION BY HASH(num) PARTITIONS 5;
+  INSERT INTO t6 VALUES(6, 1977);
+  INSERT INTO t6 VALUES(1, 1983);
+  INSERT INTO t6 VALUES(9, 1977);
+  INSERT INTO t6 VALUES(9, 1977);
+  INSERT INTO t6 VALUES(9, 1987);
+  INSERT INTO t6 VALUES(9, 9);
+  INSERT INTO t6 VALUES(9, 1555555500);
+  if ($i==1)
+  {
+    DELETE FROM t6 WHERE num= 9;
+  }
+  if ($i==2)
+  {
+    UPDATE t6 SET num= 10 WHERE num= 9;
+  }
+  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl_connection_master.inc
+  --let $diff_tables= master:t6, slave:t6
+  --source include/diff_tables.inc
+  DROP TABLE t6;
+  --source include/sync_slave_sql_with_master.inc
+
+  # Check that the slave can delete/update a repeated value that is not the
+  # index key when using another column for key and a more complex partition
+  # function
+  --source include/rpl_connection_master.inc
+  CREATE TABLE t6(num INT, year INT, num_2 INT, KEY year (year))
+    PARTITION BY HASH(num_2-num) PARTITIONS 5;
+  INSERT INTO t6 VALUES(6, 1977, 1);
+  INSERT INTO t6 VALUES(1, 1983, 2);
+  INSERT INTO t6 VALUES(9, 1977, 1);
+  INSERT INTO t6 VALUES(9, 1983, 1);
+  INSERT INTO t6 VALUES(9, 1977, 3);
+  if ($i==1)
+  {
+    DELETE FROM t6 WHERE num_2= 1;
+  }
+  if ($i==2)
+  {
+    UPDATE t6 SET num= 10 WHERE num_2= 1;
+  }
+  --source include/sync_slave_sql_with_master.inc
+  --source include/rpl_connection_master.inc
+  --let $diff_tables= master:t6, slave:t6
+  --source include/diff_tables.inc
+  DROP TABLE t6;
+  --source include/sync_slave_sql_with_master.inc
+
+  # Check that the slave will error if trying to delete a non-existing value
+  --source include/stop_slave_sql.inc
+  --source include/rpl_connection_master.inc
+  CREATE TABLE t6(num INT, year INT, KEY year (year))
+   PARTITION BY HASH(num) PARTITIONS 5;
+  INSERT INTO t6 VALUES(6, 1977);
+  INSERT INTO t6 VALUES(1, 1983);
+  INSERT INTO t6 VALUES(9, 1977);
+  SET SQL_LOG_BIN= 0;
+  INSERT INTO t6 VALUES(10, 1977);
+  SET SQL_LOG_BIN= 1;
+  if ($i==1)
+  {
+    DELETE FROM t6 WHERE num= 10;
+  }
+  if ($i==2)
+  {
+    UPDATE t6 SET num= 9 WHERE num= 10;
+  }
+
+  --source include/rpl_connection_slave.inc
+  START SLAVE SQL_THREAD;
+  --let $slave_sql_errno= convert_error(ER_KEY_NOT_FOUND)
+  --source include/wait_for_slave_sql_error.inc
+
+  # update the slave to clear the error
+  --source include/stop_slave.inc
+  INSERT INTO t6 VALUES(10, 1977);
+  -- source include/start_slave.inc
+
+  --source include/rpl_connection_master.inc
+  DROP TABLE t6;
+  --source include/sync_slave_sql_with_master.inc
+
+  --inc $i
+}
+
 
 #clean Up
+SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
 --connection master
 DROP TABLE IF EXISTS t1, t2, t3, t4;
 --source include/sync_slave_sql_with_master.inc

@@ -1,17 +1,24 @@
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #
 # This is a reimplementation of parts of packaging/WiX/create_msi.cmake to make it
 # work with a MySQL Cluster install.
@@ -35,13 +42,9 @@ SET(EXCLUDE_DIRS
 # be exluded from the wxs. Used through get_include() macro below
 SET(EXCLUDE_FILES
      bin/echo.exe
-     bin/mysql_client_test_embedded.exe
      bin/mysqld-debug.exe
-     bin/mysqltest_embedded.exe
      bin/replace.exe
      lib/debug/mysqlserver.lib
-     lib/libmysqld.dll
-     lib/libmysqld.lib
      lib/mysqlserver.lib
      lib/mysqlservices.lib
 )
@@ -213,7 +216,7 @@ FUNCTION(WIX_DESCRIBE_COMPONENTS dir prefix)
 			FILE(TO_NATIVE_PATH ${exe} exe_native)
 			SAPPEND_VA(CPACK_WIX_COMPONENT_GROUPS "      <ComponentRef Id='${cid}'/>\n")			
 			SAPPEND_VA(CPACK_WIX_COMPONENTS 
-				"${prefix}  <Component Id='${cid}' Guid='*' ${Win64}>\n"
+				"${prefix}  <Component Id='${cid}' Guid='*' Win64='yes'>\n"
 				"${prefix}    <File Id='F${id}' KeyPath='yes' Source='${exe_native}'/>\n"
 				"${prefix}  </Component>\n")
 		ENDFOREACH()
@@ -224,7 +227,7 @@ FUNCTION(WIX_DESCRIBE_COMPONENTS dir prefix)
 				OUTPUT_STRIP_TRAILING_WHITESPACE)
 			SET(cid "${CGRP_NAME}.${d_id}.files")				
 			SAPPEND_VA(CPACK_WIX_COMPONENTS 
-				"${prefix}  <Component Guid='${guid}' Id='${cid}' ${Win64}>\n")
+				"${prefix}  <Component Guid='${guid}' Id='${cid}' Win64='yes'>\n")
 			FOREACH(non_dir ${non_dir_list})
 				INCR(id)
 				FILE(RELATIVE_PATH rpnondirname ${CGRP_ABS} ${non_dir})

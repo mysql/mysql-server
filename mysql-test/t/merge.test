@@ -2,12 +2,12 @@
 # Test of MERGE TABLES
 #
 # MERGE tables require MyISAM tables
+--source include/no_valgrind_without_big.inc
 --source include/have_myisam.inc 
 
-# Set session binlog_format to STATEMENT to avoid BUG#20574550
---disable_query_log
-SET binlog_format=STATEMENT;
---enable_query_log
+# Skip the test when log-bin is enabled and binlog_format=STATEMENT due to
+# presence of many unsafe statements.
+--source include/not_binlog_format_statement.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
@@ -955,11 +955,9 @@ LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
 ALTER TABLE t2 RENAME TO t5;
 --error ER_TABLE_NOT_LOCKED
 SELECT * FROM t3 ORDER BY c1;
---error ER_TABLE_NOT_LOCKED
-ALTER TABLE t5 RENAME TO t2;
-UNLOCK TABLES;
 ALTER TABLE t5 RENAME TO t2;
 SELECT * FROM t3 ORDER BY c1;
+UNLOCK TABLES;
 #
 --echo #
 --echo # Rename parent.
@@ -976,14 +974,9 @@ SELECT * FROM t3 ORDER BY c1;
 --echo #
 --echo # 5. Alter table rename with locked tables.
 ALTER TABLE t3 RENAME TO t5;
---error ER_TABLE_NOT_LOCKED
 SELECT * FROM t5 ORDER BY c1;
---error ER_TABLE_NOT_LOCKED
-ALTER TABLE t5 RENAME TO t3;
 UNLOCK TABLES;
-ALTER TABLE t5 RENAME TO t3;
-SELECT * FROM t3 ORDER BY c1;
-DROP TABLE t1, t2, t3;
+DROP TABLE t1, t2, t5;
 #
 --echo #
 --echo # Drop locked tables.
@@ -1423,12 +1416,18 @@ DROP TABLE t1, m1;
 # Bug#35068 - Assertion fails when reading from i_s.tables
 #             and there is incorrect merge table
 #
+
+# Running the I_S query in mode where we get latest statistics
+# which would enable I_S query to contact SE and report any
+# error that might occur.
+SET SESSION information_schema_stats_expiry=0;
 CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=FIRST;
 --replace_column 8 # 9 # 10 # 11 # 12 # 13 # 14 # 15 # 16 # 17 # 19 # 20 #
 SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE
 TABLE_SCHEMA = 'test' and TABLE_NAME='tm1';
 
 DROP TABLE tm1;
+SET SESSION information_schema_stats_expiry=default;
 
 #
 # Bug#36006 - Optimizer does table scan for select count(*)
@@ -1452,6 +1451,7 @@ CREATE TABLE t1(a INT, KEY(a));
 INSERT INTO t1 VALUES(0),(1),(2),(3),(4);
 ANALYZE TABLE t1;
 CREATE TABLE m1(a INT, KEY(a)) ENGINE=MERGE UNION=(t1);
+ANALYZE TABLE m1;
 SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='m1'; 
 SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='m1'; 
 SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='m1'; 
@@ -1646,6 +1646,7 @@ SHOW CREATE TRIGGER tr1;
 DROP TRIGGER tr1;
 DROP TABLE t1, t2, t3;
 
+
 --echo #
 --echo # BUG#48265 - MRG_MYISAM problem (works in 5.0.85, does't work in 5.1.40)
 --echo #
@@ -1677,29 +1678,6 @@ DROP TABLE `test/1`.`t/1`;
 
 DROP DATABASE `test/1`;
 
-# Test compatibility. Use '@' instead of '/' (was not allowed in 5.0)
-
-CREATE TABLE `t@1`(a INT);
-copy_file std_data/bug48265.frm $MYSQLD_DATADIR/test/m1.frm;
-write_file $MYSQLD_DATADIR/test/m1.MRG;
-t@1
-EOF
-SELECT * FROM m1;
-SHOW CREATE TABLE m1;
-DROP TABLE `t@1`;
-
-CREATE DATABASE `test@1`;
-CREATE TABLE `test@1`.`t@1`(a INT);
-FLUSH TABLE m1;
-remove_file $MYSQLD_DATADIR/test/m1.MRG;
-write_file $MYSQLD_DATADIR/test/m1.MRG;
-./test@1/t@1
-EOF
-SELECT * FROM m1;
-SHOW CREATE TABLE m1;
-DROP TABLE m1;
-DROP TABLE `test@1`.`t@1`;
-DROP DATABASE `test@1`;
 
 --echo #
 --echo # Bug#51494c rash with join, explain and 'sounds like' operator

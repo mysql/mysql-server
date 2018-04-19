@@ -9,13 +9,13 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 RENAME TABLE t2 TO t1;
 ERROR 42S01: Table 't1' already exists
 RENAME TABLE t3 TO t1;
 ERROR 42S01: Table 't1' already exists
 RENAME TABLE t3 TO doesnotexist.t1;
-ERROR HY000: Can't find file: './test/t3.frm' (errno: 2 - No such file or directory)
+ERROR 42000: Unknown database 'doesnotexist'
 SHOW TABLES;
 Tables_in_test
 t1
@@ -24,12 +24,12 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test

@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,6 +23,8 @@
  */
 
 #include "NdbInfo.hpp"
+#include "NdbInfoScanVirtual.hpp"
+#include "NdbInfoScanNodes.hpp"
 
 #include <ndbapi/ndb_cluster_connection.hpp>
 
@@ -39,11 +48,14 @@ bool NdbInfo::init(void)
     return false;
   if (!load_hardcoded_tables())
     return false;
+  if (!NdbInfoScanVirtual::create_virtual_tables(m_virtual_tables))
+    return false;
   return true;
 }
 
 NdbInfo::~NdbInfo(void)
 {
+  NdbInfoScanVirtual::delete_virtual_tables(m_virtual_tables);
   native_mutex_destroy(&m_mutex);
 }
 
@@ -93,12 +105,11 @@ bool NdbInfo::load_hardcoded_tables(void)
 
 bool NdbInfo::addColumn(Uint32 tableId, Column aCol)
 {
-  Table * table = NULL;
-
   // Find the table with correct id
-  for (size_t i = 0; i < m_tables.entries(); i++)
+  Table * table = nullptr;
+  for (auto &key_and_value : m_tables)
   {
-    table = m_tables.value(i);
+    table = key_and_value.second.get();
     if (table->m_table_id == tableId)
       break;
   }
@@ -263,11 +274,49 @@ bool NdbInfo::load_ndbinfo_tables(void)
 
 bool NdbInfo::load_tables()
 {
-  if (!load_ndbinfo_tables())
+  if (!load_ndbinfo_tables() ||
+      !load_virtual_tables())
   {
     // Remove any dynamic tables that might have been partially created
     flush_tables();
     return false;
+  }
+
+  // Consistency check the loaded table list
+  {
+    Vector<Uint32> m_table_ids;
+    for (auto &key_and_value : m_tables)
+    {
+      Table* const tab = key_and_value.second.get();
+      // Table id should be valid
+      assert(tab->m_table_id != Table::InvalidTableId);
+      // Save the table id at position "table id" in
+      // list of table ids(for later check)
+      Uint32 invalid = Table::InvalidTableId;
+      m_table_ids.set(tab->m_table_id, tab->m_table_id, invalid);
+      // Name should be set
+      assert(tab->m_name.length() > 0);
+      // There should be columns
+      assert(tab->columns() > 0);
+
+      for (unsigned c = 0; c < tab->columns(); c++)
+      {
+        // Column id should be consecutievly increasing
+        assert(tab->getColumn(c)->m_column_id == c);
+        // Name should be set
+        assert(tab->getColumn(c)->m_name.length() > 0);
+      }
+    }
+
+    // There should be as many table ids as tables
+    assert(m_table_ids.size() == m_tables.entries());
+
+    // Table id should be consecutievly increasing
+    for (unsigned i = 0; i < m_table_ids.size(); i++)
+    {
+      assert(m_table_ids[i] != Table::InvalidTableId);
+      assert(m_table_ids[i] == i);
+    }
   }
 
   // After sucessfull load of the tables, set connect count
@@ -281,23 +330,48 @@ int NdbInfo::createScanOperation(const Table* table,
                                  NdbInfoScanOperation** ret_scan_op,
                                  Uint32 max_rows, Uint32 max_bytes)
 {
-  NdbInfoScanOperation* scan_op = new NdbInfoScanOperation(*this, m_connection,
-                                                           table, max_rows,
-                                                           max_bytes);
+  if (table->m_virt != NULL)
+  {
+    // The table is a virtual table which returns
+    // hardcoded values. Use the special NdbInfoScanVirtual implementation
+    NdbInfoScanVirtual* virtual_scan =
+        new NdbInfoScanVirtual(table,
+                               table->m_virt);
+    if (!virtual_scan)
+      return ERR_OutOfMemory;
+
+    const int ret = virtual_scan->init();
+    if (ret != ERR_NoError)
+    {
+      delete virtual_scan;
+      return ret;
+    }
+
+    *ret_scan_op = virtual_scan;
+    return 0;
+  }
+
+
+  Uint32 max_nodes = 0;
+  if (table->getTableId() < NUM_HARDCODED_TABLES)
+  {
+    // Each db node contains all rows for the table -> scan only one node
+    max_nodes = 1;
+  }
+
+  NdbInfoScanNodes* scan_op = new NdbInfoScanNodes(*this, m_connection,
+                                                   table, max_rows,
+                                                   max_bytes,
+                                                   max_nodes);
   if (!scan_op)
     return ERR_OutOfMemory;
   // Global id counter, not critical if you get same id on two instances
   // since reference is also part of the unique identifier.
-  if (!scan_op->init(m_id_counter++))
+  const int ret = scan_op->init(m_id_counter++);
+  if (ret != ERR_NoError)
   {
     delete scan_op;
-    return ERR_ClusterFailure;
-  }
-
-  if (table->getTableId() < NUM_HARDCODED_TABLES)
-  {
-    // Each db node have the full list -> scan only one node
-    scan_op->m_max_nodes = 1;
+    return ret;
   }
 
   *ret_scan_op = scan_op;
@@ -313,17 +387,13 @@ void NdbInfo::releaseScanOperation(NdbInfoScanOperation* scan_op) const
 void NdbInfo::flush_tables()
 {
   // Delete all but the hardcoded tables
-  while (m_tables.entries() > NUM_HARDCODED_TABLES)
+  for (auto it = m_tables.begin(); it != m_tables.end(); )
   {
-    for (size_t i = 0; i<m_tables.entries(); i++)
-    {
-      Table * tab = m_tables.value(i);
-      if (! (tab == m_tables_table || tab == m_columns_table))
-      {
-        m_tables.remove(i);
-        break;
-      }
-    }
+    Table * tab = it->second.get();
+    if (! (tab == m_tables_table || tab == m_columns_table))
+      it = m_tables.erase(it);
+    else
+      ++it;
   }
   assert(m_tables.entries() == NUM_HARDCODED_TABLES);
 }
@@ -392,9 +462,9 @@ NdbInfo::openTable(Uint32 tableId,
 
   // Find the table with correct id
   const Table* table = NULL;
-  for (size_t i = 0; i < m_tables.entries(); i++)
+  for (auto &key_and_value : m_tables)
   {
-    const Table* tmp = m_tables.value(i);
+    const Table* tmp = key_and_value.second.get();
     if (tmp->m_table_id == tableId)
     {
       table = tmp;
@@ -449,13 +519,15 @@ NdbInfo::Column::operator=(const NdbInfo::Column & col)
 
 // Table
 
-NdbInfo::Table::Table(const char *name, Uint32 id) :
+NdbInfo::Table::Table(const char *name, Uint32 id, const VirtualTable* virt) :
   m_name(name),
-  m_table_id(id)
+  m_table_id(id),
+  m_virt(virt)
 {
 };
 
-NdbInfo::Table::Table(const NdbInfo::Table& tab)
+NdbInfo::Table::Table(const NdbInfo::Table& tab) :
+  m_virt(tab.m_virt)
 {
   DBUG_ENTER("Table(const Table&");
   m_table_id = tab.m_table_id;
@@ -473,6 +545,7 @@ NdbInfo::Table::operator=(const NdbInfo::Table& tab)
   m_name.assign(tab.m_name);
   for (unsigned i = 0; i < tab.m_columns.size(); i++)
     addColumn(*tab.m_columns[i]);
+  m_virt = tab.m_virt;
   DBUG_RETURN(*this);
 }
 
@@ -538,6 +611,32 @@ const NdbInfo::Column* NdbInfo::Table::getColumn(const char * name) const
   DBUG_RETURN(column);
 }
 
+
+const VirtualTable* NdbInfo::Table::getVirtualTable() const
+{
+  return m_virt;
+}
+
+
+bool NdbInfo::load_virtual_tables(void)
+{
+  // The virtual tables should already have been created
+  assert(m_virtual_tables.size() > 0);
+
+  // Append the virtual tables to the list of tables
+  for (size_t i = 0; i < m_virtual_tables.size(); i++)
+  {
+    Table* tab = m_virtual_tables[i];
+    assert(tab->m_virt);
+
+    BaseString hash_key = mysql_table_name(tab->getName());
+    tab->m_table_id = m_tables.entries(); // Set increasing table id
+    if (!m_tables.insert(hash_key.c_str(), *tab))
+      return false;
+  }
+
+  return true;
+}
 
 template class Vector<NdbInfo::Column*>;
 

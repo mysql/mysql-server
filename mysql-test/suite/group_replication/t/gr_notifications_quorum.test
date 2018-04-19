@@ -1,0 +1,431 @@
+################################################################################
+#
+# WL#10412: GR: notify listener services on relevant group events
+#
+# This test case checks that the correct notifications are
+# triggered to the listeners registered in the service registry.
+#
+# For that it relies on a table that is updated by a listener
+# through the SQL service API.
+#
+# This file covers the scenarios where QUORUM is lost.
+#
+# |------------+----+---------------------------------------------+------------+--------|
+# | Tested     |    | Scenario\Where                              |            |        |
+# | in this    |    |                                             | Server     | Others |
+# | file       |    |                                             | triggering |        |
+# |            |    |                                             | event      |        |
+# |------------+----+---------------------------------------------+------------+--------|
+# |            |  1 | SERVER BOOTSTRAPS GROUP                     | VC,2xSC    | N/A    |
+# |            |  2 | SERVER JOINS and STARTS RECOVERY            | VC,SC      | VC,SC  |
+# |            |  3 | SERVER RECOVERED                            | SC         | SC     |
+# |            |  4 | SERVER LEAVES(ERROR), SERVER LEAVES(OFFLINE)| VC,SC      | VC     |
+# |------------+----+---------------------------------------------+------------+--------|
+# |            |  5 | SERVER BOOTSTRAPS+RECOVERS+PRIMARY ELECTION | VC,RC,2xSC |        |
+# |            |  6 | PRIMARY LEAVES                              | VC,SC,RC   | VC,RC  |
+# |------------+----+---------------------------------------------+------------+--------|
+# | x          |  7 | A SERVER BECOMES UNREACHABLE                | SC, VC     | N/A    |
+# | x          |  8 | MAJORITY UNREACHABLE                        | QL, SC     | N/A    |
+# | x          |  9 | MAJORITY UNREACHABLE+FORCE MEMBERS          | VC         | N/A    |
+# | x          | 10 | MAJORITY UNREACHABLE+STOP                   | VC, SC     | N/A    |
+# |------------+----+---------------------------------------------+------------+--------|
+#
+# Legend:
+# - QL - Quorum Lost event
+# - VC - View Changed event
+# - RC - Role Changed event
+# - SC - State Changed event
+#
+# To test the cases above, the test sets up a group of
+# 3 servers in multi-master mode and proceeds to testing
+# the different scenarios. These are highlighted in the
+# test file.
+#
+################################################################################
+
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/force_restart.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+
+###
+### Sets up the group with three servers: server1, server2 and server3
+###
+
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+# server 1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $debug_point= register_gms_listener_example
+--source include/add_debug_point.inc
+
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_seeds_server1= `SELECT @@global.group_replication_group_seeds`
+--disable_query_log
+SET SQL_LOG_BIN=0;
+CREATE TABLE test.gms_listener_example(log_message TEXT);
+call mtr.add_suppression("The member has failed to gracefully leave the group.");
+call mtr.add_suppression("Timeout while waiting for the group communication");
+call mtr.add_suppression("read failed");
+SET SQL_LOG_BIN=1;
+--enable_query_log
+
+# server 2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $debug_point= register_gms_listener_example
+--source include/add_debug_point.inc
+
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_seeds_server2= `SELECT @@global.group_replication_group_seeds`
+SET SQL_LOG_BIN=0;
+CREATE TABLE test.gms_listener_example(log_message TEXT);
+SET SQL_LOG_BIN=1;
+
+# server 3
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $debug_point= register_gms_listener_example
+--source include/add_debug_point.inc
+
+--let $member3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $local_address_server3= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_seeds_server3= `SELECT @@global.group_replication_group_seeds`
+SET SQL_LOG_BIN=0;
+CREATE TABLE test.gms_listener_example(log_message TEXT);
+SET SQL_LOG_BIN=1;
+
+--echo ### Scenario 7: SERVER UNREACHABLE
+--echo ### Expected:
+--echo ### - Correct Servers: 1 STATE CHANGED (and eventually a VIEW CHANGED)
+--echo ### - Failed server:   N/A
+--echo ##########################################################
+
+# server1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+# server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+# server3
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+# wait for the new view to be installed
+--let $group_replication_number_of_members= 3
+--source include/gr_wait_for_number_of_members.inc
+
+# server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# wait for the new view to be installed
+--let $group_replication_number_of_members= 3
+--source include/gr_wait_for_number_of_members.inc
+
+# server1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# wait for the new view to be installed
+--let $group_replication_number_of_members= 3
+--source include/gr_wait_for_number_of_members.inc
+
+# clear notification table everywhere
+TRUNCATE gms_listener_example;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--enable_reconnect
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--enable_reconnect
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+# server2
+
+# There is no point in asserting for server2 that the member
+# state has changed, since the local view may not be delivered
+# before the view change is received. I.e., server2 may not
+# have a chance to check locally for possibly detected members
+# before it gets the view change triggered by server1 (the
+# killer node, the one that expels)
+
+# server1
+
+#
+# server1 will always suspect (deliver a local view) and trigger
+# a view change by sending the global view. Therefore we can assert
+# that an UNREACHABLE notification is performed. The assumption here
+# is that server1 is the "leader" node on xcom that sends the global
+# view.
+#
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# wait for the new view to be installed
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--let $expected_notifications= 1,STATE %:3|1,VIEW %:4
+--source ../include/assert_notifications.inc
+
+--echo ### Scenario 8: MAJORITY UNREACHABLE
+--echo ### Expected:
+--echo ### - Correct Servers: 1 QUORUM LOST, 1 STATE CHANGED
+--echo ### - Failed Servers:  N/A
+--echo ##########################################################
+
+# server2
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--enable_reconnect
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--enable_reconnect
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# wait for server2 to become unreachable
+# at this point we have lost quorum
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $member2_uuid
+--source include/gr_wait_for_member_state.inc
+
+# assert that notification is triggered
+--let $expected_notifications= 1,QUORUM LOST: %:4|1,STATE %:4
+--source ../include/assert_notifications.inc
+
+--echo ### Scenario 9: MAJORITY UNREACHABLE + FORCE MEMBERS
+--echo ### Expected:
+--echo ### - Correct Servers: 1 VIEW CHANGED
+--echo ### - Failed Servers:  N/A
+--echo ##########################################################
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+# Unblock the group by reconfiguring it forcefully to a
+# single server.
+
+--disable_query_log
+--eval SET GLOBAL group_replication_force_members= "$local_address_server1"
+--enable_query_log
+
+--let $assert_text= group_replication_force_members is correct
+--let $assert_cond= @@GLOBAL.group_replication_force_members = "$local_address_server1"
+--source include/assert.inc
+
+# verify that the table has now only 1 member
+--let $group_replication_number_of_members= 1
+--source include/gr_wait_for_number_of_members.inc
+
+--disable_query_log
+SET GLOBAL group_replication_force_members= "";
+--enable_query_log
+
+# no more unreachable entries in the table
+--let $res= `SELECT COUNT(*)=0 FROM performance_schema.replication_group_members WHERE member_state="UNREACHABLE"`
+--let $assert_text= No more unreachable servers in the P_S table.
+--let $assert_cond= $res = 1
+--source include/assert.inc
+
+# assert that notification is triggered
+--let $expected_notifications= 1,VIEW %:5
+--source ../include/assert_notifications.inc
+
+--source include/stop_group_replication.inc
+
+--echo ### Scenario 10: MAJORITY UNREACHABLE + STOP
+--echo ### Expected:
+--echo ### - Correct Servers: 1 VIEW CHANGED, 1 STATE CHANGED
+--echo ### - Failed Servers:  N/A
+--echo ##########################################################
+
+# start1: start group
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--disable_query_log
+RESET MASTER;
+--eval SET @@global.group_replication_group_seeds="$group_seeds_server1"
+--eval SET @@global.group_replication_local_address="$local_address_server1"
+--eval SET @@global.group_replication_group_name="$group_replication_group_name"
+--enable_query_log
+
+--source include/start_and_bootstrap_group_replication.inc
+
+# server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--disable_query_log
+RESET MASTER;
+--eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
+--eval SET @@global.group_replication_local_address="$local_address_server2"
+--eval SET @@global.group_replication_group_name="$group_replication_group_name"
+--enable_query_log
+
+--source include/start_group_replication.inc
+
+# server3: Do not start server3. We don't need it to create the quorum loss.
+
+# server2
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--enable_reconnect
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--enable_reconnect
+
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+# server1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# wait for server2 to become unreachable.
+# at this point we have lost quorum
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $member2_uuid
+--source include/gr_wait_for_member_state.inc
+
+# wait for 4 group change broadcast.
+# 1. View_id change(member2 join).
+# 2. Recovery state change.
+# 3. Unreachable state change.
+# 4. Quorum lost.
+--let $wait_condition= SELECT COUNT(*)=4 FROM test.gms_listener_example WHERE log_message LIKE 'QUORUM LOST: %:2' OR log_message LIKE 'STATE CHANGED: %:2';
+--source include/wait_condition.inc
+
+--disable_query_log
+SET SQL_LOG_BIN=0;
+TRUNCATE gms_listener_example;
+SET SQL_LOG_BIN=1;
+--enable_query_log
+
+--source include/stop_group_replication.inc
+
+# assert that notification is triggered
+--let $expected_notifications= 1,VIEW %: |1,STATE %:%
+--source ../include/assert_notifications.inc
+
+###
+### Clean up and bail out
+###
+
+# server1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $debug_point= register_gms_listener_example
+--source include/remove_debug_point.inc
+
+--disable_query_log
+RESET MASTER;
+--eval SET @@global.group_replication_group_seeds="$group_seeds_server1"
+--eval SET @@global.group_replication_local_address="$local_address_server1"
+--eval SET @@global.group_replication_group_name="$group_replication_group_name"
+--enable_query_log
+
+--source include/start_and_bootstrap_group_replication.inc
+
+# server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--disable_query_log
+RESET MASTER;
+--eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
+--eval SET @@global.group_replication_local_address="$local_address_server2"
+--eval SET @@global.group_replication_group_name="$group_replication_group_name"
+--enable_query_log
+
+--source include/start_group_replication.inc
+
+# server3
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--disable_query_log
+RESET MASTER;
+--eval SET @@global.group_replication_group_seeds="$group_seeds_server3"
+--eval SET @@global.group_replication_local_address="$local_address_server3"
+--eval SET @@global.group_replication_group_name="$group_replication_group_name"
+--enable_query_log
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE gms_listener_example;
+--source include/rpl_sync.inc
+
+--source include/group_replication_end.inc

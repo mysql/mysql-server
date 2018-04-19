@@ -99,7 +99,7 @@ t_string_4	CREATE TABLE `t_string_4` (
   `t_text` text,
   PRIMARY KEY (`t_pk`),
   KEY `t_pk` (`t_pk`,`t_name`)
-) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SHOW CREATE TABLE t_string_5;
 Table	Create Table
 t_string_5	CREATE TABLE `t_string_5` (
@@ -132,10 +132,10 @@ t_pk	t_test	ST_AsText(t_point)	ST_AsText(t_linestring)	ST_AsText(t_polygon)
 4	1	POINT(10 20)	LINESTRING(10 10,40 10)	POLYGON((0 0,30 0,30 30,0 0))
 SELECT t_pk,t_test,ST_AsText(t_multipoint), ST_AsText(t_multilinestring),ST_AsText(t_multipolygon) FROM t_gis ORDER by t_pk;
 t_pk	t_test	ST_AsText(t_multipoint)	ST_AsText(t_multilinestring)	ST_AsText(t_multipolygon)
-1	1	MULTIPOINT(1 1,11 11,11 21,21 21)	MULTILINESTRING((10 48,10 21,10 0))	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
-2	1	MULTIPOINT(3 6,4 10)	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
-3	1	MULTIPOINT(1 1,11 11,11 21,21 21)	MULTILINESTRING((10 48,10 21,10 0))	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
-4	1	MULTIPOINT(3 6,4 10)	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
+1	1	MULTIPOINT((1 1),(11 11),(11 21),(21 21))	MULTILINESTRING((10 48,10 21,10 0))	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
+2	1	MULTIPOINT((3 6),(4 10))	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
+3	1	MULTIPOINT((1 1),(11 11),(11 21),(21 21))	MULTILINESTRING((10 48,10 21,10 0))	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
+4	1	MULTIPOINT((3 6),(4 10))	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
 SELECT t_pk,t_test,ST_AsText(t_geometrycollection), ST_AsText(t_geometry) FROM t_gis ORDER by t_pk;
 t_pk	t_test	ST_AsText(t_geometrycollection)	ST_AsText(t_geometry)
 1	1	GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,10 10))	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
@@ -155,10 +155,8 @@ t_pk	LENGTH(t_longblob)	LENGTH(t_longtext)
 2	131072	131072
 DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis,t_string_3,t_string_4,t_string_5;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE = NDB;
-DROP TABLESPACE ts1
-ENGINE = NDB;
+DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1
 ENGINE =NDB;
 USE test;
@@ -261,7 +259,7 @@ t_string_4	CREATE TABLE `t_string_4` (
   `t_text` text,
   PRIMARY KEY (`t_pk`),
   KEY `t_pk` (`t_pk`,`t_name`)
-) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SHOW CREATE TABLE t_string_5;
 Table	Create Table
 t_string_5	CREATE TABLE `t_string_5` (
@@ -294,10 +292,10 @@ t_pk	t_test	ST_AsText(t_point)	ST_AsText(t_linestring)	ST_AsText(t_polygon)
 4	1	POINT(10 20)	LINESTRING(10 10,40 10)	POLYGON((0 0,30 0,30 30,0 0))
 SELECT t_pk,t_test,ST_AsText(t_multipoint), ST_AsText(t_multilinestring),ST_AsText(t_multipolygon) FROM t_gis ORDER by t_pk;
 t_pk	t_test	ST_AsText(t_multipoint)	ST_AsText(t_multilinestring)	ST_AsText(t_multipolygon)
-1	1	MULTIPOINT(1 1,11 11,11 21,21 21)	MULTILINESTRING((10 48,10 21,10 0))	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
-2	1	MULTIPOINT(3 6,4 10)	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
-3	1	MULTIPOINT(1 1,11 11,11 21,21 21)	MULTILINESTRING((10 48,10 21,10 0))	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
-4	1	MULTIPOINT(3 6,4 10)	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
+1	1	MULTIPOINT((1 1),(11 11),(11 21),(21 21))	MULTILINESTRING((10 48,10 21,10 0))	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
+2	1	MULTIPOINT((3 6),(4 10))	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
+3	1	MULTIPOINT((1 1),(11 11),(11 21),(21 21))	MULTILINESTRING((10 48,10 21,10 0))	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
+4	1	MULTIPOINT((3 6),(4 10))	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
 SELECT t_pk,t_test,ST_AsText(t_geometrycollection), ST_AsText(t_geometry) FROM t_gis ORDER by t_pk;
 t_pk	t_test	ST_AsText(t_geometrycollection)	ST_AsText(t_geometry)
 1	1	GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,10 10))	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
@@ -317,9 +315,7 @@ t_pk	LENGTH(t_longblob)	LENGTH(t_longtext)
 2	131072	131072
 DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis,t_string_3,t_string_4,t_string_5;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE = NDB;
-DROP TABLESPACE ts1
-ENGINE = NDB;
+DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1
 ENGINE =NDB;

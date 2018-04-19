@@ -5,8 +5,6 @@
 #
 # Outcome: T2 completes and T1 abort.T2 is replicated to slave.
 
---source include/not_embedded.inc
---source include/have_innodb.inc
 --source include/master-slave.inc
 --source include/count_sessions.inc
 
@@ -27,7 +25,6 @@ UPDATE t1 SET c1=1 WHERE c1=0;
 --source include/start_transaction_high_prio.inc
 UPDATE t1 SET c1=2 WHERE c1=0;
 COMMIT;
---disconnect con1
 
 --echo
 --echo # On connection master
@@ -43,6 +40,39 @@ SELECT * FROM t1;
 --echo # Row with value 2 is expected on slave.
 SELECT * FROM t1;
 
+--echo #
+--echo # Bug#23021168 REPLICATION STOPS AFTER TRANSACTION IS ROLLED BACK
+--echo # ASYNCHRONOUSLY IN MASTER
+--echo #
+
+--echo
+--echo # On connection master
+--connection master
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+
+--echo
+--echo # On connection con1
+--connection con1
+--source include/start_transaction_high_prio.inc
+INSERT INTO t1 VALUES (1);
+COMMIT;
+SELECT * FROM t1 ORDER BY c1;
+
+--echo
+--echo # On connection master
+--connection master
+--error ER_LOCK_DEADLOCK
+INSERT INTO t1 VALUES (3); ## This will hit ER_LOCK_DEADLOCK
+INSERT INTO t1 VALUES (4); ## This will succeed.
+COMMIT;
+
+--source include/sync_slave_sql_with_master.inc
+-- connection slave
+--echo # Rows 1, 2, 3 & 4 is expected on slave.
+SELECT * FROM t1 ORDER BY c1;
+
+--disconnect con1
 --echo
 --echo # On connection master
 -- connection master

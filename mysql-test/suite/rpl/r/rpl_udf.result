@@ -78,16 +78,20 @@ CREATE FUNCTION myfuncsql_int(i INT) RETURNS INTEGER DETERMINISTIC RETURN i;
 affected rows: 0
 CREATE FUNCTION myfuncsql_double(d DOUBLE) RETURNS INTEGER DETERMINISTIC RETURN d * 2.00;
 affected rows: 0
-SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%' ORDER BY name;
-db	name	type	param_list	body	comment
-test	myfuncsql_double	FUNCTION	d DOUBLE	RETURN d * 2.00	
-test	myfuncsql_int	FUNCTION	i INT	RETURN i	
+SELECT routine_schema, routine_name, routine_type, routine_definition
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
+test	myfuncsql_double	FUNCTION	RETURN d * 2.00
+test	myfuncsql_int	FUNCTION	RETURN i
 affected rows: 2
 "Running on the slave"
-SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%' ORDER BY name;
-db	name	type	param_list	body	comment
-test	myfuncsql_double	FUNCTION	d DOUBLE	RETURN d * 2.00	
-test	myfuncsql_int	FUNCTION	i INT	RETURN i	
+SELECT routine_schema, routine_name, routine_type, routine_definition
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
+test	myfuncsql_double	FUNCTION	RETURN d * 2.00
+test	myfuncsql_int	FUNCTION	RETURN i
 affected rows: 2
 "Running on the master"
 CREATE TABLE t1(sum INT, price FLOAT(24)) ENGINE=MyISAM;
@@ -120,16 +124,20 @@ ALTER FUNCTION myfuncsql_int COMMENT "This was altered.";
 affected rows: 0
 ALTER FUNCTION myfuncsql_double COMMENT "This was altered.";
 affected rows: 0
-SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%' ORDER BY name;
-db	name	type	param_list	body	comment
-test	myfuncsql_double	FUNCTION	d DOUBLE	RETURN d * 2.00	This was altered.
-test	myfuncsql_int	FUNCTION	i INT	RETURN i	This was altered.
+SELECT routine_schema, routine_name, routine_type, routine_definition
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
+test	myfuncsql_double	FUNCTION	RETURN d * 2.00
+test	myfuncsql_int	FUNCTION	RETURN i
 affected rows: 2
 "Running on the slave"
-SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%' ORDER BY name;
-db	name	type	param_list	body	comment
-test	myfuncsql_double	FUNCTION	d DOUBLE	RETURN d * 2.00	This was altered.
-test	myfuncsql_int	FUNCTION	i INT	RETURN i	This was altered.
+SELECT routine_schema, routine_name, routine_type, routine_definition
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
+test	myfuncsql_double	FUNCTION	RETURN d * 2.00
+test	myfuncsql_int	FUNCTION	RETURN i
 affected rows: 2
 SELECT myfuncsql_int(25);
 myfuncsql_int(25)
@@ -144,12 +152,16 @@ DROP FUNCTION myfuncsql_double;
 affected rows: 0
 DROP FUNCTION myfuncsql_int;
 affected rows: 0
-SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%' ORDER BY name;
-db	name	type	param_list	body	comment
+SELECT routine_schema, routine_name, routine_type, routine_definition
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
 affected rows: 0
 "Running on the slave"
-SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%' ORDER BY name;
-db	name	type	param_list	body	comment
+SELECT routine_schema, routine_name, routine_type, routine_definition
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
 affected rows: 0
 "Running on the master"
 DROP TABLE t1;

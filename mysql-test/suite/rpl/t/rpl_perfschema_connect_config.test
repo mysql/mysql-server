@@ -34,7 +34,7 @@
 #           for multi-source monitoring
 
 source include/master-slave.inc;
-source include/have_ssl_communication.inc;
+source include/have_ssl.inc;
 source include/have_binlog_format_mixed.inc;
 
 call mtr.add_suppression("Master command COM_REGISTER_SLAVE failed.");
@@ -151,27 +151,14 @@ let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
 --echo
---echo # Heartbeat_Interval is part of I_S and P_S. We will compare the
---echo # two to make sure both match.
---echo
-
-let $is_value= query_get_value(select Variable_Value from information_schema.GLOBAL_STATUS where variable_name= 'Slave_heartbeat_period', Variable_Value, 1);
-let $ps_value= query_get_value(select Heartbeat_Interval from performance_schema.replication_connection_configuration, Heartbeat_Interval, 1);
-let $assert_text= Value returned by IS and PS table for Heartbeat_Interval should be same.;
-let $assert_cond= $is_value = $ps_value;
-source include/assert.inc;
-
---echo
 --echo # Change configuration parameters and verify that these changes
 --echo # are shown correctly by SELECTs from PS table.
 --echo
 
 # create a user for replication that requires ssl encryption
 --connection master
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-grant replication slave on *.* to replssl@localhost require ssl;
-set sql_mode= @orig_sql_mode;
+create user replssl@localhost require ssl;
+grant replication slave on *.* to replssl@localhost;
 --source include/sync_slave_sql_with_master.inc
 
 # Setup slave to use SSL for connection to master
@@ -250,6 +237,12 @@ source include/assert.inc;
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Master_SSL_Crlpath, 1);
 let $ps_value= query_get_value(select SSL_Crl_Path from performance_schema.replication_connection_configuration, SSL_Crl_Path, 1);
 let $assert_text= Value returned by SSS and PS table for SSL_Crl_Path should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/assert.inc;
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Master_TLS_Version, 1);
+let $ps_value= query_get_value(select Tls_Version from performance_schema.replication_connection_configuration, Tls_Version, 1);
+let $assert_text= Value returned by SSS and PS table for TLS version should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 

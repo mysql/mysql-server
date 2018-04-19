@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 alter table performance_schema.setup_objects add column foo integer;
 
@@ -27,3 +24,6 @@ ALTER TABLE performance_schema.setup_objects ADD INDEX test_index(OBJECT_NAME);
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.setup_objects(OBJECT_NAME);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `OBJECT`
+  ON performance_schema.setup_objects;

@@ -1,19 +1,11 @@
+
 #Start server with MyISAM
 --source include/force_myisam_default.inc
---source include/have_semijoin.inc
---source include/have_materialization.inc
---source include/have_firstmatch.inc
---source include/have_loosescan.inc
---source include/have_index_condition_pushdown.inc
---source include/have_mrr.inc
 
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
-            + $VIEW_PROTOCOL > 0`)
-{
-   --skip Need normal protocol
-}
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
 
 # The main testing script
 --source suite/opt_trace/include/general.inc

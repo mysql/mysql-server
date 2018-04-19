@@ -1,3 +1,10 @@
+# General not engine specific settings and requirements
+--source suite/gcol/inc/gcol_init_vars.pre
+
+# Skipping the test when binlog_format=STATEMENT due to unsafe statements:
+# unsafe auto-increment column, LIMIT clause.
+--source include/not_binlog_format_statement.inc
+
 ################################################################################
 # t/gcol_keys_innodb.test                                                      #
 #                                                                              #
@@ -21,15 +28,12 @@
 #
 
 #------------------------------------------------------------------------------#
-# General not engine specific settings and requirements
---source suite/gcol/inc/gcol_init_vars.pre
 
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
 # Set the session storage engine
---source include/have_innodb.inc
 eval SET @@session.default_storage_engine = 'InnoDB';
 
 ##### Workarounds for known open engine specific bugs
@@ -38,10 +42,56 @@ eval SET @@session.default_storage_engine = 'InnoDB';
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines
 let $skip_spatial_index_check = 1;
+let $support_virtual_index= 1;
 --source suite/gcol/inc/gcol_keys.inc
 
 #------------------------------------------------------------------------------#
 # Execute storage engine specific tests
+--echo #
+--echo # BUG#21365158 WL8149:ASSERTION `!TABLE || (!TABLE->WRITE_SET 
+--echo #
+CREATE TABLE t1 (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_nokey INTEGER NOT NULL,
+
+  col_varchar_nokey VARCHAR(1) NOT NULL,
+  col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+    (CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL not null,
+
+  PRIMARY KEY (pk)
+  
+);
+
+INSERT INTO t1 ( col_int_nokey, col_varchar_nokey)
+VALUES (4, 'b'),(9, 'o'),(4, 'k'),(5, 'a'),(5, 'f'),
+(9, 't'),(3, 'c'),(8, 'c'),(0, 'r'),(98, 'k');
+
+CREATE TABLE t2 (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_nokey INTEGER NOT NULL,
+
+  col_varchar_nokey VARCHAR(1) NOT NULL,
+  col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+    (CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL not null,
+
+  PRIMARY KEY (pk),
+  UNIQUE KEY (col_varchar_key)
+  
+);
+
+INSERT INTO t2 ( col_int_nokey, col_varchar_nokey)
+VALUES (1, 'c'),(8, 'm'),(9, 'd'), (6, 'y'),(1, 't'),
+(2, 's'),(4, 'r');
+
+SELECT
+  CONCAT( t2.col_varchar_nokey , t2.col_varchar_nokey ) AS f2,
+  t1.col_varchar_key AS f5
+FROM
+  t2 LEFT JOIN t1 ON t2.col_int_nokey > t1.col_int_nokey
+ORDER BY f2, f5;
+DROP TABLE t1,t2;
+
+--echo #
 
 #------------------------------------------------------------------------------#
 # Cleanup

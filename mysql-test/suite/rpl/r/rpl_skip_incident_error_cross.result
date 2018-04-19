@@ -1,0 +1,40 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occured on the master.");
+call mtr.add_suppression("The content of the statement cache is corrupted "
+                         "while writing a rollback record of the transaction "
+                         "to the binary log. An incident event has been "
+                         "written to the binary log which will stop the "
+                         "slaves.");
+SET GLOBAL max_binlog_stmt_cache_size = 4096;
+Warnings:
+Warning	1745	Option binlog_stmt_cache_size (32768) is greater than max_binlog_stmt_cache_size (4096); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size.
+SET GLOBAL binlog_stmt_cache_size = 4096;
+SET @save_debug=@@global.debug;
+SET GLOBAL DEBUG='d,simulate_write_incident_event_into_binlog_directly';
+CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam;
+#
+# A single statement on non-transactional table causes to log an incident
+# event without a GTID due to the fact that the stmt_cache is not big
+# enough to accommodate the changes.
+#
+Got one of the listed errors
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Incident	#	#	#1 (LOST_EVENTS)
+master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=POS
+#
+# Verify that we can skip the incident event by setting
+# --slave-skip-errors=1590 on slave.
+#
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t1;
+SET GLOBAL DEBUG= @save_debug;
+SET GLOBAL max_binlog_stmt_cache_size= ORIGINAL_VALUE;
+SET GLOBAL binlog_stmt_cache_size= ORIGINAL_VALUE;
+include/rpl_end.inc

@@ -1,0 +1,51 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression('The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.');
+SET @save_slave_parallel_type = @@GLOBAL.slave_parallel_type;
+SET @save_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
+SET @save_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+SET @save_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+SET @@GLOBAL.slave_parallel_type = LOGICAL_CLOCK;
+SET @@GLOBAL.slave_parallel_workers = 3;
+SET @@GLOBAL.slave_transaction_retries = 0;
+SET @@GLOBAL.innodb_lock_wait_timeout = 1;
+include/start_slave.inc
+[connection master]
+CREATE TABLE parent (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE child ( a INT NOT NULL PRIMARY KEY, b INT,
+FOREIGN KEY(a) REFERENCES parent (a) ON DELETE RESTRICT);
+INSERT INTO parent VALUES (1, 'a1');
+INSERT INTO parent VALUES (2, 'a2');
+INSERT INTO parent VALUES (3, 'a3');
+INSERT INTO parent VALUES (4, 'a4');
+INSERT INTO child VALUES (1,1);
+INSERT INTO child VALUES (2,1);
+INSERT INTO child VALUES (3,1);
+INSERT INTO child VALUES (4,1);
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+[connection slave1]
+BEGIN;
+DELETE FROM child WHERE a=3;
+[connection master]
+DELETE FROM child WHERE a=3;
+DELETE FROM parent WHERE a=3;
+include/sync_slave_io_with_master.inc
+include/start_slave_sql.inc
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+include/stop_slave_sql.inc
+[connection slave1]
+ROLLBACK;
+[connection master]
+DROP TABLE child, parent;
+[connection slave]
+SET @@GLOBAL.slave_parallel_type= @save_slave_parallel_type;
+SET @@GLOBAL.slave_parallel_workers= @save_slave_parallel_workers;
+SET @@GLOBAL.slave_transaction_retries= @save_slave_transaction_retries;
+SET @@GLOBAL.innodb_lock_wait_timeout= @save_innodb_lock_wait_timeout;
+include/start_slave_sql.inc
+include/rpl_end.inc

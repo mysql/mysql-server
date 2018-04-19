@@ -185,3 +185,8 @@ Type HELP for help.
 Abort of backup 2147483648 ordered
 # Test 2/2 for Bug#16585497: abort backup with backup ID out of range
 Invalid arguments: <BackupId> out of range [1-4294967294]
+
+# Bug #22328426: NEW TEST NDB_MGM_PROMPT FAILS WITH VALGRIND
+# Test for Bug #18421338: SUPPORT SETTING THE PROMPT IN NDB_MGM
+Prompt set to test-prompt> 
+Returning to default prompt of ndb_mgm> 

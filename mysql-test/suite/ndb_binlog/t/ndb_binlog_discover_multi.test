@@ -73,7 +73,9 @@ EOF
 # Turn off reconnect again.
 --disable_reconnect
 show tables;
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 -- connection server2
 insert into t1 (b) values('String to find');
@@ -89,7 +91,7 @@ select * from t1;
 FLUSH BINARY LOGS;
 let $MYSQLD_DATADIR= `select @@datadir;`;
 --replace_regex /(.*)/REMOVE_LINE:\1/ /REMOVE_LINE:(.*@2='String to find')/KEEP_LINE:\1/ /REMOVE_LINE:.*// /KEEP_LINE://
---exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000003
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000003
 
 #
 # Cleanup

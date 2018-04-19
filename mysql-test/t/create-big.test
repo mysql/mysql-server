@@ -1,17 +1,13 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Tests for various concurrency-related aspects of CREATE TABLE ... SELECT
 # and CREATE TABLE like implementation.
 #
-# Note that we don't test general CREATE TABLE ... SELECT/LIKE functionality
+# Note that we do not test general CREATE TABLE ... SELECT/LIKE functionality
 # here as it is already covered by create.test. We are more interested in
 # extreme cases.
 #
 # This test takes rather long time so let us run it only in --big-test mode
 --source include/big_test.inc
+--source include/not_valgrind.inc
 # We need the Debug Sync Facility.
 --source include/have_debug_sync.inc
 # Some of tests below also use binlog to check that statements are
@@ -541,6 +537,184 @@ disconnect addconroot3;
 
 set debug_sync='RESET';
 source include/show_binlog_events.inc;
+
+
+--echo #
+--echo # WL#6390: Use new DD API for handling non-partitioned tables
+--echo # Test limits on number of columns. See also comment_column2.test
+--echo # and view.test for additional coverage.
+--echo #
+
+#
+# MyISAM has limits imposed by the server
+
+let $colnum= 4095;
+let $str= c text;
+while ($colnum)
+{
+  let $str= c$colnum int, $str;
+  dec $colnum;
+}
+--eval CREATE TABLE t1 ($str) engine= myisam;
+--error ER_TOO_MANY_FIELDS
+ALTER TABLE t1 ADD COLUMN too_much int;
+DROP TABLE t1;
+
+let $str= c4096 int, $str;
+--error ER_TOO_MANY_FIELDS
+--eval CREATE TABLE t1 ($str) engine= myisam;
+
+#
+# InnoDB has separate internal limits
+
+let $colnum= 1016;
+let $str= c text;
+while ($colnum)
+{
+  let $str= c$colnum int, $str;
+  dec $colnum;
+}
+--eval CREATE TABLE t1 ($str) engine= innodb;
+--error ER_TOO_MANY_FIELDS
+ALTER TABLE t1 ADD COLUMN too_much int;
+DROP TABLE t1;
+
+let $str= c1017 int, $str;
+--error ER_TOO_MANY_FIELDS
+--eval CREATE TABLE t1 ($str) engine= innodb;
+
+--echo #
+--echo # Tests for limitations related to ENUMs and SETs
+--echo #
+
+--echo #
+--echo # 1: Max number of ENUM/SET columns
+
+#
+# MyISAM has limits imposed by the server
+
+let $colnum= 4095;
+let $str= c4096 ENUM('a');
+while ($colnum)
+{
+  let $str= c$colnum ENUM('a$colnum'), $str;
+  dec $colnum;
+}
+--eval CREATE TABLE t1 ($str) engine= myisam
+--error ER_TOO_MANY_FIELDS
+ALTER TABLE t1 ADD COLUMN too_much ENUM('a9999');
+DROP TABLE t1;
+
+let $str= $str, too_much ENUM('a9999');
+--error ER_TOO_MANY_FIELDS
+--eval CREATE TABLE t1 ($str) engine= myisam
+
+#
+# InnoDB has separate internal limits
+
+let $colnum= 1016;
+let $str= c1017 ENUM('a');
+while ($colnum)
+{
+  let $str= c$colnum ENUM('a$colnum'), $str;
+  dec $colnum;
+}
+--eval CREATE TABLE t1 ($str) engine= innodb
+--error ER_TOO_MANY_FIELDS
+ALTER TABLE t1 ADD COLUMN too_much ENUM('a9999');
+DROP TABLE t1;
+
+let $str= $str, too_much ENUM('a9999');
+--error ER_TOO_MANY_FIELDS
+--eval CREATE TABLE t1 ($str) engine= innodb
+
+#
+# MyISAM has limits imposed by the server
+
+let $colnum= 4095;
+let $str= c4096 SET('a');
+while ($colnum)
+{
+  let $str= c$colnum SET('a$colnum'), $str;
+  dec $colnum;
+}
+--eval CREATE TABLE t1 ($str) engine= myisam
+--error ER_TOO_MANY_FIELDS
+ALTER TABLE t1 ADD COLUMN too_much SET('a9999');
+DROP TABLE t1;
+
+let $str= $str, too_much SET('a9999');
+--error ER_TOO_MANY_FIELDS
+--eval CREATE TABLE t1 ($str) engine= myisam
+
+#
+# InnoDB has separate internal limits
+
+let $colnum= 1016;
+let $str= c1017 SET('a');
+while ($colnum)
+{
+  let $str= c$colnum SET('a$colnum'), $str;
+  dec $colnum;
+}
+--eval CREATE TABLE t1 ($str) engine= innodb
+--error ER_TOO_MANY_FIELDS
+ALTER TABLE t1 ADD COLUMN too_much SET('a9999');
+DROP TABLE t1;
+
+let $str= $str, too_much SET('a9999');
+--error ER_TOO_MANY_FIELDS
+--eval CREATE TABLE t1 ($str) engine= innodb
+
+--echo #
+--echo # 2: Max number of elements in ENUM
+
+let $elenum= 65534;
+let $str= col ENUM('a0';
+while ($elenum)
+{
+  let $str= $str, 'a$elenum';
+  dec $elenum;
+}
+
+--eval CREATE TABLE t1 ($str))
+INSERT INTO t1 values ('a0'), ('a1'), ('a2');
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--error ER_TOO_BIG_ENUM
+--eval CREATE TABLE t1 ($str, 'too_much'))
+
+--echo #
+--echo # 3: Max ENUM/SET value length
+
+let $iter=25;
+let $str_250=;
+while ($iter)
+{
+  let $str_250=0123456789$str_250;
+  dec $iter;
+}
+
+--eval CREATE TABLE t1 (col ENUM('12345$str_250'))
+
+--error ER_TOO_LONG_SET_ENUM_VALUE
+--eval ALTER TABLE t1 ADD COLUMN col2 ENUM('123456$str_250')
+DROP TABLE t1;
+
+--error ER_TOO_LONG_SET_ENUM_VALUE
+--eval CREATE TABLE t1 (col ENUM('123456$str_250'))
+
+--eval CREATE TABLE t1 (col SET('12345$str_250'))
+
+--error ER_TOO_LONG_SET_ENUM_VALUE
+--eval ALTER TABLE t1 ADD COLUMN col2 SET('123456$str_250')
+DROP TABLE t1;
+
+--error ER_TOO_LONG_SET_ENUM_VALUE
+--eval CREATE TABLE t1 (col SET('123456$str_250'))
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

@@ -1,0 +1,814 @@
+########### ../t/create_drop_collection_crud.test            #########
+##                                                                   #
+## This test runs aims to run CREATE/DROP statement                  #
+## with mysqlxtest client.                                           #
+## Test covers                                                       #
+##  - Create collection with crud calls                              #
+##    - plain create table                                           #
+##    - create table in different database with same name            #
+##    - change parameters order of create collection                 #
+##    - alter and verify table created using xmessage                #
+##    - Access denied for user has restricted access                 #
+##    - insert rejected when docc column does not have _id key       #
+##      required for table table created using create_collection     #
+##  Negative case                                                    #
+##    - xmessage with empty args                                     #
+##    - xmessage with more than required args , invalid args type    #
+##    - try create table with existing name                          #
+##  - Drop collection                                                #
+#     - drop table created using xmessage and sql                    #
+#     - negative : drop non existing table                           #
+##                                                                   #
+#######################################################################
+
+
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+call mtr.add_suppression("Error parsing message of type 12: args");
+call mtr.add_suppression("Error handling message: args");
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+-->sql
+#-- "Creating database for testcase"
+DROP DATABASE IF EXISTS xplugintest;
+DROP DATABASE IF EXISTS xplugintest_1;
+CREATE DATABASE xplugintest;
+CREATE DATABASE xplugintest_1;
+USE xplugintest;
+CREATE TABLE table1 ( _id INT , doc JSON ) ;
+-->endsql
+
+#-- "Create table table2 in xplugintest "
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+#-- "Create same name table table2 in xplugintest1 "
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest_1"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+#-- "Verify created tables"
+-->sql
+SHOW TABLES;
+SHOW CREATE TABLE table1;
+SHOW CREATE TABLE table2;
+SHOW CREATE TABLE xplugintest_1.table2;
+
+INSERT INTO table2 (doc) VALUES ('{"a":1,"_id":[100,200]}');
+SELECT * FROM table2;
+#-- "Alter document table created with crud"
+ALTER TABLE table2 ADD COLUMN col1 INT ;
+SELECT * FROM table2;
+SHOW CREATE TABLE table1;
+SHOW CREATE TABLE table2;
+
+#-- "_id column value generated from doc column"
+INSERT INTO table2 (doc,col1) VALUES ('{"a":2,"_id":[300,400]}',300);
+SELECT * FROM table2;
+#-- "_id is null as _id is not provided as key in json doc"
+#-- "Insert is rejected as _id can not be null"
+-->endsql
+-->expecterror ER_BAD_NULL_ERROR
+-->sql
+INSERT INTO table2 (doc,col1) VALUES ('{"a":3,"b":[400,400]}',400);
+SELECT * FROM table2;
+-->endsql
+#-- "Try insert using insert crud"
+#-- "Insert is rejected as _id can not be null"
+Mysqlx.Crud.Insert {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"a\":3,\"b\":[500,500]}"
+        }
+      }
+    }
+  }
+}
+## error
+-->recvresult
+-->sql
+SELECT * FROM table2;
+ALTER TABLE table2 DROP COLUMN _id;
+INSERT INTO table2 (doc,col1) VALUES ('{"a":4,"b":[400,400]}',400);
+-->endsql
+#-- "Now insert go through as we dropped _id column "
+Mysqlx.Crud.Insert {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"a\":5,\"b\":[500,500]}"
+        }
+      }
+    }
+  }
+}
+-->recvresult
+-->sql
+SELECT * FROM table2;
+SHOW CREATE TABLE table2;
+
+-->endsql
+
+#-- "Drop table"
+-->sql
+DROP TABLE table2;
+-->endsql
+
+#-- "Change order namespace , stmt "
+Mysqlx.Sql.StmtExecute {
+  namespace: "xplugin"
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+}
+-->recvresult
+#-- "Show table"
+-->sql
+SHOW CREATE TABLE table2;
+CREATE TABLE table2_tmp ( col1 INT);
+-->endsql
+#-- "Drop table created using create_collection message"
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+#-- "Drop table created using sql"
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2_tmp"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->recvresult
+
+-->expecterror ER_NO_SUCH_TABLE
+-->sql
+SHOW CREATE TABLE table2;
+-->endsql
+#-- "Try to drop same table again"
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->expecterror ER_BAD_TABLE_ERROR
+-->recvresult
+
+#-- "Try drop table from unkown database"
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest_non_existing"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->expecterror ER_BAD_TABLE_ERROR
+-->recvresult
+
+#-- "Incorrect args to drop_collection"
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->expecterror ER_X_CMD_NUM_ARGUMENTS
+-->recvresult
+
+#-- "Invalid arg type"
+Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: OBJECT
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
+-->recvresult
+
+
+
+EOF
+
+--replace_regex /([0-9a-f]{4})[0-9a-f]{8}([0-9a-f]{16})/\1XXXXXXXX\2/
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+
+
+--write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+#-- "Create table using namespace=sql "
+Mysqlx.Sql.StmtExecute {
+  namespace: "sql"
+  stmt: "create table xplugintest.table_sql ( doc JSON ) "
+}
+-->recvresult
+#-- "show table & drop it"
+-->sql
+SHOW CREATE TABLE xplugintest.table_sql;
+INSERT INTO xplugintest.table_sql (doc) VALUES ('{"_id":"200"}');
+SELECT * FROM xplugintest.table_sql;
+DROP TABLE xplugintest.table_sql;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+
+
+--write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+#-- "Create table when user has no priviledge"
+#-- "step 1 - create user1 with limied access"
+-->sql
+CREATE USER 'user1'@'localhost' identified by '';
+GRANT USAGE ON *.* TO 'user1'@'localhost';
+CREATE DATABASE xplugintest_user_access;
+-->endsql
+EOF
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+
+--write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+#-- "step 2 - try to create table using user1"
+Mysqlx.Sql.StmtExecute {
+  namespace: "xplugin"
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest_user_access"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table1"
+      }
+    }
+  }
+}
+## Error
+-->expecterror ER_TABLEACCESS_DENIED_ERROR
+-->recvresult
+
+#-- "show table "
+-->expecterror ER_TABLEACCESS_DENIED_ERROR
+-->sql
+SHOW CREATE TABLE xplugintest_user_access.table1;
+-->endsql
+EOF
+--exec $MYSQLXTEST -u user1 --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+
+--write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+#-- "step 3 - clean user and database"
+-->expecterror ER_NO_SUCH_TABLE
+-->sql
+SHOW CREATE TABLE xplugintest_user_access.table1;
+DROP USER 'user1'@'localhost';
+DROP DATABASE xplugintest_user_access;
+-->endsql
+EOF
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+
+
+
+--write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+#-- "Negative cases"
+#-- "1 empty args"
+Mysqlx.Sql.StmtExecute {
+  namespace: "xplugin"
+  stmt: "create_collection"
+  args {
+  }
+  args {
+  }
+}
+## error
+-->expecterror ER_X_INVALID_NAMESPACE
+-->recvresult
+EOF
+--error 1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-out.tmp
+
+--write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+#-- "2 more than two args"
+Mysqlx.Sql.StmtExecute {
+  namespace: "xplugin"
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table3"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table4"
+      }
+    }
+  }
+}
+-->expecterror ER_X_CMD_NUM_ARGUMENTS
+-->recvresult
+EOF
+
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+
+--write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+#-- "3 invalid namespace "
+Mysqlx.Sql.StmtExecute {
+  namespace: "Invalid"
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+}
+## error
+-->expecterror ER_X_INVALID_NAMESPACE
+-->recvresult
+EOF
+
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+
+
+--write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+#-- "Non existing database "
+Mysqlx.Sql.StmtExecute {
+  namespace: "xplugin"
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "non_existing"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+}
+## error
+-->expecterror ER_BAD_DB_ERROR
+-->recvresult
+EOF
+
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp  2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+
+--write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+#-- "NULL Table name "
+Mysqlx.Sql.StmtExecute {
+  namespace: "xplugin"
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_NULL
+    }
+  }
+}
+## error
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
+-->recvresult
+EOF
+
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+
+
+
+--write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+#-- "Invaild parameter in args"
+Mysqlx.Sql.StmtExecute {
+  namespace: "xplugin"
+  stmt: "create_collection"
+  args {
+    type: OBJECT
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table3"
+      }
+    }
+  }
+}
+## error
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
+-->recvresult
+EOF
+
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+
+--write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+#-- "Create table with existing name"
+Mysqlx.Sql.StmtExecute {
+  namespace: "xplugin"
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table1"
+      }
+    }
+  }
+}
+## error
+-->expecterror ER_TABLE_EXISTS_ERROR
+-->recvresult
+EOF
+
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+
+
+
+--write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+## Cleanup
+-->sql
+DROP DATABASE IF EXISTS xplugintest;
+DROP DATABASE IF EXISTS xplugintest_1;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+
+
+# Try run create in parallel from two mysqlxtest
+# input file include xmessage and sql for create
+perl;
+ my $dir = $ENV{'MYSQL_TMP_DIR'};
+ open ( OUTPUT, ">$dir/mysqlx-in.tmp") ;
+ $message = <<"END_MESSAGE";
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table_name"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+END_MESSAGE
+
+ print OUTPUT "-->sql\n";
+ print OUTPUT "CREATE DATABASE IF NOT EXISTS xplugintest;\n";
+ print OUTPUT "USE xplugintest;\n";
+ print OUTPUT "CREATE TABLE IF NOT EXISTS test_table ( col1 INT );\n";
+
+ print OUTPUT "-->endsql\n";
+ for ($i=1;$i<=30;$i++) {
+    if ($i%5 == 0) {
+       print OUTPUT "-->expecterror ER_SUCCESS,ER_TABLE_EXISTS_ERROR\n";
+       print OUTPUT "-->sql\n";
+       print OUTPUT "CREATE TABLE tab_".$i." (_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED NOT NULL,doc JSON ); ". "\n";
+       print OUTPUT "-->endsql\n";
+    }else {
+       $str = $message;
+       $replace = "tab_".$i;
+       $find = "table_name";
+       $str =~ s/$find/$replace/g;
+       print OUTPUT "$str\n";
+       print OUTPUT "-->expecterror ER_SUCCESS,ER_TABLE_EXISTS_ERROR\n";
+       print OUTPUT "-->recvresult\n";
+    }
+ }
+ print OUTPUT "-->sql\n";
+ print OUTPUT "INSERT INTO xplugintest.test_table VALUES (1);\n";
+ print OUTPUT "-->endsql\n";
+ close (OUTPUT);
+EOF
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1 &
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
+let $wait_condition= select count(*)=2 from xplugintest.test_table;
+--source include/wait_condition.inc
+DROP DATABASE xplugintest;
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-out2.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-out.tmp
+
+
+perl;
+ my $dir = $ENV{'MYSQL_TMP_DIR'};
+ open ( OUTPUT, ">$dir/mysqlx-in.tmp") ;
+ $message = <<"END_MESSAGE";
+Mysqlx.Sql.StmtExecute {
+  stmt: "ensure_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table_name"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+END_MESSAGE
+
+ print OUTPUT "-->sql\n";
+ print OUTPUT "CREATE DATABASE IF NOT EXISTS xplugintest;\n";
+ print OUTPUT "USE xplugintest;\n";
+ print OUTPUT "CREATE TABLE IF NOT EXISTS test_table ( col1 INT );\n";
+
+ print OUTPUT "-->endsql\n";
+ for ($i=1;$i<=30;$i++) {
+    if ($i%5 == 0) {
+       print OUTPUT "-->expecterror ER_SUCCESS,ER_TABLE_EXISTS_ERROR\n";
+       print OUTPUT "-->sql\n";
+       print OUTPUT "CREATE TABLE tab_".$i." (_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED NOT NULL,doc JSON ); ". "\n";
+       print OUTPUT "-->endsql\n";
+    }else {
+       $str = $message;
+       $replace = "tab_".$i;
+       $find = "table_name";
+       $str =~ s/$find/$replace/g;
+       print OUTPUT "$str\n";
+       print OUTPUT "-->expecterror ER_SUCCESS,ER_TABLE_EXISTS_ERROR\n";
+       print OUTPUT "-->recvresult\n";
+    }
+ }
+ print OUTPUT "-->sql\n";
+ print OUTPUT "INSERT INTO xplugintest.test_table VALUES (1);\n";
+ print OUTPUT "-->endsql\n";
+ close (OUTPUT);
+EOF
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1 &
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
+let $wait_condition= select count(*)=2 from xplugintest.test_table;
+--source include/wait_condition.inc
+
+## Cleanup
+DROP DATABASE xplugintest;
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-out2.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-out.tmp
+--source include/xplugin_drop_user.inc

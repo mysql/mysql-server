@@ -2,16 +2,13 @@
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
--- source include/have_ucs2.inc
--- source include/have_utf8mb4.inc
--- source include/have_utf16.inc
--- source include/have_utf32.inc
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
-SET CHARACTER SET latin1;
+SET CHARACTER SET koi8r;
+--character_set koi8r
 
 CREATE TABLE t1 (
   comment CHAR(32) ASCII NOT NULL,
@@ -256,7 +253,7 @@ DO CONVERT(CAST(SUBSTRING_INDEX(FORMAT(1,'1111'), FORMAT('','Zpq'),1)
 
 --echo #
 --echo # WL#1213 Implement 4-byte UTF8, UTF16 and UTF32
---echo # Testing that only utf8mb4 is superset for utf8
+--echo # Testing that utf8mb4 and utf32 are superset for all Unicode
 --echo # No other Unicode character set pairs have superset/subset relations
 --echo #
 
@@ -269,34 +266,28 @@ CREATE TABLE t1 (
 );
 INSERT INTO t1 VALUES ('','','','','');
 
-# utf8mb4 is superset only for utf8
+# utf8mb4 and utf32 are the only supersets for utf8
 SELECT CHARSET(CONCAT(utf8, utf8mb4)) FROM t1;
 --error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(utf8, ucs2)) FROM t1;
 --error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(utf8, utf16)) FROM t1;
---error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(utf8, utf32)) FROM t1;
 
 
-# utf8mb4 is superset only for utf8
+# utf8mb4 is superset for everything
 SELECT CHARSET(CONCAT(utf8mb4, utf8)) FROM t1;
---error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(utf8mb4, ucs2)) FROM t1;
---error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(utf8mb4, utf16)) FROM t1;
---error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(utf8mb4, utf32)) FROM t1;
 
 
 # ucs2 is not a superset for the other Unicode character sets
 --error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(ucs2, utf8)) FROM t1;
---error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(ucs2, utf8mb4)) FROM t1;
 --error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(ucs2, utf16)) FROM t1;
---error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(ucs2, utf32)) FROM t1;
 
 
@@ -305,20 +296,14 @@ SELECT CHARSET(CONCAT(ucs2, utf32)) FROM t1;
 SELECT CHARSET(CONCAT(utf16, utf8)) FROM t1;
 --error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(utf16, ucs2)) FROM t1;
---error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(utf16, utf8mb4)) FROM t1;
---error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(utf16, utf32)) FROM t1;
 
 
-# utf32 is not a superset for the other Unicode character sets
---error ER_CANT_AGGREGATE_2COLLATIONS
+# utf32 is a superset for the other Unicode character sets
 SELECT CHARSET(CONCAT(utf32, utf8)) FROM t1;
---error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(utf32, ucs2)) FROM t1;
---error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(utf32, utf8mb4)) FROM t1;
---error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(utf32, utf16)) FROM t1;
 
 DROP TABLE t1;

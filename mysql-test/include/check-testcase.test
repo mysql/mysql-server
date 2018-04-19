@@ -1,3 +1,7 @@
+#
+# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+
 # ==== Purpose ====
 #
 # This test is executed twice for each test case. Before every
@@ -80,6 +84,9 @@ if ($tmp)
   --echo Auto_Position	0
   --echo Replicate_Rewrite_DB	#
   --echo Channel_Name	#
+  --echo Master_TLS_Version	
+  --echo Master_public_key_path	
+  --echo Get_master_public_key	0
 }
 if (!$tmp) {
   # Note: after WL#5177, fields 13-18 shall not be filtered-out.

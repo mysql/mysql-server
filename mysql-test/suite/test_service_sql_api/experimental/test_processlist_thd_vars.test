@@ -1,0 +1,19 @@
+
+SHOW FULL PROCESSLIST;
+SHOW STATUS LIKE '%thread%';
+--echo ------ Run plugin ------------------------------------------------
+--replace_result $TEST_PROCESSLIST_THD_VAR TEST_PROCESSLIST_THD_VAR
+eval INSTALL PLUGIN test_processlist_thd_vars SONAME '$TEST_PROCESSLIST_THD_VAR';
+SHOW FULL PROCESSLIST;
+SHOW STATUS LIKE '%thread%';
+--echo ------ Stop plugin -----------------------------------------------
+UNINSTALL PLUGIN test_processlist_thd_vars;
+
+SHOW FULL PROCESSLIST;
+SHOW STATUS LIKE '%thread%';
+
+--echo ------ plugin log ------------------------------------------------
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_processlist_thd_vars.log;
+remove_file $MYSQLD_DATADIR/test_processlist_thd_vars.log;
+

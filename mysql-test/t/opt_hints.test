@@ -62,26 +62,26 @@ EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY) NO_RANGE_OPTIMIZATION(t3 f2
 set optimizer_switch='index_condition_pushdown=on';
 
 EXPLAIN SELECT  f2 FROM
-  (SELECT f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
-    WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+  (SELECT f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
+    WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 
 EXPLAIN SELECT /*+ NO_ICP(t3@qb1 f3_idx) */ f2 FROM
-  (SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
-    WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+  (SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
+    WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 
 EXPLAIN SELECT /*+ NO_ICP(t3@qb1) */ f2 FROM
-  (SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
-    WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+  (SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
+    WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 
 --echo # Expected warning for f1_idx key, unresolved name.
 EXPLAIN SELECT f2 FROM
-  (SELECT /*+ NO_ICP(t3 f3_idx, f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
-    WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+  (SELECT /*+ NO_ICP(t3 f3_idx, f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
+    WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 
 --echo # ICP should still be used.
 EXPLAIN SELECT f2 FROM
-  (SELECT /*+ NO_ICP(t3 f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
-    WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+  (SELECT /*+ NO_ICP(t3 f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
+    WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 
 --echo # BKA & NO_BKA hint testing
 set optimizer_switch=default;
@@ -278,12 +278,10 @@ SHOW STATUS LIKE 'handler_read%';
 PREPARE stmt1 FROM "SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1) AS s1";
 
-RESET QUERY CACHE;
 FLUSH STATUS;
 EXECUTE stmt1;
 SHOW STATUS LIKE 'handler_read%';
 
-RESET QUERY CACHE;
 FLUSH STATUS;
 EXECUTE stmt1;
 SHOW STATUS LIKE 'handler_read%';
@@ -411,7 +409,7 @@ EXPLAIN SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Turn on MRR. MRR should be used.
 EXPLAIN SELECT /*+ MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Turn on MRR. MRR should be used.
-EXPLAIN SELECT /*+ MRR(t1 idx2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+EXPLAIN SELECT /*+ MRR(t1 IDX2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Turn on MRR for unused key. MRR should not be used.
 EXPLAIN SELECT /*+ MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 
@@ -423,9 +421,94 @@ EXPLAIN SELECT /*+ MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Turn on MRR. MRR should be used.
 EXPLAIN SELECT /*+ MRR(t1 idx2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Turn on MRR for unused key. MRR should not be used.
-EXPLAIN SELECT /*+ MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+EXPLAIN SELECT /*+ MRR(t1 IDX1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#21205282 CRASH/ASSERTION IN JOIN_CACHE::SET_MATCH_FLAG_IF_NONE WITH NO_BNL HINT
+--echo #
+
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1);
+
+# Test turning off BNL
+SET optimizer_switch='block_nested_loop=on';
+
+EXPLAIN SELECT 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ NO_BNL(t1) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ NO_BNL(t2) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ NO_BNL(t4) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 LEFT JOIN t t4 ON 1) ON 1 WHERE 1;
+
+SELECT /*+ NO_BNL(t4) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 LEFT JOIN t t4 ON 1) ON 1 WHERE 1;
+
+# Test turning on BNL
+SET optimizer_switch='block_nested_loop=off';
+
+EXPLAIN SELECT 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ BNL(t1) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ BNL(t2) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ BNL(t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ BNL(t2, t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ BNL(t3, t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ BNL(t2, t3, t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+
+DROP TABLE t;
+
+# Test turning on BKA
+CREATE TABLE t(a INT, b INT, KEY k(a));
+INSERT INTO t VALUES (1,1);
+
+EXPLAIN SELECT * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+EXPLAIN SELECT /*+ BKA(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+EXPLAIN SELECT /*+ BKA(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+EXPLAIN SELECT /*+ BKA(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+EXPLAIN SELECT /*+ BKA(t2, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+EXPLAIN SELECT /*+ BKA(t2, t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+
+# Queries with a mix of BKA and BNL
+# Turn both on with optimizer_switch
+SET optimizer_switch='block_nested_loop=on,batched_key_access=on,mrr_cost_based=off';
+
+EXPLAIN SELECT * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+EXPLAIN SELECT /*+ NO_BKA(t1) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+EXPLAIN SELECT /*+ NO_BKA(t2) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+EXPLAIN SELECT /*+ NO_BNL(t3) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+EXPLAIN SELECT /*+ NO_BNL(t4) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+EXPLAIN SELECT /*+ NO_BKA(t2) NO_BNL(t3) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+EXPLAIN SELECT /*+ NO_BNL(t3) NO_BKA(t4) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+EXPLAIN SELECT /*+ NO_BKA(t2) NO_BNL(t3) NO_BKA(t4) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+
+# Turn BKA is off, BNL is still on
+SET optimizer_switch='batched_key_access=off';
+
+EXPLAIN SELECT * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ NO_BNL(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BNL(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BNL(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BKA(t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+
+# Let both BKA and BNL be off
+SET optimizer_switch='block_nested_loop=off';
+
+EXPLAIN SELECT * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BNL(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BNL(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BNL(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BKA(t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BNL(t2, t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+
+DROP TABLE t;
 
 set optimizer_switch=default;
 
@@ -442,29 +525,13 @@ SELECT /*+ QB_NAME(q1) NO_ICP(@q1 t1 PRIMARY) NO_ICP(@q1 t1 PRIMARY) */ * FROM t
 
 DROP TABLE t1;
 
---echo # MAX_EXECUTION_TIME hint testing
+--echo #
+--echo # Bug#21192857 ASSERTION FAILED: KEYINFO_ARRAY.SIZE() == 0, FILE OPT_HINTS.CC:280
+--echo #
 
-CREATE TABLE t1 (a INT, b VARCHAR(300));
-INSERT INTO t1 VALUES (1, 'string');
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-
---error ER_QUERY_TIMEOUT
-SELECT /*+ MAX_EXECUTION_TIME(1) */ * FROM t1 a, t1 b, t1 c;
-
-EXPLAIN SELECT /*+ MAX_EXECUTION_TIME(2) MAX_EXECUTION_TIME(10) */ * FROM t1;
-
+CREATE TABLE t1(a INT, KEY(a));
+INSERT INTO t1(a) SELECT /*+ NO_RANGE_OPTIMIZATION(t1 a)*/ 1 FROM t1;
 DROP TABLE t1;
-
 
 --echo # WL#8016 Parser for optimizer hints
 
@@ -586,7 +653,9 @@ b`) */ 1;
 EXPLAIN SELECT /*+ QB_NAME(``) */ 1;
 
 SET NAMES utf8;
+--character_set latin1
 EXPLAIN SELECT /*+ QB_NAME(`�``�`) */ 1;
+--character_set utf8mb4
 
 CREATE TABLE tableТ (i INT);
 SELECT /*+ BKA(tableТ) */ 1 FROM t1;
@@ -603,32 +672,6 @@ SELECT /*+ BKA(test@таблица) */ 1 FROM t1;
 SELECT /*+ NO_ICP(`�`) */ 1 FROM t1;
 
 DROP TABLE таблица;
-
---echo
---echo # test the MAX_EXECUTION_TIME hint for SELECT statements:
---echo
-
-INSERT INTO t1 VALUES (1, 1), (2, 2);
-
-SELECT /*+ MAX_EXECUTION_TIME(4294967296) */ 1 FROM t1;
-
---error ER_QUERY_TIMEOUT
-SELECT /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1;
---error ER_QUERY_TIMEOUT
-SELECT  /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1 UNION SELECT 1, 2, 3;
---error ER_QUERY_TIMEOUT
-(SELECT /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1) UNION (SELECT 1, 2, 3);
---error ER_QUERY_TIMEOUT
-((SELECT  /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1));
-
---echo
---echo # only SELECT statements supports the MAX_EXECUTION_TIME hint (warning):
---echo
-CREATE TABLE t2 (i INT);
-INSERT /*+ MAX_EXECUTION_TIME(1) */ INTO t2 SELECT 1;
-REPLACE /*+ MAX_EXECUTION_TIME(1) */ INTO t2 SELECT 1;
-UPDATE /*+ MAX_EXECUTION_TIME(1) */ t2 SET i = 1;
-DELETE /*+ MAX_EXECUTION_TIME(1) */ FROM t2 WHERE i = 1;
 
 --echo
 --echo # derived tables and other subqueries:
@@ -649,6 +692,8 @@ SELECT /*+ NO_ICP) */ 1;
 SELECT /*+ NO_ICP(t1 */ 1;
 SELECT /*+ NO_ICP(t1 ( */ 1;
 (SELECT 1) UNION (SELECT /*+ NO_ICP() */ 1);
+
+INSERT INTO t1 VALUES (1, 1), (2, 2);
 
 --echo
 --echo # wrong place for hint, so recognize that stuff as a regular commentary:
@@ -673,7 +718,281 @@ SELECT /*+
 SELECT
 /*+ ? bad syntax */ 1;
 
-DROP TABLE t1, t2;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #21095608: OPTIMIZER HINT PARSER DOESN'T ACCEPT NUMBER-PREFIXED
+--echo #                QUERY BLOCK NAMES AFTER @
+--echo #
+
+CREATE TABLE t1 (i INT);
+EXPLAIN SELECT /*+ QB_NAME(1a) BKA(t1@1a) */ 1 FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #21148405: OPTIMIZER HINTS: READ OF FREE MEMORY FOR INVALID HINTS
+--echo #
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE cur1 CURSOR FOR  SELECT /*+ NO_MRR(q w)*/1;
+  OPEN cur1;
+END|
+DELIMITER ;|
+CALL p1();
+CALL p1();
+DROP PROCEDURE p1;
+
+
+--echo #
+--echo # WL#9307 MERGE/NO_MERGE hint for derived table, view
+--echo #
+
+create table t1(a int);
+
+explain select * from (select * from t1) as dt;
+explain select /*+ merge(dt) */ * from (select * from t1) as dt;
+explain select /*+ no_merge(dt) */ * from (select * from t1) as dt;
+--echo # Also testing that case of letters is irrelevant.
+explain select /*+ no_mERge(dt) */ * from (select * from t1) as dt;
+
+create view v1 as (select * from t1);
+explain select * from v1;
+explain select /*+ merge(v1) */ * from v1;
+explain select /*+ no_merge(v1) */ * from v1;
+drop view v1;
+
+--echo # hint is OVERRIDDEN by algorithm=
+create algorithm=merge view v1 as (select * from t1);
+explain select * from v1;
+explain select /*+ merge(v1) */ * from v1;
+explain select /*+ no_merge(v1) */ * from v1;
+drop view v1;
+
+create algorithm=temptable view v1 as (select * from t1);
+explain select * from v1;
+explain select /*+ merge(v1) */ * from v1;
+explain select /*+ no_merge(v1) */ * from v1;
+drop view v1;
+
+--echo # hint OVERRIDES optimizer_switch
+
+set optimizer_switch="derived_merge=off";
+
+explain select * from (select * from t1) as dt;
+explain select /*+ merge(dt) */ * from (select * from t1) as dt;
+explain select /*+ no_merge(dt) */ * from (select * from t1) as dt;
+
+create view v1 as (select * from t1);
+explain select * from v1;
+explain select /*+ merge(v1) */ * from v1;
+explain select /*+ no_merge(v1) */ * from v1;
+drop view v1;
+
+set optimizer_switch=default;
+
+--echo # Can apply to certain derived tables
+
+create table t2(a int, b int);
+create table t3 like t2;
+
+explain select /*+ no_merge(dt) merge(dt2) */ *
+ from (select * from t1) as dt, (select * from t2) as dt2;
+
+--echo # Or to all:
+
+explain select /*+ no_merge() */ *
+ from (select * from t1) as dt, (select * from t2) as dt2;
+
+--echo # And be specified in outer blocks, with naming:
+
+explain select /*+ no_merge(dt@qb1) merge(dt2@qb1) */ * from t1 where a =
+(select /*+ qb_name(qb1) */ 3
+  from (select * from t1) as dt, (select * from t2) as dt2);
+
+--echo # with another syntax:
+
+explain select /*+ no_merge(@qb1 dt) merge(@qb1 dt2) */ * from t1 where a =
+(select /*+ qb_name(qb1) */ 3
+  from (select * from t1) as dt, (select * from t2) as dt2);
+
+--echo # A hint can list more than one table
+
+explain select /*+ merge(dt2) no_merge(dt,dt3) */ *
+ from (select * from t1) as dt, (select * from t2) as dt2,
+      (select * from t3) as dt3;
+
+--echo # Merge hint OVERRIDES heuristics, for example the one which
+--echo # materializes when user variables are set.
+
+explain select * from
+(
+ select * from t1
+ where (1,a,2) =  (
+                   select @n:=@n+1, t2.a, sum(t2.b)
+                   from (select @n:=1) as dt, t2
+                   group by t2.a
+                  )
+) as dt2
+;
+
+explain select /*+ merge(dt2) */ * from
+(
+ select * from t1
+ where (1,a,2) =  (
+                   select @n:=@n+1, t2.a, sum(t2.b)
+                   from (select @n:=1) as dt, t2
+                   group by t2.a
+                  )
+) as dt2
+;
+
+--echo # ALGORITHM clause overrides heuristics too
+
+let $query_end=
+view v1 as select (select t1.a from t1 where t1.a=t2.a) from t2;
+eval create $query_end;
+explain select * from v1;
+drop view v1;
+eval create algorithm=merge $query_end;
+explain select * from v1;
+drop view v1;
+
+--echo # Hint for index is useless and should be ignored
+
+select /*+ no_mrr(dt idx1) */ * from (select 1 from t1 limit 1) dt;
+select /*+ no_mrr(dt idx1) */ * from (select 1 from t1) dt;
+
+--echo # Hint for UPDATE
+
+insert into t1 values(1),(2);
+create view v1 as
+ select  * from t1 where a <> 0;
+
+let $query_part=t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
+
+delete from t3;
+insert into t3 values(1,1),(2,2);
+eval explain update $query_part;
+eval update $query_part;
+select * from t3;
+
+delete from t3;
+insert into t3 values(1,1),(2,2);
+eval explain update /*+ no_merge(v1) */ $query_part;
+eval update /*+ no_merge(v1) */ $query_part;
+select * from t3;
+
+--echo # Update v1
+
+let $query_part=t3, v1 set v1.a=t3.a+10 where t3.a-v1.a=0;
+
+delete from t3;
+insert into t3 values(1,1),(2,2);
+
+delete from t1;
+insert into t1 values(1),(2);
+eval explain update $query_part;
+eval update $query_part;
+select * from t1;
+
+delete from t1;
+insert into t1 values(1),(2);
+--error ER_NON_UPDATABLE_TABLE
+eval update /*+ no_merge(v1) */ $query_part;
+select * from t1;
+
+--echo # A derived table in UPDATE
+
+let $query_part=t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
+
+delete from t1;
+insert into t1 values(1),(2);
+
+delete from t3;
+insert into t3 values(1,1),(2,2);
+eval explain update $query_part;
+eval update $query_part;
+select * from t3;
+
+delete from t3;
+insert into t3 values(1,1),(2,2);
+eval explain update /*+ no_merge(dt) */ $query_part;
+eval update /*+ no_merge(dt) */ $query_part;
+select * from t3;
+
+--echo # A derived table in first-level subquery of UPDATE, the update
+--echo # target not being in the derived table. Before the WL, the
+--echo # derived table would always be materialized; now it's only
+--echo # heuristic and can be overridden.
+
+delete from t1;
+insert into t1 values(1),(2);
+
+let $query_part=
+t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+            from (select * from t1 where a>1) dt);
+
+delete from t3;
+insert into t3 values(1,1),(2,2);
+eval explain update $query_part;
+eval update $query_part;
+select * from t3;
+
+delete from t3;
+insert into t3 values(1,1),(2,2);
+
+eval explain update /*+ merge(dt@sub) */ $query_part;
+eval update /*+ merge(dt@sub) */ $query_part;
+select * from t3;
+
+--echo # A derived table in UPDATE, the update target being in the
+--echo # derived table.
+
+let $query_part=
+t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+            from (select * from t3 where b>1) dt);
+
+delete from t3;
+insert into t3 values(1,1),(2,2);
+eval explain update $query_part;
+eval update $query_part;
+select * from t3;
+
+delete from t3;
+insert into t3 values(1,1),(2,2);
+--echo # The heuristic which materializes, intends to allow the query;
+--echo # if you disable it, the query cannot run:
+--error ER_UPDATE_TABLE_USED
+eval update /*+ merge(dt@sub) */ $query_part;
+select * from t3;
+
+--echo # DELETE.
+
+let $query_part=t3.* from t3, v1 where t3.a-v1.a=0;
+
+delete from t3;
+insert into t3 values(1,1),(2,2);
+eval explain delete $query_part;
+eval delete $query_part;
+select * from t3;
+
+delete from t3;
+insert into t3 values(1,1),(2,2);
+eval explain delete /*+ no_merge(v1) */ $query_part;
+eval delete /*+ no_merge(v1) */ $query_part;
+select * from t3;
+
+drop view v1;
+
+drop table t1,t2,t3;
+
+--echo #
+--echo # Unbalanced commentary test
+--echo #
 
 --error ER_PARSE_ERROR
 SELECT /*+ 10;

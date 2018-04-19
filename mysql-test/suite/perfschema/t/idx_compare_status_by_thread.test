@@ -1,0 +1,17 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "status_by_thread";
+let $key_group = 7;
+let $target_variable_name = Open_tables;
+
+--echo TABLE: $table
+--echo INDEXES: PK (THREAD_ID, VARIABLE_NAME)
+
+--source ../include/idx_compare_setup.inc
+
+--source ../include/idx_compare_load.inc
+
+--source ../include/idx_compare_cleanup.inc

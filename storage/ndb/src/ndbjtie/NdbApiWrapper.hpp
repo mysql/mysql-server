@@ -1,14 +1,21 @@
 /*
- Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; version 2 of the License.
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+ GNU General Public License, version 2.0, for more details.
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
@@ -62,6 +69,13 @@ struct NdbApiWrapper {
 // ---------------------------------------------------------------------------
 
 // mapped by "com_mysql_ndbjtie_ndbapi_Ndb.h"
+
+    static int 
+    Ndb__getAutoIncrementValue
+    ( Ndb & obj , const NdbDictionary::Table * p1, Uint64 & ret, Uint32 batch, Uint64 step, Uint64 start )
+    {
+        return obj.getAutoIncrementValue(p1, ret, batch, step, start);
+    }
 
     static const char *
     Ndb__getDatabaseName
@@ -442,6 +456,13 @@ struct NdbApiWrapper {
 // ---------------------------------------------------------------------------
 
 // mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_Column.h"
+
+    static bool
+    NdbDictionary__Column__getAutoIncrement
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getAutoIncrement();
+    }
 
     static const char *
     NdbDictionary__Column__getName
@@ -883,6 +904,20 @@ struct NdbApiWrapper {
     ( NdbDictionary::Dictionary & obj, const char * p0, const char * p1 )
     {
         obj.removeCachedIndex(p0, p1);
+    }
+
+    static void
+    NdbDictionary__Dictionary__invalidateTable__0 // disambiguate overloaded function
+    ( NdbDictionary::Dictionary & obj, const char * p0 )
+    {
+        obj.invalidateTable(p0);
+    }
+
+    static void
+    NdbDictionary__Dictionary__invalidateIndex__1 // disambiguate overloaded function
+    ( NdbDictionary::Dictionary & obj, const char * p0, const char * p1 )
+    {
+        obj.invalidateIndex(p0, p1);
     }
 
     static int
@@ -3492,6 +3527,13 @@ struct NdbApiWrapper {
         obj.set_name(p0);
     }
 
+    static void
+    Ndb_cluster_connection__set_service_uri
+    ( Ndb_cluster_connection & obj, const char * p0, const char * p1, int p2, const char * p3)
+    {
+        obj.set_service_uri(p0, p1, p2, p3);
+    }
+
     static int
     Ndb_cluster_connection__set_timeout
     ( Ndb_cluster_connection & obj, int p0 )
@@ -3527,11 +3569,46 @@ struct NdbApiWrapper {
         obj.unlock_ndb_objects();
     }
 
+    static int
+    Ndb_cluster_connection__set_recv_thread_activation_threshold
+    ( Ndb_cluster_connection & obj, int p0 )
+    {
+        return obj.set_recv_thread_activation_threshold(p0);
+    }
+
+    static int
+    Ndb_cluster_connection__get_recv_thread_activation_threshold
+    ( Ndb_cluster_connection & obj )
+    {
+        return obj.get_recv_thread_activation_threshold();
+    }
+
+    static int
+    Ndb_cluster_connection__set_recv_thread_cpu
+    ( Ndb_cluster_connection & obj, short p0 )
+    {
+        return obj.set_recv_thread_cpu(p0);
+    }
+
+    static int
+    Ndb_cluster_connection__unset_recv_thread_cpu
+    ( Ndb_cluster_connection & obj )
+    {
+        return obj.unset_recv_thread_cpu(0);
+    }
+
     static const Ndb *
     Ndb_cluster_connection__get_next_ndb_object
     ( Ndb_cluster_connection & obj, const Ndb * p0 )
     {
         return obj.get_next_ndb_object(p0);
+    }
+
+    static const char *
+    Ndb_cluster_connection__get_system_name
+    ( const Ndb_cluster_connection & obj )
+    {
+        return obj.get_system_name();
     }
 
 // ---------------------------------------------------------------------------

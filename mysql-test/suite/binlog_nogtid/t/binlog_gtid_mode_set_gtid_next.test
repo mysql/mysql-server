@@ -1,0 +1,159 @@
+# ==== Purpose ====
+#
+# Test that GTID_NEXT can be set as allowed by GTID_MODE.
+#
+# ==== Implementation ====
+#
+# Execute all the following tests:
+#
+# For each GTID_MODE (OFF, OFF_PERMISSIVE, ON_PERMISSIVE, ON):
+#   For each old value of GTID_NEXT (AUTOMATIC, ANONYMOUS, UUID:NUMBER):
+#     For each new value of GTID_NEXT (AUTOMATIC, ANONYMOUS, UUID:NUMBER):
+#       Verify that it is possible to change gtid_mode from old to new,
+#       if new is compatible with GTID_MODE; otherwise verify that this is
+#       not possible.
+
+# Test sets gtid_mode explicitly, no need to run in multiple combinations.
+
+--let $rpl_gtid_utils= 1
+--let $rpl_topology= none
+--source include/rpl_init.inc
+
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+
+--echo ==== GTID_MODE = OFF ====
+
+--echo ---- Old value is AUTOMATIC or ANONYMOUS ----
+
+--let $error= ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF
+--let $gtid_next= $uuida:1
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+--let $error= 0
+
+--let $gtid_next= ANONYMOUS
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+
+--let $error= ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF
+--let $gtid_next= $uuida:1
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+--let $error= 0
+
+--let $gtid_next= ANONYMOUS
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+
+--let $gtid_next= AUTOMATIC
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+
+--let $gtid_next= AUTOMATIC
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+
+--echo ---- Old value is UUID:NUMBER ----
+
+SET GLOBAL GTID_MODE = 'OFF_PERMISSIVE';
+--eval SET GTID_NEXT = '$uuida:1';
+--let $old_gtid_next= $uuida:1
+ROLLBACK;
+SET GLOBAL GTID_MODE = 'OFF';
+
+--let $error= ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF
+--let $gtid_next= $uuida:1
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+--let $error= 0
+
+--let $error= ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF
+--let $gtid_next= $uuida:2
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+--let $error= 0
+
+--let $gtid_next= ANONYMOUS
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+
+SET GLOBAL GTID_MODE = 'OFF_PERMISSIVE';
+--eval SET GTID_NEXT = '$uuida:1';
+--let $old_gtid_next= $uuida:1
+ROLLBACK;
+SET GLOBAL GTID_MODE = 'OFF';
+
+--let $gtid_next= AUTOMATIC
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+
+--echo ==== GTID_MODE = OFF_PERMISSIVE ====
+
+SET GLOBAL GTID_MODE = 'OFF_PERMISSIVE';
+--source extra/binlog_tests/binlog_gtid_mode_permissive_set_gtid_next.inc
+
+--echo ==== GTID_MODE = ON_PERMISSIVE ====
+
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+--source extra/binlog_tests/binlog_gtid_mode_permissive_set_gtid_next.inc
+
+--echo ==== GTID_MODE = ON ====
+
+--echo ---- Old value is AUTOMATIC or GTID ----
+
+SET @@GLOBAL.GTID_MODE = ON;
+
+--let $gtid_next= AUTOMATIC
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+
+--let $error= ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
+--let $gtid_next= ANONYMOUS
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+--let $error= 0
+
+--let $gtid_next= $uuida:1
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+
+--let $gtid_next= $uuida:1
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+
+--let $gtid_next= $uuida:2
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+
+--let $gtid_next= AUTOMATIC
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+
+--let $gtid_next= $uuida:1
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+
+--let $error= ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
+--let $gtid_next= ANONYMOUS
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+--let $error= 0
+
+--let $gtid_next= AUTOMATIC
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+
+--echo ---- Old value is ANONYMOUS ----
+
+SET GLOBAL GTID_MODE = 'ON_PERMISSIVE';
+--eval SET GTID_NEXT = 'ANONYMOUS';
+--let $old_gtid_next= ANONYMOUS
+ROLLBACK;
+SET GLOBAL GTID_MODE = 'ON';
+
+--let $error= ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
+--let $gtid_next= ANONYMOUS
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+--let $error= 0
+
+--let $gtid_next= $uuida:1
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+
+SET GLOBAL GTID_MODE = 'ON_PERMISSIVE';
+--eval SET GTID_NEXT = 'ANONYMOUS';
+--let $old_gtid_next= ANONYMOUS
+ROLLBACK;
+SET GLOBAL GTID_MODE = 'ON';
+
+--let $gtid_next= AUTOMATIC
+--source extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
+
+--echo ---- Clean up ----
+
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+
+--source include/rpl_end.inc

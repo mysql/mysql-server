@@ -22,7 +22,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/not_embedded.inc
 
 --echo '#---------------------BS_STVARS_051_01----------------------#'
 ####################################################################
@@ -59,7 +58,7 @@ SELECT COUNT(@@GLOBAL.thread_handling);
 
 --disable_warnings
 SELECT @@GLOBAL.thread_handling = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='thread_handling';
 --enable_warnings
 --echo 1 Expected
@@ -69,7 +68,7 @@ SELECT COUNT(@@GLOBAL.thread_handling);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='thread_handling';
 --enable_warnings
 --echo 1 Expected

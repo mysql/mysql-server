@@ -3,6 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
+set ndb_table_temporary=0;
 set @@global.slave_exec_mode= 'IDEMPOTENT';
 CREATE TABLE mysql.ndb_apply_status
 ( server_id INT UNSIGNED NOT NULL,
@@ -10,9 +11,11 @@ epoch BIGINT UNSIGNED NOT NULL,
 log_name VARCHAR(255) BINARY NOT NULL,
 start_pos BIGINT UNSIGNED NOT NULL,
 end_pos BIGINT UNSIGNED NOT NULL,
-PRIMARY KEY USING HASH (server_id)) ENGINE=INNODB;
---- Doing pre test cleanup --- 
-DROP TABLE IF EXISTS t1;
+PRIMARY KEY USING HASH (server_id)) ENGINE=INNODB
+CHARACTER SET latin1;
+set new=on;
+set default_storage_engine=ndbcluster;
+supports_native_partitioning: 1
 --- Start test 1 Basic testing ---
 --- Create Table Section ---
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
@@ -33,7 +36,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 --- Show table on slave ---
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -48,7 +51,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -106,7 +109,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -122,7 +125,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 --- Perform basic operation on master ---
 --- and ensure replicated correctly --- 
 "--- Insert into t1 --" as "";
@@ -193,8 +196,8 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (YEAR(t))
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`t`))
 (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster,
  PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster,
  PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster,
@@ -215,8 +218,8 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (YEAR(t))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`t`))
 (PARTITION p0 VALUES LESS THAN (1901) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1946) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (1966) ENGINE = InnoDB,
@@ -280,8 +283,8 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (YEAR(t))
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`t`))
 (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster,
  PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster,
  PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster,
@@ -303,8 +306,8 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (YEAR(t))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`t`))
 (PARTITION p0 VALUES LESS THAN (1901) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1946) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (1966) ENGINE = InnoDB,
@@ -353,7 +356,7 @@ COUNT(*)
 DELETE FROM t1;
 --- End test 2 partition RANGE testing ---
 --- Do Cleanup ---
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
 --- Start test 3 partition LIST testing ---
 --- Do setup ---
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
@@ -379,8 +382,8 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (id)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`id`)
 (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster,
  PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster,
  PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
@@ -398,8 +401,8 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`id`)
 (PARTITION p0 VALUES IN (2,4) ENGINE = InnoDB,
  PARTITION p1 VALUES IN (42,142) ENGINE = InnoDB,
  PARTITION p2 VALUES IN (412) ENGINE = InnoDB) */
@@ -459,8 +462,8 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (id)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`id`)
 (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster,
  PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster,
  PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
@@ -479,8 +482,8 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`id`)
 (PARTITION p0 VALUES IN (2,4) ENGINE = InnoDB,
  PARTITION p1 VALUES IN (42,142) ENGINE = InnoDB,
  PARTITION p2 VALUES IN (412) ENGINE = InnoDB) */
@@ -526,7 +529,7 @@ COUNT(*)
 DELETE FROM t1;
 --- End test 3 partition LIST testing ---
 --- Do Cleanup --
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
 --- Start test 4 partition HASH testing ---
 --- Do setup ---
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
@@ -549,8 +552,8 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH ( YEAR(t))
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (year(`t`))
 PARTITIONS 4 */
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -565,8 +568,8 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH ( YEAR(t))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (year(`t`))
 PARTITIONS 4 */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
@@ -625,8 +628,8 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH ( YEAR(t))
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (year(`t`))
 PARTITIONS 4 */
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
@@ -643,8 +646,8 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH ( YEAR(t))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (year(`t`))
 PARTITIONS 4 */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
@@ -688,7 +691,7 @@ COUNT(*)
 DELETE FROM t1;
 --- End test 4 partition HASH testing ---
 --- Do Cleanup --
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
 --- Start test 5 partition by key testing ---
 --- Create Table Section ---
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
@@ -711,7 +714,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 --- Show that tables on slave ---
@@ -728,7 +731,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 --- Perform basic operation on master ---
@@ -787,7 +790,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 --- Make sure that our tables on slave are still right type ---
@@ -805,7 +808,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 --- Perform basic operation on master ---
@@ -864,7 +867,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 --- Make sure that our tables on slave are still same engine ---
@@ -882,7 +885,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 --- Perform basic operation on master ---
@@ -927,7 +930,7 @@ COUNT(*)
 DELETE FROM t1;
 --- End test 5 key partition testing ---
 --- Do Cleanup ---
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
 set @@global.slave_exec_mode= 'STRICT';
 drop table mysql.ndb_apply_status;
 include/rpl_end.inc

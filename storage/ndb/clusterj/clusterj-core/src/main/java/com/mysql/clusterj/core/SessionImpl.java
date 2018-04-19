@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -17,10 +24,13 @@
 
 package com.mysql.clusterj.core;
 
+import com.mysql.clusterj.ClusterJDatastoreException;
+import com.mysql.clusterj.ClusterJDatastoreException.Classification;
 import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.DynamicObject;
+import com.mysql.clusterj.DynamicObjectDelegate;
 import com.mysql.clusterj.LockMode;
 import com.mysql.clusterj.Query;
 import com.mysql.clusterj.Transaction;
@@ -54,6 +64,9 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 import com.mysql.clusterj.query.QueryBuilder;
 import com.mysql.clusterj.query.QueryDefinition;
 import com.mysql.clusterj.query.QueryDomainType;
+
+import java.lang.reflect.Proxy;
+import java.lang.reflect.InvocationHandler;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -147,11 +160,17 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return the query
      */
     public <T> Query<T> createQuery(QueryDefinition<T> qd) {
+        assertNotClosed();
         if (!(qd instanceof QueryDomainTypeImpl)) {
             throw new ClusterJUserException(
                     local.message("ERR_Exception_On_Method", "createQuery"));
         }
-        return new QueryImpl<T>(this, (QueryDomainTypeImpl<T>)qd);
+        try {
+            return new QueryImpl<T>(this, (QueryDomainTypeImpl<T>)qd);
+        } catch (ClusterJDatastoreException cjde) {
+            checkConnection(cjde);
+            throw cjde;
+        }
     }
 
     /** Find an instance by its class and primary key.
@@ -163,10 +182,16 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return the instance
      */
     public <T> T find(Class<T> cls, Object key) {
-        DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
-        ValueHandler keyHandler = domainTypeHandler.createKeyValueHandler(key, db);
-        // initialize from the database using the key
-        return initializeFromDatabase(domainTypeHandler, null, null, keyHandler);
+        try {
+            assertNotClosed();
+            DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
+            ValueHandler keyHandler = domainTypeHandler.createKeyValueHandler(key, db);
+            // initialize from the database using the key
+            return initializeFromDatabase(domainTypeHandler, null, null, keyHandler);
+        } catch (ClusterJDatastoreException cjde) {
+            checkConnection(cjde);
+            throw cjde;
+        }
     }
 
     /** Initialize fields from the database. The keyHandler must
@@ -205,6 +230,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                     return domainTypeHandler.newInstance(smartValueHandler);
                 } else {
                     // not found
+                    keyHandler.release();
                     return null;
                 }
             } catch (ClusterJException ex) {
@@ -240,6 +266,8 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                 if (instanceHandler != null) {
                     // mark the handler as not found
                     instanceHandler.found(Boolean.FALSE);
+                    // release handler resources
+                    instanceHandler.release();
                 }
                 endAutoTransaction();
                 return null;
@@ -259,10 +287,10 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      */
     private void setPartitionKey(DomainTypeHandler<?> domainTypeHandler,
             ValueHandler keyHandler) {
-        if (!isEnlisted()) {
+        assertNotClosed();
+        if (partitionKey == null && !isEnlisted()) {
             // there is still time to set the partition key
-            PartitionKey partitionKey = 
-                domainTypeHandler.createPartitionKey(keyHandler);
+            partitionKey = domainTypeHandler.createPartitionKey(keyHandler);
             clusterTransaction.setPartitionKey(partitionKey);
         }
     }
@@ -273,6 +301,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return a new instance that can be used with makePersistent
      */
     public <T> T newInstance(Class<T> cls) {
+        assertNotClosed();
         return factory.newInstance(cls, dictionary, db);
     }
 
@@ -283,6 +312,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * savePersistent, writePersistent, updatePersistent, or deletePersistent
      */
     public <T> T newInstance(Class<T> cls, Object key) {
+        assertNotClosed();
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
         T instance = factory.newInstance(cls, dictionary, db);
         domainTypeHandler.objectSetKeys(key, instance);
@@ -379,6 +409,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * </li></ul>
      */
     public Boolean found(Object instance) {
+        assertNotClosed();
         if (instance == null) {
             return null;
         }
@@ -417,6 +448,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             endAutoTransaction();
             return object;
         }
+        assertNotClosed();
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(object);
         ValueHandler valueHandler = domainTypeHandler.getValueHandler(object);
         insert(domainTypeHandler, valueHandler);
@@ -424,48 +456,53 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     }
 
     public Operation insert( DomainTypeHandler<?> domainTypeHandler, ValueHandler valueHandler) {
-        startAutoTransaction();
-        setPartitionKey(domainTypeHandler, valueHandler);
-        if (valueHandler instanceof SmartValueHandler) {
+        try {
+            startAutoTransaction();
+            setPartitionKey(domainTypeHandler, valueHandler);
+            if (valueHandler instanceof SmartValueHandler) {
+                try {
+                SmartValueHandler smartValueHandler = (SmartValueHandler)valueHandler;
+                Operation result = smartValueHandler.insert(clusterTransaction);
+                valueHandler.resetModified();
+                endAutoTransaction();
+                return result;
+                } catch (ClusterJException cjex) {
+                    failAutoTransaction();
+                    throw cjex;
+                }
+            }
+            Operation op = null;
+            Table storeTable = null;
             try {
-            SmartValueHandler smartValueHandler = (SmartValueHandler)valueHandler;
-            Operation result = smartValueHandler.insert(clusterTransaction);
-            valueHandler.resetModified();
-            endAutoTransaction();
-            return result;
+                storeTable = domainTypeHandler.getStoreTable();
+                op = clusterTransaction.getInsertOperation(storeTable);
+                // set all values in the operation, keys first
+                op.beginDefinition();
+                domainTypeHandler.operationSetKeys(valueHandler, op);
+                domainTypeHandler.operationSetModifiedNonPKValues(valueHandler, op);
+                op.endDefinition();
+                // reset modified bits in instance
+                domainTypeHandler.objectResetModified(valueHandler);
+            } catch (ClusterJUserException cjuex) {
+                failAutoTransaction();
+                throw cjuex;
             } catch (ClusterJException cjex) {
                 failAutoTransaction();
-                throw cjex;
+                logger.error(local.message("ERR_Insert", storeTable.getName()));
+                throw new ClusterJException(
+                        local.message("ERR_Insert", storeTable.getName()), cjex);
+            } catch (RuntimeException rtex) {
+                failAutoTransaction();
+                logger.error(local.message("ERR_Insert", storeTable.getName()));
+                throw new ClusterJException(
+                        local.message("ERR_Insert", storeTable.getName()), rtex);
             }
+            endAutoTransaction();
+            return op;
+        } catch (ClusterJDatastoreException cjde) {
+            checkConnection(cjde);
+            throw cjde;
         }
-        Operation op = null;
-        Table storeTable = null;
-        try {
-            storeTable = domainTypeHandler.getStoreTable();
-            op = clusterTransaction.getInsertOperation(storeTable);
-            // set all values in the operation, keys first
-            op.beginDefinition();
-            domainTypeHandler.operationSetKeys(valueHandler, op);
-            domainTypeHandler.operationSetModifiedNonPKValues(valueHandler, op);
-            op.endDefinition();
-            // reset modified bits in instance
-            domainTypeHandler.objectResetModified(valueHandler);
-        } catch (ClusterJUserException cjuex) {
-            failAutoTransaction();
-            throw cjuex;
-        } catch (ClusterJException cjex) {
-            failAutoTransaction();
-            logger.error(local.message("ERR_Insert", storeTable.getName()));
-            throw new ClusterJException(
-                    local.message("ERR_Insert", storeTable.getName()), cjex);
-        } catch (RuntimeException rtex) {
-            failAutoTransaction();
-            logger.error(local.message("ERR_Insert", storeTable.getName()));
-            throw new ClusterJException(
-                    local.message("ERR_Insert", storeTable.getName()), rtex);
-        }
-        endAutoTransaction();
-        return op;
     }
 
     /** Make a number of instances persistent.
@@ -491,6 +528,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param key the primary key
      */
     public <T> void deletePersistent(Class<T> cls, Object key) {
+        assertNotClosed();
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
         ValueHandler keyValueHandler = domainTypeHandler.createKeyValueHandler(key, db);
         delete(domainTypeHandler, keyValueHandler);
@@ -502,6 +540,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param object the instance to remove from the database
      */
     public void deletePersistent(Object object) {
+        assertNotClosed();
         if (object == null) {
             return;
         }
@@ -511,33 +550,38 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     }
 
     public Operation delete(DomainTypeHandler domainTypeHandler, ValueHandler valueHandler) {
-        startAutoTransaction();
-        Table storeTable = domainTypeHandler.getStoreTable();
-        setPartitionKey(domainTypeHandler, valueHandler);
-        if (valueHandler instanceof SmartValueHandler) {
-            try {
-            SmartValueHandler smartValueHandler = (SmartValueHandler)valueHandler;
-            Operation result = smartValueHandler.delete(clusterTransaction);
-            endAutoTransaction();
-            return result;
-            } catch (ClusterJException cjex) {
-                failAutoTransaction();
-                throw cjex;
-            }
-        }
-        Operation op = null;
         try {
-            op = clusterTransaction.getDeleteOperation(storeTable);
-            op.beginDefinition();
-            domainTypeHandler.operationSetKeys(valueHandler, op);
-            op.endDefinition();
-        } catch (ClusterJException ex) {
-            failAutoTransaction();
-            throw new ClusterJException(
-                    local.message("ERR_Delete", storeTable.getName()), ex);
+            startAutoTransaction();
+            Table storeTable = domainTypeHandler.getStoreTable();
+            setPartitionKey(domainTypeHandler, valueHandler);
+            if (valueHandler instanceof SmartValueHandler) {
+                try {
+                SmartValueHandler smartValueHandler = (SmartValueHandler)valueHandler;
+                Operation result = smartValueHandler.delete(clusterTransaction);
+                endAutoTransaction();
+                return result;
+                } catch (ClusterJException cjex) {
+                    failAutoTransaction();
+                    throw cjex;
+                }
+            }
+            Operation op = null;
+            try {
+                op = clusterTransaction.getDeleteOperation(storeTable);
+                op.beginDefinition();
+                domainTypeHandler.operationSetKeys(valueHandler, op);
+                op.endDefinition();
+            } catch (ClusterJException ex) {
+                failAutoTransaction();
+                throw new ClusterJException(
+                        local.message("ERR_Delete", storeTable.getName()), ex);
+            }
+            endAutoTransaction();
+            return op;
+        } catch (ClusterJDatastoreException cjde) {
+            checkConnection(cjde);
+            throw cjde;
         }
-        endAutoTransaction();
-        return op;
     }
 
     /** Delete the instances corresponding to the parameters.
@@ -555,6 +599,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param cls the class of instances to delete
      */
     public <T> int deletePersistentAll(Class<T> cls) {
+        assertNotClosed();
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
         return deletePersistentAll(domainTypeHandler);
     }
@@ -659,6 +704,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param object the instance to update in the database
      */
     public void updatePersistent(Object object) {
+        assertNotClosed();
         if (object == null) {
             return;
         }
@@ -669,35 +715,40 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     }
 
     public Operation update(DomainTypeHandler<?> domainTypeHandler, ValueHandler valueHandler) {
-        startAutoTransaction();
-        setPartitionKey(domainTypeHandler, valueHandler);
-        if (valueHandler instanceof SmartValueHandler) {
-            try {
-            SmartValueHandler smartValueHandler = (SmartValueHandler)valueHandler;
-            Operation result = smartValueHandler.update(clusterTransaction);
-            endAutoTransaction();
-            return result;
-            } catch (ClusterJException cjex) {
-                failAutoTransaction();
-                throw cjex;
-            }
-        }
-        Table storeTable = null;
-        Operation op = null;
         try {
-            storeTable = domainTypeHandler.getStoreTable();
-            op = clusterTransaction.getUpdateOperation(storeTable);
-            domainTypeHandler.operationSetKeys(valueHandler, op);
-            domainTypeHandler.operationSetModifiedNonPKValues(valueHandler, op);
-            if (logger.isDetailEnabled()) logger.detail("Updated object " +
-                    valueHandler);
-        } catch (ClusterJException ex) {
-            failAutoTransaction();
-            throw new ClusterJException(
-                    local.message("ERR_Update", storeTable.getName()) ,ex);
+            startAutoTransaction();
+            setPartitionKey(domainTypeHandler, valueHandler);
+            if (valueHandler instanceof SmartValueHandler) {
+                try {
+                SmartValueHandler smartValueHandler = (SmartValueHandler)valueHandler;
+                Operation result = smartValueHandler.update(clusterTransaction);
+                endAutoTransaction();
+                return result;
+                } catch (ClusterJException cjex) {
+                    failAutoTransaction();
+                    throw cjex;
+                }
+            }
+            Table storeTable = null;
+            Operation op = null;
+            try {
+                storeTable = domainTypeHandler.getStoreTable();
+                op = clusterTransaction.getUpdateOperation(storeTable);
+                domainTypeHandler.operationSetKeys(valueHandler, op);
+                domainTypeHandler.operationSetModifiedNonPKValues(valueHandler, op);
+                if (logger.isDetailEnabled()) logger.detail("Updated object " +
+                        valueHandler);
+            } catch (ClusterJException ex) {
+                failAutoTransaction();
+                throw new ClusterJException(
+                        local.message("ERR_Update", storeTable.getName()) ,ex);
+            }
+            endAutoTransaction();
+            return op;
+        } catch (ClusterJDatastoreException cjde) {
+            checkConnection(cjde);
+            throw cjde;
         }
-        endAutoTransaction();
-        return op;
     }
 
     /** Update the instances corresponding to the parameters.
@@ -715,37 +766,49 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param instance the instance to save
      */
     public <T> T savePersistent(T instance) {
-        DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(instance);
-        if (logger.isDetailEnabled()) logger.detail("UpdatePersistent on object " + instance);
-        ValueHandler valueHandler = domainTypeHandler.getValueHandler(instance);
-        startAutoTransaction();
-        setPartitionKey(domainTypeHandler, valueHandler);
-        if (valueHandler instanceof SmartValueHandler) {
+        try {
+            startAutoTransaction();
+            if (logger.isDetailEnabled()) logger.detail("SavePersistent on object " + instance);
+            DomainTypeHandler<T> domainTypeHandler;
+            ValueHandler valueHandler;
             try {
-            SmartValueHandler smartValueHandler = (SmartValueHandler)valueHandler;
-            smartValueHandler.write(clusterTransaction);
-            valueHandler.resetModified();
-            endAutoTransaction();
-            return instance;
+                domainTypeHandler = getDomainTypeHandler(instance);
+                valueHandler = domainTypeHandler.getValueHandler(instance);
+                setPartitionKey(domainTypeHandler, valueHandler);
             } catch (ClusterJException cjex) {
                 failAutoTransaction();
                 throw cjex;
             }
+            if (valueHandler instanceof SmartValueHandler) {
+                try {
+                SmartValueHandler smartValueHandler = (SmartValueHandler)valueHandler;
+                smartValueHandler.write(clusterTransaction);
+                valueHandler.resetModified();
+                endAutoTransaction();
+                return instance;
+                } catch (ClusterJException cjex) {
+                    failAutoTransaction();
+                    throw cjex;
+                }
+            }
+            Table storeTable = null;
+            try {
+                storeTable = domainTypeHandler.getStoreTable();
+                Operation op = null;
+                op = clusterTransaction.getWriteOperation(storeTable);
+                domainTypeHandler.operationSetKeys(valueHandler, op);
+                domainTypeHandler.operationSetModifiedNonPKValues(valueHandler, op);
+            } catch (ClusterJException ex) {
+                failAutoTransaction();
+                throw new ClusterJException(
+                        local.message("ERR_Write", storeTable.getName()) ,ex);
+            }
+            endAutoTransaction();
+            return instance;
+        } catch (ClusterJDatastoreException cjde) {
+            checkConnection(cjde);
+            throw cjde;
         }
-        Table storeTable = null;
-        try {
-            storeTable = domainTypeHandler.getStoreTable();
-            Operation op = null;
-            op = clusterTransaction.getWriteOperation(storeTable);
-            domainTypeHandler.operationSetKeys(valueHandler, op);
-            domainTypeHandler.operationSetModifiedNonPKValues(valueHandler, op);
-        } catch (ClusterJException ex) {
-            failAutoTransaction();
-            throw new ClusterJException(
-                    local.message("ERR_Write", storeTable.getName()) ,ex);
-        }
-        endAutoTransaction();
-        return instance;
     }
 
     /** Save the instances even if they do not exist.
@@ -793,15 +856,22 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             throw new ClusterJUserException(
                     local.message("ERR_Session_Closed"));
         }
+        db.assertNotClosed("SessionImpl.assertNotClosed()");
     }
 
     /** Begin the current transaction.
      * 
      */
     public void begin() {
-        if (logger.isDebugEnabled()) logger.debug("begin transaction.");
-        transactionState = transactionState.begin();
-        handleTransactionException();
+        try {
+            assertNotClosed();
+            if (logger.isDebugEnabled()) logger.debug("begin transaction.");
+            transactionState = transactionState.begin();
+            handleTransactionException();
+        } catch (ClusterJDatastoreException cjde) {
+            checkConnection(cjde);
+            throw cjde;
+        }
     }
 
     /** Internally begin the transaction.
@@ -825,9 +895,15 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * 
      */
     public void commit() {
-        if (logger.isDebugEnabled()) logger.debug("commit transaction.");
-        transactionState = transactionState.commit();
-        handleTransactionException();
+        try {
+//            assertNotClosed();
+            if (logger.isDebugEnabled()) logger.debug("commit transaction.");
+            transactionState = transactionState.commit();
+            handleTransactionException();
+        } catch (ClusterJDatastoreException cjde) {
+            checkConnection(cjde);
+            throw cjde;
+        }
     }
 
     /** Internally commit the transaction.
@@ -858,6 +934,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      *
      */
     public void rollback() {
+        assertNotClosed();
         if (logger.isDebugEnabled()) logger.debug("roll back transaction.");
         transactionState = transactionState.rollback();
         handleTransactionException();
@@ -887,6 +964,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * Throw a ClusterJException if there is any problem.
      */
     public void startAutoTransaction() {
+        assertNotClosed();
         if (logger.isDebugEnabled()) logger.debug("start AutoTransaction");
         transactionState = transactionState.start();
         handleTransactionException();
@@ -897,6 +975,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      */
     public void endAutoTransaction() {
         if (logger.isDebugEnabled()) logger.debug("end AutoTransaction");
+        assertNotClosed();
         transactionState = transactionState.end();
         handleTransactionException();
     }
@@ -905,6 +984,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * Throw a ClusterJException if there is any problem.
      */
     public void failAutoTransaction() {
+        assertNotClosed();
         if (logger.isDebugEnabled()) logger.debug("fail AutoTransaction");
         transactionState = transactionState.fail();
     }
@@ -1160,6 +1240,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * Throw a user exception if not.
      */
     private void assertActive() {
+        assertNotClosed();
         if (!transactionState.isActive()) {
             throw new ClusterJUserException(
                     local.message("ERR_Transaction_Must_Be_Active"));
@@ -1184,6 +1265,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return the query
      */
     public Query createQuery(Class cls) {
+        assertNotClosed();
         throw new UnsupportedOperationException(
                 local.message("ERR_NotImplemented"));
     }
@@ -1193,6 +1275,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return the query builder
      */
     public QueryBuilder getQueryBuilder() {
+        assertNotClosed();
         return new QueryBuilderImpl(this);
     }
 
@@ -1378,29 +1461,36 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
    }
 
     public void flush(boolean commit) {
-        if (logger.isDetailEnabled()) logger.detail("flush changes with changeList size: " + changeList.size());
-        if (!changeList.isEmpty()) {
-            for (StateManager sm: changeList) {
-                sm.flush(this);
+        try {
+            if (logger.isDetailEnabled()) logger.detail("flush changes with changeList size: " + changeList.size());
+            if (!changeList.isEmpty()) {
+                for (StateManager sm: changeList) {
+                    sm.flush(this);
+                }
+                changeList.clear();
             }
-            changeList.clear();
-        }
-        // now flush changes to the back end
-        if (clusterTransaction != null) {
-            if (commit) {
-                internalCommit();
-            } else {
-                executeNoCommit();
-                handleTransactionException();
+            // now flush changes to the back end
+            if (clusterTransaction != null) {
+                if (commit) {
+                    internalCommit();
+                } else {
+                    executeNoCommit();
+                    handleTransactionException();
+                }
             }
+        } catch (ClusterJDatastoreException cjde) {
+            checkConnection(cjde);
+            throw cjde;
         }
     }
 
     public void flush() {
+        assertNotClosed();
         flush(false);
     }
 
     public List getChangeList() {
+        assertNotClosed();
         return Collections.unmodifiableList(changeList);
     }
 
@@ -1413,10 +1503,12 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     }
 
     public void markModified(StateManager instance) {
+        assertNotClosed();
         changeList.add(instance);
     }
 
     public void setPartitionKey(Class<?> domainClass, Object key) {
+        assertNotClosed();
         DomainTypeHandler<?> domainTypeHandler = getDomainTypeHandler(domainClass);
         String tableName = domainTypeHandler.getTableName();
         // if transaction is enlisted, throw a user exception
@@ -1435,6 +1527,8 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         if (clusterTransaction != null) {
             clusterTransaction.setPartitionKey(partitionKey);
         }
+        // we are done with this handler; the partition key has all of its information
+        handler.release();
     }
 
     /** Mark the field in the instance as modified so it is flushed.
@@ -1443,6 +1537,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param fieldName the field to mark as modified
      */
     public void markModified(Object instance, String fieldName) {
+        assertNotClosed();
         DomainTypeHandler<?> domainTypeHandler = getDomainTypeHandler(instance);
         ValueHandler handler = domainTypeHandler.getValueHandler(instance);
         domainTypeHandler.objectMarkModified(handler, fieldName);
@@ -1483,6 +1578,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return the coordinatedTransactionId
      */
     public String getCoordinatedTransactionId() {
+        assertNotClosed();
         return clusterTransaction.getCoordinatedTransactionId();
     }
 
@@ -1491,6 +1587,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param coordinatedTransactionId the coordinatedTransactionId
      */
     public void setCoordinatedTransactionId(String coordinatedTransactionId) {
+        assertNotClosed();
         clusterTransaction.setCoordinatedTransactionId(coordinatedTransactionId);
     }
 
@@ -1499,6 +1596,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param lockmode the lock mode
      */
     public void setLockMode(LockMode lockmode) {
+        assertNotClosed();
         this.lockmode = lockmode;
         if (clusterTransaction != null) {
             clusterTransaction.setLockMode(lockmode);
@@ -1509,7 +1607,70 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param cls the class for which to unload the schema
      */
     public String unloadSchema(Class<?> cls) {
+        assertNotClosed();
         return factory.unloadSchema(cls, dictionary);
+    }
+
+    /** Release resources associated with an instance. The instance must be a domain object obtained via
+     * session.newInstance(T.class), find(T.class), or query; or Iterable<T>, or array T[].
+     * Resources released can include direct buffers used to hold instance data.
+     * Released resourced may be returned to a pool.
+     * @throws ClusterJUserException if the instance is not a domain object T, Iterable<T>, or array T[],
+     * or if the object is used after calling this method.
+     */
+    public <T> T release(T param) {
+        if (param == null) {
+            throw new ClusterJUserException(local.message("ERR_Release_Parameter"));
+        }
+        // is the parameter an Iterable?
+        if (Iterable.class.isAssignableFrom(param.getClass())) {
+            Iterable<?> instances = (Iterable<?>)param;
+            for (Object instance:instances) {
+                release(instance);
+            }
+        } else
+        // is the parameter an array?
+        if (param.getClass().isArray()) {
+            Object[] instances = (Object[])param;
+            for (Object instance:instances) {
+                release(instance);
+            }
+        } else {
+            assertNotClosed();
+            // is the parameter a Dynamic Object?
+            if (DynamicObject.class.isAssignableFrom(param.getClass())) {
+                DynamicObject dynamicObject = (DynamicObject)param;
+                DynamicObjectDelegate delegate = dynamicObject.delegate();
+                if (delegate != null) {
+                    delegate.release();
+                }
+            // it must be a Proxy with a clusterj InvocationHandler
+            } else {
+                try {
+                    InvocationHandler handler = Proxy.getInvocationHandler(param);
+                    if (!ValueHandler.class.isAssignableFrom(handler.getClass())) {
+                        throw new ClusterJUserException(local.message("ERR_Release_Parameter"));
+                    }
+                    ValueHandler valueHandler = (ValueHandler)handler;
+                    valueHandler.release();
+                } catch (Throwable t) {
+                    throw new ClusterJUserException(local.message("ERR_Release_Parameter"), t);
+                }
+            }
+        }
+        return param;
+    }
+
+    /** Check connectivity to the cluster. If connection was lost notify SessionFactory
+     * to initiate the reconnect. Classification.UnknownResultError is the classification
+     * for loss of connectivity to the cluster that requires closing all ndb_cluster_connection
+     * and restarting. This task is delegated to SessionFactory.
+     * @param cjde
+     */
+    public void checkConnection(ClusterJDatastoreException cjde) {
+        if (Classification.UnknownResultError.equals(Classification.lookup(cjde.getClassification()))) {
+            factory.checkConnection(cjde);
+        }
     }
 
 }

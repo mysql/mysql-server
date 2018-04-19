@@ -1,21 +1,25 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- as published by the Free Software Foundation; version 2 of
- the License.
- 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU General Public License for more details.
- 
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License, version 2.0, for more details.
+
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 #include <pthread.h>
 
@@ -36,7 +40,7 @@
 
 struct workqueue { 
   /* this is the producer's cache line */
-  ndbmc_atomic32_t freelist;           /*< producer's current free item */
+  atomic_int32_t freelist;             /*< producer's current free item */
   unsigned int size;                   /*< number of slots in the queue */
   unsigned int p_mask;                 /*< used for modulo division */
   void ** p_items;                     /*< the workqueue array */
@@ -44,7 +48,7 @@ struct workqueue {
   char padding1[CACHE_LINE_SIZE - Q_GROUP1_SIZE];
 
   /* these are used for empty/full signalling */
-  ndbmc_atomic32_t is_active;          /*< set to 0 when the queue is shut down */
+  atomic_int32_t   is_active;          /*< set to 0 when the queue is shut down */
   pthread_cond_t   not_empty;          /*< signal that there is data available */
   pthread_cond_t   not_full;           /*< signal that there is free space */
   pthread_mutex_t  signal_lock;        /*< mutex to protect empty/full signals */
@@ -59,8 +63,8 @@ struct workqueue {
   int threads;                         /*< actually nconsumers - 1 */
   unsigned int c_mask;                 /*< consumer's copy of mask */
   unsigned int minfree;                /*< heuristic number of free slots desired */
-  ndbmc_atomic32_t consumer_spinlock;  /*< for multiple consumer threads */
-  ndbmc_atomic32_t worklist;           /*< consumer's current work item */
+  atomic_int32_t consumer_spinlock;    /*< for multiple consumer threads */
+  atomic_int32_t worklist;             /*< consumer's current work item */
   void ** c_items;                     /*< consumer's copy of the array addr */
 };
 
@@ -79,6 +83,9 @@ int workqueue_add (struct workqueue *q, void *item);
 
 /* Sleep until an item is available on the queue, then fetch it. */
 void * workqueue_consumer_wait(struct workqueue *q);
+
+/* Returns true if at item is available on the queue */
+int workqueue_consumer_poll(struct workqueue *q);
 
 /* Free the internal resources used by a workqueue. 
    The caller is still responsible for freeing the workqueue itself. */

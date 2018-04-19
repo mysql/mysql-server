@@ -79,7 +79,7 @@ CREATE TABLE `t8_c` (
 `fastca` char(1) default NULL,
 `fastmag` char(1) default NULL,
 `lastupdate` datetime default NULL,
-`hassetistart` datetime NOT NULL default '0000-00-00 00:00:00',
+`hassetistart` datetime NOT NULL,
 `accthassetitime` int(10) unsigned default NULL,
 `acctoutputoctets` bigint(20) unsigned default NULL,
 `acctinputoctets` bigint(20) unsigned default NULL,
@@ -105,7 +105,7 @@ CREATE TABLE `t9_c` (
 `fastca` char(1) default NULL,
 `fastmag` char(1) default NULL,
 `lastupdate` datetime default NULL,
-`hassetistart` datetime NOT NULL default '0000-00-00 00:00:00',
+`hassetistart` datetime NOT NULL,
 `accthassetitime` int(10) unsigned default NULL,
 `actcoutpuocttets` bigint(20) unsigned default NULL,
 `actinputocctets` bigint(20) unsigned default NULL,
@@ -654,3 +654,71 @@ Backup failed
 *  3001: Could not start backup
 *        Backup failed: file already exists (use 'START BACKUP <backup id>'): Temporary error: Temporary Resource error
 # Trying to start another backup as nowait with same id should not return error
+create database db1;
+use db1;
+CREATE TABLE t1 (a INT) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE t2 (b INT) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE t3 (c INT) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (4),(5),(6);
+INSERT INTO t3 VALUES (7),(8),(9);
+truncate t1;
+truncate t2;
+drop table t3;
+#without 'exclude-missing-tables' should fail
+#calling 'exclude-missing-tables' with 'restore-meta' should fail
+#with 'exclude-missing-tables'
+select count(*) from t1;
+count(*)
+3
+select count(*) from t2;
+count(*)
+3
+#with exclusive include, exclude tables arguments
+#exclude non missing table
+truncate t1;
+truncate t2;
+select count(*) from t1;
+count(*)
+0
+select count(*) from t2;
+count(*)
+3
+#exclude missing table
+truncate t1;
+truncate t2;
+select count(*) from t1;
+count(*)
+3
+select count(*) from t2;
+count(*)
+3
+#include non missing table
+truncate t1;
+truncate t2;
+select count(*) from t1;
+count(*)
+3
+select count(*) from t2;
+count(*)
+0
+#include missing table
+truncate t1;
+truncate t2;
+select count(*) from t1;
+count(*)
+3
+select count(*) from t2;
+count(*)
+0
+#clearup
+drop database db1;
+# ndb_restore with unique index, check behaviour of --restore-epoch
+use test;
+create table t1(id int primary key, val int unique) engine=ndb;
+drop table t1;
+delete from mysql.ndb_apply_status;
+select count(1) from mysql.ndb_apply_status where server_id=0;
+count(1)
+1
+drop table t1;

@@ -12,7 +12,6 @@
 # --let $table_list= TABLE_LIST
 # --let $remaining_table_list= TABLE_LIST
 # --let $automatic= [0|1]
-# --let $expect_slave_error= [0|1]
 # --let $transaction_count= N
 # --source include/rpl_gtid_drop_multiple_tables.inc
 #
@@ -45,14 +44,6 @@
 #     GTID_NEXT='UUID:NUMBER' (if gtid_mode=on) or
 #     GTID_NEXT='ANONYMOUS' (if gtid_mode=off).
 #
-#   $expect_slave_error
-#     By default, this script assumes the statement executes the same
-#     way on master and slave. It assumes that that the statement is
-#     split, and thus asserts that it fails on master if GTID_MODE=ON
-#     and $automatic=0; otherwise it succeeds on master.  If this
-#     variable is 1, the script instead asserts that the statement
-#     succeeds on master and fails on slave.
-#
 #   $transaction_count
 #     The number of transactions that the DROP statement is expected
 #     to generate.
@@ -82,7 +73,7 @@ if (!$automatic)
 # Execute DROP
 if ($expect_error)
 {
-  --error ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP
+  --error ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID
   eval DROP TABLE $table_list;
 }
 if (!$expect_error)
@@ -121,40 +112,14 @@ if ($expect_error)
 --let $dont_print_pattern= 1
 --source include/assert_binlog_events.inc
 
-
-if ($expect_slave_error)
+# Drop remaining tables.
+if ($remaining_table_list)
 {
-  --connection slave
-  --let $slave_sql_errno= convert_error(ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP)
-  --source include/wait_for_slave_sql_error.inc
-
-  --source include/rpl_skip_to_end_of_relay_log.inc
-
-  # Drop temp tables.
-  --source include/stop_slave.inc
-  RESET SLAVE;
-  --source include/start_slave.inc
-
-  # Drop base table.
-  if ($remaining_table_list != 'base')
-  {
-    eval DROP TABLE base;
-  }
-  --connection master
-
-  eval DROP TABLE IF EXISTS base, temp_t, temp_n;
+  eval DROP TABLE $remaining_table_list; 
 }
-if (!$expect_slave_error)
+if ($expect_error)
 {
-  # Drop remaining tables.
-  if ($remaining_table_list)
-  {
-    eval DROP TABLE $remaining_table_list;
-  }
-  if ($expect_error)
-  {
-    eval DROP TABLE $table_list;
-  }
+  eval DROP TABLE $table_list;
 }
 
 --source include/rpl_sync.inc

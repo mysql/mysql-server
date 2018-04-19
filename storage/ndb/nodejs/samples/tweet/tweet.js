@@ -1,43 +1,18 @@
-/*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
- reserved.
- 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- as published by the Free Software Foundation; version 2 of
- the License.
- 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
- */
-
-
 /* Simple Twitter-like application for mysql-js
  *
- * This depends on the schema defined in tweet.sql
- *
- * It connects to the database using the properties defined in
- * tweet.properties.js
- *
+ * This depends on the schema defined in create_tweet_tables.sql
  *
  */
 
 'use strict';
 
 var http   = require('http'),
+    assert = require('assert'),
     url    = require('url'),
-    nosql  = require('../..'),
+    jones  = require('database-jones'),
     udebug = unified_debug.getLogger("tweet.js"),
-    getProperties = require("./tweet.properties.js").getProperties,
-    getDefaultAdapter = require("./tweet.properties.js").getDefaultAdapter,
-    adapter = getDefaultAdapter(),
+    adapter = process.env.JONES_ADAPTER || "ndb",
+    deployment = process.env.JONES_DEPLOYMENT || "test",
     mainLoopComplete, parse_command, allOperations, operationMap;
 
 //////////////////////////////////////////
@@ -52,18 +27,27 @@ var http   = require('http'),
     If the constructor fails to do this, and overwrites the value just read
     from the database, the read operation will fail with error WCTOR.
 */
-
-function Author(user_name, full_name) {
+function Author(user_name, propertiesString) {
+  var properties, p;
   if(user_name !== undefined) {
     this.user_name = user_name;
-    this.full_name = full_name;
+    this.tweet_count = 0;
+    if(typeof propertiesString === 'string') {
+      try {
+        properties = JSON.parse(propertiesString);
+        for(p in properties) {
+          if(properties.hasOwnProperty(p)) { this[p] = properties[p]; }
+        }
+      }
+      catch(e) { console.log(e); }
+    }
   }
 }
 
 function Tweet(author, message) {
   if(author !== undefined) {
     this.date_created = new Date();
-    this.author = author;
+    this.author_user_name = author;
     this.message = message;
   }
 }
@@ -228,7 +212,6 @@ function Operation() {
   this.setResult = function(value) {
     udebug.log("Operation setResult", value);
     self.result = value;
-    return value;
   };
   
   this.onComplete = function() {
@@ -280,7 +263,7 @@ function AddUserOperation(params, data) {
       then(this.onComplete, this.onError);
   };
 }
-AddUserOperation.signature = [ "put", "user", "<user_name>", " << Full Name >>" ];
+AddUserOperation.signature = [ "put", "user", "<user_name>", " << JSON Extra Fields >>" ];
 
 
 /* Profile a user based on username.
@@ -298,7 +281,7 @@ function LookupUserOperation(params, data) {
 LookupUserOperation.signature = [ "get", "user", "<user_name>" ]; 
 
 
-/* Delete a user, with cascading delete of tweets, mentions, and followers
+/* Delete a user, with cascading delete of tweets, mentions, and follows
 */
 function DeleteUserOperation(params, data) { 
   Operation.call(this);    /* inherit */
@@ -325,7 +308,6 @@ DeleteUserOperation.signature = [ "delete", "user", "<user_name>" ];
 function InsertTweetOperation(params, data) {
   Operation.call(this);    /* inherit */
 
-  var session;
   var message = data;
   var authorName = params[0];
   var tweet = new Tweet(authorName, message);
@@ -359,7 +341,7 @@ function InsertTweetOperation(params, data) {
     }
 
     function incrementTweetCount(author) {
-      author.tweets++;
+      author.tweet_count++;
       return session.save(author);
     }
   
@@ -474,7 +456,9 @@ RecentTweetsOperation.signature = [ "get", "tweets-recent" , "<count>" ];
 function TweetsByUserOperation(params, data) {
   Operation.call(this);
   this.queryClass = Tweet;
-  this.queryParams = {"author" : params[0] , "order" : "desc" , "limit" : 20 };
+  this.queryParams = {"author_user_name" : params[0] ,
+                      "order"            : "desc" ,
+                      "limit"            : 20 };
   this.run = this.buildQueryAndPresentResults;
 }
 TweetsByUserOperation.signature = [ "get" , "tweets-by" , "<user_name>" ];
@@ -487,7 +471,9 @@ function fetchTweetsInBatch(operation, scanResults) {
   var resultData = [];
 
   function addTweetToResults(e, tweet) {
-    if(tweet && ! e) resultData.push(tweet);
+    if(tweet && ! e) {
+      resultData.push(tweet);
+    }
   }
   
   batch = operation.session.createBatch();
@@ -520,7 +506,6 @@ function fetchTweets(operation) {
 */
 function TweetsAtUserOperation(params, data) {
   Operation.call(this);
-  var self = this;
   var tag = params[0];
   if(tag.charAt(0) == "@") {    tag = tag.substring(1);   }
   this.queryClass = Mention;
@@ -535,7 +520,6 @@ TweetsAtUserOperation.signature = [ "get" , "tweets-at" , "<user_name>" ];
 */
 function TweetsByHashtagOperation(params, data) {
   Operation.call(this);
-  var self = this;
   var tag = params[0];
   if(tag.charAt(0) == "#") {    tag = tag.substring(1);   }
   this.queryClass = HashtagEntry;
@@ -567,10 +551,11 @@ function RunWebServerOperation(cli_params, cli_data) {
       var operation = parse_command(request.method, params, data);
       if(operation && ! operation.isServer) {
         operation.responder = new HttpOperationResponder(operation, response);
-        sessionFactory.openSession(null).then(function(session) {
+        sessionFactory.openSession().then(function(session) {
           onOpenSession(session, operation); });
-      } 
-      else hangup(400);
+      } else {
+        hangup(400);
+      }
     }
 
     data = "";
@@ -623,7 +608,7 @@ function parse_command(method, params, data) {
 
 
 function get_cmdline_args() { 
-  var i, k, spaces, val, verb, operation;
+  var i, val, verb, operation;
   var cmdList = [];
   var usageMessage = 
     "Usage: node tweet {options} {command} {command arguments}\n" +
@@ -632,6 +617,7 @@ function get_cmdline_args() {
     "         -d or --debug: set the debug flag\n" +
     "               --detail: set the detail debug flag\n" +
     "               -df <file>: enable debug output from <file>\n" +
+    "         -E or --deployment <name>: use deployment <name> (default: test) \n" +
     "\n" +
     "  COMMANDS:\n" + operationMap.cli_help;
   
@@ -655,6 +641,10 @@ function get_cmdline_args() {
         break;
       case '--help':
       case '-h':
+        break;
+      case '-E':
+      case '--deployment':
+        deployment = process.argv[++i];
         break;
       default:
         cmdList.push(val);
@@ -685,9 +675,9 @@ function runCmdlineOperation(sessionFactory, operation) {
   }
   else {
     operation.responder = new ConsoleOperationResponder(operation);
-    sessionFactory.openSession(null).then(function(session) {
+    sessionFactory.openSession().then(function(session) {
       onOpenSession(session, operation); 
-    });
+    }, console.trace);
   }
 }
 
@@ -732,7 +722,7 @@ function prepareOperationMap() {
 // *** Main program starts here ***
 
 /* Global Variable Declarations */
-var mappings, dbProperties, operation;
+var mappings, dbProperties, operation, authorMapping;
 
 prepareOperationMap();
 
@@ -740,19 +730,25 @@ prepareOperationMap();
 operation = get_cmdline_args();
 
 /* Connection Properties */
-dbProperties = getProperties(adapter);
+dbProperties = new jones.ConnectionProperties(adapter, deployment);
 
-// Map SQL Tables to JS Constructors using default mappings
-mappings = [];
-mappings.push(new nosql.TableMapping('tweet').applyToClass(Tweet));
-mappings.push(new nosql.TableMapping('author').applyToClass(Author));
-mappings.push(new nosql.TableMapping('hashtag').applyToClass(HashtagEntry));
-mappings.push(new nosql.TableMapping('follow').applyToClass(Follow));
-mappings.push(new nosql.TableMapping('mention').applyToClass(Mention));
+mappings = [];   // an array of mapped constructors
+
+// Create a TableMapping for Author
+authorMapping = new jones.TableMapping('author');
+authorMapping.mapField("user_name");
+authorMapping.mapField("full_name");
+authorMapping.mapField("tweet_count");
+mappings.push(authorMapping.applyToClass(Author));
+
+// Map other SQL Tables to JS Constructors using default mappings
+mappings.push(new jones.TableMapping('tweet').applyToClass(Tweet));
+mappings.push(new jones.TableMapping('hashtag').applyToClass(HashtagEntry));
+mappings.push(new jones.TableMapping('follow').applyToClass(Follow));
+mappings.push(new jones.TableMapping('mention').applyToClass(Mention));
 
 function run(sessionFactory) {
   runCmdlineOperation(sessionFactory, operation);
 }
 
-nosql.connect(dbProperties, mappings).then(run);
-
+jones.connect(dbProperties, mappings).then(run, console.trace);

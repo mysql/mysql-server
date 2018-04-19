@@ -1,0 +1,11 @@
+-- source ../include/ps_truncate_all_tables.inc
+# Tests for sys schema
+# Verify the sys.metrics and sys.metrics_56 views
+
+# Ensure structure changes don't slip in
+DESC sys.metrics;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.metrics;
+--enable_result_log

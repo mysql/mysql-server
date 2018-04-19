@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -55,6 +62,10 @@
 
 #include <stdlib.h>
 #include <iostream> // Used for cout
+#include <config.h>
+#ifdef HAVE_SYS_SELECT_H
+#include <sys/select.h>
+#endif
 
 /**
  * Helper sleep function
@@ -89,19 +100,23 @@ milliSleep(int milliseconds){
  * data : the data that the transaction was modifying.
  * retries : counter for how many times the trans. has been retried
  */
-typedef struct  {
-  Ndb * ndb;
+typedef struct async_callback_t {
+  Ndb* const ndb;
   int    transaction;  
   int    data;
   int    retries;
+
+  async_callback_t(Ndb* _ndb) : ndb(_ndb) {};
 } async_callback_t;
 
 /**
  * Structure used in "free list" to a NdbTransaction
  */
-typedef struct  {
+typedef struct transaction_t {
   NdbTransaction*  conn;   
   int used; 
+
+  transaction_t() : conn(NULL), used(0) {};
 } transaction_t;
 
 /**
@@ -111,6 +126,12 @@ transaction_t   transaction[1024];  //1024 - max number of outstanding
                                     //transaction in one Ndb object
 
 #endif 
+
+
+static int nPreparedTransactions = 0; //Prepared + asynch executing txn
+static int MAX_RETRIES = 10;
+static int parallelism = 100;
+
 /**
  * prototypes
  */
@@ -133,17 +154,7 @@ void asynchExitHandler(Ndb * m_ndb) ;
 /**
  * Helper function used in callback(...)
  */
-void closeTransaction(Ndb * ndb , async_callback_t * cb);
-
-/**
- * Function to create table
- */
-void create_table(MYSQL &mysql);
-
-/**
- * Function to drop table
- */
-void drop_table(MYSQL &mysql);
+void closeTransaction(async_callback_t * cb);
 
 /**
  * stat. variables
@@ -152,12 +163,11 @@ int tempErrors = 0;
 int permErrors = 0;
 
 void
-closeTransaction(Ndb * ndb , async_callback_t * cb)
+closeTransaction(async_callback_t * cb)
 {
-  ndb->closeTransaction(transaction[cb->transaction].conn);
+  cb->ndb->closeTransaction(transaction[cb->transaction].conn);
   transaction[cb->transaction].conn = 0;
   transaction[cb->transaction].used = 0;
-  cb->retries++;  
 }
 
 /**
@@ -172,18 +182,20 @@ callback(int result, NdbTransaction* trans, void* aObject)
     /**
      * Error: Temporary or permanent?
      */
-    if (asynchErrorHandler(trans,  (Ndb*)cbData->ndb)) 
+    const bool retryable = asynchErrorHandler(trans, cbData->ndb);
+    closeTransaction(cbData);
+
+    if (retryable && cbData->retries++ >= MAX_RETRIES) 
     {
-      closeTransaction((Ndb*)cbData->ndb, cbData);
-      while(populate((Ndb*)cbData->ndb, cbData->data, cbData) < 0)
-	milliSleep(10);
+      while(populate(cbData->ndb, cbData->data, cbData) < 0)
+        milliSleep(10);
     }
     else
     {
-      std::cout << "Restore: Failed to restore data " 
-		<< "due to a unrecoverable error. Exiting..." << std::endl;
+      std::cout << "Unrecoverable error. Exiting..." << std::endl;
+      Ndb* ndb = cbData->ndb;
       delete cbData;
-      asynchExitHandler((Ndb*)cbData->ndb);
+      asynchExitHandler(ndb);
     }
   } 
   else 
@@ -191,48 +203,14 @@ callback(int result, NdbTransaction* trans, void* aObject)
     /**
      * OK! close transaction
      */
-    closeTransaction((Ndb*)cbData->ndb, cbData);
+    closeTransaction(cbData);
     delete cbData;
   }
 }
 
-
-/**
- * Create table "api_async"
- */
-void create_table(MYSQL &mysql) 
-{
-  while (mysql_query(&mysql, 
-		  "CREATE TABLE"
-		  "  api_async"
-		  "    (REG_NO INT UNSIGNED NOT NULL,"
-		  "     BRAND CHAR(20) NOT NULL,"
-		  "     COLOR CHAR(20) NOT NULL,"
-		  "     PRIMARY KEY USING HASH (REG_NO))"
-		  "  ENGINE=NDB"))
-  {
-    if (mysql_errno(&mysql) != ER_TABLE_EXISTS_ERROR)
-      MYSQLERROR(mysql);
-    std::cout << "MySQL Cluster already has example table: api_async. "
-	      << "Dropping it..." << std::endl; 
-    drop_table(mysql);
-  }
-}
-
-/**
- * Drop table api_async
- */
-void drop_table(MYSQL &mysql)
-{
-  if (mysql_query(&mysql, "DROP TABLE api_async"))
-    MYSQLERROR(mysql);
-}
-
-
 void asynchExitHandler(Ndb * m_ndb) 
 {
-  if (m_ndb != NULL)
-    delete m_ndb;
+  delete m_ndb;
   exit(-1);
 }
 
@@ -288,10 +266,6 @@ bool asynchErrorHandler(NdbTransaction * trans, Ndb* ndb)
   return false;
 }
 
-static int nPreparedTransactions = 0;
-static int MAX_RETRIES = 10;
-static int parallelism = 100;
-
 
 /************************************************************************
  * populate()
@@ -307,8 +281,7 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
   if (myTable == NULL) 
     APIERROR(myDict->getNdbError());
 
-  async_callback_t * cb;
-  int retries = 0;
+  async_callback_t * cb = NULL;
   int current = 0;
   for(int i=0; i<1024; i++)
   {
@@ -321,8 +294,7 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
         * We already have a callback
 	* This is an absolutely new transaction
         */
-	cb = new async_callback_t;
-	cb->retries = 0;
+	cb = new async_callback_t(myNdb);
       }
       else 
       { 
@@ -330,23 +302,21 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
         * We already have a callback
         */
 	cb =cbData;
-	retries = cbData->retries;
       }
       /**
        * Set data used by the callback
        */
-      cb->ndb = myNdb;  //handle to Ndb object so that we can close transaction
-                        // in the callback (alt. make myNdb global).
-
+      cb->retries = 0;
       cb->data =  data; //this is the data we want to insert
       cb->transaction = current; //This is the number (id)  of this transaction
       transaction[current].used = 1 ; //Mark the transaction as used
       break;
     }
   }
-  if(!current)
+  if(cb == NULL)
     return -1;
 
+  int retries = 0;
   while(retries < MAX_RETRIES) 
     {
       transaction[current].conn = myNdb->startTransaction();
@@ -398,15 +368,19 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
        * callback. There we will see which ones that were successful
        * and which ones to retry.
        */
-      if (nPreparedTransactions == parallelism-1) 
+      nPreparedTransactions++;
+      if (nPreparedTransactions >= parallelism)
       {
-	// send-poll all transactions
-	// close transaction is done in callback
-	myNdb->sendPollNdb(3000, parallelism );
-	nPreparedTransactions=0;
+        //-------------------------------------------------------
+        // Send-poll all transactions
+        // Now we have defined a set of operations, it is now time
+        // to execute all of them. Wait for at least 50% to complete.
+        // Close transaction is done in callback
+        //-------------------------------------------------------
+        const int min_execs = nPreparedTransactions/2;
+        const int nCompleted = myNdb->sendPollNdb(3000, min_execs);
+        nPreparedTransactions -= nCompleted;
       } 
-      else
-	nPreparedTransactions++;
       return 1;
     }
     std::cout << "Unable to recover from errors. Exiting..." << std::endl;
@@ -414,36 +388,40 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
     return -1;
 }
 
-int main(int argc, char** argv)
-{
-  if (argc != 3)
-  {
-    std::cout << "Arguments are <socket mysqld> <connect_string cluster>.\n";
-    exit(-1);
-  }
-  char * mysqld_sock  = argv[1];
-  const char *connectstring = argv[2];
-  ndb_init();
+/**************************************************************
+ * Connect to mysql server and create table                   *
+ **************************************************************/
+void mysql_connect_and_create(const char * socket) {
   MYSQL mysql;
+  bool ok;
 
-  /**************************************************************
-   * Connect to mysql server and create table                   *
-   **************************************************************/
-  {
-    if ( !mysql_init(&mysql) ) {
-      std::cout << "mysql_init failed\n";
-      exit(-1);
-    }
-    if ( !mysql_real_connect(&mysql, "localhost", "root", "", "",
-			     0, mysqld_sock, 0) )
-      MYSQLERROR(mysql);
+  mysql_init(&mysql);
 
+  ok = mysql_real_connect(&mysql, "localhost", "root", "", "", 0, socket, 0);
+  if(ok) {
     mysql_query(&mysql, "CREATE DATABASE ndb_examples");
-    if (mysql_query(&mysql, "USE ndb_examples") != 0) MYSQLERROR(mysql);
-
-    create_table(mysql);
+    ok = ! mysql_select_db(&mysql, "ndb_examples");
   }
+  if(ok) {
+    mysql_query(&mysql, "DROP TABLE IF EXISTS api_async");
+    ok = ! mysql_query(&mysql,
+      "CREATE TABLE"
+		  "  api_async"
+		  "    (REG_NO INT UNSIGNED NOT NULL,"
+		  "     BRAND CHAR(20) NOT NULL,"
+		  "     COLOR CHAR(20) NOT NULL,"
+		  "     PRIMARY KEY USING HASH (REG_NO))"
+		  "  ENGINE=NDB"
+    );
+  }
+  mysql_close(&mysql);
 
+  if(! ok) MYSQLERROR(mysql);
+}
+
+
+void ndb_run_async_inserts(const char * connectstring)
+{
   /**************************************************************
    * Connect to ndb cluster                                     *
    **************************************************************/
@@ -460,32 +438,46 @@ int main(int argc, char** argv)
     exit(-1);
   }
 
-  Ndb* myNdb = new Ndb( &cluster_connection,
-			"ndb_examples" );  // Object representing the database
-  if (myNdb->init(1024) == -1) {      // Set max 1024 parallel transactions
-    APIERROR(myNdb->getNdbError());
+  Ndb myNdb( &cluster_connection, "ndb_examples" );
+  if (myNdb.init(1024) == -1) {      // Set max 1024 parallel transactions
+    APIERROR(myNdb.getNdbError());
   }
 
   /**
-   * Initialise transaction array
+   * Do some insert transactions.
    */
-  for(int i = 0 ; i < 10 ; i++) 
+  for(int i = 0 ; i < 1234 ; i++) 
   {
-    transaction[i].used = 0;
-    transaction[i].conn = 0;
-    
-  }
-  int i=0;
-  /**
-   * Do 10 insert transactions.
-   */
-  while(i < 10) 
-  {
-    while(populate(myNdb,i,0)<0)  // <0, no space on free list. Sleep and try again.
+    while(populate(&myNdb, i, 0) < 0)  // <0, no space on free list. Sleep and try again.
       milliSleep(10);
-      
-    i++;
   }
+  /**
+   * If there are prepared async transactions not yet completed,
+   * we send them now as part of cleanup.
+   */
+  while (nPreparedTransactions > 0)
+  {
+    const int nCompleted = myNdb.sendPollNdb(3000, nPreparedTransactions);
+    nPreparedTransactions -= nCompleted;
+  }
+
   std::cout << "Number of temporary errors: " << tempErrors << std::endl;
-  delete myNdb; 
+}
+
+int main(int argc, char** argv)
+{
+  if (argc != 3)
+  {
+    std::cout << "Arguments are <socket mysqld> <connect_string cluster>.\n";
+    exit(-1);
+  }
+  const char *mysqld_sock   = argv[1];
+  const char *connectstring = argv[2];
+
+  mysql_connect_and_create(mysqld_sock);
+
+  ndb_init();
+  ndb_run_async_inserts(connectstring);
+  ndb_end(0);
+  return 0;
 }

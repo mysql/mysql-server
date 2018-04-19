@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -59,7 +66,7 @@ public:
     ,FK_BUILD = 6
     //ALTER_TABLE
   };
-  typedef DataBuffer<11> AttrOrderBuffer;
+  typedef DataBuffer<11,ArrayPool<DataBufferSegment<11> > > AttrOrderBuffer;
 
 private:
   // Private attributes
@@ -94,16 +101,18 @@ private:
   };
   
   typedef Ptr<NodeRecord> NodeRecPtr;
+  typedef ArrayPool<NodeRecord> NodeRecord_pool;
+  typedef DLList<NodeRecord_pool> NodeRecord_list;
 
   /**
    * The pool of node records
    */
-  ArrayPool<NodeRecord> c_theNodeRecPool;
+  NodeRecord_pool c_theNodeRecPool;
 
   /**
    * The list of other NDB nodes
    */  
-  DLList<NodeRecord> c_theNodes;
+  NodeRecord_list c_theNodes;
 
   Uint32 c_masterNodeId;
   BlockReference c_masterTrixRef;
@@ -154,17 +163,19 @@ private:
   };
   
   typedef Ptr<SubscriptionRecord> SubscriptionRecPtr;
+  typedef ArrayPool<SubscriptionRecord> SubscriptionRecord_pool;
+  typedef DLList<SubscriptionRecord_pool> SubscriptionRecord_list;
 
   /**
    * The pool of node records
    */
-  ArrayPool<SubscriptionRecord> c_theSubscriptionRecPool;
+  SubscriptionRecord_pool c_theSubscriptionRecPool;
   RSS_AP_SNAPSHOT(c_theSubscriptionRecPool);
 
   /**
    * The list of other subscriptions
    */  
-  DLList<SubscriptionRecord> c_theSubscriptions;
+  SubscriptionRecord_list c_theSubscriptions;
 
   /*
    * Ordered index stats.  Implements sub-ops of DBDICT index stat
@@ -242,7 +253,6 @@ private:
       Uint32 m_cleanCount;
       // bounds on index_id, index_version, sample_version
       Uint32 m_bound[3 * 3];
-      Uint32 m_boundCount;
       Uint32 m_boundSize;
       Clean() {}
     };
@@ -284,8 +294,15 @@ private:
     };
   };
   typedef Ptr<StatOp> StatOpPtr;
-  ArrayPool<StatOp> c_statOpPool;
+  typedef ArrayPool<StatOp> StatOp_pool;
+
+  StatOp_pool c_statOpPool;
   RSS_AP_SNAPSHOT(c_statOpPool);
+
+  /* Max schema object build batchsize from config */
+  Uint32 c_maxUIBuildBatchSize;
+  Uint32 c_maxFKBuildBatchSize;
+  Uint32 c_maxReorgBuildBatchSize;
 
   // System start
   void execREAD_CONFIG_REQ(Signal* signal);
@@ -421,7 +438,8 @@ private:
   void statOpAbort(Signal*, StatOp&);
   void statOpRef(Signal*, StatOp&);
   void statOpRef(Signal*, const IndexStatImplReq*, Uint32 errorCode, Uint32 errorLine);
-  void statOpEvent(StatOp&, const char* level, const char* msg, ...);
+  void statOpEvent(StatOp&, const char* level, const char* msg, ...)
+    ATTRIBUTE_FORMAT(printf, 4, 5);
   // debug
   friend class NdbOut& operator<<(NdbOut&, const StatOp& stat);
 };

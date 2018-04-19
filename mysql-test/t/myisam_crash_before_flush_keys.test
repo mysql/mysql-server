@@ -1,12 +1,9 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 --echo #
 --echo # BUG#41330 - Myisam table open count set to zero before index blocks are written.
 --echo #
---source include/not_embedded.inc
 --echo # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
 

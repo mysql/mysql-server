@@ -66,7 +66,7 @@ SELECT @@session.connect_timeout;
 ERROR HY000: Variable 'connect_timeout' is a GLOBAL variable
 '#----------------------FN_DYNVARS_019_06------------------------#'
 SELECT @@global.connect_timeout = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='connect_timeout';
 @@global.connect_timeout = VARIABLE_VALUE
 1

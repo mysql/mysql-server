@@ -1,15 +1,18 @@
-create table t1 (i int, i2 char(10), g geometry not null, primary key (i, i2), spatial index (g))engine=innodb;
+create table t1 (i int, i2 char(10), g geometry not null SRID 0, primary key (i, i2), spatial index (g))engine=innodb;
 insert into t1 values (1, "111", POINT(1,1));
 insert into t1 values (2, "222", POINT(1.5,1.5));
 insert into t1 values (3, "333", POINT(3,3));
 insert into t1 values (4, "444", POINT(3.1,3.1));
 insert into t1 values (5, "555", POINT(5,5));
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 set @g1 = ST_GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
 explain select ST_astext(t1.g) from t1 where MBRWithin(t1.g, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	g	g	34	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	range	g	g	34	NULL	5	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_astext(t1.g)` from `test`.`t1` where mbrwithin(`test`.`t1`.`g`,(@`g1`))
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`g`) AS `ST_astext(t1.g)` from `test`.`t1` where mbrwithin(`test`.`t1`.`g`,<cache>((@`g1`)))
 select ST_astext(t1.g) from t1 where MBRWithin(t1.g, @g1);
 ST_astext(t1.g)
 POINT(1.5 1.5)
@@ -34,13 +37,16 @@ ST_astext(t1.g)
 POINT(3 3)
 POINT(3.1 3.1)
 POINT(2 2)
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	i	A	#	NULL	NULL		BTREE		
-t1	0	PRIMARY	2	i2	A	#	NULL	NULL		BTREE		
-t1	1	g	1	g	A	#	32	NULL		SPATIAL		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	i	A	#	NULL	NULL		BTREE			YES
+t1	0	PRIMARY	2	i2	A	#	NULL	NULL		BTREE			YES
+t1	1	g	1	g	A	#	32	NULL		SPATIAL			YES
 drop table t1;
-create table t1 (name VARCHAR(100), square GEOMETRY not null, spatial index (square))engine=innodb;
+create table t1 (name VARCHAR(100), square GEOMETRY not null SRID 0, spatial index (square))engine=innodb;
 INSERT INTO t1 VALUES("small",  ST_GeomFromText('POLYGON (( 0 0, 0 1, 1 1, 1 0, 0 0))'));
 INSERT INTO t1 VALUES("big",    ST_GeomFromText('POLYGON (( 0 0, 0 3, 3 3, 3 0, 0 0))'));
 INSERT INTO t1 VALUES("up",     ST_GeomFromText('POLYGON (( 0 1, 0 3, 2 3, 2 1, 0 1))'));
@@ -61,9 +67,9 @@ name	ST_AsText(square)
 small	POLYGON((0 0,0 1,1 1,1 0,0 0))
 SELECT name, ST_AsText(square) from t1 where MBRDisjoint(@p, square);
 name	ST_AsText(square)
-right3	POLYGON((3 0,3 2,5 2,5 0,3 0))
 up3	POLYGON((0 3,0 5,2 5,2 3,0 3))
 down3	POLYGON((0 -3,0 -1,2 -1,2 -3,0 -3))
+right3	POLYGON((3 0,3 2,5 2,5 0,3 0))
 left3	POLYGON((-3 0,-3 2,-1 2,-1 0,-3 0))
 SELECT name, ST_AsText(square) from t1 where MBREquals(@p, square);
 name	ST_AsText(square)
@@ -95,32 +101,38 @@ SELECT name, ST_AsText(square) from t1 where MBRWithin(@p, square);
 name	ST_AsText(square)
 big	POLYGON((0 0,0 3,3 3,3 0,0 0))
 SET @vert1   = ST_GeomFromText('POLYGON ((0 -2, 0 2, 0 -2))');
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @horiz1  = ST_GeomFromText('POLYGON ((-2 0, 2 0, -2 0))');
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @horiz2 = ST_GeomFromText('POLYGON ((-1 0, 3 0, -1 0))');
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @horiz3 = ST_GeomFromText('POLYGON ((2 0, 3 0, 2 0))');
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @point1 = ST_GeomFromText('POLYGON ((0 0))');
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @point2 = ST_GeomFromText('POLYGON ((-2 0))');
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @vert1) GROUP BY a1.name;
 MBRoverlaps
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @horiz1) GROUP BY a1.name;
 MBRoverlaps
 SELECT MBROverlaps(@horiz1, @vert1) FROM DUAL;
 MBROverlaps(@horiz1, @vert1)
-0
+NULL
 SELECT MBROverlaps(@horiz1, @horiz2) FROM DUAL;
 MBROverlaps(@horiz1, @horiz2)
-1
+NULL
 SELECT MBROverlaps(@horiz1, @horiz3) FROM DUAL;
 MBROverlaps(@horiz1, @horiz3)
-0
+NULL
 SELECT MBROverlaps(@horiz1, @point1) FROM DUAL;
 MBROverlaps(@horiz1, @point1)
-0
+NULL
 SELECT MBROverlaps(@horiz1, @point2) FROM DUAL;
 MBROverlaps(@horiz1, @point2)
-0
+NULL
 DROP TABLE t1;
-create table t1 (i int not null, g geometry not null)engine=innodb;
+create table t1 (i int not null, g geometry not null SRID 0)engine=innodb;
 insert into t1 values (1, POINT(1,1));
 insert into t1 values (2, POINT(1.5,1.5));
 insert into t1 values (3, POINT(3,3));
@@ -137,10 +149,10 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
-  `g` geometry NOT NULL,
+  `g` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`i`),
   SPATIAL KEY `idx` (`g`),
   SPATIAL KEY `idx2` (`g`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop index idx on t1;
 drop table t1;

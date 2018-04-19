@@ -10,12 +10,17 @@
 # ==== Usage ====
 #
 # --let $debug_point= debug_point
+# [--let $debug_point_silent= 1]
 # [--let $debug_type= GLOBAL | SESSION]
-# --source extra/rpl_tests/add_debug_point.inc
+# --source include/add_debug_point.inc
 #
 # Parameters:
 #   $debug_point
 #     The debug point to be activated.
+#
+#   $debug_point_silent
+#     By default, this script prints the name of the debug point. If
+#     this parameter is set, it does not print anything.
 #
 #   $debug_type
 #     If the debug variable to be changed is the GLOBAL or SESSION one.
@@ -46,7 +51,10 @@ if (!$debug_point)
 }
 
 --let $_debug_point= $debug_point
---disable_query_log
+if (!$rpl_debug)
+{
+  --disable_query_log
+}
 
 --eval SET @previous_debug = @@$_debug_type.debug;
 SET @before_debug_point='';
@@ -85,8 +93,11 @@ if ( `SELECT INSTR(@previous_debug,'d,') = 1 AND INSTR(@previous_debug,':') > 0`
   --let $_debug_point= ,$_debug_point
 }
 
---let $message_prefix=`SELECT REPEAT("#", $_include_file_depth)`
---echo $message_prefix Adding debug point '$debug_point' to @@$_debug_type.debug
+if (!$debug_point_silent)
+{
+  --let $message_prefix=`SELECT REPEAT("#", $_include_file_depth)`
+  --echo $message_prefix Adding debug point '$debug_point' to @@$_debug_type.debug
+}
 
 if ($rpl_debug)
 {

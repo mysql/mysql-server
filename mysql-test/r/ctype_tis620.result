@@ -18,51 +18,83 @@ SET @plF= _tis620 0xF0F1F2F3F4F5F6F7F8F9FAFBFCFDFEFF;
 SELECT hex(@u0:=convert(@pl0 using utf8));
 hex(@u0:=convert(@pl0 using utf8))
 000102030405060708090A0B0C0D0E0F
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(@u1:=convert(@pl1 using utf8));
 hex(@u1:=convert(@pl1 using utf8))
 101112131415161718191A1B1C1D1E1F
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(@u2:=convert(@pl2 using utf8));
 hex(@u2:=convert(@pl2 using utf8))
 202122232425262728292A2B2C2D2E2F
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(@u3:=convert(@pl3 using utf8));
 hex(@u3:=convert(@pl3 using utf8))
 303132333435363738393A3B3C3D3E3F
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(@u4:=convert(@pl4 using utf8));
 hex(@u4:=convert(@pl4 using utf8))
 404142434445464748494A4B4C4D4E4F
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(@u5:=convert(@pl5 using utf8));
 hex(@u5:=convert(@pl5 using utf8))
 505152535455565758595A5B5C5D5E5F
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(@u6:=convert(@pl6 using utf8));
 hex(@u6:=convert(@pl6 using utf8))
 606162636465666768696A6B6C6D6E6F
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(@u7:=convert(@pl7 using utf8));
 hex(@u7:=convert(@pl7 using utf8))
 707172737475767778797A7B7C7D7E7F
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(@u8:=convert(@pl8 using utf8));
 hex(@u8:=convert(@pl8 using utf8))
 C280C281C282C283C284C285C286C287C288C289C28AC28BC28CC28DC28EC28F
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(@u9:=convert(@pl9 using utf8));
 hex(@u9:=convert(@pl9 using utf8))
 C290C291C292C293C294C295C296C297C298C299C29AC29BC29CC29DC29EC29F
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(@uA:=convert(@plA using utf8));
 hex(@uA:=convert(@plA using utf8))
 EFBFBDE0B881E0B882E0B883E0B884E0B885E0B886E0B887E0B888E0B889E0B88AE0B88BE0B88CE0B88DE0B88EE0B88F
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(@uB:=convert(@plB using utf8));
 hex(@uB:=convert(@plB using utf8))
 E0B890E0B891E0B892E0B893E0B894E0B895E0B896E0B897E0B898E0B899E0B89AE0B89BE0B89CE0B89DE0B89EE0B89F
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(@uC:=convert(@plC using utf8));
 hex(@uC:=convert(@plC using utf8))
 E0B8A0E0B8A1E0B8A2E0B8A3E0B8A4E0B8A5E0B8A6E0B8A7E0B8A8E0B8A9E0B8AAE0B8ABE0B8ACE0B8ADE0B8AEE0B8AF
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(@uD:=convert(@plD using utf8));
 hex(@uD:=convert(@plD using utf8))
 E0B8B0E0B8B1E0B8B2E0B8B3E0B8B4E0B8B5E0B8B6E0B8B7E0B8B8E0B8B9E0B8BAEFBFBDEFBFBDEFBFBDEFBFBDE0B8BF
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(@uE:=convert(@plE using utf8));
 hex(@uE:=convert(@plE using utf8))
 E0B980E0B981E0B982E0B983E0B984E0B985E0B986E0B987E0B988E0B989E0B98AE0B98BE0B98CE0B98DE0B98EE0B98F
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(@uF:=convert(@plF using utf8));
 hex(@uF:=convert(@plF using utf8))
 E0B990E0B991E0B992E0B993E0B994E0B995E0B996E0B997E0B998E0B999E0B99AE0B99BEFBFBDEFBFBDEFBFBDEFBFBD
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(convert(@u0 USING tis620));
 hex(convert(@u0 USING tis620))
 000102030405060708090A0B0C0D0E0F
@@ -2900,8 +2932,6 @@ hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
 61	0	0
 DROP TABLE t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (
 `id` int(11) NOT NULL auto_increment,
 `url` varchar(200) NOT NULL default '',
@@ -3162,42 +3192,12 @@ hex(weight_string('abc', 5, 4, 0xC0))
 select hex(weight_string('abc',25, 4, 0xC0));
 hex(weight_string('abc',25, 4, 0xC0))
 61626320202020202020202020202020202020202020202020
-select @@collation_connection;
-@@collation_connection
-tis620_thai_ci
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-61
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-61
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-616263
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-6162
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-616263
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-6162632020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-2020636261
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-9E9D9CDFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFDF9C9D9E
 select hex(weight_string(cast(0xE0A1 as char)));
 hex(weight_string(cast(0xE0A1 as char)))
 A1E0
 select hex(weight_string(cast(0xE0A1 as char) as char(1)));
 hex(weight_string(cast(0xE0A1 as char) as char(1)))
-A1
+E0
 set collation_connection=tis620_bin;
 select @@collation_connection;
 @@collation_connection
@@ -3274,36 +3274,6 @@ hex(weight_string('abc', 5, 4, 0xC0))
 select hex(weight_string('abc',25, 4, 0xC0));
 hex(weight_string('abc',25, 4, 0xC0))
 61626320202020202020202020202020202020202020202020
-select @@collation_connection;
-@@collation_connection
-tis620_bin
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-61
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-41
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-616263
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-6162
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-616263
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-6162632020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-2020636261
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-9E9D9CDFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFDF9C9D9E
 select hex(weight_string(cast(0xE0A1 as char)));
 hex(weight_string(cast(0xE0A1 as char)))
 E0A1
@@ -3327,16 +3297,22 @@ inet6_aton(inet_ntoa('1'))
 SELECT inet6_ntoa(inet_ntoa('1'));
 inet6_ntoa(inet_ntoa('1'))
 NULL
+Warnings:
+Warning	1411	Incorrect string value: 'inet_ntoa('1')' for function inet6_ntoa
 #
 # Bug#14040277 UNINITIALIZED VALUE REFERENCED IN STR_TO_IPV6
 #
 SELECT inet6_aton(soundex('a'));
 inet6_aton(soundex('a'))
 NULL
+Warnings:
+Warning	1411	Incorrect string value: 'soundex('a')' for function inet6_aton
 #
 # Bug#19047425 UNINITIALISED VALUE IN STR_TO_IPV6
 #
 do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using tis620)));
+Warnings:
+Warning	1411	Incorrect string value: 'convert(_ascii'a:' using tis620)' for function inet6_aton
 #
 # End of 5.6 tests
 #

@@ -1,17 +1,24 @@
-# Copyright (c) 2012, 2013 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 """Provides specialization of ABClusterHost for remote hosts using Paramiko."""
 
@@ -26,6 +33,8 @@ import os.path
 import tempfile
 import contextlib
 import posixpath
+import cStringIO
+import base64
 
 import clusterhost
 from clusterhost import ABClusterHost
@@ -53,15 +62,41 @@ class RemoteClusterHost(ABClusterHost):
     """Implements the ABClusterHost interface for remote hosts. Wraps a paramiko.SSHClient and uses
     this to perform tasks on the remote host."""
 
-    def __init__(self, host, username=None, password=None):
+    def __init__(self, host, key_based=None, username=None, password=None, key_file=None):
         super(type(self), self).__init__()
         self.host = host
+
+        if username is not None:
+            _logger.warning('--> ' + "username="+username)
+        if password is not None:
+            if password.startswith('**'):
+                password=None
+            else:
+                _logger.warning('--> ' + "pwd=**")
+        if key_based is not None:
+            _logger.warning('--> ' + "keybased="+str(key_based))
+        if key_file is not None:
+            _logger.warning('--> ' + "keyfile="+key_file)
+        _logger.warning('--> ' + "Host="+host)
         self.user = username
         self.pwd = password
         c = paramiko.SSHClient()
         c.load_system_host_keys()
         c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        c.connect(hostname=self.host, username=self.user, password=self.pwd)
+        if key_based is False:
+            _logger.warning('--> ' + "Enter 1")
+            c.connect(hostname=self.host, username=self.user, password=self.pwd, pkey=None)
+        else:
+            if (key_file is None):
+                _logger.warning('--> ' + "Enter 2")
+                c.connect(hostname=self.host, username=self.user, password=self.pwd)
+            else:
+                #We have key file pointed out for us.
+                _logger.warning('--> ' + "Enter 4")
+                #privatekeyfile = os.path.expanduser('~/.ssh/id_rsa')
+                mykey = paramiko.RSAKey.from_private_key_file(key_file)
+                c.connect(hostname=self.host, username=self.user, password=self.pwd, pkey=mykey)
+            
         self.__client = c
         self.__sftp = c.open_sftp()
 
@@ -115,23 +150,84 @@ class RemoteClusterHost(ABClusterHost):
         preamble = None
         system = None
         processor = None
+        osver = None
+        osflavor = None
+        hlpstr = None
         try:
-            preamble = self.exec_blocking(['#'])
+            preamble = self.exec_blocking(['uname', '-sp']) #'#'])
         except:
-            _logger.debug('executing # failed - assuming Windows...')
+            _logger.debug('executing uname failed - assuming Windows...')
             (system, processor) = self.exec_blocking(['cmd.exe', '/c', 'echo', '%OS%', '%PROCESSOR_ARCHITECTURE%']).split(' ')
             if 'Windows' in system:
                 system = 'Windows'
+                hlpstr = (self.exec_blocking(['cmd.exe', '/c', 'systeminfo'])).split('\n')
+                for line in hlpstr:
+                    if line.startswith("OS Name:" ):
+                        hlp = line.split("OS Name:")[1]
+                        osflavor = hlp.strip()
+                    if line.startswith("OS Version:"):
+                        hlp = line.split("OS Version:")[1]
+                        hlp = hlp.strip()
+                        osver = hlp.split('.')[0]    
+                    if osver and osflavor:
+                        break
+                
         else:
-            _logger.debug('preamble='+preamble)
-            raw_uname = self.exec_blocking(['uname', '-sp'])
-            _logger.debug('raw_uname='+raw_uname)
-            uname = raw_uname.replace(preamble, '', 1)
+            lc = preamble.count('\n')
+            if lc > 1: #There was a prior error which occupies space on top of uname output.
+                preamble = preamble.split('\n')[lc-1]
+
+            uname = preamble
             _logger.debug('uname='+uname)
             (system, processor) = uname.split(' ')
             if 'CYGWIN' in system:
                 system = 'CYGWIN'
-        return (system, processor.strip())
+
+            # When issuing single-answer command, like uname -xy, I have to make sure
+            # there was no error when starting console occupying first line of answer. (SunOS/Darwin)
+            # When processing output of CAT looking for specific key, this is not relevant. (Linux)
+            if 'Darwin' in system:
+                system = "Darwin"
+                hlp = self.exec_blocking(['uname', '-r'])
+                lc = hlp.count('\n')
+                if lc > 1:
+                    hlpstr = str(str(((hlp).split('\n')[lc-1])))
+                else:
+                    hlpstr = str(hlp)
+                osver = hlpstr
+                osflavor = "MacOSX"
+
+            if "SunOS" in system:
+                system = "SunOS"
+                hlp = self.exec_blocking(['uname', '-v'])
+                lc = hlp.count('\n')
+                if lc > 1:
+                    hlpstr = str(str(((hlp).split('\n')[lc-1])))
+                else:
+                    hlpstr = str(hlp)
+                osver = hlpstr
+                osflavor = "Solaris"
+
+            if "Linux" in system:
+                system = "Linux"
+                # I assume all Linux flavors will have /etc/os-release file.
+                try:
+                    hlpstr = self.exec_blocking(['test', '-f', '/etc/os-release'])
+                except:
+                    hlpstr = "0"
+                if (hlpstr != "0"):
+                    hlpstr = self.exec_blocking(['cat', '/etc/os-release'])
+                    matched_lines = [line for line in hlpstr.split('\n') if "ID=" in line]
+                    hlp = (str(matched_lines[0]).split("ID=", 1)[1]).strip('"')
+                    osflavor = hlp
+                    matched_lines = [line for line in hlpstr.split('\n') if "VERSION_ID=" in line]
+                    hlp = (str(matched_lines[0]).split("VERSION_ID=", 1)[1]).strip('"')
+                    osver = hlp
+                else:
+                    #Bail out, no file
+                    _logger.warning('OS version (Linux) does not have /etc/os-release file!')
+
+        return (system, processor.strip(), osver, osflavor)
 
     def _exec_pkg_cmdv(self, cmdv):
         """For remote hosts the binary is fist copied over using sftp."""

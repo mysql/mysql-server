@@ -1,0 +1,43 @@
+SET @@session.default_storage_engine = 'ndbcluster';
+create table stored_basic
+(i int not null primary key,
+gcol_int int GENERATED ALWAYS AS (100 + i) STORED,
+misc int,
+gcol_str varchar(20) GENERATED ALWAYS AS (concat("User ", i)) STORED
+);
+insert into stored_basic(i) values(1), (2), (3), (4), (5);
+select * from stored_basic order by i;
+i	gcol_int	misc	gcol_str
+1	101	NULL	User 1
+2	102	NULL	User 2
+3	103	NULL	User 3
+4	104	NULL	User 4
+5	105	NULL	User 5
+delete from stored_basic where i = 1;
+affected rows: 1
+delete from stored_basic where gcol_int = 102;
+affected rows: 1
+delete from stored_basic where misc is null;
+affected rows: 3
+insert into stored_basic(i) values(1), (2), (3), (4), (5);
+select gcol_str from stored_basic;
+gcol_str
+User 1
+User 2
+User 3
+User 4
+User 5
+update stored_basic set gcol_int = 44 where i = 4;
+ERROR HY000: The value specified for generated column 'gcol_int' in table 'stored_basic' is not allowed.
+update stored_basic set misc = 44 where gcol_int = 104;
+create table stored_basic_2 like stored_basic;
+insert into stored_basic_2 (i,misc) select i,misc from stored_basic;
+select * from stored_basic_2 order by i;
+i	gcol_int	misc	gcol_str
+1	101	NULL	User 1
+2	102	NULL	User 2
+3	103	NULL	User 3
+4	104	44	User 4
+5	105	NULL	User 5
+drop table stored_basic_2;
+drop table stored_basic;

@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -28,8 +35,10 @@
 #include <random.h>
 #include <NdbAutoPtr.hpp>
 #include <NdbMixRestarter.hpp>
+#include <NdbBackup.hpp>
 #include <NdbSqlUtil.hpp>
 #include <NdbEnv.h>
+#include <NdbHost.h>
 #include <ndb_rand.h>
 #include <Bitmask.hpp>
 #include <../src/kernel/ndbd.hpp>
@@ -57,6 +66,60 @@
 #define SUCCEED_ABORT 4
 
 #define ndb_master_failure 1
+#define NO_NODE_GROUP int(-1)
+#define FREE_NODE_GROUP 65535
+#define MAX_NDB_NODES 49
+#define MAX_NDB_NODE_GROUPS 48
+
+static int numNodeGroups;
+static int numNoNodeGroups;
+static int nodeGroup[MAX_NDB_NODE_GROUPS];
+static int nodeGroupIds[MAX_NDB_NODE_GROUPS];
+
+void getNodeGroups(NdbRestarter & restarter)
+{
+  Uint32 nextFreeNodeGroup = 0;
+
+  numNoNodeGroups = 0;
+  for (Uint32 i = 0; i < MAX_NDB_NODE_GROUPS; i++)
+  {
+    nodeGroup[i] = NO_NODE_GROUP;
+    nodeGroupIds[i] = NO_NODE_GROUP;
+  }
+
+  int numDbNodes = restarter.getNumDbNodes();
+  for (int i = 0; i < numDbNodes; i++)
+  {
+    int nodeId = restarter.getDbNodeId(i);
+    ndbout_c("nodeId: %d", nodeId);
+    require(nodeId != -1);
+    int nodeGroupId = restarter.getNodeGroup(nodeId);
+    ndbout_c("nodeGroupId: %d", nodeGroupId);
+    require(nodeGroupId != -1);
+    nodeGroup[nodeId] = nodeGroupId;
+    if (nodeGroupId == FREE_NODE_GROUP)
+    {
+      numNoNodeGroups++;
+    }
+    else
+    {
+      bool found = false;
+      for (Uint32 i = 0; i < nextFreeNodeGroup; i++)
+      {
+        if (nodeGroupIds[i] == nodeGroupId)
+        {
+          found = true;
+          break;
+        }
+      }
+      if (!found)
+      {
+        nodeGroupIds[nextFreeNodeGroup++] = nodeGroupId;
+      }
+    }
+  }
+  numNodeGroups = nextFreeNodeGroup;
+}
 
 char f_tablename[256];
  
@@ -184,11 +247,99 @@ int runCreateTheTable(NDBT_Context* ctx, NDBT_Step* step){
 
 int runDropTheTable(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);  
-  //const NdbDictionary::Table* pTab = ctx->getTab();
   
-  // Try to create table in db
+  // Drop table
   pNdb->getDictionary()->dropTable(f_tablename);
   
+  return NDBT_OK;
+}
+
+int runCreateTheIndex(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  char idxname[20];
+  sprintf(idxname, "%s_idx", pTab->getName());
+  NdbDictionary::Index idx(idxname);
+  idx.setTable(pTab->getName());
+  idx.setType(NdbDictionary::Index::OrderedIndex);
+  idx.setLogging(false);
+  for (int c = 0; c< pTab->getNoOfColumns(); c++)
+  {
+    const NdbDictionary::Column * col = pTab->getColumn(c);
+    if (col->getPrimaryKey())
+      idx.addIndexColumn(col->getName());
+  }
+
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  if(pDict->createIndex(idx) != 0)
+  {
+    ndbout << "Failed to create index" << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int runDropTheIndex(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  char idxname[20];
+  sprintf(idxname, "%s_idx", pTab->getName());
+  if(pDict->dropIndex(idxname, pTab->getName()) != 0)
+  {
+    ndbout << "Failed to drop index" << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int runSetDropTableConcurrentLCP(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  if(restarter.insertErrorInAllNodes(5088) != 0)
+  {
+    g_err << "failed to set error insert"<< endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int runSetMinTimeBetweenLCP(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  int result;
+  int val = DumpStateOrd::DihMinTimeBetweenLCP;
+  if (restarter.dumpStateAllNodes(&val, 1) != 0)
+  {
+    do { CHECK(0); } while(0);
+    g_err << "Failed to set LCP to min value" << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int runResetMinTimeBetweenLCP(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  int result;
+  int val2[] = { DumpStateOrd::DihMinTimeBetweenLCP, 0 };
+  if (restarter.dumpStateAllNodes(val2, 2) != 0)
+  {
+    do { CHECK(0); } while(0);
+    g_err << "Failed to set LCP to min value" << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int runSetDropTableConcurrentLCP2(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  if(restarter.insertErrorInAllNodes(5089) != 0)
+  {
+    g_err << "failed to set error insert"<< endl;
+    return NDBT_FAILED;
+  }
   return NDBT_OK;
 }
 
@@ -738,6 +889,13 @@ int runUseTableUntilStopped2(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
   const NdbDictionary::Table* pTab2 = 
     NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
+
+  if (pTab2 == NULL) {
+    g_err << "Table: " << pTab->getName() 
+          << ", not 'discovered' on line " << __LINE__
+          << endl;
+    return NDBT_FAILED;
+  }
   HugoTransactions hugoTrans(*pTab2);
 
   int i = 0;
@@ -790,6 +948,12 @@ int runUseTableUntilStopped3(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
   const NdbDictionary::Table* pTab2 =
     NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
+  if (pTab2 == NULL) {
+    g_err << "Table : " << pTab->getName() 
+          << ", not 'discovered' on line " << __LINE__
+          << endl;
+    return NDBT_FAILED;
+  }
   HugoTransactions hugoTrans(*pTab2);
 
   int i = 0;
@@ -863,25 +1027,25 @@ runDropTakeoverTest(NDBT_Context* ctx, NDBT_Step* step)
 
   /**
    * This error insert makes LQH resend the DROP_TAB_REQ to itself (with a
-   * delay) rather than executing it, until the error insert is reset.
+   * long delay) rather than executing it.
    * This makes it appear as if though the LQH block spends a long time 
    * executing the DROP_TAB_REQ signal.
    */
   g_info << "Insert error 5076 in node " << nonMasterNodeId << endl;
-  require(restarter.insertErrorInNode(nonMasterNodeId, 5076) == 0);
+  restarter.insertErrorInNode(nonMasterNodeId, 5076);
   /**
    * This error insert makes the master node crash when one of its LQH 
    * blocks tries to execute a DROP_TAB_REQ signal. This will then trigger
    * a takeover.
    */
   g_info << "Insert error 5077 in node " << masterNodeId << endl;
-  require(restarter.insertErrorInNode(masterNodeId, 5077) == 0);
+  restarter.insertErrorInNode(masterNodeId, 5077);
 
-  // This dropTable should fail, since the master node dies.
+  // dropTable should succeed with the new master.
   g_info << "Trying to drop table " << copyName << endl;
-  if (dict->dropTable(copyName) == 0)
+  if (dict->dropTable(copyName))
   {
-    g_err << "Unexpectedly managed to drop table " << copyName << endl;
+    g_err << "Unexpectedly failed to drop table " << copyName << endl;
     return NDBT_FAILED;
   }
 
@@ -896,10 +1060,6 @@ runDropTakeoverTest(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
   
-  // Reset error insert.
-  g_info << "insert error 0 in node " << nonMasterNodeId << endl;
-  require(restarter.insertErrorInNode(nonMasterNodeId, 0) == 0);
-
   // Verify that old master comes back up, and that no other node crashed.
   g_info << "Waiting for all nodes to be up." << endl;
   if (restarter.waitClusterStarted() != 0)
@@ -907,6 +1067,7 @@ runDropTakeoverTest(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "One or more cluster nodes are not up." << endl;
     return NDBT_FAILED;
   }
+  CHK_NDB_READY(ndb);
 
   /**
    * The 'drop table' operation should have been rolled forward, since the
@@ -959,6 +1120,19 @@ runDropTakeoverTest(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int
+runBackup(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbBackup backup;
+  Uint32 backupId = 0;
+  backup.clearOldBackups();
+  if (backup.start(backupId) == -1)
+  {
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int
 runCreateMaxTables(NDBT_Context* ctx, NDBT_Step* step)
 {
   char tabName[256];
@@ -986,7 +1160,8 @@ runCreateMaxTables(NDBT_Context* ctx, NDBT_Step* step)
       if (pDic->getNdbError().code == 707 ||
           pDic->getNdbError().code == 708 ||
           pDic->getNdbError().code == 826 ||
-          pDic->getNdbError().code == 827)
+          pDic->getNdbError().code == 827 ||
+          pDic->getNdbError().code == 921)
         break;
       return NDBT_FAILED;
     }
@@ -1444,6 +1619,157 @@ int runStoreFrmError(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+
+int runStoreExtraMetada(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  int result = NDBT_OK;
+
+  for (int l = 0; l < ctx->getNumLoops() && result == NDBT_OK ; l++)
+  {
+    const Uint32 dataLen = (Uint32)myRandom48(MAX_FRM_DATA_SIZE);
+    unsigned char data[MAX_FRM_DATA_SIZE];
+
+    // Fill in the "data" array with some varying numbers
+    char value = l + 248;
+    for(Uint32 i = 0; i < dataLen; i++){
+      data[i] = value;
+      value++;
+    }
+
+    NdbDictionary::Table newTab(* pTab);
+    // Using loop counter for version since any version should be supported
+    const Uint32 version = l;
+    if (newTab.setExtraMetadata(version,
+                                &data, dataLen))
+    {
+      result = NDBT_FAILED;
+      continue;
+    }
+
+    // Try to create table in db
+    if (newTab.createTableInDb(pNdb) != 0){
+      result = NDBT_FAILED;
+      continue;
+    }
+
+    // Verify that table is in db
+    const NdbDictionary::Table* pTab2 =
+      NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
+    if (pTab2 == NULL){
+      g_err << pTab->getName() << " was not found in DB"<< endl;
+      result = NDBT_FAILED;
+      continue;
+    }
+
+    Uint32 version2;
+    void* data2;
+    Uint32 dataLen2;
+    if (pTab2->getExtraMetadata(version2,
+                                &data2, &dataLen2))
+    {
+      result = NDBT_FAILED;
+    }
+
+    if (version != version2)
+    {
+      g_err << "Wrong version received" << endl
+            << " expected = " << version << endl
+            << " got = " << version2 << endl;
+      result = NDBT_FAILED;
+    }
+
+    if (dataLen != dataLen2){
+      g_err << "Length of data failure" << endl
+            << " expected = " << dataLen << endl
+            << " got = " << dataLen2 << endl;
+      result = NDBT_FAILED;
+    }
+
+    // Verfiy the frm data
+    if (memcmp(&data, data2, dataLen2) != 0){
+      g_err << "Wrong data received" << endl;
+      for (size_t i = 0; i < dataLen; i++){
+        unsigned char c = ((unsigned char*)data2)[i];
+        g_err << hex << c << ", ";
+      }
+      g_err << endl;
+      result = NDBT_FAILED;
+    }
+    free(data2);
+
+    if (pNdb->getDictionary()->dropTable(pTab2->getName()) != 0){
+      g_err << "It can NOT be dropped" << endl;
+      result = NDBT_FAILED;
+    }
+  }
+
+  return result;
+}
+
+
+int runStoreExtraMetadataError(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  int result = NDBT_OK;
+
+  for (int l = 0; l < ctx->getNumLoops() && result == NDBT_OK ; l++)
+  {
+    // The setExtraMetadata function will compress the payload,
+    // need to use a fairly larg value in order to guarantee it
+    // exceeds the MAX_FRM_DATA_SIZE limit after it has been
+    // compressed
+    const Uint32 dataLen = 0x200000U;
+    uchar* data = new uchar[dataLen];
+
+    // Fill in the "data" array with some varying numbers
+    char value = l + 248;
+    for(Uint32 i = 0; i < dataLen; i++){
+      data[i] = value;
+      value++;
+    }
+
+    // It should be possible to set the extra metadata
+    // even though it later will not work to create the table
+    NdbDictionary::Table newTab(* pTab);
+    if (newTab.setExtraMetadata(37, // version
+                                data, dataLen))
+    {
+      g_err << "Failed to set the extra metadata, "
+               "length: " << dataLen << endl;
+      result = NDBT_FAILED;
+      delete[] data;
+      continue;
+    }
+    delete[] data;
+
+    // Try to create table in db, should fail!
+    if (newTab.createTableInDb(pNdb) == 0){
+      g_err << "Table created, that was unexpected" << endl;
+      result = NDBT_FAILED;
+      continue;
+    }
+
+    const NdbDictionary::Table* pTab2 =
+      NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
+    if (pTab2 != NULL){
+      g_err << pTab->getName() << " was found in DB"<< endl;
+      result = NDBT_FAILED;
+      if (pNdb->getDictionary()->dropTable(pTab2->getName()) != 0){
+        g_err << "It can NOT be dropped" << endl;
+        result = NDBT_FAILED;
+      }
+
+      continue;
+    }
+
+  }
+
+  return result;
+}
+
 int verifyTablesAreEqual(const NdbDictionary::Table* pTab, const NdbDictionary::Table* pTab2){
   // Verify that getPrimaryKey only returned true for primary keys
   for (int i = 0; i < pTab2->getNoOfColumns(); i++){
@@ -1752,6 +2078,7 @@ runTableRenameSR(NDBT_Context* ctx, NDBT_Step* step){
     
     CHECK2(restarter.waitClusterStarted() == 0,
 	   "waitClusterStarted failed");
+    CHK_NDB_READY(pNdb);
     
     // Verify table contents
     NdbDictionary::Table pNewTab(pTabNewName.c_str());
@@ -1822,11 +2149,13 @@ runTableAddAttrs(NDBT_Context* ctx, NDBT_Step* step){
       }
     }
 
+    ndbout << "Load table" << endl;
     // Load table
     HugoTransactions beforeTrans(*ctx->getTab());
     if (beforeTrans.loadTable(pNdb, records) != 0){
       return NDBT_FAILED;
     }
+    ndbout << "Load table completed" << endl;
 
     // Add attributes to table.
     BaseString pTabName(pTab2->getName());
@@ -1861,8 +2190,11 @@ runTableAddAttrs(NDBT_Context* ctx, NDBT_Step* step){
       result = NDBT_FAILED;
     }
 
+    ndbout << "Altered table completed" << endl;
     {
-      HugoTransactions afterTrans(* dict->getTable(pTabName.c_str()));
+      const NdbDictionary::Table* pTab = dict->getTable(pTabName.c_str());
+      CHECK2(pTab != NULL, "Table not found");
+      HugoTransactions afterTrans(*pTab);
 
       ndbout << "delete...";
       if (afterTrans.clearTable(pNdb) != 0)
@@ -1977,6 +2309,7 @@ runTableAddAttrsDuring(NDBT_Context* ctx, NDBT_Step* step){
 
       dict->invalidateTable(myTab.getName());
       const NdbDictionary::Table * newTab = dict->getTable(myTab.getName());
+      CHECK2(newTab != NULL, "'newTab' not found");
       HugoTransactions hugoTrans(* newTab);
       hugoTrans.scanUpdateRecords(pNdb, records);
     }
@@ -2058,8 +2391,30 @@ runCreateLogfileGroup(NDBT_Context* ctx, NDBT_Step* step){
   lg.setName("DEFAULT-LG");
   lg.setUndoBufferSize(8*1024*1024);
   
-  int res;
-  res = pNdb->getDictionary()->createLogfileGroup(lg);
+  int oneDictParticipantFail = ctx->getProperty("OneDictParticipantFail",
+                                                (Uint32)0);
+  if (oneDictParticipantFail)
+  {
+    NdbRestarter restarter;
+    const int anyDbNodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+    restarter.insertErrorInNode(anyDbNodeId, 15001);
+
+    if ((pNdb->getDictionary()->createLogfileGroup(lg)) == 0)
+    {
+      g_err << "Error: Should have failed to create logfilegroup"
+            << " due to error insertion" << endl;
+
+      // Leave the data nodes error-free before failing
+      restarter.insertErrorInNode(anyDbNodeId, 0);
+      return NDBT_FAILED;
+    }
+
+    restarter.insertErrorInNode(anyDbNodeId, 0); // clear error
+
+    // Recreate LFG below
+  }
+
+  int res = pNdb->getDictionary()->createLogfileGroup(lg);
   if(res != 0){
     g_err << "Failed to create logfilegroup:"
 	  << endl << pNdb->getDictionary()->getNdbError() << endl;
@@ -2100,8 +2455,32 @@ runCreateTablespace(NDBT_Context* ctx, NDBT_Step* step){
   lg.setExtentSize(1024*1024);
   lg.setDefaultLogfileGroup("DEFAULT-LG");
 
-  int res;
-  res = pNdb->getDictionary()->createTablespace(lg);
+  int oneDictParticipantFail = ctx->getProperty("OneDictParticipantFail",
+                                                (Uint32)0);
+
+  if (oneDictParticipantFail)
+  {
+    NdbRestarter restarter;
+    const int anyDbNodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+
+    restarter.insertErrorInNode(anyDbNodeId, 16001);
+
+    if ((pNdb->getDictionary()->createTablespace(lg)) == 0)
+    {
+      g_err << "Error: Should have failed to createTablespace"
+            << " due to error insertion." << endl;
+
+      // Leave the data nodes error-free before failing
+      restarter.insertErrorInNode(anyDbNodeId, 0);
+      return NDBT_FAILED;
+    }
+
+    restarter.insertErrorInNode(anyDbNodeId, 0); // clear error
+
+    // recreate TS below.
+  }
+
+  int res = pNdb->getDictionary()->createTablespace(lg);
   if(res != 0){
     g_err << "Failed to create tablespace:"
 	  << endl << pNdb->getDictionary()->getNdbError() << endl;
@@ -2119,9 +2498,40 @@ runCreateTablespace(NDBT_Context* ctx, NDBT_Step* step){
 	  << endl << pNdb->getDictionary()->getNdbError() << endl;
     return NDBT_FAILED;
   }
-
   return NDBT_OK;
 }
+
+int
+runDropTableSpaceLogFileGroup(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+
+  if (pNdb->getDictionary()->dropDatafile(
+      pNdb->getDictionary()->getDatafile(0, "datafile01.dat")) != 0)
+  {
+    g_err << "Error: Failed to drop datafile: "
+          << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pNdb->getDictionary()->dropTablespace(pNdb->getDictionary()->
+                                            getTablespace("DEFAULT-TS")) != 0)
+  {
+    g_err << "Error: Failed to drop tablespace: "
+          << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pNdb->getDictionary()->dropLogfileGroup(
+      pNdb->getDictionary()->getLogfileGroup("DEFAULT-LG")) != 0)
+  {
+    g_err << "Error: Drop of LFG Failed"
+          << endl << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 int
 runCreateDiskTable(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);  
@@ -2534,6 +2944,7 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
 
     g_info << "1: wait cluster started" << endl;
     CHECK(restarter.waitClusterStarted(timeout) == 0);
+    CHK_NDB_READY(GETNDB(step));
     NdbSleep_MilliSleep(myRandom48(maxsleep));
 
     g_info << "1: restart done" << endl;
@@ -2770,12 +3181,28 @@ runBug21755(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   {
-    HugoTransactions t0 (*pDic->getTable(pTab0.getName()));
+    const NdbDictionary::Table* pTab = pDic->getTable(pTab0.getName());
+    if (pTab == NULL) {
+      g_err << "Table 'pTab0': " << pTab0.getName()
+            << ", not found on line " << __LINE__
+            <<", error: " << pDic->getNdbError()
+            << endl;
+      return NDBT_FAILED;
+    }
+    HugoTransactions t0 (*pTab);
     t0.loadTable(pNdb, 1000);
   }
 
   {
-    HugoTransactions t1 (*pDic->getTable(pTab1.getName()));
+    const NdbDictionary::Table* pTab = pDic->getTable(pTab1.getName());
+    if (pTab == NULL) {
+      g_err << "Table 'pTab1': " << pTab1.getName()
+            << ", not found on line " << __LINE__
+            <<", error: " << pDic->getNdbError()
+            << endl;
+      return NDBT_FAILED;
+    }
+    HugoTransactions t1 (*pTab);
     t1.loadTable(pNdb, 1000);
   }
   
@@ -2803,6 +3230,7 @@ runBug21755(NDBT_Context* ctx, NDBT_Step* step)
   {
     return NDBT_FAILED;
   }
+  CHK_NDB_READY(pNdb);
   
   if (pDic->dropTable(pTab0.getName()))
   {
@@ -2941,6 +3369,7 @@ runBug24631(NDBT_Context* ctx, NDBT_Step* step)
   res.startNodes(&node, 1);
   if (res.waitClusterStarted())
     return NDBT_FAILED;
+  CHK_NDB_READY(pNdb);
   
   if (create_tablespace(pDict, lgname, tsname, dfname))
     return NDBT_FAILED;
@@ -3029,6 +3458,7 @@ runBug29186(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "waitClusterStarted failed"<< endl;
     return NDBT_FAILED;
   }
+  CHK_NDB_READY(pNdb);
  
   if(restarter.insertErrorInAllNodes(lgError) != 0){
     g_err << "failed to set error insert"<< endl;
@@ -3070,6 +3500,7 @@ runBug29186(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "waitClusterStarted failed"<< endl;
     return NDBT_FAILED;
   }
+  CHK_NDB_READY(pNdb);
 
   if(restarter.insertErrorInAllNodes(tsError) != 0){
     g_err << "failed to set error insert"<< endl;
@@ -3249,6 +3680,13 @@ RandSchemaOp::create_table(Ndb* ndb)
 
   ndbout_c("create table %s",  pTab.getName());
   const NdbDictionary::Table* tab2 = pDict->getTable(pTab.getName());
+  if (tab2 == NULL) {
+    g_err << "Table : " << pTab.getName()
+          << ", not found on line " << __LINE__
+          <<", error: " << pDict->getNdbError()
+          << endl;
+    return NDBT_FAILED;
+  }
   HugoTransactions trans(*tab2);
   trans.loadTable(ndb, 1000);
 
@@ -3468,6 +3906,14 @@ RandSchemaOp::validate(Ndb* ndb)
     {
       const NdbDictionary::Table* tab2 = 
         pDict->getTable(m_objects[i]->m_name.c_str());
+
+      if (tab2 == NULL) {
+        g_err << "Table: " << m_objects[i]->m_name.c_str()
+              << ", not found on line " << __LINE__
+              <<", error: " << pDict->getNdbError()
+              << endl;
+        return NDBT_FAILED;
+      }
       HugoTransactions trans(*tab2);
       trans.scanUpdateRecords(ndb, 1000);
       trans.clearTable(ndb);
@@ -3610,6 +4056,7 @@ runBug29501(NDBT_Context* ctx, NDBT_Step* step) {
   	<< endl << pDict->getNdbError() << endl;
       return NDBT_FAILED;
   }
+  CHK_NDB_READY(pNdb);
 
   if (pDict->dropLogfileGroup(pDict->getLogfileGroup(lg.getName())) != 0){
   	g_err << "Drop of LFG Failed"
@@ -3722,6 +4169,7 @@ runWaitStarted(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
   restarter.waitClusterStarted(300);
+  CHK_NDB_READY(GETNDB(step));
 
   NdbSleep_SecSleep(3);
   return NDBT_OK;
@@ -3778,7 +4226,7 @@ runBug36072(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter res;
 
   int err[] = { 6016, 
-#if BUG_46856
+#ifdef BUG_46856
                 6017, 
 #endif
                 0 };
@@ -3830,6 +4278,7 @@ runBug36072(NDBT_Context* ctx, NDBT_Step* step)
     res.startAll();
     if (res.waitClusterStarted())
       return NDBT_FAILED;
+    CHK_NDB_READY(pNdb);
 
     if (code == 6016)
     {
@@ -3898,6 +4347,7 @@ restartClusterInitial(NDBT_Context* ctx, NDBT_Step* step)
   res.startAll();
   if (res.waitClusterStarted())
     return NDBT_FAILED;
+  CHK_NDB_READY(GETNDB(step));
 
   return NDBT_OK;
 }
@@ -3915,7 +4365,7 @@ DropDDObjectsVerify(NDBT_Context* ctx, NDBT_Step* step){
   if (pDict->listObjects(list) == -1)
     return NDBT_FAILED;
 
-    bool ddFound  = false;
+  bool ddFound  = false;
   for (i = 0; i <list.count; i++){
     switch(list.elements[i].type){
       case NdbDictionary::Object::Tablespace:
@@ -4620,7 +5070,7 @@ st_init_objects(ST_Con& c, NDBT_Context* ctx)
   int i;
   for (i = 0; i < numTables; i++) {
     const NdbDictionary::Table* pTab = 0;
-#if ndb_test_ALL_TABLES_is_fixed
+#ifdef ndb_test_ALL_TABLES_is_fixed
     const NdbDictionary::Table** tables = ctx->getTables();
     pTab = tables[i];
 #else
@@ -4655,7 +5105,7 @@ st_init_objects(ST_Con& c, NDBT_Context* ctx)
     const char** indspec = NDBT_Tables::getIndexes(tab.name);
 
     while (indspec != 0 && *indspec != 0) {
-      char ind_name[ST_MAX_NAME_SIZE];
+      char ind_name[ST_MAX_NAME_SIZE + 20];
       sprintf(ind_name, "%sX%d", tab.name, tab.indcount);
       tab.indlist->push_back(new ST_Ind("sys", ind_name));
       ST_Ind& ind = *tab.indlist->back();
@@ -4671,7 +5121,7 @@ st_init_objects(ST_Con& c, NDBT_Context* ctx)
         pInd->setType((NdbDictionary::Index::Type)ind.type);
         tab.induniquecount++;
 
-        { char trg_name[ST_MAX_NAME_SIZE];
+        { char trg_name[ST_MAX_NAME_SIZE + 20];
           sprintf(trg_name, "NDB$INDEX_<%s>_UI", ind.name);
           ind.trglist->push_back(new ST_Trg("", trg_name));
           ST_Trg& trg = *ind.trglist->back();
@@ -4686,7 +5136,7 @@ st_init_objects(ST_Con& c, NDBT_Context* ctx)
         pInd->setType((NdbDictionary::Index::Type)ind.type);
         tab.indorderedcount++;
 
-        { char trg_name[ST_MAX_NAME_SIZE];
+        { char trg_name[ST_MAX_NAME_SIZE + 20];
           sprintf(trg_name, "NDB$INDEX_<%s>_CUSTOM", ind.name);
           ind.trglist->push_back(new ST_Trg("", trg_name));
           ST_Trg& trg = *ind.trglist->back();
@@ -5620,9 +6070,11 @@ static int
 st_load_table(ST_Con& c, ST_Tab& tab, int rows = 1000)
 {
   g_info << tab.name << ": load data rows:" << rows << endl;
-  require(tab.tab_r != 0);
-  HugoTransactions ht(*tab.tab_r);
-  chk1(ht.loadTable(c.ndb, rows) == 0);
+  chk1(tab.tab_r != NULL);
+  {
+    HugoTransactions ht(*tab.tab_r);
+    chk1(ht.loadTable(c.ndb, rows) == 0);
+  }
   return 0;
 err:
   return -1;
@@ -6658,7 +7110,7 @@ st_test_snf_parse(ST_Con& c, int arg = -1)
       uint rand = urandom(c.numdbnodes);
       node_id = c.restarter->getRandomNotMasterNodeId(rand);
       g_info << "restart node " << node_id << " (async)" << endl;
-      int flags = 0;
+      const int flags = NdbRestarter::NRRF_NOSTART;
       chk1(c.restarter->restartOneDbNode2(node_id, flags) == 0);
       chk1(c.restarter->waitNodesNoStart(&node_id, 1) == 0);
       chk1(c.restarter->startNodes(&node_id, 1) == 0);
@@ -6672,6 +7124,7 @@ st_test_snf_parse(ST_Con& c, int arg = -1)
 
   g_info << "wait for node " << node_id << " to come up" << endl;
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   g_info << "verify all" << endl;
   chk1(st_verify_all(c) == 0);
   return NDBT_OK;
@@ -6698,7 +7151,7 @@ st_test_mnf_parse(ST_Con& c, int arg = -1)
       require(c.numdbnodes > 1);
       node_id = c.restarter->getMasterNodeId();
       g_info << "restart node " << node_id << " (async)" << endl;
-      int flags = 0;
+      const int flags = NdbRestarter::NRRF_NOSTART;
       chk1(c.restarter->restartOneDbNode2(node_id, flags) == 0);
       chk1(c.restarter->waitNodesNoStart(&node_id, 1) == 0);
       chk1(c.restarter->startNodes(&node_id, 1) == 0);
@@ -6712,6 +7165,7 @@ st_test_mnf_parse(ST_Con& c, int arg = -1)
 
   g_info << "wait for node " << node_id << " to come up" << endl;
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   g_info << "verify all" << endl;
   for (i = 0; i < c.tabcount; i++) {
     ST_Tab& tab = c.tab(i);
@@ -6750,6 +7204,7 @@ st_test_mnf_prepare(ST_Con& c, int arg = -1)
   else
     chk1(st_end_trans_aborted(c, errins, ST_CommitFlag) == 0);
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   //st_wait_db_node_up(c, master);
   for (i = 0; i < c.tabcount; i++) {
     ST_Tab& tab = c.tab(i);
@@ -6785,6 +7240,7 @@ st_test_mnf_commit1(ST_Con& c, int arg = -1)
   else
     chk1(st_end_trans(c, errins, ST_CommitFlag) == 0);
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   //st_wait_db_node_up(c, master);
   for (i = 0; i < c.tabcount; i++) {
     ST_Tab& tab = c.tab(i);
@@ -6817,6 +7273,7 @@ st_test_mnf_commit2(ST_Con& c, int arg = -1)
   else
     chk1(st_end_trans(c, errins, ST_CommitFlag) == 0);
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   //st_wait_db_node_up(c, master);
   chk1(st_verify_all(c) == 0);
   for (i = 0; i < c.tabcount; i++) {
@@ -6867,6 +7324,7 @@ st_test_mnf_run_commit(ST_Con& c, int arg = -1)
 verify:
   g_info << "wait for master node to come up" << endl;
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   //st_wait_db_node_up(c, master);
   g_info << "verify all" << endl;
   for (i = 0; i < c.tabcount; i++) {
@@ -6914,6 +7372,7 @@ st_test_mnf_run_abort(ST_Con& c, int arg = -1)
 
   g_info << "wait for master node to come up" << endl;
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   //st_wait_db_node_up(c, master);
   g_info << "verify all" << endl;
   for (i = 0; i < c.tabcount; i++) {
@@ -7068,6 +7527,7 @@ st_test_sr_parse(ST_Con& c, int arg = -1)
   chk1(c.restarter->waitClusterNoStart() == 0);
   chk1(c.restarter->startAll() == 0);
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   g_info << "verify all" << endl;
   chk1(st_verify_all(c) == 0);
   return NDBT_OK;
@@ -7256,9 +7716,9 @@ st_test_list[] = {
   { "x5", 2, 0,
     func(st_test_mnf_commit2),
     "master node fail in end of commit phase" },
-  { "y1", 2, FAIL_BEGIN,
+  { "y1", 2, SUCCEED_COMMIT,
     func(st_test_mnf_start_partial),
-    "master node fail in start phase, partial rollback" },
+    "master node fail in start phase, retry will succeed" },
   { "y2", 2, FAIL_CREATE,
     func(st_test_mnf_parse_partial),
     "master node fail in parse phase, partial rollback" },
@@ -7390,7 +7850,7 @@ runSchemaTrans(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   if (st_random_seed == -1)
-    st_random_seed = (short)getpid();
+    st_random_seed = NdbHost_GetProcessId();
   if (st_random_seed != 0) {
     g_err << "random seed: " << st_random_seed << endl;
     ndb_srand(st_random_seed);
@@ -7614,6 +8074,7 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Table altered = * org;
   altered.setFragmentCount(org->getFragmentCount() +
                            restarter.getNumDbNodes());
+  altered.setPartitionBalance(NdbDictionary::Object::PartitionBalance_Specific);
 
   if (pDic->beginSchemaTrans())
   {
@@ -7713,7 +8174,9 @@ runTableAddPartition(NDBT_Context* ctx, NDBT_Step* step){
 
 #if 1
     // Load table
-    HugoTransactions beforeTrans(*ctx->getTab());
+    const NdbDictionary::Table* pTab;
+    CHECK((pTab = ctx->getTab()) != NULL);
+    HugoTransactions beforeTrans(*pTab);
     if (beforeTrans.loadTable(pNdb, records) != 0){
       return NDBT_FAILED;
     }
@@ -7726,6 +8189,8 @@ runTableAddPartition(NDBT_Context* ctx, NDBT_Step* step){
     NdbDictionary::Table newTable= *oldTable;
 
     newTable.setFragmentCount(2 * oldTable->getFragmentCount());
+    newTable.setPartitionBalance(
+      NdbDictionary::Object::PartitionBalance_Specific);
     CHECK2(dict->alterTable(*oldTable, newTable) == 0,
            "TableAddAttrs failed");
 
@@ -7944,7 +8409,10 @@ runBug46552(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
 
   NdbRestarter res;
-  if (res.getNumDbNodes() < 2)
+  int numDbNodes = res.getNumDbNodes();
+  getNodeGroups(res);
+  int num_replicas = (numDbNodes - numNoNodeGroups) / numNodeGroups;
+  if (res.getNumDbNodes() < 2 || num_replicas != 2)
     return NDBT_OK;
 
   NdbDictionary::Table tab0 = *pTab;
@@ -8006,6 +8474,7 @@ runBug46552(NDBT_Context* ctx, NDBT_Step* step)
   res.waitNodesNoStart(group2.getBase(), (int)group2.size());
   res.startNodes(group2.getBase(), (int)group2.size());
   res.waitClusterStarted();
+  CHK_NDB_READY(pNdb);
 
   if (pDic->dropTable(tab0.getName()))
   {
@@ -8026,6 +8495,7 @@ runBug46552(NDBT_Context* ctx, NDBT_Step* step)
   res.waitClusterNoStart();
   res.startAll();
   res.waitClusterStarted();
+  CHK_NDB_READY(pNdb);
 
   if (pDic->dropTable(tab0.getName()))
   {
@@ -8099,6 +8569,7 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
   {
     const NdbDictionary::Table * org = pDic->getTable(tab.getName());
     {
+      CHECK(org != NULL);
       HugoTransactions trans(* org);
       CHECK2(trans.loadTable(pNdb, records) == 0,
            "load table failed");
@@ -8106,6 +8577,8 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
 
     NdbDictionary::Table altered = * org;
     altered.setFragmentCount(org->getFragmentCount() + 1);
+    altered.setPartitionBalance(
+      NdbDictionary::Object::PartitionBalance_Specific);
     ndbout_c("alter from %u to %u partitions",
              org->getFragmentCount(),
              altered.getFragmentCount());
@@ -8193,6 +8666,7 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
     }
     CHECK2(res.waitClusterStarted() == 0,
            "wait cluster started failed");
+    CHK_NDB_READY(pNdb);
 
     Uint32 restartGCI = 0;
     CHECK2(pDic->getRestartGCI(&restartGCI) == 0,
@@ -8202,6 +8676,7 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
     pDic->invalidateTable(tab.getName());
     {
       const NdbDictionary::Table * alteredP = pDic->getTable(tab.getName());
+      CHECK(alteredP != NULL);
       HugoTransactions trans(* alteredP);
 
       int cnt;
@@ -8265,6 +8740,7 @@ runBug53944(NDBT_Context* ctx, NDBT_Step* step)
   res.waitClusterNoStart();
   res.startAll();
   res.waitClusterStarted();
+  CHK_NDB_READY(pNdb);
 
   for (unsigned i = 0; i< 25; i++)
   {
@@ -9057,6 +9533,7 @@ runBug58277(NDBT_Context* ctx, NDBT_Step* step)
 
       g_info << "check cluster is up" << endl;
       CHK2(restarter.waitClusterStarted() == 0, "failed");
+      CHK_NDB_READY(pNdb);
     }
 
     if (++loop == loops)
@@ -9129,6 +9606,7 @@ runBug57057(NDBT_Context* ctx, NDBT_Step* step)
 
       g_info << "check cluster is up" << endl;
       CHK2(restarter.waitClusterStarted() == 0, "failed");
+      CHK_NDB_READY(pNdb);
     }
 
     if (++loop == loops)
@@ -9163,34 +9641,56 @@ runGetTabInfoRef(NDBT_Context* ctx, NDBT_Step* step)
    * This error insert makes DICT respond with GET_TABINFOREF where
    * error==busy when receiving the next GET_TABINFOREQ signal.
    */
-  require(restarter.insertErrorInAllNodes(6026) == 0);
+  restarter.insertErrorInAllNodes(6026);
 
-  int nodeSet[MAX_NDB_NODES];
-  for (int i = 0; i < restarter.getNumDbNodes() - 1; i++)
+  /* Find a node in each nodegroup to restart. */
+  Vector<int> nodeSet;
+  Bitmask<MAX_NDB_NODES/32> nodeGroupMap;
+  for (int i = 0; i < restarter.getNumDbNodes(); i++)
   {
-    nodeSet[i] = restarter.getDbNodeId(i);
-    g_info << "Node " << nodeSet[i] << " will be stopped." << endl;
+    const int node = restarter.getDbNodeId(i);
+    const int ng = restarter.getNodeGroup(node);
+    if (!nodeGroupMap.get(ng))
+    {
+      g_info << "Node " << node << " will be stopped." << endl;
+      nodeSet.push_back(node);
+      nodeGroupMap.set(ng);
+    }
   }
 
-  require(restarter.restartNodes(nodeSet, restarter.getNumDbNodes() - 1,
-                                 NdbRestarter::NRRF_NOSTART |
-                                 NdbRestarter::NRRF_ABORT) == 0);
+  if (restarter.restartNodes(nodeSet.getBase(), (int)nodeSet.size(),
+                             NdbRestarter::NRRF_NOSTART |
+                             NdbRestarter::NRRF_ABORT))
+  {
+    g_err << "Failed to stop nodes" << endl;
+    restarter.insertErrorInAllNodes(0);
+    return NDBT_FAILED;
+  }
 
   g_info << "Waiting for nodes to stop." << endl;
-  require(restarter.waitNodesNoStart(nodeSet, restarter.getNumDbNodes() - 1)
-          == 0);
+  if (restarter.waitNodesNoStart(nodeSet.getBase(), (int)nodeSet.size()))
+  {
+    g_err << "Failed to wait for nodes to stop" << endl;
+    restarter.insertErrorInAllNodes(0);
+    return NDBT_FAILED;
+  }
 
-  require(restarter.startNodes(nodeSet, restarter.getNumDbNodes() - 1) == 0);
+  if (restarter.startNodes(nodeSet.getBase(), (int)nodeSet.size()))
+  {
+    g_err << "Failed to restart nodes" << endl;
+    restarter.insertErrorInAllNodes(0);
+    return NDBT_FAILED;
+  }
 
   g_info << "Waiting for nodes to start again." << endl;
   if (restarter.waitClusterStarted() != 0)
   {
     g_err << "Failed to restart cluster " << endl;
-    require(restarter.insertErrorInAllNodes(0) == 0);
+    restarter.insertErrorInAllNodes(0);
     return NDBT_FAILED;
   }
 
-  require(restarter.insertErrorInAllNodes(0) == 0);
+  restarter.insertErrorInAllNodes(0);
   return NDBT_OK;
 } // runGetTabInfoRef()
 
@@ -9289,6 +9789,7 @@ runBug13416603(NDBT_Context* ctx, NDBT_Step* step)
       res.startNodes(partitions[i].getBase(),
                      partitions[i].size());
       res.waitClusterStarted();
+      CHK_NDB_READY(pNdb);
     }
   }
 
@@ -9307,6 +9808,17 @@ runBug13416603(NDBT_Context* ctx, NDBT_Step* step)
       ndbout << is.getNdbError() << endl;
       ndbout_c("%u - poll_listener", __LINE__);
       chk2((ret = is.poll_listener(pNdb, 10000)) != -1, is.getNdbError());
+      if (ret == 1)
+      {
+        /* After the new api is introduced, pollEvents() (old api version)
+         * returns 1 when empty epoch is at the head of the event queue.
+         * pollEvents2() (new api version) returns 1 when exceptional
+         * epoch is at the head of the event queue.
+         * So next_listener() must be called to handle them.
+         */
+        chk2((ret = is.next_listener(pNdb)) != -1, is.getNdbError());
+      }
+      // Check that the event queue is empty
       chk1(ret == 0);
     }
 
@@ -9338,6 +9850,7 @@ runBug13416603(NDBT_Context* ctx, NDBT_Step* step)
 
     res.startNodes(&down, 1);
     res.waitClusterStarted();
+    CHK_NDB_READY(pNdb);
     res.insertErrorInAllNodes(0);
   }
 
@@ -9689,7 +10202,14 @@ runBug14645319(NDBT_Context* ctx, NDBT_Step* step)
       NdbDictionary::Table new_tab = old_tab;
       new_tab.setFragmentCount(test.new_fragments);
       if (test.new_fragments == 0)
+      {
         new_tab.setFragmentData(0, 0);
+      }
+      else
+      {
+        new_tab.setPartitionBalance(
+          NdbDictionary::Object::PartitionBalance_Specific);
+      }
 
       result = pDic->beginSchemaTrans();
       if (result != 0) break;
@@ -9781,6 +10301,7 @@ struct Fkdef {
   };
   struct Key : Ob {
     char keyname[strmax];
+    char fullname[20 + strmax]; // bug#19122346
     // 0-parent 1-child
     const Tab* tab0;
     const Tab* tab1;
@@ -10167,7 +10688,8 @@ fk_create_key(Fkdef& d, Ndb* pNdb, int k)
     CHK2(pDic->createForeignKey(key) == 0, pDic->getNdbError());
     {
       NdbDictionary::ForeignKey key;
-      CHK2(pDic->getForeignKey(key, dk.keyname) == 0, pDic->getNdbError());
+      sprintf(dk.fullname, "%d/%d/%s", dt0.id, dt1.id, dk.keyname);
+      CHK2(pDic->getForeignKey(key, dk.fullname) == 0, pDic->getNdbError());
       require(!dk.retrieved);
       dk.retrieved = true;
       dk.id = key.getObjectId();
@@ -10301,15 +10823,15 @@ fk_verify_key(const Fkdef& d, Ndb* pNdb, int k)
   do
   {
     const Fkdef::Key& dk = d.key[k];
-    g_info << "verify key " << dk.keyname << endl;
+    g_info << "verify key " << dk.fullname << endl;
     NdbDictionary::ForeignKey key;
-    CHK2(pDic->getForeignKey(key, dk.keyname) == 0, pDic->getNdbError());
+    CHK2(pDic->getForeignKey(key, dk.fullname) == 0, pDic->getNdbError());
     int id = key.getObjectId();
     int version = key.getObjectVersion();
     require(dk.retrieved);
     CHK2(dk.id == id, dk.id << " != " << id);
     CHK2(dk.version == version, dk.version << " != " << version);
-    CHK1(strcmp(dk.keyname, key.getName()) == 0);
+    CHK2(strcmp(dk.fullname, key.getName()) == 0, dk.fullname << " != " << key.getName());
 #if 0 // can add more checks
     const Fkdef::Tab& dt0 = *dk.tab0;
     const Fkdef::Tab& dt1 = *dk.tab1;
@@ -10505,7 +11027,7 @@ fk_verify_list(Fkdef& d, Ndb* pNdb, bool ignore_keys)
     for (int k = 0; k < d.nkey; k++) {
       const Fkdef::Key& dk = d.key[k];
       CHK2(fk_find_element(list1, NdbDictionary::Object::ForeignKey,
-           "", dk.keyname), dk.keyname);
+           "", dk.fullname), dk.fullname);
       // could also check FK triggers..
     }
     CHK1(result == NDBT_OK);
@@ -10532,23 +11054,7 @@ fk_drop_table(Fkdef& d, Ndb* pNdb, int i, bool force)
       break;
     }
     // all indexes are dropped by ndb api
-    for (int k = 0; k < dt.nind; k++)
-    {
-      Fkdef::Ind& di = dt.ind[k];
-      di.retrieved = false;
-      di.pInd = 0;
-    }
     // all related FKs child/parent are dropped by ndb api
-    for (int k = 0; k < d.nkey; k++)
-    {
-      Fkdef::Key& dk = d.key[k];
-      if (dk.tab0 == &dt || dk.tab1 == &dt)
-      {
-        dk.retrieved = false;
-      }
-    }
-    dt.retrieved = false;
-    dt.pTab = 0;
   }
   while (0);
   return result;
@@ -10573,10 +11079,10 @@ fk_drop_key(Fkdef& d, Ndb* pNdb, int k, bool force)
   do
   {
     Fkdef::Key& dk = d.key[k];
-    g_info << "drop key " << dk.keyname
+    g_info << "drop key " << dk.fullname
            << (force ? " (force)" : "") << endl;
     NdbDictionary::ForeignKey key;
-    if (pDic->getForeignKey(key, dk.keyname) != 0)
+    if (pDic->getForeignKey(key, dk.fullname) != 0)
     {
       const NdbError& err = pDic->getNdbError();
       CHK2(force, err);
@@ -10584,7 +11090,6 @@ fk_drop_key(Fkdef& d, Ndb* pNdb, int k, bool force)
       break;
     }
     CHK2(pDic->dropForeignKey(key) == 0, pDic->getNdbError());
-    dk.retrieved = false;
   }
   while (0);
   return result;
@@ -10612,6 +11117,29 @@ fk_drop_all(Fkdef& d, Ndb* pNdb, bool force)
   }
   while (0);
   return result;
+}
+
+// commit drop
+
+// just reset all retrieved
+static void
+fk_dropped_all(Fkdef& d)
+{
+  for (int i = 0; i < d.ntab; i++)
+  {
+    Fkdef::Tab& dt = d.tab[i];
+    dt.retrieved = false;
+    for (int k = 0; k < dt.nind; k++)
+    {
+      Fkdef::Ind& di = dt.ind[k];
+      di.retrieved = false;
+    }
+  }
+  for (int k = 0; k < d.nkey; k++)
+  {
+    Fkdef::Key& dk = d.key[k];
+    dk.retrieved = false;
+  }
 }
 
 // for FK_Bug18069680
@@ -10701,7 +11229,7 @@ static void
 fk_env_options(Fkdef& d)
 {
   // random seed
-  int seed = (int)getpid();
+  int seed = NdbHost_GetProcessId();
 #ifdef NDB_USE_GET_ENV
   {
     const char* p = NdbEnv_GetEnv("RANDOM_SEED", (char*)0, 0);
@@ -10786,6 +11314,7 @@ runFK_SRNR(NDBT_Context* ctx, NDBT_Step* step)
       }
 
       CHK1(restarter.waitClusterStarted() == 0);
+      CHK_NDB_READY(pNdb);
       g_info << "cluster is started" << endl;
 
       CHK1(fk_verify_ddl(d, pNdb) == NDBT_OK);
@@ -10935,6 +11464,8 @@ runFK_Bug18069680(NDBT_Context* ctx, NDBT_Step* step)
 
       CHK1(fk_drop_indexes_under(d, pNdb) == NDBT_OK);
       CHK1(fk_drop_tables(d, pNdb, false) == NDBT_OK);
+
+      fk_dropped_all(d);
     }
     CHK1(result == NDBT_OK);
   }
@@ -11027,8 +11558,105 @@ runDictTO_1(NDBT_Context* ctx, NDBT_Step* step)
     restarter.waitNodesNoStart(&master, 1);
     restarter.startNodes(&master, 1);
     restarter.waitClusterStarted();
+    CHK_NDB_READY(pNdb);
   }
 
+  return NDBT_OK;
+}
+
+int
+runIndexStatTimeout(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  char idxname[20];
+  sprintf(idxname, "%s_idx", pTab->getName());
+  NdbRestarter restarter;
+
+  if(pTab == NULL)
+  {
+    ndbout << "Failed to get table " << endl;
+    return NDBT_FAILED;
+  }
+  const NdbDictionary::Index* pIdx = pDict->getIndex(idxname, pTab->getName());
+  if(pIdx == NULL)
+  {
+    ndbout << "Failed to get index" << idxname << " error " << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Inserting error in ndbd to cause dictsignal timeout" << endl;
+  if(restarter.insertErrorInAllNodes(6221) != 0)
+  {
+    ndbout << "Failed to insert error 6221" << endl;
+    return NDBT_FAILED;
+  }
+
+  ndbout << "Do error injection in ndbapi to timeout quickly" << endl;
+  DBUG_SET_INITIAL("+d,ndb_dictsignal_timeout");
+
+  if(pDict->updateIndexStat(*pIdx, *pTab) == 0)
+  {
+    ndbout << "Error: updateIndexStat succeeded, should have failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Clear error injection from ndbapi" << endl;
+  DBUG_SET_INITIAL("-d,ndb_dictsignal_timeout");
+
+  ndbout << "Clear error insert in ndbd" << endl;
+  if(restarter.insertErrorInAllNodes(0) != 0)
+  {
+    ndbout << "Failed to clear error 6221" << endl;
+    return NDBT_FAILED;
+  }
+  int errorCode= pDict->getNdbError().code;
+  if(errorCode != 4008)
+  {
+    ndbout << "Error: updateIndexStat failed with wrong error " << errorCode << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Success: updateIndexStat failed with expected error 4008" << endl;
+  return NDBT_OK;
+}
+
+int
+runForceGCPWait(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  NdbRestarter restarter;
+
+  ndbout << "Inserting error in ndbd to cause dictsignal timeout" << endl;
+  if(restarter.insertErrorInAllNodes(7247) != 0)
+  {
+    ndbout << "Failed to insert error 7247" << endl;
+    return NDBT_FAILED;
+  }
+
+  ndbout << "Do error injection in ndbapi to timeout quickly" << endl;
+  DBUG_SET_INITIAL("+d,ndb_dictsignal_timeout");
+
+  if(pDict->forceGCPWait(0) == 0)
+  {
+    ndbout << "Error: forceGCPWait succeeded, should have failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Clear error injection from ndbapi" << endl;
+  DBUG_SET_INITIAL("-d,ndb_dictsignal_timeout");
+
+  ndbout << "Clear error insert in ndbd" << endl;
+  if(restarter.insertErrorInAllNodes(0) != 0)
+  {
+    ndbout << "Failed to clear error 6222" << endl;
+    return NDBT_FAILED;
+  }
+  int errorCode= pDict->getNdbError().code;
+  if(errorCode != 4008)
+  {
+    ndbout << "Error: forceGCPWait failed with wrong error " << errorCode << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Success: forceGCPWait failed with expected error 4008" << endl;
   return NDBT_OK;
 }
 
@@ -11093,6 +11721,26 @@ TESTCASE("CreateInvalidTables",
 	 "Try to create the invalid tables we have defined\n"){ 
   INITIALIZER(runCreateInvalidTables);
 }
+TESTCASE("DropTableConcurrentLCP",
+         "Drop a table while LCP is ongoing\n")
+{
+  INITIALIZER(runCreateTheTable);
+  INITIALIZER(runFillTable);
+  INITIALIZER(runSetMinTimeBetweenLCP);
+  INITIALIZER(runSetDropTableConcurrentLCP);
+  INITIALIZER(runDropTheTable);
+  FINALIZER(runResetMinTimeBetweenLCP);
+}
+TESTCASE("DropTableConcurrentLCP2",
+         "Drop a table while LCP is ongoing\n")
+{
+  INITIALIZER(runCreateTheTable);
+  INITIALIZER(runFillTable);
+  INITIALIZER(runSetMinTimeBetweenLCP);
+  INITIALIZER(runSetDropTableConcurrentLCP2);
+  INITIALIZER(runDropTheTable);
+  FINALIZER(runResetMinTimeBetweenLCP);
+}
 TESTCASE("CreateTableWhenDbIsFull", 
 	 "Try to create a new table when db already is full\n"){ 
   INITIALIZER(runCreateTheTable);
@@ -11132,6 +11780,13 @@ TESTCASE("CreateMaxTables",
   INITIALIZER(runCreateMaxTables);
   INITIALIZER(runDropMaxTables);
 }
+TESTCASE("BackupMaxTables", 
+	 "Create max amount of tables and verify backup works\n"){
+  TC_PROPERTY("tables", 200);
+  INITIALIZER(runCreateMaxTables);
+  INITIALIZER(runBackup);
+  INITIALIZER(runDropMaxTables);
+}
 TESTCASE("PkSizes", 
 	 "Create tables with all different primary key sizes.\n"\
 	 "Test all data operations insert, update, delete etc.\n"\
@@ -11153,6 +11808,15 @@ TESTCASE("StoreFrmError",
 	 "Test that a frm file with too long length can't be stored."){
   INITIALIZER(runStoreFrmError);
 }
+TESTCASE("StoreExtraMetadata",
+         "Test that extra metadata can be stored as part of the\n"
+         "data in Dict."){
+  INITIALIZER(runStoreExtraMetada);
+}
+TESTCASE("StoreExtraMetadataError",
+         "Test that extra metadata with too long length can't be stored."){
+  INITIALIZER(runStoreExtraMetadataError);
+}
 TESTCASE("TableRename",
 	 "Test basic table rename"){
   INITIALIZER(runTableRename);
@@ -11168,7 +11832,22 @@ TESTCASE("DictionaryPerf",
 TESTCASE("CreateLogfileGroup", ""){
   INITIALIZER(runCreateLogfileGroup);
 }
-TESTCASE("CreateTablespace", ""){
+TESTCASE("CreateLogfileGroupWithFailure",
+         "Create a log file group where a dict participant"
+         " fails to create log buffer"){
+  TC_PROPERTY("OneDictParticipantFail", 1);
+  INITIALIZER(runCreateLogfileGroup);
+}
+TESTCASE("CreateTablespaceWithFailure",
+         "Create a log file group where a dict participant"
+         " fails to create log buffer"){
+  TC_PROPERTY("OneDictParticipantFail", 1);
+  STEP(runCreateTablespace);
+  FINALIZER(runDropTableSpaceLogFileGroup);
+}
+TESTCASE("CreateTablespace",
+         "Create a table space where a dict participant"
+         " fails to create log buffer"){
   INITIALIZER(runCreateTablespace);
 }
 TESTCASE("CreateDiskTable", ""){
@@ -11399,6 +12078,18 @@ TESTCASE("CreateHashmaps",
 TESTCASE("DictTakeOver_1", "")
 {
   INITIALIZER(runDictTO_1);
+}
+TESTCASE("indexStat", "test dictsignal timeout in INDEX_STAT_REQ")
+{
+  INITIALIZER(runCreateTheTable);
+  INITIALIZER(runCreateTheIndex);
+  INITIALIZER(runIndexStatTimeout);
+  FINALIZER(runDropTheIndex);
+  FINALIZER(runDropTheTable);
+}
+TESTCASE("forceGCPWait", "test dictsignal timeout in FORCE_GCP_WAIT")
+{
+  INITIALIZER(runForceGCPWait);
 }
 NDBT_TESTSUITE_END(testDict);
 

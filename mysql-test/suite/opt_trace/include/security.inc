@@ -2,8 +2,6 @@
 # by lack of privileges.
 
 --source include/have_optimizer_trace.inc
-# Grant tests not performed with embedded server
--- source include/not_embedded.inc
 connection default;
 let $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
 set @old_size = @@global.optimizer_trace_max_mem_size;
@@ -39,7 +37,7 @@ begin
   insert into t1 values(current_user());
   return 36;
 end|
-create trigger trg2 before insert on t2 for each row 
+create trigger trg2 before insert on t2 for each row
 begin
   insert into t3 select * from t3;
 end|
@@ -267,8 +265,6 @@ connection default;
 select user();
 --echo # - for use of t1 in routines and view:
 grant select on t1 to user1@localhost;
---echo # - for use of routines:
-grant select on mysql.proc to user1@localhost;
 --echo # - for use of view:
 grant select, show view on v1 to user1@localhost;
 delete from t1 where a<>"first";
@@ -330,47 +326,13 @@ select * from v1;
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 
 --echo
---echo # C.2) remove table-level SELECT privilege on mysql.proc
+--echo # C.2) remove table-level SELECT privilege on view
 --echo
 
 connection default;
 select user();
 --echo # Put back privilege removed in C.1
 grant select on t1 to user1@localhost;
---echo # And remove a next one:
-revoke select on mysql.proc from user1@localhost;
-delete from t1 where a<>"first";
-
---echo
-connection con_user1;
-select user();
-
---echo # We have no right to see routines' bodies:
-set optimizer_trace="enabled=off";
-show create procedure p1;
-show create function f1;
---echo # Verify that optimizer trace does not influence the privilege
---echo # checking in SHOW CREATE:
-set optimizer_trace="enabled=on";
-show create procedure p1;
-show create function f1;
-
-set optimizer_trace_offset=0,optimizer_trace_limit=100;
-call p1();
---echo # Cannot see anything as it would expose body of routine
-select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
-set optimizer_trace_offset=0,optimizer_trace_limit=100;
-select f1();
-select QUERY, TRACE, INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
-
---echo
---echo # C.3) remove table-level SELECT privilege on view
---echo
-
-connection default;
-select user();
---echo # Put back privilege removed in C.2
-grant select on mysql.proc to user1@localhost;
 --echo # And remove a next one:
 revoke select on v1 from user1@localhost;
 grant select (a) on v1 to user1@localhost;
@@ -387,7 +349,7 @@ select * from v1;
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 
 --echo
---echo # C.4) remove SHOW VIEW privilege on view
+--echo # C.3) remove SHOW VIEW privilege on view
 --echo
 
 connection default;
@@ -472,7 +434,7 @@ begin
   insert into t1 values(current_user());
   return 36;
 end|
-create trigger trg2 before insert on t2 for each row 
+create trigger trg2 before insert on t2 for each row
 begin
   insert into t3 select * from t3;
 end|

@@ -1,0 +1,111 @@
+###############################################################################
+# This test confirm that failures when starting group replication don't modify
+# the read mode of server.
+#
+# Test:
+#   0. The test requires two serves
+#   1. Change for server 2 and stop it
+#   2. Set READ_ONLY= ON and SUPER_READ_ONLY= ON, configure server with an
+#      invalid id and start it
+#   3. Confirm that server is configured with READ_ONLY= ON and
+#      SUPER_READ_ONLY= ON
+#   4. Set READ_ONLY= ON configure server with a invalid server id an start it
+#   5. Confirm that server is configured with READ_ONLY= ON and
+#      SUPER_READ_ONLY= OFF
+#   6. Set READ_ONLY= OFF and SUPER_READ_ONLY= OFF, configure server with an
+#      invalid id and start it
+#   7. Confirm that server is configured with READ_ONLY= OFF and
+#      SUPER_READ_ONLY= OFF
+#   8. Clean up
+
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo #   1. Change for server 2 and stop it
+--echo #############################################################
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Server id not set, will not start slave for channel 'group_replication_applier'");
+call mtr.add_suppression("Error while starting the group replication applier thread");
+call mtr.add_suppression("Unable to initialize the Group Replication applier module.");
+SET SESSION sql_log_bin=1;
+
+--let $_server_id= `SELECT @@GLOBAL.server_id`
+--source include/stop_group_replication.inc
+
+--echo
+--echo #   2. Set READ_ONLY= ON and SUPER_READ_ONLY= ON, configure
+--echo #      server with and invalid id an start it
+--echo #############################################################
+
+SET GLOBAL super_read_only = 1;
+
+SET GLOBAL server_id=0;
+--error ER_BAD_SLAVE, ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
+START GROUP_REPLICATION;
+
+--echo
+--echo #   3. Confirm that server is configured with READ_ONLY= ON
+--echo #      and SUPER_READ_ONLY= ON
+--echo #############################################################
+--source include/assert_and_disable_read_only.inc
+
+--echo
+--echo #   4. Set READ_ONLY= ON configure server with a invalid
+--echo #      server id an start it
+--echo #############################################################
+
+SET GLOBAL read_only = 1;
+
+SET GLOBAL server_id=0;
+--error ER_BAD_SLAVE, ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
+START GROUP_REPLICATION;
+
+--echo
+--echo #   5. Confirm that server is configured with READ_ONLY= ON
+--echo #      and SUPER_READ_ONLY= OFF
+--echo #############################################################
+
+--let $assert_text= The read_only mode must be 1
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 1;
+--source include/assert.inc
+
+--let $assert_text= The super_read_only mode must be 0
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--echo
+--echo #   6. Set READ_ONLY= OFF and SUPER_READ_ONLY= OFF, configure
+--echo #      server with and invalid id an start it
+--echo #############################################################
+
+SET GLOBAL read_only = 0;
+
+SET GLOBAL server_id=0;
+--error ER_BAD_SLAVE, ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
+START GROUP_REPLICATION;
+
+--echo
+--echo #   7. Confirm that server is configured with READ_ONLY= OFF
+--echo #      and SUPER_READ_ONLY= OFF
+--echo #############################################################
+
+--let $assert_text= The read_only mode must be 0
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 0;
+--source include/assert.inc
+
+--let $assert_text= The super_read_only mode must be 0
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--echo
+--echo #   8. Clean up
+--echo #############################################################
+
+--eval SET GLOBAL server_id= $_server_id
+--let $skip_assert_read_only= 1
+--source include/group_replication_end.inc

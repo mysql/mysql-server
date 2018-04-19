@@ -2,6 +2,8 @@
 # Start of 5.6 tests
 #
 SET NAMES utf8, collation_connection=utf16le_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT HEX('a'), HEX('a ');
 HEX('a')	HEX('a ')
 6100	61002000
@@ -102,7 +104,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `l` varchar(10) CHARACTER SET utf16le DEFAULT NULL,
   `r` varchar(10) CHARACTER SET utf16le DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT HEX(l), HEX(r) FROM t1;
 HEX(l)	HEX(r)
 2104210421042104210421042104210421042004	2004210421042104210421042104210421042104
@@ -120,6 +122,8 @@ DROP TABLE t1;
 # Testing LIKE
 #
 SET NAMES utf8, collation_connection=utf16le_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select @@collation_connection;
 @@collation_connection
 utf16le_general_ci
@@ -130,7 +134,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) CHARACTER SET utf16le DEFAULT NULL,
   KEY `a` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 explain select * from t1 where a like 'abc%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -352,6 +356,8 @@ DROP TABLE t1;
 # Bug#1264
 #
 SET NAMES utf8, collation_connection=utf16le_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 #
 # Two fields, index
 #
@@ -560,12 +566,14 @@ EXECUTE stmt1 USING @ivar;
 # Check that utf16le works with ENUM and SET type
 #
 SET NAMES utf8, collation_connection=utf16le_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (a ENUM('x','y','z') CHARACTER SET utf16le);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('x','y','z') CHARACTER SET utf16le DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` enum('x','y','z') CHARACTER SET utf16le COLLATE utf16le_general_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES ('x');
 INSERT INTO t1 VALUES ('y');
 INSERT INTO t1 VALUES ('z');
@@ -578,8 +586,8 @@ ALTER TABLE t1 CHANGE a a ENUM('x','y','z','d','e','ä','ö','ü') CHARACTER SET
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('x','y','z','d','e','ä','ö','ü') CHARACTER SET utf16le DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` enum('x','y','z','d','e','ä','ö','ü') CHARACTER SET utf16le COLLATE utf16le_general_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES ('D');
 INSERT INTO t1 VALUES ('E ');
 INSERT INTO t1 VALUES ('ä');
@@ -600,8 +608,8 @@ CREATE TABLE t1 (a set ('x','y','z','ä','ö','ü') CHARACTER SET utf16le);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` set('x','y','z','ä','ö','ü') CHARACTER SET utf16le DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` set('x','y','z','ä','ö','ü') CHARACTER SET utf16le COLLATE utf16le_general_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES ('x');
 INSERT INTO t1 VALUES ('y');
 INSERT INTO t1 VALUES ('z');
@@ -630,6 +638,8 @@ b	NULL
 c	NULL
 DROP TABLE t1;
 SET NAMES utf8, collation_connection='utf16le_general_ci';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 select repeat('a',4000) a;
 delete from t1;
 insert into t1 values ('a'), ('a '), ('a\t');
@@ -658,6 +668,8 @@ c2h
 ab_def
 drop table t1;
 SET NAMES utf8, collation_connection='utf16le_bin';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 select repeat('a',4000) a;
 delete from t1;
 insert into t1 values ('a'), ('a '), ('a\t');
@@ -675,7 +687,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1) CHARACTER SET utf16le COLLATE utf16le_bin DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (_utf8mb4 0xEFBE9D),(_utf8mb4 0xF0908E84);
 INSERT INTO t1 VALUES (_utf8mb4 0xCE85),(_utf8mb4 0xF4808080);
 SELECT HEX(a), HEX(CONVERT(a USING utf8mb4)) FROM t1 ORDER BY a;
@@ -764,6 +776,8 @@ E50000D800DC	å?
 E400E50000D800DC	äå?
 DROP TABLE t1;
 SET NAMES utf8, collation_connection=utf16le_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 #
 # Bug#9442 Set parameter make query fail if column CHARACTER SET is UCS2
 #
@@ -824,15 +838,15 @@ NOT NULL DEFAULT 'passive'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `status` enum('active','passive') CHARACTER SET utf16le NOT NULL DEFAULT 'passive'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `status` enum('active','passive') CHARACTER SET utf16le COLLATE utf16le_general_ci NOT NULL DEFAULT 'passive'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD a int NOT NULL AFTER status;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `status` enum('active','passive') CHARACTER SET utf16le NOT NULL DEFAULT 'passive',
+  `status` enum('active','passive') CHARACTER SET utf16le COLLATE utf16le_general_ci NOT NULL DEFAULT 'passive',
   `a` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Conversion FROM an UTF16LE string to a decimal column
@@ -871,6 +885,8 @@ DEALLOCATE PREPARE stmt;
 # Bug#22638 SOUNDEX broken for international characters
 #
 SET NAMES utf8, collation_connection=utf16le_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT SOUNDEX(''),SOUNDEX('he'),SOUNDEX('hello all folks'),SOUNDEX('#3556 in bugdb');
 SOUNDEX('')	SOUNDEX('he')	SOUNDEX('hello all folks')	SOUNDEX('#3556 in bugdb')
 	H000	H4142	I51231
@@ -894,11 +910,13 @@ HEX(SOUNDEX(_utf16le 0x00BF00C0))
 CREATE TABLE t1(a BLOB, b TEXT CHARSET utf16le);
 SELECT data_type, character_octet_length, character_maximum_length
 FROM information_schema.columns where table_name='t1';
-data_type	character_octet_length	character_maximum_length
+DATA_TYPE	CHARACTER_OCTET_LENGTH	CHARACTER_MAXIMUM_LENGTH
 blob	65535	65535
 text	65535	32767
 DROP TABLE t1;
 SET NAMES utf8, collation_connection=utf16le_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 #
 # Testing cs->coll->instr()
 #
@@ -909,6 +927,8 @@ POSITION('bb' IN 'abba')
 # Testing cs->coll->hash_sort()
 #
 SET NAMES utf8, collation_connection=utf16le_bin;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@collation_connection;
 @@collation_connection
 utf16le_bin
@@ -925,6 +945,8 @@ a	HEX(a)
 a 	61002000
 DROP TABLE t1;
 SET NAMES utf8, collation_connection=utf16le_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@collation_connection;
 @@collation_connection
 utf16le_general_ci
@@ -999,8 +1021,6 @@ DROP TABLE t1;
 # via ALTER
 #
 SET sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (s1 VARCHAR(50) CHARACTER SET ucs2);
 INSERT INTO t1 VALUES (0xDF84);
 ALTER TABLE t1 MODIFY column s1 VARCHAR(50) CHARACTER SET utf16le;
@@ -1086,10 +1106,14 @@ SELECT HEX(CONV(CONVERT('123' USING utf16le), 10, 16));
 HEX(CONV(CONVERT('123' USING utf16le), 10, 16))
 3742
 SET NAMES utf8, collation_connection=utf16le_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 #
 # Testing cs->cset->strntod
 #
 SET NAMES utf8, collation_connection=utf16le_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT 1.1 + '1.2';
 1.1 + '1.2'
 2.3
@@ -1239,16 +1263,14 @@ DROP TABLE t1;
 # Testing auto-conversion to TEXT
 #
 SET sql_mode = '';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a VARCHAR(17000) CHARACTER SET utf16le);
 Warnings:
 Note	1246	Converting column 'a' from VARCHAR to TEXT
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` mediumtext CHARACTER SET utf16le
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` mediumtext CHARACTER SET utf16le COLLATE utf16le_general_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SET sql_mode = default;
 #
@@ -1258,9 +1280,9 @@ CREATE TABLE t1 (a VARCHAR(250) CHARACTER SET utf16le PRIMARY KEY) engine=MyISAM
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(250) CHARACTER SET utf16le NOT NULL,
+  `a` varchar(250) CHARACTER SET utf16le COLLATE utf16le_general_ci NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(334) CHARACTER SET utf16le PRIMARY KEY) engine=MyISAM;
 ERROR 42000: Specified key was too long; max key length is 1000 bytes
@@ -1271,18 +1293,12 @@ CREATE TABLE t1 (a VARCHAR(150) CHARACTER SET utf16le PRIMARY KEY);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(150) CHARACTER SET utf16le NOT NULL,
+  `a` varchar(150) CHARACTER SET utf16le COLLATE utf16le_general_ci NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
-SET GLOBAL innodb_large_prefix=OFF;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
-CREATE TABLE t1 (a VARCHAR(334) CHARACTER SET utf16le PRIMARY KEY);
-ERROR 42000: Specified key was too long; max key length is 767 bytes
-SET GLOBAL innodb_large_prefix=default;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+CREATE TABLE t1 (a VARCHAR(334) CHARACTER SET utf16le PRIMARY KEY) ROW_FORMAT=COMPACT;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
 #
 # Conversion to utf8
 #
@@ -1304,6 +1320,8 @@ DROP TABLE t1;
 # Test basic regex functionality
 #
 SET NAMES utf8, collation_connection=utf16le_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table if exists t1;
 create table t1 as
 select repeat(' ', 64) as s1, repeat(' ',64) as s2
@@ -1314,7 +1332,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `s1` varchar(64) CHARACTER SET utf16le DEFAULT NULL,
   `s2` varchar(64) CHARACTER SET utf16le DEFAULT NULL
-) ENGINE=default_engine DEFAULT CHARSET=latin1
+) ENGINE=default_engine DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 delete from t1;
 insert into t1 values('aaa','aaa');
 insert into t1 values('aaa|qqq','qqq');
@@ -1329,7 +1347,6 @@ insert into t1 values('aaa','aba');
 insert into t1 values(null,'abc');
 insert into t1 values('def',null);
 insert into t1 values(null,null);
-insert into t1 values('ghi','ghi[');
 select HIGH_PRIORITY s1 regexp s2 from t1;
 s1 regexp s2
 1
@@ -1345,7 +1362,8 @@ s1 regexp s2
 NULL
 NULL
 NULL
-NULL
+SELECT 'ghi' REGEXP 'ghi[';
+ERROR HY000: The regular expression contains an unclosed bracket expression.
 drop table t1;
 #
 # Test how CHARACTER SET works with date/time
@@ -1366,12 +1384,14 @@ SET timestamp=0;
 # Bug#33073 Character sets: ordering fails with utf32
 #
 SET NAMES utf8, collation_connection=utf16le_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 AS SELECT REPEAT('a',2) as s1 LIMIT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `s1` varchar(2) CHARACTER SET utf16le DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES ('ab'),('AE'),('ab'),('AE');
 SELECT * FROM t1 ORDER BY s1;
 s1
@@ -1398,13 +1418,15 @@ s3 MEDIUMTEXT CHARACTER SET utf16le,
 s4 LONGTEXT CHARACTER SET utf16le
 );
 SET NAMES utf8, @@character_set_results=NULL;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT *, HEX(s1) FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	t1	s1	s1	252	255	0	Y	16	0	56
 def	test	t1	t1	s2	s2	252	65535	0	Y	16	0	56
 def	test	t1	t1	s3	s3	252	16777215	0	Y	16	0	56
 def	test	t1	t1	s4	s4	252	4294967295	0	Y	16	0	56
-def					HEX(s1)	253	6120	0	Y	0	0	33
+def					HEX(s1)	253	6120	0	Y	0	31	33
 s1	s2	s3	s4	HEX(s1)
 SET NAMES latin1;
 SELECT *, HEX(s1) FROM t1;
@@ -1413,23 +1435,25 @@ def	test	t1	t1	s1	s1	252	127	0	Y	16	0	8
 def	test	t1	t1	s2	s2	252	32767	0	Y	16	0	8
 def	test	t1	t1	s3	s3	252	8388607	0	Y	16	0	8
 def	test	t1	t1	s4	s4	252	2147483647	0	Y	16	0	8
-def					HEX(s1)	253	2040	0	Y	0	0	8
+def					HEX(s1)	253	2040	0	Y	0	31	8
 s1	s2	s3	s4	HEX(s1)
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT *, HEX(s1) FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	t1	s1	s1	252	381	0	Y	16	0	33
 def	test	t1	t1	s2	s2	252	98301	0	Y	16	0	33
 def	test	t1	t1	s3	s3	252	25165821	0	Y	16	0	33
 def	test	t1	t1	s4	s4	252	4294967295	0	Y	16	0	33
-def					HEX(s1)	253	6120	0	Y	0	0	33
+def					HEX(s1)	253	6120	0	Y	0	31	33
 s1	s2	s3	s4	HEX(s1)
 CREATE TABLE t2 AS SELECT CONCAT(s1) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `CONCAT(s1)` varchar(255) CHARACTER SET utf16le DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 #
 # Problem found by Roy during review
@@ -1437,6 +1461,8 @@ DROP TABLE t1, t2;
 # so filesort did not work well
 # 
 SET NAMES utf8, @@collation_connection=utf16le_bin;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 AS SELECT REPEAT(' ', 10) as c LIMIT 0;
 ALTER TABLE t1 ADD PRIMARY KEY(c);
 SHOW CREATE TABLE t1;
@@ -1444,7 +1470,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` varchar(10) CHARACTER SET utf16le COLLATE utf16le_bin NOT NULL,
   PRIMARY KEY (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES ('abc'),('zyx'),('acb');
 SELECT UPPER(c) FROM t1 ORDER BY 1 DESC;
 UPPER(c)
@@ -1456,6 +1482,8 @@ DROP TABLE t1;
 # WL#3664 WEIGHT_STRING
 #
 SET NAMES utf8, collation_connection=utf16le_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select @@collation_connection;
 @@collation_connection
 utf16le_general_ci
@@ -1609,37 +1637,9 @@ FFFD
 SELECT HEX(WEIGHT_STRING(_utf16le 0x00D801DC));
 HEX(WEIGHT_STRING(_utf16le 0x00D801DC))
 FFFD
-select @@collation_connection;
-@@collation_connection
-utf16le_general_ci
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-0041
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-0041
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-004100420043
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-00410042
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-004100420043
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-00410042004300200020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-20002000430042004100
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-FFBEFFBDFFBCFFDFFFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFFFDFFFBCFFBDFFBEFF
 SET NAMES utf8, collation_connection=utf16le_bin;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select @@collation_connection;
 @@collation_connection
 utf16le_bin
@@ -1787,36 +1787,6 @@ hex(weight_string(cast(_latin1 0x808080 as char), 5, 4, 0xC0))
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 0020AC0020AC0020AC00002000002000002000002000002000
-select @@collation_connection;
-@@collation_connection
-utf16le_bin
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-000061
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-000041
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-000061000062000063
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-000061000062
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-000061000062000063
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-000061000062000063000020000020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-200000200000630000620000610000
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-FFFF9EFFFF9DFFFF9CFFFFDFFFFFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFFFFFDFFFFF9CFFFF9DFFFF9EFFFF
 #
 # End of 5.6 tests
 #

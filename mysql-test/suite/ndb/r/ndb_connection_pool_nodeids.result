@@ -1,0 +1,19 @@
+# Stop the running server
+# - Empty nodeid last
+Pattern "Found empty nodeid" found
+# - Empty nodeid in the middle
+Pattern "Found empty nodeid" found
+# - Specified nodeid is not a number
+Pattern "Could not parse" found
+# - Check valid nodeid(> 0)
+Pattern "Invalid nodeid 0" found
+# - Check valid nodeid(<= 255)
+Pattern "Invalid nodeid 256" found
+# - Specified nodeid is unique
+Pattern "Found duplicate nodeid 1" found
+# - Number of nodeids in list must match size of pool
+#   (config specifies --ndb-cluster-connection-pool=3)
+Pattern "The size of the cluster connection pool must be" found
+# - First nodeid must be equal to --ndb-nodeid(if given)
+Pattern "The nodeid specified by --ndb-nodeid must be equal" found
+# Cleanup

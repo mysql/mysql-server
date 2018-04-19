@@ -1,0 +1,190 @@
+
+## Various regression tests
+##
+--let $wait_for_unixsocket_status = no_wait
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+call mtr.add_suppression("Plugin mysqlx reported: .Error parsing message of type 17:");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket .. failed, the socket file path is empty");
+--let $wait_for_unixsocket_status = no_wait
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/mysqlx-regression-ps.tmp
+# Test case for Bug #21472634 SHOW PROCESSLIST RETURNS DIFERENT RESULTS THAN IS QUERY WITH XPROTOCOL CONNECTN
+-->echo Bug #21472634
+-->stmtsql show processlist;
+-->recvresult Id User Host db Command State Info
+-->sql
+SELECT id,user,command,state FROM information_schema.processlist ORDER BY id;
+-->endsql
+EOF
+--replace_regex /localhost:[0-9]*/localhost/ /	[12]	/	0	/ /[0-9]+	root(.+)Sleep/$PROC_1_ID	root\1Sleep/ /[0-9]+	x_root(.+)Query/$PROC_2_ID	x_root\1Query/ /Execute/Query/ 
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-regression-ps.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-regression-ps.tmp
+
+
+## New Test starts here
+--write_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
+
+# Test case for Issue MYP-150 count() function is quoted causing error in server
+-->echo Issue MYP-150
+
+-->sql
+use test;
+create table complexq (age int, name varchar(100));
+insert into complexq values (50, 'blabla');
+-->endsql
+
+Mysqlx.Crud.Find {
+  collection {
+    name: "complexq"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "age"
+      }
+    }
+    alias: "age_group"
+  }
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "count"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "name"
+          }
+        }
+      }
+    }
+    alias: "cnt"
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "age_group"
+    }
+  }
+}
+-->recvresult
+
+-->sql
+drop table complexq;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-regression.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
+
+## MYP-140 - not "in" a database after logging in
+--echo Check whether default db on connect works
+--write_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
+-->sql
+select schema();
+-->endsql
+EOF
+--exec $MYSQLXTEST -ux_root --password='' --schema=test --file=$MYSQL_TMP_DIR/mysqlx-regression.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
+
+## MYP-255 - LIST_CLIENTS,KILL_CLIENTS WORKS WITH PASSWORD_EXPIRED USER WITHOUT SETTING PWD
+create user expired@localhost;
+alter user expired@localhost password expire;
+--echo Check whether password expired sandbox applies to admin cmds
+--write_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
+Mysqlx.Sql.StmtExecute {
+    stmt: "list_clients"
+    namespace: "xplugin"
+}
+-->expecterror 1820
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+    stmt: "set password='a'"
+}
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+    stmt: "list_clients"
+    namespace: "xplugin"
+}
+-->recvresult
+EOF
+
+--replace_regex /[0-9]+	/N	/ /	[0-9]+/	N/
+--exec $MYSQLXTEST -uexpired --password='' --connect-expired-password --file=$MYSQL_TMP_DIR/mysqlx-regression.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
+drop user expired@localhost;
+
+###
+
+# install and uninstall plugin a bunch of times... should fail because uninstall is forbidden
+--write_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
+-->title -Bug #21362400 MYSQLXTEST HANG WHEN EXECUTING INSTALL AND UNINSTALL PLUGIN
+-->expecterror 3130
+-->sql
+INSTALL PLUGIN mysqlx SONAME 'mysqlx.so';
+-->endsql
+-->expecterror 3130
+-->sql
+UNINSTALL PLUGIN mysqlx;
+-->endsql
+-->expecterror 3130
+-->sql
+INSTALL PLUGIN mysqlx SONAME 'mysqlx.so';
+-->endsql
+-->expecterror 3130
+-->sql
+UNINSTALL PLUGIN mysqlx;
+-->endsql
+-->expecterror 3130
+-->sql
+INSTALL PLUGIN mysqlx SONAME 'mysqlx.so';
+-->endsql
+
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-regression.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
+
+###
+
+# send a msg with invalid encoding, which was triggering a crash
+
+--write_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
+-->title -Bug Crash when sending an invalid message of type Find, for example
+
+-->repeat 10
+
+-->newsession foo
+# send a Find message with missing fields
+-->binsend \x01\x00\x00\x00\x11
+# expect a protobuf decode error
+-->recverror 5000
+-->closesession abort
+
+-->newsession foo	-
+# send a CapabilitySet message with missing fields
+-->binsend \x01\x00\x00\x00\x02
+# expect a protobuf decode error
+-->recverror 5000
+-->closesession abort
+
+-->endrepeat
+
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-regression.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
+--source include/xplugin_drop_user.inc

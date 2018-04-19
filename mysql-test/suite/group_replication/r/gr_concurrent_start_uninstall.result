@@ -1,0 +1,42 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Setup GR environment and execute START GR.
+
+[connection server1]
+SET GLOBAL group_replication_bootstrap_group=ON;
+SET GLOBAL group_replication_group_name = '8a94f357-bbbb-22aa-33bb-cccaaa420000';
+
+# 2. Block start, so we can execute UNINSTALL.
+
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_wait_on_start';
+START GROUP_REPLICATION;
+
+# 3. Execute UNINSTALL PLUGIN GR from second connection.
+
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.start_waiting";
+UNINSTALL PLUGIN group_replication;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+Wait for group replication plugin to be deleted.
+
+# 4. SIGNAL START GR to resume processing.
+
+SET DEBUG_SYNC= 'now SIGNAL signal.start_continue';
+[connection server1]
+
+# 5. Confirm plugin is UNINSTALLED.
+
+Wait for group replication plugin to be removed.
+
+# 6. Cleanup
+
+SET GLOBAL read_only = 0;
+INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+SET @@GLOBAL.DEBUG= @debug_save;
+include/group_replication_end.inc

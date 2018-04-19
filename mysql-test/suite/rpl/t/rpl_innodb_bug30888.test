@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_binlog_format_mixed_or_row.inc
 --source include/master-slave.inc
 

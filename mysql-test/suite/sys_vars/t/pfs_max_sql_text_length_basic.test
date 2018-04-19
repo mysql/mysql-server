@@ -1,5 +1,3 @@
---source include/not_embedded.inc
---source include/have_perfschema.inc
 
 #
 # Only global
@@ -15,10 +13,10 @@ show global variables like 'performance_schema_max_sql_text_length';
 show session variables like 'performance_schema_max_sql_text_length';
 
 --disable_warnings
-select * from information_schema.global_variables
+select * from performance_schema.global_variables
   where variable_name='performance_schema_max_sql_text_length';
 
-select * from information_schema.session_variables
+select * from performance_schema.session_variables
   where variable_name='performance_schema_max_sql_text_length';
 --enable_warnings
 

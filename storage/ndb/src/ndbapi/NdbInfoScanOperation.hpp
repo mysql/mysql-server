@@ -1,69 +1,39 @@
-/*
-   Copyright 2009, 2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
- */
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License, version 2.0, for more details.
 
-#ifndef NDBINFOSCANOPERATION_H
-#define NDBINFOSCANOPERATION_H
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
+#ifndef NDBINFO_SCAN_OPERATION_HPP
+#define NDBINFO_SCAN_OPERATION_HPP
+
+#include "NdbInfoRecAttr.hpp"
 
 class NdbInfoScanOperation {
 public:
-  int readTuples();
-  const class NdbInfoRecAttr* getValue(const char * anAttrName);
-  const class NdbInfoRecAttr* getValue(Uint32 anAttrId);
-  int execute();
-  int nextResult();
-protected:
-  friend class NdbInfo;
-  NdbInfoScanOperation(const NdbInfo&,
-                       class Ndb_cluster_connection*,
-                       const NdbInfo::Table*,
-                       Uint32 max_rows, Uint32 max_bytes);
-  bool init(Uint32 id);
-  ~NdbInfoScanOperation();
-  void close();
-private:
-  bool execDBINFO_TRANSID_AI(const struct SimpleSignal * signal);
-  bool execDBINFO_SCANCONF(const struct SimpleSignal * signal);
-  bool execDBINFO_SCANREF(const struct SimpleSignal * signal, int& error_code);
-  int sendDBINFO_SCANREQ();
-
-  int receive(void);
-  bool find_next_node();
-
-  struct NdbInfoScanOperationImpl& m_impl;
-  const NdbInfo& m_info;
-  enum State { Undefined, Initial, Prepared,
-               MoreData, End, Error } m_state;
-  class Ndb_cluster_connection* m_connection;
-  class SignalSender*           m_signal_sender;
-  const NdbInfo::Table*     m_table;
-  Vector<NdbInfoRecAttr*>       m_recAttrs;
-  Vector<Uint32>                m_cursor;
-  Uint32 m_node_id;
-  Uint32 m_transid0;
-  Uint32 m_transid1;
-  Uint32 m_result_ref;
-  Uint32 m_max_rows;
-  Uint32 m_max_bytes;
-  Uint32 m_result_data;
-  Uint32 m_rows_received;
-  Uint32 m_rows_confirmed;
-  Uint32 m_nodes; // Number of nodes scanned
-  Uint32 m_max_nodes; // Max number of nodes to scan
+  virtual int readTuples() = 0;
+  virtual const NdbInfoRecAttr* getValue(const char * anAttrName) = 0;
+  virtual const NdbInfoRecAttr* getValue(Uint32 anAttrId) = 0;
+  virtual int execute() = 0;
+  virtual int nextResult() = 0;
+  virtual ~NdbInfoScanOperation() {}
 };
 
 

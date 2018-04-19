@@ -6,15 +6,6 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
-#
-# We are checking privileges, which the embedded server cannot do.
-#
---source include/not_embedded.inc
-
-# Problem occur with checking ACL when QC is enabled
-# Should be lifted later
---source include/have_query_cache_disabled.inc
-
 CREATE DATABASE mysqltest1;
 USE mysqltest1;
 CREATE TABLE t1 (f1 int);
@@ -311,10 +302,7 @@ connection default;
 disconnect ce;
 --echo # Check access rights checking
 connection cq;
-set @orig_sql_mode = @@sql_mode;
-set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-GRANT USAGE ON *.* TO 'privtest'@'localhost';
-set sql_mode= @orig_sql_mode;
+CREATE USER 'privtest'@'localhost';
 GRANT SUPER ON *.* TO 'privtest'@'localhost';
 GRANT SELECT ON mysqltest1.t2 TO 'privtest'@'localhost';
 CREATE VIEW v2 AS SELECT * FROM t2;
@@ -454,13 +442,13 @@ let $query=
 SELECT 
   t1.login AS tlogin, 
   numb - 
-  IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=tlogin), 0) -
-  IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=tlogin), 0) as sp 
+  IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0) -
+  IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0) as sp
 FROM tbl1 t1, tbl2 t2 
 WHERE t1.login=t2.login 
 GROUP BY t1.login 
-ORDER BY numb - IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=tlogin), 0)
-              - IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=tlogin), 0)
+ORDER BY numb - IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0)
+              - IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0)
 ;
 
 --source include/explain_other.inc
@@ -480,14 +468,10 @@ DROP TABLE tbl1, tbl2;
 
 connection default;
 
---disable_warnings
-DROP TABLE IF EXISTS t1, t2;
---enable_warnings
-
 create table t1(a char(10) charset latin1, key(a)) engine=innodb;
 create table t2(a binary(10), key(a)) engine=innodb;
 
-insert into t1 values('1'),('2'),('3');
+insert into t1 values('1'),('2'),('3'),('4');
 insert into t2 values('1'),('2'),('s');
 analyze table t1,t2;
 
@@ -559,11 +543,28 @@ connection cq;
 --echo # Connection default
 connection default;
 DROP TABLE t1, t2;
-SET DEBUG_SYNC= 'RESET';
-disconnect cq;
-disconnect ce;
 --echo # End of test Bug#19822146
 
+--echo #
+--echo # Bug#25422034 CRASH IN TABLE_LIST::QUERY_BLOCK_ID_FOR_EXPLAIN DURING EXPLAIN FOR CONNECTION
+--echo #
+
+connection default;
+create table t1(a int);
+insert into t1 values(1),(2);
+let $query= select * from (select * from t1) dt;
+let $point= derived_not_set;
+let $format= traditional;
+# Stmt is of a supported type, but cannot be explained while in resolution
+let $err= ER_EXPLAIN_NOT_SUPPORTED;
+--source include/explain_other.inc
+let $err=0;
+DROP TABLE t1;
+
+SET DEBUG_SYNC= 'RESET';
 USE test;
 DROP DATABASE mysqltest1;
 --echo # End of test
+
+disconnect cq;
+disconnect ce;

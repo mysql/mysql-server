@@ -131,7 +131,7 @@ SET @@global.keep_files_on_create = test;
 SET @@session.keep_files_on_create = ONN;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.keep_files_on_create = ONF;
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@session.keep_files_on_create = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.keep_files_on_create = 'OFN';
@@ -155,7 +155,7 @@ SELECT @@session.keep_files_on_create;
 
 --disable_warnings
 SELECT IF(@@global.keep_files_on_create, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='keep_files_on_create';
 --enable_warnings
 
@@ -166,7 +166,7 @@ WHERE VARIABLE_NAME='keep_files_on_create';
 
 --disable_warnings
 SELECT IF(@@session.keep_files_on_create, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='keep_files_on_create';
 --enable_warnings
 

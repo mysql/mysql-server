@@ -12,11 +12,13 @@ CALL query_rewrite.flush_rewrite_rules();
 ERROR 45000: Loading of some rule(s) failed.
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	INSERT INTO test.t1 ( a, b ) VALUES ( ?, ? )	NULL	INSERT INTO test.t1 ( b, a ) VALUES ( ?, ? )	Y	Pattern needs to be a a select statement.
+1	INSERT INTO test.t1 ( a, b ) VALUES ( ?, ? )	NULL	INSERT INTO test.t1 ( b, a ) VALUES ( ?, ? )	YES	Pattern needs to be a a select statement.
 CREATE TABLE t1 ( a INT, b INT );
 INSERT INTO test.t1 ( a, b ) VALUES ( 1, 2 );
 SELECT * FROM t1;
 a	b
 1	2
 DROP TABLE t1;
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

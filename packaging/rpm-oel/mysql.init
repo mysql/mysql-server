@@ -3,7 +3,7 @@
 # mysqld	This shell script takes care of starting and stopping
 #		the MySQL subsystem (mysqld).
 #
-# chkconfig: - 64 36
+# chkconfig: 345 64 36
 # description:	MySQL database server.
 # processname: mysqld
 # config: /etc/my.cnf
@@ -21,7 +21,10 @@ prog="mysqld"
 
 # Set timeouts here so they can be overridden from /etc/sysconfig/mysqld
 STARTTIMEOUT=120
-STOPTIMEOUT=60
+STOPTIMEOUT=600
+
+# Set in /etc/sysconfig/mysqld, will be passed to mysqld_safe
+MYSQLD_OPTS=
 
 [ -e /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
 
@@ -31,32 +34,44 @@ lockfile=/var/lock/subsys/$prog
 command=$1 && shift
 extra_opts="$@"
 
-# extract value of a MySQL option from config files
-# Usage: get_mysql_option SECTION VARNAME DEFAULT
-# result is returned in $result
+# Extract value of a MySQL option from config files
+# Usage: get_mysql_option OPTION DEFAULT SECTION1 SECTION2 SECTIONN
+# Result is returned in $result
 # We use my_print_defaults which prints all options from multiple files,
 # with the more specific ones later; hence take the last match.
-get_mysql_option(){
-	result=`/usr/bin/my_print_defaults "$1" | sed -n "s/^--$2=//p" | tail -n 1`
-	if [ -z "$result" ]; then
-	    # not found, use default
-	    result="$3"
-	fi
+get_mysql_option () {
+    option=$1
+    default=$2
+    shift 2
+    result=$(/usr/bin/my_print_defaults "$@" | sed -n "s/^--${option}=//p" | tail -n 1)
+    if [ -z "$result" ]; then
+	# not found, use default
+	result="${default}"
+    fi
 }
 
-get_mysql_option mysqld datadir "/var/lib/mysql"
+get_mysql_option datadir "/var/lib/mysql" mysqld
 datadir="$result"
-get_mysql_option mysqld socket "$datadir/mysql.sock"
+get_mysql_option socket "$datadir/mysql.sock" mysqld
 socketfile="$result"
-get_mysql_option mysqld_safe log-error "/var/log/mysqld.log"
+get_mysql_option log-error "/var/log/mysqld.log" mysqld mysqld_safe
 errlogfile="$result"
-get_mysql_option mysqld_safe pid-file "/var/run/mysqld/mysqld.pid"
+get_mysql_option pid-file "/var/run/mysqld/mysqld.pid" mysqld mysqld_safe
 mypidfile="$result"
 
 case $socketfile in
     /*) adminsocket="$socketfile" ;;
      *) adminsocket="$datadir/$socketfile" ;;
 esac
+
+install_validate_password_sql_file () {
+    local initfile
+    initfile="$(mktemp /var/lib/mysql-files/install-validate-password-plugin.XXXXXX.sql)"
+    chmod a+r "$initfile"
+    echo "SET @@SESSION.SQL_LOG_BIN=0;" > "$initfile"
+    echo "INSERT INTO mysql.component (component_id, component_group_id, component_urn) VALUES (1, 1, 'file://component_validate_password');" >> "$initfile"
+    echo "$initfile"
+}
 
 start(){
     [ -x $exec ] || exit 5
@@ -72,30 +87,44 @@ start(){
 	action $"Starting $prog: " /bin/true
 	ret=0
     else
-    	# prepare for start
-	touch "$errlogfile"
-	chown mysql:mysql "$errlogfile" 
-	chmod 0640 "$errlogfile"
+	# prepare for start
+	if [ ! -e "$errlogfile" -a ! -h "$errlogfile" -a "x$(dirname "$errlogfile")" = "x/var/log" ]; then
+	    install /dev/null -m0640 -omysql -gmysql "$errlogfile"
+	fi
 	[ -x /sbin/restorecon ] && /sbin/restorecon "$errlogfile"
 	if [ ! -d "$datadir/mysql" ] ; then
 	    # First, make sure $datadir is there with correct permissions
-	    if [ ! -e "$datadir" -a ! -h "$datadir" ]
-	    then
-		mkdir -p "$datadir" || exit 1
+	    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
+		install -d -m0751 -omysql -gmysql "$datadir" || exit 1
 	    fi
-	    chown mysql:mysql "$datadir"
-	    chmod 0755 "$datadir"
-	    [ -x /sbin/restorecon ] && /sbin/restorecon "$datadir"
+	    if [ ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
+		chown mysql:mysql "$datadir"
+		chmod 0751 "$datadir"
+	    fi
+	    if [ -x /sbin/restorecon ]; then
+		/sbin/restorecon "$datadir"
+		for dir in /var/lib/mysql-files /var/lib/mysql-keyring ; do
+		    if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d $dir ] ; then
+			/usr/sbin/semanage fcontext -a -e /var/lib/mysql $dir >/dev/null 2>&1
+			/sbin/restorecon -r $dir
+		    fi
+		done
+	    fi
 	    # Now create the database
-	    action $"Initializing MySQL database: " /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql
+	    initfile="$(install_validate_password_sql_file)"
+	    action $"Initializing MySQL database: " /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql --init-file="$initfile"
 	    ret=$?
-	    chown -R mysql:mysql "$datadir"
-	    if [ $ret -ne 0 ] ; then
-		return $ret
+	    rm -f "$initfile"
+	    [ $ret -ne 0 ] && return $ret
+	    # Generate certs if needed
+	    if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${datadir}/server-key.pem" ] ; then
+		/usr/bin/mysql_ssl_rsa_setup --datadir="$datadir" --uid=mysql >/dev/null 2>&1
 	    fi
 	fi
-	chown mysql:mysql "$datadir"
-	chmod 0755 "$datadir"
+	if [ ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
+	    chown mysql:mysql "$datadir"
+	    chmod 0751 "$datadir"
+	fi
 	# Pass all the options determined above, to ensure consistent behavior.
 	# In many cases mysqld_safe would arrive at the same conclusions anyway
 	# but we need to be sure.  (An exception is that we don't force the
@@ -103,9 +132,9 @@ start(){
 	# and some users might prefer to configure logging to syslog.)
 	# Note: set --basedir to prevent probes that might trigger SELinux
 	# alarms, per bug #547485
-	$exec   --datadir="$datadir" --socket="$socketfile" \
+	$exec $MYSQLD_OPTS --datadir="$datadir" --socket="$socketfile" \
 		--pid-file="$mypidfile" \
-		--basedir=/usr --user=mysql $extra_opts >/dev/null 2>&1 &
+		--basedir=/usr --user=mysql $extra_opts >/dev/null &
 	safe_pid=$!
 	# Spin for a maximum of N seconds waiting for the server to come up;
 	# exit the loop immediately if mysqld_safe process disappears.
@@ -144,7 +173,7 @@ stop(){
 	    action $"Stopping $prog: " /bin/true
 	    return 0
 	fi
-	MYSQLPID=`cat "$mypidfile"`
+	MYSQLPID=$(cat "$mypidfile")
 	if [ -n "$MYSQLPID" ]; then
 	    /bin/kill "$MYSQLPID" >/dev/null 2>&1
 	    ret=$?
@@ -174,7 +203,7 @@ stop(){
 	fi
 	return $ret
 }
- 
+
 restart(){
     stop
     start

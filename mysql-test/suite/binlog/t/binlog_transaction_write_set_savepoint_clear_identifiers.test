@@ -1,0 +1,47 @@
+###############################################################################
+# This test confirm that all information about SAVEPOINT identifiers is erased
+# after a COMMIT or ROLLBACK
+#
+# Test:
+#   0. Enable debug point that asserts that when adding a SAVEPOINT it's the
+#   only one on savepoint map
+#   1. Create a table to insert data
+#   2. Commit a transaction and verify that when created a SAVEPOINT was the only
+#   one identifier
+#   3. Rollback a transaction and verify that when created a SAVEPOINT was the only
+#   one identifier
+#   4. Commit a transaction and verify that when created a SAVEPOINT was the only
+#   one identifier
+#
+###############################################################################
+
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+SET @save_session_debug= @@SESSION.debug;
+SET @@SESSION.debug = "+d,transaction_write_set_savepoint_clear_on_commit_rollback";
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+
+BEGIN;
+SAVEPOINT S0;
+INSERT INTO t1 VALUES (0);
+COMMIT;
+
+BEGIN;
+SAVEPOINT S1;
+INSERT INTO t1 VALUES (1);
+ROLLBACK;
+
+BEGIN;
+SAVEPOINT S2;
+INSERT INTO t1 VALUES (2);
+COMMIT;
+
+--let $assert_text= 'There are two values in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
+--source include/assert.inc
+
+# Cleanup
+SET @@SESSION.debug= @save_session_debug;
+DROP TABLE t1;

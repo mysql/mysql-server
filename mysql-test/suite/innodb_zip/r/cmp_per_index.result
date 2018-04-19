@@ -1,3 +1,5 @@
+select @@global.innodb_log_compressed_pages into @save_innodb_log_compressed_pages;
+SET @@global.innodb_log_compressed_pages=1;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SELECT * FROM information_schema.innodb_cmp_per_index;
 CREATE TABLE t (
@@ -7,7 +9,7 @@ c VARCHAR(16),
 PRIMARY KEY (a),
 INDEX (b(512)),
 INDEX (c(16))
-) ENGINE=INNODB KEY_BLOCK_SIZE=2;
+) charset latin1 ENGINE=INNODB KEY_BLOCK_SIZE=2;
 SELECT
 database_name,
 table_name,
@@ -38,11 +40,7 @@ uncompress_ops	0
 BEGIN;
 COMMIT;
 ALTER TABLE t DROP INDEX c;
-GRANT USAGE ON *.* TO 'tuser01'@'localhost' IDENTIFIED BY 'cDJvI9s_Uq';
-Warnings:
-Level	Warning
-Code	1287
-Message	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER 'tuser01'@'localhost' IDENTIFIED BY 'cDJvI9s_Uq';
 FLUSH PRIVILEGES;
 SELECT * FROM information_schema.innodb_cmp_per_index;
 ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
@@ -70,6 +68,7 @@ index_name	PRIMARY
 compress_ops	65
 compress_ops_ok	65
 uncompress_ops	0
+SET GLOBAL innodb_log_compressed_pages=@save_innodb_log_compressed_pages;
 # restart
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SELECT COUNT(*) FROM t;

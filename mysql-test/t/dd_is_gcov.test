@@ -1,0 +1,71 @@
+--source include/not_windows.inc
+
+# This test case are added in order to test code that is not covered by
+# existing test cases, focusing gcov test coverage.
+
+
+--echo #
+--echo # A) Test code handling virtual columns in mysqldump tool.
+--echo #
+
+SET timestamp=1;
+CREATE DATABASE test1;
+use test1;
+CREATE TABLE t1 (a1 INTEGER,
+                 a2 INTEGER GENERATED ALWAYS AS (a1 * 2) STORED,
+                 a3 INTEGER GENERATED ALWAYS AS (a1 * 3) VIRTUAL,
+                 KEY (a1) );
+--exec $MYSQL_DUMP --compact --opt -d test1 t1
+--exec $MYSQL_DUMP --xml --compact --opt -d test1 t1
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # B) Test displaying create_options from I_S.TABLES.CREATE_OPTIONS
+--echo #
+
+CREATE TABLE t1 (a INT NOT NULL,b INT NOT NULL, PRIMARY KEY USING BTREE (a))
+ENGINE=MYISAM COMMENT="TESTING" PACK_KEYS=1 DELAY_KEY_WRITE=1
+STATS_PERSISTENT=1 CHECKSUM=1 MIN_ROWS=1 MAX_ROWS=100;
+
+CREATE TABLE t2 (a INT NOT NULL,b INT NOT NULL, PRIMARY KEY USING BTREE (a))
+ENGINE=MYISAM COMMENT="TESTING" PACK_KEYS=0 DELAY_KEY_WRITE=1
+STATS_PERSISTENT=1 CHECKSUM=1 MIN_ROWS=1 MAX_ROWS=100;
+
+SELECT CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME='t1' OR TABLE_NAME='t2';
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo #
+--echo # C) Test SHOW COLUMNS/KEYS on temporary tables.
+--echo #
+
+CREATE TEMPORARY TABLE t1 (
+  a INTEGER NOT NULL DEFAULT 1,
+  b INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  c INTEGER,
+  d INTEGER GENERATED ALWAYS AS (a * 2) STORED,
+  e POINT NOT NULL SRID 0,
+  f CHAR(30),
+  g INT,
+  h TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY(g), SPATIAL KEY(e), FULLTEXT(f)) engine=myisam;
+
+CREATE INDEX b_index USING btree ON t1( b );
+CREATE INDEX h_index USING hash ON t1( c );
+CREATE INDEX g_index ON t1( f(4) ) COMMENT 'ABC';
+CREATE INDEX r_index USING rtree ON t1( a ) USING btree;
+
+SHOW FULL COLUMNS FROM t1;
+SHOW KEYS FROM t1;
+
+SHOW FULL COLUMNS FROM t1 WHERE FIELD = 'a' OR FIELD = 'b';
+SHOW KEYS FROM t1 WHERE KEY_NAME = 'r_index' OR KEY_NAME = 'h_index';
+
+DROP TEMPORARY TABLE t1;
+
+
+DROP DATABASE test1;

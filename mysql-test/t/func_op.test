@@ -4,9 +4,9 @@
 # Simple operands and arithmetic grouping
 
 select 1+1,1-1,1+1*2,8/5,8%5,mod(8,5),mod(8,5)|0,-(1+1)*-2;
-explain extended select 1+1,1-1,1+1*2,8/5,8%5,mod(8,5),mod(8,5)|0,-(1+1)*-2;
+explain select 1+1,1-1,1+1*2,8/5,8%5,mod(8,5),mod(8,5)|0,-(1+1)*-2;
 select 1 | (1+1),5 & 3,bit_count(7) ;
-explain extended select 1 | (1+1),5 & 3,bit_count(7) ;
+explain select 1 | (1+1),5 & 3,bit_count(7) ;
 select 1 << 32,1 << 63, 1 << 64, 4 >> 2, 4 >> 63, 1<< 63 >> 60;
 #
 # bug #1993: bit functions must be unsigned

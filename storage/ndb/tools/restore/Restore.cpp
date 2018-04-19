@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -17,7 +24,6 @@
 
 #include "Restore.hpp"
 #include <NdbTCP.h>
-#include <NdbMem.h>
 #include <OutputStream.hpp>
 #include <Bitmask.hpp>
 
@@ -29,7 +35,7 @@
 #include <NdbAutoPtr.hpp>
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 
-#include "../../../../sql/ha_ndbcluster_tables.h"
+#include "sql/ha_ndbcluster_tables.h"
 extern NdbRecordPrintFormat g_ndbrecord_print_format;
 extern bool ga_skip_unknown_objects;
 extern bool ga_skip_broken_objects;
@@ -321,11 +327,25 @@ RestoreMetaData::readMetaTableList() {
   const Uint32 tabCount = sectionInfo[1] - 2;
 
   void *tmp;
-  if (buffer_get_ptr(&tmp, 4, tabCount) != tabCount){
-    err << "readMetaTableList read tabCount error" << endl;
+  Uint32 tabsRead = 0;
+  while (tabsRead < tabCount){
+    int count = buffer_get_ptr(&tmp, 4, tabCount - tabsRead);
+    if(count == 0)
+      break;
+    tabsRead += count;
+  }
+  if (tabsRead != tabCount){
+    err << "readMetaTableList read tabCount error, expected count = " << tabCount << ", actual count =" << tabsRead << endl;
     return 0;
   }
-  
+#ifdef ERROR_INSERT
+  if(m_error_insert == NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER)
+  {
+    // clear error insert
+    m_error_insert = 0;
+    m_buffer_sz = BUFFER_SIZE;
+  }
+#endif  
   return tabCount;
 }
 
@@ -801,6 +821,19 @@ RestoreDataIterator::RestoreDataIterator(const RestoreMetaData & md, void (* _fr
   m_bitfield_storage_curr_ptr = m_bitfield_storage_ptr;
   m_row_bitfield_len = 0;
 }
+
+
+bool
+RestoreDataIterator::validateRestoreDataIterator()
+{
+    if (!m_bitfield_storage_ptr)
+    {
+        err << "m_bitfield_storage_ptr is NULL" << endl;
+        return false;
+    }
+    return true;
+}
+
 
 RestoreDataIterator::~RestoreDataIterator()
 {
@@ -1320,7 +1353,7 @@ BackupFile::BackupFile(void (* _free_data_callback)())
   m_path[0] = 0;
   m_fileName[0] = 0;
 
-  m_buffer_sz = 64*1024;
+  m_buffer_sz = BUFFER_SIZE;
   m_buffer = malloc(m_buffer_sz);
   m_buffer_ptr = m_buffer;
   m_buffer_data_left = 0;
@@ -1328,6 +1361,20 @@ BackupFile::BackupFile(void (* _free_data_callback)())
   m_file_size = 0;
   m_file_pos = 0;
   m_is_undolog = false;
+#ifdef ERROR_INSERT
+  m_error_insert = 0;
+#endif
+}
+
+bool
+BackupFile::validateBackupFile()
+{
+    if (!m_buffer)
+    {
+        err << "m_buffer is NULL" << endl;
+        return false;
+    }
+    return true;
 }
 
 BackupFile::~BackupFile()
@@ -1671,6 +1718,20 @@ BackupFile::validateFooter(){
   return true;
 }
 
+#ifdef ERROR_INSERT
+void BackupFile::error_insert(unsigned int code)
+{
+  if(code == NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER)
+  {
+    // Reduce size of buffer to test buffer overflow
+    // handling. The buffer must still be large enough to
+    // accommodate the file header.
+    m_buffer_sz = 256;
+    m_error_insert = NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER;
+  }
+}
+#endif
+
 bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
 {
   BackupFormat::DataFile::FragmentHeader Header;
@@ -1774,6 +1835,7 @@ AttributeDesc::AttributeDesc(NdbDictionary::Column *c)
   size = 8*NdbColumnImpl::getImpl(* c).m_attrSize;
   arraySize = NdbColumnImpl::getImpl(* c).m_arraySize;
   staging = false;
+  parameterSz = 0;
 }
 
 void TableS::createAttr(NdbDictionary::Column *column)
@@ -2026,13 +2088,15 @@ RestoreLogIterator::getNextLogEntry(int & res) {
     attr->Desc = tab->getAttributeDesc(ah->getAttributeId());
     assert(attr->Desc != 0);
 
-    const Uint32 sz = ah->getDataSize();
+    const Uint32 sz = ah->getByteSize();
     if(sz == 0){
       attr->Data.null = true;
       attr->Data.void_value = NULL;
+      attr->Data.size = 0;
     } else {
       attr->Data.null = false;
       attr->Data.void_value = ah->getDataPtr();
+      attr->Data.size = sz;
       Twiddle(attr->Desc, &(attr->Data));
     }
     
@@ -2058,8 +2122,16 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
   
   NdbRecAttr tmprec(0);
   tmprec.setup(desc.m_column, 0);
-  Uint32 length = (desc.size)/8 * (desc.arraySize);
-  tmprec.receive_data((Uint32*)data.void_value, length);
+
+  assert(desc.size % 8 == 0);
+#ifndef NDEBUG
+  const Uint32 length = (desc.size)/8 * (desc.arraySize);
+#endif
+  assert((desc.m_column->getArrayType() == NdbDictionary::Column::ArrayTypeFixed)
+         ? (data.size == length)
+         : (data.size <= length));
+
+  tmprec.receive_data((Uint32*)data.void_value, data.size);
 
   ndbrecattr_print_formatted(ndbout, tmprec, g_ndbrecord_print_format);
 
@@ -2111,6 +2183,103 @@ operator<<(NdbOut& ndbout, const LogEntry& logE)
       ndbout << ", ";
   }
   return ndbout;
+}
+
+void
+AttributeS::printAttributeValue() const {
+  NdbDictionary::Column::Type columnType =
+      this->Desc->m_column->getType();
+  switch(columnType)
+  {
+    case NdbDictionary::Column::Char:
+    case NdbDictionary::Column::Varchar:
+    case NdbDictionary::Column::Binary:
+    case NdbDictionary::Column::Varbinary:
+    case NdbDictionary::Column::Datetime:
+    case NdbDictionary::Column::Date:
+    case NdbDictionary::Column::Longvarchar:
+    case NdbDictionary::Column::Longvarbinary:
+    case NdbDictionary::Column::Time:
+    case NdbDictionary::Column::Timestamp:
+    case NdbDictionary::Column::Time2:
+    case NdbDictionary::Column::Datetime2:
+    case NdbDictionary::Column::Timestamp2:
+      ndbout << "\'" << (* this) << "\'";
+      break;
+    default:
+      ndbout << (* this);
+  }
+}
+
+void
+LogEntry::printSqlLog() const {
+  /* Extract the table name from log entry which is stored in
+   * database/schema/table and convert to database.table format
+   */
+  BaseString tableName(m_table->getTableName());
+  Vector<BaseString> tableNameParts;
+  Uint32 noOfPK = m_table->m_dictTable->getNoOfPrimaryKeys();
+  tableName.split(tableNameParts, "/");
+  tableName.assign("");
+  tableName.assign(tableNameParts[0]);
+  tableName.append(".");
+  tableName.append(tableNameParts[2]);
+  switch(m_type)
+  {
+    case LE_INSERT:
+      ndbout << "INSERT INTO " << tableName.c_str() << " VALUES(";
+      for (Uint32 i = noOfPK; i < size(); i++)
+      {
+        /* Skip the first field(s) which contains additional
+         * instance of the primary key */
+        const AttributeS * attr = m_values[i];
+        attr->printAttributeValue();
+        if (i < (size() - 1))
+          ndbout << ",";
+      }
+      ndbout << ")";
+      break;
+    case LE_DELETE:
+      ndbout << "DELETE FROM " << tableName.c_str() << " WHERE ";
+      for (Uint32 i = 0; i < size();i++)
+      {
+        /* Primary key(s) clauses */
+        const AttributeS * attr = m_values[i];
+        const char* columnName = attr->Desc->m_column->getName();
+        ndbout << columnName << "=";
+        attr->printAttributeValue();
+        if (i < (size() - 1))
+          ndbout << " AND ";
+      }
+      break;
+    case LE_UPDATE:
+      ndbout << "UPDATE " << tableName.c_str() << " SET ";
+      for (Uint32 i = noOfPK; i < size(); i++)
+      {
+        /* Print column(s) being set*/
+        const AttributeS * attr = m_values[i];
+        const char* columnName = attr->Desc->m_column->getName();
+        ndbout << columnName << "=";
+        attr->printAttributeValue();
+        if (i < (size() - 1))
+          ndbout << ", ";
+      }
+      /*Print where clause with primary key(s)*/
+      ndbout << " WHERE ";
+      for (Uint32 i = 0; i < noOfPK; i++)
+      {
+        const AttributeS * attr = m_values[i];
+        const char* columnName = attr->Desc->m_column->getName();
+        ndbout << columnName << "=";
+        attr->printAttributeValue();
+        if(i < noOfPK-1)
+          ndbout << " AND ";
+      }
+      break;
+    default:
+      ndbout << "Unknown log entry type (not insert, delete or update)" ;
+  }
+  ndbout << ";";
 }
 
 #include <NDBT.hpp>

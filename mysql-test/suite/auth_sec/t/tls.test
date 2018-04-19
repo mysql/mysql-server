@@ -1,0 +1,112 @@
+# Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+
+-- source include/have_ssl.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #
+--echo # WL#8196 TLSv1.2 support
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("Failed to set up SSL because of");
+--enable_query_log
+
+# We let our server restart attempts write to the file $error_log.
+let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
+
+--error 0,1
+--remove_file $error_log
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $MYSQL_SOCKET= `SELECT @@socket`;
+let $MYSQL_PORT= `SELECT @@port`;
+
+let $tls_default= TLSv1.2;
+
+--echo #T1: Default TLS connection
+--replace_result $tls_default TLS_VERSION
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_version'"
+
+--echo #T2: Default SSL cipher
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'"
+
+--echo #T3: Setting TLS version TLSv1.2 from the client
+--replace_result $tls_default TLS_VERSION
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=$tls_default -e "SHOW STATUS like 'Ssl_version'"
+
+--echo #T4: Setting TLS version TLSv1.1 from the client
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"
+
+--echo #T5: Setting TLS version TLSv1 from the client
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1 -e "SHOW STATUS like 'Ssl_version'"
+
+--echo #T6: Setting TLS version TLSv1, TLSv1.1 from the client
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1,TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"
+
+--echo #T7: Setting invalid TLS version value from the client, it should give error.
+--error 1
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLS_INVALID_VERSION -e "SHOW STATUS like 'Ssl_version'"
+
+--echo #T8: Cipher which is not in the cipher list but not restricted permanently
+--error 1
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-cipher=CAMELLIA256-SHA -e "SHOW STATUS like 'Ssl_cipher'"
+
+--echo #T9: Cipher which is not in the cipher list but not restricted permanently, setting the server cipher as well
+
+--echo Restart server and provide ssl-cipher at server startup
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart:--ssl-cipher=CAMELLIA256-SHA " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# This test only need to run for openssl build as Camella256 cipher is not supported by yassl
+if ($openssl == 'Rsa_public_key'){ 
+  --exec $MYSQL -h 127.0.0.1 -P $MYSQL_PORT --ssl-cipher=CAMELLIA256-SHA -e "SHOW STATUS like 'Ssl_cipher'"
+}
+
+if ($openssl != 'Rsa_public_key'){
+--echo Variable_name	Value
+--echo Ssl_cipher	CAMELLIA256-SHA
+}
+
+--echo #T10: Permanently restricted cipher, setting in the server as well
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart:--ssl-cipher=DHE-DSS-DES-CBC3-SHA " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo Connection will be possible, but server will not be enabled with ssl and connection is not ssl-enabled
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-cipher=DHE-DSS-DES-CBC3-SHA -e "SHOW STATUS like 'Ssl_cipher'"
+
+--echo #T11: Setting TLS version1.2 in the server and from client giving TLSv1.1, connection should fail
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart:--tls-version=TLSv1.2 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--error 1
+--exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"
+
+--echo # restart server using restart
+--echo Restart server and provide ssl-cipher at server startup
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+

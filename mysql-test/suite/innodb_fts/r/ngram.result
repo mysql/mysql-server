@@ -1,4 +1,4 @@
-SET NAMES utf8;
+SET NAMES utf8mb4;
 # Test Case 1: Test Chinese with GB2312 Charset.
 CREATE TABLE articles (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
@@ -118,7 +118,7 @@ CREATE TABLE articles (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200),
 body TEXT
-) ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 INSERT INTO articles (title, body) VALUES
 ('数据库是数据的结构化集合','它可以是任何东西'),
 ('从简单的购物清单到画展','或企业网络中的海量数据');
@@ -373,8 +373,8 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SELECT  @@ngram_token_size;
 @@ngram_token_size
 1
-INSERT INTO articles (title, body) VALUES
-('数据库管理系统','计算机是处理大量数据的理想工具');
+INSERT INTO articles VALUES
+(5, '数据库管理系统','计算机是处理大量数据的理想工具');
 # Some results are incorrect due to ngram_token_size mismatch
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数' IN BOOLEAN MODE);
@@ -432,8 +432,8 @@ id	title	body
 SELECT  @@ngram_token_size;
 @@ngram_token_size
 3
-INSERT INTO articles (title, body) VALUES
-('数据库管理系统','计算机是处理大量数据的理想工具');
+INSERT INTO articles VALUES
+(5, '数据库管理系统','计算机是处理大量数据的理想工具');
 # Some results are incorrect due to ngram_token_size mismatch
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数' IN BOOLEAN MODE);
@@ -485,8 +485,8 @@ id	title	body
 SELECT  @@ngram_token_size;
 @@ngram_token_size
 5
-INSERT INTO articles (title, body) VALUES
-('数据库管理系统','计算机是处理大量数据的理想工具');
+INSERT INTO articles VALUES
+(5, '数据库管理系统','计算机是处理大量数据的理想工具');
 # Some results are incorrect due to ngram_token_size mismatch
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数' IN BOOLEAN MODE);
@@ -533,8 +533,8 @@ id	title	body
 SELECT  @@ngram_token_size;
 @@ngram_token_size
 7
-INSERT INTO articles (title, body) VALUES
-('数据库管理系统','计算机是处理大量数据的理想工具');
+INSERT INTO articles VALUES
+(5, '数据库管理系统','计算机是处理大量数据的理想工具');
 # Some results are incorrect due to ngram_token_size mismatch
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数' IN BOOLEAN MODE);
@@ -577,8 +577,8 @@ id	title	body
 SELECT  @@ngram_token_size;
 @@ngram_token_size
 2
-INSERT INTO articles (title, body) VALUES
-('数据库管理系统','计算机是处理大量数据的理想工具');
+INSERT INTO articles VALUES
+(5, '数据库管理系统','计算机是处理大量数据的理想工具');
 # Some results are incorrect due to ngram_token_size mismatch
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数' IN BOOLEAN MODE);

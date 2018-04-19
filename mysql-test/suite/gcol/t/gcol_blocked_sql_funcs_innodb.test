@@ -28,10 +28,9 @@
 
 ##### Storage engine to be tested
 # Set the session storage engine
---source include/have_innodb.inc
 eval SET @@session.default_storage_engine = 'InnoDB';
 
-let $skip_full_text_checks = 1;
+let $skip_full_text_check = 1;
 
 ##### Workarounds for known open engine specific bugs
 #     none

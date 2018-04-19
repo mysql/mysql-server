@@ -1,10 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # test of problems with having (Reported by Mark Rogers)
 #
+
+# Test needs MyISAM for subtest for Bug#13406172 and Bug#46077
+--source include/have_myisam.inc
 
 --disable_warnings
 drop table if exists t1,t2,t3;
@@ -15,7 +13,8 @@ select count(a) as b from t1 where a=0 having b > 0;
 insert into t1 values (null);
 select count(a) as b from t1 where a=0 having b > 0;
 select count(a) as b from t1 where a=0 having b >=0;
-explain extended select count(a) as b from t1 where a=0 having b >=0;
+analyze table t1;
+explain select count(a) as b from t1 where a=0 having b >=0;
 drop table t1; 
 
 #
@@ -89,12 +88,12 @@ drop table t1;
 CREATE TABLE t1 (
   `id` bigint(20) NOT NULL default '0',
   `description` text
-) ENGINE=MyISAM;
+);
 
 CREATE TABLE t2 (
   `id` bigint(20) NOT NULL default '0',
   `description` varchar(20)
-) ENGINE=MyISAM;
+);
 
 INSERT INTO t1  VALUES (1, 'test');
 INSERT INTO t2 VALUES (1, 'test');
@@ -102,7 +101,7 @@ INSERT INTO t2 VALUES (1, 'test');
 CREATE TABLE t3 (
   `id`       bigint(20) NOT NULL default '0',
   `order_id` bigint(20) NOT NULL default '0'
-) ENGINE=MyISAM;
+);
 
 select
 	a.id, a.description,
@@ -151,6 +150,7 @@ SELECT a FROM t1 GROUP BY a HAVING a > 1;
 SELECT a FROM t1 GROUP BY a HAVING 1 != 1 AND a > 1;
 SELECT 0 AS x, a FROM t1 GROUP BY x,a HAVING x=1 AND a > 1;
 
+analyze table t1;
 EXPLAIN SELECT a FROM t1 GROUP BY a HAVING 1 != 1 AND a > 1;
 EXPLAIN SELECT 0 AS x, a FROM t1 GROUP BY x,a HAVING x=1 AND a > 1;
 
@@ -256,13 +256,6 @@ select t1.col1 from t1
 where t1.col2 in
       (select t2.col2 from t2 
        group by t2.col1, t2.col2 having t1.col1 <= 10);
-
-# the having column is resolved in the SELECT clause of the outer query -
-# error in ANSI, works with MySQL extension
-select t1.col1 as tmp_col from t1
-where t1.col2 in 
-      (select t2.col2 from t2 
-       group by t2.col1, t2.col2 having tmp_col <= 10);
 
 # the having column is resolved in the FROM clause of the outer query -
 # works in ANSI
@@ -371,12 +364,14 @@ select * from t1 a, t1 b group by a.s1 having s1 is null;
 
 drop table t1;
 
+set names latin1;
 create table t1 (s1 char character set latin1 collate latin1_german1_ci);
 insert ignore into t1 values ('ü'),('y');
 
 --source include/turn_off_only_full_group_by.inc
 select s1,count(s1) from t1
 group by s1 collate latin1_swedish_ci having s1 = 'y';
+set names utf8mb4;
 # ANSI requires: 1 row, with count(s1) = 2
 # MySQL returns: 1 row, with count(s1) = 1
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -492,7 +487,7 @@ WHERE table2.f1 = 2
 GROUP BY table1.f1, table2.f2
 HAVING (table2.f2 = 8 AND table1.f1 >= 6);
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT table1.f1, table2.f2
 FROM t1 AS table1
 JOIN t1 AS table2 ON table1.f3 = table2.f3
@@ -500,7 +495,7 @@ WHERE table2.f1 = 2
 GROUP BY table1.f1, table2.f2
 HAVING (table2.f2 = 8 AND table1.f1 >= 6);
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT table1.f1, table2.f2
 FROM t1 AS table1
 JOIN t1 AS table2 ON table1.f3 = table2.f3
@@ -731,4 +726,229 @@ select a as foo,
  having bar<30
  order by bar+5;
 DROP TABLE t1;
+
+#
+# Bug#19811896 ASSERTION FAILED: CURR_TABLE->TABLE_REF ||
+#              !(HAVING_COND->USED_TABLES() & ~(1 |    
+#
+set sql_mode='';
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+SELECT a FROM (SELECT 1 FROM t1 AS From1) AS From2 
+  NATURAL RIGHT OUTER JOIN t1 AS Outjoin3 
+GROUP BY 1 HAVING (
+  SELECT 1 FROM t1 AS Grouphaving4 GROUP BY 1 HAVING a);
+SELECT a FROM (SELECT 1 FROM t1 AS From1) AS From2
+  NATURAL RIGHT OUTER JOIN t1 AS Outjoin3
+GROUP BY 1 HAVING
+  sin((SELECT 1 FROM t1 AS Grouphaving4 GROUP BY 1 HAVING a));
+
+CREATE TABLE t2 (a INT) ENGINE=INNODB;
+SELECT Outjoin3.a FROM (SELECT 1 FROM t1 AS From1) AS From2 
+NATURAL RIGHT OUTER JOIN t2 AS Outjoin3 
+GROUP BY 1 HAVING (
+SELECT 1 FROM t1 AS GroupHaving4 GROUP BY 1 HAVING a);
+
+DROP TABLE t1, t2;
+
 SET @@sql_mode = @old_sql_mode;
+
+--echo #
+--echo # Bug#17055185: WRONG RESULTS WHEN RUNNING A SELECT THAT INCLUDE
+--echo #               A HAVING BASED ON A FUNCTION.
+--echo #
+
+# Generate series 1, 0, 1, 0....
+CREATE TABLE series (
+  val INT(10) UNSIGNED NOT NULL
+);
+INSERT INTO series VALUES(1);
+CREATE TABLE seq_calls (
+  c INT
+);
+INSERT INTO seq_calls VALUES(0);
+
+# This function toggles between 0 and 1 at each call.
+# As it doesn't depend only on its input parameters (which are none),
+# per the SQL std it is not deterministic.
+
+DELIMITER |;
+CREATE FUNCTION next_seq_value() RETURNS INT
+BEGIN
+ DECLARE next_val INT;
+ SELECT val INTO next_val FROM series;
+ UPDATE series SET val=mod(val + 1, 2);
+ UPDATE seq_calls SET c=c+1;
+ RETURN next_val;
+END;
+|
+DELIMITER ;|
+
+CREATE TABLE t1 (t INT, u INT, KEY(t));
+INSERT INTO t1 VALUES(10, 10), (11, 11), (12, 12), (12, 13),(14, 15), (15, 16),
+                     (16, 17), (17, 18);
+ANALYZE TABLE t1;
+# Print starting point, for debugging
+SELECT * FROM series, seq_calls;
+
+SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
+       GROUP BY t HAVING r = 1  ORDER BY t1.u;
+
+# Statement with select distinct so reference to functions in having will
+# result in re-execution of functions.
+SELECT * FROM series, seq_calls;
+UPDATE series set val=0;
+
+SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
+       WHERE P.t = t1.t HAVING r = 1 ORDER BY t1.u;
+
+# Prepare statement.
+PREPARE STMT FROM 'SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
+              GROUP BY t HAVING (SELECT 1 FROM t1 WHERE r = 1 LIMIT 1)
+              ORDER BY t1.u';
+SELECT * FROM series, seq_calls;
+UPDATE series set val=0;
+
+EXECUTE stmt;
+SELECT * FROM series, seq_calls;
+UPDATE series set val=1;
+
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+# In Loose-index scan end_send do not switch to items3, so Item_ref re-evaluate
+# the functions.
+INSERT INTO t1 SELECT * FROM t1;
+ALTER TABLE t1 ADD KEY(t, u);
+ANALYZE TABLE t1;
+SELECT * FROM series, seq_calls;
+UPDATE series set val=0;
+SELECT next_seq_value() r, MIN(u) FROM t1 GROUP BY t HAVING r = 1;
+
+# Cleanup
+DROP TABLE t1;
+DROP FUNCTION next_seq_value;
+DROP TABLE series, seq_calls;
+
+
+--echo #
+--echo #  Bug#21243772: NOT IN SUBQUERY RETURNS INCORRECT RESULTS WHEN INNER
+--echo #                QUERY HAS COUNT DISTINCT.
+--echo #
+
+CREATE TABLE t1 (t TEXT NOT NULL, u TEXT);
+INSERT INTO t1 VALUES('2', '1'), ('3', '1'), ('4', '1');
+ANALYZE TABLE t1;
+SELECT * FROM t1 WHERE (t, u) in (SELECT a.t,  COUNT(DISTINCT a.u)
+                                                       FROM t1 a, t1 b
+                                                       GROUP BY a.t);
+SELECT * FROM t1 WHERE (t, u) not in (SELECT a.t,  COUNT(DISTINCT a.u)
+                                                       FROM t1 a, t1 b
+                                                       GROUP BY a.t);
+DROP TABLE t1;
+
+
+--echo #
+--echo #  Bug#21507072: SIG 11 IN TABLE_LIST::MAP AT SQL/TABLE.H:2463.
+--echo #
+
+CREATE TABLE t1 (col_varchar_key varchar(1) DEFAULT NULL,
+                                 KEY col_varchar_key (col_varchar_key));
+
+INSERT INTO t1 VALUES ('a'), ('b'), ('c'), ('h'), ('i'), ('i'), ('j');
+
+SELECT SQL_BUFFER_RESULT col_varchar_key AS field1
+  FROM t1 AS table1
+  GROUP BY field1
+  HAVING field1 = 'a';
+
+DROP TABLE t1;
+
+--echo # Bug#21613422: Assertion failed: !thd->is_error() in ::prepare()
+
+CREATE TABLE a(f INTEGER, g INTEGER) engine=innodb;
+
+--error ER_NON_UNIQ_ERROR
+SELECT (SELECT 1 FROM a HAVING g)
+FROM (SELECT 1) AS e
+     JOIN a AS t on TRUE
+     JOIN a USING (f)
+     JOIN a AS h on TRUE;
+
+DROP TABLE a;
+
+--echo # Bug#21067109: Assert 'join == __NULL' failed in ::optimize()
+
+CREATE TABLE t1 (
+  col_int_key INT,
+  pk INT NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (6, 1);
+
+CREATE TABLE t2 (
+  pk INT NOT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (5), (6), (7), (8);
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT col_int_key
+FROM t1 AS alias1
+HAVING (2, 7) NOT IN
+ (SELECT pk, SUM(pk)
+  FROM t1
+  WHERE pk <> (SELECT t2_alias1 .pk
+               FROM t2 AS t2_alias1 JOIN t2 AS t2_alias2
+              )
+  GROUP BY pk
+ );
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #22655856: COLUMN NAME IN HAVING, WHICH IS CONTAINED IN SELECT
+--echo #                LIST '*', PRODUCES ERROR
+--echo #
+
+CREATE TABLE t1(c1 INT) ENGINE=INNODB;
+CREATE TABLE t2(c2 INT) ENGINE=INNODB;
+
+EXPLAIN SELECT c1 FROM t1 WHERE EXISTS(SELECT * FROM t2 HAVING c2>0);
+SELECT c1 FROM t1 WHERE EXISTS(SELECT * FROM t2 HAVING c2>0);
+
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(2);
+
+SELECT c1 FROM t1 WHERE EXISTS(SELECT * FROM t2 HAVING c2>0);
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#26781725 INCORRECT RESULTS FOR QUERY(MAX FUNC+HAVING CLAUSE) WHEN USED INSIDE VIEW
+--echo #
+
+CREATE TABLE CC (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO CC VALUES
+ (10,'v','v'),(18,'a','a'),(19,'v','v'),(20,'u','u'),(21,'s','s'),(22,'y','y'),
+ (23,'z','z'),(28,'y','y');
+
+let $query=
+SELECT MAX(col_varchar_key) AS field1 FROM CC AS alias1
+ HAVING field1 <> 5;
+
+eval $query;
+eval CREATE OR REPLACE VIEW v1 AS $query;
+
+SELECT * FROM v1;
+
+DROP TABLE CC;
+DROP VIEW v1;

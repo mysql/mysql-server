@@ -16,3 +16,6 @@ CREATE UNIQUE INDEX test_index ON performance_schema.setup_actors(HOST);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 ALTER TABLE performance_schema.setup_actors ADD KEY ENA(ENABLED);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+DROP INDEX `PRIMARY`
+  ON performance_schema.setup_actors;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

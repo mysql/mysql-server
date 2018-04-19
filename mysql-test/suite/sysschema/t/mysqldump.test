@@ -1,0 +1,32 @@
+-- source include/no_valgrind_without_big.inc
+
+# Dump all databases
+--exec $MYSQL_DUMP -uroot --all-databases > $MYSQLTEST_VARDIR/tmp/bug20902791.sql
+
+# Save a copy of the user/tables_priv tables, to restore later
+# Otherwise the final mysql_upgrade will REPLACE and update timestamps etc.
+--let $backup=1
+--source include/backup_tables_priv_and_users.inc
+
+# Remove the sys schema
+DROP DATABASE sys;
+
+# Reload the dump
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug20902791.sql
+
+# The sys schema should not exist
+SHOW DATABASES;
+
+# Finally reload the sys schema to return to normal
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force
+SHOW DATABASES;
+
+# Restore the saved contents of mysql.user and mysql.tables_priv
+--let $restore=1
+--source include/backup_tables_priv_and_users.inc
+
+FLUSH PRIVILEGES;
+--source include/force_restart.inc

@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -24,7 +31,6 @@
 #include <pc.hpp>
 #include "Pool.hpp"
 #include <ErrorReporter.hpp>
-#include <NdbMem.h>
 #include <Bitmask.hpp>
 #include <mgmapi.h>
 
@@ -44,6 +50,7 @@ template <class T> class Array;
 template <class T>
 class ArrayPool {
 public:
+  typedef T Type;
   typedef void (CallBack)(ArrayPool<T>& pool);
 
   /* 
@@ -83,6 +90,15 @@ public:
     return size - noOfFreeMin;
   }
 
+  /**
+    Set the low water mark equal to the current value, so that we can track
+    the lowest value seen after this call.
+   */
+  void resetFreeMin()
+  {
+    noOfFreeMin = noOfFree;
+  }
+
   inline void updateFreeMin(void) {
     if (noOfFree < noOfFreeMin)
       noOfFreeMin = noOfFree;
@@ -107,26 +123,26 @@ public:
   /**
    * Update p value for ptr according to i value 
    */
-  void getPtr(Ptr<T> &);
+  void getPtr(Ptr<T> &) const;
   void getPtr(ConstPtr<T> &) const;
-  void getPtr(Ptr<T> &, bool CrashOnBoundaryError);
+  void getPtr(Ptr<T> &, bool CrashOnBoundaryError) const;
   void getPtr(ConstPtr<T> &, bool CrashOnBoundaryError) const;
-  void getPtrIgnoreAlloc(Ptr<T> &);
+  void getPtrIgnoreAlloc(Ptr<T> &) const;
   
   /**
    * Get pointer for i value
    */
-  T * getPtr(Uint32 i);
+  T * getPtr(Uint32 i) const;
   const T * getConstPtr(Uint32 i) const;
-  T * getPtr(Uint32 i, bool CrashOnBoundaryError);
+  T * getPtr(Uint32 i, bool CrashOnBoundaryError) const;
   const T * getConstPtr(Uint32 i, bool CrashOnBoundaryError) const;
 
   /**
    * Update p & i value for ptr according to <b>i</b> value 
    */
-  void getPtr(Ptr<T> &, Uint32 i);
+  void getPtr(Ptr<T> &, Uint32 i) const;
   void getPtr(ConstPtr<T> &, Uint32 i) const;
-  void getPtr(Ptr<T> &, Uint32 i, bool CrashOnBoundaryError);
+  void getPtr(Ptr<T> &, Uint32 i, bool CrashOnBoundaryError) const;
   void getPtr(ConstPtr<T> &, Uint32 i, bool CrashOnBoundaryError) const;
 
   /**
@@ -148,13 +164,19 @@ public:
 
   /**
    * Return an object to pool
+   * release releases the object and places it first in free list
+   * releaseLast releases the object and places it last in free list
    */
   void release(Uint32 i);
+  void releaseLast(Uint32 i);
 
   /**
    * Return an object to pool
+   * release releases the object and places it first in free list
+   * releaseLast releases the object and places it last in free list
    */
   void release(Ptr<T> &);
+  void releaseLast(Ptr<T> &);
 
 #ifdef ARRAY_GUARD
   /**
@@ -170,47 +192,6 @@ public:
     return BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i);
   }
 #endif
-
-  /**
-   * Cache+LockFun is used to make thread-local caches for ndbmtd
-   *   I.e each thread has one cache-instance, and can seize/release on this
-   *       wo/ locks
-   */
-  struct Cache
-  {
-    Cache(Uint32 a0 = 512, Uint32 a1 = 256) { m_first_free = RNIL; m_free_cnt = 0; m_alloc_cnt = a0; m_max_free_cnt = a1; }
-    void init_cache(Uint32 a0, Uint32 a1)
-    {
-      m_alloc_cnt = a0;
-      m_max_free_cnt = a1;
-    }
-    Uint32 m_first_free;
-    Uint32 m_free_cnt;
-    Uint32 m_alloc_cnt;
-    Uint32 m_max_free_cnt;
-  };
-
-  struct LockFun
-  {
-    void (* lock)(void);
-    void (* unlock)(void);
-  };
-
-  bool seize(LockFun, Cache&, Ptr<T> &);
-  void release(LockFun, Cache&, Uint32 i);
-  void release(LockFun, Cache&, Ptr<T> &);
-  void releaseList(LockFun, Cache&, Uint32 n, Uint32 first, Uint32 last);
-
-  void setChunkSize(Uint32 sz);
-#ifdef ARRAY_CHUNK_GUARD
-  void checkChunks();
-#endif
-
-protected:
-  void releaseChunk(LockFun, Cache&, Uint32 n);
-
-  bool seizeChunk(Uint32 & n, Ptr<T> &);
-  void releaseChunk(Uint32 n, Uint32 first, Uint32 last);
 
 protected:
   friend class Array<T>;
@@ -276,6 +257,7 @@ protected:
    */
   char protect_read_var[NDB_CL_PADSZ(sizeof(Uint32) + sizeof(void*))];
   Uint32 firstFree;
+  Uint32 lastFree;
   Uint32 noOfFree;
   Uint32 noOfFreeMin;
 #ifdef ARRAY_GUARD
@@ -294,6 +276,7 @@ ArrayPool<T>::ArrayPool(CallBack* seizeErrorHandler):
   seizeErrHand(seizeErrorHandler)
 {
   firstFree = RNIL;
+  lastFree = RNIL;
   size = 0;
   noOfFree = 0;
   noOfFreeMin = 0;
@@ -330,18 +313,23 @@ inline
 bool
 ArrayPool<T>::setSize(Uint32 noOfElements, 
 		      bool align, bool exit_on_error, bool guard, Uint32 paramId){
-  if(size == 0){
+  if(size == 0)
+  {
     if(noOfElements == 0)
+    {
       return true;
-  Uint64 real_size = (Uint64)noOfElements * sizeof(T);
-  size_t req_size = (size_t)real_size;
-  Uint64 real_size_align = real_size + sizeof(T);
-  size_t req_size_align = (size_t)real_size_align;
+    }
+    Uint64 real_size = (Uint64)noOfElements * sizeof(T);
+    size_t req_size = (size_t)real_size;
+    Uint64 real_size_align = real_size + sizeof(T);
+    size_t req_size_align = (size_t)real_size_align;
 
     if(align)
     {
       if((Uint64)req_size_align == real_size_align && req_size_align > 0)
-        alloc_ptr = ndbd_malloc(req_size_align);  
+      {
+        alloc_ptr = ndbd_malloc(req_size_align);
+      }
       UintPtr p = (UintPtr)alloc_ptr;
       UintPtr mod = p % sizeof(T);
       if (mod)
@@ -351,7 +339,9 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
       theArray = (T *)p;
     }
     else if((Uint64)req_size == real_size && req_size > 0)
+    {
       theArray = (T *)(alloc_ptr = ndbd_malloc(req_size));
+    }
 
     if(theArray == 0)
     {
@@ -361,7 +351,9 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
       if (!exit_on_error)
 	return false;
 
-      if(0 != paramId && 0 == ndb_mgm_get_db_parameter_info(paramId, &param_info, &tsize)) {
+      if(0 != paramId &&
+         0 == ndb_mgm_get_db_parameter_info(paramId, &param_info, &tsize))
+      {
         BaseString::snprintf(errmsg, sizeof(errmsg), 
                 "Malloc memory for %s failed", param_info.m_name);
       }
@@ -378,12 +370,14 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
      * Set next pointers
      */
     T * t = &theArray[0];
-    for(Uint32 i = 0; i<size; i++){
+    for(Uint32 i = 0; i<size; i++)
+    {
       t->nextPool = (i + 1);
       t++;
     }
     theArray[size-1].nextPool = RNIL;
     firstFree = 0;
+    lastFree = size - 1;
 
 #ifdef ARRAY_GUARD
     if (guard)
@@ -397,36 +391,12 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
     return true;
   }
   if (!exit_on_error)
+  {
     return false;
+  }
 
   ErrorReporter::handleAssert("ArrayPool<T>::setSize called twice", __FILE__, __LINE__);
   return false; // not reached
-}
-
-template <class T>
-inline
-void
-ArrayPool<T>::setChunkSize(Uint32 sz)
-{
-  Uint32 i;
-  for (i = 0; i + sz < size; i += sz)
-  {
-    theArray[i].chunkSize = sz;
-    theArray[i].lastChunk = i + sz - 1;
-    theArray[i].nextChunk = i + sz;
-  }
-
-  theArray[i].chunkSize = size - i;
-  theArray[i].lastChunk = size - 1;
-  theArray[i].nextChunk = RNIL;
-
-#ifdef ARRAY_GUARD
-  chunk = true;
-#endif
-
-#ifdef ARRAY_CHUNK_GUARD
-  checkChunks();
-#endif
 }
 
 template <class T>
@@ -465,7 +435,8 @@ ArrayPool<T>::set(T* ptr, Uint32 cnt, bool align){
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(Ptr<T> & ptr){
+ArrayPool<T>::getPtr(Ptr<T> & ptr) const
+{
   Uint32 i = ptr.i;
   if(likely (i < size)){
     ptr.p = &theArray[i];
@@ -488,7 +459,8 @@ ArrayPool<T>::getPtr(Ptr<T> & ptr){
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(ConstPtr<T> & ptr) const {
+ArrayPool<T>::getPtr(ConstPtr<T> & ptr) const
+{
   Uint32 i = ptr.i;
   if(likely(i < size)){
     ptr.p = &theArray[i];
@@ -511,7 +483,8 @@ ArrayPool<T>::getPtr(ConstPtr<T> & ptr) const {
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(Ptr<T> & ptr, Uint32 i){
+ArrayPool<T>::getPtr(Ptr<T> & ptr, Uint32 i) const
+{
   ptr.i = i;
   if(likely(i < size)){
     ptr.p = &theArray[i];
@@ -534,7 +507,8 @@ ArrayPool<T>::getPtr(Ptr<T> & ptr, Uint32 i){
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(ConstPtr<T> & ptr, Uint32 i) const {
+ArrayPool<T>::getPtr(ConstPtr<T> & ptr, Uint32 i) const
+{
   ptr.i = i;
   if(likely(i < size)){
     ptr.p = &theArray[i];
@@ -557,7 +531,8 @@ ArrayPool<T>::getPtr(ConstPtr<T> & ptr, Uint32 i) const {
 template <class T>
 inline
 T * 
-ArrayPool<T>::getPtr(Uint32 i){
+ArrayPool<T>::getPtr(Uint32 i) const
+{
   if(likely(i < size)){
 #ifdef ARRAY_GUARD
     if (theAllocatedBitmask)
@@ -605,7 +580,8 @@ ArrayPool<T>::getConstPtr(Uint32 i) const {
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(Ptr<T> & ptr, bool CrashOnBoundaryError){
+ArrayPool<T>::getPtr(Ptr<T> & ptr, bool CrashOnBoundaryError) const
+{
   Uint32 i = ptr.i;
   if(likely(i < size)){
     ptr.p = &theArray[i];
@@ -628,7 +604,8 @@ ArrayPool<T>::getPtr(Ptr<T> & ptr, bool CrashOnBoundaryError){
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(ConstPtr<T> & ptr, bool CrashOnBoundaryError) const {
+ArrayPool<T>::getPtr(ConstPtr<T> & ptr, bool CrashOnBoundaryError) const
+{
   Uint32 i = ptr.i;
   if(likely(i < size)){
     ptr.p = &theArray[i];
@@ -651,7 +628,8 @@ ArrayPool<T>::getPtr(ConstPtr<T> & ptr, bool CrashOnBoundaryError) const {
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(Ptr<T> & ptr, Uint32 i, bool CrashOnBoundaryError){
+ArrayPool<T>::getPtr(Ptr<T> & ptr, Uint32 i, bool CrashOnBoundaryError) const
+{
   ptr.i = i;
   if(likely(i < size)){
     ptr.p = &theArray[i];
@@ -674,8 +652,10 @@ ArrayPool<T>::getPtr(Ptr<T> & ptr, Uint32 i, bool CrashOnBoundaryError){
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(ConstPtr<T> & ptr, Uint32 i, 
-		     bool CrashOnBoundaryError) const {
+ArrayPool<T>::getPtr(ConstPtr<T> & ptr,
+                     Uint32 i,
+                     bool CrashOnBoundaryError) const
+{
   ptr.i = i;
   if(likely(i < size)){
     ptr.p = &theArray[i];
@@ -698,7 +678,8 @@ ArrayPool<T>::getPtr(ConstPtr<T> & ptr, Uint32 i,
 template <class T>
 inline
 T * 
-ArrayPool<T>::getPtr(Uint32 i, bool CrashOnBoundaryError){
+ArrayPool<T>::getPtr(Uint32 i, bool CrashOnBoundaryError) const
+{
   if(likely(i < size)){
 #ifdef ARRAY_GUARD
     if (theAllocatedBitmask)
@@ -752,7 +733,8 @@ ArrayPool<T>::getConstPtr(Uint32 i, bool CrashOnBoundaryError) const {
 template <class T>
 inline
 void
-ArrayPool<T>::getPtrIgnoreAlloc(Ptr<T> & ptr){
+ArrayPool<T>::getPtrIgnoreAlloc(Ptr<T> & ptr) const
+{
   Uint32 i = ptr.i;
   if(likely (i < size)){
     ptr.p = &theArray[i];
@@ -766,6 +748,7 @@ ArrayPool<T>::getPtrIgnoreAlloc(Ptr<T> & ptr){
  *
  * Return i
  */
+
 template <class T>
 inline
 bool
@@ -780,6 +763,11 @@ ArrayPool<T>::seize(Ptr<T> & ptr){
     
     ptr.i = ff;
     ptr.p = &theArray[ff];
+    if (firstFree == RNIL)
+    {
+      assert(lastFree == ff);
+      lastFree = RNIL;
+    }
 #ifdef ARRAY_GUARD
     if (theAllocatedBitmask)
     {
@@ -828,6 +816,11 @@ ArrayPool<T>::seizeId(Ptr<T> & ptr, Uint32 i){
       firstFree = theArray[ff].nextPool;
     else
       theArray[prev].nextPool = theArray[ff].nextPool;
+    if (ff == lastFree)
+    {
+      assert(firstFree == RNIL);
+      lastFree = prev;
+    }
     
     ptr.i = ff;
     ptr.p = &theArray[ff];
@@ -1024,6 +1017,11 @@ ArrayPool<T>::release(Uint32 _i){
     Uint32 ff = firstFree;
     theArray[i].nextPool = ff;
     firstFree = i;
+    if (ff == RNIL)
+    {
+      assert(lastFree == RNIL);
+      lastFree = i;
+    }
 
 #ifdef ARRAY_GUARD
     if (theAllocatedBitmask)
@@ -1045,6 +1043,56 @@ ArrayPool<T>::release(Uint32 _i){
   ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
 }
 
+template <class T>
+inline
+void
+ArrayPool<T>::releaseLast(Uint32 _i){
+
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
+  const Uint32 i = _i;
+  if(likely(i < size))
+  {
+    Uint32 lf = lastFree;
+    lastFree = i;
+    theArray[i].nextPool = RNIL;
+    if (lf == RNIL)
+    {
+      assert(firstFree == RNIL);
+      firstFree = i;
+    }
+    else if (lf < size)
+    {
+      theArray[lf].nextPool = i;
+    }
+    else
+    {
+      goto error;
+    }
+
+#ifdef ARRAY_GUARD
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i)){
+	BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, i);
+	noOfFree++;
+	return;
+      }
+      /**
+       * Relesing a already released element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::releaseLast", __FILE__, __LINE__);
+    }
+#endif
+    noOfFree++;
+    return;
+  }
+error:
+  ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
+}
+
 /**
  * Return an object to pool
  */
@@ -1062,6 +1110,11 @@ ArrayPool<T>::release(Ptr<T> & ptr){
     Uint32 ff = firstFree;
     theArray[i].nextPool = ff;
     firstFree = i;
+    if (ff == RNIL)
+    {
+      assert(lastFree == RNIL);
+      lastFree = i;
+    }
 
 #ifdef ARRAY_GUARD
     if (theAllocatedBitmask)
@@ -1084,19 +1137,165 @@ ArrayPool<T>::release(Ptr<T> & ptr){
   ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
 }
 
+template <class T>
+inline
+void
+ArrayPool<T>::releaseLast(Ptr<T> & ptr)
+{
+
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
+  Uint32 i = ptr.i;
+  Uint32 lf = lastFree;
+  if(likely(i < size))
+  {
+    lastFree = i;
+    theArray[i].nextPool = RNIL;
+    if (lf < size)
+    {
+      theArray[lf].nextPool = i;
+    }
+    else if (lf == RNIL)
+    {
+      assert(firstFree == RNIL);
+      firstFree = i;
+    }
+    else
+    {
+      goto error;
+    }
+
+#ifdef ARRAY_GUARD
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i)){
+	BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, i);
+	//assert(noOfFree() == noOfFree2());
+	noOfFree++;
+	return;
+      }
+      /**
+       * Relesing a already released element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::releaseLast", __FILE__, __LINE__);
+    }
+#endif
+    noOfFree++;
+    return;
+  }
+error:
+  ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
+}
+
 #if 0
 #define DUMP(a,b) do { printf("%s c.m_first_free: %u c.m_free_cnt: %u %s", a, c.m_first_free, c.m_free_cnt, b); fflush(stdout); } while(0)
 #else
 #define DUMP(a,b)
 #endif
 
+
+template <class T>
+class CachedArrayPool : public ArrayPool<T>
+{
+public:
+//  typedef typename ArrayPool<T>::Cache Cache;
+  // typedef typename ArrayPool<T>::CallBack CallBack;
+  typedef void (CallBack)(CachedArrayPool<T>& pool);
+//  typedef typename ArrayPool<T>::LockFun LockFun;
+//  CachedArrayPool():ArrayPool<T>(NULL){}
+  explicit CachedArrayPool(CallBack* seizeErrorHandler=NULL)
+              : ArrayPool<T>(reinterpret_cast<typename ArrayPool<T>::CallBack*>(seizeErrorHandler)) { }
+
+  void setChunkSize(Uint32 sz);
+#ifdef ARRAY_CHUNK_GUARD
+  void checkChunks();
+#endif
+
+/***/
+  bool seize(Ptr<T> &p) { return ArrayPool<T>::seize(p); }
+  void release(Uint32 i) { return ArrayPool<T>::release(i); }
+  void releaseList(Uint32 n, Uint32 first, Uint32 last) { ArrayPool<T>::releaseList(n,first,last); }
+
+  /**
+   * Cache+LockFun is used to make thread-local caches for ndbmtd
+   *   I.e each thread has one cache-instance, and can seize/release on this
+   *       wo/ locks
+   */
+  struct Cache
+  {
+    Cache(Uint32 a0 = 512, Uint32 a1 = 256)
+    { m_first_free = RNIL; m_free_cnt = 0; m_alloc_cnt = a0; m_max_free_cnt = a1; }
+    void init_cache(Uint32 a0, Uint32 a1)
+    {
+      m_alloc_cnt = a0;
+      m_max_free_cnt = a1;
+    }
+    Uint32 m_first_free;
+    Uint32 m_free_cnt;
+    Uint32 m_alloc_cnt;
+    Uint32 m_max_free_cnt;
+  };
+
+  struct LockFun
+  {
+    void (* lock)(void);
+    void (* unlock)(void);
+  };
+
+  bool seize(LockFun, Cache&, Ptr<T> &);
+  void release(LockFun, Cache&, Uint32 i);
+  void release(LockFun, Cache&, Ptr<T> &);
+  void releaseList(LockFun, Cache&, Uint32 n, Uint32 first, Uint32 last);
+
+protected:
+  void releaseChunk(LockFun, Cache&, Uint32 n);
+
+  bool seizeChunk(Uint32 & n, Ptr<T> &);
+  void releaseChunk(Uint32 n, Uint32 first, Uint32 last);
+};
+
+template <class T>
+inline
+void
+CachedArrayPool<T>::setChunkSize(Uint32 sz)
+{
+  Uint32 const& size = this->size;
+  T * const& theArray = this->theArray;
+#ifdef ARRAY_GUARD
+  bool& chunk = this->chunk;
+#endif
+
+  Uint32 i;
+  for (i = 0; i + sz < size; i += sz)
+  {
+    theArray[i].chunkSize = sz;
+    theArray[i].lastChunk = i + sz - 1;
+    theArray[i].nextChunk = i + sz;
+  }
+
+  theArray[i].chunkSize = size - i;
+  theArray[i].lastChunk = size - 1;
+  theArray[i].nextChunk = RNIL;
+
+#ifdef ARRAY_GUARD
+  chunk = true;
+#endif
+
+#ifdef ARRAY_CHUNK_GUARD
+  checkChunks();
+#endif
+}
+
 #ifdef ARRAY_CHUNK_GUARD
 template <class T>
 inline
 void
-ArrayPool<T>::checkChunks()
+CachedArrayPool<T>::checkChunks()
 {
 #ifdef ARRAY_GUARD
+  bool const& chunk = this->chunk;
   assert(chunk == true);
 #endif
 
@@ -1127,9 +1326,17 @@ ArrayPool<T>::checkChunks()
 template <class T>
 inline
 bool
-ArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
+CachedArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
 {
+  Uint32 & firstFree = this->firstFree;
+  T* const& theArray = this->theArray;
 #ifdef ARRAY_GUARD
+  Uint32 & bitmaskSz = this->bitmaskSz;
+  Uint32 * const& theAllocatedBitmask = this->theAllocatedBitmask;
+#endif
+typename ArrayPool<T>::  CallBack const* const& seizeErrHand = this->seizeErrHand;
+#ifdef ARRAY_GUARD
+  bool const& chunk = this->chunk;
   assert(chunk == true);
 #endif
 
@@ -1162,7 +1369,7 @@ ArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
     } while (tmp > 0 && ff != RNIL);
     
     cnt = (save - tmp);
-    decNoFree(save - tmp);
+this->    decNoFree(save - tmp);
     firstFree = ff;
     theArray[prev].nextPool = RNIL;
     
@@ -1203,9 +1410,17 @@ ArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
 template <class T>
 inline
 void
-ArrayPool<T>::releaseChunk(Uint32 cnt, Uint32 first, Uint32 last)
+CachedArrayPool<T>::releaseChunk(Uint32 cnt, Uint32 first, Uint32 last)
 {
+  Uint32 & firstFree = this->firstFree;
+  T * const& theArray = this->theArray;
+  Uint32 & noOfFree = this->noOfFree;
 #ifdef ARRAY_GUARD
+  Uint32 & bitmaskSz = this->bitmaskSz;
+  Uint32 * const& theAllocatedBitmask = this->theAllocatedBitmask;
+#endif
+#ifdef ARRAY_GUARD
+  bool const& chunk = this->chunk;
   assert(chunk == true);
 #endif
 
@@ -1247,21 +1462,20 @@ ArrayPool<T>::releaseChunk(Uint32 cnt, Uint32 first, Uint32 last)
 #endif
 }
 
-
 template <class T>
 inline
 bool
-ArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
+CachedArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
 {
   DUMP("seize", "-> ");
 
   Uint32 ff = c.m_first_free;
   if (ff != RNIL)
   {
-    c.m_first_free = theArray[ff].nextPool;
+    c.m_first_free = this->theArray[ff].nextPool;
     c.m_free_cnt--;
     p.i = ff;
-    p.p = theArray + ff;
+    p.p = this->theArray + ff;
     DUMP("LOCAL ", "\n");
     return true;
   }
@@ -1273,14 +1487,14 @@ ArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
 
   if (ret)
   {
-    c.m_first_free = theArray[p.i].nextPool;
+    c.m_first_free = this->theArray[p.i].nextPool;
     c.m_free_cnt = tmp - 1;
     DUMP("LOCKED", "\n");
     return true;
   }
-  if (seizeErrHand != NULL)
+  if (this->seizeErrHand != NULL)
   {
-    (*seizeErrHand)(*this);
+    (*this->seizeErrHand)(*this);
   }
   return false;
 }
@@ -1288,17 +1502,17 @@ ArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
 template <class T>
 inline
 void
-ArrayPool<T>::release(LockFun l, Cache& c, Uint32 i)
+CachedArrayPool<T>::release(LockFun l, Cache& c, Uint32 i)
 {
   Ptr<T> tmp;
-  getPtr(tmp, i);
+this->  getPtr(tmp, i);
   release(l, c, tmp);
 }
 
 template <class T>
 inline
 void
-ArrayPool<T>::release(LockFun l, Cache& c, Ptr<T> & p)
+CachedArrayPool<T>::release(LockFun l, Cache& c, Ptr<T> & p)
 {
   p.p->nextPool = c.m_first_free;
   c.m_first_free = p.i;
@@ -1313,10 +1527,10 @@ ArrayPool<T>::release(LockFun l, Cache& c, Ptr<T> & p)
 template <class T>
 inline
 void
-ArrayPool<T>::releaseList(LockFun l, Cache& c,
+CachedArrayPool<T>::releaseList(LockFun l, Cache& c,
                           Uint32 n, Uint32 first, Uint32 last)
 {
-  theArray[last].nextPool = c.m_first_free;
+  this->theArray[last].nextPool = c.m_first_free;
   c.m_first_free = first;
   c.m_free_cnt += n;
 
@@ -1329,9 +1543,10 @@ ArrayPool<T>::releaseList(LockFun l, Cache& c,
 template <class T>
 inline
 void
-ArrayPool<T>::releaseChunk(LockFun l, Cache& c, Uint32 n)
+CachedArrayPool<T>::releaseChunk(LockFun l, Cache& c, Uint32 n)
 {
-  DUMP("releaseListImpl", "-> ");
+  T * const& theArray = this->theArray;
+  DUMP("releaseList", "-> ");
   Uint32 ff = c.m_first_free;
   Uint32 prev = ff;
   Uint32 curr = ff;
@@ -1361,18 +1576,19 @@ public:
    * Update p value for ptr according to i value 
    *   ignore if it's allocated or not
    */
-  void getPtrForce(Ptr<T> &);
+  void getPtrForce(Ptr<T> &) const;
   void getPtrForce(ConstPtr<T> &) const;
-  T * getPtrForce(Uint32 i);
+  T * getPtrForce(Uint32 i) const;
   const T * getConstPtrForce(Uint32 i) const;
-  void getPtrForce(Ptr<T> &, Uint32 i);
+  void getPtrForce(Ptr<T> &, Uint32 i) const;
   void getPtrForce(ConstPtr<T> &, Uint32 i) const;
 };
 
 template <class T>
 inline
 void 
-UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr){
+UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr) const
+{
   Uint32 i = ptr.i;
   if(likely(i < this->size)){
     ptr.p = &this->theArray[i];
@@ -1385,7 +1601,8 @@ UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr){
 template <class T>
 inline
 void 
-UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr) const{
+UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr) const
+{
   Uint32 i = ptr.i;
   if(likely(i < this->size)){
     ptr.p = &this->theArray[i];
@@ -1398,7 +1615,8 @@ UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr) const{
 template <class T>
 inline
 T * 
-UnsafeArrayPool<T>::getPtrForce(Uint32 i){
+UnsafeArrayPool<T>::getPtrForce(Uint32 i) const
+{
   if(likely(i < this->size)){
     return &this->theArray[i];
   } else {
@@ -1411,7 +1629,8 @@ UnsafeArrayPool<T>::getPtrForce(Uint32 i){
 template <class T>
 inline
 const T * 
-UnsafeArrayPool<T>::getConstPtrForce(Uint32 i) const {
+UnsafeArrayPool<T>::getConstPtrForce(Uint32 i) const
+{
   if(likely(i < this->size)){
     return &this->theArray[i];
   } else {
@@ -1424,7 +1643,8 @@ UnsafeArrayPool<T>::getConstPtrForce(Uint32 i) const {
 template <class T>
 inline
 void 
-UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr, Uint32 i){
+UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr, Uint32 i) const
+{
   ptr.i = i;
   if(likely(i < this->size)){
     ptr.p = &this->theArray[i];
@@ -1438,7 +1658,8 @@ UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr, Uint32 i){
 template <class T>
 inline
 void 
-UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr, Uint32 i) const{
+UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr, Uint32 i) const
+{
   ptr.i = i;
   if(likely(i < this->size)){
     ptr.p = &this->theArray[i];

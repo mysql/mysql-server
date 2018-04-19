@@ -93,15 +93,15 @@ SET @@session.pseudo_slave_mode = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.pseudo_slave_mode = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.pseudo_slave_mode = TRÜE;
+SET @@session.pseudo_slave_mode = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.pseudo_slave_mode = ÕN;
---Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.pseudo_slave_mode = Ã•N;
+--error ER_PARSE_ERROR
 SET @@session.pseudo_slave_mode = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.pseudo_slave_mode = ÓFF;
+SET @@session.pseudo_slave_mode = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.pseudo_slave_mode = '¹';
+SET @@session.pseudo_slave_mode = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.pseudo_slave_mode = NO;
 
@@ -122,7 +122,7 @@ SELECT @@global.pseudo_slave_mode;
 #########################################################################
 
 --disable_warnings
-SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='pseudo_slave_mode';
+SELECT count(VARIABLE_VALUE) FROM performance_schema.session_variables WHERE VARIABLE_NAME='pseudo_slave_mode';
 --enable_warnings
 
 --echo '#----------------------FN_DYNVARS_156_07------------------------#'
@@ -132,13 +132,13 @@ SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VAR
 
 --disable_warnings
 SELECT IF(@@session.pseudo_slave_mode, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='pseudo_slave_mode';
 --enable_warnings
 SELECT @@session.pseudo_slave_mode;
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='pseudo_slave_mode';
 --enable_warnings
 
@@ -161,6 +161,40 @@ SET @@session.pseudo_slave_mode = TRUE;
 SELECT @@session.pseudo_slave_mode;
 SET @@session.pseudo_slave_mode = FALSE;
 SELECT @@session.pseudo_slave_mode;
+
+--echo '#---------------------FN_DYNVARS_156_10----------------------#'
+######################################################################
+# Check that pseudo_slave_mode cannot be changed inside transaction. #
+######################################################################
+BEGIN;
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@session.pseudo_slave_mode = TRUE;
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@session.pseudo_slave_mode = FALSE;
+COMMIT;
+
+######################################################################
+# Check that pseudo_slave_mode cannot be changed when a XA           #
+# transaction is in active state.                                    #
+######################################################################
+XA START 'xa1';
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@session.pseudo_slave_mode = TRUE;
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@session.pseudo_slave_mode = FALSE;
+XA END 'xa1';
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@session.pseudo_slave_mode = TRUE;
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@session.pseudo_slave_mode = FALSE;
+XA PREPARE 'xa1';
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@session.pseudo_slave_mode = TRUE;
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@session.pseudo_slave_mode = FALSE;
+XA COMMIT 'xa1';
+SET @@session.pseudo_slave_mode = TRUE;
+SET @@session.pseudo_slave_mode = FALSE;
 
 ##############################  
 #   Restore initial value    #

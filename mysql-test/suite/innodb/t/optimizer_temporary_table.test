@@ -3,13 +3,16 @@
 #	    MySQL Optimizer
 #
 
---source include/have_innodb.inc
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
+
+# There are expected differences in explain output when run with and without
+# binary logging. Thus, test is updated to run with binary logging ON.
+# Testcase is skipped for binlog_format=MIXED and STATEMENT, since it mismatches
+# result file for used_columns output (Bug#22472365).
+--source include/have_binlog_format_row.inc
 
 # Optimizer plan are printed as part of the test-case and changing page
 # size will affect the optimizer plan numbers. so enable it only for 16K
---source include/have_innodb_16k.inc
 
 
 ################################################################################
@@ -23,22 +26,34 @@
 #
 # create test bed.
 #
-##--disable_query_log
 let $wl6737_auto_inc = auto_increment;
 --source suite/innodb/include/create_workload_itt.inc
-##--enable_query_log
 
 #-----------------------------------------------------------------------------
 #
 # Workload in non-read-only mode.
 #
+let $restart_parameters = restart: --big-tables=1;
+--source include/restart_mysqld.inc
+
 --source suite/innodb/include/query_workload_itt.inc
 
 #-----------------------------------------------------------------------------
 #
 # Workload in read-only mode.
 #
-let $restart_parameters = restart: --innodb-read-only --big-tables=1;
+
+# Suppress warning regarding re-populating charsets and collations.
+--disable_query_log
+CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+CALL mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+CALL mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
+--enable_query_log
+
+# Force a change buffer merge, so that --innodb-read-only will not
+# # refuse startup, in case there exist buffered changes from earlier tests.
+SET GLOBAL innodb_fast_shutdown = 0;
+let $restart_parameters = restart: --big-tables=1 --innodb-read-only;
 --source include/restart_mysqld.inc
 
 --source suite/innodb/include/query_workload_itt.inc
@@ -48,7 +63,101 @@ let $restart_parameters = restart;
 
 #-----------------------------------------------------------------------------
 #
+# Specialized used-cases.
+# Intrinsic table being used as part of trx workload.
+#
+select @@big_tables;
+let $big_tables = `select @@big_tables`;
+create table t0 (m int, n int, key(m)) engine=innodb;
+begin;
+select count(*) from t0;
+set @@session.sql_mode = ANSI;
+set @@session.tmp_table_size = 0;
+set @@session.big_tables = 1;
+select @@big_tables;
+--disable_result_log
+select event_name, e.min_timer_wait, min(t.min_timer_wait) from
+	performance_schema.events_waits_summary_global_by_event_name as e JOIN
+	performance_schema.events_waits_summary_by_thread_by_event_name as t USING
+	(event_name) group by event_name;
+--enable_result_log
+select * from t0;
+commit;
+drop table t0;
+eval set session big_tables = $big_tables;
+select @@big_tables;
+
+#-----------------------------------------------------------------------------
+#
 # remove test bed.
 #
 
 --source suite/innodb/include/drop_workload_itt.inc
+--echo #
+--echo # BUG#20762059 - innodb_thread_concurrency=1 and queries using intrinsic
+--echo #		temp tables, causes hang
+--echo #
+
+--echo # Scenario 1: Without timezone tables
+--echo #
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+
+--echo # On default connection
+SET @@session.max_heap_table_size=0;
+SET @@global.innodb_thread_concurrency=1;
+--echo # Executing I_S query which will create and do index read on
+--echo # intrinsic temporary tables
+let $DISCARD_OUTPUT=`SELECT COUNT(*) FROM information_schema.innodb_tables`;
+
+--echo # Switch to connection con1
+connect (con1, localhost, root);
+SELECT * FROM t1;
+
+--echo # Switch to connection default
+connection default;
+DROP TABLE t1;
+
+# Cleanup
+disconnect con1;
+SET @@session.max_heap_table_size = default;
+SET @@global.innodb_thread_concurrency = default;
+SET @@global.innodb_thread_sleep_delay = default;
+
+--echo #
+--echo # Scenario 2: with I_S query and timezone table(uses attachable
+--echo # transaction)
+--echo #
+SET @@session.max_heap_table_size=0;
+SET @@global.innodb_thread_concurrency=1;
+--echo # Executing I_S query which will create and do index read on
+--echo # intrinsic temporary tables
+let $DISCARD_OUTPUT=`SELECT COUNT(*) FROM information_schema.innodb_tables`;
+select convert_tz(0,'a','a');
+# Cleanup
+SET @@session.max_heap_table_size = default;
+SET @@global.innodb_thread_concurrency = default;
+SET @@global.innodb_thread_sleep_delay = default;
+
+--echo #
+--echo # Scenario 3: with I_S query and help table(uses attachable
+--echo # transaction)
+--echo #
+SET @@global.innodb_thread_concurrency=1;
+--echo # Executing I_S query which will create and do index read on
+--echo # intrinsic temporary tables
+let $DISCARD_OUTPUT = `SELECT table_catalog, table_schema, table_name, column_name FROM information_schema.columns WHERE table_catalog IS NULL OR table_catalog <> 'def'`;
+HELP '%function_2';
+# Cleanup
+SET @@global.innodb_thread_concurrency = default;
+SET @@global.innodb_thread_sleep_delay = default;
+
+--echo #
+--echo # Bug#21871451: INNODB: FAILING ASSERTION: !(&BUF_POOL->MUTEX)
+--echo #
+
+SELECT 'SUCCESS_INNODB_CMPMEM' FROM DUAL WHERE EXISTS
+(SELECT * FROM INFORMATION_SCHEMA.INNODB_CMPMEM);
+
+SELECT 'SUCCESS_INNODB_CMP' FROM DUAL WHERE EXISTS
+(SELECT * FROM INFORMATION_SCHEMA.INNODB_CMPMEM_RESET);

@@ -1,0 +1,469 @@
+
+####################################
+# 1. Use default as ROW_FORMAT=REDUNDANT
+SET GLOBAL innodb_default_row_format = REDUNDANT;
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+redundant
+CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	0	5	Redundant	0	Single
+DROP TABLE t1;
+
+CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	33	5	Dynamic	0	Single
+DROP TABLE t1;
+
+CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	1	5	Compact	0	Single
+DROP TABLE t1;
+
+CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	0	5	Redundant	0	Single
+DROP TABLE t1;
+
+CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB
+ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	35	5	Compressed	1024	Single
+DROP TABLE t1;
+
+
+####################################
+# 2. Use default as ROW_FORMAT=REDUNDANT (TEMPORARY)
+SET GLOBAL innodb_default_row_format = REDUNDANT;
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+redundant
+CREATE TEMPORARY TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `c1` text,
+  `c2` blob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `c1` text,
+  `c2` blob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `c1` text,
+  `c2` blob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `c1` text,
+  `c2` blob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+DROP TABLE t1;
+
+
+
+####################################
+# 3. Use default as ROW_FORMAT=COMPACT
+SET GLOBAL innodb_default_row_format = COMPACT;
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+compact
+CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	1	5	Compact	0	Single
+DROP TABLE t1;
+
+CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	33	5	Dynamic	0	Single
+DROP TABLE t1;
+
+CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	1	5	Compact	0	Single
+DROP TABLE t1;
+
+CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	0	5	Redundant	0	Single
+DROP TABLE t1;
+
+CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB
+ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	35	5	Compressed	1024	Single
+DROP TABLE t1;
+
+
+####################################
+# 4. Use default as ROW_FORMAT=COMPACT (TEMPORARY)
+SET GLOBAL innodb_default_row_format = COMPACT;
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+compact
+CREATE TEMPORARY TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `c1` text,
+  `c2` blob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `c1` text,
+  `c2` blob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `c1` text,
+  `c2` blob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `c1` text,
+  `c2` blob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+DROP TABLE t1;
+
+
+
+####################################
+# 5. Use default as ROW_FORMAT=DYNAMIC
+SET GLOBAL innodb_default_row_format = DYNAMIC;
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+dynamic
+CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	33	5	Dynamic	0	Single
+DROP TABLE t1;
+
+CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	33	5	Dynamic	0	Single
+DROP TABLE t1;
+
+CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	1	5	Compact	0	Single
+DROP TABLE t1;
+
+CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	0	5	Redundant	0	Single
+DROP TABLE t1;
+
+CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB
+ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	35	5	Compressed	1024	Single
+DROP TABLE t1;
+
+
+####################################
+# 6. Use default as ROW_FORMAT=DYNAMIC(TEMPORARY)
+SET GLOBAL innodb_default_row_format = DYNAMIC;
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+dynamic
+CREATE TEMPORARY TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `c1` text,
+  `c2` blob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `c1` text,
+  `c2` blob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `c1` text,
+  `c2` blob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `c1` text,
+  `c2` blob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+DROP TABLE t1;
+
+
+
+####################################
+# 7. Test ALTERs on NORMAL TABLES
+
+####################################
+# Check if table rebuilding alter isn't affect if table is created
+# with explicit row_format
+CREATE  TABLE t1 (a INT PRIMARY KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, 'abc');
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	1	5	Compact	0	Single
+SET GLOBAL innodb_default_row_format=DYNAMIC;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD COLUMN c INT PRIMARY KEY;
+# Here we expect COMPACT because it was explicitly specified at CREATE
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	1	6	Compact	0	Single
+DROP TABLE t1;
+
+####################################
+# Check if table rebuilding alter is affected when there is no
+# row_format specified at CREATE TABLE.
+SET GLOBAL innodb_default_row_format = COMPACT;
+CREATE  TABLE t1 (a INT PRIMARY KEY, b TEXT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, 'abc');
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	1	5	Compact	0	Single
+SET GLOBAL innodb_default_row_format = DYNAMIC;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD COLUMN c INT PRIMARY KEY;
+# Here we expect DYNAMIC because there is no explicit ROW_FORMAT and the
+# default_row_format is changed to DYNAMIC just before ALTER
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	33	6	Dynamic	0	Single
+DROP TABLE t1;
+
+####################################
+# Check the row_format effect on ALTER, ALGORITHM=COPY
+SET GLOBAL innodb_default_row_format = REDUNDANT;
+CREATE  TABLE t1 (a INT PRIMARY KEY, b TEXT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, REPEAT('abc',1000));
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	0	5	Redundant	0	Single
+SET GLOBAL innoDB_default_row_format = COMPACT;
+ALTER TABLE t1 ADD COLUMN c2 BLOB, ALGORITHM=COPY;
+# Because of ALGORITHM=COPY, there is TABLE REBUILD and the table isn't
+# created with explicit row_format, so we expect ROW_FORMAT=COMPACT
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	1	6	Compact	0	Single
+DROP TABLE t1;
+
+###################################
+#  Check the row_format effect on ALTER, ALGORITH=COPY on
+# create table with explicit row_format
+CREATE  TABLE t1 (a INT PRIMARY KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, REPEAT('abc',1000));
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	0	5	Redundant	0	Single
+SET GLOBAL innoDB_default_row_format = COMPACT;
+ALTER TABLE t1 ADD COLUMN c2 BLOB, ALGORITHM=COPY;
+# Because of ALGORITHM=COPY, there is TABLE REBUILD and the table is
+# created with explicit row_format, so we expect original
+# ROW_FORMAT=REDUNDANT
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	0	6	Redundant	0	Single
+DROP TABLE t1;
+
+##################################
+# Check row_format on ALTER ALGORITHM=INPLACE
+SET GLOBAL innodb_default_row_format=COMPACT;
+CREATE  TABLE t1 (a INT PRIMARY KEY, b TEXT, KEY k1(b(10))) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, REPEAT('abc',1000));
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	1	5	Compact	0	Single
+SET GLOBAL innodb_default_row_format=DYNAMIC;
+ALTER TABLE t1 DROP INDEX k1;
+# Because it is in-place operation, there is no rebuild, so the
+# original format has to be retained.
+=== information_schema.innodb_tables  and innodb_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	test/t1	1	5	Compact	0	Single
+DROP TABLE t1;
+
+####################################
+# 8. Test ALTERs on TEMPORARY TABLES
+
+####################################
+# Check if table rebuilding alter isn't affect if table is created
+# with explicit row_format
+CREATE TEMPORARY TABLE t1 (a INT PRIMARY KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, 'abc');
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+SET GLOBAL innodb_default_row_format=DYNAMIC;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD COLUMN c INT PRIMARY KEY;
+# Here we expect COMPACT because it was explicitly specified at CREATE
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+DROP TABLE t1;
+
+####################################
+# Check if table rebuilding alter is affected when there is no
+# row_format specified at CREATE TABLE.
+SET GLOBAL innodb_default_row_format = COMPACT;
+CREATE TEMPORARY TABLE t1 (a INT PRIMARY KEY, b TEXT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, 'abc');
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET GLOBAL innodb_default_row_format = DYNAMIC;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD COLUMN c INT PRIMARY KEY;
+# Here we expect DYNAMIC because there is no explicit ROW_FORMAT and the
+# default_row_format is changed to DYNAMIC just before ALTER
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+
+####################################
+# Check the row_format effect on ALTER, ALGORITHM=COPY
+SET GLOBAL innodb_default_row_format = REDUNDANT;
+CREATE TEMPORARY TABLE t1 (a INT PRIMARY KEY, b TEXT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, REPEAT('abc',1000));
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET GLOBAL innoDB_default_row_format = COMPACT;
+ALTER TABLE t1 ADD COLUMN c2 BLOB, ALGORITHM=COPY;
+# Because of ALGORITHM=COPY, there is TABLE REBUILD and the table isn't
+# created with explicit row_format, so we expect ROW_FORMAT=COMPACT
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  `c2` blob,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+
+###################################
+#  Check the row_format effect on ALTER, ALGORITH=COPY on
+# create table with explicit row_format
+CREATE TEMPORARY TABLE t1 (a INT PRIMARY KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, REPEAT('abc',1000));
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+SET GLOBAL innoDB_default_row_format = COMPACT;
+ALTER TABLE t1 ADD COLUMN c2 BLOB, ALGORITHM=COPY;
+# Because of ALGORITHM=COPY, there is TABLE REBUILD and the table is
+# created with explicit row_format, so we expect original
+# ROW_FORMAT=REDUNDANT
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  `c2` blob,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+DROP TABLE t1;
+
+##################################
+# Check row_format on ALTER ALGORITHM=INPLACE
+SET GLOBAL innodb_default_row_format=COMPACT;
+CREATE TEMPORARY TABLE t1 (a INT PRIMARY KEY, b TEXT, KEY k1(b(10))) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, REPEAT('abc',1000));
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  PRIMARY KEY (`a`),
+  KEY `k1` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET GLOBAL innodb_default_row_format=DYNAMIC;
+ALTER TABLE t1 DROP INDEX k1;
+# Because it is in-place operation, there is no rebuild, so the
+# original format has to be retained.
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;

@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -43,11 +50,7 @@ int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgmd.getConnectString());
   ndb_mgm_connect(h,0,0,0);
-#ifdef NDB_WIN
-  SOCKET s = ndb_mgm_get_fd(h);
-#else
-  int s= ndb_mgm_get_fd(h);
-#endif
+  ndb_native_socket_t s = ndb_mgm_get_fd(h);
   session_id= ndb_mgm_get_session_id(h);
   ndbout << "MGM Session id: " << session_id << endl;
   send(s,"get",3,0);
@@ -456,16 +459,10 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
                      1, NDB_MGM_EVENT_CATEGORY_STARTUP,
                      0 };
 
-    NDB_SOCKET_TYPE my_fd;
-#ifdef NDB_WIN
-    SOCKET fd= ndb_mgm_listen_event(h, filter);
-    my_fd.s= fd;
-#else
-    int fd= ndb_mgm_listen_event(h, filter);
-    my_fd.fd= fd;
-#endif
+    ndb_native_socket_t fd= ndb_mgm_listen_event(h, filter);
+    ndb_socket_t my_fd = ndb_socket_create_from_native(fd);
 
-    if(!my_socket_valid(my_fd))
+    if(!ndb_socket_valid(my_fd))
     {
       ndbout << "FAILED: could not listen to event" << endl;
       result= NDBT_FAILED;
@@ -640,6 +637,140 @@ done:
   return result;
 }
 
+int runTestMgmApiReadErrorRestart(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+  int mgmd_nodeid= 0;
+
+  NdbMgmHandle h;
+  h= ndb_mgm_create_handle();
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
+
+  ndb_mgm_connect(h,0,0,0);
+
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP,
+                   0};
+
+  NdbLogEventHandle le_handle= ndb_mgm_create_logevent_handle(h, filter);
+
+  if(ndb_mgm_check_connection(h) < 0)
+  {
+    ndb_mgm_disconnect(h);
+    ndb_mgm_destroy_handle(&h);
+
+    return NDBT_FAILED;
+  }
+
+  mgmd_nodeid= ndb_mgm_get_mgmd_nodeid(h);
+  if(mgmd_nodeid==0)
+  {
+    ndbout << "Failed to get mgmd node id" << endl;
+    ndb_mgm_disconnect(h);
+    ndb_mgm_destroy_handle(&h);
+
+    return NDBT_FAILED;
+  }
+
+  ndb_mgm_reply reply;
+  reply.return_code= 0;
+
+  ndb_mgm_set_timeout(h,2500);
+
+  struct ndb_logevent le;
+  for(int i = 0; i < 100 ; i++)
+  {
+    union
+    {
+      Uint32 theData[25];
+      EventReport repData;
+    };
+    EventReport *fake_event = &repData;
+    fake_event->setEventType(NDB_LE_BackupAborted);
+
+    fake_event->setNodeId(42);
+    theData[2]= 0;
+    theData[3]= 0;
+    theData[4]= 0;
+    theData[5]= 0;
+
+    if(i <= 6 && i > 2)
+    {
+      if(ndb_mgm_report_event(h, theData, 6)) ndbout << "failed reporting event" << endl;
+      ndbout << "Report event" << endl;
+    }
+
+    // Restart mgmd
+    if(i == 10)
+    {
+      ndb_mgm_cluster_state *state = ndb_mgm_get_status(h);
+      if(state == NULL)
+      {
+        ndbout_c("Could not get status");
+      }
+      int res = 0;
+      int need_disconnect;
+      const int list[]= {mgmd_nodeid};
+
+      res = ndb_mgm_restart3(h, 1, list, false, false, false, &need_disconnect);
+
+      if (res < 0)
+      {
+        ndbout << "Restart of NDB Cluster node(s) failed." << endl;
+        return NDBT_FAILED;
+      }
+
+      ndbout << res << " NDB Cluster node(s) have restarted." << endl;
+
+      if(need_disconnect)
+      {
+        ndbout << "Disconnecting to allow management server to restart."
+               << endl << endl;
+        ndb_mgm_disconnect(h);
+      }
+    }
+
+    int r= ndb_logevent_get_next2(le_handle, &le, 2500);
+
+    if(r > 0)
+    {
+      ndbout << "Received event of type: " << le.type << endl << endl;
+    }
+    else if(r < 0)
+    {
+      ndbout << "Error received: " << ndb_logevent_get_latest_error_msg(le_handle) << endl << endl;
+
+      if(ndb_logevent_get_latest_error(le_handle) == NDB_LEH_READ_ERROR && i >= 10)
+      {
+        ndb_mgm_disconnect(h);
+        ndb_mgm_destroy_handle(&h);
+
+        return NDBT_OK;
+      }
+      else
+      {
+        ndbout << "FAILED: Unexpected error received" << endl;
+        return NDBT_FAILED;
+      }
+    }
+    else // no event
+    {
+      ndbout << "TIMED OUT READING EVENT at iteration " << i << endl << endl;
+    }
+  }
+
+  /*
+   * Should be disconnected.
+   */
+  if(!ndb_mgm_check_connection(h) || ndb_mgm_is_connected(h))
+  {
+    ndbout << "FAILED: is still connected after error" << endl;
+  }
+
+  ndb_mgm_disconnect(h);
+  ndb_mgm_destroy_handle(&h);
+
+  return NDBT_FAILED;
+}
 
 int runSetConfig(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -2378,7 +2509,7 @@ check_set_ports_mgmapi(NdbMgmd& mgmd)
   int nodeid = 1;
   unsigned num_ports = 1;
   ndb_mgm_dynamic_port ports[MAX_NODES * 10];
-  compile_time_assert(MAX_NODES < NDB_ARRAY_SIZE(ports));
+  static_assert(MAX_NODES < NDB_ARRAY_SIZE(ports), "");
   ports[0].nodeid = 1;
   ports[0].port = -1;
 
@@ -2912,6 +3043,22 @@ int runTestBug45497(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+bool isCategoryValid(struct ndb_logevent* le)
+{
+  switch (le->category)
+  {
+  case NDB_MGM_EVENT_CATEGORY_BACKUP:
+  case NDB_MGM_EVENT_CATEGORY_STARTUP:
+  case NDB_MGM_EVENT_CATEGORY_NODE_RESTART:
+  case NDB_MGM_EVENT_CATEGORY_CONNECTION:
+  case NDB_MGM_EVENT_CATEGORY_STATISTIC:
+  case NDB_MGM_EVENT_CATEGORY_CHECKPOINT:
+    return true;
+  default:
+    return false;
+  }
+}
+
 int runTestBug16723708(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbMgmd mgmd;
@@ -2934,6 +3081,10 @@ int runTestBug16723708(NDBT_Context* ctx, NDBT_Step* step)
     ndb_mgm_create_logevent_handle(mgmd.handle(), filter);
   if (!le_handle)
     return NDBT_FAILED;
+  NdbLogEventHandle le_handle2 = 
+    ndb_mgm_create_logevent_handle(mgmd.handle(), filter);
+  if (!le_handle2)
+    return NDBT_FAILED;
  
   for(int l=0; l<loops; l++)
   {
@@ -2944,40 +3095,65 @@ int runTestBug16723708(NDBT_Context* ctx, NDBT_Step* step)
                                   &le_event,
                                   2000);
     g_info << "ndb_log_event_get_next returned " << r << endl;
-  
-    result = NDBT_FAILED;
-    if (r == 0)
+    
+    struct ndb_logevent le_event2;
+    int r2 = ndb_logevent_get_next2(le_handle2,
+                                    &le_event2,
+                                    2000);
+    g_info << "ndb_log_event_get_next2 returned " << r2 << endl;
+    
+    result = NDBT_OK;
+    if ((r == 0) || (r2 == 0))
     {
       // Got timeout
-      g_info << "ndb_logevent_get_next returned timeout" << endl;
-      result = NDBT_OK;
+      g_info << "ndb_logevent_get_next[2] returned timeout" << endl;
     }
     else
     {
       if(r>0)
       {
-        switch(le_event.category)
+        g_info << "next() ndb_logevent type : " << le_event.type 
+               << " category : " << le_event.category 
+               << " " << ndb_mgm_get_event_category_string(le_event.category)
+               << endl;
+        if (isCategoryValid(&le_event))
         {
-          case NDB_MGM_EVENT_CATEGORY_BACKUP:
-          case NDB_MGM_EVENT_CATEGORY_STARTUP:
-          case NDB_MGM_EVENT_CATEGORY_NODE_RESTART:
-          case NDB_MGM_EVENT_CATEGORY_CONNECTION:
-          case NDB_MGM_EVENT_CATEGORY_STATISTIC:
-          case NDB_MGM_EVENT_CATEGORY_CHECKPOINT:
-            result = NDBT_OK;
-            break;
-          default:
-            g_err << "ERROR: invalid logevent category" << endl;
-            break;
-        };
+          g_err << "ERROR: ndb_logevent_get_next() returned valid category! "
+                << le_event.category << endl;
+          result = NDBT_FAILED;
+        }
       }
-      if(r<0) 
+      else
+      {
         g_err << "ERROR: ndb_logevent_get_next returned error: "
               << r << endl;
+      }
+      
+      if(r2>0)
+      {        
+        g_info << "next2() ndb_logevent type : " << le_event2.type 
+               << " category : " << le_event2.category 
+               << " " << ndb_mgm_get_event_category_string(le_event2.category)
+               << endl;
+
+        if (!isCategoryValid(&le_event2))
+        {
+          g_err << "ERROR: ndb_logevent_get_next2() returned invalid category! "
+                << le_event2.category << endl;
+          result = NDBT_FAILED;
+        }
+      }
+      else
+      {
+        g_err << "ERROR: ndb_logevent_get_next2 returned error: "
+              << r << endl;
+        result = NDBT_FAILED;
+      }
     }
     if(result == NDBT_FAILED)
       break;
   }
+  ndb_mgm_destroy_logevent_handle(&le_handle2);
   ndb_mgm_destroy_logevent_handle(&le_handle);
 
   return result;
@@ -3470,7 +3646,7 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
   };
   // Catch if new members are added to NdbApiConfig,
   // if so add tests and adjust expected size
-  NDB_STATIC_ASSERT(sizeof(NdbApiConfig) == 6 * sizeof(Uint32));
+  NDB_STATIC_ASSERT(sizeof(NdbApiConfig) == 7 * sizeof(Uint32));
 
   Config savedconf;
   if (!mgmd.get_config(savedconf))
@@ -3659,16 +3835,23 @@ TESTCASE("TestSetConfigParallel",
   STEPS(runTestSetConfigParallel, 5);
 }
 TESTCASE("GetConfig", "Run ndb_mgm_get_configuration in parallel"){
-  STEPS(runGetConfig, 100);
+  STEPS(runGetConfig, 64);
 }
 TESTCASE("TestStatus",
 	 "Test status and status2"){
   INITIALIZER(runTestStatus);
 
 }
-TESTCASE("TestStatus200",
-	 "Test status and status2 with 200 threads"){
-  STEPS(runTestStatus, 200);
+TESTCASE("TestStatusMultiple",
+	 "Test status and status2 with 64 threads"){
+  /**
+   * For this and other tests we are limited in how much TCP backlog
+   * the MGM server socket has. It is currently set to a maximum of
+   * 64, so if we need to test more than 64 threads in parallel we
+   * need to introduce some sort of wait state to ensure that we
+   * don't get all threads sending TCP connect at the same time.
+   */
+  STEPS(runTestStatus, 64);
 
 }
 TESTCASE("TestGetNodeId",
@@ -3757,6 +3940,10 @@ TESTCASE("TestSetPorts",
 }
 TESTCASE("TestCreateLogEvent", "Test ndb_mgm_create_log_event_handle"){
   STEPS(runTestCreateLogEvent, 5);
+}
+TESTCASE("TestConnectionFailure",
+         "Test if Read Error is received after mgmd is restarted"){
+  INITIALIZER(runTestMgmApiReadErrorRestart);
 }
 NDBT_TESTSUITE_END(testMgm);
 

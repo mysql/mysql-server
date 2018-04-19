@@ -1,0 +1,30 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server2]
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1
+include/rpl_reconnect.inc
+SET SESSION SQL_LOG_BIN=0;
+call mtr.add_suppression("The group name option is mandatory");
+call mtr.add_suppression("Unable to start Group Replication on boot");
+SET SESSION SQL_LOG_BIN=1;
+UNINSTALL PLUGIN group_replication;
+INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+include/assert.inc [The value of group name should be empty]
+include/assert.inc [The value of local address should be the configured one]
+include/assert.inc [The value of peer addresses should be the configured one]
+include/assert.inc [group_replication plugin is loaded]
+include/assert.inc [The group_replication failed to start]
+include/start_and_bootstrap_group_replication.inc
+[connection server1]
+include/start_group_replication.inc
+[connection server2]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+[connection server1]
+include/assert.inc [Table t1 contains row in server1 after the above execution]
+DROP TABLE t1;
+include/group_replication_end.inc

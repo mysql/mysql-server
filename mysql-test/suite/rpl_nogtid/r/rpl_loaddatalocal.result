@@ -1,0 +1,137 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+create table t1(a int);
+select * into outfile 'MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' from t1;
+truncate table t1;
+load data local infile 'MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' into table t1;
+include/sync_slave_sql_with_master.inc
+select a,count(*) from t1 group by a;
+a	count(*)
+1	10000
+drop table t1;
+include/sync_slave_sql_with_master.inc
+create table t1(a int);
+insert into t1 values (1), (2), (2), (3);
+select * into outfile 'MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' from t1;
+drop table t1;
+create table t1(a int primary key);
+load data local infile 'MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' into table t1;
+Warnings:
+Warning	1062	Duplicate entry '2' for key 'PRIMARY'
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+drop table t1;
+==== Bug22504 Initialize ====
+[on master]
+SET sql_mode='ignore_space';
+CREATE TABLE t1(a int);
+insert into t1 values (1), (2), (3), (4);
+select * into outfile 'MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' from t1;
+truncate table t1;
+load data local infile 'MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' into table t1;
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+4
+[on slave]
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+4
+==== Clean up ====
+[on master]
+DROP TABLE t1;
+[on slave]
+include/sync_slave_sql_with_master.inc
+
+Bug #43746:
+"return wrong query string when parse 'load data infile' sql statement"
+
+[master]
+SELECT @@SESSION.sql_mode INTO @old_mode;
+SET sql_mode='ignore_space';
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+SELECT * INTO OUTFILE 'MYSQLD_DATADIR/bug43746.sql' FROM t1;
+TRUNCATE TABLE t1;
+LOAD DATA LOCAL INFILE 'MYSQLD_DATADIR/bug43746.sql' INTO TABLE t1;
+LOAD/* look mum, with comments in weird places! */DATA/* oh hai */LOCAL INFILE 'MYSQLD_DATADIR/bug43746.sql'/* we are */INTO/* from the internets */TABLE t1;
+LOAD DATA/*!10000 LOCAL */INFILE 'MYSQLD_DATADIR/bug43746.sql' INTO TABLE t1;
+LOAD DATA LOCAL INFILE 'MYSQLD_DATADIR/bug43746.sql' /*!10000 INTO */ TABLE t1;
+LOAD DATA LOCAL INFILE 'MYSQLD_DATADIR/bug43746.sql' /*!10000 INTO TABLE */ t1;
+LOAD DATA /*!10000 LOCAL INFILE 'MYSQLD_DATADIR/bug43746.sql' INTO TABLE */ t1;
+LOAD DATA/*!10000 LOCAL */INFILE 'MYSQLD_DATADIR/bug43746.sql'/*!10000 INTO*/TABLE t1;
+LOAD DATA/*!10000 LOCAL */INFILE 'MYSQLD_DATADIR/bug43746.sql'/* empty */INTO TABLE t1;
+LOAD DATA/*!10000 LOCAL */INFILE 'MYSQLD_DATADIR/bug43746.sql' INTO/* empty */TABLE t1;
+LOAD/*!99999 special comments that do not expand */DATA/*!99999 code from the future */LOCAL INFILE 'MYSQLD_DATADIR/bug43746.sql'/*!99999 have flux capacitor */INTO/*!99999 will travel */TABLE t1;
+SET sql_mode='PIPES_AS_CONCAT,ANSI_QUOTES,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL';
+LOAD DATA LOCAL INFILE 'MYSQLD_DATADIR/bug43746.sql' INTO TABLE t1;
+[slave]
+include/sync_slave_sql_with_master.inc
+
+Bug #59267:
+"LOAD DATA LOCAL INFILE not executed on slave with SBR"
+
+[master]
+SELECT * INTO OUTFILE 'MYSQLD_DATADIR/bug59267.sql' FROM t1;
+TRUNCATE TABLE t1;
+LOAD DATA LOCAL INFILE 'MYSQLD_DATADIR/bug59267.sql' INTO TABLE t1;
+SELECT 'Master', COUNT(*) FROM t1;
+Master	COUNT(*)
+Master	44
+[slave]
+include/sync_slave_sql_with_master.inc
+SELECT 'Slave', COUNT(*) FROM t1;
+Slave	COUNT(*)
+Slave	44
+[master]
+DROP TABLE t1;
+SET SESSION sql_mode=@old_mode;
+[slave]
+include/sync_slave_sql_with_master.inc
+
+Bug #60580/#11902767:
+"statement improperly replicated crashes slave sql thread"
+
+[master]
+CREATE TABLE t1(f1 INT, f2 INT);
+CREATE TABLE t2(f1 INT, f2 TIMESTAMP);
+INSERT INTO t2 VALUES(1, '2011-03-22 21:01:28');
+INSERT INTO t2 VALUES(2, '2011-03-21 21:01:28');
+INSERT INTO t2 VALUES(3, '2011-03-20 21:01:28');
+CREATE TABLE t3 AS SELECT * FROM t2;
+CREATE VIEW v1 AS SELECT * FROM t2
+WHERE f1 IN (SELECT f1 FROM t3 WHERE (t3.f2 IS NULL));
+SELECT 1 INTO OUTFILE 'MYSQLD_DATADIR/bug60580.csv' FROM DUAL;
+LOAD DATA LOCAL INFILE 'MYSQLD_DATADIR/bug60580.csv' INTO TABLE t1 (@f1) SET f2 = (SELECT f1 FROM v1 WHERE f1=@f1);
+SELECT * FROM t1;
+f1	f2
+NULL	NULL
+[slave]
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1;
+f1	f2
+NULL	NULL
+[master]
+DROP VIEW v1;
+DROP TABLE t1, t2, t3;
+[slave]
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc
+# End of 5.1 tests

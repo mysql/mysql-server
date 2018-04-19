@@ -1,13 +1,5 @@
 # Include this in any test using mysql_upgrade
 
-# Can't run test of external client with embedded server
--- source include/not_embedded.inc
-
-# Only run test if "mysql_upgrade" is found
---require r/have_mysql_upgrade.result
---disable_query_log
-select LENGTH("$MYSQL_UPGRADE")>0 as have_mysql_upgrade;
---enable_query_log
 
 #
 # Hack:

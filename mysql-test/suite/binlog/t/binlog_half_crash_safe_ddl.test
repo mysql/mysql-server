@@ -1,0 +1,83 @@
+# ==== Purpose ====
+# Prove successful server recovery after simulated crash while
+# there were general DDL queries in processing.
+# The test is destined for eventual merge with binlog_crash_safe_ddl.
+#
+# ==== Implementation ====
+# Closely follows @c see binlog_crash_safe_ddl.test.
+#
+# Unlike the referred (mostly) acl specific file this one provides merely
+# "stub" checks after some of simulated crashes for cases that are not fully
+# 2pc-ready.
+# TODO: WL#9536 to refine, complete or reuse
+# the stub checks.
+#
+# ==== References ====
+# WL#9175  Correct recovery of DDL statements/transactions by binary log
+# WL#9536 is responsible for adding  to 2pc support to some
+# of DDL:s. The current testing skips the crash-recovery testing in those case
+# with tagging them as todo objects for a host WL.
+#
+# ==== Exempts ====
+# The following DDL commands are excluded from testing:
+#
+# SERVER (Create etc)
+# An excerpt from Docs: In MySQL 5.7, 'CREATE SERVER' is not written to the binary log,
+# regardless of the logging format that is in use.
+#
+# LOGFILE-GROUP (Create etc)
+# Not supported by Innodb.
+#
+# ALTER TABLESPACE
+# Not supported by Innodb.
+#
+# === Limitations ===
+# --force-restart is required to run the test.
+#
+# When the object deletion was interrupted by crash
+# there could be errors on object recreation attempt like
+# 1007: Can't create database '...'; database exists
+# due to
+# Bug #25663287 DROP DATABASE DOESN'T GETS RECOVERED CORRECTLY UPON POST BINLOG CRASH/RESTART
+# or asserts like in
+# Bug #25651042 TANSACTION DOES NOT POST-CRASH RECOVER IN INNODB EVEN IF PREPARED AND BINLOGGED
+#
+
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+--source include/have_log_bin.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_mixed.inc
+
+--disable_query_log
+call mtr.add_suppression("Could not find a valid tablespace file for");
+--enable_query_log
+
+# The *internal* var is used by gtid_step_assert.inc
+--let $gtid_mode_on= `SELECT @@GLOBAL.GTID_MODE = 'ON'`
+# To use by gtid_assert
+--let $gtid_mode= `SELECT @@GLOBAL.GTID_MODE`
+--source include/gtid_utils.inc
+# Instructing gtid_step_assert called by sourced file
+# to work in gtid-mode OFF as well.
+# Besides, there's a reason for a bug to fix  'cos setting $gtid_mode
+# turns out insufficient for $gtid_step_assert to keep the value 1 for
+# an internal "_"-var of include/gtid_step_assert.inc.
+--let $gtid_step_gtid_mode_agnostic=`SELECT '$gtid_mode' != 'ON'`
+
+# The post_prepare crash is  simulated only when the correspoding feature
+# is fully 2pc-supported.  The default set of simulation control parameters
+# below assumes a feature can't be rolled back, but can be committed
+# once found prepared and logged.
+--let $do_pre_binlog=0
+--let $do_post_binlog=1
+--let $do_only_regular_logging=0
+# todo: the $pre_binlog_crash_check:s are to be activated/refined once
+# the corresponding  has learned how to rollback (WL9536).
+# E.g CREATE|DROP|ALTER|RENAME table.
+
+--let $table=t_2
+--source extra/binlog_tests/binlog_ddl_half_atomic.inc
+
+# Cleanup.
+--source include/gtid_utils_end.inc

@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -53,6 +60,7 @@
 #include <logger/SysLogHandler.hpp>
 #include <DebuggerNames.hpp>
 #include <ndb_version.h>
+#include <OwnProcessInfo.hpp>
 
 #include <SocketServer.hpp>
 #include <NdbConfig.h>
@@ -80,7 +88,7 @@ int g_errorInsert = 0;
     }\
   }
 
-extern "C" my_bool opt_core;
+extern "C" bool opt_core;
 
 void *
 MgmtSrvr::logLevelThread_C(void* m)
@@ -230,7 +238,7 @@ translateStopRef(Uint32 errCode)
 
 MgmtSrvr::MgmtSrvr(const MgmtOpts& opts) :
   m_opts(opts),
-  _blockNumber(-1),
+  _blockNumber(0),
   _ownNodeId(0),
   m_port(0),
   m_local_config(NULL),
@@ -264,7 +272,7 @@ MgmtSrvr::MgmtSrvr(const MgmtOpts& opts) :
   /* Setup clusterlog as client[0] in m_event_listner */
   {
     Ndb_mgmd_event_service::Event_listener se;
-    my_socket_invalidate(&(se.m_socket));
+    ndb_socket_invalidate(&(se.m_socket));
     for(size_t t = 0; t<LogLevel::LOGLEVEL_CATEGORIES; t++){
       se.m_logLevel.setLogLevel((LogLevel::EventCategory)t, 7);
     }
@@ -393,7 +401,7 @@ MgmtSrvr::start_transporter(const Config* config)
     DBUG_RETURN(false);
   }
 
-  assert(_blockNumber == -1); // Blocknumber shouldn't been allocated yet
+  assert(_blockNumber == 0); // Blocknumber shouldn't been allocated yet
 
   /*
     Register ourself at TransporterFacade to be able to receive signals
@@ -409,6 +417,7 @@ MgmtSrvr::start_transporter(const Config* config)
     DBUG_RETURN(false);
   }
   _blockNumber = refToBlock(res);
+  assert(_blockNumber > 0);
 
   /**
    * Need to call ->open() prior to actually starting TF
@@ -525,6 +534,7 @@ MgmtSrvr::start_mgm_service(const Config* config)
       DBUG_RETURN(false);
     }
   }
+  setOwnProcessInfoPort(port);
 
   m_socket_server.startServer();
 
@@ -1013,7 +1023,7 @@ MgmtSrvr::report_unknown_signal(SimpleSignal *signal)
  ****************************************************************************/
 
 int 
-MgmtSrvr::start(int nodeId)
+MgmtSrvr::sendSTART_ORD(int nodeId)
 {
   INIT_SIGNAL_SENDER(ss,nodeId);
   
@@ -1033,12 +1043,19 @@ void
 MgmtSrvr::status_api(int nodeId,
                      ndb_mgm_node_status& node_status,
                      Uint32& version, Uint32& mysql_version,
-                     const char **address)
+                     const char **address,
+                     char *addr_buf,
+                     size_t addr_buf_size)
 {
   assert(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_API);
   assert(version == 0 && mysql_version == 0);
 
-  if (sendVersionReq(nodeId, version, mysql_version, address) != 0)
+  if (sendVersionReq(nodeId,
+                     version,
+                     mysql_version,
+                     address,
+                     addr_buf,
+                     addr_buf_size) != 0)
   {
     // Couldn't get version from any NDB node.
     assert(version == 0);
@@ -1064,7 +1081,9 @@ int
 MgmtSrvr::sendVersionReq(int v_nodeId,
 			 Uint32 &version,
 			 Uint32& mysql_version,
-			 const char **address)
+			 const char **address,
+                         char *addr_buf,
+                         size_t addr_buf_size)
 {
   SignalSender ss(theFacade);
   ss.lock();
@@ -1111,7 +1130,10 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
 	mysql_version = 0;
       struct in_addr in;
       in.s_addr= conf->m_inet_addr;
-      *address= inet_ntoa(in);
+      *address= Ndb_inet_ntop(AF_INET,
+                              static_cast<void*>(&in),
+                              addr_buf,
+                              addr_buf_size);
 
       return 0;
     }
@@ -1242,6 +1264,17 @@ MgmtSrvr::sendall_STOP_REQ(NodeBitmask &stoppedNodes,
                        "nostart: %d  initialStart: %d",
                        abort, stop, restart, nostart, initialStart));
 
+  if (ERROR_INSERTED(10006))
+  {
+    /*
+     * This error insert is for Bug #11757421. Error
+     * 10006 is used to skip the STOP_REQ call sent by
+     * the restart command thus ensuring that the nodes
+     * do not start the shut down process.
+     */
+    DBUG_RETURN(error);
+  }
+
   stoppedNodes.clear();
 
   SignalSender ss(theFacade);
@@ -1264,6 +1297,17 @@ MgmtSrvr::sendall_STOP_REQ(NodeBitmask &stoppedNodes,
   StopReq::setStopAbort(stopReq->requestInfo, abort);
   StopReq::setNoStart(stopReq->requestInfo, nostart);
   StopReq::setInitialStart(stopReq->requestInfo, initialStart);
+
+  if (ERROR_INSERTED(10007))
+  {
+    /*
+     * This error insert is for Bug #11757421. Error
+     * 10007 is used to hard code a value of false to
+     * the nostart flag in the signal. This ensures
+     * that the nodes do not reach NOT_STARTED state.
+     */
+    StopReq::setNoStart(stopReq->requestInfo, false);
+  }
 
   // send the signals
   int failed = 0;
@@ -1439,6 +1483,17 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
                        node_ids.size(),
                        abort, stop, restart, nostart, initialStart));
 
+  if (ERROR_INSERTED(10006))
+  {
+    /*
+     * This error insert is for Bug #11757421. Error
+     * 10006 is used to skip the STOP_REQ call sent by
+     * the restart command thus ensuring that the node
+     * does not start the shut down process.
+     */
+    DBUG_RETURN(error);
+  }
+
   stoppedNodes.clear();
   *stopSelf= 0;
 
@@ -1509,6 +1564,17 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
   StopReq::setStopAbort(stopReq->requestInfo, abort);
   StopReq::setNoStart(stopReq->requestInfo, nostart);
   StopReq::setInitialStart(stopReq->requestInfo, initialStart);
+
+  if (ERROR_INSERTED(10007))
+  {
+    /*
+     * This error insert is for Bug #11757421. Error
+     * 10007 is used to hard code a value of false to
+     * the nostart flag in the signal. This ensures
+     * that the node does not reach NOT_STARTED state.
+     */
+    StopReq::setNoStart(stopReq->requestInfo, false);
+  }
 
   int use_master_node = 0;
   int do_send = 0;
@@ -1849,6 +1915,45 @@ bool MgmtSrvr::is_any_node_starting()
   return false; // No node was starting
 }
 
+bool MgmtSrvr::is_any_node_in_started_state()
+{
+  NodeId nodeId = 0;
+  trp_node node;
+  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
+  {
+    node = getNodeInfo(nodeId);
+    if (node.m_state.startLevel == NodeState::SL_STARTED)
+      return true; // At least one node is in started state
+  }
+  return false; // No node is in started state
+}
+
+bool MgmtSrvr::are_all_nodes_in_cmvmi_state()
+{
+  NodeId nodeId = 0;
+  trp_node node;
+  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
+  {
+    node = getNodeInfo(nodeId);
+    if (node.m_state.startLevel != NodeState::SL_CMVMI)
+      return false; // At least one node is not in CMVMI state
+  }
+  return true; // All nodes are in CMVMI state
+}
+
+bool MgmtSrvr::isTimeUp(const NDB_TICKS startTime,
+                        const Uint64 delay,
+                        const Uint64 sleepInterval)
+{
+  if(NdbTick_Elapsed(startTime, NdbTick_getCurrentTicks()).milliSec()
+      < delay)
+  {
+    NdbSleep_MilliSleep(sleepInterval);
+    return false;
+  }
+  return true;
+}
+
 bool MgmtSrvr::is_cluster_single_user()
 {
   NodeId nodeId = 0;
@@ -1866,7 +1971,8 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
                            int * stopCount, bool nostart,
                            bool initialStart, bool abort,
                            bool force,
-                           int *stopSelf)
+                           int *stopSelf,
+                           unsigned int num_secs_to_wait_for_node)
 {
   if (is_cluster_single_user())
   {
@@ -1907,28 +2013,116 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
     *stopCount = nodes.count();
   
   // start up the nodes again
-  const Uint64 waitTime = 12000;
-  const NDB_TICKS startTime = NdbTick_getCurrentTicks();
-  for (unsigned i = 0; i < node_ids.size(); i++)
+
+  /*
+   * The wait for all nodes to reach NOT_STARTED state is
+   * split into 2 separate checks:
+   * 1. Wait for ndbd to start shutting down
+   * 2. Wait for ndbd to shutdown and reach NOT_STARTED
+   *    state
+   *
+   * Wait 1: Wait for ndbd to start shutting down. A short
+   * wait duration of 12 seconds is being used.
+   *
+   * During shutdown the nodes traverse the 4 stopping
+   * levels namely, SL_STOPPING_1 through SL_STOPPING_4.
+   *
+   * Thus, waiting for all the nodes to enter one of these
+   * levels would be the obvious and intuitive approach for
+   * this wait. However, the nodes pass these levels in
+   * exec_STOP_REQ before the flow of execution reaches
+   * here. An alternate approach adopted here is to check if
+   * the nodes leave the SL_STARTED state in the first place.
+   * A failure to leave this state would indicate that for
+   * some reason the shutdown process failed to start and
+   * can be considered the equivalent of checking if the
+   * nodes have transitioned to any of the stopping levels.
+   *
+   * The immediate question that arises is how can one be sure
+   * that the nodes have not gone from STARTED -> STOPPED ->
+   * STARTED. This scenario is not an issue since we are waiting
+   * for NOT_STARTED state and only once that state is reached is
+   * the START_ORD fired which makes the node transition from
+   * SL_NOTHING to further states.
+   *
+   * To summarize, the first of the two waits will wait a short
+   * (12s) time to check if the shutdown process has been initiated
+   * and exit in case any of the nodes have not left the
+   * SL_STARTED state.
+   */
+  Uint64 waitTime = 12000;
+  NDB_TICKS startTime = NdbTick_getCurrentTicks();
+  bool any_node_in_started_state;
+  do
   {
-    NodeId nodeId= node_ids[i];
-    enum ndb_mgm_node_status s;
-    s = NDB_MGM_NODE_STATUS_NO_CONTACT;
-#ifdef VM_TRACE
-    ndbout_c("Waiting for %d not started", nodeId);
-#endif
-    while (s != NDB_MGM_NODE_STATUS_NOT_STARTED &&
-           NdbTick_Elapsed(startTime,NdbTick_getCurrentTicks()).milliSec() < waitTime)
+    /*
+     * Check if any of the data nodes are still
+     * stuck in STARTED state
+     */
+    any_node_in_started_state = false;
+    for (unsigned i = 0; i < node_ids.size(); i++)
     {
-      Uint32 startPhase = 0, version = 0, dynamicId = 0, nodeGroup = 0;
-      Uint32 mysql_version = 0;
-      Uint32 connectCount = 0;
-      bool system;
-      const char *address= NULL;
-      status(nodeId, &s, &version, &mysql_version, &startPhase, 
-             &system, &dynamicId, &nodeGroup, &connectCount, &address);
-      NdbSleep_MilliSleep(100);  
+      NodeId nodeId = node_ids[i];
+      /*
+       * Check performed only for data nodes
+       */
+      if(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
+      {
+        trp_node node = getNodeInfo(nodeId);
+        any_node_in_started_state |= (node.m_state.startLevel ==
+                  NodeState::SL_STARTED);
+      }
     }
+  } while(any_node_in_started_state && !isTimeUp(startTime,waitTime,100));
+
+  if(any_node_in_started_state)
+  {
+    return WAIT_FOR_NDBD_TO_START_SHUTDOWN_FAILED;
+  }
+
+  /*
+   * Wait 2: Wait for ndbd to shutdown and reach NOT_STARTED state
+   *
+   * Having confirmed that the shutdown is on its way, the
+   * second wait involves simply waiting for the shutdown to complete
+   * and the nodes to enter the NOT_STARTED state.
+   *
+   * Once the nodes reach the NOT_STARTED state, they are ready for the
+   * START_ORD signal. It must be noted that while NOT_STARTED state has
+   * been mentioned throughout the comments since it is better known from
+   * a user's perspective, since we are dealing with data nodes, it is
+   * quicker and more efficient to check if the state is SL_CMVMI which is
+   * the equivalent of the MGMAPI state of NOT_STARTED.
+   *
+   * The wait time in this case is the value of num_secs_to_wait_for_node
+   */
+
+  startTime = NdbTick_getCurrentTicks();
+  waitTime = num_secs_to_wait_for_node * 1000;
+  bool all_nodes_in_cmvmi_state;
+  do
+  {
+    /*
+     * Check if all the data nodes are in
+     * SL_CMVMI state
+     */
+    all_nodes_in_cmvmi_state = true;
+    for (unsigned i = 0; i < node_ids.size(); i++)
+    {
+      NodeId nodeId= node_ids[i];
+      if(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
+      {
+        trp_node node = getNodeInfo(nodeId);
+        all_nodes_in_cmvmi_state &= (node.m_state.startLevel ==
+                  NodeState::SL_CMVMI);
+      }
+    }
+  } while(!all_nodes_in_cmvmi_state &&
+          !isTimeUp(startTime,waitTime,1000));
+
+  if(!all_nodes_in_cmvmi_state)
+  {
+    return WAIT_FOR_NDBD_SHUTDOWN_FAILED;
   }
 
   if (nostart)
@@ -1951,7 +2145,23 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
   */
   for (unsigned i = 0; i < node_ids.size(); i++)
   {
-    (void) start(node_ids[i]);
+    unsigned int loop_count = 0;
+    do
+    {
+      int result = sendSTART_ORD(node_ids[i]);
+      if (result == SEND_OR_RECEIVE_FAILED ||
+          result == NO_CONTACT_WITH_PROCESS)
+      {
+        if (loop_count >= num_secs_to_wait_for_node)
+          break;
+        loop_count++;
+        NdbSleep_MilliSleep(1000);
+      }
+      else
+      {
+        break;
+      }
+    } while (1);
   }
   return 0;
 }
@@ -1961,7 +2171,8 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
  */
 
 int MgmtSrvr::restartDB(bool nostart, bool initialStart,
-                        bool abort, int * stopCount)
+                        bool abort, int * stopCount,
+                        unsigned int num_secs_to_wait_for_node)
 {
   NodeBitmask nodes;
 
@@ -1981,35 +2192,82 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
 #ifdef VM_TRACE
     ndbout_c("Stopped %d nodes", nodes.count());
 #endif
-  /**
-   * Here all nodes were correctly stopped,
-   * so we wait for all nodes to be contactable
+
+  /*
+   * The wait for all nodes to reach NOT_STARTED state is
+   * split into 2 separate checks:
+   * 1. Wait for ndbd to start shutting down
+   * 2. Wait for ndbd to shutdown and reach NOT_STARTED
+   *    state
+   *
+   * Wait 1: Wait for ndbd to start shutting down. A short
+   * wait duration of 12 seconds is being used.
+   *
+   * During shutdown the nodes traverse the 4 stopping
+   * levels namely, SL_STOPPING_1 through SL_STOPPING_4.
+   *
+   * Thus, waiting for all the nodes to enter one of these
+   * levels would be the obvious and intuitive approach for
+   * this wait. However, the nodes pass these levels in
+   * exec_STOP_REQ before the flow of execution reaches
+   * here. An alternate approach adopted here is to check if
+   * the nodes leave the SL_STARTED state in the first place.
+   * A failure to leave this state would indicate that for
+   * some reason the shutdown process failed to start and
+   * can be considered the equivalent of checking if the
+   * nodes have transitioned to any of the stopping levels.
+   *
+   * The immediate question that arises is how can one be sure
+   * that the nodes have not gone from STARTED -> STOPPED ->
+   * STARTED. This scenario is not an issue since we are waiting
+   * for NOT_STARTED state and only once that state is reached is
+   * the START_ORD fired which makes the node transition from
+   * SL_NOTHING to further states.
+   *
+   * To summarize, the first of the two waits will wait a short
+   * (12s) time to check if the shutdown process has been initiated
+   * and exit in case any of the nodes have not left the
+   * SL_STARTED state.
    */
-  NodeId nodeId = 0;
-  const Uint64 waitTime = 12000;
-  const NDB_TICKS startTime = NdbTick_getCurrentTicks();
+  Uint64 waitTime = 12000;
+  NDB_TICKS startTime = NdbTick_getCurrentTicks();
 
+  /*
+   * Check if any of the data nodes are still
+   * stuck in STARTED state
+   */
+  while(is_any_node_in_started_state() &&
+      !isTimeUp(startTime,waitTime,100));
 
-  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) {
-    if (!nodes.get(nodeId))
-      continue;
-    enum ndb_mgm_node_status s;
-    s = NDB_MGM_NODE_STATUS_NO_CONTACT;
-#ifdef VM_TRACE
-    ndbout_c("Waiting for %d not started", nodeId);
-#endif
-    while (s != NDB_MGM_NODE_STATUS_NOT_STARTED &&
-           NdbTick_Elapsed(startTime,NdbTick_getCurrentTicks()).milliSec() < waitTime)
-    {
-      Uint32 startPhase = 0, version = 0, dynamicId = 0, nodeGroup = 0;
-      Uint32 mysql_version = 0;
-      Uint32 connectCount = 0;
-      bool system;
-      const char *address;
-      status(nodeId, &s, &version, &mysql_version, &startPhase, 
-	     &system, &dynamicId, &nodeGroup, &connectCount, &address);
-      NdbSleep_MilliSleep(100);  
-    }
+  if(is_any_node_in_started_state())
+  {
+    return WAIT_FOR_NDBD_TO_START_SHUTDOWN_FAILED;
+  }
+
+  /*
+   * Wait 2: Wait for ndbd to shutdown and reach NOT_STARTED state
+   *
+   * Having confirmed that the shutdown is on its way, the
+   * second wait involves simply waiting for the shutdown to complete
+   * and the nodes to enter the NOT_STARTED state.
+   *
+   * Once the nodes reach the NOT_STARTED state, they are ready for the
+   * START_ORD signal. It must be noted that while NOT_STARTED state has
+   * been mentioned throughout the comments since it is better known from
+   * a user's perspective, since we are dealing with data nodes, it is
+   * quicker and more efficient to check if the state is SL_CMVMI which is
+   * the equivalent of the MGMAPI state of NOT_STARTED.
+   *
+   * The wait time in this case is the value of num_secs_to_wait_for_node
+   */
+  startTime = NdbTick_getCurrentTicks();
+  waitTime = num_secs_to_wait_for_node * 1000;
+  while(!are_all_nodes_in_cmvmi_state() &&
+          !isTimeUp(startTime,waitTime,1000));
+
+  if(!are_all_nodes_in_cmvmi_state())
+  {
+    return WAIT_FOR_NDBD_SHUTDOWN_FAILED;
   }
   
   if(nostart)
@@ -2019,12 +2277,23 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
    * Now we start all database nodes (i.e. we make them non-idle)
    * We ignore the result we get from the start command.
    */
-  nodeId = 0;
+  NodeId nodeId = 0;
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) {
     if (!nodes.get(nodeId))
       continue;
     int result;
-    result = start(nodeId);
+    unsigned int loop_count = 0;
+    do
+    {
+      result = sendSTART_ORD(nodeId);
+      if (result != SEND_OR_RECEIVE_FAILED &&
+          result != NO_CONTACT_WITH_PROCESS)
+        break;
+      if (loop_count >= num_secs_to_wait_for_node)
+        break;
+      NdbSleep_MilliSleep(1000);
+      loop_count++;
+    } while (1);
     g_eventLogger->debug("Started node %d with result %d", nodeId, result);
     /**
      * Errors from this call are deliberately ignored.
@@ -2077,7 +2346,9 @@ void
 MgmtSrvr::status_mgmd(NodeId node_id,
                       ndb_mgm_node_status& node_status,
                       Uint32& version, Uint32& mysql_version,
-                      const char **address)
+                      const char **address,
+                      char *addr_buf,
+                      size_t addr_buf_size)
 {
   assert(getNodeType(node_id) == NDB_MGM_NODE_TYPE_MGM);
 
@@ -2090,7 +2361,12 @@ MgmtSrvr::status_mgmd(NodeId node_id,
         else use HostName from config
     */
     Uint32 tmp_version = 0, tmp_mysql_version = 0;
-    sendVersionReq(node_id, tmp_version, tmp_mysql_version, address);
+    sendVersionReq(node_id,
+                   tmp_version,
+                   tmp_mysql_version,
+                   address,
+                   addr_buf,
+                   addr_buf_size);
     // Check that the version returned is equal to compiled in version
     assert(tmp_version == 0 ||
            (tmp_version == NDB_VERSION &&
@@ -2112,7 +2388,12 @@ MgmtSrvr::status_mgmd(NodeId node_id,
       */
       struct in_addr addr;
       if (Ndb_getInAddr(&addr, *address) == 0)
-        *address = inet_ntoa(addr);
+      {
+        *address = Ndb_inet_ntop(AF_INET,
+                                 static_cast<void*>(&addr),
+                                 addr_buf,
+                                 addr_buf_size);
+      }
     }
 
     node_status = NDB_MGM_NODE_STATUS_CONNECTED;
@@ -2129,7 +2410,9 @@ MgmtSrvr::status_mgmd(NodeId node_id,
     version = node.m_info.m_version;
     mysql_version = node.m_info.m_mysql_version;
     node_status = NDB_MGM_NODE_STATUS_CONNECTED;
-    *address= get_connect_address(node_id);
+    *address= get_connect_address(node_id,
+                                  addr_buf,
+                                  addr_buf_size);
   }
   else
   {
@@ -2151,16 +2434,30 @@ MgmtSrvr::status(int nodeId,
 		 Uint32 * dynamic,
 		 Uint32 * nodegroup,
 		 Uint32 * connectCount,
-		 const char **address)
+		 const char **address,
+                 char *addr_buf,
+                 size_t addr_buf_size)
 {
   switch(getNodeType(nodeId)){
   case NDB_MGM_NODE_TYPE_API:
-    status_api(nodeId, *_status, *version, *mysql_version, address);
+    status_api(nodeId,
+               *_status,
+               *version,
+               *mysql_version,
+               address,
+               addr_buf,
+               addr_buf_size);
     return 0;
     break;
 
   case NDB_MGM_NODE_TYPE_MGM:
-    status_mgmd(nodeId, *_status, *version, *mysql_version, address);
+    status_mgmd(nodeId,
+                *_status,
+                *version,
+                *mysql_version,
+                address,
+                addr_buf,
+                addr_buf_size);
     return 0;
     break;
 
@@ -2184,7 +2481,7 @@ MgmtSrvr::status(int nodeId,
   * version = node.m_info.m_version;
   * mysql_version = node.m_info.m_mysql_version;
 
-  *address= get_connect_address(nodeId);
+  *address= get_connect_address(nodeId, addr_buf, addr_buf_size);
 
   * dynamic = node.m_state.dynamicId;
   * nodegroup = node.m_state.nodeGroup;
@@ -2399,7 +2696,7 @@ MgmtSrvr::setNodeLogLevelImpl(int nodeId, const SetLogLevelOrd & ll)
 int 
 MgmtSrvr::insertError(int nodeId, int errorNo, Uint32 * extra)
 {
-  int block;
+  BlockNumber block;
 
   if (errorNo < 0) {
     return INVALID_ERROR_NUMBER;
@@ -2903,14 +3200,17 @@ MgmtSrvr::dumpState(int nodeId, const char* args)
   Uint32 args_array[25];
   Uint32 numArgs = 0;
 
-  char buf[10];  
+  const int BufSz = 12; /* 32 bit signed = 10 digits + sign + trailing \0 */
+  char buf[BufSz];  
   int b  = 0;
-  memset(buf, 0, 10);
+  memset(buf, 0, BufSz);
   for (size_t i = 0; i <= strlen(args); i++){
     if (args[i] == ' ' || args[i] == 0){
+      assert(b < BufSz);
+      assert(buf[b] == 0);
       args_array[numArgs] = atoi(buf);
       numArgs++;
-      memset(buf, 0, 10);
+      memset(buf, 0, BufSz);
       b = 0;
     } else {
       buf[b] = args[i];
@@ -2924,6 +3224,11 @@ MgmtSrvr::dumpState(int nodeId, const char* args)
 int
 MgmtSrvr::dumpState(int nodeId, const Uint32 args[], Uint32 no)
 {
+  if (nodeId == _ownNodeId)
+  {
+    return dumpStateSelf(args, no);
+  }
+
   INIT_SIGNAL_SENDER(ss,nodeId);
 
   const Uint32 len = no > 25 ? 25 : no;
@@ -2953,6 +3258,70 @@ MgmtSrvr::dumpState(int nodeId, const Uint32 args[], Uint32 no)
   return res;
 
 }
+
+int
+MgmtSrvr::dumpStateSelf(const Uint32 args[], Uint32 no)
+{
+  if (no < 1)
+    return -1;
+
+  switch(args[0])
+  {
+#ifdef ERROR_INSERT
+  case 9994:
+  {
+    /* Transporter send blocking */
+    if (no >= 2)
+    {
+      Uint32 nodeId = args[1];
+      ndbout_c("Blocking send to node %u",
+               nodeId);
+      TransporterRegistry* tr = theFacade->get_registry();
+      tr->blockSend(*theFacade, nodeId);
+    }
+    break;
+  }
+  case 9995:
+  {
+    /* Transporter send unblocking */
+    if (no >= 2)
+    {
+      Uint32 nodeId = args[1];
+      ndbout_c("Unblocking send to node %u",
+               nodeId);
+      TransporterRegistry* tr = theFacade->get_registry();
+      tr->unblockSend(*theFacade, nodeId);
+    }
+    break;
+  }
+
+  case 9996:
+  {
+    /* Sendbuffer consumption */
+    if (no >= 2)
+    {
+      Uint64 remain_bytes = args[1];
+      ndbout_c("Consuming sendbuffer except for %llu bytes",
+               remain_bytes);
+      theFacade->consume_sendbuffer(remain_bytes);
+    }
+    break;
+  }
+  case 9997:
+  {
+    /* Sendbuffer release */
+    ndbout_c("Releasing consumed sendbuffer");
+    theFacade->release_consumed_sendbuffer();
+    break;
+  }
+#endif
+  default:
+    ;
+  }
+
+  return 0;
+}
+
 
 
 //****************************************************************************
@@ -3081,7 +3450,9 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
 
 
 const char*
-MgmtSrvr::get_connect_address(NodeId node_id)
+MgmtSrvr::get_connect_address(NodeId node_id,
+                              char *addr_buf,
+                              size_t addr_buf_size)
 {
   assert(node_id < NDB_ARRAY_SIZE(m_connect_address));
 
@@ -3098,7 +3469,10 @@ MgmtSrvr::get_connect_address(NodeId node_id)
   }
 
   // Return the cached connect address
-  return inet_ntoa(m_connect_address[node_id]);
+  return Ndb_inet_ntop(AF_INET,
+                       static_cast<void*>(&m_connect_address[node_id]),
+                       addr_buf,
+                       addr_buf_size);
 }
 
 
@@ -3215,6 +3589,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
                             enum ndb_mgm_node_type type,
                             Uint32 timeout_ms)
 {
+  bool first_attempt = true;
   SignalSender ss(theFacade);
   ss.lock(); // lock will be released on exit
 
@@ -3260,6 +3635,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
       const AllocNodeIdConf * const conf =
         CAST_CONSTPTR(AllocNodeIdConf, signal->getDataPtr());
 #endif
+      g_eventLogger->info("Alloc node id %u succeeded", free_node_id);
       return 0;
     }
     case GSN_ALLOC_NODEID_REF:
@@ -3273,6 +3649,8 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
           The data nodes haven't decided who is the president (yet)
           and thus can't allocate nodeids -> return "no contact"
         */
+        g_eventLogger->info("Alloc node id %u failed, no new president yet",
+                            free_node_id);
         return NO_CONTACT_WITH_DB_NODES;
       }
 
@@ -3286,6 +3664,13 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
 	  nodeId = 0;
         if (ref->errorCode != AllocNodeIdRef::NotMaster)
         {
+          if (first_attempt)
+          {
+            first_attempt = false;
+            g_eventLogger->info("Alloc node id %u failed with error code %u, will retry",
+                                free_node_id,
+                                ref->errorCode);
+          }
           /* sleep for a while (100ms) before retrying */
           ss.unlock();
           NdbSleep_MilliSleep(100);  
@@ -3331,11 +3716,11 @@ static int
 match_hostname(const struct sockaddr *clnt_addr,
                const char *config_hostname)
 {
-  struct in_addr config_addr= {0};
   if (clnt_addr)
   {
     const struct in_addr *clnt_in_addr = &((sockaddr_in*)clnt_addr)->sin_addr;
 
+    struct in_addr config_addr;
     if (Ndb_getInAddr(&config_addr, config_hostname) != 0
         || memcmp(&config_addr, clnt_in_addr, sizeof(config_addr)) != 0)
     {
@@ -3461,14 +3846,32 @@ MgmtSrvr::find_node_type(NodeId node_id,
     }
     if (found_config_hostname)
     {
-      struct in_addr config_addr= {0};
-      int r_config_addr= Ndb_getInAddr(&config_addr, found_config_hostname);
-      error_string.appfmt("Connection with id %d done from wrong host ip %s,",
-                          node_id, inet_ntoa(((struct sockaddr_in *)
-                                              (client_addr))->sin_addr));
-      error_string.appfmt(" expected %s(%s).", found_config_hostname,
-                          r_config_addr ?
-                          "lookup failed" : inet_ntoa(config_addr));
+      char addr_buf[NDB_ADDR_STRLEN];
+      {
+        // Append error describing which host the faulty connection was from
+        struct in_addr conn_addr =
+          ((struct sockaddr_in*)(client_addr))->sin_addr;
+        char* addr_str =
+            Ndb_inet_ntop(AF_INET,
+                          static_cast<void*>(&conn_addr),
+                          addr_buf,
+                          sizeof(addr_buf));
+        error_string.appfmt("Connection with id %d done from wrong host ip %s,",
+                            node_id, addr_str);
+      }
+      {
+        // Append error describing which was the expected host
+        struct in_addr config_addr;
+        int r_config_addr= Ndb_getInAddr(&config_addr, found_config_hostname);
+        char* addr_str =
+            Ndb_inet_ntop(AF_INET,
+                          static_cast<void*>(&config_addr),
+                          addr_buf,
+                          sizeof(addr_buf));
+        error_string.appfmt(" expected %s(%s).", found_config_hostname,
+                            r_config_addr ?
+                            "lookup failed" : addr_str);
+      }
       return -1;
     }
     error_string.appfmt("No node defined with id=%d in config file.", node_id);
@@ -3478,10 +3881,15 @@ MgmtSrvr::find_node_type(NodeId node_id,
   // node_id == 0 and nodes.size() == 0
   if (found_config_hostname)
   {
+    char addr_buf[NDB_ADDR_STRLEN];
+    struct in_addr conn_addr =
+      ((struct sockaddr_in*)(client_addr))->sin_addr;
+    char *addr_str = Ndb_inet_ntop(AF_INET,
+                                   static_cast<void*>(&conn_addr),
+                                   addr_buf,
+                                   sizeof(addr_buf));
     error_string.appfmt("Connection done from wrong host ip %s.",
-                        (client_addr)?
-                        inet_ntoa(((struct sockaddr_in *)
-                                   (client_addr))->sin_addr):"");
+                        (client_addr) ? addr_str : "");
     return -1;
   }
 
@@ -3779,8 +4187,13 @@ MgmtSrvr::alloc_node_id(NodeId& nodeid,
                         bool log_event,
                         Uint32 timeout_s)
 {
+  char addr_buf[NDB_ADDR_STRLEN];
+  struct in_addr conn_addr = ((sockaddr_in*)client_addr)->sin_addr;
   const char* type_str = ndb_mgm_get_node_type_string(type);
-  const char* addr_str = inet_ntoa(((sockaddr_in*)client_addr)->sin_addr);
+  char* addr_str = Ndb_inet_ntop(AF_INET,
+                                 static_cast<void*>(&conn_addr),
+                                 addr_buf,
+                                 sizeof(addr_buf));
 
   g_eventLogger->debug("Trying to allocate nodeid for %s" \
                        "(nodeid: %u, type: %s)",
@@ -4180,21 +4593,25 @@ MgmtSrvr::getConnectionDbParameter(int node1, int node2,
 
 
 bool
-MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd, BaseString& msg)
+MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd,
+                              BaseString& msg,
+                              bool& close_with_reset)
 {
   DBUG_ENTER("MgmtSrvr::transporter_connect");
   TransporterRegistry* tr= theFacade->get_registry();
-  if (!tr->connect_server(sockfd, msg))
+  if (!tr->connect_server(sockfd, msg, close_with_reset))
     DBUG_RETURN(false);
 
-  /*
-    Force an update_connections() so that the
-    ClusterMgr and TransporterFacade is up to date
-    with the new connection.
-    Important for correct node id reservation handling
-  */
-  theFacade->ext_update_connections();
-
+  /**
+   * TransporterRegistry::update_connections() is responsible
+   * for doing the final step of bringing the connection into 
+   * CONNECTED state when it detects it 'isConnected()'.
+   * This is required due to all such state changes has to 
+   * be synchroniced with ::performReceive().
+   * To speed up CONNECTED detection, we request it to 
+   * happen ASAP. (There is no guarantee when it happen though)
+   */
+  theFacade->request_connection_check();
   DBUG_RETURN(true);
 }
 

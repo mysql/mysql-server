@@ -1,7 +1,4 @@
 SET @global_saved_tmp =  @@global.offline_mode;
-SELECT @user_count:=COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
-@user_count:=COUNT(USER)
-1
 CREATE USER 'user100'@'localhost';
 CREATE USER 'user99'@'localhost';
 CREATE USER 'user98'@'localhost';
@@ -104,28 +101,28 @@ CREATE USER 'user2'@'localhost';
 CREATE USER 'user1'@'localhost';
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-104
+105
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	104
 SET GLOBAL offline_mode = ON;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-4
+5
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	4
 SET GLOBAL offline_mode = OFF;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-104
+105
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	104
 SET GLOBAL offline_mode = ON;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-4
+5
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	4

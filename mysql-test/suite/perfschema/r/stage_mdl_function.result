@@ -1,15 +1,8 @@
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+select INSTRUMENTED, HISTORY
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+INSTRUMENTED	HISTORY
+YES	YES
 drop function if exists test.f1;
 create function test.f1() returns int
 return 1;
@@ -17,6 +10,11 @@ begin;
 select test.f1();
 test.f1()
 1
+select INSTRUMENTED, HISTORY
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+INSTRUMENTED	HISTORY
+YES	YES
 drop function test.f1;
 call dump_one_thread('user1');
 username	event_name	sql_text

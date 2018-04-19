@@ -1,0 +1,16 @@
+
+# This is a wrapper for binlog.test so that the same test case can be used 
+# For both statement and row based bin logs 9/19/2005 [jbm]
+
+-- source include/have_binlog_format_row.inc
+
+# Bug#18326: Do not lock table for writing during prepare of statement
+# The use of the ps protocol causes extra table maps in the binlog, so
+# we disable the ps-protocol for this statement.
+--disable_ps_protocol
+
+-- source extra/binlog_tests/mix_innodb_myisam_binlog.test
+
+--enable_ps_protocol
+
+-- source  extra/binlog_tests/mix_innodb_myisam_side_effects.test

@@ -1,0 +1,177 @@
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+[atrt]
+basedir = CHOOSE_dir
+fix-nodeid = 1
+mt = 2
+
+[ndb_mgmd]
+
+[client]
+protocol=tcp
+
+#
+# .2node
+#
+
+[cluster_config.2node]
+ndb_mgmd = CHOOSE_host1
+ndbd = CHOOSE_host2,CHOOSE_host3
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+
+NoOfReplicas = 2
+DataMemory = 400M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 5
+SendBufferMemory = 2M
+NoOfFragmentLogFiles = 4
+FragmentLogFileSize = 128M
+CompressedLCP=1
+CompressedBackup=1
+ODirect=1
+MaxNoOfAttributes=2000
+Checksum=1
+__disk_data_format=0
+
+SharedGlobalMemory=256M
+InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
+InitialTablespace=datafile01.dat:128M;datafile02.dat:64M
+TimeBetweenWatchDogCheckInitial=60000
+
+#
+# .2node8thr
+#
+
+[cluster_config.2node8thr]
+ndb_mgmd = CHOOSE_host1
+ndbd = CHOOSE_host2,CHOOSE_host3
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+
+NoOfReplicas = 2
+IndexMemory = 100M
+DataMemory = 500M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 5
+NoOfFragmentLogFiles = 8
+FragmentLogFileSize = 128M
+ODirect=1
+MaxNoOfExecutionThreads=8
+SendBufferMemory=4M
+MaxNoOfAttributes=2000
+Checksum=1
+
+SharedGlobalMemory=256M
+DiskPageBufferMemory=256M
+InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
+InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
+TimeBetweenWatchDogCheckInitial=60000
+
+#
+# .4node
+#
+
+[cluster_config.4node]
+ndb_mgmd = CHOOSE_host1
+ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5
+ndbapi= CHOOSE_host1,CHOOSE_host6,CHOOSE_host7
+
+NoOfReplicas = 2
+IndexMemory = 100M
+DataMemory = 500M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 5
+NoOfFragmentLogFiles = 8
+FragmentLogFileSize = 128M
+ODirect=1
+MaxNoOfAttributes=2000
+Checksum=1
+
+SharedGlobalMemory=256M
+DiskPageBufferMemory=256M
+#FileSystemPath=/data0/autotest
+#FileSystemPathDataFiles=/data1/autotest
+#FileSystemPathUndoFiles=/data2/autotest
+InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
+InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
+TimeBetweenWatchDogCheckInitial=60000
+
+#
+# .2node2mgm
+#
+
+[cluster_config.2node2mgm]
+ndb_mgmd = CHOOSE_host1,CHOOSE_host6
+ndbd = CHOOSE_host2,CHOOSE_host3
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+
+NoOfReplicas = 2
+IndexMemory = 50M
+DataMemory = 100M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 5
+NoOfFragmentLogFiles = 4
+FragmentLogFileSize = 64M
+Checksum=1
+
+#
+# .2node8thr2mgm
+#
+
+[cluster_config.2node8thr2mgm]
+ndb_mgmd = CHOOSE_host1,CHOOSE_host6
+ndbd = CHOOSE_host2,CHOOSE_host3
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+
+NoOfReplicas = 2
+IndexMemory = 50M
+DataMemory = 100M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 5
+NoOfFragmentLogFiles = 4
+FragmentLogFileSize = 64M
+MaxNoOfExecutionThreads=8
+Checksum=1
+
+#
+# .4node2mgm
+#
+
+[cluster_config.4node2mgm]
+ndb_mgmd = CHOOSE_host1,CHOOSE_host8
+ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5
+ndbapi= CHOOSE_host1,CHOOSE_host6,CHOOSE_host7
+
+NoOfReplicas = 2
+IndexMemory = 50M
+DataMemory = 100M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 5
+NoOfFragmentLogFiles = 4
+FragmentLogFileSize = 64M
+Checksum=1

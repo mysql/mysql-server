@@ -1,0 +1,109 @@
+RESET MASTER;
+include/gtid_utils.inc
+include/gtid_step_reset.inc
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:1';
+PREPARE stmt FROM 'CREATE TABLE t1( i INT) engine=INNODB';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:2';
+PREPARE stmt FROM 'INSERT INTO t1 VALUES (12)';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:3';
+PREPARE stmt FROM 'INSERT INTO t1 SELECT * FROM t1';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:4';
+PREPARE stmt FROM 'UPDATE t1 SET i=13 WHERE i=12';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:5';
+PREPARE stmt FROM 'DELETE FROM t1';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:6';
+PREPARE stmt FROM 'ALTER TABLE t1 ADD COLUMN other_column INT';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:7';
+PREPARE stmt FROM 'CREATE INDEX t_index ON t1(i)';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:8';
+PREPARE stmt FROM 'DROP INDEX t_index ON t1';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:9';
+PREPARE stmt FROM 'RENAME TABLE t1 TO t2';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:10';
+PREPARE stmt FROM 'DROP TABLE t2';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:11';
+PREPARE stmt FROM 'CREATE TEMPORARY TABLE t1(i INT)';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:12';
+PREPARE stmt FROM 'DROP TEMPORARY TABLE t1';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:13';
+PREPARE stmt FROM 'CREATE VIEW v1 as SELECT 1';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:14';
+PREPARE stmt FROM 'DROP VIEW v1';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:15';
+PREPARE stmt FROM 'CREATE USER user1';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:16';
+PREPARE stmt FROM 'ALTER USER user1 IDENTIFIED BY \'passwd\'';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:17';
+PREPARE stmt FROM 'GRANT ALL ON *.* TO user1';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:18';
+PREPARE stmt FROM 'REVOKE ALL PRIVILEGES ON *.* FROM user1';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:19';
+PREPARE stmt FROM 'DROP USER user1';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:20';
+PREPARE stmt FROM 'CREATE DATABASE db1';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT='MASTER_UUID:21';
+PREPARE stmt FROM 'DROP DATABASE db1';
+EXECUTE stmt;
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_utils_end.inc

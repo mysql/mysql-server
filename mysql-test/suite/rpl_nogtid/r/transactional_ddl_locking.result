@@ -1,0 +1,1403 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Prepare playground for test by creating tables
+CREATE TABLE t1 (a INT) ;
+CREATE TABLE t2 (a INT, b INT);
+CREATE TABLE t3 (a INT);
+CREATE TABLE t4 (a INT);
+CREATE TABLE t1part (id INT, year_col INT);
+CREATE TABLE t2part (id INT, year_col INT)
+PARTITION BY RANGE (year_col) (
+PARTITION p0 VALUES LESS THAN (1991),
+PARTITION p1 VALUES LESS THAN (1995),
+PARTITION p2 VALUES LESS THAN (2013));
+CREATE TABLE t3part (id INT, year_col INT)
+PARTITION BY HASH(year_col)
+PARTITIONS 4;
+CREATE TABLE t4part (id INT, year_col INT)
+PARTITION BY RANGE (year_col) (
+PARTITION p0 VALUES LESS THAN (1970),
+PARTITION p1 VALUES LESS THAN (1995),
+PARTITION p2 VALUES LESS THAN (2013));
+CREATE TABLE t1prim (a INT, b INT PRIMARY KEY);
+CREATE TABLE t1opt (id INT , content TEXT, author_id INT,
+article_title VARCHAR(120), article_hash INT);
+CREATE TABLE t1bin (c INT);
+CREATE TABLE t2bin SELECT * FROM t1bin;
+CREATE TABLE t1myisam (c INT) ENGINE = MYISAM;
+CREATE TABLE t1innodb (c INT) ENGINE = INNODB;
+CREATE TABLE t3967_1 (id INT(11) NOT NULL AUTO_INCREMENT,
+b INT(11) DEFAULT NULL, PRIMARY KEY (id))
+ENGINE = INNODB;
+CREATE TABLE t3967_2 (id INT(11) NOT NULL AUTO_INCREMENT,
+b INT(11) DEFAULT NULL, PRIMARY KEY (id))
+ENGINE = INNODB;
+CREATE TABLE `t1_30138` (id INT) ENGINE = INNODB;
+COMMIT;
+--- connection master ---
+BEGIN;
+INSERT INTO t1 VALUES (1);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+DROP TABLE t1;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous ---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+1
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+1
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+BEGIN;
+INSERT INTO t1 VALUES (1);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t1 RENAME TO t1new;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+2
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+2
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+BEGIN;
+INSERT INTO t2 VALUES (1,1);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t2 DROP COLUMN a;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t2 ;
+COUNT(*)
+1
+--- connection master ---
+SELECT COUNT(*) FROM t2 ;
+COUNT(*)
+1
+include/diff_tables.inc [master:t2, slave:t2]
+--- connection master ---
+BEGIN;
+UPDATE t1 SET a = 2;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t1 ADD COLUMN b INT;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+2
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+2
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+BEGIN;
+INSERT INTO t1 VALUES (1);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+RENAME TABLE t1 to t2new;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+3
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+3
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+BEGIN;
+INSERT INTO t1 VALUES (1);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t1 MODIFY a bigINT COMMENT 'first';;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+COMMIT;
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+4
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+4
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+BEGIN;
+UPDATE t1 SET a = 1;
+--- connection master1 --
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t1 ADD PRIMARY KEY (a);;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+4
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+4
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+BEGIN;
+UPDATE t1 SET a = 1;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t1 ADD FOREIGN KEY (a) REFERENCES t2 (a) ;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+4
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+4
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+BEGIN;
+UPDATE t1 SET a = 1;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t1 ALTER a SET DEFAULT 1;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+4
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+4
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+BEGIN;
+UPDATE t1 SET a = 1;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t1 CHANGE a b smallINT;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+4
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+4
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+INSERT INTO t1 VALUES(1);
+BEGIN;
+UPDATE t1 SET a = 1;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t1 MODIFY a INTEGER;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+5
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+5
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+INSERT INTO t1prim VALUES (1,1);
+INSERT INTO t1prim VALUES (2,2);
+COMMIT;
+BEGIN;
+UPDATE t1prim SET b = 4 WHERE a = 1;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t1prim DROP PRIMARY KEY;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1prim ;
+COUNT(*)
+2
+--- connection master ---
+SELECT COUNT(*) FROM t1prim ;
+COUNT(*)
+2
+include/diff_tables.inc [master:t1prim, slave:t1prim]
+--- connection master ---
+BEGIN;
+UPDATE t1 SET a = 1;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t1 disable KEYS;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+5
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+5
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+INSERT INTO t1part VALUES(1, '1998');
+INSERT INTO t1part VALUES(2, '2012');
+BEGIN;
+INSERT INTO t1part SELECT * FROM t1part;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t1part PARTITION BY HASH(id) PARTITIONS 2 ;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1part;
+COUNT(*)
+4
+--- connection master ---
+SELECT COUNT(*) FROM t1part;
+COUNT(*)
+4
+include/diff_tables.inc [master:t1part, slave:t1part]
+--- connection master ---
+INSERT INTO t2part VALUES (1, '1988');
+BEGIN;
+INSERT INTO t2part VALUES (2, '1998');
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t2part ADD PARTITION (PARTITION p3 VALUES LESS THAN (2015));;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t2part;
+COUNT(*)
+2
+--- connection master ---
+SELECT COUNT(*) FROM t2part;
+COUNT(*)
+2
+include/diff_tables.inc [master:t2part, slave:t2part]
+--- connection master ---
+INSERT INTO t2part VALUES (1, '1912');
+BEGIN;
+INSERT INTO t2part VALUES (2, '1978');
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t2part Drop PARTITION p1 ;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t2part;
+COUNT(*)
+4
+--- connection master ---
+SELECT COUNT(*) FROM t2part;
+COUNT(*)
+4
+include/diff_tables.inc [master:t2part, slave:t2part]
+--- connection master ---
+INSERT INTO t3part VALUES (1, '1902');
+BEGIN;
+INSERT INTO t3part VALUES (2, '1965');
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t3part COALESCE PARTITION 2 ;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t3part;
+COUNT(*)
+2
+--- connection master ---
+SELECT COUNT(*) FROM t3part;
+COUNT(*)
+2
+include/diff_tables.inc [master:t3part, slave:t3part]
+--- connection master ---
+INSERT INTO t4part VALUES (1, '1932');
+--- connection master ---
+BEGIN;
+INSERT INTO t4part VALUES (2, '1998');
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t4part REORGANIZE PARTITION p0,p1 INTO (PARTITION s0 VALUES LESS THAN (1995));;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t4part ;
+COUNT(*)
+2
+--- connection master ---
+SELECT COUNT(*) FROM t4part ;
+COUNT(*)
+2
+include/diff_tables.inc [master:t4part, slave:t4part]
+--- connection master ---
+INSERT INTO t2part VALUES (3, '1892');
+--- connection master ---
+BEGIN;
+INSERT INTO t2part VALUES (4, '2012');
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t2part CHECK PARTITION ALL;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+Table	Op	Msg_type	Msg_text
+test.t2part	check	status	OK
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t2part ;
+COUNT(*)
+6
+--- connection master ---
+SELECT COUNT(*) FROM t2part ;
+COUNT(*)
+6
+include/diff_tables.inc [master:t2part, slave:t2part]
+--- connection master ---
+INSERT INTO t2part VALUES (5, '1975');
+BEGIN;
+INSERT INTO t2part VALUES (6, '1980');
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t2part CHECK PARTITION ALL;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+Table	Op	Msg_type	Msg_text
+test.t2part	check	status	OK
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t2part ;
+COUNT(*)
+8
+--- connection master ---
+SELECT COUNT(*) FROM t2part ;
+COUNT(*)
+8
+include/diff_tables.inc [master:t2part, slave:t2part]
+--- connection master ---
+INSERT INTO t2part VALUES (7, '1912');
+BEGIN;
+INSERT INTO t2part VALUES (8, '1998');
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t2part OPTIMIZE PARTITION ALL;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+Table	Op	Msg_type	Msg_text
+test.t2part	optimize	Error	Lock wait timeout exceeded; try restarting transaction
+test.t2part	optimize	status	Operation failed
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t2part ;
+COUNT(*)
+10
+--- connection master ---
+SELECT COUNT(*) FROM t2part ;
+COUNT(*)
+10
+include/diff_tables.inc [master:t2part, slave:t2part]
+--- connection master ---
+INSERT INTO t2part VALUES (9, '2011');
+BEGIN;
+INSERT INTO t2part VALUES (10, '1982');
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t2part REBUILD PARTITION ALL;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t2part ;
+COUNT(*)
+12
+--- connection master ---
+SELECT COUNT(*) FROM t2part ;
+COUNT(*)
+12
+include/diff_tables.inc [master:t2part, slave:t2part]
+--- connection master ---
+INSERT INTO t2part VALUES (11, '1912');
+BEGIN;
+INSERT INTO t2part VALUES (12, '1999');
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t2part REPAIR PARTITION ALL;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+Table	Op	Msg_type	Msg_text
+test.t2part	repair	Error	Lock wait timeout exceeded; try restarting transaction
+test.t2part	repair	status	Operation failed
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t2part ;
+COUNT(*)
+14
+--- connection master ---
+SELECT COUNT(*) FROM t2part ;
+COUNT(*)
+14
+include/diff_tables.inc [master:t2part, slave:t2part]
+--- connection master ---
+INSERT INTO t2part VALUES (13, '1923');
+BEGIN;
+INSERT INTO t2part VALUES (14, '1981');
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t2part REMOVE PARTITIONING ;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t2part ;
+COUNT(*)
+16
+--- connection master ---
+SELECT COUNT(*) FROM t2part ;
+COUNT(*)
+16
+include/diff_tables.inc [master:t2part, slave:t2part]
+--- connection master ---
+BEGIN;
+INSERT INTO t1 VALUES (1);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t1 ALGORITHM = COPY;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+6
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+6
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+BEGIN;
+INSERT INTO t1 VALUES (1);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t1 ALGORITHM = INPLACE;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+7
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+7
+include/diff_tables.inc [master:t1, slave:t1]
+CREATE TABLE t1hand (a INT, KEY a(a));
+--- connection master ---
+SET SESSION lock_wait_timeout = 1;
+BEGIN;
+SELECT * FROM t1hand;
+a
+HANDLER t1hand OPEN;
+HANDLER t1hand READ a NEXT;
+a
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+DROP TABLE t1hand;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+HANDLER t1hand CLOSE;
+--- connection slave ---
+SELECT COUNT(*) FROM t1hand ;
+COUNT(*)
+0
+--- connection master ---
+SELECT COUNT(*) FROM t1hand ;
+COUNT(*)
+0
+include/diff_tables.inc [master:t1hand, slave:t1hand]
+DROP TABLE t1hand;
+USE test;
+--- connection master ---
+CREATE TABLE t1trig(c INT) ENGINE = INNODB;
+CREATE TABLE t2trig(c INT) ENGINE = MYISAM;
+CREATE TRIGGER trig AFTER UPDATE ON t1trig FOR EACH ROW
+BEGIN
+INSERT INTO t2trig(c) VALUES (1);
+END|
+INSERT INTO t1trig(c) VALUES (1);
+UPDATE t1trig SET c = 2 WHERE c = 1;
+--- connection master1 ---
+INSERT INTO t1trig VALUES (9);
+--- connection master ---
+--- connection slave ---
+SELECT COUNT(*) FROM t1trig;
+COUNT(*)
+2
+--- connection master ---
+SELECT COUNT(*) FROM t1trig;
+COUNT(*)
+2
+include/diff_tables.inc [master:t1trig, slave:t1trig]
+USE test;
+CREATE USER 'user1'@'localhost' ;
+GRANT ALL ON test.t1 TO user1@localhost;
+--- connection master ---
+BEGIN;
+INSERT INTO t1 VALUES (1);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+REVOKE ALL ON test.t1 FROM user1@localhost;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+8
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+8
+include/diff_tables.inc [master:t1, slave:t1]
+USE test;
+--- connection master ---
+CREATE TABLE tz (s1 INT UNIQUE) ENGINE = INNODB;
+INSERT INTO tz VALUES (1);
+--- connection master1 ---
+INSERT INTO tz VALUES (2);
+INSERT INTO tz VALUES (3);
+--- connection master2 ---
+DROP TABLE tz;
+--- connection master3 ---
+send statement and reap result later ---
+DROP TABLE tz;;
+--- connection master ---
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (5);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ROLLBACK;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+10
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+10
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2,3);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+DROP TABLE t2;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+11
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+11
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2,3);
+INSERT INTO t3 VALUES (2);
+INSERT INTO t4 VALUES (1);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+RENAME TABLE t1 to t2, t2 to t3, t3 to t4, t4 to t1;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+12
+SELECT COUNT(*) FROM t2 ;
+COUNT(*)
+3
+SELECT COUNT(*) FROM t3 ;
+COUNT(*)
+1
+SELECT COUNT(*) FROM t4 ;
+COUNT(*)
+1
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+12
+SELECT COUNT(*) FROM t2 ;
+COUNT(*)
+3
+SELECT COUNT(*) FROM t3 ;
+COUNT(*)
+1
+SELECT COUNT(*) FROM t4 ;
+COUNT(*)
+1
+include/diff_tables.inc [master:t4, slave:t4]
+--- connection master ---
+INSERT INTO t3967_1 (b) VALUES (1),(2),(3);
+BEGIN;
+INSERT INTO t3967_1(b) VALUES (4);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+RENAME TABLE t3967_1 to t1_backup, t3967_2 to t3967_1;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t3967_1 ;
+COUNT(*)
+4
+--- connection master ---
+SELECT COUNT(*) FROM t3967_1 ;
+COUNT(*)
+4
+include/diff_tables.inc [master:t3967_1, slave:t3967_1]
+INSERT INTO t1_30138 VALUES (1),(2),(3);
+SET AUTOCOMMIT = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT COUNT(*) FROM t1_30138;
+COUNT(*)
+3
+CREATE TABLE t1_30138_new (id INT) ENGINE = INNODB;
+INSERT INTO t1_30138_new VALUES (4),(5),(6),(7);
+INSERT INTO t1_30138 VALUES(8);
+RENAME TABLE t1_30138 TO t1_30138_old, t1_30138_new TO t1_30138;
+SELECT COUNT(*) FROM t1_30138;
+COUNT(*)
+4
+SELECT COUNT(*) FROM t1_30138_old;
+COUNT(*)
+4
+--- connection slave ---
+SELECT COUNT(*) FROM t1_30138 ;
+COUNT(*)
+4
+SELECT COUNT(*) FROM t1_30138_old ;
+COUNT(*)
+4
+--- connection master ---
+SELECT COUNT(*) FROM t1_30138 ;
+COUNT(*)
+4
+SELECT COUNT(*) FROM t1_30138_old ;
+COUNT(*)
+4
+include/diff_tables.inc [master:t1_30138_old, slave:t1_30138_old]
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT');
+--- connection master ---
+INSERT INTO t1innodb (c) VALUES (1);
+INSERT INTO t1myisam (c) VALUES (1);
+COMMIT;
+BEGIN;
+UPDATE t1myisam, t1innodb SET t1myisam.c = 10, t1innodb.c = NULL;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+DROP TABLE t1myisam;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1myisam ;
+COUNT(*)
+1
+SELECT COUNT(*) FROM t1innodb ;
+COUNT(*)
+1
+--- connection master ---
+SELECT COUNT(*) FROM t1myisam ;
+COUNT(*)
+1
+SELECT COUNT(*) FROM t1innodb ;
+COUNT(*)
+1
+include/diff_tables.inc [master:t1innodb, slave:t1innodb]
+--- connection master ---
+BEGIN;
+INSERT INTO t1 SELECT * FROM t1;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+DROP TABLE t1;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+24
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+24
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE db1.t1 (a INT);
+BEGIN;
+CREATE FUNCTION db1.f1() RETURNS INT RETURN 1;
+INSERT INTO db1.t1 VALUES (f1());
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+DROP DATABASE db1;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+USE db1;
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+1
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+1
+include/diff_tables.inc [master:t1, slave:t1]
+DROP TABLE db1.t1;
+DROP FUNCTION db1.f1;
+USE test;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT);
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+BEGIN;
+INSERT INTO t1 VALUES (f1());
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+DROP FUNCTION f1;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+USE test;
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+1
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+1
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+CREATE PROCEDURE p1() INSERT INTO t1 SELECT * FROM t3;
+BEGIN;
+CALL p1();
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+DROP PROCEDURE p1;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+2
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+2
+include/diff_tables.inc [master:t1, slave:t1]
+--- connection master ---
+CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND STARTS NOW() DO
+BEGIN
+DECLARE EXIT HANDLER FOR 1136 BEGIN
+INSERT INTO t3 VALUES (1);
+END; -- ER_WRONG_VALUE_COUNT_ON_ROW
+INSERT INTO t2 SELECT * FROM t1;
+END|
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+DROP EVENT e1;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t2 ;
+COUNT(*)
+3
+--- connection master ---
+SELECT COUNT(*) FROM t2 ;
+COUNT(*)
+3
+include/diff_tables.inc [master:t2, slave:t2]
+--- connection master ---
+CREATE VIEW v1 AS SELECT * FROM t1;
+BEGIN;
+INSERT INTO v1 VALUES (11);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER VIEW v1 AS SELECT * FROM t2;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM v1 ;
+COUNT(*)
+3
+--- connection master ---
+SELECT COUNT(*) FROM v1;
+COUNT(*)
+3
+include/diff_tables.inc [master:v1, slave:v1]
+--- connection master ---
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT * FROM t1;
+BEGIN;
+INSERT INTO v1 VALUES (12);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+DROP VIEW v1;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM v1 ;
+COUNT(*)
+4
+--- connection master ---
+SELECT COUNT(*) FROM v1 ;
+COUNT(*)
+4
+include/diff_tables.inc [master:v1, slave:v1]
+--- connection master ---
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT a, 1 AS col2 FROM t1;
+BEGIN;
+UPDATE v1 SET a = 0;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER VIEW v1 AS SELECT a,1 AS col2 FROM t2;;
+--- connection master ---
+--- connection master2 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM v1 ;
+COUNT(*)
+4
+--- connection master ---
+SELECT COUNT(*) FROM v1 ;
+COUNT(*)
+4
+include/diff_tables.inc [master:v1, slave:v1]
+--- connection master ---
+DROP VIEW v1;
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
+BEGIN;
+INSERT INTO v1 VALUES(13);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER VIEW v1 AS SELECT * FROM t2;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM v1 ;
+COUNT(*)
+5
+--- connection master ---
+SELECT COUNT(*) FROM v1 ;
+COUNT(*)
+5
+include/diff_tables.inc [master:v1, slave:v1]
+--- connection master ---
+INSERT INTO t1opt VALUES (1,'Mysql locking',20,'Transactional locking',10);
+INSERT INTO t1opt SELECT * FROM t1opt;
+BEGIN;
+OPTIMIZE TABLE t1opt;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+DROP TABLE t1opt;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+5
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+5
+include/diff_tables.inc [master:v1, slave:v1]
+--- connection master ---
+CREATE TABLE t1opt (id INT , content TEXT, author_id INT,
+article_title VARCHAR(120), article_hash INT);
+INSERT INTO t1opt VALUES (2,'Mysql locking1',22,'Transactional locking1',11);
+INSERT INTO t1opt SELECT * FROM t1opt;
+BEGIN;
+OPTIMIZE TABLE t1opt;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t1opt RENAME TO t1opt;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1opt ;
+COUNT(*)
+2
+--- connection master ---
+SELECT COUNT(*) FROM t1opt ;
+COUNT(*)
+2
+include/diff_tables.inc [master:t1opt, slave:t1opt]
+--- connection master ---
+BEGIN;
+INSERT INTO t1 VALUES (15);
+INSERT INTO t3 VALUES (10);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+DROP TABLE t1,t3;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+6
+SELECT COUNT(*) FROM t3 ;
+COUNT(*)
+2
+--- connection master ---
+SELECT COUNT(*) FROM t1 ;
+COUNT(*)
+6
+SELECT COUNT(*) FROM t3 ;
+COUNT(*)
+2
+include/diff_tables.inc [master:t3, slave:t3]
+--- connection master ---
+BEGIN;
+DELETE t3.*, t4.* FROM t3, t4 WHERE t3.a = t4.a AND t3.a = 1;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+DROP TABLE t3, t4;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+SELECT COUNT(*) FROM t3 ;
+COUNT(*)
+2
+SELECT COUNT(*) FROM t4 ;
+COUNT(*)
+1
+--- connection master ---
+SELECT COUNT(*) FROM t3 ;
+COUNT(*)
+2
+SELECT COUNT(*) FROM t4 ;
+COUNT(*)
+1
+include/diff_tables.inc [master:t4, slave:t4]
+--- connection master ---
+DROP DATABASE db1;
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE db1.t1(a INT, b INT);
+BEGIN;
+INSERT INTO db1.t1 VALUES (1, 1);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+DROP DATABASE db1;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+USE db1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+--- connection master ---
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+include/diff_tables.inc [master:t1, slave:t1]
+DROP TABLE db1.t1;
+USE test;
+--- connection master ---
+DROP DATABASE db1;
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE db1.t1(a INT, b INT);
+BEGIN;
+INSERT INTO db1.t1 VALUES (1,1);
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER DATABASE db1 CHARACTER SET big5;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+USE db1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+--- connection master ---
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+include/diff_tables.inc [master:t1, slave:t1]
+DROP TABLE db1.t1;
+USE test;
+--- connection master ---
+USE test;
+CREATE TABLE tab1(x INT PRIMARY KEY, y INT) ENGINE = INNODB;
+INSERT tab1 VALUES (1, 0), (2, 0), (3, 0), (4, 0), (5, 0);
+CREATE FUNCTION func(z INT) RETURNS INT
+READS SQL DATA
+RETURN (SELECT x FROM tab1 WHERE x = z)
+|
+BEGIN;
+SELECT func(1);
+func(1)
+1
+--- connection master1 ---
+USE test;
+BEGIN;
+SELECT func(1);
+func(1)
+1
+UPDATE tab1 SET y = 1 WHERE x = 1;
+--- connection master ---
+COMMIT;
+--- connection master1 ---
+COMMIT;
+--- connection master ---
+--- connection slave ---
+USE test;
+SELECT COUNT(*) FROM tab1 ;
+COUNT(*)
+5
+--- connection master ---
+SELECT COUNT(*) FROM tab1;
+COUNT(*)
+5
+include/diff_tables.inc [master:tab1, slave:tab1]
+DROP FUNCTION func;
+DROP TABLE tab1;
+USE test;
+CREATE TABLE t1lock (a INT);
+CREATE TABLE t2lock (a INT);
+--- connection master ---
+LOCK TABLE t1lock WRITE, t2lock WRITE;
+DROP TABLE t1lock;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t2lock RENAME t1lock;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+--- connection master ---
+COMMIT;
+--- connection slave ---
+USE test;
+SELECT COUNT(*) FROM t2lock;
+COUNT(*)
+0
+--- connection master ---
+SELECT COUNT(*) FROM t2lock;
+COUNT(*)
+0
+include/diff_tables.inc [master:t2lock, slave:t2lock]
+--- connection master ---
+UNLOCK TABLES;
+CREATE TABLE t1lock (a INT);
+LOCK TABLE t1lock WRITE;
+UNLOCK TABLES;
+DROP TABLE t2lock;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+send statement and reap result later ---
+ALTER TABLE t1lock RENAME t2lock;;
+--- connection master2 ---
+--- connection master1 ---
+reap result of previous---
+--- connection master ---
+COMMIT;
+--- connection slave ---
+USE test;
+SELECT COUNT(*) FROM t2lock;
+COUNT(*)
+0
+--- connection master ---
+SELECT COUNT(*) FROM t2lock;
+COUNT(*)
+0
+include/diff_tables.inc [master:t2lock, slave:t2lock]
+DROP TABLE t2lock;
+CREATE TABLE t1lock1 (a INT, b INT);
+CREATE TABLE t2lock1 (a INT, b INT);
+--- connection master ---
+LOCK TABLES t1lock1 WRITE;
+ANALYZE TABLE t1lock1;
+Table	Op	Msg_type	Msg_text
+test.t1lock1	analyze	status	Table is already up to date
+UNLOCK TABLES;
+--- connection master1 ---
+SET SESSION lock_wait_timeout = 1;
+LOCK TABLE t2lock1 WRITE;
+FLUSH TABLE t2lock1;
+UNLOCK TABLES;
+--- connection slave ---
+USE test;
+SELECT COUNT(*) FROM t1lock1;
+COUNT(*)
+0
+--- connection master ---
+SELECT COUNT(*) FROM t1lock1;
+COUNT(*)
+0
+include/diff_tables.inc [master:t1lock1, slave:t1lock1]
+DROP TABLE t1lock1,t2lock1;
+DROP TABLE t1,t2,t3,t4;
+DROP TABLE t1part,t2part,t3part,t4part;
+DROP TABLE t1prim,t1opt;
+DROP TABLE t1trig,t2trig;
+DROP TABLE t1bin,t2bin,t1myisam,t1innodb;
+DROP TABLE t3967_1,t3967_2,t1_30138,t1_30138_old;
+DROP FUNCTION f1;
+DROP PROCEDURE p1;
+DROP VIEW v1;
+DROP USER user1@localhost;
+DROP DATABASE db1;
+include/rpl_end.inc

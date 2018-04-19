@@ -1,12 +1,7 @@
 # Test for InnoDB support of 2 bytes (15 bits) collation ID
 # Some of the example and test setup are adopted from ctype_ldml.test
 
---source include/have_innodb.inc
 --source include/have_debug.inc
---source include/have_ucs2.inc
---source include/have_utf8mb4.inc
---source include/have_utf16.inc
---source include/have_utf32.inc
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 show variables like 'character_sets_dir%';
@@ -14,7 +9,7 @@ show variables like 'character_sets_dir%';
 set names utf8;
 
 # Test that the "ID" column in I_S and SHOW queries can handle two bytes
-select * from information_schema.collations where id>256 order by id;
+select collation_name, character_set_name, id from information_schema.collations where id>256 order by id;
 show collation like '%test%';
 
 # Test that two-byte collation ID is correctly transfered to the client side.
@@ -25,7 +20,7 @@ engine = InnoDB;
 insert into 2byte_collation values (0x0061);
 --enable_metadata
 set @@character_set_results=NULL;
-select * from 2byte_collation;
+select hex(c1) from 2byte_collation;
 --disable_metadata
 drop table 2byte_collation;
 

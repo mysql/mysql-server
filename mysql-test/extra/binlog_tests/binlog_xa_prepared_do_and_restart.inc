@@ -88,11 +88,27 @@
 # B. "Read-only" (select) prepared XA recovers only formally to
 #    let post recovery XA COMMIT or XA ROLLBACK with no effect.
 #
---let $type=ro
+--let $type=ro1
 --let $index = 1
 --let $sql_init1 =
 --let $sql_init2 =
 --let $sql_doit  = SELECT * from t ORDER BY a
+--source extra/binlog_tests/binlog_xa_prepare_connection.inc
+
+--let $index = 2
+--source extra/binlog_tests/binlog_xa_prepare_connection.inc
+
+--let $index = 3
+--source extra/binlog_tests/binlog_xa_prepare_connection.inc
+--let $conn3_id=`SELECT connection_id()`
+
+--let $terminate_with = XA COMMIT
+# two three above section prepared transaction were terminated.
+--inc $num_trx_prepared
+--source extra/binlog_tests/binlog_xa_prepare_disconnect.inc
+
+--let $type=ro2
+--let $index = 1
 --source extra/binlog_tests/binlog_xa_prepare_connection.inc
 
 --let $index = 2
@@ -111,7 +127,7 @@
 # C. Empty prepared XA recovers only formally to
 #    let post recovery XA COMMIT or XA ROLLBACK with no effect.
 #
---let $type=empty
+--let $type=empty1
 --let $index = 1
 --let $sql_init1 =
 --let $sql_init2 =
@@ -126,6 +142,21 @@
 --let $conn3_id=`SELECT connection_id()`
 
 --let $terminate_with = XA COMMIT
+--inc $num_trx_prepared
+--source extra/binlog_tests/binlog_xa_prepare_disconnect.inc
+
+--let $type=empty2
+--let $index = 1
+--source extra/binlog_tests/binlog_xa_prepare_connection.inc
+
+--let $index = 2
+--source extra/binlog_tests/binlog_xa_prepare_connection.inc
+
+--let $index = 3
+--source extra/binlog_tests/binlog_xa_prepare_connection.inc
+--let $conn3_id=`SELECT connection_id()`
+
+--let $terminate_with = XA ROLLBACK
 --inc $num_trx_prepared
 --source extra/binlog_tests/binlog_xa_prepare_disconnect.inc
 
@@ -173,13 +204,15 @@ while ($i < $conn_number)
     --connect (conn$i, 127.0.0.1,root,,test,$MASTER_MYPORT,)
     --let $conn_id=`SELECT connection_id()`
       --disable_reconnect
-      SET @@binlog_format = STATEMENT;
+      SET @@binlog_format = 'STATEMENT';
       if (`SELECT $i % 2`)
       {
-         SET @@binlog_format = ROW;
+         SET @@binlog_format = 'ROW';
       }
     --eval XA START   'trx_$i'
+    --disable_warnings
     --eval INSERT INTO t SET a=$i
+    --enable_warnings
     --eval XA END     'trx_$i'
     --eval XA PREPARE 'trx_$i'
 
@@ -298,10 +331,16 @@ SELECT * FROM t;
 --let $type=tmp
 --disconnect conn2$type
 --disconnect conn3$type
---let $type=ro
+--let $type=ro1
 --disconnect conn2$type
 --disconnect conn3$type
---let $type=empty
+--let $type=ro2
+--disconnect conn2$type
+--disconnect conn3$type
+--let $type=empty1
+--disconnect conn2$type
+--disconnect conn3$type
+--let $type=empty2
 --disconnect conn2$type
 --disconnect conn3$type
 

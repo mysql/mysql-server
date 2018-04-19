@@ -1,0 +1,54 @@
+--source include/have_log_bin.inc
+--source include/save_binlog_position.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # ----------------------------------------------------------------------
+
+--echo # Begin : Tests for GRANT ROLE
+
+CREATE USER userX, userY, userZ;
+CREATE ROLE roleX, roleY, roleZ;
+--source include/save_binlog_position.inc
+
+--echo # Case 1 : Execute GRANT ROLE for existing users
+
+GRANT roleX, roleY TO userX, userY;
+
+--echo # Must show grants
+SELECT FROM_USER, TO_USER FROM mysql.role_edges;
+
+--let $event= !Q(GRANT.*roleX.*roleY.*TO.*userX.*userY.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # Case 2 : Execute GRANT ROLE for non-existing users
+
+--error ER_UNKNOWN_AUTHID
+GRANT roleZ, roleA TO userX, userY;
+
+--error ER_UNKNOWN_AUTHID
+GRANT roleZ TO userX, userA;
+
+--echo # Must not have changed
+SELECT FROM_USER, TO_USER FROM mysql.role_edges;
+
+--let $invert= 1
+--let $event= !Q(GRANT.*roleZ.*roleA.*TO.*userX.*userY.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+
+--let $event= !Q(GRANT.*roleZ.*TO.*userX.*userA.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+DROP ROLE roleX, roleY, roleZ;
+DROP USER userX, userY, userZ;
+--source include/save_binlog_position.inc
+
+--echo # End : Tests for GRANT ROLE
+
+--echo # ----------------------------------------------------------------------
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

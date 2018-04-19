@@ -137,6 +137,13 @@ void log_engine_details(ENGINE_HANDLE * engine,
             offset += nw;
             for (int ii = 0; ii < info->num_features; ++ii) {
                 if (info->features[ii].description != NULL) {
+                    // We don't want to write partially from source
+                    if (sizeof(message)-offset <=
+                        2+strlen(info->features[ii].description))
+                    {
+                        return;
+                    }
+
                     nw = snprintf(message + offset, sizeof(message) - offset,
                                   "%s%s", comma ? ", " : "",
                                   info->features[ii].description);

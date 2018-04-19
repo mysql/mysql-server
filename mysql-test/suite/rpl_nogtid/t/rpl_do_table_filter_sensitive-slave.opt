@@ -1,0 +1,1 @@
+--replicate-do-db=mydb --replicate-do-table=mydb.Ţ1 --replicate-do-table=mydb.t2

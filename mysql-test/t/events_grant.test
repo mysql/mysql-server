@@ -1,7 +1,4 @@
 
-# Can't test with embedded server that doesn't support grants
--- source include/not_embedded.inc
-
 CREATE DATABASE IF NOT EXISTS events_test;
 use events_test;
 #
@@ -108,7 +105,5 @@ DROP DATABASE events_test2;
 # 
 # End of tests
 #
-
---source include/check_events_off.inc
 
 DROP DATABASE events_test;

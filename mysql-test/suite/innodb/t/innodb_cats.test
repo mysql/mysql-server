@@ -1,0 +1,230 @@
+--echo ################################################################
+--echo #                                                              #
+--echo # Bug #89829: lock_rec_has_to_wait_vats ignores locks held by  #
+--echo #             transactions being rolled back                   #
+--echo #                                                              #
+--echo ################################################################
+
+  # This test case aims to expose the problem in the lock_rec_has_to_wait_cats
+  # namely, that it ignores locks held by a transaction which is a victim of
+  # a deadlock.
+  # This test case shows, that by ignoring these locks, another transaction,
+  # (named "seer") can see modifications of rows made by "victim".
+  # In particular the "victim" will UPDATE t1 SET val = 200 WHERE id =3;
+  # and "seer" will UPDATE t1 SET val = val + 10 WHERE id = 3
+  # which in a correct implementation should lead to the end value being 13,
+  # but in this faulty implementation leads to val = 210, despite "victim"
+  # being rolled back.
+  # The scenario requires one more actor, called "too_big_to_fail", which is a
+  # concurrent transaction, which causes deadlock with "victim", yet, as its
+  # name suggests, is too big to fail, so "victim" gets sacrificed instead.
+  # To resolve the deadlock, one of the locks held by victim is released,
+  # and it so happens, that it is a lock for a gap before row 3,
+  # which causes CATS implementation to consider all transactions waiting for
+  # a lock on row 3. In particular "seer" waits for X lock for row 3,
+  # and is granted this lock, despite "victim" holding another X lock for the
+  # same row. This leads to "seer" seeing the val = 200, and proceeding
+  # with its +10, and results in 210 to be permanently stored.
+  # The timeline is as follows:
+  # 1. too_big_to_fail becomes heavy, by creating a few rows
+  # 2. too_big_to_fail obtains a lock for the gap before 3
+  # 3. victim obtains a lock for the gap before 5
+  # 4. victim updates row 3, and thus obtains X lock for row 3
+  # 5. victim starts insert into the gap before 3, and waits for too_big_to_fail
+  # 6. seer starts update of row 3, but has to wait for victim
+  # 7. too_big_to_fail inserts into gap before 5, which causes deadlock
+  # 8. the deadlock is resolved by removing the waiting insert intention lock,
+  #    which was enqueued by the victim for the insert into gap before row 3
+  # 9. the CATS algorithm grants lock for row 3 to seer
+  # 10. seer finishes the update, with value 210
+
+  USE test;
+
+  # Cleanup after previous tests
+
+    --disable_warnings
+    DROP TABLE IF EXISTS t1;
+    --enable_warnings
+
+
+  # Prepare the table
+
+    CREATE TABLE t1 (
+      id INT PRIMARY KEY,
+      val INT NOT NULL
+    ) ENGINE=InnoDB;
+
+
+    INSERT INTO t1 (id, val) VALUES (1,1), (3,3), (5,5);
+
+  # Save the original settings, to be restored at the end of test
+    SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
+
+  # Make sure that transactions will not finish prematurely
+    SET @@global.innodb_lock_wait_timeout = 100000;
+
+  # Turn on CATS:
+    --source suite/innodb/include/force_cats.inc
+
+  # Generate a transaction which is "too big to fail"
+    --connect (too_big_to_fail, localhost, root,,)
+      --echo # too_big_to_fail:
+      SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+      BEGIN;
+      # 1. too_big_to_fail becomes heavy, by creating a few rows
+      INSERT INTO t1 (id, val)
+        VALUES (100, 100), (200, 200), (300, 300), (400, 400), (500, 500);
+      # 2. too_big_to_fail obtains a lock for the gap before 3
+      SELECT * FROM t1 WHERE id = 2 FOR UPDATE;
+
+  # Generate a transaction which will be the victim of deadlock resolution
+    --connect (victim, localhost, root,,)
+      --echo # victim:
+      SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+      BEGIN;
+      # 3. victim obtains a lock for the gap before 5
+      SELECT * FROM t1 WHERE id = 4 FOR UPDATE;
+      # 4. victim updates row 3, and thus obtains X lock for row 3
+      UPDATE t1 SET val = 200 WHERE id = 3;
+      # The victim will wait with insert into the gap before 3.
+      # It will wake up due to being a deadlock victim, and we want to slow the
+      # rollback procedure just a little bit, to expose the bug, so we add
+      # synchronization request to wait for a signal before rolling back.
+      SET DEBUG_SYNC =
+        'lock_wait_has_finished_waiting WAIT_FOR victim_can_rollback';
+      # 5. victim starts insert into the gap before 3, and waits for
+      #    too_big_to_fail
+      --send INSERT INTO t1 (id, val) VALUES (2,2)
+
+  # Generate a transaction which will see changes of victim
+    --connect (seer, localhost, root,,)
+      --echo # seer:
+      SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+      BEGIN;
+      # In correct implementation seer should wait until rollback of victim
+      # completes, then perform update and thus, the end result should be
+      # 3 + 10 = 13. It for sure should not be 200 + 10 = 210, unless the victim
+      # commits. The whole purpose of this test, is to demonstrate, that it will
+      # be 210.
+      # Since the next line blocks, we need to use --send, but we also want the
+      # further lines of the test to execute only after seer is waiting for the
+      # lock, thus we add synchronization:
+      SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL seer_will_wait';
+      # 6. seer starts update of row 3, but has to wait for victim
+      --send UPDATE t1 SET val = val + 10 WHERE id = 3
+
+  # Now, too big to fail, will cause deadlock, which kills victim.
+  # The reason for deadlock is that victim holds lock for gap before 5,
+  # into which too_big_to_fail tries to insert, but at the same time
+  # too_big_to_fail holds a lock for a gap before 3, into which
+  # the victim tries to insert.
+  # Since too_big_to_fail is heavier, it is victim that will be sacrificed.
+  # In particular, the wait lock for gap before 3 will be removed immediately.
+  # This in turn will cause a CATS implementation to check if there are any
+  # transactions waiting for a lock on record with id 3 to be granted, and grant
+  # them if possible.
+  # Recall, that seer waits for X lock for record with id 3, to perform UPDATE,
+  # and that victim holds X lock for the same record because of val = 200.
+  # The bug in CATS will ignore the victim's X-lock (because victim transaction
+  # was_chosen_as_deadlock_victim) and will grant the lock to seer, which will
+  # proceed.
+    --connection too_big_to_fail
+      --echo # too_big_to_fail:
+      # We have to wait for seer's UPDATE being processed at least as far as to
+      # enqueue its lock request for row 3 - otherwise (if we not wait for that)
+      # we can resolve deadlock too soon to make seer a beneficent of this
+      # resolution.
+      SET DEBUG_SYNC = 'now WAIT_FOR seer_will_wait';
+      # 7. too_big_to_fail inserts into gap before 5, which causes deadlock
+      # Even though too_big_to_fail's INSERT will not fail, we still have to use
+      # async --send, because to insert into gap before 5, this gap has to be
+      # released by victim, and this will not happen until we let it clean up
+      # other locks, be emitting the victim_can_rollback SIGNAL.
+      # We also want to be notified when too_big_to_fail starts waiting, because
+      # this means that any deadlock resolution performed in its thread, has
+      # finished, and we will be able to observe any faulty behavior (such as
+      # two X locks being granted at the same time).
+      SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL too_big_to_fail_will_wait';
+      --send INSERT INTO t1 (id, val) VALUES (4, 4)
+
+  # Before proceeding further let's check if the state is already corrupted:
+    --connection default
+      --echo # default:
+      SET DEBUG_SYNC = 'now WAIT_FOR too_big_to_fail_will_wait';
+      # If there is a bug in CATS this will report two different transactions
+      # having RECORD X GRANTED 3 (one for seer, one for victim).
+      # If there is no bug, then only one lock should be visible (the one of the
+      # victim).
+      let $x_locks_count = `SELECT COUNT(*)
+        FROM performance_schema.data_locks
+        WHERE object_name = 't1'
+          AND lock_type = 'RECORD'
+          AND lock_mode = 'X'
+          AND lock_data = 3
+          AND lock_status = 'GRANTED'`;
+      --echo # Number of X locks granted: $x_locks_count
+      # In case the code is correct only the victim will hold the X lock.
+      # To make the rest of the test case progress, we have to let the victim
+      # perform rollback. Otherwise, seer will never get its X lock granted and
+      # the test will stall.
+      # I know this is a bit ugly that the test semantic depends on the
+      # behavior of the program
+      # being tested, but this is the best solution I could think of.
+      if($x_locks_count == 1)
+      {
+        SET DEBUG_SYNC = 'now SIGNAL victim_can_rollback';
+      }
+
+
+  # Let's go back to seer, to see the result
+    --connection seer
+      --echo # seer:
+      # 8. the deadlock is resolved by removing the waiting insert intention
+      #    lock, which was enqueued by the victim for the insert into gap before
+      #    row 3
+      # 9. the CATS algorithm grants lock for row 3 to seer
+      # 10. seer finishes the update, with value 210
+      --reap
+      # This should return 3 + 10 = 13, but it will return 200 + 10 = 210!
+      SELECT * FROM t1 WHERE id = 3 FOR UPDATE;
+      # The bug has been exposed, we can now allow the victim to proceed
+      SET DEBUG_SYNC = 'now SIGNAL victim_can_rollback';
+      COMMIT;
+
+  # Let's see the result on victim
+    --connection victim
+      --echo # victim:
+      --error ER_LOCK_DEADLOCK
+      --reap
+      ROLLBACK;
+
+  # Let's go back to too big to fail, and roll it back as well.
+    --connection too_big_to_fail
+      --echo # too_big_to_fail:
+      --reap
+      ROLLBACK;
+
+  # So, now we have a situation, where all transactions except for seer
+  # were rolled back. So, val should be 3 + 10 = 13, yet it is 210!
+    --connection default
+      --echo # default:
+      SELECT * FROM t1;
+
+  --source suite/innodb/include/discourage_cats.inc
+
+  # Restore original state
+    --connection default
+    --disconnect too_big_to_fail
+    --disconnect victim
+    --disconnect seer
+
+    DROP TABLE t1;
+    SET DEBUG_SYNC = 'RESET';
+    SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;
+
+
+--echo #####################
+--echo #                   #
+--echo # End of Bug #89829 #
+--echo #                   #
+--echo #####################

@@ -8,16 +8,13 @@ sys
 test
 select count(*) from performance_schema.performance_timers;
 count(*)
-5
+4
 select count(*) from performance_schema.setup_consumers;
 count(*)
 15
 select count(*) > 4 from performance_schema.setup_instruments;
 count(*) > 4
 1
-select count(*) from performance_schema.setup_timers;
-count(*)
-5
 select * from performance_schema.accounts;
 select * from performance_schema.cond_instances;
 select * from performance_schema.events_stages_current;
@@ -29,6 +26,8 @@ select * from performance_schema.events_stages_summary_by_thread_by_event_name;
 select * from performance_schema.events_stages_summary_by_user_by_event_name;
 select * from performance_schema.events_stages_summary_global_by_event_name;
 select * from performance_schema.events_statements_current;
+select * from performance_schema.events_statements_histogram_by_digest;
+select * from performance_schema.events_statements_histogram_global;
 select * from performance_schema.events_statements_history;
 select * from performance_schema.events_statements_history_long;
 select * from performance_schema.events_statements_summary_by_account_by_event_name;
@@ -59,6 +58,11 @@ select * from performance_schema.memory_summary_by_host_by_event_name;
 select * from performance_schema.memory_summary_by_thread_by_event_name;
 select * from performance_schema.memory_summary_by_user_by_event_name;
 select * from performance_schema.memory_summary_global_by_event_name;
+select * from performance_schema.events_errors_summary_by_account_by_error;
+select * from performance_schema.events_errors_summary_by_host_by_error;
+select * from performance_schema.events_errors_summary_by_thread_by_error;
+select * from performance_schema.events_errors_summary_by_user_by_error;
+select * from performance_schema.events_errors_summary_global_by_error;
 select * from performance_schema.file_instances;
 select * from performance_schema.file_summary_by_event_name;
 select * from performance_schema.file_summary_by_instance;
@@ -74,13 +78,15 @@ select * from performance_schema.mutex_instances;
 select * from performance_schema.objects_summary_global_by_type;
 select * from performance_schema.performance_timers;
 select * from performance_schema.rwlock_instances;
+select * from performance_schema.data_locks;
+select * from performance_schema.data_lock_waits;
 select * from performance_schema.session_account_connect_attrs;
 select * from performance_schema.session_connect_attrs;
 select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
-select * from performance_schema.setup_timers;
+select * from performance_schema.setup_threads;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
 select * from performance_schema.socket_summary_by_event_name;
@@ -105,49 +111,6 @@ select * from performance_schema.session_status;
 select * from performance_schema.global_variables;
 select * from performance_schema.variables_by_thread;
 select * from performance_schema.session_variables;
-show global variables like "performance_schema%";
-Variable_name	Value
-performance_schema	ON
-performance_schema_accounts_size	100
-performance_schema_digests_size	200
-performance_schema_events_stages_history_long_size	1000
-performance_schema_events_stages_history_size	10
-performance_schema_events_statements_history_long_size	1000
-performance_schema_events_statements_history_size	10
-performance_schema_events_transactions_history_long_size	1000
-performance_schema_events_transactions_history_size	10
-performance_schema_events_waits_history_long_size	10000
-performance_schema_events_waits_history_size	10
-performance_schema_hosts_size	100
-performance_schema_max_cond_classes	80
-performance_schema_max_cond_instances	1000
-performance_schema_max_file_classes	50
-performance_schema_max_file_handles	32768
-performance_schema_max_file_instances	10000
-performance_schema_max_index_stat	5000
-performance_schema_max_memory_classes	320
-performance_schema_max_metadata_locks	10000
-performance_schema_max_mutex_classes	200
-performance_schema_max_mutex_instances	5000
-performance_schema_max_prepared_statements_instances	100
-performance_schema_max_program_instances	5000
-performance_schema_max_rwlock_classes	40
-performance_schema_max_rwlock_instances	5000
-performance_schema_max_socket_classes	10
-performance_schema_max_socket_instances	1000
-performance_schema_max_sql_text_length	1024
-performance_schema_max_stage_classes	150
-performance_schema_max_statement_classes	191
-performance_schema_max_statement_stack	10
-performance_schema_max_table_handles	1000
-performance_schema_max_table_instances	500
-performance_schema_max_table_lock_stat	500
-performance_schema_max_thread_classes	50
-performance_schema_max_thread_instances	200
-performance_schema_session_connect_attrs_size	2048
-performance_schema_setup_actors_size	100
-performance_schema_setup_objects_size	0
-performance_schema_users_size	100
 show engine PERFORMANCE_SCHEMA status;
 show global status like "performance_schema%";
 show global variables like "performance_schema_setup_objects_size";

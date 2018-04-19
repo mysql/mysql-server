@@ -15,7 +15,6 @@
 #               include/index_merge*.inc files
 #
 
---source include/have_innodb.inc
 let $engine_type= InnoDB;
 # According to Oracle: "InnoDB's estimate for the index cardinality
 # depends on a pseudo random number generator (it picks up random
@@ -56,6 +55,37 @@ analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
-EXPLAIN SELECT SQL_NO_CACHE count(*) FROM t1 WHERE id2=7 AND id3=0;
+EXPLAIN SELECT count(*) FROM t1 WHERE id2=7 AND id3=0;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#21697002 ASSERTION `KEYS >= 0.0' FAILED
+--echo #
+
+CREATE TABLE t1 (
+  c1 VARCHAR(2),
+  d1 DATETIME NOT NULL
+);
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  c1 VARCHAR(2),
+  c2 VARCHAR(2),
+  PRIMARY KEY (pk),
+  KEY (c1),
+  KEY (c2)
+) PARTITION BY KEY(pk) PARTITIONS 2;
+
+SELECT c1
+FROM t1
+WHERE c1 IN
+(
+  SELECT t2.c1
+  FROM t2
+  WHERE t2.c1 = 'f'
+     OR t2.c2 < 'y'
+)
+AND t1.d1 IS NULL;
+
+DROP TABLE t1, t2;

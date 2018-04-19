@@ -3,44 +3,37 @@
 #
 # CREATE USER
 CREATE USER u1@localhost;
-SELECT User,plugin,authentication_string FROM mysql.user WHERE USER='u1';
+SELECT User,plugin FROM mysql.user WHERE USER='u1';
 User	u1
-plugin	mysql_native_password
-authentication_string	
+plugin	<default_authentication_plugin>
 CREATE USER u2@localhost IDENTIFIED BY 'auth_string';
-SELECT User,plugin,authentication_string FROM mysql.user WHERE USER='u2';
+SELECT User,plugin FROM mysql.user WHERE USER='u2';
 User	u2
-plugin	mysql_native_password
-authentication_string	*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF
+plugin	<default_authentication_plugin>
 CREATE USER u3@localhost IDENTIFIED WITH 'sha256_password';
-SELECT User,plugin,length(authentication_string) FROM mysql.user WHERE USER='u3';
+SELECT User,plugin FROM mysql.user WHERE USER='u3';
 User	u3
 plugin	sha256_password
-length(authentication_string)	0
 CREATE USER u4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
-SELECT User,plugin,length(authentication_string) FROM mysql.user WHERE USER='u4';
+SELECT User,plugin FROM mysql.user WHERE USER='u4';
 User	u4
 plugin	sha256_password
-length(authentication_string)	67
 CREATE USER u5@localhost REQUIRE SSL;
-SELECT User,plugin,authentication_string,ssl_type FROM mysql.user WHERE USER='u5';
+SELECT User,plugin,ssl_type FROM mysql.user WHERE USER='u5';
 User	u5
-plugin	mysql_native_password
-authentication_string	
+plugin	<default_authentication_plugin>
 ssl_type	ANY
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509;
-SELECT User,plugin,authentication_string,ssl_type FROM mysql.user WHERE USER='u6';
+SELECT User,plugin,ssl_type FROM mysql.user WHERE USER='u6';
 User	u6
-plugin	mysql_native_password
-authentication_string	*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF
+plugin	<default_authentication_plugin>
 ssl_type	X509
 CREATE USER u7@localhost IDENTIFIED WITH 'sha256_password'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA" PASSWORD EXPIRE NEVER;
-SELECT User,plugin,length(authentication_string),ssl_type,
+SELECT User,plugin,ssl_type,
 ssl_cipher,x509_issuer,x509_subject,password_expired,password_lifetime FROM mysql.user WHERE USER='u7';
 User	u7
 plugin	sha256_password
-length(authentication_string)	0
 ssl_type	SPECIFIED
 ssl_cipher	DHE-RSA-AES256-SHA
 x509_issuer	
@@ -49,19 +42,17 @@ password_expired	N
 password_lifetime	0
 CREATE USER u8@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             REQUIRE ISSUER 'issuer';
-SELECT User,plugin,length(authentication_string),ssl_type,ssl_cipher,x509_issuer,x509_subject FROM mysql.user WHERE USER='u8';
+SELECT User,plugin,ssl_type,ssl_cipher,x509_issuer,x509_subject FROM mysql.user WHERE USER='u8';
 User	u8
 plugin	sha256_password
-length(authentication_string)	67
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	issuer
 x509_subject	
 CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
-SELECT User,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,x509_subject FROM mysql.user WHERE USER='u9';
+SELECT User,plugin,ssl_type,ssl_cipher,x509_issuer,x509_subject FROM mysql.user WHERE USER='u9';
 User	u9
-plugin	mysql_native_password
-authentication_string	
+plugin	<default_authentication_plugin>
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
@@ -70,57 +61,52 @@ CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
 SUBJECT "/C=SE/ST=Uppsala/O=MySQL AB"
             ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB";
-SELECT User,plugin,length(authentication_string),ssl_type,ssl_cipher,x509_issuer,x509_subject FROM mysql.user WHERE USER='u10';
+SELECT User,plugin,ssl_type,ssl_cipher,x509_issuer,x509_subject FROM mysql.user WHERE USER='u10';
 User	u10
 plugin	sha256_password
-length(authentication_string)	67
 ssl_type	SPECIFIED
 ssl_cipher	DHE-RSA-AES256-SHA
 x509_issuer	/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB
 x509_subject	/C=SE/ST=Uppsala/O=MySQL AB
 CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2;
-SELECT User,plugin,authentication_string,max_questions FROM mysql.user WHERE USER='u11';
+SELECT User,plugin,max_questions FROM mysql.user WHERE USER='u11';
 User	u11
-plugin	mysql_native_password
-authentication_string	
+plugin	<default_authentication_plugin>
 max_questions	2
 CREATE USER u12@localhost IDENTIFIED BY 'auth_string'  WITH MAX_QUERIES_PER_HOUR 2;
-SELECT User,plugin,authentication_string,max_questions FROM mysql.user WHERE USER='u12';
+SELECT User,plugin,max_questions FROM mysql.user WHERE USER='u12';
 User	u12
-plugin	mysql_native_password
-authentication_string	*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF
+plugin	<default_authentication_plugin>
 max_questions	2
 CREATE USER u13@localhost IDENTIFIED WITH 'sha256_password'
             WITH MAX_CONNECTIONS_PER_HOUR 2;
-SELECT User,plugin,length(authentication_string),max_connections FROM mysql.user WHERE USER='u13';
+SELECT User,plugin,max_connections FROM mysql.user WHERE USER='u13';
 User	u13
 plugin	sha256_password
-length(authentication_string)	0
 max_connections	2
 CREATE USER u14@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             WITH MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE INTERVAL 6 DAY;
-SELECT User,plugin,length(authentication_string),max_user_connections,
+SELECT User,plugin,max_user_connections,
 password_expired,password_lifetime FROM mysql.user WHERE USER='u14';
 User	u14
 plugin	sha256_password
-length(authentication_string)	67
 max_user_connections	2
 password_expired	N
 password_lifetime	6
 CREATE USER u15@localhost,
 u16@localhost IDENTIFIED BY 'auth_string',
 u17@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string' PASSWORD EXPIRE;
-SELECT User,plugin,password_expired,password_lifetime FROM mysql.user WHERE USER BETWEEN 'u15' AND 'u17';
+SELECT User,plugin,password_expired,password_lifetime FROM mysql.user WHERE USER BETWEEN 'u15' AND 'u17' ORDER BY User;
 User	u15
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	Y
 password_lifetime	NULL
 User	u16
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	Y
 password_lifetime	NULL
 User	u17
-plugin	sha256_password
+plugin	<authentication_plugin>
 password_expired	Y
 password_lifetime	NULL
 CREATE USER u18@localhost,
@@ -131,19 +117,9 @@ u21@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
 PASSWORD EXPIRE NEVER;
 SELECT User,plugin,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 max_questions,max_user_connections,password_expired,password_lifetime
-FROM mysql.user WHERE USER BETWEEN 'u18' AND 'u21';
-User	u2
-plugin	mysql_native_password
-ssl_type	
-ssl_cipher	
-x509_issuer	
-x509_subject	
-max_questions	0
-max_user_connections	0
-password_expired	N
-password_lifetime	NULL
+FROM mysql.user WHERE USER BETWEEN 'u18' AND 'u21' ORDER BY User;
 User	u18
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
@@ -153,7 +129,7 @@ max_user_connections	2
 password_expired	N
 password_lifetime	0
 User	u19
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
@@ -162,8 +138,18 @@ max_questions	2
 max_user_connections	2
 password_expired	N
 password_lifetime	0
+User	u2
+plugin	<authentication_plugin>
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_user_connections	0
+password_expired	N
+password_lifetime	NULL
 User	u20
-plugin	sha256_password
+plugin	<authentication_plugin>
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
@@ -173,7 +159,7 @@ max_user_connections	2
 password_expired	N
 password_lifetime	0
 User	u21
-plugin	sha256_password
+plugin	<authentication_plugin>
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
@@ -198,7 +184,7 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 password_lifetime	NULL
 its a no op
@@ -212,7 +198,7 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 password_lifetime	NULL
 CREATE USER u2@localhost IDENTIFIED BY 'auth_string';
@@ -224,7 +210,7 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 password_lifetime	NULL
 ALTER USER u2@localhost IDENTIFIED BY 'new_auth_string';
@@ -236,7 +222,7 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 password_lifetime	NULL
 CREATE USER u3@localhost IDENTIFIED WITH 'sha256_password';
@@ -297,7 +283,7 @@ ssl_type	ANY
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 password_lifetime	NULL
 ALTER USER u5@localhost IDENTIFIED WITH 'sha256_password';
@@ -321,7 +307,7 @@ ssl_type	X509
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 password_lifetime	NULL
 ALTER USER u6@localhost IDENTIFIED BY 'new_auth_string' REQUIRE SSL;
@@ -333,7 +319,7 @@ ssl_type	ANY
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 password_lifetime	NULL
 CREATE USER u7@localhost IDENTIFIED WITH 'sha256_password'
@@ -397,7 +383,7 @@ ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	sub
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 password_lifetime	NULL
 ALTER USER u9@localhost REQUIRE ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB";
@@ -409,7 +395,7 @@ ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB
 x509_subject	
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 password_lifetime	NULL
 CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
@@ -520,7 +506,7 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 password_lifetime	NULL
 User	u16
@@ -528,7 +514,7 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	sha256_password
+plugin	<authentication_plugin>
 password_expired	N
 password_lifetime	NULL
 User	u17
@@ -536,7 +522,7 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	sha256_password
+plugin	<authentication_plugin>
 password_expired	N
 password_lifetime	NULL
 ALTER USER u15@localhost IDENTIFIED WITH 'sha256_password',
@@ -552,7 +538,7 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	sha256_password
+plugin	<authentication_plugin>
 password_expired	Y
 password_lifetime	NULL
 User	u16
@@ -560,7 +546,7 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	sha256_password
+plugin	<authentication_plugin>
 password_expired	N
 password_lifetime	NULL
 User	u17
@@ -568,7 +554,7 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	sha256_password
+plugin	<authentication_plugin>
 password_expired	N
 password_lifetime	NULL
 CREATE USER u18@localhost,
@@ -585,7 +571,7 @@ ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Uppsala/O=MySQL AB
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 max_user_connections	2
 max_questions	2
@@ -595,7 +581,7 @@ ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Uppsala/O=MySQL AB
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 max_user_connections	2
 max_questions	2
@@ -605,7 +591,7 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 max_user_connections	0
 max_questions	0
@@ -615,7 +601,7 @@ ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Uppsala/O=MySQL AB
-plugin	sha256_password
+plugin	<authentication_plugin>
 password_expired	N
 max_user_connections	2
 max_questions	2
@@ -625,7 +611,7 @@ ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Uppsala/O=MySQL AB
-plugin	sha256_password
+plugin	<authentication_plugin>
 password_expired	N
 max_user_connections	2
 max_questions	2
@@ -644,7 +630,7 @@ ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Uppsala/O=MySQL AB
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 max_user_connections	2
 max_questions	2
@@ -654,7 +640,7 @@ ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Uppsala/O=MySQL AB
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 max_user_connections	2
 max_questions	2
@@ -664,7 +650,7 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
+plugin	<authentication_plugin>
 password_expired	N
 max_user_connections	0
 max_questions	0
@@ -674,7 +660,7 @@ ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Uppsala/O=MySQL AB
-plugin	sha256_password
+plugin	<authentication_plugin>
 password_expired	N
 max_user_connections	2
 max_questions	2
@@ -684,7 +670,7 @@ ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Uppsala/O=MySQL AB
-plugin	sha256_password
+plugin	<authentication_plugin>
 password_expired	N
 max_user_connections	2
 max_questions	2
@@ -718,7 +704,7 @@ CREATE USER u1@localhost PASSWORD EXPIRE;
 SELECT password_expired FROM mysql.user where user='u1';
 password_expired
 Y
-ERROR 1862 (HY000): Your password has expired. To log in you must change it using a client that supports expired passwords.
+Please use --connect-expired-password option or invoke mysql in interactive mode.
 DROP USER u1@localhost;
 # CREATE USER with password expire attributes for anonymous user
 CREATE USER '' PASSWORD EXPIRE;
@@ -734,21 +720,21 @@ USER()
 u1@localhost
 ALTER USER u1@localhost PASSWORD EXPIRE;
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 SET PASSWORD = 'def';
 SELECT USER();
 USER()
 u1@localhost
 ALTER USER u1@localhost PASSWORD EXPIRE;
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER user() IDENTIFIED BY 'abc';
 SELECT USER();
 USER()
 u1@localhost
 ALTER USER u1@localhost PASSWORD EXPIRE;
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER u1@localhost IDENTIFIED BY 'def';
 SELECT USER();
 USER()
@@ -760,7 +746,7 @@ GRANT ALL ON *.* TO u2@localhost;
 ALTER USER USER() IDENTIFIED WITH 'sha256_password';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''sha256_password'' at line 1
 ALTER USER USER() IDENTIFIED BY 'def', u2@localhost PASSWORD EXPIRE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' u2@localhost PASSWORD EXPIRE' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', u2@localhost PASSWORD EXPIRE' at line 1
 ALTER USER USER() IDENTIFIED BY 'def' PASSWORD EXPIRE;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD EXPIRE' at line 1
 ALTER USER ;
@@ -770,27 +756,27 @@ DROP USER u1@localhost, u2@localhost;
 CREATE USER u1@localhost;
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ALTER USER u1@localhost IDENTIFIED BY 'auth_string';
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u2@localhost IDENTIFIED BY 'auth_string';
 SHOW CREATE USER u2@localhost;
 CREATE USER for u2@localhost
-CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u2'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ALTER USER u2@localhost IDENTIFIED WITH 'sha256_password';
 SHOW CREATE USER u2@localhost;
 CREATE USER for u2@localhost
-CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK
+CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u3@localhost IDENTIFIED WITH 'sha256_password';
 SHOW CREATE USER u3@localhost;
 CREATE USER for u3@localhost
-CREATE USER 'u3'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u3'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ALTER USER u3@localhost PASSWORD EXPIRE NEVER;
 SHOW CREATE USER u3@localhost;
 CREATE USER for u3@localhost
-CREATE USER 'u3'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
+CREATE USER 'u3'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
 SHOW CREATE USER u4@localhost;
 CREATE USER for u4@localhost
@@ -798,32 +784,32 @@ CREATE USER 'u4'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-determin
 ALTER USER u4@localhost PASSWORD EXPIRE INTERVAL 365 DAY;
 SHOW CREATE USER u4@localhost;
 CREATE USER for u4@localhost
-CREATE USER 'u4'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>'
+CREATE USER 'u4'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE INTERVAL 365 DAY ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u5@localhost REQUIRE SSL;
 SHOW CREATE USER u5@localhost;
 CREATE USER for u5@localhost
-CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ALTER USER u5@localhost REQUIRE CIPHER "DHE-RSA-AES256-SHA";
 SHOW CREATE USER u5@localhost;
 CREATE USER for u5@localhost
-CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u5'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' REQUIRE CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509;
 SHOW CREATE USER u6@localhost;
 CREATE USER for u6@localhost
-CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE X509 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u6'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE X509 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ALTER USER u6@localhost REQUIRE CIPHER "DHE-RSA-AES256-SHA" WITH MAX_QUERIES_PER_HOUR 2;
 SHOW CREATE USER u6@localhost;
 CREATE USER for u6@localhost
-CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE CIPHER 'DHE-RSA-AES256-SHA' WITH MAX_QUERIES_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u6'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE CIPHER 'DHE-RSA-AES256-SHA' WITH MAX_QUERIES_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u7@localhost IDENTIFIED WITH 'sha256_password'
             REQUIRE CIPHER 'DHE-RSA-AES256-SHA';
 SHOW CREATE USER u7@localhost;
 CREATE USER for u7@localhost
-CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ALTER USER u7@localhost REQUIRE NONE WITH MAX_USER_CONNECTIONS 12;
 SHOW CREATE USER u7@localhost;
 CREATE USER for u7@localhost
-CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE WITH MAX_USER_CONNECTIONS 12 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE WITH MAX_USER_CONNECTIONS 12 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u8@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             REQUIRE ISSUER 'issuer';
 SHOW CREATE USER u8@localhost;
@@ -832,15 +818,15 @@ CREATE USER 'u8'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-determin
 ALTER USER u8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
 SHOW CREATE USER u8@localhost;
 CREATE USER for u8@localhost
-CREATE USER 'u8'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE ISSUER 'issuer' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u8'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE ISSUER 'issuer' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
 SHOW CREATE USER u9@localhost;
 CREATE USER for u9@localhost
-CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SUBJECT 'sub' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u9'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' REQUIRE SUBJECT 'sub' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ALTER USER u9@localhost;
 SHOW CREATE USER u9@localhost;
 CREATE USER for u9@localhost
-CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SUBJECT 'sub' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u9'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' REQUIRE SUBJECT 'sub' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
 SUBJECT "/C=SE/ST=Uppsala/O=MySQL AB"
@@ -855,28 +841,28 @@ CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-determi
 CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2;
 SHOW CREATE USER u11@localhost;
 CREATE USER for u11@localhost
-CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u11'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ALTER USER u11@localhost WITH MAX_QUERIES_PER_HOUR 10;
 SHOW CREATE USER u11@localhost;
 CREATE USER for u11@localhost
-CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 10 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u11'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 10 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u12@localhost IDENTIFIED BY 'auth_string'  WITH MAX_QUERIES_PER_HOUR 2;
 SHOW CREATE USER u12@localhost;
 CREATE USER for u12@localhost
-CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u12'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ALTER USER u12@localhost REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' WITH MAX_QUERIES_PER_HOUR 10;
 SHOW CREATE USER u12@localhost;
 CREATE USER for u12@localhost
-CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' WITH MAX_QUERIES_PER_HOUR 10 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u12'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' WITH MAX_QUERIES_PER_HOUR 10 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u13@localhost IDENTIFIED WITH 'sha256_password'
             WITH MAX_CONNECTIONS_PER_HOUR 2;
 SHOW CREATE USER u13@localhost;
 CREATE USER for u13@localhost
-CREATE USER 'u13'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE WITH MAX_CONNECTIONS_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u13'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE WITH MAX_CONNECTIONS_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ALTER USER u13@localhost REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' WITH MAX_QUERIES_PER_HOUR 10;
 SHOW CREATE USER u13@localhost;
 CREATE USER for u13@localhost
-CREATE USER 'u13'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' WITH MAX_QUERIES_PER_HOUR 10 MAX_CONNECTIONS_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u13'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' WITH MAX_QUERIES_PER_HOUR 10 MAX_CONNECTIONS_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u14@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             WITH MAX_USER_CONNECTIONS 2;
 SHOW CREATE USER u14@localhost;
@@ -900,87 +886,78 @@ CREATE USER 'u15'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-determi
 CREATE USER u16@localhost IDENTIFIED BY 'auth_string' PASSWORD EXPIRE;
 SHOW CREATE USER u16@localhost;
 CREATE USER for u16@localhost
-CREATE USER 'u16'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK
+CREATE USER 'u16'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ALTER USER u16@localhost REQUIRE X509 PASSWORD EXPIRE INTERVAL 365 DAY;
 SHOW CREATE USER u16@localhost;
 CREATE USER for u16@localhost
-CREATE USER 'u16'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE X509 PASSWORD EXPIRE INTERVAL 365 DAY ACCOUNT UNLOCK
+CREATE USER 'u16'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE X509 PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u17@localhost WITH MAX_QUERIES_PER_HOUR 200
 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE NEVER;
 SHOW CREATE USER u17@localhost;
 CREATE USER for u17@localhost
-CREATE USER 'u17'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 200 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
+CREATE USER 'u17'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 200 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ALTER USER u17@localhost REQUIRE X509 PASSWORD EXPIRE INTERVAL 365 DAY;
 SHOW CREATE USER u17@localhost;
 CREATE USER for u17@localhost
-CREATE USER 'u17'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 200 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE INTERVAL 365 DAY ACCOUNT UNLOCK
+CREATE USER 'u17'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 200 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE INTERVAL 365 DAY ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u18@localhost IDENTIFIED WITH 'sha256_password' PASSWORD EXPIRE INTERVAL 365 DAY;
 SHOW CREATE USER u18@localhost;
 CREATE USER for u18@localhost
-CREATE USER 'u18'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE INTERVAL 365 DAY ACCOUNT UNLOCK
+CREATE USER 'u18'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE INTERVAL 365 DAY ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ALTER USER u18@localhost PASSWORD EXPIRE NEVER;
 SHOW CREATE USER u18@localhost;
 CREATE USER for u18@localhost
-CREATE USER 'u18'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
+CREATE USER 'u18'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u19@localhost REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB'
                           ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB"
                           PASSWORD EXPIRE DEFAULT;
 SHOW CREATE USER u19@localhost;
 CREATE USER for u19@localhost
-CREATE USER 'u19'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' ISSUER '/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'u19'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' ISSUER '/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ALTER USER u19@localhost WITH MAX_QUERIES_PER_HOUR 200
 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE NEVER;
 SHOW CREATE USER u19@localhost;
 CREATE USER for u19@localhost
-CREATE USER 'u19'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' ISSUER '/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB' WITH MAX_QUERIES_PER_HOUR 200 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
+CREATE USER 'u19'@'localhost' IDENTIFIED WITH '<default_authentication_plugin>' REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' ISSUER '/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB' WITH MAX_QUERIES_PER_HOUR 200 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 drop user u1@localhost, u2@localhost, u3@localhost, u4@localhost, u5@localhost,
 u6@localhost, u7@localhost, u8@localhost, u9@localhost, u10@localhost,
 u11@localhost, u12@localhost, u13@localhost, u14@localhost,
 u15@localhost, u16@localhost, u17@localhost, u18@localhost,
 u19@localhost;
-# test general log with log_backward_compatible_user_definitions ON
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
-Variable_name	Value
-log_backward_compatible_user_definitions	OFF
-# restarting the server with log_backward_compatible_user_definitions ON
-# Restart server.
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
-Variable_name	Value
-log_backward_compatible_user_definitions	ON
-TRUNCATE TABLE mysql.general_log;
---------------- general log ---------------------------------------
-SET @old_log_output=          @@global.log_output;
-SET @old_general_log=         @@global.general_log;
-SET @old_general_log_file=    @@global.general_log_file;
-SET GLOBAL general_log_file = '.../log/rewrite_general.log';
-SET GLOBAL log_output =       'FILE,TABLE';
-SET GLOBAL general_log=       'ON';
-CREATE USER u1 IDENTIFIED WITH 'mysql_native_password' BY 'azundris1';
-CREATE USER u2@localhost IDENTIFIED BY 'meow';
-GRANT SELECT ON test.* TO u3@localhost IDENTIFIED BY 'azundris1' WITH GRANT OPTION;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SET PASSWORD FOR u3@localhost = 'def';
-CREATE TABLE test_log (argument TEXT);
-LOAD DATA LOCAL INFILE '.../log/rewrite_general.log'
-     INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
-Show what is logged:
------- rewrite ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %';
-argument
-CREATE USER 'u1'@'%' IDENTIFIED BY PASSWORD '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3' ACCOUNT UNLOCK
-CREATE USER 'u2'@'localhost' IDENTIFIED BY PASSWORD '*82DC221D557298F6CE9961037DB1C90604792F5C' ACCOUNT UNLOCK
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PASSWORD %';
-argument
-SET PASSWORD FOR `u3`@`localhost`=<secret>
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
-argument
-GRANT SELECT ON `test`.* TO 'u3'@'localhost' IDENTIFIED BY PASSWORD '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3' WITH GRANT OPTION
------- done ------
-DROP USER u1, 'u2'@'localhost', 'u3'@'localhost';
-SET GLOBAL general_log_file=  @old_general_log_file;
-SET GLOBAL general_log=       @old_general_log;
-SET GLOBAL log_output=        @old_log_output;
+#
+# Bug #20553132 USER WITH EXPIRED PASSWORD ABLE TO EXECUTE
+#               ALTER USER .. PASSWORD EXPIRE COMMAND
+#
+CREATE USER 20553132_u1@localhost;
+CREATE USER 20553132_u2@localhost;
+CREATE USER '20553132_u3'@'%';
+GRANT ALL ON *.* TO 20553132_u1@localhost;
+ALTER USER 20553132_u1@localhost PASSWORD EXPIRE;
+ALTER USER '20553132_u3'@'%' PASSWORD EXPIRE;
+ALTER USER 20553132_u1@localhost PASSWORD EXPIRE NEVER;
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
+ALTER USER 20553132_u1@localhost PASSWORD EXPIRE DEFAULT;
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
+ALTER USER 20553132_u1@localhost, 20553132_u2@localhost IDENTIFIED BY 'abcd' PASSWORD EXPIRE NEVER;
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
+ALTER USER 20553132_u2@localhost IDENTIFIED BY 'abcd', 20553132_u1@localhost IDENTIFIED BY 'defg' PASSWORD EXPIRE NEVER;
+ALTER USER 20553132_u1@localhost PASSWORD EXPIRE;
+ALTER USER 20553132_u2@localhost IDENTIFIED BY 'abcd', 20553132_u1@localhost IDENTIFIED WITH 'mysql_native_password' BY 'hijk' PASSWORD EXPIRE DEFAULT;
+SELECT USER();
+USER()
+20553132_u1@localhost
+ALTER USER CURRENT_USER() IDENTIFIED BY 'abcd';
+SELECT CURRENT_USER();
+CURRENT_USER()
+20553132_u3@%
+ALTER USER '20553132_u3'@'%' PASSWORD EXPIRE;
+ALTER USER '20553132_u3'@'%' IDENTIFIED BY 'abcd';
+SELECT CURRENT_USER();
+CURRENT_USER()
+20553132_u3@%
+DROP USER 20553132_u1@localhost;
+DROP USER 20553132_u2@localhost;
+DROP USER '20553132_u3'@'%';
 
 End of 5.7 tests!
 
@@ -990,22 +967,65 @@ ALTER USER BUT DOESN\'T WORK
 
 CREATE USER u1;
 ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'' at line 1
 ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
       PASSWORD EXPIRE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
       PASSWORD EXPIRE' at line 1
 ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
       WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
-      WITH MAX_QUERIES_PER_HOUR 2 MA' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+      WITH MAX_QUERIES_PER_' at line 1
 ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
       REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client";
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
-      REQUIRE CIPHER "DHE-RSA-AES256' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+      REQUIRE CIPHER "DHE-R' at line 1
 ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
       PASSWORD EXPIRE DEFAULT;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
-      PASSWORD EXPIRE DEFAULT' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+      PASSWORD EXPIRE DEFAU' at line 1
 DROP USER u1;
+
+Bug #20634154 GRANT/ALTER USER CLEARS PASSWORD EXPIRE.
+
+CREATE USER bug20634154@localhost IDENTIFIED BY 'abc';
+SELECT CURRENT_USER();
+CURRENT_USER()
+bug20634154@localhost
+ALTER USER bug20634154@localhost PASSWORD EXPIRE;
+SELECT CURRENT_USER();
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
+GRANT USAGE ON *.* TO bug20634154@localhost;
+SELECT CURRENT_USER();
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
+ALTER USER bug20634154@localhost;
+SELECT CURRENT_USER();
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
+ALTER USER bug20634154@localhost IDENTIFIED BY 'def';
+SELECT CURRENT_USER();
+CURRENT_USER()
+bug20634154@localhost
+ALTER USER bug20634154@localhost IDENTIFIED BY 'abc' PASSWORD EXPIRE;
+SELECT CURRENT_USER();
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
+ALTER USER bug20634154@localhost IDENTIFIED BY 'def' PASSWORD EXPIRE INTERVAL 10 DAY;
+SELECT CURRENT_USER();
+CURRENT_USER()
+bug20634154@localhost
+DROP USER bug20634154@localhost;
+
+Bug #22205360 ALTER USER/SET PASSWORD DO NOT WORK FOR --INIT-FILE EXECUTION
+
+CREATE USER bug22205360@localhost;
+# shutdown the server
+# Restart server with init-file option
+SELECT 1;
+1
+1
+# shutdown the server
+# Restart server with init-file option
+SELECT 1;
+1
+1
+DROP USER bug22205360@localhost;

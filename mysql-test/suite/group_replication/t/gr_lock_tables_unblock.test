@@ -1,0 +1,71 @@
+################################################################################
+# This test verifies that during in GR the set super_read_only is blocked
+# due to a table being locked. Subsequently, an unlock of the table in another
+# connection will unblock the setting of super_read_only mode and the recovery
+# proceeds further.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. With both members ONLINE. Group replication is then blocked on one of
+#    the node M1.
+# 2. Add some data on the remaining member of the GROUP.
+# 3. On the member which is not a member of the GROUP lock the table and start
+#    GR so that it enters the recovering stage. This should be blocked as the
+#    set super_read_only cannot execute further.
+# 4. In another connection unlock the tables and see that the recovery proceeds
+#    and the data exists on the two members.
+# 5. Clean up.
+################################################################################
+
+--source include/big_test.inc
+--source include/not_windows.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--connection server2
+CREATE TABLE t1 (i INT PRIMARY KEY);
+--source include/rpl_sync.inc
+
+--connection server1
+--source include/stop_group_replication.inc
+
+--connection server2
+INSERT INTO t1 VALUES(1);
+
+--echo # Add lock tables here to block setting super_read_only mode on server.
+--connection server_1
+LOCK TABLE t1 WRITE;
+
+--echo # Start GR on the server. It should be blocked as we have a table locked.
+--connection server1
+--disable_query_log
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--enable_query_log
+--send START GROUP_REPLICATION
+
+--echo # Ensure that the server is actually blocked while setting the
+--echo # super_read_only mode.
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for global read lock' and Info = 'PLUGIN: SET GLOBAL super_read_only= 1'
+--source include/wait_condition.inc
+
+--connection server_1
+UNLOCK TABLES;
+
+--connection server1
+--reap
+
+--let $group_replication_member_state= ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--echo # Add ASSERT to check that the recovery passes successfully and a row
+--echo # is inserted.
+--let $assert_text= There should be one row inserted in the table.
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 1
+--source include/assert.inc
+
+--echo # Cleanup
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

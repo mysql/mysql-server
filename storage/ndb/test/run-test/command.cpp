@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -142,8 +149,8 @@ do_change_version(atrt_config& config, SqlResultSet& command,
   }
   atrt_process& proc= *config.m_processes[process_id];
 
-  const char* new_prefix= g_prefix1 ? g_prefix1 : g_prefix;
-  const char* old_prefix= g_prefix;
+  const char* new_prefix= g_prefix1 ? g_prefix1 : g_prefix0;
+  const char* old_prefix= g_prefix0;
   const char *start= strstr(proc.m_proc.m_path.c_str(), old_prefix);
   if (!start){
     /* Process path does not contain old prefix.  
@@ -165,16 +172,23 @@ do_change_version(atrt_config& config, SqlResultSet& command,
     return false;
   }
 
+  g_logger.info("stopping process...");
+  if (!stop_process(proc))
+    return false;
+
+  g_logger.info("waiting for process to stop...");
+  if (!wait_for_process_to_stop(config, proc)) {
+    g_logger.critical("Failed to stop process");
+    return false;
+  }
+
   // Save current proc state
   if (proc.m_save.m_saved == false)
   {
     proc.m_save.m_proc= proc.m_proc;
     proc.m_save.m_saved= true;
   }
-  
-  g_logger.info("stopping process...");
-  if (!stop_process(proc))
-    return false;
+
   BaseString newEnv = set_env_var(proc.m_proc.m_env, 
                                   BaseString("MYSQL_BASE_DIR"),
                                   BaseString(new_prefix));
@@ -257,13 +271,15 @@ do_reset_proc(atrt_config& config, SqlResultSet& command,
   if (!stop_process(proc))
     return false;
 
+  if (!wait_for_process_to_stop(config, proc))
+    return false;
+
   if (proc.m_save.m_saved)
   {
     ndbout << "before: " << proc << endl;
 
     proc.m_proc= proc.m_save.m_proc;
     proc.m_save.m_saved= false;
-    proc.m_proc.m_id= -1;
 
     ndbout << "after: " << proc << endl;
 

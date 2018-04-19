@@ -1,12 +1,11 @@
 # Created: Horst Hunger 2014-05-19
 # WL#3836:  Method to bring servers off line
 
--- source include/not_embedded.inc
 -- source include/not_threadpool.inc
 
 # test case 2.1.6 1)
 --disable_warnings
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE variable_name LIKE '%offline_mode%';
+SELECT * FROM performance_schema.global_variables WHERE variable_name LIKE '%offline_mode%';
 --enable_warnings
 # Save the global value to be used to restore the original value.
 let $global_saved_tmp =  `SELECT @@global.offline_mode`;
@@ -14,8 +13,8 @@ let $global_saved_tmp =  `SELECT @@global.offline_mode`;
 --enable_connect_log
 # This count may not be 1, because of the probably existing connections
 # from the previous/parallel test runs
-let $user_count= `SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST`;
---eval SET @user_count= $user_count
+let $user_count= `SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE USER != 'event_scheduler'`;
 
 # Create 3 non-super users
 
@@ -34,8 +33,8 @@ SHOW STATUS LIKE 'threads_connected';
 SET GLOBAL offline_mode = ON;
 
 # Wait until all non super user have been disconnected (for slow machines)
-let $wait_condition=SELECT COUNT(USER) = @user_count FROM INFORMATION_SCHEMA.PROCESSLIST;
---source include/wait_condition.inc
+let $count_sessions= $user_count;
+--source include/wait_until_count_sessions.inc
 
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 SHOW STATUS LIKE 'threads_connected';
@@ -54,9 +53,8 @@ SHOW STATUS LIKE 'threads_connected';
 --connect(root,localhost,root)
 --echo connect(root,localhost,root)
 # Wait until all non super user have been disconnected (for slow machines)
---eval SET @user_count= $user_count
-let $wait_condition=SELECT COUNT(USER) = @user_count FROM INFORMATION_SCHEMA.PROCESSLIST;
---source include/wait_condition.inc
+let $count_sessions= $user_count;
+--source include/wait_until_count_sessions.inc
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 
 --echo connect(default,localhost,root)

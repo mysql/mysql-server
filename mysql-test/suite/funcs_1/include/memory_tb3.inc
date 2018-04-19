@@ -56,9 +56,9 @@ f172 numeric zerofill,
 f173 numeric unsigned zerofill,
 f174 numeric (0),
 f175 numeric (64)
-) engine = memory;
+) charset latin1 engine = memory;
 
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
 load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/memory_tb3.txt'
-into table tb3;
+into table tb3 character set latin1;

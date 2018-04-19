@@ -12,25 +12,21 @@ UPDATE t1, t3 SET m = 2, e = 3 WHERE n = f;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 UPDATE t3, t2 SET e = 2, b = 3 WHERE f = c;
-NOTE! This testcase is affected by bug11932585
-the above UPDATE is binlogged in own transation
 COMMIT;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	#	#	BEGIN
-mysqld-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1), (1,2), (2,1), (2,2)
-mysqld-bin.000001	#	Query	#	#	COMMIT
-mysqld-bin.000001	#	Query	#	#	BEGIN
-mysqld-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (1,1), (1,2), (2,1), (2,2)
-mysqld-bin.000001	#	Query	#	#	COMMIT
-mysqld-bin.000001	#	Query	#	#	BEGIN
-mysqld-bin.000001	#	Query	#	#	use `test`; UPDATE t1, t2 SET m = 2, b = 3 WHERE n = c
-mysqld-bin.000001	#	Query	#	#	COMMIT
-mysqld-bin.000001	#	Query	#	#	BEGIN
-mysqld-bin.000001	#	Query	#	#	use `test`; UPDATE t3, t2 SET e = 2, b = 3 WHERE f = c
-mysqld-bin.000001	#	Query	#	#	COMMIT
-mysqld-bin.000001	#	Query	#	#	BEGIN
-mysqld-bin.000001	#	Query	#	#	use `test`; INSERT INTO t3 VALUES (1,1), (1,2), (2,1), (2,2)
-mysqld-bin.000001	#	Query	#	#	use `test`; UPDATE t1, t3 SET m = 2, e = 3 WHERE n = f
-mysqld-bin.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1), (1,2), (2,1), (2,2)
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (1,1), (1,2), (2,1), (2,2)
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Query	#	#	use `test`; UPDATE t1, t2 SET m = 2, b = 3 WHERE n = c
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t3 VALUES (1,1), (1,2), (2,1), (2,2)
+binlog.000001	#	Query	#	#	use `test`; UPDATE t1, t3 SET m = 2, e = 3 WHERE n = f
+binlog.000001	#	Query	#	#	use `test`; UPDATE t3, t2 SET e = 2, b = 3 WHERE f = c
+binlog.000001	#	Query	#	#	COMMIT
 DROP TABLE t1, t2, t3;

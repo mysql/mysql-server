@@ -1,0 +1,138 @@
+################################################################################
+# Test case to test functionality in which a plugin/component can add its own
+# tables in performance schema.
+#
+################################################################################
+
+--echo #################
+--echo # INITIAL STATE #
+--echo #################
+
+select * from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%";
+
+--error ER_NO_SUCH_TABLE
+describe performance_schema.pfs_example_employee_name;
+
+--error ER_NO_SUCH_TABLE
+show create table performance_schema.pfs_example_employee_name;
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_employee_name;
+
+--echo ###########
+--echo # INSTALL #
+--echo ###########
+--replace_regex /\.so|\.dll/.xxx/
+--eval INSTALL PLUGIN pfs_example_plugin_employee SONAME '$PFS_EXAMPLE_PLUGIN_EMPLOYEE'
+
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+  from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+
+describe performance_schema.pfs_example_employee_name;
+
+show create table performance_schema.pfs_example_employee_name;
+
+select * from performance_schema.pfs_example_employee_name;
+
+--echo ##############
+--echo # UN INSTALL #
+--echo ##############
+
+UNINSTALL PLUGIN pfs_example_plugin_employee;
+
+select * from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%";
+
+--error ER_NO_SUCH_TABLE
+describe performance_schema.pfs_example_employee_name;
+
+--error ER_NO_SUCH_TABLE
+show create table performance_schema.pfs_example_employee_name;
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_employee_name;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.pfs_example_employee_name
+  values (1, "First", "Last");
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.pfs_example_employee_name
+  set employee_number = 2 where employee_number = 1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.pfs_example_employee_name;
+
+--echo ##########################################
+--echo # SERVER RESTART, AFTER PLUGIN UNINSTALL #
+--echo ##########################################
+
+--source include/restart_mysqld.inc
+
+select * from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%";
+
+--error ER_NO_SUCH_TABLE
+describe performance_schema.pfs_example_employee_name;
+
+--error ER_NO_SUCH_TABLE
+show create table performance_schema.pfs_example_employee_name;
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_employee_name;
+
+--echo ###########
+--echo # INSTALL #
+--echo ###########
+--replace_regex /\.so|\.dll/.xxx/
+--eval INSTALL PLUGIN pfs_example_plugin_employee SONAME '$PFS_EXAMPLE_PLUGIN_EMPLOYEE'
+
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+  from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+
+describe performance_schema.pfs_example_employee_name;
+
+show create table performance_schema.pfs_example_employee_name;
+
+select * from performance_schema.pfs_example_employee_name;
+
+--echo ############################################
+--echo # SERVER RESTART, WITHOUT PLUGIN UNINSTALL #
+--echo ############################################
+
+--source include/restart_mysqld.inc
+
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+  from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+
+describe performance_schema.pfs_example_employee_name;
+
+show create table performance_schema.pfs_example_employee_name;
+
+select * from performance_schema.pfs_example_employee_name;
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+
+UNINSTALL PLUGIN pfs_example_plugin_employee;
+
+select * from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%";
+
+--error ER_NO_SUCH_TABLE
+describe performance_schema.pfs_example_employee_name;
+
+--error ER_NO_SUCH_TABLE
+show create table performance_schema.pfs_example_employee_name;
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_employee_name;
+

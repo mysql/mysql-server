@@ -1,0 +1,44 @@
+# This test case will test R-tree purge.
+
+
+--source include/have_innodb_max_16k.inc
+--source include/have_debug.inc
+--source include/big_test.inc
+# Valgrind takes too much time on PB2 even in the --big-test runs.
+--source include/not_valgrind.inc
+
+# Temporarily disable it for 4k page size. Since it'll take too long
+# time.
+--source include/not_have_innodb_4k.inc
+
+create table t (
+  a point not null,b point not null SRID 0,c point,
+  d point not null SRID 0,e point,f point,
+  spatial key (d),spatial key (b)
+) engine=innodb;
+
+delimiter |;
+create procedure p(i int)
+begin
+  declare n int default 0;
+  declare continue handler for sqlexception begin end;
+  delete from t;
+  repeat
+    set @p=point(1,1);
+    insert into t values(@p,@p,@p,@p,@p,@p);
+    insert into t values(@p,@p,@p,@p,@p,@p);
+    insert into t select @p,@p,@p,@p,@p,@p
+    from t a,t b,t c,t d,t e,t f,t g,t h,t i,t j;
+    delete from t;
+    set n:=n+1;
+  until n >= i end repeat;
+end|
+delimiter ;|
+
+call p(200);
+
+--source include/wait_innodb_all_purged.inc
+
+# Clean up.
+drop procedure p;
+drop table t;

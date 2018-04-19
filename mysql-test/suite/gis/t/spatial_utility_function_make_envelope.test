@@ -8,7 +8,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_geometry.inc
 
 ############################################################################################
 # Creating the spatial objects                                                             #
@@ -17,7 +16,7 @@
 --echo # Creating the spatial Geometry object
 USE test;
 
-CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 
 ############################################################################################
 # Inserting the values specific to the spatial objects                                     #
@@ -158,25 +157,16 @@ SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT(@star_of_elems),));
 --error ER_PARSE_ERROR
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(,ST_GEOMFROMTEXT(@star_top)));
 
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', -1024), ST_GEOMFROMTEXT('POINT(-1 1)', -1024)));
 
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', -1), ST_GEOMFROMTEXT('POINT(-1 1)', -1)));
 
---error ER_WRONG_ARGUMENTS
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 1), ST_GEOMFROMTEXT('POINT(-1 1)', 1)));
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 0), ST_GEOMFROMTEXT('POINT(-1 1)', 4145)));
 
---error ER_WRONG_ARGUMENTS
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 1000), ST_GEOMFROMTEXT('POINT(-1 1)', 1000)));
-
---error ER_WRONG_ARGUMENTS
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 0), ST_GEOMFROMTEXT('POINT(-1 1)', 1)));
-
---error ER_WRONG_ARGUMENTS
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 1), ST_GEOMFROMTEXT('POINT(-1 -1)', -1)));
-
---error ER_WRONG_ARGUMENTS
+--error ER_GIS_DIFFERENT_SRIDS
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 0), ST_GEOMFROMTEXT('POINT(0 0)', 4236)));
 
 --error ER_WRONG_ARGUMENTS
@@ -212,8 +202,8 @@ SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT(
 --error ER_WRONG_ARGUMENTS
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
 
---error ER_WRONG_ARGUMENTS
-SELECT ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 10), ST_GEOMFROMTEXT('POINT(1 1)'));
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(1 1)'));
 
 --error ER_GIS_INVALID_DATA
 SELECT ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1e1000)'));
@@ -223,3 +213,37 @@ SELECT ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)'));
 
 --echo # Clean up
 DROP TABLE gis_geometrycollection;
+
+--echo #
+--echo # WL#8579 Spatial Reference Systems
+--echo #
+
+--echo # SRID 0 (should pass)
+DO ST_MAKEENVELOPE(
+  ST_GEOMFROMTEXT('POINT(0 0)', 0),
+  ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+
+--echo # Projected SRS (should pass)
+DO ST_MAKEENVELOPE(
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+
+--echo # Geographic SRS (should fail)
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
+DO ST_MAKEENVELOPE(
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_MAKEENVELOPE(
+  x'0A000000010100000000000000000000000000000000000000',
+  x'0A000000010100000000000000000000000000000000000000'
+);

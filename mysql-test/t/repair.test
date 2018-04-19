@@ -26,8 +26,10 @@ drop table t1;
 create table t1(id int PRIMARY KEY, st varchar(10), KEY st_key(st));
 insert into t1 values(1, "One");
 alter table t1 disable keys;
+analyze table t1;
 show keys from t1;
 repair table t1 extended;
+analyze table t1;
 show keys from t1;
 drop table t1;
 
@@ -50,6 +52,7 @@ CREATE TABLE t1(a INT, KEY(a));
 INSERT INTO t1 VALUES(1),(2),(3),(4),(5);
 SET myisam_repair_threads=2;
 REPAIR TABLE t1;
+ANALYZE TABLE t1;
 SHOW INDEX FROM t1;
 SET myisam_repair_threads=@@global.myisam_repair_threads;
 DROP TABLE t1;
@@ -67,7 +70,7 @@ DROP TABLE t1;
 #
 # BUG#23175 - MYISAM crash/repair failed during repair
 #
-CREATE TABLE t1(a CHAR(255), KEY(a));
+CREATE TABLE t1(a CHAR(255), KEY(a)) charset latin1;
 SET myisam_sort_buffer_size=4096;
 INSERT INTO t1 VALUES
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
@@ -96,7 +99,7 @@ DROP TABLE t1;
 # BUG#31174 - "Repair" command on MyISAM crashes with small 
 #              myisam_sort_buffer_size
 #
-CREATE TABLE t1(a CHAR(255), KEY(a));
+CREATE TABLE t1(a CHAR(255), KEY(a)) charset latin1;
 SET myisam_sort_buffer_size=4496;
 INSERT INTO t1 VALUES
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
@@ -123,37 +126,6 @@ DROP TABLE t1;
 
 --echo End of 4.1 tests
 
-#
-# BUG#36055 - mysql_upgrade doesn't really 'upgrade' tables
-#
-
---echo # Test with a saved table from 4.1
-let $MYSQLD_DATADIR= `select @@datadir`;
---copy_file std_data/bug36055.frm $MYSQLD_DATADIR/test/t1.frm
---copy_file std_data/bug36055.MYD $MYSQLD_DATADIR/test/t1.MYD
---copy_file std_data/bug36055.MYI $MYSQLD_DATADIR/test/t1.MYI
-
---replace_column 12 # 13 #
-SHOW TABLE STATUS LIKE 't1';
-SELECT * FROM t1;
-
---echo # Run CHECK TABLE, it should indicate table need a REPAIR TABLE
-CHECK TABLE t1 FOR UPGRADE;
-
---echo # REPAIR old table USE_FRM should fail
-REPAIR TABLE t1 USE_FRM;
-
---echo # Run REPAIR TABLE to upgrade .frm file
-REPAIR TABLE t1;
---replace_column 12 # 13 #
-SHOW TABLE STATUS LIKE 't1';
-SELECT * FROM t1;
-
-REPAIR TABLE t1 USE_FRM;
-SELECT * FROM t1;
-
-DROP TABLE t1;
-# End of 5.0 tests
 
 #
 # Bug#18775 - Temporary table from alter table visible to other threads

@@ -1,0 +1,273 @@
+## Tests for row locking in SQL find.
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+let $old_innodb_lock_wait_timeout= `SELECT @@innodb_lock_wait_timeout`;
+
+# Tests
+--write_file $MYSQL_TMP_DIR/find_row_locking.tmp
+-->quiet
+
+-->macro Check_data_locks_table
+-->noquery_result
+-->stmtsql SELECT COUNT(*) FROM performance_schema.data_locks
+-->recvtovar %NUM%
+-->endmacro
+
+-->macro Expect_data_locks_table_is_not_empty
+-->echo Verify [Expecting performance_schema.data_locks to be not empty]
+-->callmacro Check_data_locks_table
+-->assert_gt %NUM%	0
+-->query_result
+-->endmacro
+
+-->macro Expect_data_locks_table_is_empty
+-->echo Verify [Expecting performance_schema.data_locks to be empty]
+-->callmacro Check_data_locks_table
+-->assert_eq 0	%NUM%
+-->query_result
+-->endmacro
+
+-->macro Rollback_sessions
+-->callmacro Expect_data_locks_table_is_not_empty
+-->setsession session1
+-->stmtsql ROLLBACK;
+-->recvresult
+-->setsession session2
+-->stmtsql ROLLBACK;
+-->recvresult
+-->callmacro Expect_data_locks_table_is_empty
+-->endmacro
+
+-->macro Use_first_transation
+-->setsession session1
+-->callmacro Expect_data_locks_table_is_empty
+-->stmtsql START TRANSACTION;
+-->recvresult
+-->endmacro
+
+-->macro Switch_to_second_transaction
+-->callmacro Expect_data_locks_table_is_not_empty
+-->setsession session2
+-->stmtsql START TRANSACTION;
+-->recvresult
+-->endmacro
+
+-->echo ######### preparation #########
+-->sql
+drop schema if exists xtest;
+create schema xtest default charset 'utf8mb4';
+use xtest;
+create table test_coll (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY);
+insert into test_coll (doc) values ('{"_id": "1", "a": 1}');
+insert into test_coll (doc) values ('{"_id": "2", "a": 2}');
+insert into test_coll (doc) values ('{"_id": "3", "a": 30}');
+insert into test_coll (doc) values ('{"_id": "4", "a": 30}');
+set global innodb_lock_wait_timeout=3;
+-->endsql
+
+-->newsession session1	x_root
+-->newsession session2	x_root
+
+-->macro Send_simple_find_with_lock %ID% %VALUE% %LOCKING%
+Mysqlx.Crud.Find {
+  collection {
+    name: "test_coll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT identifier {
+          name: "%ID%"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+            type: V_STRING
+            v_string {
+              value: "%VALUE%"
+            }
+        }
+      }
+    }
+  }
+  locking: %LOCKING%
+}
+-->endmacro
+
+-->echo ######### Shared lock after shared lock #########
+-->callmacro Use_first_transation
+-->callmacro Send_simple_find_with_lock	_id	1	SHARED_LOCK
+-->recvresult
+-->callmacro Switch_to_second_transaction
+-->callmacro Send_simple_find_with_lock	_id	2	SHARED_LOCK
+-->recvresult
+-->callmacro Send_simple_find_with_lock	_id	1	SHARED_LOCK
+-->recvresult
+-->callmacro Rollback_sessions
+
+-->echo ######### Shared lock after exclusive lock #########
+-->callmacro Use_first_transation
+-->callmacro Send_simple_find_with_lock	_id	1	EXCLUSIVE_LOCK
+-->recvresult
+-->callmacro Switch_to_second_transaction
+-->callmacro Send_simple_find_with_lock	_id	2	EXCLUSIVE_LOCK
+-->recvresult
+-->callmacro Send_simple_find_with_lock	_id	1	EXCLUSIVE_LOCK
+-->expecterror ER_LOCK_WAIT_TIMEOUT
+-->recvresult
+-->callmacro Rollback_sessions
+
+-->echo ######### Exclusive lock after shared lock #########
+-->callmacro Use_first_transation
+-->callmacro Send_simple_find_with_lock	_id	1	SHARED_LOCK
+-->recvresult
+-->callmacro Switch_to_second_transaction
+-->callmacro Send_simple_find_with_lock	_id	2	EXCLUSIVE_LOCK
+-->recvresult
+-->callmacro Send_simple_find_with_lock	_id	3	EXCLUSIVE_LOCK
+-->recvresult
+-->callmacro Send_simple_find_with_lock	_id	1	EXCLUSIVE_LOCK
+-->expecterror ER_LOCK_WAIT_TIMEOUT
+-->recvresult
+-->callmacro Rollback_sessions
+
+-->echo ######### Exclusive lock after exclusive lock #########
+-->callmacro Use_first_transation
+-->callmacro Send_simple_find_with_lock	_id	1	EXCLUSIVE_LOCK
+-->recvresult
+-->callmacro Switch_to_second_transaction
+-->callmacro Send_simple_find_with_lock	_id	2	EXCLUSIVE_LOCK
+-->recvresult
+-->callmacro Send_simple_find_with_lock	_id	1	EXCLUSIVE_LOCK
+-->expecterror ER_LOCK_WAIT_TIMEOUT
+-->recvresult
+-->callmacro Rollback_sessions
+
+
+-->echo ######### Locking with aggregate #########
+
+-->macro Check_locking_with_aggregate %LOCK_TYPE%
+-->callmacro Use_first_transation
+-->callmacro Send_simple_find_with_lock	_id	1	EXCLUSIVE_LOCK
+-->recvresult
+-->callmacro Switch_to_second_transaction
+
+Mysqlx.Crud.Find {
+  collection {
+    name: "test_coll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  projection {
+    alias: "a"
+    source {
+      type: IDENT
+      identifier {
+        document_path {
+          type: MEMBER
+          value: "a"
+        }
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      document_path {
+        type: MEMBER
+        value: "a"
+      }
+    }
+  }
+  locking: %LOCK_TYPE%
+}
+-->recvresult
+
+-->callmacro Rollback_sessions
+-->endmacro
+
+-->echo ######### Shared lock with grouping #########
+-->callmacro Check_locking_with_aggregate SHARED_LOCK
+-->echo ######### Exclusive lock with grouping #########
+-->callmacro Check_locking_with_aggregate EXCLUSIVE_LOCK
+
+-->echo ######### Locking options #########
+
+-->macro Send_find_with_locking_option %LOCK_TYPE% %OPTION_TYPE%
+-->callmacro Use_first_transation
+-->callmacro Send_simple_find_with_lock	_id	1	EXCLUSIVE_LOCK
+-->recvresult
+
+-->callmacro Switch_to_second_transaction
+
+Mysqlx.Crud.Find {
+  collection {
+    name: "test_coll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  locking: %LOCK_TYPE%
+  locking_options: %OPTION_TYPE%
+}
+-->endmacro
+
+-->echo ######### Shared lock with NOWAIT #########
+-->callmacro Send_find_with_locking_option SHARED_LOCK	NOWAIT
+-->expecterror ER_LOCK_NOWAIT
+-->recvresult
+-->callmacro Rollback_sessions
+
+-->echo ######### Shared lock with SKIP LOCKED #########
+-->callmacro Send_find_with_locking_option SHARED_LOCK	SKIP_LOCKED
+-->recvresult
+-->callmacro Rollback_sessions
+
+-->echo ######### Exclusive lock with NOWAIT #########
+-->callmacro Send_find_with_locking_option EXCLUSIVE_LOCK	NOWAIT
+-->expecterror ER_LOCK_NOWAIT
+-->recvresult
+-->callmacro Rollback_sessions
+
+-->echo ######### Exclusive lock with SKIP LOCKED #########
+-->callmacro Send_find_with_locking_option EXCLUSIVE_LOCK	SKIP_LOCKED
+-->recvresult
+-->callmacro Rollback_sessions
+
+-->macro Expect_error_when_locking_option_is_set_and_no_locking %OPTION%
+Mysqlx.Crud.Find {
+  collection {
+    name: "test_coll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  locking_options: %OPTION%
+}
+-->recvtype Mysqlx.Error
+-->endmacro
+
+-->echo ######### NOWAIT set but no locking #########
+-->callmacro Expect_error_when_locking_option_is_set_and_no_locking NOWAIT
+
+-->echo ######### SKIP LOCKED set but no locking #########
+-->callmacro Expect_error_when_locking_option_is_set_and_no_locking SKIP_LOCKED
+
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/find_row_locking.tmp 2>&1
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $MYSQL_TMP_DIR/find_row_locking.tmp
+--source include/xplugin_drop_user.inc
+
+--disable_query_log
+eval SET GLOBAL innodb_lock_wait_timeout=$old_innodb_lock_wait_timeout;
+--enable_query_log

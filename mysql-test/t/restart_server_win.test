@@ -1,0 +1,20 @@
+--source include/windows.inc
+
+# Check RESTART of standalone server under windows.
+
+RESTART;
+# Wait until server comes up.
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--echo # Executing a sql command after RESTART.
+SELECT 1;
+--disable_reconnect
+
+# Shutdown and restart mysqld of mtr.
+SHUTDOWN;
+# Wait for mysqld to come up.
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc

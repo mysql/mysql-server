@@ -1,0 +1,266 @@
+include/save_binlog_position.inc
+# ----------------------------------------------------------------------
+# Begin : Tests for GRANT : Table grants
+CREATE USER userX, userY, userZ;
+CREATE DATABASE db1;
+CREATE TABLE db1.table1(c1 int, c2 int, c3 int);
+include/save_binlog_position.inc
+# Case 1 : Valid grants to multiple users
+GRANT SELECT ON db1.table1 TO userX, userY, userZ;
+# Must show new grants
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT SELECT ON `db1`.`table1` TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT ON `db1`.`table1` TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT ON `db1`.`table1` TO `userZ`@`%`
+# This event sequence pattern MUST be present in binlog: !Q(GRANT SELECT ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Update existing grant
+GRANT INSERT , UPDATE ON db1.table1 TO userX, userY, userZ;
+# Must show updated grants
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT SELECT, INSERT, UPDATE ON `db1`.`table1` TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT, INSERT, UPDATE ON `db1`.`table1` TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT, INSERT, UPDATE ON `db1`.`table1` TO `userZ`@`%`
+# This event sequence pattern MUST be present in binlog: !Q(GRANT INSERT, UPDATE ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Case 6 : Create new user with an account without CREATE USER privilege
+CREATE USER userA, userB;
+GRANT SELECT ON db1.table1 to userX WITH GRANT OPTION;
+include/save_binlog_position.inc
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT, INSERT, UPDATE ON `db1`.`table1` TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT, INSERT, UPDATE ON `db1`.`table1` TO `userZ`@`%`
+SHOW GRANTS FOR userA;
+Grants for userA@%
+GRANT USAGE ON *.* TO `userA`@`%`
+SHOW GRANTS FOR userB;
+Grants for userB@%
+GRANT USAGE ON *.* TO `userB`@`%`
+# should succeed
+GRANT SELECT ON db1.table1 TO userY, userZ;
+# should fail
+GRANT SELECT ON db1.table1 TO userA, userB, userC;
+ERROR 42000: You are not allowed to create a user with GRANT
+# Must show updated grants
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT, INSERT, UPDATE ON `db1`.`table1` TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT, INSERT, UPDATE ON `db1`.`table1` TO `userZ`@`%`
+# Must not have any change
+SHOW GRANTS FOR userA;
+Grants for userA@%
+GRANT USAGE ON *.* TO `userA`@`%`
+SHOW GRANTS FOR userB;
+Grants for userB@%
+GRANT USAGE ON *.* TO `userB`@`%`
+# This event sequence pattern MUST be present in binlog: !Q(GRANT SELECT ON.*db1.*table1.*TO.*userY.*userZ.*)
+include/assert_binlog_events.inc
+DROP USER userX, userY, userZ, userA, userB;
+DROP TABLE db1.table1;
+DROP DATABASE db1;
+include/save_binlog_position.inc
+# End : Tests for GRANT : Table grants
+# ----------------------------------------------------------------------
+# Begin : Tests for GRANT : Column grants
+CREATE USER userX, userY, userZ;
+CREATE DATABASE db1;
+CREATE TABLE db1.table1(c1 int, c2 int, c3 int);
+include/save_binlog_position.inc
+# Case 1 : Valid grants to multiple users
+GRANT SELECT(c1, c2) ON db1.table1 TO userX, userY, userZ;
+# Must show new grants
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT SELECT (`c1`, `c2`) ON `db1`.`table1` TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT (`c1`, `c2`) ON `db1`.`table1` TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT (`c1`, `c2`) ON `db1`.`table1` TO `userZ`@`%`
+# This event sequence pattern MUST be present in binlog: !Q(GRANT SELECT(.*c1.*c2.*) ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Update existing grant
+GRANT INSERT(c1, c3), UPDATE(c2, c3) ON db1.table1 TO userX, userY, userZ;
+# Must show updated grants
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT SELECT (`c1`, `c2`), INSERT (`c1`, `c3`), UPDATE (`c2`, `c3`) ON `db1`.`table1` TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT (`c1`, `c2`), INSERT (`c1`, `c3`), UPDATE (`c2`, `c3`) ON `db1`.`table1` TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT (`c1`, `c2`), INSERT (`c1`, `c3`), UPDATE (`c2`, `c3`) ON `db1`.`table1` TO `userZ`@`%`
+# This event sequence pattern MUST be present in binlog: !Q(GRANT INSERT (.*), UPDATE (.*) ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Case 6 : Create new user with an account without CREATE USER privilege
+CREATE USER userA, userB;
+GRANT SELECT(c1, c3) ON db1.table1 to userX WITH GRANT OPTION;
+include/save_binlog_position.inc
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT (`c1`, `c2`), INSERT (`c1`, `c3`), UPDATE (`c2`, `c3`) ON `db1`.`table1` TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT (`c1`, `c2`), INSERT (`c1`, `c3`), UPDATE (`c2`, `c3`) ON `db1`.`table1` TO `userZ`@`%`
+SHOW GRANTS FOR userA;
+Grants for userA@%
+GRANT USAGE ON *.* TO `userA`@`%`
+SHOW GRANTS FOR userB;
+Grants for userB@%
+GRANT USAGE ON *.* TO `userB`@`%`
+# should succeed
+GRANT SELECT(c1) ON db1.table1 TO userY, userZ;
+# should fail
+GRANT SELECT(c1) ON db1.table1 TO userA, userB, userC;
+ERROR 42000: You are not allowed to create a user with GRANT
+# Must show updated grants
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT (`c1`, `c2`), INSERT (`c1`, `c3`), UPDATE (`c2`, `c3`) ON `db1`.`table1` TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT (`c1`, `c2`), INSERT (`c1`, `c3`), UPDATE (`c2`, `c3`) ON `db1`.`table1` TO `userZ`@`%`
+# Must not have any change
+SHOW GRANTS FOR userA;
+Grants for userA@%
+GRANT USAGE ON *.* TO `userA`@`%`
+SHOW GRANTS FOR userB;
+Grants for userB@%
+GRANT USAGE ON *.* TO `userB`@`%`
+# This event sequence pattern MUST be present in binlog: !Q(GRANT SELECT (.*) ON.*db1.*table1.*TO.*userY.*userZ.*)
+include/assert_binlog_events.inc
+DROP USER userX, userY, userZ, userA, userB;
+DROP TABLE db1.table1;
+DROP DATABASE db1;
+include/save_binlog_position.inc
+# End : Tests for GRANT : Column grants
+# ----------------------------------------------------------------------
+# Begin : Tests for GRANT : Table and Column grants
+CREATE USER userX, userY, userZ;
+CREATE DATABASE db1;
+CREATE TABLE db1.table1(c1 int, c2 int, c3 int);
+include/save_binlog_position.inc
+# Case 1 : Valid grants to multiple users
+GRANT SELECT ON db1.table1 TO userX, userY, userZ;
+# Must show new grants
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT SELECT ON `db1`.`table1` TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT ON `db1`.`table1` TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT ON `db1`.`table1` TO `userZ`@`%`
+# This event sequence pattern MUST be present in binlog: !Q(GRANT SELECT ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Update existing grant
+GRANT INSERT(c1, c3) , UPDATE ON db1.table1 TO userX, userY, userZ;
+# Must show updated grants
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT SELECT, INSERT (`c1`, `c3`), UPDATE ON `db1`.`table1` TO `userX`@`%`
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT, INSERT (`c1`, `c3`), UPDATE ON `db1`.`table1` TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT, INSERT (`c1`, `c3`), UPDATE ON `db1`.`table1` TO `userZ`@`%`
+# This event sequence pattern MUST be present in binlog: !Q(GRANT INSERT (.*), UPDATE ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Case 6 : Create new user with an account without CREATE USER privilege
+CREATE USER userA, userB;
+GRANT SELECT(c1, c3), INSERT ON db1.table1 to userX WITH GRANT OPTION;
+include/save_binlog_position.inc
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT, INSERT (`c1`, `c3`), UPDATE ON `db1`.`table1` TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT, INSERT (`c1`, `c3`), UPDATE ON `db1`.`table1` TO `userZ`@`%`
+SHOW GRANTS FOR userA;
+Grants for userA@%
+GRANT USAGE ON *.* TO `userA`@`%`
+SHOW GRANTS FOR userB;
+Grants for userB@%
+GRANT USAGE ON *.* TO `userB`@`%`
+# should succeed
+GRANT SELECT(c1), INSERT ON db1.table1 TO userY, userZ;
+# should fail
+GRANT SELECT(c1), INSERT ON db1.table1 TO userA, userB, userC;
+ERROR 42000: You are not allowed to create a user with GRANT
+# Must show updated grants
+SHOW GRANTS FOR userY;
+Grants for userY@%
+GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT, SELECT (`c1`), INSERT, INSERT (`c1`, `c3`), UPDATE ON `db1`.`table1` TO `userY`@`%`
+SHOW GRANTS FOR userZ;
+Grants for userZ@%
+GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT, SELECT (`c1`), INSERT, INSERT (`c1`, `c3`), UPDATE ON `db1`.`table1` TO `userZ`@`%`
+# Must not have any change
+SHOW GRANTS FOR userA;
+Grants for userA@%
+GRANT USAGE ON *.* TO `userA`@`%`
+SHOW GRANTS FOR userB;
+Grants for userB@%
+GRANT USAGE ON *.* TO `userB`@`%`
+# This event sequence pattern MUST be present in binlog: !Q(GRANT SELECT (.*), INSERT ON.*db1.*table1.*TO.*userY.*userZ.*)
+include/assert_binlog_events.inc
+DROP USER userX, userY, userZ, userA, userB;
+DROP TABLE db1.table1;
+DROP DATABASE db1;
+include/save_binlog_position.inc
+# End : Tests for GRANT : Table and Column grants
+# ----------------------------------------------------------------------

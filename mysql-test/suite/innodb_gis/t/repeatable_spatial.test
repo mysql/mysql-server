@@ -6,22 +6,21 @@
 # Test at con1: Global Repeatable Read con2 : Sess Read Committed
 # Test at con1: Sess Repeatable Read   con2 : Sess Read Committed
 # *****************************************************************
---source include/have_innodb.inc
---source include/have_geometry.inc
---source include/not_embedded.inc
 
 # Test Repeatable Read & Read committed at Global, Session levels
-CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL,
-c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL) 
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0) 
 ENGINE=InnoDB;
 
-ALTER TABLE tab ADD SPATIAL INDEX idx2(c2 ASC);
+ALTER TABLE tab ADD SPATIAL INDEX idx2(c2);
 
+--error ER_WRONG_USAGE
 ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3);
 
-ALTER TABLE tab ADD SPATIAL INDEX idx4(c4 ASC) COMMENT 'testing spatial index on Polygon';
+ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Polygon';
 
-ALTER TABLE tab ADD SPATIAL KEY idx5(c5 ASC) COMMENT 'testing spatial index on Geometry';
+ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
 
 INSERT INTO tab(c1,c2,c3,c4,c5) 
 VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
@@ -40,7 +39,7 @@ connection con1;
 
 SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
-SELECT @@tx_isolation;
+SELECT @@transaction_isolation;
 
 # Record count should be 1
 SELECT COUNT(*) FROM tab;
@@ -54,7 +53,7 @@ connection con2;
 
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
-SELECT @@tx_isolation;
+SELECT @@transaction_isolation;
 
 START TRANSACTION;
 
@@ -126,17 +125,19 @@ disconnect con1;
 DROP TABLE tab; 
 
 # Test Repeatable Read & Read committed at Session levels
-CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL,
-c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL) 
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0) 
 ENGINE=InnoDB;
 
-ALTER TABLE tab ADD SPATIAL INDEX idx2(c2 ASC);
+ALTER TABLE tab ADD SPATIAL INDEX idx2(c2);
 
+--error ER_WRONG_USAGE
 ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3);
 
-ALTER TABLE tab ADD SPATIAL INDEX idx4(c4 ASC) COMMENT 'testing spatial index on Polygon';
+ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Polygon';
 
-ALTER TABLE tab ADD SPATIAL KEY idx5(c5 ASC) COMMENT 'testing spatial index on Geometry';
+ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
 
 INSERT INTO tab(c1,c2,c3,c4,c5) 
 VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
@@ -155,7 +156,7 @@ connection con1;
 
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
-SELECT @@tx_isolation;
+SELECT @@transaction_isolation;
 
 # Record count should be 1
 SELECT COUNT(*) FROM tab;
@@ -169,7 +170,7 @@ connection con2;
 
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
-SELECT @@tx_isolation;
+SELECT @@transaction_isolation;
 
 START TRANSACTION;
 

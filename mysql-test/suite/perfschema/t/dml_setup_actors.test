@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --disable_warnings
 drop table if exists test.setup_actors;
 --enable_warnings
@@ -15,10 +12,10 @@ create table test.setup_actors as
 # throw error
 --error ER_DUP_KEY
 insert into performance_schema.setup_actors
-  values ('%','%','%','YES');
+  values ('%','%','%','YES', 'YES');
 --error ER_DUP_KEY
 insert into performance_schema.setup_actors
-  values ('%','%','%','NO');
+  values ('%','%','%','NO', 'NO');
 
 truncate table performance_schema.setup_actors;
 
@@ -42,7 +39,12 @@ insert into performance_schema.setup_actors
 # Insert with wrong value for ENABLED column
 --error 1265
 insert into performance_schema.setup_actors
-  values ('localhost', 'user1', '%', 'NO%');
+  values ('localhost', 'user1', '%', 'NO%', 'NO');
+
+# Insert with wrong value for HISTORY column
+--error 1265
+insert into performance_schema.setup_actors
+  values ('localhost', 'user1', '%', 'NO', 'KO');
 
 select * from performance_schema.setup_actors
   order by USER, HOST;
@@ -57,11 +59,15 @@ update performance_schema.setup_actors
 
 --error ER_WRONG_PERFSCHEMA_USAGE
 update performance_schema.setup_actors
-  set role='ILLEGAL';
+  set `role`='ILLEGAL';
 
 # update on ENABLED column is allowed
 update performance_schema.setup_actors
   set ENABLED='YES';
+
+# update on HISTORY column is allowed
+update performance_schema.setup_actors
+  set HISTORY='YES';
 
 # update on ENABLED column with wrong values
 #throws error
@@ -80,6 +86,18 @@ update performance_schema.setup_actors
 --error ER_BAD_NULL_ERROR
 update performance_schema.setup_actors
   set ENABLED=NULL;
+
+--error 1265
+update performance_schema.setup_actors
+  set HISTORY='YESS';
+
+--error 1265
+update performance_schema.setup_actors
+  set HISTORY='NO%';
+
+--error ER_BAD_NULL_ERROR
+update performance_schema.setup_actors
+  set HISTORY=NULL;
 
 select * from performance_schema.setup_actors
   order by USER, HOST;
@@ -100,6 +118,17 @@ UNLOCK TABLES;
 
 LOCK TABLES performance_schema.setup_actors WRITE;
 UNLOCK TABLES;
+
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+insert into performance_schema.setup_actors
+  set user='user_name_len_22_01234', host='localhost';
+
+delete from performance_schema.setup_actors
+  where user = 'user_name_len_22_01234' and host = 'localhost';
+
 
 # Restore the setup
 truncate table performance_schema.setup_actors;

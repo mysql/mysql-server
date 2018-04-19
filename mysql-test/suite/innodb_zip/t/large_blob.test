@@ -2,7 +2,6 @@
 --echo # This tests the use of large blobs in InnoDB.
 --echo #
 
---source include/have_innodb.inc
 --source include/have_nodebug.inc
 --source include/big_test.inc
 
@@ -27,7 +26,7 @@ while ($1 > 1)
 set @longblob=repeat(@blob,200000);
 --enable_query_log
 
-call mtr.add_suppression("InnoDB: Warning: a long semaphore wait");
+call mtr.add_suppression("Warning: a long semaphore wait");
 
 SET GLOBAL innodb_file_per_table = OFF;
 

@@ -1,0 +1,11 @@
+########### suite/json/t/json_client_ndb.test                        #
+# Tests json client functions using the ndb storage engine           #
+#                                                                    #
+# This test copies some tests originally in json_client.test         #
+######################################################################
+# Set the session storage engine
+--source include/have_ndb.inc
+set default_storage_engine=ndb;
+
+# Run the test
+--source suite/json/inc/json_client.inc

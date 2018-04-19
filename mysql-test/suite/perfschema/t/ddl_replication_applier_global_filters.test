@@ -1,0 +1,26 @@
+# ==== Purpose ====
+#
+# Tests for PERFORMANCE_SCHEMA
+#
+# This test verifies the correct behaviour in case of invalid
+# usage of DDLs on the table replication_applier_global_filters.
+#
+# ==== References ====
+#
+# WL#7361 MSR: per-channel replication filters
+#
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.replication_applier_global_filters
+  ADD COLUMN foo integer;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+TRUNCATE TABLE performance_schema.replication_applier_global_filters;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.replication_applier_global_filters
+   ADD INDEX test_index(filter_name);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON
+  performance_schema.replication_global_applier_filters(filter_name);

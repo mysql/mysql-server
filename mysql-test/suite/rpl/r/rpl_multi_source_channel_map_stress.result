@@ -1,0 +1,85 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression('Slave failed to initialize master info structure from the repository');
+CALL mtr.add_suppression('This operation cannot be performed with a running slave');
+CALL mtr.add_suppression('Could not find target log file mentioned in relay log info in the index file');
+CALL mtr.add_suppression('A slave with the same server_uuid/server_id as this slave has connected to the master');
+SET @saved_event_scheduler= @@GLOBAL.event_scheduler;
+SET @saved_relay_log_purge= @@GLOBAL.relay_log_purge;
+SET @@GLOBAL.event_scheduler= OFF;
+include/stop_slave.inc
+CREATE EVENT e_change_master_io_ch0  ON SCHEDULE EVERY 1 SECOND DO CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT FOR CHANNEL '';
+CREATE EVENT e_change_master_sql_ch0 ON SCHEDULE EVERY 1 SECOND DO CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000001', RELAY_LOG_POS=4 FOR CHANNEL '';
+CREATE EVENT e_start_slave_io_ch0    ON SCHEDULE EVERY 1 SECOND DO START SLAVE IO_THREAD FOR CHANNEL '';
+CREATE EVENT e_stop_slave_io_ch0     ON SCHEDULE EVERY 1 SECOND DO STOP SLAVE IO_THREAD FOR CHANNEL '';
+CREATE EVENT e_reset_slave_ch0       ON SCHEDULE EVERY 1 SECOND DO RESET SLAVE FOR CHANNEL '';
+CREATE EVENT e_reset_slave_all_ch0   ON SCHEDULE EVERY 1 SECOND DO RESET SLAVE ALL FOR CHANNEL '';
+CREATE EVENT e_start_slave_sql_ch0   ON SCHEDULE EVERY 1 SECOND DO START SLAVE SQL_THREAD FOR CHANNEL '';
+CREATE EVENT e_stop_slave_sql_ch0    ON SCHEDULE EVERY 1 SECOND DO STOP SLAVE SQL_THREAD FOR CHANNEL '';
+CREATE EVENT e_sss_ch0               ON SCHEDULE EVERY 1 SECOND DO SHOW SLAVE STATUS FOR CHANNEL '';
+CREATE EVENT e_reset_master ON SCHEDULE EVERY 1 SECOND DO RESET MASTER;
+CREATE EVENT e_ils          ON SCHEDULE EVERY 1 SECOND DO SELECT * FROM performance_schema.log_status;
+CREATE EVENT e_change_master_io_ch1  ON SCHEDULE EVERY 1 SECOND DO CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT FOR CHANNEL 'ch1';
+CREATE EVENT e_change_master_sql_ch1 ON SCHEDULE EVERY 1 SECOND DO CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin-ch1.000001', RELAY_LOG_POS=4 FOR CHANNEL 'ch1';
+CREATE EVENT e_start_slave_io_ch1    ON SCHEDULE EVERY 1 SECOND DO START SLAVE IO_THREAD FOR CHANNEL 'ch1';
+CREATE EVENT e_stop_slave_io_ch1     ON SCHEDULE EVERY 1 SECOND DO STOP SLAVE IO_THREAD FOR CHANNEL 'ch1';
+CREATE EVENT e_reset_slave_ch1       ON SCHEDULE EVERY 1 SECOND DO RESET SLAVE FOR CHANNEL 'ch1';
+CREATE EVENT e_reset_slave_all_ch1   ON SCHEDULE EVERY 1 SECOND DO RESET SLAVE ALL FOR CHANNEL 'ch1';
+CREATE EVENT e_start_slave_sql_ch1   ON SCHEDULE EVERY 1 SECOND DO START SLAVE SQL_THREAD FOR CHANNEL 'ch1';
+CREATE EVENT e_stop_slave_sql_ch1    ON SCHEDULE EVERY 1 SECOND DO STOP SLAVE SQL_THREAD FOR CHANNEL 'ch1';
+CREATE EVENT e_sss_ch1               ON SCHEDULE EVERY 1 SECOND DO SHOW SLAVE STATUS FOR CHANNEL 'ch1';
+CREATE EVENT e_change_master_io_ch2  ON SCHEDULE EVERY 1 SECOND DO CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT FOR CHANNEL 'ch2';
+CREATE EVENT e_change_master_sql_ch2 ON SCHEDULE EVERY 1 SECOND DO CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin-ch2.000001', RELAY_LOG_POS=4 FOR CHANNEL 'ch2';
+CREATE EVENT e_start_slave_io_ch2    ON SCHEDULE EVERY 1 SECOND DO START SLAVE IO_THREAD FOR CHANNEL 'ch2';
+CREATE EVENT e_stop_slave_io_ch2     ON SCHEDULE EVERY 1 SECOND DO STOP SLAVE IO_THREAD FOR CHANNEL 'ch2';
+CREATE EVENT e_reset_slave_ch2       ON SCHEDULE EVERY 1 SECOND DO RESET SLAVE FOR CHANNEL 'ch2';
+CREATE EVENT e_reset_slave_all_ch2   ON SCHEDULE EVERY 1 SECOND DO RESET SLAVE ALL FOR CHANNEL 'ch2';
+CREATE EVENT e_start_slave_sql_ch2   ON SCHEDULE EVERY 1 SECOND DO START SLAVE SQL_THREAD FOR CHANNEL 'ch2';
+CREATE EVENT e_stop_slave_sql_ch2    ON SCHEDULE EVERY 1 SECOND DO STOP SLAVE SQL_THREAD FOR CHANNEL 'ch2';
+CREATE EVENT e_sss_ch2               ON SCHEDULE EVERY 1 SECOND DO SHOW SLAVE STATUS FOR CHANNEL 'ch2';
+SET @@GLOBAL.event_scheduler= ON;
+Let the requests to run in parallel for 10 seconds
+DROP EVENT e_sss_ch2;
+DROP EVENT e_stop_slave_sql_ch2;
+DROP EVENT e_start_slave_sql_ch2;
+DROP EVENT e_reset_slave_all_ch2;
+DROP EVENT e_reset_slave_ch2;
+DROP EVENT e_stop_slave_io_ch2;
+DROP EVENT e_start_slave_io_ch2;
+DROP EVENT e_change_master_sql_ch2;
+DROP EVENT e_change_master_io_ch2;
+DROP EVENT e_sss_ch1;
+DROP EVENT e_stop_slave_sql_ch1;
+DROP EVENT e_start_slave_sql_ch1;
+DROP EVENT e_reset_slave_all_ch1;
+DROP EVENT e_reset_slave_ch1;
+DROP EVENT e_stop_slave_io_ch1;
+DROP EVENT e_start_slave_io_ch1;
+DROP EVENT e_change_master_sql_ch1;
+DROP EVENT e_change_master_io_ch1;
+DROP EVENT e_ils;
+DROP EVENT e_reset_master;
+DROP EVENT e_sss_ch0;
+DROP EVENT e_stop_slave_sql_ch0;
+DROP EVENT e_start_slave_sql_ch0;
+DROP EVENT e_reset_slave_all_ch0;
+DROP EVENT e_reset_slave_ch0;
+DROP EVENT e_stop_slave_io_ch0;
+DROP EVENT e_start_slave_io_ch0;
+DROP EVENT e_change_master_sql_ch0;
+DROP EVENT e_change_master_io_ch0;
+SET @@GLOBAL.event_scheduler= OFF;
+# Wait until all scheduler activity has finished
+STOP SLAVE FOR CHANNEL 'ch2';
+STOP SLAVE FOR CHANNEL 'ch1';
+STOP SLAVE FOR CHANNEL '';
+RESET SLAVE ALL;
+CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT;
+SET @@GLOBAL.event_scheduler = @saved_event_scheduler;
+SET @@GLOBAL.relay_log_purge = @saved_relay_log_purge;
+include/start_slave.inc
+include/rpl_end.inc

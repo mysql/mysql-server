@@ -5,23 +5,20 @@
 # Simulate failures from SSL:
 # - reported in COUNT_SSL_ERRORS
 
---source include/not_embedded.inc
 --source include/have_debug.inc
---source include/have_perfschema.inc
 
 # Enforce a clean state
 --source ../include/wait_for_pfs_thread_count.inc
 --source ../include/hostcache_set_state.inc
 
-create user 'user_ssl'@'santa.claus.ipv4.example.com';
+create user 'user_ssl'@'santa.claus.ipv4.example.com' REQUIRE SSL;
 create user 'user_ssl_x509'@'santa.claus.ipv4.example.com'
-  identified by 'good_password';
-grant select on test.* to 'user_ssl'@'santa.claus.ipv4.example.com'
-  REQUIRE SSL;
-grant select on test.* to 'user_ssl_x509'@'santa.claus.ipv4.example.com'
+  identified by 'good_password'
   REQUIRE SUBJECT '/C=??/ST=??/L=??/
     O=No such thing/
     CN=Santa Claus/emailAddress=santa.claus@example.com';
+grant select on test.* to 'user_ssl'@'santa.claus.ipv4.example.com',
+  'user_ssl_x509'@'santa.claus.ipv4.example.com';
 
 connect (con1,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 select "Con1 is alive";

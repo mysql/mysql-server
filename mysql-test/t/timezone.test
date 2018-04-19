@@ -2,11 +2,7 @@
 #
 # Test of SYSTEM time zone handling ( for my_system_gmt_sec()).
 # This script must be run with TZ=MET
-
--- require r/have_met_timezone.require
-disable_query_log;
-select FROM_UNIXTIME(24*3600);
-enable_query_log;
+--source include/have_met_timezone.inc
 
 # Initialization
 --disable_warnings

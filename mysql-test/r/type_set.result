@@ -4,16 +4,18 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` set('','a','b') NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a set (' ','a','b ') not null default 'b ');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` set('','a','b') NOT NULL DEFAULT 'b'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 CREATE TABLE t1 (   user varchar(64) NOT NULL default '',   path varchar(255) NOT NULL default '',   privilege   set('select','RESERVED30','RESERVED29','RESERVED28','RESERVED27','RESERVED26',   'RESERVED25','RESERVED24','data.delete','RESERVED22','RESERVED21',   'RESERVED20','data.insert.none','data.insert.approve',   'data.insert.delete','data.insert.move','data.insert.propose',   'data.insert.reject','RESERVED13','RESERVED12','RESERVED11','RESERVED10',   'RESERVED09','data.update','RESERVED07','RESERVED06','RESERVED05',   'RESERVED04','metadata.delete','metadata.put','RESERVED01','RESERVED00')   NOT NULL default '',   KEY user (user)   ) ENGINE=MyISAM CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1;
 set names latin1;
 create table t1 (s set ('a','A') character set latin1 collate latin1_bin);
@@ -21,7 +23,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `s` set('a','A') CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('a'),('a,A'),('A,a'),('A');
 select s from t1 order by s;
 s
@@ -67,8 +69,6 @@ ue
 ue
 DROP TABLE t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1(f1
 set('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17',
 '18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33',
@@ -86,7 +86,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` set('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33','34','35','36','37','38','39','40','41','42','43','44','45','46','47','48','49','50','51','52','53','54','55','56','57','58','59','60','61','62','63','64','1') DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET sql_mode = default;
 CREATE TABLE t1(c set('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33','34','35','36','37','38','39','40','41','42','43','44','45','46','47','48','49','50','51','52','53','54','55','56','57','58','59','60','61','62','63','64'));
@@ -103,6 +103,8 @@ set_unique_utf8 set ('a','b','c','d','e','f','g','h','i','j','k','l',
 'y','z') CHARACTER SET utf8,
 unique (set_unique_utf8)
 );
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 ( set_unique_utf8 ) VALUES ( '' );
 INSERT INTO t1 ( set_unique_utf8 ) VALUES ( '' );
 ERROR 23000: Duplicate entry '' for key 'set_unique_utf8'

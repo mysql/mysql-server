@@ -1,0 +1,201 @@
+include/rpl_init.inc [topology=1->2->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/rpl_connect.inc [creating master]
+include/rpl_connect.inc [creating slave]
+CREATE TABLE t1(c1 char(100));
+CREATE VIEW test.v_user AS SELECT * FROM mysql.user WHERE User LIKE 'bug48321%';
+CREATE VIEW test.v_tables_priv AS SELECT * FROM mysql.tables_priv WHERE User LIKE 'bug48321%';
+CREATE VIEW test.v_procs_priv AS SELECT * FROM mysql.procs_priv WHERE User LIKE 'bug48321%';
+CREATE VIEW test.v_event AS SELECT definer FROM information_schema.events WHERE event_name = 'e1';
+CREATE PROCEDURE p1() SELECT 1;
+# bug48321_1-01234 has the max length(16) of user.
+CREATE USER 'bug48321_1-01234'@'localhost';
+GRANT ALL PRIVILEGES ON *.* TO 'bug48321_1-01234'@'localhost' WITH GRANT OPTION;
+
+# Make sure the max lengths of user and host
+# the user name is too lengh
+GRANT CREATE USER ON *.* TO '012345678901234567890123456789012'@'fakehost';
+ERROR HY000: String '012345678901234567890123456789012' is too long for user name (should be no longer than 32)
+# the host name is too lengh
+GRANT CREATE USER ON *.* TO 'fakename'@'0123456789012345678901234567890123456789012345678901234567890';
+ERROR HY000: String '0123456789012345678901234567890123456789012345678901234567890' is too long for host name (should be no longer than 60)
+
+# User 'bug48321_1-01234' connects to master by conn1
+# [On conn1]
+# Verify 'REVOKE ALL' statement
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM CURRENT_USER();
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_user, server_2:v_user, server_3:v_user]
+
+# Verify 'GRANT ... ON TABLE ...' statement
+GRANT CREATE, INSERT, SELECT ON TABLE test.t1 TO CURRENT_USER();
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv]
+
+# Verify 'GRANT ... ON PROCEDURE...' statement
+GRANT ALTER ROUTINE, EXECUTE ON PROCEDURE p1 TO CURRENT_USER();
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_procs_priv, server_2:v_procs_priv, server_3:v_procs_priv]
+
+# Verify 'GRANT ... ON *.* ...' statement
+GRANT ALL PRIVILEGES ON *.* TO CURRENT_USER() WITH GRANT OPTION;
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_procs_priv, server_2:v_procs_priv, server_3:v_procs_priv]
+
+# Verify 'REVOKE ... ON TABLE ...' statement
+REVOKE CREATE, INSERT, SELECT ON TABLE t1 FROM CURRENT_USER();
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv]
+
+# Verify 'REVOKE ... ON PROCEDURE...' statement
+REVOKE ALTER ROUTINE, EXECUTE ON PROCEDURE p1 FROM CURRENT_USER();
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_procs_priv, server_2:v_procs_priv, server_3:v_procs_priv]
+
+# Verify 'REVOKE ... ON *.* ...' statement
+REVOKE ALL PRIVILEGES ON *.* FROM CURRENT_USER();
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_user, server_2:v_user, server_3:v_user]
+
+# Verify 'GRANT ...' statement in the procedure
+CREATE PROCEDURE my_grant()
+GRANT CREATE, INSERT, SELECT ON TABLE test.t1 TO CURRENT_USER();
+call my_grant;
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv]
+
+# Verify 'REVOKE ... ON TABLE ...' statement in the procedure
+CREATE PROCEDURE my_revoke()
+REVOKE CREATE, INSERT, SELECT ON TABLE t1 FROM CURRENT_USER();
+call my_revoke;
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv]
+
+# Verify 'RENAME USER ...' statement
+RENAME USER CURRENT_USER TO 'bug48321_2'@'localhost';
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_user, server_2:v_user, server_3:v_user]
+
+# Verify 'DROP USER ...' statement
+GRANT CREATE USER ON *.* TO 'bug48321_2'@'localhost';
+DROP USER CURRENT_USER();
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_user, server_2:v_user, server_3:v_user]
+
+# Verify 'ALTER EVENT...' statement
+CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT * FROM t1;
+# Explicitly assign CURRENT_USER() to definer
+ALTER DEFINER=CURRENT_USER() EVENT e1 ENABLE;
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_event, server_2:v_event, server_3:v_event]
+
+# Session user will be set as definer, if the statement does not assign
+# a definer
+ALTER EVENT e1 ENABLE;
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_event, server_2:v_event, server_3:v_event]
+
+# Verify that this patch does not affect the calling of CURRENT_USER() 
+# in the other statements
+# [On master]
+INSERT INTO t1 VALUES(CURRENT_USER()), ('1234');
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+SELECT * FROM t1;
+c1
+root@localhost
+1234
+include/sync_slave_sql_with_master.inc
+# [On slave]
+SELECT * FROM t1;
+c1
+skip-grants user@skip-grants host
+1234
+# [On server_3]
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1;
+c1
+skip-grants user@skip-grants host
+1234
+# [On master]
+UPDATE t1 SET c1=CURRENT_USER() WHERE c1='1234';
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+SELECT * FROM t1;
+c1
+root@localhost
+root@localhost
+include/sync_slave_sql_with_master.inc
+# [On slave]
+SELECT * FROM t1;
+c1
+skip-grants user@skip-grants host
+skip-grants user@skip-grants host
+include/sync_slave_sql_with_master.inc
+# [On server_3]
+SELECT * FROM t1;
+c1
+skip-grants user@skip-grants host
+skip-grants user@skip-grants host
+# [On master]
+DELETE FROM t1 WHERE c1=CURRENT_USER();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+SELECT * FROM t1;
+c1
+include/sync_slave_sql_with_master.inc
+# [On slave]
+SELECT * FROM t1;
+c1
+include/sync_slave_sql_with_master.inc
+# [On server_3]
+SELECT * FROM t1;
+c1
+# [On master]
+CREATE TABLE t2(c1 char(100));
+CREATE FUNCTION my_user() RETURNS VARCHAR(64) 
+SQL SECURITY INVOKER 
+BEGIN
+INSERT INTO t2 VALUES(CURRENT_USER());
+RETURN CURRENT_USER();
+END |
+INSERT INTO t1 VALUES(my_user());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+SELECT * FROM t1;
+c1
+root@localhost
+SELECT * FROM t2;
+c1
+root@localhost
+include/sync_slave_sql_with_master.inc
+# [On slave]
+SELECT * FROM t1;
+c1
+skip-grants user@skip-grants host
+SELECT * FROM t2;
+c1
+skip-grants user@skip-grants host
+include/sync_slave_sql_with_master.inc
+# [On server_3]
+SELECT * FROM t1;
+c1
+skip-grants user@skip-grants host
+SELECT * FROM t2;
+c1
+skip-grants user@skip-grants host
+
+# END
+DROP TABLE t1, t2;
+DROP VIEW v_user, v_tables_priv, v_procs_priv, v_event;
+DROP PROCEDURE p1;
+DROP PROCEDURE my_grant;
+DROP PROCEDURE my_revoke;
+DROP FUNCTION my_user;
+DROP EVENT e1;
+include/rpl_end.inc

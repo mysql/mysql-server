@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -19,34 +26,56 @@
 #include <kernel/ndb_limits.h>
 #include "../../common/util/parse_mask.hpp"
 #include <NdbLockCpuUtil.h>
+#include <NdbThread.h>
+
+static const struct ParseEntries m_parse_entries[] =
+{
+  //name     type
+  { "main",  THRConfig::T_MAIN },
+  { "ldm",   THRConfig::T_LDM  },
+  { "recv",  THRConfig::T_RECV },
+  { "rep",   THRConfig::T_REP  },
+  { "io",    THRConfig::T_IO   },
+  { "watchdog", THRConfig::T_WD},
+  { "tc",    THRConfig::T_TC   },
+  { "send",  THRConfig::T_SEND },
+  { "idxbld",THRConfig::T_IXBLD}
+};
 
 static const struct THRConfig::Entries m_entries[] =
 {
-  // name    type              min  max
-  { "main",  THRConfig::T_MAIN,  1, 1 },
-  { "ldm",   THRConfig::T_LDM,   1, MAX_NDBMT_LQH_THREADS },
-  { "recv",  THRConfig::T_RECV,  1, MAX_NDBMT_RECEIVE_THREADS },
-  { "rep",   THRConfig::T_REP,   1, 1 },
-  { "io",    THRConfig::T_IO,    1, 1 },
-  { "watchdog", THRConfig::T_WD, 1, 1 },
-  { "tc",    THRConfig::T_TC,    0, MAX_NDBMT_TC_THREADS },
-  { "send",  THRConfig::T_SEND,  0, MAX_NDBMT_SEND_THREADS }
+  //type               min max                        exec thread   permanent
+  { THRConfig::T_MAIN,  1, 1,                         true,         true },
+  { THRConfig::T_LDM,   1, MAX_NDBMT_LQH_THREADS,     true,         true },
+  { THRConfig::T_RECV,  1, MAX_NDBMT_RECEIVE_THREADS, true,         true },
+  { THRConfig::T_REP,   1, 1,                         true,         true },
+  { THRConfig::T_IO,    1, 1,                         false,        true },
+  { THRConfig::T_WD,    1, 1,                         false,        true },
+  { THRConfig::T_TC,    0, MAX_NDBMT_TC_THREADS,      true,         true },
+  { THRConfig::T_SEND,  0, MAX_NDBMT_SEND_THREADS,    true,         true },
+  { THRConfig::T_IXBLD, 0, 1,                         false,        false}
 };
 
-static const struct THRConfig::Param m_params[] =
+static const struct ParseParams m_params[] =
 {
-  { "count",    THRConfig::Param::S_UNSIGNED },
-  { "cpubind",  THRConfig::Param::S_BITMASK },
-  { "cpuset",   THRConfig::Param::S_BITMASK },
-  { "realtime", THRConfig::Param::S_UNSIGNED },
-  { "spintime", THRConfig::Param::S_UNSIGNED }
+  { "count",    ParseParams::S_UNSIGNED },
+  { "cpubind",  ParseParams::S_BITMASK },
+  { "cpubind_exclusive",  ParseParams::S_BITMASK },
+  { "cpuset",   ParseParams::S_BITMASK },
+  { "cpuset_exclusive",   ParseParams::S_BITMASK },
+  { "realtime", ParseParams::S_UNSIGNED },
+  { "spintime", ParseParams::S_UNSIGNED },
+  { "thread_prio", ParseParams::S_UNSIGNED }
 };
 
 #define IX_COUNT    0
-#define IX_CPUBOUND 1
-#define IX_CPUSET   2
-#define IX_REALTIME 3
-#define IX_SPINTIME 4
+#define IX_CPUBIND 1
+#define IX_CPUBIND_EXCLUSIVE 2
+#define IX_CPUSET   3
+#define IX_CPUSET_EXCLUSIVE   4
+#define IX_REALTIME 5
+#define IX_SPINTIME 6
+#define IX_THREAD_PRIO 7
 
 static
 unsigned
@@ -64,25 +93,14 @@ static
 const char *
 getEntryName(Uint32 type)
 {
-  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(m_entries); i++)
+  for (unsigned int i = 0; i < NDB_ARRAY_SIZE(m_parse_entries); i++)
   {
-    if (m_entries[i].m_type == type)
-      return m_entries[i].m_name;
+    if (m_parse_entries[i].m_type == type)
+    {
+      return m_parse_entries[i].m_name;
+    }
   }
   return 0;
-}
-
-static
-Uint32
-getEntryType(const char * type)
-{
-  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(m_entries); i++)
-  {
-    if (native_strcasecmp(type, m_entries[i].m_name) == 0)
-      return i;
-  }
-
-  return THRConfig::T_END;
 }
 
 THRConfig::THRConfig()
@@ -105,6 +123,13 @@ THRConfig::setLockExecuteThreadToCPU(const char * mask)
                      mask, res);
     return -1;
   }
+  else if (res == 0)
+  {
+    m_err_msg.assfmt("LockExecuteThreadToCPU: %s"
+                     " with empty bitmask not allowed",
+                     mask);
+    return -1;
+  }
   return 0;
 }
 
@@ -123,6 +148,7 @@ THRConfig::add(T_Type t, unsigned realtime, unsigned spintime)
   tmp.m_bind_type = T_Thread::B_UNBOUND;
   tmp.m_no = m_threads[t].size();
   tmp.m_realtime = realtime;
+  tmp.m_thread_prio = NO_THREAD_PRIO_USED;
   if (spintime > 500)
     spintime = 500;
   tmp.m_spintime = spintime;
@@ -157,10 +183,10 @@ computeThreadConfig(Uint32 MaxNoOfExecutionThreads,
     { 17, 8, 4, 1, 2 },
     { 18, 8, 4, 2, 2 },
     { 19, 8, 5, 2, 2 },
-    { 20, 8, 5, 2, 3 },
-    { 21, 8, 5, 3, 3 },
-    { 22, 8, 6, 3, 3 },
-    { 23, 8, 7, 3, 3 },
+    { 20, 10, 4, 2, 2 },
+    { 21, 10, 5, 2, 2 },
+    { 22, 10, 5, 2, 3 },
+    { 23, 10, 6, 2, 3 },
     { 24, 12, 5, 2, 3 },
     { 25, 12, 6, 2, 3 },
     { 26, 12, 6, 3, 3 },
@@ -177,14 +203,14 @@ computeThreadConfig(Uint32 MaxNoOfExecutionThreads,
     { 37, 16, 10, 4, 5 },
     { 38, 16, 11, 4, 5 },
     { 39, 16, 11, 5, 5 },
-    { 40, 16, 12, 5, 5 },
-    { 41, 16, 12, 5, 6 },
-    { 42, 16, 13, 5, 6 },
-    { 43, 16, 13, 6, 6 },
-    { 44, 16, 14, 6, 6 },
-    { 45, 16, 14, 6, 7 },
-    { 46, 16, 15, 6, 7 },
-    { 47, 16, 15, 7, 7 },
+    { 40, 20, 10, 4, 4 },
+    { 41, 20, 10, 4, 5 },
+    { 42, 20, 11, 4, 5 },
+    { 43, 20, 11, 5, 5 },
+    { 44, 20, 12, 5, 5 },
+    { 45, 20, 12, 5, 6 },
+    { 46, 20, 13, 5, 6 },
+    { 47, 20, 13, 6, 6 },
     { 48, 24, 12, 5, 5 },
     { 49, 24, 12, 5, 6 },
     { 50, 24, 13, 5, 6 },
@@ -311,6 +337,10 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
 int
 THRConfig::do_bindings(bool allow_too_few_cpus)
 {
+  /* Track all cpus that we lock threads to */
+  SparseBitmask allCpus; 
+  allCpus.bitOR(m_LockIoThreadsToCPU);
+
   /**
    * Use LockIoThreadsToCPU also to lock to Watchdog, SocketServer
    * and SocketClient for backwards compatibility reasons, 
@@ -318,54 +348,60 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
    */
   if (m_LockIoThreadsToCPU.count() == 1)
   {
-    m_threads[T_IO][0].m_bind_type = T_Thread::B_CPU_BOUND;
+    m_threads[T_IO][0].m_bind_type = T_Thread::B_CPU_BIND;
     m_threads[T_IO][0].m_bind_no = m_LockIoThreadsToCPU.getBitNo(0);
-    m_threads[T_WD][0].m_bind_type = T_Thread::B_CPU_BOUND;
+    m_threads[T_WD][0].m_bind_type = T_Thread::B_CPU_BIND;
     m_threads[T_WD][0].m_bind_no = m_LockIoThreadsToCPU.getBitNo(0);
   }
   else if (m_LockIoThreadsToCPU.count() > 1)
   {
-    unsigned no = createCpuSet(m_LockIoThreadsToCPU);
-    m_threads[T_IO][0].m_bind_type = T_Thread::B_CPUSET_BOUND;
+    unsigned no = createCpuSet(m_LockIoThreadsToCPU, true);
+    m_threads[T_IO][0].m_bind_type = T_Thread::B_CPUSET_BIND;
     m_threads[T_IO][0].m_bind_no = no;
-    m_threads[T_WD][0].m_bind_type = T_Thread::B_CPUSET_BOUND;
+    m_threads[T_WD][0].m_bind_type = T_Thread::B_CPUSET_BIND;
     m_threads[T_WD][0].m_bind_no = no;
   }
 
   /**
-   * Check that no cpu_sets overlap
+   * Check that no permanent cpu_sets overlap
    */
-  for (unsigned i = 0; i<m_cpu_sets.size(); i++)
+  for (unsigned i = 0; i<m_perm_cpu_sets.size(); i++)
   {
-    for (unsigned j = i + 1; j < m_cpu_sets.size(); j++)
+    const SparseBitmask& a = m_cpu_sets[m_perm_cpu_sets[i]];
+    allCpus.bitOR(a);
+
+    for (unsigned j = i + 1; j < m_perm_cpu_sets.size(); j++)
     {
-      if (m_cpu_sets[i].overlaps(m_cpu_sets[j]))
+      const SparseBitmask& b = m_cpu_sets[m_perm_cpu_sets[j]];
+      if (a.overlaps(b))
       {
         m_err_msg.assfmt("Overlapping cpuset's [ %s ] and [ %s ]",
-                         m_cpu_sets[i].str().c_str(),
-                         m_cpu_sets[j].str().c_str());
+                         a.str().c_str(),
+                         b.str().c_str());
         return -1;
       }
     }
   }
 
   /**
-   * Check that no cpu_sets overlap with cpu_bound
+   * Check that no permanent cpu_sets overlap with cpu_bound
    */
   for (unsigned i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
   {
     for (unsigned j = 0; j < m_threads[i].size(); j++)
     {
-      if (m_threads[i][j].m_bind_type == T_Thread::B_CPU_BOUND)
+      if (m_threads[i][j].m_bind_type == T_Thread::B_CPU_BIND)
       {
         unsigned cpu = m_threads[i][j].m_bind_no;
-        for (unsigned k = 0; k<m_cpu_sets.size(); k++)
+        allCpus.set(cpu);
+        for (unsigned k = 0; k < m_perm_cpu_sets.size(); k++)
         {
-          if (m_cpu_sets[k].get(cpu))
+          const SparseBitmask& cpuSet = m_cpu_sets[m_perm_cpu_sets[k]];
+          if (cpuSet.get(cpu))
           {
             m_err_msg.assfmt("Overlapping cpubind %u with cpuset [ %s ]",
                              cpu,
-                             m_cpu_sets[k].str().c_str());
+                             cpuSet.str().c_str());
 
             return -1;
           }
@@ -377,25 +413,26 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
   /**
    * Remove all already bound threads from LockExecuteThreadToCPU-mask
    */
-  for (unsigned i = 0; i<m_cpu_sets.size(); i++)
+  for (unsigned i = 0; i < m_perm_cpu_sets.size(); i++)
   {
-    for (unsigned j = 0; j < m_cpu_sets[i].count(); j++)
+    const SparseBitmask& cpuSet = m_cpu_sets[m_perm_cpu_sets[i]];
+    for (unsigned j = 0; j < cpuSet.count(); j++)
     {
-      m_LockExecuteThreadToCPU.clear(m_cpu_sets[i].getBitNo(j));
+      m_LockExecuteThreadToCPU.clear(cpuSet.getBitNo(j));
     }
   }
 
   unsigned cnt_unbound = 0;
   for (unsigned i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
   {
-    if (i == T_IO || i == T_WD)
+    if (!m_entries[i].m_is_exec_thd)
     {
-      /* IO and Watchdog threads aren't execute threads */
+      /* Only interested in execution threads here */
       continue;
     }
     for (unsigned j = 0; j < m_threads[i].size(); j++)
     {
-      if (m_threads[i][j].m_bind_type == T_Thread::B_CPU_BOUND)
+      if (m_threads[i][j].m_bind_type == T_Thread::B_CPU_BIND)
       {
         unsigned cpu = m_threads[i][j].m_bind_no;
         m_LockExecuteThreadToCPU.clear(cpu);
@@ -417,6 +454,7 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
     unsigned num_threads = cnt_unbound;
     bool isMtLqh = !m_classic;
 
+    allCpus.bitOR(m_LockExecuteThreadToCPU);
     if (cnt < num_threads)
     {
       m_info_msg.assfmt("WARNING: Too few CPU's specified with "
@@ -438,13 +476,13 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
       unsigned no = 0;
       for (unsigned i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
       {
-        if (i == T_IO || i == T_WD)
+        if (!m_entries[i].m_is_exec_thd)
           continue;
         for (unsigned j = 0; j < m_threads[i].size(); j++)
         {
           if (m_threads[i][j].m_bind_type == T_Thread::B_UNBOUND)
           {
-            m_threads[i][j].m_bind_type = T_Thread::B_CPU_BOUND;
+            m_threads[i][j].m_bind_type = T_Thread::B_CPU_BIND;
             m_threads[i][j].m_bind_no = mask.getBitNo(no);
             no++;
           }
@@ -457,7 +495,7 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
       m_info_msg.appfmt("Assigning all threads to CPU %u\n", cpu);
       for (unsigned i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
       {
-        if (i == T_IO || i == T_WD)
+        if (!m_entries[i].m_is_exec_thd)
           continue;
         bind_unbound(m_threads[i], cpu);
       }
@@ -477,7 +515,7 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
         {
           if (m_threads[T_LDM][i].m_bind_type == T_Thread::B_UNBOUND)
           {
-            m_threads[T_LDM][i].m_bind_type = T_Thread::B_CPU_BOUND;
+            m_threads[T_LDM][i].m_bind_type = T_Thread::B_CPU_BIND;
             m_threads[T_LDM][i].m_bind_no = cpu;
             mask.clear(cpu);
             cpu = mask.find(cpu + 1);
@@ -510,7 +548,7 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
         {
           if (m_threads[T_LDM][i].m_bind_type == T_Thread::B_UNBOUND)
           {
-            m_threads[T_LDM][i].m_bind_type = T_Thread::B_CPU_BOUND;
+            m_threads[T_LDM][i].m_bind_type = T_Thread::B_CPU_BIND;
             m_threads[T_LDM][i].m_bind_no = cpu;
             if ((cpu = mask.find(cpu + 1)) == mask.NotFound)
             {
@@ -529,6 +567,36 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
       cpu = mask.find(cpu + 1);
       bind_unbound(m_threads[T_MAIN], cpu);
       bind_unbound(m_threads[T_RECV], cpu);
+    }
+  }
+  if (m_threads[T_IXBLD].size() == 0)
+  {
+    /**
+     * No specific IDXBLD configuration from the user
+     * In this case : IDXBLD should be :
+     *  - Unbound if IO is unbound - use any core
+     *  - Bound to the full set of bound threads if
+     *    IO is bound - assumes nothing better for
+     *    threads to do.
+     */
+    const T_Thread* io_thread = &m_threads[T_IO][0];
+    add(T_IXBLD, io_thread->m_realtime, 0);
+
+    if (io_thread->m_bind_type != T_Thread::B_UNBOUND)
+    {
+      /* IO thread is bound, we should be bound to 
+       * all defined threads
+       */
+      BaseString allCpusString = allCpus.str();
+      m_info_msg.appfmt("IO threads explicitly bound, "
+                        "but IDX_BLD threads not.  "
+                        "Binding IDX_BLD to %s.\n",
+                        allCpusString.c_str());
+
+      unsigned no = createCpuSet(allCpus, false);
+      
+      m_threads[T_IXBLD][0].m_bind_type = T_Thread::B_CPUSET_BIND;
+      m_threads[T_IXBLD][0].m_bind_no = no;
     }
   }
 
@@ -554,7 +622,7 @@ THRConfig::bind_unbound(Vector<T_Thread>& vec, unsigned cpu)
   {
     if (vec[i].m_bind_type == T_Thread::B_UNBOUND)
     {
-      vec[i].m_bind_type = T_Thread::B_CPU_BOUND;
+      vec[i].m_bind_type = T_Thread::B_CPU_BIND;
       vec[i].m_bind_no = cpu;
     }
   }
@@ -579,15 +647,17 @@ THRConfig::do_validate()
   }
 
   /**
-   * LDM can be 1 2 4 6 8 12 16 24 32
+   * LDM can be 1 2 4 6 8 10 12 16 20 24 32
    */
   if (m_threads[T_LDM].size() != 1 &&
       m_threads[T_LDM].size() != 2 &&
       m_threads[T_LDM].size() != 4 &&
       m_threads[T_LDM].size() != 6 &&
       m_threads[T_LDM].size() != 8 &&
+      m_threads[T_LDM].size() != 10 &&
       m_threads[T_LDM].size() != 12 &&
       m_threads[T_LDM].size() != 16 &&
+      m_threads[T_LDM].size() != 20 &&
       m_threads[T_LDM].size() != 24 &&
       m_threads[T_LDM].size() != 32)
   {
@@ -632,7 +702,7 @@ THRConfig::getConfigString()
         end_sep = "";
         between_sep="";
         append_name_flag = false;
-        if (i != T_IO && i != T_WD)
+        if (m_entries[i].m_is_exec_thd)
         {
           append_name(name, sep, append_name_flag);
           sep=",";
@@ -644,14 +714,26 @@ THRConfig::getConfigString()
           m_cfg_string.append(start_sep);
           end_sep = "}";
           start_sep="";
-          if (m_threads[i][j].m_bind_type == T_Thread::B_CPU_BOUND)
+          if (m_threads[i][j].m_bind_type == T_Thread::B_CPU_BIND)
           {
             m_cfg_string.appfmt("cpubind=%u", m_threads[i][j].m_bind_no);
             between_sep=",";
           }
-          else if (m_threads[i][j].m_bind_type == T_Thread::B_CPUSET_BOUND)
+          else if (m_threads[i][j].m_bind_type ==
+                   T_Thread::B_CPU_BIND_EXCLUSIVE)
+          {
+            m_cfg_string.appfmt("cpubind_exclusive=%u", m_threads[i][j].m_bind_no);
+            between_sep=",";
+          }
+          else if (m_threads[i][j].m_bind_type == T_Thread::B_CPUSET_BIND)
           {
             m_cfg_string.appfmt("cpuset=%s",
+                                m_cpu_sets[m_threads[i][j].m_bind_no].str().c_str());
+            between_sep=",";
+          }
+          else if (m_threads[i][j].m_bind_type == T_Thread::B_CPUSET_EXCLUSIVE_BIND)
+          {
+            m_cfg_string.appfmt("cpuset_exclusive=%s",
                                 m_cpu_sets[m_threads[i][j].m_bind_no].str().c_str());
             between_sep=",";
           }
@@ -691,7 +773,7 @@ THRConfig::getThreadCount() const
   Uint32 cnt = 0;
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
   {
-    if (i != T_IO && i != T_WD)
+    if (m_entries[i].m_is_exec_thd)
     {
       cnt += m_threads[i].size();
     }
@@ -728,305 +810,162 @@ THRConfig::getInfoMessage() const
   return m_info_msg.c_str();
 }
 
-static
-char *
-skipblank(char * str)
-{
-  while (isspace(* str))
-    str++;
-  return str;
-}
-
-Uint32
-THRConfig::find_type(char *& str)
-{
-  str = skipblank(str);
-
-  char * name = str;
-  if (* name == 0)
-  {
-    m_err_msg.assfmt("empty thread specification");
-    return 0;
-  }
-  char * end = name;
-  while(isalpha(* end))
-    end++;
-
-  char save = * end;
-  * end = 0;
-  Uint32 t = getEntryType(name);
-  if (t == T_END)
-  {
-    m_err_msg.assfmt("unknown thread type '%s'", name);
-  }
-  * end = save;
-  str = end;
-  return t;
-}
-
-struct ParamValue
-{
-  ParamValue() { found = false;}
-  bool found;
-  const char * string_val;
-  unsigned unsigned_val;
-  SparseBitmask mask_val;
-};
-
-static
 int
-parseUnsigned(char *& str, unsigned * dst)
+THRConfig::handle_spec(char *str,
+                       unsigned realtime,
+                       unsigned spintime)
 {
-  str = skipblank(str);
-  char * endptr = 0;
-  errno = 0;
-  long val = strtol(str, &endptr, 0);
-  if (errno == ERANGE)
-    return -1;
-  if (val < 0 || Int64(val) > 0xFFFFFFFF)
-    return -1;
-  if (endptr == str)
-    return -1;
-  str = endptr;
-  *dst = (unsigned)val;
-  return 0;
-}
+  ParseThreadConfiguration parser(str,
+                                  &m_parse_entries[0],
+                                  NDB_ARRAY_SIZE(m_parse_entries),
+                                  &m_params[0],
+                                  NDB_ARRAY_SIZE(m_params),
+                                  m_err_msg);
 
-static
-int
-parseBitmask(char *& str, SparseBitmask * mask)
-{
-  str = skipblank(str);
-  size_t len = strspn(str, "0123456789-, ");
-  if (len == 0)
-    return -1;
-
-  while (isspace(str[len-1]))
-    len--;
-  if (str[len-1] == ',')
-    len--;
-  char save = str[len];
-  str[len] = 0;
-  int res = parse_mask(str, *mask);
-  str[len] = save;
-  str = str + len;
-  return res;
-}
-
-static
-int
-parseParams(char * str, ParamValue values[], BaseString& err)
-{
-  const char * const save = str;
-  while (* str)
+  do
   {
-    str = skipblank(str);
+    unsigned int loc_type;
+    int ret_code;
+    ParamValue values[NDB_ARRAY_SIZE(m_params)];
+    values[IX_COUNT].unsigned_val = 1;
+    values[IX_REALTIME].unsigned_val = realtime;
+    values[IX_THREAD_PRIO].unsigned_val = NO_THREAD_PRIO_USED;
+    values[IX_SPINTIME].unsigned_val = spintime;
 
-    unsigned idx = 0;
-    for (; idx < NDB_ARRAY_SIZE(m_params); idx++)
+    if (parser.read_params(values,
+                           NDB_ARRAY_SIZE(m_params),
+                           &loc_type,
+                           &ret_code,
+                           true) != 0)
     {
-      if (native_strncasecmp(str, m_params[idx].name, strlen(m_params[idx].name)) == 0)
+      /* Parser is done either successful or not */
+      return ret_code;
+    }
+    T_Type type = (T_Type)loc_type;
+
+    int cpu_values = 0;
+    if (values[IX_CPUBIND].found)
+      cpu_values++;
+    if (values[IX_CPUBIND_EXCLUSIVE].found)
+      cpu_values++;
+    if (values[IX_CPUSET].found)
+      cpu_values++;
+    if (values[IX_CPUSET_EXCLUSIVE].found)
+      cpu_values++;
+    if (cpu_values > 1)
+    {
+      m_err_msg.assfmt("Only one of cpubind, cpuset and cpuset_exclusive"
+                       " can be specified");
+      return -1;
+    }
+    if (values[IX_REALTIME].found &&
+        values[IX_THREAD_PRIO].found &&
+        values[IX_REALTIME].unsigned_val != 0)
+    {
+      m_err_msg.assfmt("Only one of realtime and thread_prio can be used to"
+                       " change thread priority in the OS scheduling");
+      return -1;
+    }
+    if (values[IX_THREAD_PRIO].found &&
+        values[IX_THREAD_PRIO].unsigned_val > MAX_THREAD_PRIO_NUMBER)
+    {
+      m_err_msg.assfmt("thread_prio must be between 0 and 10, where 10 is the"
+                       " highest priority");
+      return -1;
+    }
+    if (values[IX_SPINTIME].found && !m_entries[type].m_is_exec_thd)
+    {
+      m_err_msg.assfmt("Cannot set spintime on non-exec threads");
+      return -1;
+    }
+    if (values[IX_THREAD_PRIO].found && type == T_IXBLD)
+    {
+      m_err_msg.assfmt("Cannot set threadprio on idxbld threads");
+      return -1;
+    }
+    if (values[IX_REALTIME].found && type == T_IXBLD)
+    {
+      m_err_msg.assfmt("Cannot set realtime on idxbld threads");
+      return -1;
+    }
+ 
+    unsigned cnt = values[IX_COUNT].unsigned_val;
+    const int index = m_threads[type].size();
+    for (unsigned i = 0; i < cnt; i++)
+    {
+      add(type,
+          values[IX_REALTIME].unsigned_val,
+          values[IX_SPINTIME].unsigned_val);
+    }
+
+    assert(m_threads[type].size() == index + cnt);
+    if (values[IX_CPUSET].found)
+    {
+      const SparseBitmask & mask = values[IX_CPUSET].mask_val;
+      unsigned no = createCpuSet(mask, m_entries[type].m_is_permanent);
+      for (unsigned i = 0; i < cnt; i++)
       {
-        str += strlen(m_params[idx].name);
-        break;
+        m_threads[type][index+i].m_bind_type = T_Thread::B_CPUSET_BIND;
+        m_threads[type][index+i].m_bind_no = no;
       }
     }
-
-    if (idx == NDB_ARRAY_SIZE(m_params))
+    else if (values[IX_CPUSET_EXCLUSIVE].found)
     {
-      err.assfmt("Unknown param near: '%s'", str);
-      return -1;
+      const SparseBitmask & mask = values[IX_CPUSET_EXCLUSIVE].mask_val;
+      unsigned no = createCpuSet(mask, m_entries[type].m_is_permanent);
+      for (unsigned i = 0; i < cnt; i++)
+      {
+        m_threads[type][index+i].m_bind_type =
+          T_Thread::B_CPUSET_EXCLUSIVE_BIND;
+        m_threads[type][index+i].m_bind_no = no;
+      }
     }
-
-    if (values[idx].found == true)
+    else if (values[IX_CPUBIND].found)
     {
-      err.assfmt("Param '%s' found twice", m_params[idx].name);
-      return -1;
+      const SparseBitmask & mask = values[IX_CPUBIND].mask_val;
+      if (mask.count() < cnt)
+      {
+        m_err_msg.assfmt("%s: trying to bind %u threads to %u cpus [%s]",
+                         getEntryName(type),
+                         cnt,
+                         mask.count(),
+                         mask.str().c_str());
+        return -1;
+      }
+      for (unsigned i = 0; i < cnt; i++)
+      {
+        m_threads[type][index+i].m_bind_type = T_Thread::B_CPU_BIND;
+        m_threads[type][index+i].m_bind_no = mask.getBitNo(i % mask.count());
+      }
     }
-
-    str = skipblank(str);
-    if (* str != '=')
+    else if (values[IX_CPUBIND_EXCLUSIVE].found)
     {
-      err.assfmt("Missing '=' after %s in '%s'", m_params[idx].name, save);
-      return -1;
+      const SparseBitmask & mask = values[IX_CPUBIND_EXCLUSIVE].mask_val;
+      if (mask.count() < cnt)
+      {
+        m_err_msg.assfmt("%s: trying to bind %u threads to %u cpus [%s]",
+                         getEntryName(type),
+                         cnt,
+                         mask.count(),
+                         mask.str().c_str());
+        return -1;
+      }
+      for (unsigned i = 0; i < cnt; i++)
+      {
+        m_threads[type][index+i].m_bind_type = T_Thread::B_CPU_BIND_EXCLUSIVE;
+        m_threads[type][index+i].m_bind_no = mask.getBitNo(i % mask.count());
+      }
     }
-    str++;
-    str = skipblank(str);
-
-    int res = 0;
-    switch(m_params[idx].type){
-    case THRConfig::Param::S_UNSIGNED:
-      res = parseUnsigned(str, &values[idx].unsigned_val);
-      break;
-    case THRConfig::Param::S_BITMASK:
-      res = parseBitmask(str, &values[idx].mask_val);
-      break;
-    default:
-      err.assfmt("Internal error, unknown type for param: '%s'",
-                 m_params[idx].name);
-      return -1;
-    }
-    if (res == -1)
+    if (values[IX_THREAD_PRIO].found)
     {
-      err.assfmt("Unable to parse %s=%s", m_params[idx].name, str);
-      return -1;
+      for (unsigned i = 0; i < cnt; i++)
+      {
+        m_threads[type][index+i].m_thread_prio =
+          values[IX_THREAD_PRIO].unsigned_val;
+      }
     }
-    values[idx].found = true;
-    str = skipblank(str);
-
-    if (* str == 0)
-      break;
-
-    if (* str != ',')
-    {
-      err.assfmt("Unable to parse near '%s'", str);
-      return -1;
-    }
-    str++;
-  }
+  } while (1);
   return 0;
-}
-
-int
-THRConfig::find_spec(char *& str,
-                     T_Type type,
-                     unsigned realtime,
-                     unsigned spintime)
-{
-  str = skipblank(str);
-
-  switch(* str){
-  case ',':
-  case 0:
-    if (type != T_IO && type != T_WD)
-      add(type, realtime, spintime);
-    else
-      add(type, realtime, 0);
-    return 0;
-  }
-
-  if (* str != '=')
-  {
-err:
-    int len = (int)strlen(str);
-    m_err_msg.assfmt("Invalid format near: '%.*s'",
-                     (len > 10) ? 10 : len, str);
-    return -1;
-  }
-
-  str++; // skip over =
-  str = skipblank(str);
-
-  if (* str != '{')
-  {
-    goto err;
-  }
-
-  str++;
-  char * start = str;
-
-  /**
-   * Find end
-   */
-  while (* str && (* str) != '}')
-    str++;
-
-  if (* str != '}')
-  {
-    goto err;
-  }
-
-  char * end = str;
-  char save = * end;
-  * end = 0;
-
-  ParamValue values[NDB_ARRAY_SIZE(m_params)];
-  values[IX_COUNT].unsigned_val = 1;
-  values[IX_REALTIME].unsigned_val = realtime;
-  values[IX_SPINTIME].unsigned_val = spintime;
-  int res = parseParams(start, values, m_err_msg);
-  * end = save;
-
-  if (res != 0)
-  {
-    return -1;
-  }
-
-  if (values[IX_CPUBOUND].found && values[IX_CPUSET].found)
-  {
-    m_err_msg.assfmt("Both cpuset and cpubind specified!");
-    return -1;
-  }
-
-  if (values[IX_SPINTIME].found &&
-      (type == T_IO || type == T_WD))
-  {
-    m_err_msg.assfmt("Cannot set spintime on IO threads and watchdog threads");
-    return -1;
-  }
-      
-  unsigned cnt = values[IX_COUNT].unsigned_val;
-  const int index = m_threads[type].size();
-  for (unsigned i = 0; i < cnt; i++)
-  {
-    add(type,
-        values[IX_REALTIME].unsigned_val,
-        values[IX_SPINTIME].unsigned_val);
-  }
-
-  assert(m_threads[type].size() == index + cnt);
-  if (values[IX_CPUSET].found)
-  {
-    SparseBitmask & mask = values[IX_CPUSET].mask_val;
-    unsigned no = createCpuSet(mask);
-    for (unsigned i = 0; i < cnt; i++)
-    {
-      m_threads[type][index+i].m_bind_type = T_Thread::B_CPUSET_BOUND;
-      m_threads[type][index+i].m_bind_no = no;
-    }
-  }
-  else if (values[IX_CPUBOUND].found)
-  {
-    SparseBitmask & mask = values[IX_CPUBOUND].mask_val;
-    if (mask.count() < cnt)
-    {
-      m_err_msg.assfmt("%s: trying to bind %u threads to %u cpus [%s]",
-                       getEntryName(type),
-                       cnt,
-                       mask.count(),
-                       mask.str().c_str());
-      return -1;
-    }
-    for (unsigned i = 0; i < cnt; i++)
-    {
-      m_threads[type][index+i].m_bind_type = T_Thread::B_CPU_BOUND;
-      m_threads[type][index+i].m_bind_no = mask.getBitNo(i % mask.count());
-    }
-  }
-
-  str++; // skip over }
-  return 0;
-}
-
-int
-THRConfig::find_next(char *& str)
-{
-  str = skipblank(str);
-
-  if (* str == 0)
-  {
-    return 0;
-  }
-  else if (* str == ',')
-  {
-    str++;
-    return 1;
-  }
-
-  int len = (int)strlen(str);
-  m_err_msg.assfmt("Invalid format near: '%.*s'",
-                   (len > 10) ? 10 : len, str);
-  return -1;
 }
 
 int
@@ -1036,22 +975,10 @@ THRConfig::do_parse(const char * ThreadConfig,
 {
   BaseString str(ThreadConfig);
   char * ptr = (char*)str.c_str();
-  while (* ptr)
-  {
-    Uint32 type = find_type(ptr);
-    if (type == T_END)
-      return -1;
+  int ret = handle_spec(ptr, realtime, spintime);
 
-    if (find_spec(ptr, (T_Type)type, realtime, spintime) < 0)
-      return -1;
-
-    int ret = find_next(ptr);
-    if (ret < 0)
-      return ret;
-
-    if (ret == 0)
-      break;
-  }
+  if (ret != 0)
+    return ret;
 
   for (Uint32 i = 0; i < T_END; i++)
   {
@@ -1074,14 +1001,51 @@ THRConfig::do_parse(const char * ThreadConfig,
 }
 
 unsigned
-THRConfig::createCpuSet(const SparseBitmask& mask)
+THRConfig::createCpuSet(const SparseBitmask& mask, bool permanent)
 {
-  for (unsigned i = 0; i < m_cpu_sets.size(); i++)
+  /**
+   * Create a cpuset according to the passed mask, and return its number
+   * If one with that mask already exists, just return the existing
+   * number.
+   * A subset of all cpusets are on a 'permanent' list.  Permanent
+   * cpusets must be non-overlapping.
+   * Non permanent cpusets can overlap with permanent cpusets
+   */
+  unsigned i = 0;
+  for ( ; i < m_cpu_sets.size(); i++)
+  {
     if (m_cpu_sets[i].equal(mask))
-      return i;
+    {
+      break;
+    }
+  }
 
-  m_cpu_sets.push_back(mask);
-  return m_cpu_sets.size() - 1;
+  if (i == m_cpu_sets.size())
+  {
+    /* Not already present */
+    m_cpu_sets.push_back(mask);
+  }
+  if (permanent)
+  {
+    /**
+     * Add to permanent cpusets list, if not already there
+     * (existing cpuset could be !permanent)
+     */
+    unsigned j = 0;
+    for (; j< m_perm_cpu_sets.size(); j++)
+    {
+      if (m_perm_cpu_sets[j] == i)
+      {
+        break;
+      }
+    }
+    
+    if (j == m_perm_cpu_sets.size())
+    {
+      m_perm_cpu_sets.push_back(i);
+    }
+  }
+  return i;
 }
 
 template class Vector<SparseBitmask>;
@@ -1152,13 +1116,21 @@ THRConfigApplier::appendInfo(BaseString& str,
 {
   assert(thr != 0);
   str.appfmt("(%s) ", getEntryName(thr->m_type));
-  if (thr->m_bind_type == T_Thread::B_CPU_BOUND)
+  if (thr->m_bind_type == T_Thread::B_CPU_BIND)
   {
-    str.appfmt("cpu: %u ", thr->m_bind_no);
+    str.appfmt("cpubind: %u ", thr->m_bind_no);
   }
-  else if (thr->m_bind_type == T_Thread::B_CPUSET_BOUND)
+  else if (thr->m_bind_type == T_Thread::B_CPU_BIND_EXCLUSIVE)
+  {
+    str.appfmt("cpubind_exclusive: %u ", thr->m_bind_no);
+  }
+  else if (thr->m_bind_type == T_Thread::B_CPUSET_BIND)
   {
     str.appfmt("cpuset: [ %s ] ", m_cpu_sets[thr->m_bind_no].str().c_str());
+  }
+  else if (thr->m_bind_type == T_Thread::B_CPUSET_EXCLUSIVE_BIND)
+  {
+    str.appfmt("cpuset_exclusive: [ %s ] ", m_cpu_sets[thr->m_bind_no].str().c_str());
   }
 }
 
@@ -1179,6 +1151,16 @@ THRConfigApplier::do_bind(NdbThread* thread,
 }
 
 int
+THRConfigApplier::do_bind_idxbuild(NdbThread* thread)
+{
+  /* TODO : Assert IDX_BLD thread exists */
+  assert(m_threads[T_IXBLD].size() > 0);
+  const T_Thread* thr = &m_threads[T_IXBLD][0];
+  
+  return(do_bind(thread, thr));
+}
+
+int
 THRConfigApplier::do_bind_io(NdbThread* thread)
 {
   const T_Thread* thr = &m_threads[T_IO][0];
@@ -1190,6 +1172,79 @@ THRConfigApplier::do_bind_watchdog(NdbThread* thread)
 {
   const T_Thread* thr = &m_threads[T_WD][0];
   return do_bind(thread, thr);
+}
+
+int
+THRConfigApplier::do_unbind(NdbThread *thread)
+{
+  return Ndb_UnlockCPU(thread);
+}
+
+THRConfigRebinder::THRConfigRebinder(THRConfigApplier* tca,
+                                     THRConfig::T_Type type,
+                                     NdbThread* thread):
+  m_config_applier(tca),
+  m_state(0),
+  m_thread(thread)
+{
+  assert(!m_entries[type].m_is_permanent);
+
+  /* Only for T_IXBLD currently */
+  assert(type == THRConfig::T_IXBLD);
+
+  int rc = m_config_applier->do_unbind(m_thread);
+  if (rc < 0)
+  {
+    printf("THRConfigRebinder(%p) unbind failed: %u\n",
+           m_thread, rc);
+    return;
+  }
+  /* Unbound */
+  m_state = 1;
+
+  rc = m_config_applier->do_bind_idxbuild(m_thread);
+  if (rc < 0)
+  {
+    printf("THRConfigRebinder(%p) bind failed : %u\n",
+           m_thread, rc);
+    return;
+  }
+  /* Bound */
+  m_state = 2;
+
+  return;
+}
+
+THRConfigRebinder::~THRConfigRebinder()
+{
+  switch(m_state)
+  {
+  case 2:    /* Bound */
+  {
+    int rc = m_config_applier->do_unbind(m_thread);
+    if (rc < 0)
+    {
+      printf("~THRConfigRebinder(%p) unbind failed: %u\n",
+             m_thread, rc);
+      return;
+    }
+    /* Fall through */
+    break;
+  }
+  case 1:    /* Unbound */
+  {
+    int rc = m_config_applier->do_bind_io(m_thread);
+    if (rc < 0)
+    {
+      printf("~THRConfigRebinder(%p) bind failed : %u\n",
+             m_thread, rc);
+    }
+    break;
+  }
+  case 0:
+    break;
+  }
+  return;
 }
 
 int
@@ -1212,7 +1267,7 @@ THRConfigApplier::do_get_spintime(const unsigned short list[],
                                   unsigned cnt) const
 {
   const T_Thread* thr = find_thread(list, cnt);
-  return (bool)thr->m_spintime;
+  return thr->m_spintime;
 }
 
 bool
@@ -1244,33 +1299,112 @@ THRConfigApplier::do_get_spintime_send(unsigned instance) const
 }
 
 int
+THRConfigApplier::do_thread_prio_io(NdbThread *thread,
+                                    unsigned &thread_prio)
+{
+  const T_Thread* thr = &m_threads[T_IO][0];
+  return do_thread_prio(thread, thr, thread_prio);
+}
+
+int
+THRConfigApplier::do_thread_prio_watchdog(NdbThread *thread,
+                                          unsigned &thread_prio)
+{
+  const T_Thread* thr = &m_threads[T_WD][0];
+  return do_thread_prio(thread, thr, thread_prio);
+}
+
+int
+THRConfigApplier::do_thread_prio_send(NdbThread *thread,
+                                      unsigned instance,
+                                      unsigned &thread_prio)
+{
+  const T_Thread* thr = &m_threads[T_SEND][instance];
+  return do_thread_prio(thread, thr, thread_prio);
+}
+
+int
+THRConfigApplier::do_thread_prio(NdbThread* thread,
+                                 const unsigned short list[],
+                                 unsigned cnt,
+                                 unsigned &thread_prio)
+{
+  const T_Thread* thr = find_thread(list, cnt);
+  return do_thread_prio(thread, thr, thread_prio);
+}
+
+int
+THRConfigApplier::do_thread_prio(NdbThread* thread,
+                                 const T_Thread* thr,
+                                 unsigned &thread_prio)
+{
+  int res = 0;
+  thread_prio = NO_THREAD_PRIO_USED;
+  if (thr->m_thread_prio != NO_THREAD_PRIO_USED)
+  {
+    thread_prio = thr->m_thread_prio;
+    res = NdbThread_SetThreadPrio(thread, thr->m_thread_prio);
+    if (res == 0)
+    {
+      return 1;
+    }
+    thread_prio = NO_THREAD_PRIO_USED;
+    return -res;
+  }
+  return res;
+}
+
+int
 THRConfigApplier::do_bind(NdbThread* thread,
                           const T_Thread* thr)
 {
-  int res;
-  if (thr->m_bind_type == T_Thread::B_CPU_BOUND)
+  int res = -1;
+  if (thr->m_bind_type == T_Thread::B_CPU_BIND)
   {
     res = Ndb_LockCPU(thread, thr->m_bind_no);
   }
-  else if (thr->m_bind_type == T_Thread::B_CPUSET_BOUND)
+  else if (thr->m_bind_type == T_Thread::B_CPU_BIND_EXCLUSIVE)
   {
-    SparseBitmask & tmp = m_cpu_sets[thr->m_bind_no];
-    unsigned num_bits_set = tmp.count();
-    Uint32 *cpu_ids = (Uint32*)malloc(sizeof(Uint32) * num_bits_set);
-    Uint32 num_cpu_ids = 0;
+    /**
+     * Bind to a CPU set exclusively to ensure no other threads
+     * can use these CPUs.
+     */
+    Uint32 cpu_ids = thr->m_bind_no;
+    res = Ndb_LockCPUSet(thread,
+                         &cpu_ids,
+                         (Uint32)1,
+                         TRUE);
+  }
+  else if (thr->m_bind_type == T_Thread::B_CPUSET_BIND ||
+           thr->m_bind_type == T_Thread::B_CPUSET_EXCLUSIVE_BIND)
+  {
+    const SparseBitmask & tmp = m_cpu_sets[thr->m_bind_no];
+    Uint32 num_cpu_ids = tmp.count();
+    Uint32 *cpu_ids = (Uint32*)malloc(sizeof(Uint32) * num_cpu_ids);
     if (!cpu_ids)
     {
       return -errno;
     }
-    for (unsigned i = 0; i < num_bits_set; i++)
+    /* Build cpu_ids set from SparseBitmask */
+    for (unsigned i = 0; i < num_cpu_ids; i++)
     {
-      if (tmp.get(i))
-      {
-        cpu_ids[num_cpu_ids] = i;
-        num_cpu_ids++;
-      }
+      cpu_ids[i] = tmp.getBitNo(i);
     }
-    res = Ndb_LockCPUSet(thread, cpu_ids, num_cpu_ids);
+    bool is_exclusive;
+    if (thr->m_bind_type == T_Thread::B_CPUSET_EXCLUSIVE_BIND)
+    {
+      /* Bind to a CPU set exclusively */
+      is_exclusive = TRUE;
+    }
+    else
+    {
+      /* Bind to a CPU set non-exclusively */
+      is_exclusive = FALSE;
+    }
+    res = Ndb_LockCPUSet(thread,
+                         cpu_ids,
+                         num_cpu_ids, 
+                         is_exclusive);
     free((void*)cpu_ids);
   }
   else
@@ -1311,23 +1445,60 @@ TAPTEST(mt_thr_config)
         "ldm={cpuset=1-3,count=3,realtime=0,spintime=1 },ldm",
         "ldm={cpuset=1-3,count=3,realtime=1,spintime=1 },ldm",
         "io={cpuset=3,4,6}",
+        "ldm={cpuset_exclusive=1-3,count=3,realtime=1,spintime=1 },ldm",
+        "ldm={cpubind_exclusive=1-3,count=3,realtime=1,spintime=1 },ldm",
+        "ldm={cpubind=1-3,count=3,thread_prio=10,spintime=1 },ldm",
         "main,ldm={},ldm",
         "main,ldm={},ldm,tc",
         "main,ldm={},ldm,tc,tc",
+        /* Overlap idxbld + others */
+        "main, ldm={count=4, cpuset=1-4}, tc={count=4, cpuset=5,6,7},"
+        "io={cpubind=8}, idxbld={cpuset=1-8}",
+        /* Overlap via cpubind */ 
+        "main, ldm={count=1, cpubind=1}, idxbld={count=1, cpubind=1}",
+        /* Overlap via same cpuset, with temp defined first */
+        "main, idxbld={cpuset=1-4}, ldm={count=4, cpuset=1-4}",
+        /* Io specified, no idxbuild, spreads over all 1-8 */
+        "main, ldm={count=4, cpuset=1-4}, tc={count=4, cpuset=5,6,7},"
+        "io={cpubind=8}",
+        "", /* Empty string valid- also default value */
+        " \t",
         0
       };
 
     const char * fail [] =
       {
-        "ldm,ldm,ldm",
-        "ldm={cpubind= 1 , cpuset=2 },ldm",
-        "ldm={count=4,cpubind=1-3},ldm",
-        "main,main,ldm,ldm",
-        "main={ keso=88, count=23},ldm,ldm",
-        "main={ cpuset=1-3 }, ldm={cpuset=3-4}",
-        "main={ cpuset=1-3 }, ldm={cpubind=2}",
-        "io={ spintime = 0 }",
-        "tc,tc,tc={count=31}",
+        "ldm={cpubind=1,tc={cpubind=2}", /* Missing } */
+        "ldm,ldm,ldm", /* 3 LDM's not allowed */
+        "ldm,ldm,", /* Parse error, ending , */
+        "ldm={count=4,}", /* No parameter after comma*/
+        "ldm= {count = 3, }", /* No parameter after comma*/
+        "ldm , ldm , ", /* No parameter after comma*/
+        "ldb,ldm", /* ldb non-existent thread type */
+        "ldm={cpubind= 1 , cpuset=2 },ldm", /* Cannot cpubind and cpuset */
+        "ldm={count=4,cpubind=1-3},ldm", /* 4 LDMs need 4 CPUs */
+        "main,main,ldm,ldm", /* More than 1 main */
+        "main,rep,rep,ldm,ldm", /* More than 1 rep */
+        "main={ keso=88, count=23},ldm,ldm", /* keso not allowed type */
+        "idxbld={cpuset=1-4}, main={ cpuset=1-3 }, ldm={cpuset=3-4}",
+        "main={ cpuset=1-3 }, ldm={cpubind=2}", /* Overlapping cpu sets */
+        "main={ cpuset=1;3 }, ldm={cpubind=4}", /* ; not allowed separator */
+        "main={ cpuset=1,,3 }, ldm={cpubind=2}", /* empty between , */
+        "io={ spintime = 0 }", /* Spintime on IO thread is not settable */
+        "tc,tc,tc={count=31}", /* More than 32 TCs not allowed */
+        "tc,tc,tc={count=3", /* Missing } at end */
+        "tc,tc,tc={count=3,count=3}", /* count specified twice */
+        "tc,tc,tc={count=3,cpuset;3}", /* ; instead of = */
+        "tc,tc,tc={count=}", /* Missing number */
+        "tc,tc,tc={count=1234567890123456789012345}", /* Out of range */
+        "tc,tc,tc={count=12345678901}", /* Too large number */
+        "tc,tc,tc={count=-1}", /* Negative number */
+        "ldm={cpubind=1-3,count=3,realtime=1,spintime=1 , thread_prio = 10 },ldm",
+          /* Cannot mix realtime and thread_prio */
+        "ldm={cpubind=1-3,count=3,thread_prio=11,spintime=1 },ldm",
+        "ldm={cpubind=1-3,count=3,thread_prio=-1,spintime=1 },ldm",
+          /* thread_prio out of range */
+        "idxbld={ spintime=12 }",
         0
       };
 
@@ -1337,7 +1508,9 @@ TAPTEST(mt_thr_config)
       int res = tmp.do_parse(ok[i], 0, 0);
       printf("do_parse(%s) => %s - %s\n", ok[i],
              res == 0 ? "OK" : "FAIL",
-             res == 0 ? "" : tmp.getErrorMessage());
+             res == 0 ? 
+             tmp.getConfigString() : 
+             tmp.getErrorMessage());
       OK(res == 0);
       {
         BaseString out(tmp.getConfigString());
@@ -1355,6 +1528,73 @@ TAPTEST(mt_thr_config)
              res == 0 ? "OK" : "FAIL",
              res == 0 ? "" : tmp.getErrorMessage());
       OK(res != 0);
+    }
+  }
+  {
+    BaseString err_msg;
+    static const struct ParseEntries loc_parse_entries[] =
+    {
+      //name            type
+      { "string_type",   1}
+    };
+    static const struct ParseParams loc_params[] =
+    {
+      { "string",    ParseParams::S_STRING },
+      { "unsigned",    ParseParams::S_UNSIGNED }
+    };
+    const char * ok[] =
+    
+      {
+        "string_type={string=\"abc\"}",
+        0
+      };
+    const char * fail[] =
+      {
+        "string_type", /* Empty specification not allowed here */
+        "string_type={string=\"01234567890123456789012345678901234\"}",
+                       /* String too long */
+        0
+      };
+    for (Uint32 i = 0; ok[i]; i++)
+    {
+      fprintf(stderr, "read_params: %s\n", ok[i]);
+      ParamValue values[NDB_ARRAY_SIZE(loc_params)];
+      ParseThreadConfiguration parser(ok[i],
+                                      &loc_parse_entries[0],
+                                      NDB_ARRAY_SIZE(loc_parse_entries),
+                                      &loc_params[0],
+                                      NDB_ARRAY_SIZE(loc_params),
+                                      err_msg);
+      int ret_code;
+      unsigned int type;
+      int ret = parser.read_params(values,
+                                   NDB_ARRAY_SIZE(loc_params),
+                                   &type,
+                                   &ret_code,
+                                   false);
+      OK(ret_code == 0);
+      OK(type == 1);
+      OK(ret == 0);
+    }
+    for (Uint32 i = 0; fail[i]; i++)
+    {
+      fprintf(stderr, "read_params: %s\n", fail[i]);
+      ParamValue values[NDB_ARRAY_SIZE(loc_params)];
+      ParseThreadConfiguration parser(fail[i],
+                                      &loc_parse_entries[0],
+                                      NDB_ARRAY_SIZE(loc_parse_entries),
+                                      &loc_params[0],
+                                      NDB_ARRAY_SIZE(loc_params),
+                                      err_msg);
+      int ret_code;
+      unsigned int type;
+      int ret = parser.read_params(values,
+                                   NDB_ARRAY_SIZE(loc_params),
+                                   &type,
+                                   &ret_code,
+                                   false);
+      OK(ret == 1);
+      OK(ret_code == -1);
     }
   }
 
@@ -1388,7 +1628,12 @@ TAPTEST(mt_thr_config)
       "1-8",
       "ldm={count=4},io={cpubind=8}",
       "OK",
-      "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=5},recv={cpubind=6},rep={cpubind=7},io={cpubind=8}",
+      "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=5},recv={cpubind=6},rep={cpubind=7},io={cpubind=8},idxbld={cpuset=1,2,3,4,5,6,7,8}",
+
+      "1-8",
+      "ldm={count=4},io={cpubind=8},idxbld={cpuset=5,6,8}",
+      "OK",
+      "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=5},recv={cpubind=6},rep={cpubind=7},io={cpubind=8},idxbld={cpuset=5,6,8}",
 
       "1-8",
       "ldm={count=4,cpubind=1,4,5,6}",
@@ -1574,20 +1819,20 @@ define_num_threads_per_type(Uint32 max_no_exec_threads,
     case 4:
     case 6:
     case 8:
+    case 10:
     case 12:
     case 16:
+    case 20:
     case 24:
     case 32:
-      break;
-    case 10:
-      num_lqh_threads = 8;
       break;
     case 14:
       num_lqh_threads = 12;
       break;
-    case 18:
-    case 20:
     case 22:
+      num_lqh_threads = 20;
+      break;
+    case 18:
       num_lqh_threads = 16;
       break;
     case 26:

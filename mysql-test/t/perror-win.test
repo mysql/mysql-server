@@ -1,11 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Windows-specific tests
 --source include/windows.inc
---require r/have_perror.require
+
+# Check if the variable MY_PERROR is set
+--source include/have_perror.inc
 
 ########################################################
 ############# Skip if Non-English Windows
@@ -31,11 +28,6 @@ if ($non_eng_sys)
 
 ############# Skip if Non-English Windows
 ########################################################
-
-disable_query_log;
-eval select LENGTH("$MY_PERROR") > 0 as "have_perror";
-enable_query_log;
-
 
 --exec $MY_PERROR 150 2>&1
 --exec $MY_PERROR 23 2>&1

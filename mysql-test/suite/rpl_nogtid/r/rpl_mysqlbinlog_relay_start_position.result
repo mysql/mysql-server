@@ -1,0 +1,28 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+==== Initialize ====
+CREATE TABLE t1 (a INT);
+include/sync_slave_sql_with_master.inc
+[connection master]
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+==== Generate mysqlbinlog output ====
+==== Test that mysqlbinlog output looks correct ====
+include/assert_grep.inc [One BINLOG statement printed after the '#at' for the last FD event]
+==== Test that mysqlbinlog output is processed correctly ====
+include/stop_slave.inc
+[connection master]
+include/rpl_set_gtid_mode.inc [ON_PERMISSIVE on servers 1,2]
+include/assert.inc [t1 should has two rows]
+include/assert.inc [GTID_EXECUTED should not change]
+==== Clean up ====
+[connection slave]
+include/start_slave.inc
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+# restore gtid_mode
+include/rpl_end.inc

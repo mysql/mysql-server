@@ -1,4 +1,3 @@
-
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
@@ -23,7 +22,7 @@ insert into t1 values (3,9,"D","c");
 # Test of MySQL simple request
 select grp,group_concat(c) from t1 group by grp;
 --replace_column 10 9
-explain extended select grp,group_concat(c) from t1 group by grp;
+explain select grp,group_concat(c) from t1 group by grp;
 select grp,group_concat(a,c) from t1 group by grp;
 select grp,group_concat("(",a,":",c,")") from t1 group by grp;
 
@@ -42,12 +41,12 @@ select grp,group_concat(c order by 1) from t1 group by grp;
 select grp,group_concat(distinct c order by c) from t1 group by grp;
 select grp,group_concat(distinct c order by c desc) from t1 group by grp;
 --replace_column 10 9
-explain extended select grp,group_concat(distinct c order by c desc) from t1 group by grp;
+explain select grp,group_concat(distinct c order by c desc) from t1 group by grp;
 select grp,group_concat(c order by c separator ",") from t1 group by grp;
 select grp,group_concat(c order by c desc separator ",") from t1 group by grp;
 select grp,group_concat(distinct c order by c separator ",") from t1 group by grp;
 --replace_column 10 9
-explain extended select grp,group_concat(distinct c order by c separator ",") from t1 group by grp;
+explain select grp,group_concat(distinct c order by c separator ",") from t1 group by grp;
 select grp,group_concat(distinct c order by c desc separator ",") from t1 group by grp;
 
 # Test of SQL_LIST objects
@@ -306,7 +305,7 @@ drop table t2;
 # Cannot convert the charset of a GROUP_CONCAT result
 #
 CREATE TABLE t1 (a CHAR(10) CHARACTER SET cp850);
-INSERT INTO t1 VALUES ('À');
+INSERT INTO t1 VALUES ('Ã€');
 SELECT a FROM t1;
 SELECT GROUP_CONCAT(a) FROM t1;
 DROP TABLE t1;
@@ -323,7 +322,7 @@ DROP TABLE t1;
 #
 create table t2 (a int, b int);
 insert into t2 values (1,1), (2,2);
-select  b x, (select group_concat(x) from t2) from  t2;
+select  b x, (select group_concat(b) from t2) from  t2;
 drop table t2;
 
 #
@@ -583,8 +582,8 @@ DROP TABLE t1, t2, t3;
 #
 set names latin1;
 create table t1 (id int, name varchar(20)) DEFAULT CHARSET=utf8;
-insert into t1 (id, name) values (1, "óra");
-insert into t1 (id, name) values (2, "óra");
+insert into t1 (id, name) values (1, "Ã³ra");
+insert into t1 (id, name) values (2, "Ã³ra");
 select b.id, group_concat(b.name) from t1 a, t1 b group by b.id;
 drop table t1;
 
@@ -720,13 +719,13 @@ SELECT 1 FROM t1 WHERE t1.a NOT IN
 DROP TABLE t1, t2;
 
 #
-# Bug #49487: crash with explain extended and group_concat in a derived table
+# Bug #49487: crash with explain and group_concat in a derived table
 #
 
 CREATE TABLE t1 (f1 INT);
 INSERT INTO t1 VALUES (),();
 
-EXPLAIN EXTENDED SELECT 1 FROM
+EXPLAIN SELECT 1 FROM
  (SELECT DISTINCT GROUP_CONCAT(td.f1) FROM t1,t1 AS td GROUP BY td.f1) AS d,t1;
 
 SELECT 1 FROM
@@ -737,11 +736,11 @@ DROP TABLE t1;
 --echo End of 5.0 tests
 
 --echo #
---echo # Bug #52397: another crash with explain extended and group_concat
+--echo # Bug #52397: another crash with explain and group_concat
 --echo #
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (0), (0);
-EXPLAIN EXTENDED SELECT 1 FROM
+EXPLAIN SELECT 1 FROM
   (SELECT GROUP_CONCAT(t1.a ORDER BY t1.a ASC) FROM 
     t1 t2, t1 GROUP BY t1.a) AS d;
 DROP TABLE t1;
@@ -777,12 +776,12 @@ SELECT POLYGON((SELECT 1 FROM (SELECT 1 IN (GROUP_CONCAT(t1.f1)) FROM t1, t1 t G
 DROP TABLE t1;
 
 --echo #
---echo # Bug#58396 group_concat and explain extended are still crashy
+--echo # Bug#58396 group_concat and explain are still crashy
 --echo #
 
 CREATE TABLE t1(a INT);
 --error ER_UNKNOWN_ERROR
-EXPLAIN EXTENDED SELECT UPDATEXML('1', a, '1')
+EXPLAIN SELECT UPDATEXML('1', a, '1')
 FROM t1 ORDER BY (SELECT GROUP_CONCAT(1) FROM t1);
 SHOW WARNINGS;
 DROP TABLE t1;
@@ -870,3 +869,55 @@ DROP TABLE t1;
 SET group_concat_max_len= DEFAULT;
 
 --echo End of 5.6 tests
+
+--echo #
+--echo # Bug #25331425: DISTINCT CLAUSE DOES NOT WORK IN GROUP_CONCAT
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(1000), b INT);
+INSERT INTO t1 VALUES ('a', 1), ('b', 2), ('a', 3), ('b', 5), ('c', 5);
+
+let query1= SELECT GROUP_CONCAT(DISTINCT a) FROM t1;
+let query2= SELECT GROUP_CONCAT(DISTINCT a), b FROM t1 GROUP BY b;
+
+eval $query1;
+eval $query2;
+
+SET @@tmp_table_size=1024;
+eval $query1;
+eval $query2;
+
+SET @@tmp_table_size=default;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #25050090: LIMITATION @@GROUP_CONCAT_MAX_LEN IS NOT RESPECTED
+--echo #
+
+SET group_concat_max_len= 50;
+CREATE TABLE t1 (c VARCHAR(40) NULL DEFAULT NULL) CHARACTER SET utf8mb4;
+
+CREATE TABLE t2 AS SELECT GROUP_CONCAT(t.c) as c FROM t1 t;
+SHOW CREATE TABLE t2;
+
+CREATE TABLE t3 AS SELECT GROUP_CONCAT(t.c) as c
+FROM t1 t
+UNION
+SELECT '' as c;
+SHOW CREATE TABLE t3;
+
+
+INSERT INTO t1 VALUES ('abcdefghijk'), ('pqrstuvwxyz'), ('124567890'), ('010011000111');
+INSERT INTO t1 VALUES ('abcdefghijk'), ('pqrstuvwxyz'), ('124567890'), ('010011000111');
+
+SELECT GROUP_CONCAT(t.c) as c
+FROM t1 t;
+
+SELECT GROUP_CONCAT(t.c) as c
+FROM t1 t
+UNION
+SELECT '' as c;
+
+
+SET group_concat_max_len= DEFAULT;
+DROP TABLE t1, t2, t3;

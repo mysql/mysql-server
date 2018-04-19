@@ -8,11 +8,7 @@
 #                      new tests. Reason: All these might be not available.
 #                    - Minor cleanup
 #
---source include/have_partition.inc
 --source include/no_valgrind_without_big.inc
-
-# This test contains various subtests for MyISAM
---source include/have_myisam.inc
 
 --disable_warnings
 drop table if exists t1, t2;
@@ -92,13 +88,13 @@ AND A.c = 343;
 DROP TABLE t1;
 
 --echo #
---echo # Bug#59503: explain extended crash in get_mm_leaf
+--echo # Bug#59503: explain crash in get_mm_leaf
 --echo #
 CREATE TABLE t1 (a VARCHAR(51) CHARACTER SET latin1)
 PARTITION BY KEY (a) PARTITIONS 1;
 INSERT INTO t1 VALUES ('a'),('b'),('c');
 analyze table t1;
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a > 1;
+EXPLAIN SELECT 1 FROM t1 WHERE a > 1;
 DROP TABLE t1;
 
 --echo #
@@ -139,16 +135,16 @@ INSERT INTO t2 VALUES (1),(2);
 UPDATE t1, t2 SET t1.year = '1955' WHERE t1.name = 'FooBar';
 
 DROP TABLE t1, t2;
-
-
+ 
 --echo #
 --echo # Bug#55458: Partitioned MyISAM table gets crashed by multi-table update 
---echo #
+--echo # After WL#8971, this test case is rewritten to use InnoDB in order to
+--echo # keep some test coverage for multi update and partitioning.
 CREATE TABLE t1 (
   `id` int NOT NULL,
   `user_num` int DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM CHARSET=latin1;
+) ENGINE=InnoDB CHARSET=latin1;
 INSERT INTO t1 VALUES (1,8601);
 INSERT INTO t1 VALUES (2,8601);
 INSERT INTO t1 VALUES (3,8601);
@@ -158,7 +154,7 @@ CREATE TABLE t2 (
   `user_num` int DEFAULT NULL,
   `name` varchar(64) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM CHARSET=latin1
+) ENGINE=InnoDB CHARSET=latin1
 PARTITION BY HASH (id)
 PARTITIONS 2;
 INSERT INTO t2 VALUES (1,8601,'John');
@@ -242,16 +238,16 @@ INSERT INTO t1 VALUES ('2009-09-21 17:31:42', 'pmax');
 SELECT * FROM t1;
 SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
 analyze table t1;
-EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
-EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
+EXPLAIN SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
+EXPLAIN SELECT * FROM t1 where a = '2007-07-30 17:35:48';
 ALTER TABLE t1 REORGANIZE PARTITION pmax INTO (
  PARTITION p3 VALUES LESS THAN (1247688000),
  PARTITION pmax VALUES LESS THAN MAXVALUE);
 SELECT * FROM t1;
 SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
 analyze table t1;
-EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
-EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
+EXPLAIN SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
+EXPLAIN SELECT * FROM t1 where a = '2007-07-30 17:35:48';
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
@@ -325,8 +321,8 @@ ENGINE=NonExistentEngine;
 CREATE TABLE t1 (a INT)
 ENGINE=NonExistentEngine
 PARTITION BY HASH (a);
-CREATE TABLE t1 (a INT)
-ENGINE=Memory;
+
+CREATE TABLE t1 (a INT);
 --error ER_UNKNOWN_STORAGE_ENGINE
 ALTER TABLE t1 ENGINE=NonExistentEngine;
 # OK to only specify one partitions engine, since it is already assigned at
@@ -334,7 +330,7 @@ ALTER TABLE t1 ENGINE=NonExistentEngine;
 --error ER_UNKNOWN_STORAGE_ENGINE
 ALTER TABLE t1
 PARTITION BY HASH (a)
-(PARTITION p0 ENGINE=Memory,
+(PARTITION p0 ENGINE=InnoDB,
  PARTITION p1 ENGINE=NonExistentEngine);
 --error ER_UNKNOWN_STORAGE_ENGINE
 ALTER TABLE t1 ENGINE=NonExistentEngine;
@@ -349,14 +345,13 @@ CREATE TABLE t1 (a INT)
 ENGINE=NonExistentEngine
 PARTITION BY HASH (a);
 DROP TABLE t1;
-CREATE TABLE t1 (a INT)
-ENGINE=Memory;
+CREATE TABLE t1 (a INT);
 ALTER TABLE t1 ENGINE=NonExistentEngine;
 # OK to only specify one partitions engine, since it is already assigned at
 # table level (after create, it is specified on all levels and all parts).
 ALTER TABLE t1
 PARTITION BY HASH (a)
-(PARTITION p0 ENGINE=Memory,
+(PARTITION p0 ENGINE=InnoDB,
  PARTITION p1 ENGINE=NonExistentEngine);
 ALTER TABLE t1 ENGINE=NonExistentEngine;
 SHOW CREATE TABLE t1;
@@ -452,9 +447,6 @@ SELECT SUM(c) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
 ALTER TABLE t1 DROP INDEX b;
 SELECT COUNT(*) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
 SELECT SUM(c) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
-ALTER TABLE t1 ENGINE = Memory;
-SELECT COUNT(*) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
-SELECT SUM(c) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
 ALTER TABLE t1 ADD INDEX b USING HASH (b);
 SELECT COUNT(*) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
 SELECT SUM(c) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
@@ -476,13 +468,13 @@ INSERT INTO `t1` VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),
 INSERT INTO `t2` VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 
 analyze table t1;
-EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
 
 FLUSH STATUS;
 SELECT c1 FROM t1 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
 SHOW STATUS LIKE 'Handler_read_%';
 
-EXPLAIN PARTITIONS SELECT c1 FROM t2 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
+EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
 
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
@@ -508,25 +500,25 @@ INSERT INTO `t1` VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),
 INSERT INTO `t2` VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 
 analyze table t1;
-EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 5);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 5);
 
 FLUSH STATUS;
 SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 5);
 SHOW STATUS LIKE 'Handler_read_%';
 
-EXPLAIN PARTITIONS SELECT c1 FROM t2 WHERE (c1 > 2 AND c1 < 5);
+EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 2 AND c1 < 5);
 
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 2 AND c1 < 5);
 SHOW STATUS LIKE 'Handler_read_%';
 
-EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 12 AND c1 < 15);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 12 AND c1 < 15);
 
 FLUSH STATUS;
 SELECT c1 FROM t1 WHERE (c1 > 12 AND c1 < 15);
 SHOW STATUS LIKE 'Handler_read_%';
 
-EXPLAIN PARTITIONS SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
+EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
 
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
@@ -647,14 +639,6 @@ select * from t1 where (a + 1) > 10;
 drop table t1;
 
 #
-# Added test case
-#
-create table t1 (a int)
-partition by key(a)
-(partition p0 engine = MEMORY);
-drop table t1;
-
-#
 # BUG 19067 ALTER TABLE .. ADD PARTITION for subpartitioned table crashes
 #
 create table t1 (a int)
@@ -737,14 +721,17 @@ c int not null,
 primary key(a,b))
 partition by key (a)
 partitions 3
-(partition x1 engine myisam,
- partition x2 engine myisam,
- partition x3 engine myisam);
+(partition x1 engine innodb,
+ partition x2 engine innodb,
+ partition x3 engine innodb);
 
 drop table t1;
 #
 # Partition by key specifying tablespace
 #
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
+CREATE TABLESPACE ts3 ADD DATAFILE 'ts3.ibd';
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -758,6 +745,8 @@ partitions 3
 
 CREATE TABLE t2 LIKE t1;
 
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
 drop table t2;
 drop table t1;
 
@@ -775,6 +764,7 @@ partitions 3
  partition x2 values in (3, 11, 5, 7) tablespace ts2,
  partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
 
+SHOW CREATE TABLE t1;
 drop table t1;
 #
 # Partition by key list, list function
@@ -790,6 +780,7 @@ partitions 3
  partition x2 values in (3, 11, 5, 7) tablespace ts2,
  partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
 
+SHOW CREATE TABLE t1;
 drop table t1;
 
 #
@@ -805,6 +796,7 @@ partition by list (b*a)
  partition x2 values in (3, 11, 5, 7) tablespace ts2,
  partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
 
+SHOW CREATE TABLE t1;
 drop table t1;
 
 #
@@ -882,7 +874,7 @@ drop table t1;
 # Bug#22351 - handler::index_next_same() call to key_cmp_if_same()
 #             uses the wrong buffer
 #
-CREATE TABLE t1 (c1 INT, c2 INT, PRIMARY KEY USING BTREE (c1,c2)) ENGINE=MEMORY
+CREATE TABLE t1 (c1 INT, c2 INT, PRIMARY KEY USING BTREE (c1,c2))
   PARTITION BY KEY(c2,c1) PARTITIONS 4;
 INSERT INTO t1 VALUES (0,0),(1,1),(2,2),(3,3),(4,4),(5,5),(6,6);
 SELECT * FROM t1 WHERE c1 = 4;
@@ -894,7 +886,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a int)
 PARTITION BY LIST (a)
 PARTITIONS 1
-(PARTITION x1 VALUES IN (1) ENGINE=MEMORY);
+(PARTITION x1 VALUES IN (1) ENGINE=InnoDB);
 
 show create table t1;
 drop table t1;
@@ -1031,14 +1023,17 @@ drop table t1;
 
 #
 # Bug #16775: Wrong engine type stored for subpartition
+# After WL#8971, this test case is rewritten to use InnoDB
+# instead of InnoDB.
 #
-set session default_storage_engine= 'memory';
-create table t1 (f_int1 int(11) default null) engine = memory
+set @old_default_engine= @@session.default_storage_engine;
+set session default_storage_engine= 'innodb';
+create table t1 (f_int1 int(11) default null) engine = innodb
   partition by range (f_int1) subpartition by hash (f_int1)
   (partition part1 values less than (1000)
-   (subpartition subpart11 engine = memory));
+   (subpartition subpart11 engine = innodb));
 drop table t1;
-set session default_storage_engine='myisam';
+set session default_storage_engine= @old_default_engine;
 
 #
 # Bug #16782: Crash using REPLACE on table with primary key
@@ -1065,16 +1060,13 @@ drop table t1;
 create table t1 (a int)
 partition by key(a)
 partitions 2
-(partition p0 engine=myisam, partition p1 engine=myisam);
-show create table t1;
+(partition p0 engine=innodb, partition p1 engine=innodb);
+show create table t1;	
 
 alter table t1;
 show create table t1;
 
-alter table t1 engine=myisam;
-show create table t1;
-
-alter table t1 engine=heap;
+alter table t1 engine=innodb;
 show create table t1;
 
 alter table t1 remove partitioning;
@@ -1083,32 +1075,26 @@ show create table t1;
 drop table t1;
 
 create table t1 (a int)
-engine=myisam
+engine=innodb
 partition by key(a)
 partitions 2
-(partition p0 engine=myisam, partition p1 engine=myisam);
+(partition p0 engine=innodb, partition p1 engine=innodb);
 show create table t1;
 
 alter table t1 add column b int remove partitioning;
 show create table t1;
 
 alter table t1
-engine=myisam
+engine=innodb
 partition by key(a)
-(partition p0 engine=myisam, partition p1);
-show create table t1;
-
-alter table t1
-engine=heap
-partition by key(a)
-(partition p0, partition p1 engine=heap);
+(partition p0 engine=innodb, partition p1);
 show create table t1;
 
 alter table t1 engine=myisam, add column c int remove partitioning;
 show create table t1;
 
 alter table t1
-engine=heap
+engine=innodb
 partition by key (a)
 (partition p0, partition p1);
 show create table t1;
@@ -1118,34 +1104,17 @@ partition by key (a)
 (partition p0, partition p1);
 show create table t1;
 
-alter table t1
-engine=heap
-partition by key (a)
-(partition p0, partition p1);
-show create table t1;
-
-# Since alter, it already have ENGINE=HEAP from before on table level
+# Since alter, it already have ENGINE=INNODB from before on table level
 # -> OK
 alter table t1
 partition by key(a)
-(partition p0, partition p1 engine=heap);
+(partition p0, partition p1 engine=innodb);
 
-# Since alter, it already have ENGINE=HEAP from before on table level
+# Since alter, it already have ENGINE=INNODB from before on table level
 # -> OK
 alter table t1
 partition by key(a)
-(partition p0 engine=heap, partition p1);
-
---error ER_MIX_HANDLER_ERROR
-alter table t1
-engine=heap
-partition by key (a)
-(partition p0 engine=heap, partition p1 engine=myisam);
-
---error ER_MIX_HANDLER_ERROR
-alter table t1
-partition by key (a)
-(partition p0 engine=heap, partition p1 engine=myisam);
+(partition p0 engine=innodb, partition p1);
 
 drop table t1;
 
@@ -1241,7 +1210,11 @@ insert into t1 values (12, 1, 1);
 
 select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
+SHOW CREATE TABLE t1;
 drop table t1;
+DROP TABLESPACE ts1 ENGINE = InnoDB;
+DROP TABLESPACE ts2 ENGINE = InnoDB;
+DROP TABLESPACE ts3 ENGINE = InnoDB;
 
 # NULL for LIST partition
 --error ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR
@@ -1523,7 +1496,7 @@ create table t1 (f1 integer) partition by range(f1)
 insert into t1 set f1 = null;
 select * from t1 where f1 is null;
 analyze table t1;
-explain partitions select * from t1 where f1 is null;
+explain select * from t1 where f1 is null;
 drop table t1;
 
 create table t1 (f1 integer) partition by list(f1)
@@ -1563,9 +1536,9 @@ create table t1 (f1 integer) partition by list(f1)
 insert into t1 values (1),(2),(3),(4),(null);
 select * from t1 where f1 < 3;
 analyze table t1;
-explain partitions select * from t1 where f1 < 3;
+explain select * from t1 where f1 < 3;
 select * from t1 where f1 is null;
-explain partitions select * from t1 where f1 is null;
+explain select * from t1 where f1 is null;
 drop table t1;
 
 create table t1 (f1 int) partition by list(f1 div 2)
@@ -1580,9 +1553,9 @@ create table t1 (f1 int) partition by list(f1 div 2)
 insert into t1 values (2),(4),(6),(8),(null);
 select * from t1 where f1 < 3;
 analyze table t1;
-explain partitions select * from t1 where f1 < 3;
+explain select * from t1 where f1 < 3;
 select * from t1 where f1 is null;
-explain partitions select * from t1 where f1 is null;
+explain select * from t1 where f1 is null;
 drop table t1;
 
 create table t1 (a int) partition by LIST(a) (
@@ -1594,20 +1567,21 @@ create table t1 (a int) partition by LIST(a) (
 insert into t1 values (NULL),(0),(1),(2);
 select * from t1 where a is null or a < 2;
 analyze table t1;
-explain partitions select * from t1 where a is null or a < 2;
+explain select * from t1 where a is null or a < 2;
 select * from t1 where a is null or a < 0 or a > 1;
-explain partitions select * from t1 where a is null or a < 0 or a > 1;
+explain select * from t1 where a is null or a < 0 or a > 1;
 drop table t1;
 
 #
 #Bug# 17631 SHOW TABLE STATUS reports wrong engine
 #
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, name VARCHAR(20)) 
-ENGINE=MyISAM DEFAULT CHARSET=latin1
+DEFAULT CHARSET=latin1
 PARTITION BY RANGE(id)
-(PARTITION p0  VALUES LESS THAN (10) ENGINE = MyISAM,
-PARTITION p1 VALUES LESS THAN (20) ENGINE = MyISAM,
-PARTITION p2 VALUES LESS THAN (30) ENGINE = MyISAM);
+(PARTITION p0  VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30));
+analyze table t1;
 --replace_column 6 0 7 0 8 0 9 0 12 NULL 13 NULL 14 NULL
 SHOW TABLE STATUS;
 DROP TABLE t1;
@@ -1678,6 +1652,7 @@ partition by list (s1)
 insert into t1 values (null);
 insert into t1 values (null);
 insert into t1 values (null);
+analyze table t1;
 select auto_increment from information_schema.tables where table_name='t1';
 select * from t1;
 drop table t1;
@@ -1685,22 +1660,10 @@ drop table t1;
 #
 # BUG 19140 Partitions: Create index for partitioned table crashes
 #
-create table t1 (a int) engine=memory
+create table t1 (a int)
 partition by key(a);
 insert into t1 values (1);
 create index inx1 on t1(a);
-drop table t1;
-
-#
-# Bug 19695 Partitions: SHOW CREATE TABLE shows table options even when it
-#                       shouldn't
-#
-create table t1 (a int)
-PARTITION BY KEY (a)
-(PARTITION p0);
-set session sql_mode='no_table_options';
-show create table t1;
-set session sql_mode='';
 drop table t1;
 
 #
@@ -1726,12 +1689,15 @@ drop table t1;
 #
 CREATE TABLE t1 (a int) PARTITION BY KEY(a);
 INSERT into t1 values (1), (2);
+analyze table t1;
 --replace_column 9 0 12 NULL 13 NULL 14 NULL
 SHOW TABLE STATUS;
 DELETE from t1 where a = 1;
+analyze table t1;
 --replace_column 9 0 12 NULL 13 NULL 14 NULL
 SHOW TABLE STATUS;
 ALTER TABLE t1 OPTIMIZE PARTITION p0;
+analyze table t1;
 --replace_column 12 NULL 13 NULL 14 NULL
 SHOW TABLE STATUS;
 DROP TABLE t1;
@@ -1749,7 +1715,6 @@ DROP TABLE t1;
 #                       table on partitioned table
 # (added check/analyze for gcov of Bug#20129)
 create table t1 (a int)
-engine=MEMORY
 partition by key (a);
 
 REPAIR TABLE t1;
@@ -1833,12 +1798,14 @@ drop table t1;
 # Bug #24186 (nested query across partitions returns fewer records)
 #
 
+set session sql_mode='';
+
 CREATE TABLE t2 (
   taken datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   id int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (id,taken),
   KEY taken (taken)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 
 INSERT INTO t2 VALUES 
 ('2006-09-27 21:50:01',16421),
@@ -1855,7 +1822,7 @@ INSERT INTO t2 VALUES
 CREATE TABLE t1 (
   id int(8) NOT NULL,
   PRIMARY KEY (id)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 
 INSERT INTO t1 VALUES 
 (16421),
@@ -1867,7 +1834,7 @@ CREATE TABLE t4 (
   id int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (id,taken),
   KEY taken (taken)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 
+) DEFAULT CHARSET=latin1 
 PARTITION BY RANGE (to_days(taken)) 
 (
 PARTITION p01 VALUES LESS THAN (732920) , 
@@ -1894,7 +1861,7 @@ CREATE TABLE t1 (
   id int(11) NOT NULL DEFAULT '0',
   status varchar(20) NOT NULL DEFAULT '',
   PRIMARY KEY (id,taken)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) DEFAULT CHARSET=latin1
 PARTITION BY RANGE (to_days(taken))
 (
 PARTITION p15 VALUES LESS THAN (732950) ,
@@ -1912,7 +1879,7 @@ CREATE TABLE t2 (
   priority tinyint(4) NOT NULL DEFAULT '0',
   status varchar(20) DEFAULT NULL,
   alien tinyint(4) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 
 INSERT INTO t2 VALUES
 (22589,1,1,'Need Feedback',0);
@@ -1941,9 +1908,10 @@ drop table t1;
 #
 # Bug #28806: Running SHOW TABLE STATUS during high INSERT load crashes server
 #
-create table t1(a int auto_increment, b int, primary key (b, a)) 
+create table t1(a int auto_increment, b int, primary key (a, b)) 
   partition by hash(b) partitions 2;
 insert into t1 values (null, 1);
+analyze table t1;
 --replace_column 9 0 12 NULL 13 NULL 14 NULL
 show table status;
 drop table t1;
@@ -1951,6 +1919,7 @@ drop table t1;
 create table t1(a int auto_increment primary key)
   partition by key(a) partitions 2;
 insert into t1 values (null), (null), (null);
+analyze table t1;
 --replace_column 9 0 12 NULL 13 NULL 14 NULL
 show table status;
 drop table t1;
@@ -2177,7 +2146,7 @@ drop table t1, t2;
 # Bug #38083 Error-causing row inserted into partitioned table despite error
 #
 SET @orig_sql_mode = @@SQL_MODE;
-SET SQL_MODE='STRICT_ALL_TABLES';
+SET SQL_MODE='STRICT_ALL_TABLES,ERROR_FOR_DIVISION_BY_ZERO';
 CREATE TABLE t1 (c1 INT)
        PARTITION BY LIST(1 DIV c1) (
        PARTITION p0 VALUES IN (NULL),
@@ -2256,7 +2225,7 @@ CREATE TABLE t1 (a int) PARTITION BY RANGE (a)
    PARTITION p3 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (10), (100), (200), (300), (400);
 analyze table t1;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a>=200;
+EXPLAIN SELECT * FROM t1 WHERE a>=200;
 DROP TABLE t1;
 
 #
@@ -2509,8 +2478,8 @@ CREATE TABLE t1 (c1 int(11) DEFAULT NULL, KEY c1 (c1))
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 
 let $query=SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
---eval EXPLAIN PARTITIONS $query
---eval EXPLAIN EXTENDED $query
+--eval EXPLAIN $query
+--eval EXPLAIN $query
 --eval EXPLAIN FORMAT=JSON $query
 
 DROP TABLE t1;
@@ -2529,3 +2498,270 @@ CREATE TABLE t1 (d TIME)
 # Before this fix, sql_mode would have been reset to 0.
 SELECT @@sql_mode;
 SET sql_mode= DEFAULT;
+
+--echo #
+--echo # ASSERTION FAILED: !THD->IS_ERROR() PARTITIONS + OUT OF RANGE VALUES
+--echo #
+CREATE TABLE t1 (a int PRIMARY KEY)
+PARTITION BY LINEAR KEY(a) PARTITIONS 2;
+--error ER_DATA_OUT_OF_RANGE
+SELECT 1 FROM t1 WHERE EXP(10000);
+DROP TABLE t1;
+
+--disable_query_log
+CALL mtr.add_suppression(".ERROR.  Operating system error number");
+CALL mtr.add_suppression(".ERROR.  The error means mysqld does not have the access");
+--enable_query_log
+
+# The test for Bug 20770 is disabled on Windows due to BUG#19107; it
+# should be moved into partition.test once the bug has been resolved.
+
+#
+# Bug 20770 Partitions: DATA DIRECTORY clause change in reorganize
+#                       does not remove old directory
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let $data_directory = DATA DIRECTORY = '$MYSQLTEST_VARDIR/tmp';
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval create table t1 (a int)
+partition by range (a)
+subpartition by hash (a)
+(partition p0 VALUES LESS THAN (1) $data_directory
+ (SUBPARTITION subpart00, SUBPARTITION subpart01));
+
+--echo # Checking if file exists before alter
+--file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p0#SP#subpart00.ibd
+--file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p0#SP#subpart01.ibd
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
+(partition p1 VALUES LESS THAN (1) $data_directory
+ (SUBPARTITION subpart10, SUBPARTITION subpart11),
+ partition p2 VALUES LESS THAN (2) $data_directory
+ (SUBPARTITION subpart20, SUBPARTITION subpart21));
+
+--echo # Checking if file exists after alter
+--file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p1#SP#subpart10.ibd
+--file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p1#SP#subpart11.ibd
+--file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p2#SP#subpart20.ibd
+--file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p2#SP#subpart21.ibd
+
+drop table t1;
+
+#
+# Bug #24633 SQL MODE "NO_DIR_IN_CREATE" does not work with partitioned tables
+#
+set innodb_strict_mode=off;
+disable_query_log;
+eval create table t2 (i int )
+partition by range (i)
+(
+ partition p01 values less than (1000)
+ data directory="$MYSQLTEST_VARDIR/tmp/"
+ index directory="$MYSQLTEST_VARDIR/tmp/"
+);
+enable_query_log;
+
+set @org_mode=@@sql_mode;
+set @@sql_mode='NO_DIR_IN_CREATE';
+select @@sql_mode;
+create table t1 (i int )
+partition by range (i)
+(
+  partition p01 values less than (1000)
+  data directory='/not/existing'
+  index directory='/not/existing'
+);
+show create table t2;
+DROP TABLE t1, t2;
+set @@sql_mode=@org_mode;
+
+#
+# Bug#32167: another privilege bypass with DATA/INDEX DIRECTORY
+#
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--replace_regex /(Incorrect path value: ).*/\1'MYSQLD_DATADIR\/test'/
+--error ER_WRONG_VALUE
+eval CREATE TABLE t1(a INT)
+PARTITION BY KEY (a)
+(PARTITION p0 DATA DIRECTORY '$MYSQLD_DATADIR/test');
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--replace_regex /(Incorrect path value: ).*/\1'MYSQLD_DATADIR\/test'/
+--error ER_WRONG_VALUE
+eval CREATE TABLE t1(a INT)
+PARTITION BY KEY (a)
+(PARTITION p0 INDEX DIRECTORY '$MYSQLD_DATADIR/test');
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--replace_regex  /(Incorrect path value: ).*/\1'MYSQLD_DATADIR\/test'/
+--error ER_WRONG_VALUE
+eval CREATE TABLE ts (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased)) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0a
+  DATA DIRECTORY = '$MYSQLD_DATADIR/test',
+SUBPARTITION s0b
+  DATA DIRECTORY = '$MYSQLD_DATADIR/test'
+));
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--replace_regex  /(Incorrect path value: ).*/\1'MYSQLD_DATADIR\/test'/
+--error ER_WRONG_VALUE
+eval CREATE TABLE ts (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased)) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0a
+  INDEX DIRECTORY = '$MYSQLD_DATADIR/test',
+SUBPARTITION s0b
+  INDEX DIRECTORY = '$MYSQLD_DATADIR/test'
+));
+
+# End Windows specific test failures.
+
+# These tests contain non-Windows specific directory/file format.
+
+#
+# Bug 25141: Crash Server on Partitioning command
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS `example`;
+--enable_warnings
+
+--mkdir $MYSQLTEST_VARDIR/p0Data
+--mkdir $MYSQLTEST_VARDIR/p1Data
+--mkdir $MYSQLTEST_VARDIR/p2Data
+--mkdir $MYSQLTEST_VARDIR/p3Data
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval CREATE TABLE `example` (
+  `ID_EXAMPLE` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `DESCRIPTION` varchar(30) NOT NULL,
+  `LEVEL` smallint(5) unsigned DEFAULT NULL,
+  PRIMARY KEY (`ID_EXAMPLE`)
+)
+PARTITION BY HASH(ID_EXAMPLE)(
+PARTITION p0 DATA DIRECTORY = '$MYSQLTEST_VARDIR/p0Data',
+PARTITION p1 DATA DIRECTORY = '$MYSQLTEST_VARDIR/p1Data',
+PARTITION p2 DATA DIRECTORY = '$MYSQLTEST_VARDIR/p2Data',
+PARTITION p3 DATA DIRECTORY = '$MYSQLTEST_VARDIR/p3Data'
+);
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+--echo # Checking that InnoDB data files are in test db and data dir
+--file_exists $MYSQLTEST_VARDIR/p0Data/test/example#P#p0.ibd
+--file_exists $MYSQLTEST_VARDIR/p1Data/test/example#P#p1.ibd
+--file_exists $MYSQLTEST_VARDIR/p2Data/test/example#P#p2.ibd
+--file_exists $MYSQLTEST_VARDIR/p3Data/test/example#P#p3.ibd
+DROP TABLE example;
+--rmdir $MYSQLTEST_VARDIR/p0Data/test
+--rmdir $MYSQLTEST_VARDIR/p0Data
+--rmdir $MYSQLTEST_VARDIR/p1Data/test
+--rmdir $MYSQLTEST_VARDIR/p1Data
+--rmdir $MYSQLTEST_VARDIR/p2Data/test
+--rmdir $MYSQLTEST_VARDIR/p2Data
+--rmdir $MYSQLTEST_VARDIR/p3Data/test
+--rmdir $MYSQLTEST_VARDIR/p3Data
+
+
+--echo #
+--echo # Bug#18513130 STRANGE INTERACTION OF SQL_MODE=ANSI AND PARTITION
+--echo #
+
+SET @@SQL_MODE= 'ANSI_QUOTES';
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+
+CREATE TABLE t1(col1 INT, col2 DATE)
+ENGINE=INNODB
+PARTITION BY RANGE(YEAR("col2"))
+SUBPARTITION BY HASH(TO_DAYS("col2"))(
+      PARTITION p0 VALUES LESS THAN (1990)(
+          SUBPARTITION s0,
+          SUBPARTITION s1 tablespace=`ts1`
+      ),
+      PARTITION p1 VALUES LESS THAN MAXVALUE(
+            SUBPARTITION s2,
+            SUBPARTITION s3 tablespace="ts1"
+        )
+    );
+
+SHOW CREATE TABLE t1;
+SELECT partition_expression FROM information_schema.partitions
+WHERE table_schema = 'test' AND table_name = 't1';
+
+SET @@SQL_MODE= DEFAULT;
+FLUSH TABLES;
+
+SHOW CREATE TABLE t1;
+SELECT partition_expression FROM information_schema.partitions
+WHERE table_schema = 'test' AND table_name = 't1';
+
+SET @@SQL_QUOTE_SHOW_CREATE= 0;
+SHOW CREATE TABLE t1;
+SELECT partition_expression FROM information_schema.partitions
+WHERE table_schema = 'test' AND table_name = 't1';
+
+SET @@SQL_QUOTE_SHOW_CREATE= 1;
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+
+
+--echo #
+--echo # Test max partitioning and subpartition expression length
+--echo #
+
+--let $ALMOST_TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("a+", 255),"a")`
+--replace_result $ALMOST_TOO_LONG_EXPR ALMOST_TOO_LONG_EXPR
+--eval CREATE TABLE t1 (a INT) PARTITION BY HASH($ALMOST_TOO_LONG_EXPR)
+DROP TABLE t1;
+--let $TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("a+", 256),"a")`
+--replace_result $TOO_LONG_EXPR TOO_LONG_EXPR
+--error ER_PART_EXPR_TOO_LONG
+--eval CREATE TABLE t1 (a INT) PARTITION BY HASH($TOO_LONG_EXPR)
+
+--echo # Check that the limit is on number of characters and not on bytes
+--let $ALMOST_TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("\`å\`+", 255),"\`å\`")`
+--replace_result $ALMOST_TOO_LONG_EXPR ALMOST_TOO_LONG_EXPR
+--eval CREATE TABLE t1 (`å` INT) PARTITION BY HASH($ALMOST_TOO_LONG_EXPR)
+DROP TABLE t1;
+--let $TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("\`å\`+", 256),"\`å\`")`
+--replace_result $TOO_LONG_EXPR TOO_LONG_EXPR
+--error ER_PART_EXPR_TOO_LONG
+--eval CREATE TABLE t1 (`å` INT) PARTITION BY HASH($TOO_LONG_EXPR)
+
+--echo # Repeat the same tests for subpartitioning expressions.
+--let $ALMOST_TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("a+", 255),"a")`
+--replace_result $ALMOST_TOO_LONG_EXPR ALMOST_TOO_LONG_EXPR
+--eval CREATE TABLE t1 (b INT, a INT) PARTITION BY LIST (b) SUBPARTITION BY HASH($ALMOST_TOO_LONG_EXPR) (PARTITION p1 VALUES IN (1))
+DROP TABLE t1;
+--let $TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("a+", 256),"a")`
+--replace_result $TOO_LONG_EXPR TOO_LONG_EXPR
+--error ER_PART_EXPR_TOO_LONG
+--eval CREATE TABLE t1 (b INT, a INT) PARTITION BY LIST (b) SUBPARTITION BY HASH($TOO_LONG_EXPR) (PARTITION p1 VALUES IN (1))
+
+--echo # Again the limit is on number of characters and not on bytes
+--let $ALMOST_TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("\`å\`+", 255),"\`å\`")`
+--replace_result $ALMOST_TOO_LONG_EXPR ALMOST_TOO_LONG_EXPR
+--eval CREATE TABLE t1 (b INT, `å` INT) PARTITION BY LIST (b) SUBPARTITION BY HASH($ALMOST_TOO_LONG_EXPR) (PARTITION p1 VALUES IN (1))
+DROP TABLE t1;
+--let $TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("\`å\`+", 256),"\`å\`")`
+--replace_result $TOO_LONG_EXPR TOO_LONG_EXPR
+--error ER_PART_EXPR_TOO_LONG
+--eval CREATE TABLE t1 (b INT, `å` INT) PARTITION BY LIST (b) SUBPARTITION BY HASH($TOO_LONG_EXPR) (PARTITION p1 VALUES IN (1))
+
+--echo #
+--echo # Bug #27005020: UBSAN: GET_PART_ITER_FOR_INTERVAL_VIA_WALKING - SIGNED INTEGER OVERFLOW
+--echo #
+CREATE TABLE t (a BIGINT NOT NULL)
+  PARTITION BY KEY(a) PARTITIONS 2;
+INSERT INTO t VALUES(0);
+SELECT 1 FROM t WHERE a = 0x8000000000000000;
+DROP TABLE t;

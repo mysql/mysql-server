@@ -1,0 +1,29 @@
+# **************************************************************
+# wl8307 : Check Default_row_format functionality
+# case 1; Check with no tablespace (file_per_table=1)
+# case 2: Check with General tablespace
+# case 3: Check with innodb_system tablespace
+# case 4: Check with innodb_file_per_table=OFF
+# Modifying Dynamic to Compact to Dynamic to Redundant to
+# compressed to Dynamic
+# Modify table Dynamic to Compact to Compressed to Dynamic
+# **************************************************************
+# InnoDB does not support compressed tables for page sizes=32k,64k
+# Also FILE_BLOCK_SIZE=8k and KEY_BLOCK_SIZEr=8
+--source include/have_innodb_max_16k.inc
+
+# Check without any tablespace is set
+--let tablespace=
+--source ../include/default_row_format_tablespace.inc
+
+# Check with tablespace is set, with and without Key_block_size
+let tablespace = tblsp;
+--source ../include/default_row_format_tablespace.inc
+
+# Check with innodb_system is set
+let tablespace = innodb_system;
+--source ../include/default_row_format_tablespace.inc
+
+# Check with innodb_file_per_table=0
+let tablespace = OFF;
+--source ../include/default_row_format_tablespace.inc

@@ -1,9 +1,7 @@
-call mtr.add_suppression("InnoDB: Cannot add field ");
-SET @tx_isolation= @@global.tx_isolation;
+call mtr.add_suppression("Cannot add field ");
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 "innodb_only", "innodb_only", "innodb_only");
 INSERT INTO config_options VALUES("separator", ",");
@@ -84,7 +82,7 @@ c247 VARCHAR(40),
 c248 VARCHAR(40),
 c249 VARCHAR(40),
 c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
-ENGINE = INNODB;
+ROW_FORMAT=COMPACT ENGINE = INNODB;
 INSERT INTO t1 VALUES ('1',
 'c200','c201','c202','c203','c204','c205','c206','c207','c208','c209',
 'c210','c211','c212','c213','c214','c215','c216','c217','c218','c219',
@@ -185,4 +183,4 @@ DROP TABLE t1;
 SET sql_mode=default;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
-SET @@global.tx_isolation= @tx_isolation;
+SET @@global.transaction_isolation= @transaction_isolation;

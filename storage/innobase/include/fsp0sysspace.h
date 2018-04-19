@@ -1,33 +1,44 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/fsp0sysspace.h
-Multi file, shared, system tablespace implementation.
+/** @file include/fsp0sysspace.h
+ Multi file, shared, system tablespace implementation.
 
-Created 2013-7-26 by Kevin Lewis
-*******************************************************/
+ Created 2013-7-26 by Kevin Lewis
+ *******************************************************/
 
 #ifndef fsp0sysspace_h
 #define fsp0sysspace_h
 
-#include "univ.i"
 #include "fsp0space.h"
+#include "univ.i"
+
+#ifdef UNIV_HOTBACKUP
+#include "srv0srv.h"
+#endif
 
 /** If the last data file is auto-extended, we add this many pages to it
 at a time. We have to make this public because it is a config variable. */
@@ -43,228 +54,197 @@ extern bool srv_skip_temp_table_checks_debug;
 
 /** Data structure that contains the information about shared tablespaces.
 Currently this can be the system tablespace or a temporary table tablespace */
-class SysTablespace : public Tablespace
-{
-public:
+class SysTablespace : public Tablespace {
+ public:
+  SysTablespace()
+      : m_auto_extend_last_file(),
+        m_last_file_size_max(),
+        m_created_new_raw(),
+        m_is_tablespace_full(false),
+        m_sanity_checks_done(false) {
+    /* No op */
+  }
 
-	SysTablespace()
-		:
-		m_auto_extend_last_file(),
-		m_last_file_size_max(),
-		m_created_new_raw(),
-		m_is_tablespace_full(false),
-		m_sanity_checks_done(false)
-	{
-		/* No op */
-	}
+  ~SysTablespace() { shutdown(); }
 
-	~SysTablespace()
-	{
-		shutdown();
-	}
+  /** Set tablespace full status
+  @param[in]	is_full		true if full */
+  void set_tablespace_full_status(bool is_full) {
+    m_is_tablespace_full = is_full;
+  }
 
-	/** Set tablespace full status
-	@param[in]	is_full		true if full */
-	void set_tablespace_full_status(bool is_full)
-	{
-		m_is_tablespace_full = is_full;
-	}
+  /** Get tablespace full status
+  @return true if table is full */
+  bool get_tablespace_full_status() { return (m_is_tablespace_full); }
 
-	/** Get tablespace full status
-	@return true if table is full */
-	bool get_tablespace_full_status()
-	{
-		return(m_is_tablespace_full);
-	}
+  /** Set sanity check status
+  @param[in]	status	true if sanity checks are done */
+  void set_sanity_check_status(bool status) { m_sanity_checks_done = status; }
 
-	/** Set sanity check status
-	@param[in]	status	true if sanity checks are done */
-	void set_sanity_check_status(bool status)
-	{
-		m_sanity_checks_done = status;
-	}
+  /** Get sanity check status
+  @return true if sanity checks are done */
+  bool get_sanity_check_status() { return (m_sanity_checks_done); }
 
-	/** Get sanity check status
-	@return true if sanity checks are done */
-	bool get_sanity_check_status()
-	{
-		return(m_sanity_checks_done);
-	}
+  /** Parse the input params and populate member variables.
+  @param	filepath_spec	path to data files
+  @param	supports_raw	true if it supports raw devices
+  @return true on success parse */
+  bool parse_params(const char *filepath_spec, bool supports_raw);
 
-	/** Parse the input params and populate member variables.
-	@param	filepath	path to data files
-	@param	supports_raw	true if it supports raw devices
-	@return true on success parse */
-	bool parse_params(const char* filepath, bool supports_raw);
+  /** Check the data file specification.
+  @param[in]	create_new_db		true if a new database
+  is to be created
+  @param[in]	min_expected_size	expected tablespace
+  size in bytes
+  @return DB_SUCCESS if all OK else error code */
+  dberr_t check_file_spec(bool create_new_db, ulint min_expected_size);
 
-	/** Check the data file specification.
-	@param[out]	create_new_db		true if a new database
-	is to be created
-	@param[in]	min_expected_size	expected tablespace
-	size in bytes
-	@return DB_SUCCESS if all OK else error code */
-	dberr_t check_file_spec(
-		bool*	create_new_db,
-		ulint	min_expected_tablespace_size);
+  /** Free the memory allocated by parse() */
+  void shutdown();
 
-	/** Free the memory allocated by parse() */
-	void shutdown();
+  /**
+  @return true if a new raw device was created. */
+  bool created_new_raw() const { return (m_created_new_raw); }
 
-	/** Normalize the file size, convert to extents. */
-	void normalize();
+  /**
+  @return auto_extend value setting */
+  ulint can_auto_extend_last_file() const { return (m_auto_extend_last_file); }
 
-	/**
-	@return true if a new raw device was created. */
-	bool created_new_raw() const
-	{
-		return(m_created_new_raw);
-	}
+  /** Set the last file size.
+  @param[in]	size	the size to set */
+  void set_last_file_size(page_no_t size) {
+    ut_ad(!m_files.empty());
+    m_files.back().m_size = size;
+  }
 
-	/**
-	@return auto_extend value setting */
-	ulint can_auto_extend_last_file() const
-	{
-		return(m_auto_extend_last_file);
-	}
+  /** Get the number of pages in the last data file in the tablespace
+  @return the size of the last data file in the array */
+  page_no_t last_file_size() const {
+    ut_ad(!m_files.empty());
+    return (m_files.back().m_size);
+  }
 
-	/** Set the last file size.
-	@param[in]	size	the size to set */
-	void set_last_file_size(ulint size)
-	{
-		ut_ad(!m_files.empty());
-		m_files.back().m_size = size;
-	}
+  /**
+  @return the autoextend increment in pages. */
+  page_no_t get_autoextend_increment() const {
+    return (sys_tablespace_auto_extend_increment *
+            ((1024 * 1024) / UNIV_PAGE_SIZE));
+  }
 
-	/** Get the size of the last data file in the tablespace
-	@return the size of the last data file in the array */
-	ulint last_file_size() const
-	{
-		ut_ad(!m_files.empty());
-		return(m_files.back().m_size);
-	}
+  /** Round the number of bytes in the file to MegaBytes
+  and then return the number of pages.
+  Note: Only system tablespaces are required to be at least
+  1 megabyte.
+  @return the number of pages in the file. */
+  page_no_t get_pages_from_size(os_offset_t size) {
+    return static_cast<page_no_t>(
+        ((size / (1024 * 1024)) * ((1024 * 1024) / UNIV_PAGE_SIZE)));
+  }
 
-	/**
-	@return the autoextend increment in pages. */
-	ulint get_autoextend_increment() const
-	{
-		return(sys_tablespace_auto_extend_increment
-		       * ((1024 * 1024) / UNIV_PAGE_SIZE));
-	}
+  /**
+  @return next increment size */
+  page_no_t get_increment() const;
 
-	/**
-	@return next increment size */
-	ulint get_increment() const;
+  /** Open or create the data files
+  @param[in]  is_temp		whether this is a temporary tablespace
+  @param[in]  create_new_db	whether we are creating a new database
+  @param[out] sum_new_sizes	sum of sizes of the new files added
+  @param[out] flush_lsn		FIL_PAGE_FILE_FLUSH_LSN of first file
+  @return DB_SUCCESS or error code */
+  dberr_t open_or_create(bool is_temp, bool create_new_db,
+                         page_no_t *sum_new_sizes, lsn_t *flush_lsn)
+      MY_ATTRIBUTE((warn_unused_result));
 
-	/** Open or create the data files
-	@param[in]  is_temp		whether this is a temporary tablespace
-	@param[out] sum_new_sizes	sum of sizes of the new files added
-	@param[out] flush_lsn		FIL_PAGE_FILE_FLUSH_LSN of first file
-	@return DB_SUCCESS or error code */
-	dberr_t open_or_create(
-		bool	is_temp,
-		ulint*	sum_new_sizes,
-		lsn_t*	flush_lsn)
-		__attribute__((warn_unused_result));
+ private:
+  /** Check the tablespace header for this tablespace.
+  @param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
+  @return DB_SUCCESS or error code */
+  dberr_t read_lsn_and_check_flags(lsn_t *flushed_lsn);
 
-	/** Replace any records for this space_id in the Data Dictionary with
-	this name, flags & filepath..
-	@return DB_SUCCESS or error code */
-	dberr_t replace_in_dictionary();
+  /** Note that the data file was not found.
+  @param[in]	file		data file object
+  @param[in]	create_new_db	true if a new instance to be created
+  @return DB_SUCCESS or error code */
+  dberr_t file_not_found(Datafile &file, bool create_new_db);
 
-private:
-	/** Check the tablespace header for this tablespace.
-	@param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
-	@return DB_SUCCESS or error code */
-	dberr_t read_lsn_and_check_flags(lsn_t* flushed_lsn);
+  /** Note that the data file was found.
+  @param[in,out]	file	data file object */
+  void file_found(Datafile &file);
 
-	/**
-	@return true if the last file size is valid. */
-	bool is_valid_size() const
-	{
-		return(m_last_file_size_max >= last_file_size());
-	}
+  /** Create a data file.
+  @param[in,out]	file	data file object
+  @return DB_SUCCESS or error code */
+  dberr_t create(Datafile &file);
 
-	/**
-	@return true if configured to use raw devices */
-	bool has_raw_device();
+  /** Create a data file.
+  @param[in,out]	file	data file object
+  @return DB_SUCCESS or error code */
+  dberr_t create_file(Datafile &file);
 
-	/** Note that the data file was not found.
-	@param[in]	file		data file object
-	@param[out]	create_new_db	true if a new instance to be created
-	@return DB_SUCESS or error code */
-	dberr_t file_not_found(Datafile& file, bool* create_new_db);
+  /** Open a data file.
+  @param[in,out]	file	data file object
+  @return DB_SUCCESS or error code */
+  dberr_t open_file(Datafile &file);
 
-	/** Note that the data file was found.
-	@param[in,out]	file	data file object */
-	void file_found(Datafile& file);
+  /** Set the size of the file.
+  @param[in,out]	file	data file object
+  @return DB_SUCCESS or error code */
+  dberr_t set_size(Datafile &file);
 
-	/** Create a data file.
-	@param[in,out]	file	data file object
-	@return DB_SUCCESS or error code */
-	dberr_t create(Datafile& file);
+ private:
+  /* Put the pointer to the next byte after a valid file name.
+  Note that we must step over the ':' in a Windows filepath.
+  A Windows path normally looks like C:\ibdata\ibdata1:1G, but
+  a Windows raw partition may have a specification like
+  \\.\C::1Gnewraw or \\.\PHYSICALDRIVE2:1Gnewraw.
+  @param[in]	str		system tablespace file path spec
+  @return next character in string after the file name */
+  static char *parse_file_name(char *ptr);
 
-	/** Create a data file.
-	@param[in,out]	file	data file object
-	@return DB_SUCCESS or error code */
-	dberr_t create_file(Datafile& file);
+  /** Convert a numeric string that optionally ends in upper or lower
+  case G, M, or K, rounding off to the nearest number of megabytes.
+  Then return the number of pages in the file.
+  @param[in,out]	ptr	Pointer to a numeric string
+  @return the number of pages in the file. */
+  page_no_t parse_units(char *&ptr);
 
-	/** Open a data file.
-	@param[in,out]	file	data file object
-	@return DB_SUCCESS or error code */
-	dberr_t open_file(Datafile& file);
+  enum file_status_t {
+    FILE_STATUS_VOID = 0,              /** status not set */
+    FILE_STATUS_RW_PERMISSION_ERROR,   /** permission error */
+    FILE_STATUS_READ_WRITE_ERROR,      /** not readable/writable */
+    FILE_STATUS_NOT_REGULAR_FILE_ERROR /** not a regular file */
+  };
 
-	/** Set the size of the file.
-	@param[in,out]	file	data file object
-	@return DB_SUCCESS or error code */
-	dberr_t set_size(Datafile& file);
+  /** Verify the size of the physical file
+  @param[in]	file	data file object
+  @return DB_SUCCESS if OK else error code. */
+  dberr_t check_size(Datafile &file);
 
-	/** Convert a numeric string that optionally ends in G or M, to a
-	number containing megabytes.
-	@param[in]	ptr	string with a quantity in bytes
-	@param[out]	megs	the number in megabytes
-	@return next character in string */
-	static char* parse_units(char* ptr, ulint* megs);
+  /** Check if a file can be opened in the correct mode.
+  @param[in,out]	file	data file object
+  @param[out]	reason	exact reason if file_status check failed.
+  @return DB_SUCCESS or error code. */
+  dberr_t check_file_status(const Datafile &file, file_status_t &reason);
 
-private:
-	enum file_status_t {
-		FILE_STATUS_VOID = 0,		/** status not set */
-		FILE_STATUS_RW_PERMISSION_ERROR,/** permission error */
-		FILE_STATUS_READ_WRITE_ERROR,	/** not readable/writable */
-		FILE_STATUS_NOT_REGULAR_FILE_ERROR /** not a regular file */
-	};
+  /* DATA MEMBERS */
 
-	/** Verify the size of the physical file
-	@param[in]	file	data file object
-	@return DB_SUCCESS if OK else error code. */
-	dberr_t check_size(Datafile& file);
+  /** if true, then we auto-extend the last data file */
+  bool m_auto_extend_last_file;
 
-	/** Check if a file can be opened in the correct mode.
-	@param[in,out]	file	data file object
-	@param[out]	reason	exact reason if file_status check failed.
-	@return DB_SUCCESS or error code. */
-	dberr_t check_file_status(
-		const Datafile& 	file,
-		file_status_t& 		reason);
+  /** if != 0, this tells the max size auto-extending may increase the
+  last data file size */
+  page_no_t m_last_file_size_max;
 
-	/* DATA MEMBERS */
+  /** If the following is true we do not allow
+  inserts etc. This protects the user from forgetting
+  the 'newraw' keyword to my.cnf */
+  bool m_created_new_raw;
 
-	/** if true, then we auto-extend the last data file */
-	bool		m_auto_extend_last_file;
+  /** Tablespace full status */
+  bool m_is_tablespace_full;
 
-	/** if != 0, this tells the max size auto-extending may increase the
-	last data file size */
-	ulint		m_last_file_size_max;
-
-	/** If the following is true we do not allow
-	inserts etc. This protects the user from forgetting
-	the 'newraw' keyword to my.cnf */
-	bool		m_created_new_raw;
-
-	/** Tablespace full status */
-	bool		m_is_tablespace_full;
-
-	/** if false, then sanity checks are still pending */
-	bool		m_sanity_checks_done;
+  /** if false, then sanity checks are still pending */
+  bool m_sanity_checks_done;
 };
 
 /* GLOBAL OBJECTS */
@@ -274,40 +254,4 @@ extern SysTablespace srv_sys_space;
 
 /** The control info of a temporary table shared tablespace. */
 extern SysTablespace srv_tmp_space;
-
-/** Check if the space_id is for a system-tablespace (shared + temp).
-@param[in]	id	Space ID to check
-@return true if id is a system tablespace, false if not. */
-UNIV_INLINE
-bool
-is_system_tablespace(
-	ulint	id)
-{
-	return(id == srv_sys_space.space_id()
-	       || id == srv_tmp_space.space_id());
-}
-
-/** Check if shared-system or undo tablespace.
-@return true if shared-system or undo tablespace */
-UNIV_INLINE
-bool
-is_system_or_undo_tablespace(
-	ulint   id)
-{
-	return(id == srv_sys_space.space_id()
-	       || id <= srv_undo_tablespaces_open);
-}
-
-/** Check if predefined shared tablespace.
-@return true if predefined shared tablespace */
-UNIV_INLINE
-bool
-is_predefined_tablespace(
-	ulint   id)
-{
-	ut_ad(srv_sys_space.space_id() == TRX_SYS_SPACE);
-	ut_ad(TRX_SYS_SPACE == 0);
-	return(id <= srv_undo_tablespaces_open
-	       || id == srv_tmp_space.space_id());
-}
 #endif /* fsp0sysspace_h */

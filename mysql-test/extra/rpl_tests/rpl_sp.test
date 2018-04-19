@@ -5,7 +5,6 @@
 
 source include/have_binlog_format_mixed.inc;
 source include/master-slave.inc;
-source include/not_gtid_enabled.inc;
 
 
 # we need a db != test, where we don't have automatic grants
@@ -20,8 +19,8 @@ use mysqltest1;
 
 # ********************** PART 1 : STORED PROCEDURES ***************
 
-# Does the same proc as on master get inserted into mysql.proc ?
-# (same definer, same properties...)
+# Does the same proc as on master get inserted into dd tables?  (same definer,
+# same properties...)
 
 connection master;
 
@@ -44,14 +43,14 @@ delimiter ;|
 # we replace columns having times
 # (even with fixed timestamp displayed time may changed based on TZ)
 --replace_result localhost.localdomain localhost 127.0.0.1 localhost
---replace_column 13 # 14 #
-select * from mysql.proc where name='foo' and db='mysqltest1';
+--replace_column 24 # 25 #
+select * from information_schema.routines where routine_schema='mysqltest1' and routine_name='foo';
 sync_slave_with_master;
 # You will notice in the result that the definer does not match what
 # it is on master, it is a known bug on which Alik is working
 --replace_result localhost.localdomain localhost 127.0.0.1 localhost
---replace_column 13 # 14 #
-select * from mysql.proc where name='foo' and db='mysqltest1';
+--replace_column 24 # 25 #
+select * from information_schema.routines where routine_schema='mysqltest1' and routine_name='foo';
 
 connection master;
 # see if timestamp used in SP on slave is same as on master
@@ -86,10 +85,8 @@ create procedure foo3()
   insert into t1 values (15);
 
 # let's create a non-privileged user
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user "zedjzlcsjhd"@127.0.0.1;
 grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1;
-set sql_mode= @orig_sql_mode;
 grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1;
 grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1;
 
@@ -168,13 +165,13 @@ select * from t2;
 # Test of DROP PROCEDURE
 
 --replace_result localhost.localdomain localhost 127.0.0.1 localhost
---replace_column 13 # 14 #
-select * from mysql.proc where name="foo4" and db='mysqltest1';
+--replace_column 24 # 25 #
+select * from information_schema.routines where routine_schema='mysqltest1' and routine_name='foo4';
 connection master;
 drop procedure foo4;
-select * from mysql.proc where name="foo4" and db='mysqltest1';
+select * from information_schema.routines where routine_schema='mysqltest1' and routine_name='foo4';
 sync_slave_with_master;
-select * from mysql.proc where name="foo4" and db='mysqltest1';
+select * from information_schema.routines where routine_schema='mysqltest1' and routine_name='foo4';
 
 # ********************** PART 2 : FUNCTIONS ***************
 
@@ -280,16 +277,16 @@ delimiter ;|
 
 select fn3();
 --replace_result localhost.localdomain localhost 127.0.0.1 localhost
---replace_column 13 # 14 #
-select * from mysql.proc where db='mysqltest1';
+--replace_column 24 # 25 #
+select * from information_schema.routines where routine_schema='mysqltest1';
 select * from t1;
 
 sync_slave_with_master;
 use mysqltest1;
 select * from t1;
 --replace_result localhost.localdomain localhost 127.0.0.1 localhost
---replace_column 13 # 14 #
-select * from mysql.proc where db='mysqltest1';
+--replace_column 24 # 25 #
+select * from information_schema.routines where routine_schema='mysqltest1';
 
 # Let's check a failing-in-the-middle function
 connection master;
@@ -309,6 +306,7 @@ end|
 
 delimiter ;|
 
+--error ER_DUP_ENTRY
 do fn1(100);
 
 --error ER_DUP_ENTRY

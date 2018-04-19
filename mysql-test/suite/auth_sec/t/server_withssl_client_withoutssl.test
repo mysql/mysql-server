@@ -14,11 +14,8 @@
 #                                                                             #
 ###############################################################################
 
---source include/not_embedded.inc
---source include/have_ssl.inc
 --source include/have_openssl.inc
---source include/have_sha256_rsa_auth.inc
---source include/have_ssl_communication.inc
+--source include/have_ssl.inc
 
 let $crllen=`select length(trim(coalesce(@@ssl_crl, ''))) + length(trim(coalesce(@@ssl_crlpath, '')))`;
 if (!$crllen)
@@ -53,50 +50,32 @@ call mtr.add_suppression(".*SSL.*");
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
 
-set @@session.old_passwords=0;
-
 set password for 'Tanjotuser1'@'localhost' = 'abc';
 
 
 # Trying connecting the client with the mysql_native_password user with out the SSL credentials.
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select @@Global.old_passwords;select @@session.old_passwords"
---echo 0 for GLOBAL Expected
---echo 0 for SESSION Expected
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select current_user()"
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
---echo 0 for GLOBAL Expected
---echo 0 for SESSION Expected
-
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select current_user()"
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
---echo 0 for GLOBAL Expected
---echo 0 for SESSION Expected
-
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select current_user()"
 
 
 # Trying connecting the client with the mysql_native_password user with out the SSL credentials with.
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select @@Global.old_passwords;select @@session.old_passwords"
---echo 0 for GLOBAL Expected
---echo 0 for SESSION Expected
-
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select current_user()"
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
---echo 0 for GLOBAL Expected
---echo 0 for SESSION Expected
-
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select current_user()"
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
---echo 0 for GLOBAL Expected
---echo 0 for SESSION Expected
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select current_user()"
 
 
 # Dropping the created users
@@ -118,50 +97,35 @@ DROP USER 'Tanjotuser1'@'localhost';
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 
-set @@session.old_passwords=2;
-
 set password for 'Tanjotuser1'@'localhost' = 'abc';
 
 
 # Trying connecting the client with the sha256_password user with out the SSL credentials.
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select @@Global.old_passwords;select @@session.old_passwords"
---echo 0 for GLOBAL Expected
---echo 2 for SESSION Expected
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select current_user()"
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
---echo 0 for GLOBAL Expected
---echo 2 for SESSION Expected
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select current_user()"
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
---echo 0 for GLOBAL Expected
---echo 2 for SESSION Expected
-
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select current_user()"
 
 
 # Trying connecting the client with the sha256_password user with out the SSL credentials.
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select @@Global.old_passwords;select @@session.old_passwords"
---echo 0 for GLOBAL Expected
---echo 2 for SESSION Expected
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select current_user()"
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
---echo 0 for GLOBAL Expected
---echo 2 for SESSION Expected
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select current_user()"
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
---echo 0 for GLOBAL Expected
---echo 2 for SESSION Expected
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select current_user()"
 
 
 # Dropping the created users
@@ -201,27 +165,25 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
 
-set @@session.old_passwords=0;
-
 set password for 'Tanjotuser1'@'localhost' = 'abc';
 
 
 # Trying connecting the client with the mysql_native_password user with out the SSL credentials.
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select current_user()"
 --echo 2 for GLOBAL Expected
 --echo 0 for SESSION Expected
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select current_user()"
 --echo 2 for GLOBAL Expected
 --echo 0 for SESSION Expected
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select current_user()"
 --echo 2 for GLOBAL Expected
 --echo 0 for SESSION Expected
 
@@ -230,19 +192,19 @@ set password for 'Tanjotuser1'@'localhost' = 'abc';
 # Trying connecting the client with the mysql_native_password user with out the SSL credentials.
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select current_user()"
 --echo 2 for GLOBAL Expected
 --echo 0 for SESSION Expected
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select current_user()"
 --echo 2 for GLOBAL Expected
 --echo 0 for SESSION Expected
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select current_user()"
 --echo 2 for GLOBAL Expected
 --echo 0 for SESSION Expected
 
@@ -266,8 +228,6 @@ DROP USER 'Tanjotuser1'@'localhost';
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 
-set @@session.old_passwords=2;
-
 set password for 'Tanjotuser1'@'localhost' = 'abc';
 
 GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
@@ -275,19 +235,19 @@ GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 # Trying connecting the client with the sha256_password user without the SSL credentials.
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select current_user()"
 --echo 2 for GLOBAL Expected
 --echo 2 for SESSION Expected
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select current_user()"
 --echo 2 for GLOBAL Expected
 --echo 2 for SESSION Expected
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select current_user()"
 --echo 2 for GLOBAL Expected
 --echo 2 for SESSION Expected
 
@@ -295,19 +255,19 @@ GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 # Trying connecting the client with the sha256_password user without the SSL credentials.
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select current_user()"
 --echo 2 for GLOBAL Expected
 --echo 2 for SESSION Expected
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select current_user()"
 --echo 2 for GLOBAL Expected
 --echo 2 for SESSION Expected
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select current_user()"
 --echo 2 for GLOBAL Expected
 --echo 2 for SESSION Expected
 
@@ -316,5 +276,3 @@ GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 # Dropping the created users
 
 DROP USER 'Tanjotuser1'@'localhost';
-
-set @@session.old_passwords=default;

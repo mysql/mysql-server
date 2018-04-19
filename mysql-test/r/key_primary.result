@@ -1,5 +1,5 @@
 drop table if exists t1;
-create table t1 (t1 char(3) primary key);
+create table t1 (t1 char(3) primary key) charset utf8mb4;
 insert into t1 values("ABC");
 insert into t1 values("ABA");
 insert into t1 values("AB%");
@@ -13,7 +13,7 @@ t1
 AB%
 describe select * from t1 where t1="ABC";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	3	const	1	100.00	Using index
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	12	const	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select 'ABC' AS `t1` from `test`.`t1` where 1
 describe select * from t1 where t1="ABCD";

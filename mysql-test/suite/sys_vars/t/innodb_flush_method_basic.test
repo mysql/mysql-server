@@ -22,14 +22,13 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 
 --echo '#---------------------BS_STVARS_029_01----------------------#'
 ####################################################################
 #   Displaying default value                                       #
 ####################################################################
-SELECT COUNT(@@GLOBAL.innodb_flush_method);
---echo 0 Expected
+SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered');
+--echo 1 Expected
 
 
 --echo '#---------------------BS_STVARS_029_02----------------------#'
@@ -41,8 +40,8 @@ SELECT COUNT(@@GLOBAL.innodb_flush_method);
 SET @@GLOBAL.innodb_flush_method=1;
 --echo Expected error 'Read only variable'
 
-SELECT COUNT(@@GLOBAL.innodb_flush_method);
---echo 0 Expected
+SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered');
+--echo 1 Expected
 
 
 
@@ -54,17 +53,17 @@ SELECT COUNT(@@GLOBAL.innodb_flush_method);
 
 --disable_warnings
 SELECT @@GLOBAL.innodb_flush_method = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_flush_method';
 --enable_warnings
 --echo 1 Expected
 
-SELECT COUNT(@@GLOBAL.innodb_flush_method);
---echo 0 Expected
+SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered');
+--echo 1 Expected
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_flush_method';
 --enable_warnings
 --echo 1 Expected
@@ -86,7 +85,7 @@ SELECT @@innodb_flush_method = @@GLOBAL.innodb_flush_method;
 ################################################################################
 
 SELECT COUNT(@@innodb_flush_method);
---echo 0 Expected
+--echo 1 Expected
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT COUNT(@@local.innodb_flush_method);
@@ -97,7 +96,7 @@ SELECT COUNT(@@SESSION.innodb_flush_method);
 --echo Expected error 'Variable is a GLOBAL variable'
 
 SELECT COUNT(@@GLOBAL.innodb_flush_method);
---echo 0 Expected
+--echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
 SELECT innodb_flush_method = @@SESSION.innodb_flush_method;

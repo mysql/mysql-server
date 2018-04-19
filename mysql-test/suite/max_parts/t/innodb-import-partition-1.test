@@ -3,11 +3,7 @@
 # Test creates table with 8192 partition and does import/export of idb files
 #------------------------------------------------------------------------------
 
-# Not supported in embedded
---source include/not_embedded.inc
 
---source include/have_innodb.inc
---source include/have_partition.inc
 
 # Test take time to run due to max partitions
 --source include/big_test.inc
@@ -46,7 +42,7 @@ FLUSH TABLES t1 FOR EXPORT;
 
 --disable_result_log
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 for($i=0;$i<=8191;$i++){
    ib_backup_tablespaces("test", "t1#P#p$i");
 }
@@ -68,7 +64,7 @@ select count(*) from t1;
 ALTER TABLE t1 DISCARD PARTITION p0,p1,p2,p3,p4,p5,p6,p7,p8 TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2","t1#P#p3","t1#P#p4","t1#P#p5","t1#P#p6","t1#P#p7","t1#P#p8");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2","t1#P#p3","t1#P#p4","t1#P#p5","t1#P#p6","t1#P#p7","t1#P#p8");
 EOF
@@ -82,7 +78,7 @@ ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 
 --disable_result_log
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 for($i=0;$i<=8191;$i++){
    ib_discard_tablespaces("test", "t1#P#p$i");
    ib_restore_tablespaces("test", "t1#P#p$i");
@@ -97,12 +93,12 @@ SELECT * FROM t1 WHERE i%1000 = 0 ORDER BY i;
 DROP TABLE t1;
 
 #cleanup
-call mtr.add_suppression("InnoDB: Cannot calculate statistics for table .* because the .ibd file is missing");
-call mtr.add_suppression("InnoDB: Cannot delete tablespace .* in DISCARD TABLESPACE. Tablespace not found");
-call mtr.add_suppression("InnoDB: Cannot delete tablespace .* because it is not found in the tablespace memory cache.");
-call mtr.add_suppression("InnoDB: Trying to import a tablespace, but could not open the tablespace file");
-call mtr.add_suppression("InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("Cannot calculate statistics for table .* because the .ibd file is missing");
+call mtr.add_suppression("Cannot delete tablespace .* in DISCARD TABLESPACE. Tablespace not found");
+call mtr.add_suppression("Cannot delete tablespace .* because it is not found in the tablespace memory cache.");
+call mtr.add_suppression("Trying to import a tablespace, but could not open the tablespace file");
+call mtr.add_suppression("Operating system error number 2 in a file operation.");
+call mtr.add_suppression("The error means the system cannot find the path specified.");
 
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.ibd
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.cfg

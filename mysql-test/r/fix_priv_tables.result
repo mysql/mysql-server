@@ -6,39 +6,25 @@ c1 INT,
 c3 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 CREATE VIEW testdb.v1 AS
 SELECT * FROM testdb.t1;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+CREATE USER 'show_view_tbl'@'localhost', 'select_only_c1'@localhost;
 GRANT CREATE VIEW, SHOW VIEW ON testdb.v1 TO 'show_view_tbl'@'localhost';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SHOW GRANTS FOR 'show_view_tbl'@'localhost';
-Grants for show_view_tbl@localhost
-GRANT USAGE ON *.* TO 'show_view_tbl'@'localhost'
-GRANT CREATE VIEW, SHOW VIEW ON `testdb`.`v1` TO 'show_view_tbl'@'localhost'
 
 GRANT SELECT(c1) on testdb.v1 to 'select_only_c1'@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SHOW GRANTS FOR 'select_only_c1'@'localhost';
 Grants for select_only_c1@localhost
-GRANT USAGE ON *.* TO 'select_only_c1'@'localhost'
-GRANT SELECT (c1) ON `testdb`.`v1` TO 'select_only_c1'@'localhost'
+GRANT USAGE ON *.* TO `select_only_c1`@`localhost`
+GRANT SELECT (`c1`) ON `testdb`.`v1` TO `select_only_c1`@`localhost`
 
 "after fix privs"
 SHOW GRANTS FOR 'show_view_tbl'@'localhost';
 Grants for show_view_tbl@localhost
-GRANT USAGE ON *.* TO 'show_view_tbl'@'localhost'
-GRANT CREATE VIEW, SHOW VIEW ON `testdb`.`v1` TO 'show_view_tbl'@'localhost'
+GRANT USAGE ON *.* TO `show_view_tbl`@`localhost`
+GRANT CREATE VIEW, SHOW VIEW ON `testdb`.`v1` TO `show_view_tbl`@`localhost`
 
 SHOW GRANTS FOR 'select_only_c1'@'localhost';
 Grants for select_only_c1@localhost
-GRANT USAGE ON *.* TO 'select_only_c1'@'localhost'
-GRANT SELECT (c1) ON `testdb`.`v1` TO 'select_only_c1'@'localhost'
+GRANT USAGE ON *.* TO `select_only_c1`@`localhost`
+GRANT SELECT (`c1`) ON `testdb`.`v1` TO `select_only_c1`@`localhost`
 
 DROP USER 'show_view_tbl'@'localhost';
 DROP USER 'select_only_c1'@'localhost';

@@ -102,7 +102,7 @@ ERROR 42000: Variable 'new' can't be set to the value of 'ONN'
 SET @@session.new = ONF;
 ERROR 42000: Variable 'new' can't be set to the value of 'ONF'
 SET @@session.new = OF;
-ERROR 42000: Variable 'new' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SET @@session.new = 'OFN';
 ERROR 42000: Variable 'new' can't be set to the value of 'OFN'
 SET @@session.new = -2;
@@ -115,13 +115,13 @@ SET @@session.new = test;
 ERROR 42000: Variable 'new' can't be set to the value of 'test'
 '#------------------FN_DYNVARS_113_06-----------------------#'
 SELECT IF(@@global.new, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='new';
 IF(@@global.new, "ON", "OFF") = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_113_07-----------------------#'
 SELECT IF(@@session.new, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='new';
 IF(@@session.new, "ON", "OFF") = VARIABLE_VALUE
 1

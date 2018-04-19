@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
@@ -15,12 +14,9 @@ ALTER TABLE t CHANGE c1 c1 INT NULL FIRST, ALGORITHM=INPLACE;
 
 # NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.
 --disable_info
-set @old_sql_mode = @@sql_mode;
-set @@sql_mode = 'STRICT_TRANS_TABLES';
 --enable_info
 ALTER TABLE t MODIFY c3 INT NOT NULL, ALGORITHM=INPLACE;
 --disable_info
-set @@sql_mode = @old_sql_mode;
 --enable_info
 
 # Request some conflicting changes for a single column.
@@ -41,7 +37,6 @@ ALTER TABLE t MODIFY c2 INT NOT NULL;
 connect (con1,localhost,root,,);
 connection con1;
 
-SET SQL_MODE='STRICT_ALL_TABLES';
 
 --error ER_BAD_NULL_ERROR
 UPDATE t SET c2=NULL;
@@ -67,10 +62,15 @@ connection default;
 ALTER TABLE t MODIFY c2 INT NULL, ALGORITHM=INPLACE;
 
 --replace_column 1 # 5 #
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES
 WHERE NAME='test/t';
 
 DROP TABLE t;
+
+CREATE TABLE t1(c1 INT);
+ALTER TABLE t1 ADD CONSTRAINT UNIQUE KEY i1(c1);
+ALTER TABLE t1 CHANGE c1 c1 INT SIGNED NOT NULL,ADD KEY(c1);
+DROP TABLE t1;
 
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.

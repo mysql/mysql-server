@@ -1,0 +1,27 @@
+CREATE TABLE test_cached_indexes (
+a INT,
+b INT,
+c INT,
+PRIMARY KEY (a),
+KEY `index_on_b` (b),
+KEY `index_on_bc` (b, c)
+) ENGINE=INNODB;
+SELECT
+tables.name AS table_name,
+indexes.name AS index_name,
+cached.n_cached_pages AS n_cached_pages
+FROM
+information_schema.innodb_cached_indexes AS cached,
+information_schema.innodb_indexes AS indexes,
+information_schema.innodb_tables AS tables
+WHERE
+cached.index_id = indexes.index_id
+AND cached.space_id = indexes.space
+AND indexes.table_id = tables.table_id
+AND tables.name LIKE '%test_cached_indexes' -- remove this line to see all cached indexes
+ORDER BY 1, 2, 3;
+table_name	index_name	n_cached_pages
+test/test_cached_indexes	index_on_b	1
+test/test_cached_indexes	index_on_bc	1
+test/test_cached_indexes	PRIMARY	1
+DROP TABLE test_cached_indexes;

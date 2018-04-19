@@ -1,6 +1,6 @@
 DESC sys.io_global_by_file_by_bytes;
 Field	Type	Null	Key	Default	Extra
-file	varchar(260)	YES		NULL	
+file	varchar(512)	YES		NULL	
 count_read	bigint(20) unsigned	NO		NULL	
 total_read	text	YES		NULL	
 avg_read	text	YES		NULL	

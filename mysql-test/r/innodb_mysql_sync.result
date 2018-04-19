@@ -18,10 +18,10 @@ SET DEBUG_SYNC='now SIGNAL table_altered';
 # Complete optimization
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
-test.t1	optimize	error	Got error -1 from storage engine
+test.t1	optimize	error	Got error -1 - 'Unknown error' from storage engine
 test.t1	optimize	status	Operation failed
 Warnings:
-Error	1030	Got error -1 from storage engine
+Error	1030	Got error -1 - 'Unknown error' from storage engine
 DROP TABLE t1;
 SET DEBUG_SYNC='RESET';
 #
@@ -540,3 +540,211 @@ SET DEBUG_SYNC= 'now WAIT_FOR rebuild';
 connection default;
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
+#
+# BUG#20367116: ALTER TABLE BREAKS ON DELETE CASCADE FOREIGN KEY
+#               CONSTRAINT
+# Test case to ensure there are no orphaned rows.
+# (ALTER TABLE, COPY) Algorithm.
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1)) ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, foreign key(f2) REFERENCES t1(f1)
+ON DELETE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+SET DEBUG_SYNC= 'alter_after_copy_table SIGNAL delete_parent WAIT_FOR delete_child';
+ALTER TABLE t2 ADD f3 INT NOT NULL, ALGORITHM=COPY;
+connect  con1, localhost, root,,;
+SET DEBUG_SYNC= 'now WAIT_FOR delete_parent';
+DELETE FROM t1 WHERE f1 = 1;
+# Without the patch, there is no table MDL wait, so the below
+# times out.
+connect  con2, localhost, root,,;
+SET DEBUG_SYNC= 'now SIGNAL delete_child';
+connection con1;
+connection default;
+# Without the patch, there will be an orphaned row in table 't2'.
+SELECT * FROM t2;
+f2	f3
+SELECT * FROM t1;
+f1
+DROP TABLE t2, t1;
+# Cleanup
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+# Test case to ensure there is no deadlock.
+# (ALTER TABLE, INPLACE) algorithm.
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1))ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, FOREIGN KEY(f2) REFERENCES t1(f1) ON DELETE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+SET DEBUG_SYNC='innodb_commit_inplace_alter_table_enter SIGNAL delete_parent WAIT_FOR alter_child';
+ALTER TABLE t2 ADD f3 INT NOT NULL, ALGORITHM=INPLACE;
+connect  con1, localhost, root,,;
+SET DEBUG_SYNC='now WAIT_FOR delete_parent';
+DELETE FROM t1 WHERE f1 = 1;
+# Without the patch, there is no table MDL wait, so the below times out.
+connect  con2, localhost, root,,;
+SET DEBUG_SYNC='now signal alter_child';
+connection con1;
+# Cleanup
+connection default;
+DROP TABLE t2, t1;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+# Test case to ensure that the parent's parent is also locked.
+# (ALTER TABLE, COPY) Algorithm.
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1)) ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, f3 INT NOT NULL, FOREIGN KEY(f2)
+REFERENCES t1(f1) ON DELETE CASCADE,
+PRIMARY KEY(f3))ENGINE=INNODB;
+CREATE TABLE t3(f4 INT NOT NULL, FOREIGN KEY(f4) REFERENCES t2(f3)
+ON DELETE CASCADE) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, 2);
+INSERT INTO t3 VALUES(2);
+SET DEBUG_SYNC= 'alter_after_copy_table SIGNAL delete_parent_parent WAIT_FOR delete_child';
+ALTER TABLE t3 ADD f5 INT NOT NULL, ALGORITHM=COPY;
+connect  con1, localhost, root,,;
+SET DEBUG_SYNC= 'now WAIT_FOR delete_parent_parent';
+DELETE FROM t1 WHERE f1 = 1;
+# Without the patch, there is no table MDL wait, so the below
+# times out.
+connect  con2, localhost, root,,;
+SET DEBUG_SYNC= 'now SIGNAL delete_child';
+connection con1;
+connection default;
+# Without the patch, there will be an orphaned row in table 't3'.
+SELECT * FROM t1;
+f1
+SELECT * FROM t2;
+f2	f3
+SELECT * FROM t3;
+f4	f5
+DROP TABLE t3, t2, t1;
+# Cleanup
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+# Test case to ensure there is no deadlock by locking parent's parent.
+# (ALTER TABLE, INPLACE) algorithm.
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1))ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, f3 INT NOT NULL, FOREIGN KEY(f2)
+REFERENCES t1(f1) ON DELETE CASCADE,
+PRIMARY KEY(f3))ENGINE=INNODB;
+CREATE TABLE t3(f4 INT NOT NULL, FOREIGN KEY(f4) REFERENCES t2(f3)
+ON DELETE CASCADE) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, 2);
+INSERT INTO t3 VALUES(2);
+SET DEBUG_SYNC='innodb_commit_inplace_alter_table_enter SIGNAL delete_parent_parent WAIT_FOR alter_child';
+ALTER TABLE t3 ADD f3 INT NOT NULL, ALGORITHM=INPLACE;
+connect  con1, localhost, root,,;
+SET DEBUG_SYNC='now WAIT_FOR delete_parent_parent';
+DELETE FROM t1 WHERE f1 = 1;
+# Without the patch, there is no table MDL wait, so the below times out.
+connect  con2, localhost, root,,;
+SET DEBUG_SYNC='now signal alter_child';
+connection con1;
+# Cleanup
+connection default;
+DROP TABLE t3, t2, t1;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+# Test case where ALTER is performed under LOCK TABLES.
+# (ALTER TABLE, COPY) Algorithm.
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1)) ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, FOREIGN KEY(f2) REFERENCES t1(f1)
+ON DELETE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+SET DEBUG_SYNC= 'alter_after_copy_table SIGNAL delete_parent_parent WAIT_FOR delete_child';
+LOCK TABLES t2 WRITE;
+ALTER TABLE t2 ADD f5 INT NOT NULL, ALGORITHM=COPY;
+connect  con1, localhost, root,,;
+SET DEBUG_SYNC= 'now WAIT_FOR delete_parent_parent';
+DELETE FROM t1 WHERE f1 = 1;
+# Without the patch, there is no table MDL wait, so the below
+# times out.
+connect  con2, localhost, root,,;
+SET DEBUG_SYNC= 'now SIGNAL delete_child';
+connection default;
+UNLOCK TABLES;
+connection con1;
+connection default;
+# Without the patch, there will be an orphaned row in table 't2'.
+SELECT * FROM t1;
+f1
+SELECT * FROM t2;
+f2	f5
+DROP TABLE t2, t1;
+# Cleanup
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+# Test case where ALTER is performed under LOCK TABLES.
+# (ALTER TABLE, INPLACE) algorithm.
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1))ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, FOREIGN KEY(f2) REFERENCES t1(f1)
+ON DELETE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+SET DEBUG_SYNC='innodb_commit_inplace_alter_table_enter SIGNAL delete_parent_parent WAIT_FOR alter_child';
+LOCK TABLES t2 WRITE;
+ALTER TABLE t2 ADD f3 INT NOT NULL, ALGORITHM=INPLACE;
+connect  con1, localhost, root,,;
+SET DEBUG_SYNC='now WAIT_FOR delete_parent_parent';
+DELETE FROM t1 WHERE f1 = 1;
+# Without the patch, there is no table MDL wait, so the below times out.
+connect  con2, localhost, root,,;
+SET DEBUG_SYNC='now signal alter_child';
+connection default;
+UNLOCK TABLES;
+connection con1;
+connection default;
+# Cleanup
+DROP TABLE t2, t1;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+#
+# BUG#21631284: DROP VIRTUAL COLUMN RESULT IN DROP WRONG INDEX.
+#
+# Index is not rebuilt, since there is no change in the definition.
+CREATE TABLE t1 (fld1 VARCHAR(300), fld2 INT, KEY idx1(fld2, fld1(200)))
+ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_zero";
+#Without the patch, an error is reported.
+ALTER TABLE t1 FORCE;
+#cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_zero";
+# Index is rebuilt since the index is changed from prefixed
+# to non-prefixed index.
+CREATE TABLE t1 (fld1 CHAR(10), KEY idx1(fld1(5))) ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_one";
+#Without the patch, an error is reported.
+ALTER TABLE t1 MODIFY fld1 CHAR(5);
+#cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_one";
+# Coverage test cases.
+# Index is rebuilt since the index is changed from non-prefixed
+# to prefixed index.
+CREATE TABLE t1 (fld1 CHAR(10), KEY idx1(fld1)) ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_one";
+#In case of incorrect behavior, an error is reported.
+ALTER TABLE t1 MODIFY fld1 CHAR(5);
+#cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_one";
+# Index is not rebuilt since the index prefix length is
+# the same.
+CREATE TABLE t1 (fld1 CHAR(10), KEY idx1(fld1(5))) ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_zero";
+#In case of incorrect behavior, an error is reported.
+ALTER TABLE t1 MODIFY fld1 CHAR(20);
+#cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_zero";

@@ -15,7 +15,6 @@
 # has completed a necessary part of its cleanup.
 # Selecting from P_S.threads provides a method to learn that.
 #
---source include/have_perfschema.inc
 --source include/gtid_utils.inc
 
 # Total number of connection each performing one insert into table
@@ -35,7 +34,9 @@
 --let $post_restart_conn_number=10
 
 # Counter to be used in GTID consistency check.
-# It's incremented per each non-XA transaction commit.
+# It's incremented per each non-XA transaction commit, including DDL calls and
+# also by any DML  quieries like CALL mtr.add_suppression() that are added to
+# the top level file of this test.
 --let $not_xa_trans_committed = 0
 # Local to this file variable to control one-phase commit loop
 --let $one_phase_number = 5
@@ -56,6 +57,9 @@ CREATE VIEW v_processlist  as SELECT * FROM performance_schema.threads where typ
 
 --inc $not_xa_trans_committed
 --eval call mtr.add_suppression("Found $prepared_at_server_restart prepared XA transactions")
+# Caused by bug#79416 fixes, see below.
+--inc $not_xa_trans_committed
+call mtr.add_suppression("Found 1 prepared XA transactions");
 
 --inc $not_xa_trans_committed
 CREATE TABLE t (a INT) ENGINE=innodb;
@@ -124,7 +128,7 @@ if (`SELECT @@global.gtid_mode = 'OFF' or @@global.log_bin = 0`)
 if (`SELECT @@global.log_bin = 1`)
 {
   --let $MYSQLD_DATADIR=`SELECT @@datadir`
-  --exec $MYSQL_BINLOG -R --to-last-log master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog.sql
+  --exec $MYSQL_BINLOG -R --to-last-log binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog.sql
   RESET MASTER;
 
   --exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqlbinlog.sql
@@ -151,6 +155,33 @@ if (`SELECT @@global.log_bin = 1`)
 --echo All transactions must be completed, to empty-list the following:
 XA RECOVER;
 
+
+# bug#79416 INNODB: FAILING ASSERTION: TOTAL_TRX >= TRX_SYS->N_PREPARED_TRX
+# Fixes' prove in that there must be no innodb assert at the server shutdown
+--connect (conn_bug79146, 127.0.0.1,root,,test,$MASTER_MYPORT,)
+CREATE TABLE t(a INT);
+XA START 'xa1';
+INSERT INTO t SET a = 1;
+XA END 'xa1';
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@SESSION.pseudo_slave_mode=1;
+XA PREPARE 'xa1';
+
+--connection default
 --source include/restart_mysqld.inc
+
+XA ROLLBACK 'xa1';
+
+# bug78695 ASSERTION `STATIC_CAST<SQL_CMD_XA_COMMIT*>(THD->LEX->M_SQL_CMD)-> GET_XA_OPT()
+# Fixes' prove in that there must be no assert at the xa commit
+XA START 'xa1';
+INSERT INTO t SET a = 1;
+XA END 'xa1';
+XA PREPARE 'xa1';
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@SESSION.pseudo_slave_mode=1;
+XA COMMIT 'xa1';
+
+DROP TABLE t;
 
 --source include/gtid_utils_end.inc

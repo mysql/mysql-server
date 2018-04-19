@@ -1,0 +1,216 @@
+# Demonstrate that WITH RECURSIVE can solve several linear equations.
+# Using the well-known Gauss algorithm ("pivot de Gauss" in French).
+# Equations:
+# 2x+3y+z=7
+# 5x-3y+10z=21
+# 6x+0y+12z=28
+# are described and solved like this:
+# call solver("[[2,3,1],  [5,-3,10],  [6,0,12]]", "[7,21,28]");
+SET @save_sql_mode=@@sql_mode$
+# "||" is nicer and shorter to read than concat():
+set sql_mode = pipes_as_concat$
+# A procedure is used to wrap WITH RECURSIVE, because we want to
+# call the query for different input set of equations.
+# Parameters: left and right member of equations, as in example above.
+create procedure solver(initial_leftm varchar(200), initial_rightm varchar(200))
+begin
+declare initial_leftm_j  json;
+declare initial_rightm_j json;
+set initial_leftm_j  = cast(initial_leftm as json),
+initial_rightm_j = cast(initial_rightm as json);
+with recursive
+# Number of equations
+number_of_lines (value) as
+(select json_length(initial_rightm_j)),
+# Number of unknowns
+number_of_columns (value) as
+(select json_length(json_extract(initial_leftm_j,"$[0]"))),
+# Sequence tables
+line_numbers (n) as
+(
+select 0
+union all
+select n+1 from line_numbers, number_of_lines where n<(value-1)
+),
+column_numbers (n) as
+(
+select 0
+union all
+select n+1 from line_numbers, number_of_columns where n<(value-1)
+),
+# The recursive CTE: one row per step, a row contains the complete set of
+# equations. Rows get transformed iteratively. Columns of the CTE:
+# null_if_done: gets NULL when process is finished,
+# leftm: left member,
+# rightm: right member,
+# pivot_lines: comma-separated list of number of lines which have been used as
+# "pivot" (i.e. substracted to other lines to zero their numbers and
+# make some unknowns disappear).
+# pivot_columns: similar.
+# We must locate, in the current set of
+# equations, a line/column which can be used as pivot; that is done by
+# a first scalar subquery which fills user variables (named
+# @cur_pivot*). If no pivot is found, the scalar subquery contains no
+# rows so returns NULL which triggers the end of the algorithm.
+# The second and third scalar subqueries use the @cur_pivot* set by the
+# first scalar subquery block, to eliminate the unknown everywhere.
+# Note that we're relying on the fact that the SELECT list items are
+# evaluated left to right.
+# If we had LATERAL derived tables, the pivot would be determined in a
+# LATERAL derived table having outer references to the recursive
+# table's columns, so we wouldn't need user variables.
+
+equations (null_if_done, leftm, rightm, pivot_lines, pivot_columns) as
+(
+select 0, initial_leftm_j, initial_rightm_j,
+       cast("" as char(200)), cast("" as char(200))
+
+union all
+
+select
+
+(
+# Locate new pivot
+select
+(@cur_pivot_line:=ln.n)+
+(@cur_pivot_column:=cn.n)+
+(@cur_pivot_value:=
+ # Extract the ln.n-th line of the left member, and from it, extract the
+ # cn.n-th column, getting a number
+ json_extract(json_extract(eq.leftm, "$[" || ln.n || "]"),
+              "$[" || cn.n || "]")
+)
+from line_numbers ln join column_numbers cn
+where
+# We're looking for lines which haven't been used as pivot yet:
+find_in_set(ln.n,eq.pivot_lines)=0 and
+# and in those lines, for a non-zero number which can serve as pivot:
+json_extract(json_extract(eq.leftm, "$[" || ln.n || "]"),
+             "$[" || cn.n || "]") <> 0
+# and we want the first found pivot:
+limit 1
+),
+
+(
+# Transform the left member
+
+select
+"[" ||
+
+group_concat(
+
+(
+select
+"[" ||
+
+group_concat(
+
+# numbers in the left member are changed: we substract to
+
+json_extract(json_extract(eq.leftm, "$[" || ln.n || "]"),
+             "$[" || cn.n || "]")
+-
+
+# a certain number of times the number at the pivot line and at the
+# same column; but only if our line isn't already a pivot line:
+(case when find_in_set(ln.n,eq.pivot_lines)=0 and ln.n<>@cur_pivot_line
+then json_extract(json_extract(eq.leftm, "$[" || ln.n || "]"),
+"$[" || @cur_pivot_column || "]") *
+json_extract(json_extract(eq.leftm, "$[" || @cur_pivot_line || "]"),
+"$[" || cn.n || "]") /
+@cur_pivot_value
+else 0 end)
+# To scan each number as we do here, we have joined with
+# "column_numbers", to do the splitting; then to produce the new
+# equation we have to re-concatenate, hence group_concat.
+order by cn.n separator ',')
+|| "]"
+
+from column_numbers cn
+)
+# We have split the set first in lines, then each line in numbers;
+# re-concatenate:
+order by ln.n separator ',')
+|| "]"
+
+from line_numbers ln
+),
+(
+# Transform the right member (simpler job)
+select
+"[" ||
+group_concat(
+json_extract(eq.rightm, "$[" || ln.n || "]")
+-
+(case when find_in_set(ln.n,eq.pivot_lines)=0 and ln.n<>@cur_pivot_line
+then json_extract(json_extract(eq.leftm, "$[" || ln.n || "]"),
+"$[" || @cur_pivot_column || "]") *
+json_extract(eq.rightm, "$[" || @cur_pivot_line || "]") /
+@cur_pivot_value
+else 0 end)
+order by ln.n separator ',')
+|| "]"
+
+from line_numbers
+ln
+),
+# Remember the pivot line to make sure we don't change it again later:
+
+@cur_pivot_line || "," || eq.pivot_lines,
+
+@cur_pivot_column || "," || eq.pivot_columns
+
+from equations eq
+
+where null_if_done is not null
+),
+
+# Resolution is finished: grab the last set of equations:
+
+final_equations as
+(
+select * from equations where null_if_done is null
+)
+
+# And present it to the user; it's "triangular", i.e. one unknown can
+# easily be calculated, then others can be calculated by moving down
+# in the equations. If the values of some unknowns can be freely
+# chosen, these unknowns are shown in the 3rd column.
+select
+json_extract(eq.leftm, "$[" || ln.n || "]")  as left_member,
+json_extract(eq.rightm, "$[" || ln.n || "]") as right_member,
+free.value as list_of_free_unknowns
+from final_equations eq, line_numbers ln,
+(
+#+1 because user naturally counts from 1, not 0
+select group_concat(cn.n+1) as value
+from final_equations eq, column_numbers cn
+where find_in_set(cn.n,eq.pivot_columns)=0
+) as free
+# Equations which should user should look at first are the last ones
+# used as pivot as they have the least number of unknowns:
+order by find_in_set(ln.n,eq.pivot_lines);
+end
+$
+SET @@sql_mode=@save_sql_mode$
+# Unique solution
+call solver("[[2,3,1],  [5,-3,10],  [6,0,12]]", "[7,21,28]");
+left_member	right_member	list_of_free_unknowns
+[0, 0, 2.571428571428571]	4	NULL
+[0, -10.5, 7.5]	3.5	NULL
+[2, 3, 1]	7	NULL
+# No solution (see "0=4" in the result)
+call solver("[[1,2,1,3],  [1,0,1,1],  [0,1,0,1],  [1,3,1,4]]", "[1,3,-1,4]");
+left_member	right_member	list_of_free_unknowns
+[0, 0, 0, 0]	0	3,4
+[0, 0, 0, 0]	4	3,4
+[0, -2, 0, -2]	2	3,4
+[1, 2, 1, 3]	1	3,4
+# One free unknown
+call solver("[[1,2,1,3],  [1,0,1,1],  [0,1,0,1],  [1,3,1,3]]", "[1,3,-1,4]");
+left_member	right_member	list_of_free_unknowns
+[0, 0, 0, 0]	0	3
+[0, 0, 0, -1]	4	3
+[0, -2, 0, -2]	2	3
+[1, 2, 1, 3]	1	3
+drop procedure solver;

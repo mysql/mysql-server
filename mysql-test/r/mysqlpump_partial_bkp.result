@@ -1,0 +1,20 @@
+#
+# Bug#26199978 - WRONG ERROR MESSAGE FOR PARTIAL BACKUPS WITH GTID_MODE = ON
+#
+# Test 1: Taking backup when --set-gtid-purged is passed as ON
+CREATE DATABASE bug26199978;
+DROP DATABASE bug26199978;
+# Backup file should contain "SET @@GLOBAL.GTID_PURGED=.* '.*'"
+Pattern "SET @@GLOBAL.GTID_PURGED=.* '.*'" found
+# Test 2: Taking backup when --set-gtid-purged is pased as OFF
+CREATE DATABASE bug26199978;
+DROP DATABASE bug26199978;
+# Backup file should NOT contain "SET @@GLOBAL.GTID_PURGED=.* '.*'"
+Matching lines are:
+None
+Occurrences of 'SET @@GLOBAL.GTID_PURGED=.* '.*'' in the input file: 0
+# Test 3: Taking backup when --set-gtid-purged is passed as AUTO. Should error out
+#         asking to pass --set-gtid-purged=[ON|OFF]
+CREATE DATABASE bug26199978;
+DROP DATABASE bug26199978;
+# Cleanup

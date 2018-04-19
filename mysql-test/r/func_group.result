@@ -52,25 +52,25 @@ sum(all a)	count(all a)	avg(all a)	std(all a)	variance(all a)	bit_or(all a)	bit_
 21	6	3.50000	1.707825127659933	2.9166666666666665	7	0	1	6		E
 select grp, sum(a),count(a),avg(a),std(a),variance(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1 group by grp;
 grp	sum(a)	count(a)	avg(a)	std(a)	variance(a)	bit_or(a)	bit_and(a)	min(a)	max(a)	min(c)	max(c)
-NULL	NULL	0	NULL	NULL	NULL	0	18446744073709551615	NULL	NULL		
 1	1	1	1.00000	0	0	1	1	1	1	a	a
 2	5	2	2.50000	0.5	0.25	3	2	2	3	b	c
 3	15	3	5.00000	0.816496580927726	0.6666666666666666	7	4	4	6	C	E
+NULL	NULL	0	NULL	NULL	NULL	0	18446744073709551615	NULL	NULL		
 select grp, sum(a)+count(a)+avg(a)+std(a)+variance(a)+bit_or(a)+bit_and(a)+min(a)+max(a)+min(c)+max(c) as sum from t1 group by grp;
 grp	sum
-NULL	NULL
 1	7
 2	20.25
 3	45.48316324759439
+NULL	NULL
 create table t2 (grp int, a bigint unsigned, c char(10));
 insert into t2 select grp,max(a)+max(grp),max(c) from t1 group by grp;
 replace into t2 select grp, a, c from t1 limit 2,1;
 select * from t2;
 grp	a	c
-NULL	NULL	
 1	2	a
 2	5	c
 3	9	E
+NULL	NULL	
 2	3	c
 drop table t1,t2;
 CREATE TABLE t1 (id int(11),value1 float(10,2));
@@ -172,8 +172,8 @@ sum(num)
 147.58
 select sum(num) from t1 group by user;
 sum(num)
-50.15
 45.63
+50.15
 51.80
 drop table t1;
 create table t1 (a1 int, a2 char(3), key k1(a1), key k2(a2));
@@ -290,11 +290,10 @@ a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)	bit_xor(b)
 1	0	NULL	NULL	NULL	NULL	NULL	18446744073709551615	0	0
 2	1	1	1.00000	0	1	1	1	1	1
 3	1	1	1.00000	0	1	1	1	1	1
-explain extended select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
+explain select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using filesort
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`a` AS `a`,count(`test`.`t1`.`b`) AS `count(b)`,sum(`test`.`t1`.`b`) AS `sum(b)`,avg(`test`.`t1`.`b`) AS `avg(b)`,std(`test`.`t1`.`b`) AS `std(b)`,min(`test`.`t1`.`b`) AS `min(b)`,max(`test`.`t1`.`b`) AS `max(b)`,bit_and(`test`.`t1`.`b`) AS `bit_and(b)`,bit_or(`test`.`t1`.`b`) AS `bit_or(b)`,bit_xor(`test`.`t1`.`b`) AS `bit_xor(b)` from `test`.`t1` group by `test`.`t1`.`a`
 drop table t1;
 create table t1 (col int);
@@ -320,7 +319,7 @@ a3 char(3),
 a4 real,
 a5 date,
 key k1(a2,a3),
-key k2(a4 desc,a1),
+key k2(a4,a1),
 key k3(a5,a1)
 );
 create table t2(
@@ -670,13 +669,13 @@ AME	AME
 explain 
 select min(a1) from t1 where a1 > 'KKK' or a1 < 'XXX';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	3	NULL	15	55.55	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	12	NULL	15	55.55	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` where ((`test`.`t1`.`a1` > 'KKK') or (`test`.`t1`.`a1` < 'XXX'))
 explain 
 select min(a1) from t1 where a1 != 'KKK';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	3	NULL	15	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	12	NULL	15	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` where (`test`.`t1`.`a1` <> 'KKK')
 explain
@@ -688,44 +687,44 @@ Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`
 explain
 select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 > 'CA';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	k1	k1	7	NULL	1	100.00	Using where; Using index
-1	SIMPLE	t2	NULL	range	k1	k1	3	NULL	4	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	range	k1	k1	16	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	range	k1	k1	9	NULL	4	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(t1.a3)`,min(`test`.`t2`.`a2`) AS `min(t2.a2)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a2` = 2) and (`test`.`t1`.`a3` < 'MIN') and (`test`.`t2`.`a3` > 'CA'))
 explain
 select min(a4 - 0.01) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	k2	12	NULL	15	100.00	Using index
+1	SIMPLE	t1	NULL	index	NULL	k2	21	NULL	15	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select min((`test`.`t1`.`a4` - 0.01)) AS `min(a4 - 0.01)` from `test`.`t1`
 explain
 select max(a4 + 0.01) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	k2	12	NULL	15	100.00	Using index
+1	SIMPLE	t1	NULL	index	NULL	k2	21	NULL	15	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select max((`test`.`t1`.`a4` + 0.01)) AS `max(a4 + 0.01)` from `test`.`t1`
 explain
 select min(a3) from t1 where (a2 +1 ) is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	k1	7	NULL	15	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	k1	16	NULL	15	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where isnull((`test`.`t1`.`a2` + 1))
 explain
 select min(a3) from t1 where (a2 + 1) = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	k1	7	NULL	15	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	k1	16	NULL	15	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where ((`test`.`t1`.`a2` + 1) = 2)
 explain
 select min(a3) from t1 where 2 = (a2 + 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	k1	7	NULL	15	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	k1	16	NULL	15	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where (2 = (`test`.`t1`.`a2` + 1))
 explain
 select min(a2) from t1 where a2 < 2 * a2 - 8;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	k1	7	NULL	15	33.33	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	k1	16	NULL	15	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a2`) AS `min(a2)` from `test`.`t1` where (`test`.`t1`.`a2` < ((2 * `test`.`t1`.`a2`) - 8))
 explain
@@ -737,14 +736,14 @@ Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`
 explain
 select min(a4) from t1  where (a4 + 0.01) between 0.07 and 0.08;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	k2	12	NULL	15	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	k2	21	NULL	15	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a4`) AS `min(a4)` from `test`.`t1` where ((`test`.`t1`.`a4` + 0.01) between 0.07 and 0.08)
 explain
 select concat(min(t1.a1),min(t2.a4)) from t1, t2 where t2.a4 <> 'AME';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	k2	k2	4	NULL	6	100.00	Using where; Using index
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	3	NULL	15	100.00	Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	range	k2	k2	13	NULL	6	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	12	NULL	15	100.00	Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select concat(min(`test`.`t1`.`a1`),min(`test`.`t2`.`a4`)) AS `concat(min(t1.a1),min(t2.a4))` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a4` <> 'AME')
 drop table t1, t2;
@@ -763,22 +762,22 @@ latin2	2	latin2	2
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(1) CHARACTER SET latin2 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `a` char(1) CHARACTER SET latin2 COLLATE latin2_general_ci DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t2 select max(a),min(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `max(a)` char(1) CHARACTER SET latin2 DEFAULT NULL,
   `min(a)` char(1) CHARACTER SET latin2 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 create table t2 select concat(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `concat(a)` varchar(1) CHARACTER SET latin2 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2,t1;
 create table t1 (a int);
 insert into t1 values (1);
@@ -839,6 +838,8 @@ id int(10) unsigned NOT NULL auto_increment,
 val enum('one','two','three') NOT NULL default 'one',
 PRIMARY KEY  (id)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES
 (1,'one'),(2,'two'),(3,'three'),(4,'one'),(5,'two');
 select val, count(*) from t1 group by val;
@@ -852,6 +853,8 @@ id int(10) unsigned NOT NULL auto_increment,
 val set('one','two','three') NOT NULL default 'one',
 PRIMARY KEY  (id)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES
 (1,'one'),(2,'two'),(3,'three'),(4,'one'),(5,'two');
 select val, count(*) from t1 group by val;
@@ -867,11 +870,9 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `MAX(b)` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1(f1 datetime);
 insert into t1 values (now());
 create table t2 select f2 from (select max(now()) f2 from t1) a;
@@ -1013,9 +1014,9 @@ INSERT INTO t1 VALUES (-5.00000000001),(-5.00000000002),(-5.00000000003),(-5.000
 insert into t1 select * from t1;
 select col1,count(col1),sum(col1),avg(col1) from t1 group by col1;
 col1	count(col1)	sum(col1)	avg(col1)
--5.000000000030	2	-10.000000000060	-5.00000000003000000
--5.000000000020	4	-20.000000000080	-5.00000000002000000
 -5.000000000010	4	-20.000000000040	-5.00000000001000000
+-5.000000000020	4	-20.000000000080	-5.00000000002000000
+-5.000000000030	2	-10.000000000060	-5.00000000003000000
 -5.000000000000	2	-10.000000000000	-5.00000000000000000
 DROP TABLE t1;
 create table t1 (col1 decimal(16,12));
@@ -1031,7 +1032,7 @@ select col1,sum(col1),max(col1),min(col1) from t1 group by col1;
 col1	sum(col1)	max(col1)	min(col1)
 5.000000000010	10.000000000020	5.000000000010	5.000000000010
 DROP TABLE t1;
-CREATE TABLE t1 (a VARCHAR(400));
+CREATE TABLE t1 (a VARCHAR(400)) charset latin1;
 INSERT INTO t1 (a) VALUES ("A"), ("a"), ("a "), ("a   "),
 ("B"), ("b"), ("b "), ("b   ");
 SELECT COUNT(DISTINCT a) FROM t1;
@@ -1080,19 +1081,19 @@ v	a
 3.00000	3
 SELECT b/c as v, SUM(a) FROM t1 GROUP BY v;
 v	SUM(a)
-0.33333	6
-0.50000	6
-0.66667	6
 1.00000	18
-1.50000	6
+0.50000	6
+0.33333	6
 2.00000	6
+0.66667	6
 3.00000	6
+1.50000	6
 SELECT SUM(a) FROM t1 GROUP BY b/c;
 SUM(a)
-6
-6
-6
 18
+6
+6
+6
 6
 6
 6
@@ -1102,7 +1103,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2);
 CREATE TABLE t2 (a INT PRIMARY KEY, b INT);
 INSERT INTO t2 VALUES (1,1), (3,3);
-SELECT SQL_NO_CACHE 
+SELECT
 (SELECT SUM(c.a) FROM t1 ttt, t2 ccc 
 WHERE ttt.a = ccc.b AND ttt.a = t.a GROUP BY ttt.a) AS minid   
 FROM t1 t, t2 c WHERE t.a = c.b;
@@ -1114,14 +1115,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `variance(0)` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 select stddev(0);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `stddev(0)` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table bug22555 (i smallint primary key auto_increment, s1 smallint, s2 smallint, e decimal(30,10), o double);
 insert into bug22555 (s1, s2, e, o) values (53, 78, 11.4276528, 6.828112), (17, 78, 5.916793, 1.8502951), (18, 76, 2.679231, 9.17975591), (31, 62, 6.07831, 0.1), (19, 41, 5.37463, 15.1), (83, 73, 14.567426, 7.959222), (92, 53, 6.10151, 13.1856852), (7, 12, 13.92272, 3.442007), (92, 35, 11.95358909, 6.01376678), (38, 84, 2.572, 7.904571);
@@ -1508,16 +1509,13 @@ COUNT(*)	a
 4	1
 DROP TABLE t1;
 set SQL_MODE=ONLY_FULL_GROUP_BY;
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 CREATE VIEW v1 AS SELECT a,(a + 1) AS y FROM t1;
-EXPLAIN EXTENDED SELECT y FROM v1 GROUP BY v1.y;
+EXPLAIN SELECT y FROM v1 GROUP BY v1.y;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (`test`.`t1`.`a` + 1) AS `y` from `test`.`t1` group by (`test`.`t1`.`a` + 1)
 DROP VIEW v1;
 DROP TABLE t1;
@@ -1562,8 +1560,6 @@ DROP TABLE D;
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1), (1,2), (1,3);
 SET SQL_MODE='ONLY_FULL_GROUP_BY';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 3
@@ -1939,3 +1935,79 @@ FROM t1 t GROUP BY t1.a)
 0
 0
 DROP TABLE t1;
+#
+# Bug#25738624: ASSERTION `FALSE' FAILED IN SQL/SQL_EXECUTOR.CC
+#
+CREATE TABLE e1(pk INT, col_date DATE);
+CREATE TABLE b1(i INT);
+CREATE TABLE bb4(col_int_key INT, KEY(col_int_key)) ENGINE=MYISAM;
+INSERT INTO bb4 VALUES(4);
+UPDATE IGNORE e1 AS outr1, b1 AS outr2 SET outr1.col_date =
+JSON_SET(outr1.col_date, CONCAT('$','[',1,']','.','cdate'), '2007-07-12')
+WHERE outr1.pk <= ANY ( SELECT DISTINCT innr1.col_int_key AS y FROM bb4
+AS innr2 LEFT JOIN bb4 AS innr1 ON (innr2.col_int_key <> innr1.col_int_key)
+WHERE innr1.col_int_key= 4);
+DROP TABLE e1, b1, bb4;
+CREATE TABLE t1(pk INT, KEY(pk)) ENGINE=MYISAM;
+INSERT INTO t1 VALUES(1);
+SELECT MIN(i2.pk) FROM t1 i1 LEFT JOIN t1 i2 ON (i1.pk != i2.pk)
+WHERE i2.pk = 1;
+MIN(i2.pk)
+NULL
+DROP TABLE t1;
+# End of test for bug#25738624
+#
+# Bug#25541454: ASSERT `FALSE' FAILED IN READ_SYSTEM / JOIN_READ_CONST_TABLE AT SQL_EXECUTOR.CC
+#
+CREATE TABLE t1 (
+col_int_key int(11) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+CREATE TABLE t2 (
+col_int_key int(11) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (4,1,2);
+CREATE TABLE t3 (
+col_int int(11) DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (3,9,1);
+CREATE TABLE t4 (
+col_int_key int(11) DEFAULT NULL,
+col_int int(11) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+SELECT (
+SELECT MIN(subquery1_t1.col_int_key)
+FROM t3 AS subquery1_t1
+RIGHT JOIN t1 AS subquery1_t2
+STRAIGHT_JOIN t4 AS subquery1_t3
+ON (subquery1_t3.pk = subquery1_t2.col_int_key)
+ON (subquery1_t3.col_int_key = subquery1_t2.col_int)
+WHERE subquery1_t1.col_int_key >= table1.col_int
+AND subquery1_t3.pk > table1.pk
+)
+FROM t2 AS table1;
+(
+SELECT MIN(subquery1_t1.col_int_key)
+FROM t3 AS subquery1_t1
+RIGHT JOIN t1 AS subquery1_t2
+STRAIGHT_JOIN t4 AS subquery1_t3
+ON (subquery1_t3.pk = subquery1_t2.col_int_key)
+ON (subquery1_t3.col_int_key = subquery1_t2.col_int)
+WHERE subquery1_t1.col_int_k
+NULL
+DROP TABLE t1, t2, t3, t4;
+# End of test for bug#25541454

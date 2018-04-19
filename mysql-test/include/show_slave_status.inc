@@ -1,11 +1,11 @@
 # ==== Purpose ====
 #
-# Show selected columns of output from SHOW SLAVE STATUS.
+# Show selected columns of output from SHOW SLAVE STATUS FOR CHANNEL channel.
 #
-# Note: test cases should never call SHOW SLAVE STATUS directly,
-# because that outputs more information to the query log than what is
-# needed for the property that is being tested.  That would cause
-# maintenance problems, because (1) it is hard for a human to
+# Note: test cases should never call SHOW SLAVE STATUS FOR CHANNEL channel,
+# directly, because that outputs more information to the query log than
+# what is needed for the property that is being tested.  That would
+# cause maintenance problems, because (1) it is hard for a human to
 # understand what property is being tested; (2) the output of many of
 # the fields is non-deterministic (e.g., Slave_IO_State) or changes
 # frequently (e.g., binlog positions).
@@ -42,6 +42,7 @@
 # ==== Usage ====
 #
 # --let $status_items= Column_Name[, Column_Name[, ...]]
+# [--let $rpl_channel_name=channel_name]
 # --source include/show_slave_status.inc
 #
 # Parameters:
@@ -67,7 +68,9 @@
 #
 #       --let $slave_sql_mode= NO_BACKSLASH_ESCAPES
 #
-
+#   $rpl_channel_name
+#     If set, FOR CHANNEL clause is added to SHOW SLAVE STATUS command.
+#
 
 --let $_show_slave_status_items= $status_items
 if (!$status_items)
@@ -75,6 +78,11 @@ if (!$status_items)
   --die Bug in test case: The mysqltest variable $status_items is not set.
 }
 
+--let $_show_slave_status_channel= $rpl_channel_name
+if (!$rpl_channel_name)
+{
+  --let $_show_slave_status_channel= ''
+}
 
 --let $_slave_sql_mode= NO_BACKSLASH_ESCAPES
 if ($slave_sql_mode)
@@ -86,13 +94,27 @@ if ($slave_sql_mode)
 eval SET sql_mode= '$_slave_sql_mode';
 --enable_query_log
 
+--let $show_slave_status_cmd=SHOW SLAVE STATUS
+if ($rpl_channel_name)
+{
+  --let $show_slave_status_cmd= $show_slave_status_cmd FOR CHANNEL $rpl_channel_name
+}
 
 while ($_show_slave_status_items)
 {
   --let $_show_slave_status_name= `SELECT SUBSTRING_INDEX('$_show_slave_status_items', ',', 1)`
   --let $_show_slave_status_items= `SELECT LTRIM(SUBSTRING('$_show_slave_status_items', LENGTH('$_show_slave_status_name') + 2))`
 
-  --let $_show_slave_status_value= query_get_value(SHOW SLAVE STATUS, $_show_slave_status_name, 1)
+  --let $_show_slave_status_value= query_get_value($show_slave_status_cmd, $_show_slave_status_name, 1)
+
+  if ($_show_slave_status_value)
+  {
+      --let $escape_string= $_show_slave_status_value
+      --let $enclosing_char= "
+      --source escape_sql.inc
+      --let $_show_slave_status_value= $escape_string
+  }
+
   --let $_slave_field_result_replace= /[\\]/\// $slave_field_result_replace
   --replace_regex $_slave_field_result_replace
   --let $_show_slave_status_value= `SELECT REPLACE("$_show_slave_status_value", '$MYSQL_TEST_DIR', 'MYSQL_TEST_DIR')`

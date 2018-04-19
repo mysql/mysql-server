@@ -134,7 +134,7 @@ insert into bug20691 values (6, DEFAULT, DEFAULT), (6, '1975-07-10 07:10:03', '1
 Warnings:
 Warning	1364	Field 'd' doesn't have a default value
 Warning	1364	Field 'd' doesn't have a default value
-SET sql_mode = 'STRICT_ALL_TABLES';
+SET sql_mode = default;
 insert into bug20691 values (7, DEFAULT, DEFAULT), (7, '1975-07-10 07:10:03', '1978-01-13 14:08:51'), (7, DEFAULT, DEFAULT);
 ERROR HY000: Field 'd' doesn't have a default value
 select * from bug20691 order by i asc;

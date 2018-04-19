@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -133,6 +140,28 @@ void Qmgr::initData()
     nodePtr.p->sendPresToStatus = Q_NOT_ACTIVE;
     nodePtr.p->failState = NORMAL;
   }//for
+
+  /* Received ProcessInfo are indirectly addressed:
+     nodeId => fixed array lookup => dynamic array.
+     The dynamic array contains enough entries for all
+     configured MGM and API nodes.
+  */
+  int numOfApiAndMgmNodes = 0;
+  for (int i = 1; i < MAX_NODES; i++)
+  {
+    Uint32 type = getNodeInfo(i).m_type;
+    switch(type){
+    case NodeInfo::API:
+    case NodeInfo::MGM:
+      processInfoNodeIndex[i] = numOfApiAndMgmNodes++;
+      max_api_node_id = i;
+      break;
+    default:
+      processInfoNodeIndex[i] = -1;
+      break;
+    }
+  }
+  receivedProcessInfo = new ProcessInfo[numOfApiAndMgmNodes];
 }//Qmgr::initData()
 
 void Qmgr::initRecords()
@@ -188,7 +217,8 @@ Qmgr::Qmgr(Block_context& ctx)
   addRecSignal(GSN_ALLOC_NODEID_CONF,  &Qmgr::execALLOC_NODEID_CONF);
   addRecSignal(GSN_ALLOC_NODEID_REF,  &Qmgr::execALLOC_NODEID_REF);
   addRecSignal(GSN_ENABLE_COMCONF,  &Qmgr::execENABLE_COMCONF);
-  
+  addRecSignal(GSN_PROCESSINFO_REP, &Qmgr::execPROCESSINFO_REP);
+
   // Arbitration signals
   addRecSignal(GSN_ARBIT_PREPREQ, &Qmgr::execARBIT_PREPREQ);
   addRecSignal(GSN_ARBIT_PREPCONF, &Qmgr::execARBIT_PREPCONF);
@@ -216,12 +246,22 @@ Qmgr::Qmgr(Block_context& ctx)
   // Ndbinfo signal
   addRecSignal(GSN_DBINFO_SCANREQ, &Qmgr::execDBINFO_SCANREQ);
 
+  // Message from NDBCNTR when our node is set to state STARTED
+  addRecSignal(GSN_NODE_STARTED_REP, &Qmgr::execNODE_STARTED_REP);
+
+  // Message from other blocks requesting node isolation
+  addRecSignal(GSN_ISOLATE_ORD, &Qmgr::execISOLATE_ORD);
+
+  addRecSignal(GSN_READ_LOCAL_SYSFILE_CONF,
+               &Qmgr::execREAD_LOCAL_SYSFILE_CONF);
+
   initData();
 }//Qmgr::Qmgr()
 
 Qmgr::~Qmgr() 
 {
   delete []nodeRec;
+  delete []receivedProcessInfo;
 }//Qmgr::~Qmgr()
 
 

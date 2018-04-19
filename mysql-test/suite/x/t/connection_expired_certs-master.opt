@@ -1,0 +1,3 @@
+--ssl-key=$MYSQL_TEST_DIR/std_data/expired-server-key.pem
+--ssl-cert=$MYSQL_TEST_DIR/std_data/expired-server-cert.pem
+--ssl-ca=$MYSQL_TEST_DIR/std_data/expired-ca.pem

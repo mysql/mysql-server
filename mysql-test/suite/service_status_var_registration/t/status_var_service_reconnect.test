@@ -1,0 +1,21 @@
+# Base test for registration of system variables by components.
+
+--source ../include/have_component_test_status_var_service.inc
+
+call mtr.add_suppression("duplicate variable name");
+INSTALL COMPONENT "file://component_test_status_var_service";
+SHOW STATUS WHERE VARIABLE_NAME LIKE '%component%';
+
+--source include/kill_and_restart_mysqld.inc
+
+SHOW STATUS WHERE VARIABLE_NAME LIKE '%component%';
+UNINSTALL COMPONENT "file://component_test_status_var_service";
+
+# Write the test results in "test_component_status_var_service.log" into the
+# result file of this test
+--echo ########## test_component_sys_var_service.log:
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_component_status_var_service.log;
+remove_file $MYSQLD_DATADIR/test_component_status_var_service.log;
+
+

@@ -1,0 +1,94 @@
+source include/have_debug.inc;
+source include/have_debug_sync.inc;
+source include/have_binlog_format_mixed_or_statement.inc;
+source include/master-slave.inc;
+source include/have_myisam.inc;
+
+--echo
+--echo # Bug#58546 test rpl_packet timeout failure sporadically on PB
+--echo # ----------------------------------------------------------------------
+--echo # STOP SLAVE stopped IO thread first and then stopped SQL thread. It was
+--echo # possible that IO thread stopped after replicating part of a transaction
+--echo # which SQL thread was executing. SQL thread would be hung if the
+--echo # transaction could not be rolled back safely.
+--echo # It caused some sporadic failures on PB2.
+--echo #
+--echo # This test verifies that when 'STOP SLAVE' is issued by a user, IO
+--echo # thread will continue to fetch the rest events of the transaction which
+--echo # is being executed by SQL thread and is not able to be rolled back safely.
+
+CREATE TABLE t1 (c1 INT KEY, c2 INT) ENGINE=InnoDB;
+CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(1, 1);
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+# make sure there are no zombie threads
+--source include/stop_dump_threads.inc
+
+let $debug_save= `SELECT @@GLOBAL.debug`;
+SET GLOBAL debug= 'd,dump_thread_wait_before_send_xid';
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+BEGIN;
+UPDATE t1 SET c2 = 2 WHERE c1 = 1;
+
+--source include/rpl_connection_master.inc
+BEGIN;
+INSERT INTO t1 VALUES(2, 2);
+INSERT INTO t2 VALUES(1);
+UPDATE t1 SET c2 = 3 WHERE c1 = 1;
+COMMIT;
+
+# wait for the dump thread to reach the sync point
+--let $wait_condition= select count(*)=1 from information_schema.processlist where state LIKe '%debug sync point%' and command='Binlog Dump'
+--source include/wait_condition.inc
+
+--source include/rpl_connection_slave1.inc
+let $show_statement= SHOW PROCESSLIST;
+let $field= Info;
+let $condition= = 'UPDATE t1 SET c2 = 3 WHERE c1 = 1';
+source include/wait_show_condition.inc;
+
+send STOP SLAVE;
+
+--source include/rpl_connection_slave.inc
+ROLLBACK;
+
+--source include/rpl_connection_master.inc
+SET DEBUG_SYNC= 'now SIGNAL signal.continue';
+# wait for the dump thread to come out of the
+# waiting phase before resetting the signals
+--let $wait_condition= select count(*)=0 from information_schema.processlist where state LIKE '%debug sync point%' and command='Binlog Dump'
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'RESET';
+
+--source include/rpl_connection_slave.inc
+source include/wait_for_slave_to_stop.inc;
+
+--source include/rpl_connection_slave1.inc
+reap;
+
+# Slave has stopped, thence lets make sure that
+# we kill the zombie dump threads. Also, make
+# sure that we disable the DBUG_EXECUTE_IF
+# that would set the dump thread to wait
+--source include/rpl_connection_master.inc
+SET GLOBAL debug= $debug_save;
+# make sure that there are no zombie threads
+--source include/stop_dump_threads.inc
+
+--source include/rpl_connection_slave1.inc
+# now the dump thread on the master will start
+# from a clena slate, i.e. without the
+# DBUG_EXECUTE_IF set
+source include/start_slave.inc;
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1, t2;
+--source include/rpl_end.inc
+

@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/no_valgrind_without_big.inc
 
 #
@@ -9,7 +8,7 @@
 drop table if exists t1,t2,t3;
 --enable_warnings
 
-CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) ENGINE = InnoDB;
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) ENGINE = InnoDB charset utf8mb4;
 INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
                        ('Full-text indexes', 'are called collections'),
                           ('Only MyISAM tables','support collections'),
@@ -23,7 +22,7 @@ SHOW INDEX FROM t1;
 # nl search
 
 select * from t1 where MATCH(a,b) AGAINST ("collections");
-explain extended select * from t1 where MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 select * from t1 where MATCH(a,b) AGAINST ("only");
@@ -56,7 +55,7 @@ explain select * from t1 where MATCH(a,b) AGAINST ("collections")>0 and a like '
 # boolean search
 
 select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
-explain extended select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
+explain select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("support +collections" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("sear*" IN BOOLEAN MODE);
@@ -128,7 +127,7 @@ CREATE TABLE t1 (
   ticket int(11),
   KEY ti (id),
   KEY tit (ticket)
-) ENGINE = InnoDB;
+) charset utf8mb4 ENGINE = InnoDB;
 INSERT INTO t1 VALUES (2,3),(1,2);
 
 CREATE TABLE t2 (
@@ -136,7 +135,7 @@ CREATE TABLE t2 (
   inhalt text,
   KEY tig (ticket),
   fulltext index tix (inhalt)
-) ENGINE = InnoDB;
+) charset utf8mb4 ENGINE = InnoDB;
 INSERT INTO t2 VALUES (1,'foo'),(2,'bar'),(3,'foobar');
 
 #select t1.id FROM t2 as ttxt,t1,t1 as ticket2
@@ -160,6 +159,7 @@ WHERE ticket2.id = ticket2.ticket and
 
 # Check that we get 'fulltext' index in SHOW CREATE
 
+ANALYZE TABLE t2;
 show keys from t2;
 show create table t2;
 
@@ -303,9 +303,11 @@ drop table t1;
 # UTF8
 # INNODB_FTS: Charset Support (FIX)
 SET NAMES latin1;
-CREATE TABLE t1 (t text character set utf8 not null, fulltext(t)) ENGINE = InnoDB;
+--character_set latin1
+CREATE TABLE t1 (t text character set utf8mb4 not null, fulltext(t)) ENGINE = InnoDB;
 INSERT t1 VALUES ('Mit freundlichem GrЭъ'), ('aus OsnabrЭck');
 SET NAMES koi8r;
+--character_set koi8r
 INSERT t1 VALUES ("Это мы - опилки"),("Отлезь, гнида!"),
                 ("Не влезай, убьет!"),("и будет прав!");
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('ОПИЛКИ');
@@ -325,7 +327,7 @@ DROP TABLE t1;
 #
 # bug#3964
 #
-
+--character_set latin1
 CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) ENGINE = InnoDB DEFAULT CHARSET=utf8;
 insert into t1 (s) values ('pДra para para'),('para para para');
 select * from t1 where match(s) against('para' in boolean mode);
@@ -406,7 +408,7 @@ DROP TABLE t1;
 # BUG#13835: max key length is 1000 bytes when trying to create
 #            a fulltext index
 #
-CREATE TABLE t1 (a VARCHAR(10000), FULLTEXT(a)) ENGINE = InnoDB;
+CREATE TABLE t1 (a VARCHAR(10000), FULLTEXT(a)) charset utf8mb4 ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 

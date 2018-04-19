@@ -1,10 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2,t3;
@@ -36,13 +30,63 @@ CREATE TABLE t3 (
 ALTER TABLE t3
 ENGINE NDBCLUSTER;
 
+--disable_warnings
 SHOW CREATE TABLE t3;
+--enable_warnings
 
 ALTER TABLE t3
 ADD PRIMARY KEY (id);
 
+--disable_warnings
 SHOW CREATE TABLE t3;
+--enable_warnings
 
 DROP TABLE t1, t3;
 
 --echo End of 5.1 tests
+
+
+set @@auto_increment_increment=4;
+set @@auto_increment_offset=1;
+set @@ndb_autoincrement_prefetch_sz=2;
+create table t1 (a int unsigned not null primary key auto_increment)
+engine ndb;
+insert into t1 values ();
+insert into t1 values (2);
+insert into t1 values ();
+insert into t1 values ();
+select * from t1 order by a;
+drop table t1;
+
+
+
+set @@auto_increment_increment=2;
+set @@auto_increment_offset=1;
+
+--echo First look at default SE behaviour on manual insert unaligned with
+--echo offset + step
+
+create table t1 (a int unsigned not null primary key auto_increment);
+show variables like 'LAST_INSERT_ID';
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+insert into t1 values(18);
+show variables like 'LAST_INSERT_ID';
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+insert into t1 values(22);
+show variables like 'LAST_INSERT_ID';
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+insert into t1 values(28);
+show variables like 'LAST_INSERT_ID';
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+select * from t1 order by a;
+drop table t1;

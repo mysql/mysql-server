@@ -1,4 +1,4 @@
-SET NAMES utf8;
+SET NAMES utf8mb4;
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200),
@@ -17,14 +17,14 @@ t1	CREATE TABLE `t1` (
   FULLTEXT KEY `ft_content` (`content`),
   FULLTEXT KEY `ft_title` (`title`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=gb2312
-SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国');
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国') ORDER BY id;
 id	title	content
-SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国上海');
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国上海') ORDER BY id;
 id	title	content
 2	中国上海	中国上海
-SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国');
+SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国') ORDER BY id;
 id	title	content
-SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国上海');
+SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国上海') ORDER BY id;
 id	title	content
 2	中国上海	中国上海
 DROP TABLE t1;
@@ -46,22 +46,22 @@ t1	CREATE TABLE `t1` (
   FULLTEXT KEY `ft_content` (`content`) /*!50100 WITH PARSER `ngram` */ ,
   FULLTEXT KEY `ft_title` (`title`) /*!50100 WITH PARSER `ngram` */ 
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=gb2312
-SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国');
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国') ORDER BY id;
 id	title	content
 1	中国	中国
 2	中国上海	中国上海
-SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国上海');
-id	title	content
-2	中国上海	中国上海
-1	中国	中国
-SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国');
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国上海') ORDER BY id;
 id	title	content
 1	中国	中国
 2	中国上海	中国上海
-SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国上海');
+SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国') ORDER BY id;
 id	title	content
-2	中国上海	中国上海
 1	中国	中国
+2	中国上海	中国上海
+SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国上海') ORDER BY id;
+id	title	content
+1	中国	中国
+2	中国上海	中国上海
 CREATE TABLE t2 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200),
@@ -73,7 +73,6 @@ ALTER TABLE t2 ADD FULLTEXT INDEX ft_title (title) WITH PARSER ngram;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	Error	Plugin 'ngram' is not loaded
-test.t1	check	Error	Incorrect information in file: './test/t1.frm'
 test.t1	check	error	Corrupt
 SELECT * FROM t1;
 ERROR HY000: Plugin 'ngram' is not loaded
@@ -113,9 +112,9 @@ ALTER TABLE t2 ADD FULLTEXT INDEX ft_title (title);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 INSERT INTO t2 (title) VALUES  ('中国');
-SELECT * FROM t2 WHERE MATCH(title) AGAINST('中国');
+SELECT * FROM t2 WHERE MATCH(title) AGAINST('中国') ORDER BY id;
 id	title
-SELECT * FROM t2 WHERE MATCH(title) AGAINST('中国上海');
+SELECT * FROM t2 WHERE MATCH(title) AGAINST('中国上海') ORDER BY id;
 id	title
 DROP TABLE t2;
 # restart
@@ -126,20 +125,20 @@ SELECT * FROM t1;
 id	title	content
 1	中国	中国
 2	中国上海	中国上海
-SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国');
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国') ORDER BY id;
 id	title	content
 1	中国	中国
 2	中国上海	中国上海
-SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国上海');
-id	title	content
-2	中国上海	中国上海
-1	中国	中国
-SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国');
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('中国上海') ORDER BY id;
 id	title	content
 1	中国	中国
 2	中国上海	中国上海
-SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国上海');
+SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国') ORDER BY id;
 id	title	content
-2	中国上海	中国上海
 1	中国	中国
+2	中国上海	中国上海
+SELECT * FROM t1 WHERE MATCH(content) AGAINST('中国上海') ORDER BY id;
+id	title	content
+1	中国	中国
+2	中国上海	中国上海
 DROP TABLE t1;

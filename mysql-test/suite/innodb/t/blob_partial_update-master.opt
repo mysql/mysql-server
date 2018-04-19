@@ -1,0 +1,2 @@
+--log_error_verbosity=3
+--log-error=$MYSQLTEST_VARDIR/log/blob_partial_update.err

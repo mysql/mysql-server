@@ -1,0 +1,30 @@
+# Validate plugin requirements on server code.
+#
+# ROLLBACK statement will trigger plugin server requirements to run
+# on replication_observers_example plugin.
+#
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_mixed.inc
+--source include/have_replication_observers_example_plugin.inc
+
+--source include/install_replication_observers_example.inc
+
+RESET MASTER;
+
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,validate_replication_observers_plugin_server_requirements';
+
+ROLLBACK;
+
+SET @@GLOBAL.DEBUG= @debug_saved;
+
+--source include/uninstall_replication_observers_example.inc
+
+--echo #
+--echo # Verify that plugin server requirements were validated.
+--echo #
+
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_server_requirements.err
+--let $grep_pattern=replication_observers_example_plugin:validate_plugin_server_requirements=5
+--source include/grep_pattern.inc

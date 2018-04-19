@@ -214,6 +214,8 @@ MATCH(body1,body2) AGAINST('row7col5');
 id	title	body	body1	body2	body3
 DROP TABLE articles;
 SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
@@ -221,6 +223,8 @@ a VARCHAR(200),
 b TEXT,
 FULLTEXT (b) WITH PARSER simple_parser
 ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -266,6 +270,8 @@ a VARCHAR(200),
 b TEXT,
 FULLTEXT (b) WITH PARSER simple_parser
 ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -326,4 +332,11 @@ SELECT * FROM t1 WHERE MATCH (a) AGAINST ('NULL');
 ERROR HY000: Can't find FULLTEXT index matching the column list
 DROP TABLE t1;
 DROP TABLE t1_join;
+CREATE TABLE t1 (
+a VARCHAR(200),
+FULLTEXT (a) WITH PARSER ngram
+)ENGINE = InnoDB;
+SELECT * FROM t1 WHERE MATCH(a) AGAINST("')'@7" IN BOOLEAN MODE);
+a
+DROP TABLE t1;
 UNINSTALL PLUGIN simple_parser;

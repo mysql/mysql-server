@@ -1,235 +1,213 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/dict0stats.ic
-Code used for calculating and manipulating table statistics.
+/** @file include/dict0stats.ic
+ Code used for calculating and manipulating table statistics.
 
-Created Jan 23, 2012 Vasil Dimov
-*******************************************************/
+ Created Jan 23, 2012 Vasil Dimov
+ *******************************************************/
 
 #include "dict0dict.h"
 #include "dict0types.h"
 #include "srv0srv.h"
 
-/*********************************************************************//**
-Set the persistent statistics flag for a given table. This is set only
-in the in-memory table object and is not saved on disk. It will be read
-from the .frm file upon first open from MySQL after a server restart. */
+/** Set the persistent statistics flag for a given table. This is set only
+ in the in-memory table object and is not saved on disk. It will be read
+ from the .frm file upon first open from MySQL after a server restart. */
 UNIV_INLINE
-void
-dict_stats_set_persistent(
-/*======================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	ibool		ps_on,	/*!< in: persistent stats explicitly enabled */
-	ibool		ps_off)	/*!< in: persistent stats explicitly disabled */
+void dict_stats_set_persistent(
+    dict_table_t *table, /*!< in/out: table */
+    ibool ps_on,         /*!< in: persistent stats explicitly enabled */
+    ibool ps_off)        /*!< in: persistent stats explicitly disabled */
 {
-	/* Not allowed to have both flags set, but a CREATE or ALTER
-	statement that contains "STATS_PERSISTENT=0 STATS_PERSISTENT=1" would
-	end up having both set. In this case we clear the OFF flag. */
-	if (ps_on && ps_off) {
-		ps_off = FALSE;
-	}
+  /* Not allowed to have both flags set, but a CREATE or ALTER
+  statement that contains "STATS_PERSISTENT=0 STATS_PERSISTENT=1" would
+  end up having both set. In this case we clear the OFF flag. */
+  if (ps_on && ps_off) {
+    ps_off = FALSE;
+  }
 
-	ib_uint32_t	stat_persistent = 0;
+  ib_uint32_t stat_persistent = 0;
 
-	if (ps_on) {
-		stat_persistent |= DICT_STATS_PERSISTENT_ON;
-	}
+  if (ps_on) {
+    stat_persistent |= DICT_STATS_PERSISTENT_ON;
+  }
 
-	if (ps_off) {
-		stat_persistent |= DICT_STATS_PERSISTENT_OFF;
-	}
+  if (ps_off) {
+    stat_persistent |= DICT_STATS_PERSISTENT_OFF;
+  }
 
-	/* we rely on this assignment to be atomic */
-	table->stat_persistent = stat_persistent;
+  /* we rely on this assignment to be atomic */
+  table->stat_persistent = stat_persistent;
 }
 
-/*********************************************************************//**
-Check whether persistent statistics is enabled for a given table.
-@return TRUE if enabled, FALSE otherwise */
+/** Check whether persistent statistics is enabled for a given table.
+ @return true if enabled, false otherwise */
 UNIV_INLINE
-ibool
-dict_stats_is_persistent_enabled(
-/*=============================*/
-	const dict_table_t*	table)	/*!< in: table */
+ibool dict_stats_is_persistent_enabled(
+    const dict_table_t *table) /*!< in: table */
 {
-	/* Because of the nature of this check (non-locking) it is possible
-	that a table becomes:
-	* PS-disabled immediately after this function has returned TRUE or
-	* PS-enabled immediately after this function has returned FALSE.
-	This means that it is possible that we do:
-	+ dict_stats_update(DICT_STATS_RECALC_PERSISTENT) on a table that has
-	  just been PS-disabled or
-	+ dict_stats_update(DICT_STATS_RECALC_TRANSIENT) on a table that has
-	  just been PS-enabled.
-	This is acceptable. Avoiding this would mean that we would have to
-	protect the ::stat_persistent with dict_table_stats_lock() like the
-	other ::stat_ members which would be too big performance penalty,
-	especially when this function is called from
-	row_update_statistics_if_needed(). */
+  /* Because of the nature of this check (non-locking) it is possible
+  that a table becomes:
+  * PS-disabled immediately after this function has returned TRUE or
+  * PS-enabled immediately after this function has returned FALSE.
+  This means that it is possible that we do:
+  + dict_stats_update(DICT_STATS_RECALC_PERSISTENT) on a table that has
+    just been PS-disabled or
+  + dict_stats_update(DICT_STATS_RECALC_TRANSIENT) on a table that has
+    just been PS-enabled.
+  This is acceptable. Avoiding this would mean that we would have to
+  protect the ::stat_persistent with dict_table_stats_lock() like the
+  other ::stat_ members which would be too big performance penalty,
+  especially when this function is called from
+  row_update_statistics_if_needed(). */
 
-	/* we rely on this read to be atomic */
-	ib_uint32_t	stat_persistent = table->stat_persistent;
+  /* we rely on this read to be atomic */
+  ib_uint32_t stat_persistent = table->stat_persistent;
 
-	if (stat_persistent & DICT_STATS_PERSISTENT_ON) {
-		ut_ad(!(stat_persistent & DICT_STATS_PERSISTENT_OFF));
-		return(TRUE);
-	} else if (stat_persistent & DICT_STATS_PERSISTENT_OFF) {
-		return(FALSE);
-	} else {
-		return(srv_stats_persistent);
-	}
+  if (stat_persistent & DICT_STATS_PERSISTENT_ON) {
+    ut_ad(!(stat_persistent & DICT_STATS_PERSISTENT_OFF));
+    return (TRUE);
+  } else if (stat_persistent & DICT_STATS_PERSISTENT_OFF) {
+    return (FALSE);
+  } else {
+    return (srv_stats_persistent);
+  }
 }
 
-/*********************************************************************//**
-Set the auto recalc flag for a given table (only honored for a persistent
-stats enabled table). The flag is set only in the in-memory table object
-and is not saved in InnoDB files. It will be read from the .frm file upon
-first open from MySQL after a server restart. */
+/** Set the auto recalc flag for a given table (only honored for a persistent
+ stats enabled table). The flag is set only in the in-memory table object
+ and is not saved in InnoDB files. It will be read from the .frm file upon
+ first open from MySQL after a server restart. */
 UNIV_INLINE
-void
-dict_stats_auto_recalc_set(
-/*=======================*/
-	dict_table_t*	table,			/*!< in/out: table */
-	ibool		auto_recalc_on,		/*!< in: explicitly enabled */
-	ibool		auto_recalc_off)	/*!< in: explicitly disabled */
+void dict_stats_auto_recalc_set(
+    dict_table_t *table,   /*!< in/out: table */
+    ibool auto_recalc_on,  /*!< in: explicitly enabled */
+    ibool auto_recalc_off) /*!< in: explicitly disabled */
 {
-	ut_ad(!auto_recalc_on || !auto_recalc_off);
+  ut_ad(!auto_recalc_on || !auto_recalc_off);
 
-	ib_uint32_t	stats_auto_recalc = 0;
+  ib_uint32_t stats_auto_recalc = 0;
 
-	if (auto_recalc_on) {
-		stats_auto_recalc |= DICT_STATS_AUTO_RECALC_ON;
-	}
+  if (auto_recalc_on) {
+    stats_auto_recalc |= DICT_STATS_AUTO_RECALC_ON;
+  }
 
-	if (auto_recalc_off) {
-		stats_auto_recalc |= DICT_STATS_AUTO_RECALC_OFF;
-	}
+  if (auto_recalc_off) {
+    stats_auto_recalc |= DICT_STATS_AUTO_RECALC_OFF;
+  }
 
-	/* we rely on this assignment to be atomic */
-	table->stats_auto_recalc = stats_auto_recalc;
+  /* we rely on this assignment to be atomic */
+  table->stats_auto_recalc = stats_auto_recalc;
 }
 
-/*********************************************************************//**
-Check whether auto recalc is enabled for a given table.
-@return TRUE if enabled, FALSE otherwise */
+/** Check whether auto recalc is enabled for a given table.
+ @return true if enabled, false otherwise */
 UNIV_INLINE
-ibool
-dict_stats_auto_recalc_is_enabled(
-/*==============================*/
-	const dict_table_t*	table)	/*!< in: table */
+ibool dict_stats_auto_recalc_is_enabled(
+    const dict_table_t *table) /*!< in: table */
 {
-	/* we rely on this read to be atomic */
-	ib_uint32_t	stats_auto_recalc = table->stats_auto_recalc;
+  /* we rely on this read to be atomic */
+  ib_uint32_t stats_auto_recalc = table->stats_auto_recalc;
 
-	if (stats_auto_recalc & DICT_STATS_AUTO_RECALC_ON) {
-		ut_ad(!(stats_auto_recalc & DICT_STATS_AUTO_RECALC_OFF));
-		return(TRUE);
-	} else if (stats_auto_recalc & DICT_STATS_AUTO_RECALC_OFF) {
-		return(FALSE);
-	} else {
-		return(srv_stats_auto_recalc);
-	}
+  if (stats_auto_recalc & DICT_STATS_AUTO_RECALC_ON) {
+    ut_ad(!(stats_auto_recalc & DICT_STATS_AUTO_RECALC_OFF));
+    return (TRUE);
+  } else if (stats_auto_recalc & DICT_STATS_AUTO_RECALC_OFF) {
+    return (FALSE);
+  } else {
+    return (srv_stats_auto_recalc);
+  }
 }
 
-/*********************************************************************//**
-Initialize table's stats for the first time when opening a table. */
+/** Initialize table's stats for the first time when opening a table. */
 UNIV_INLINE
-void
-dict_stats_init(
-/*============*/
-	dict_table_t*	table)	/*!< in/out: table */
+void dict_stats_init(dict_table_t *table) /*!< in/out: table */
 {
-	ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!mutex_own(&dict_sys->mutex));
 
-	if (table->stat_initialized) {
-		return;
-	}
+  if (table->stat_initialized) {
+    return;
+  }
 
-	dict_stats_upd_option_t	opt;
+  dict_stats_upd_option_t opt;
 
-	if (dict_stats_is_persistent_enabled(table)) {
-		opt = DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY;
-	} else {
-		opt = DICT_STATS_RECALC_TRANSIENT;
-	}
+  if (dict_stats_is_persistent_enabled(table)) {
+    opt = DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY;
+  } else {
+    opt = DICT_STATS_RECALC_TRANSIENT;
+  }
 
-	dict_stats_update(table, opt);
+  dict_stats_update(table, opt);
 }
 
-/*********************************************************************//**
-Deinitialize table's stats after the last close of the table. This is
-used to detect "FLUSH TABLE" and refresh the stats upon next open. */
+/** Deinitialize table's stats after the last close of the table. This is
+ used to detect "FLUSH TABLE" and refresh the stats upon next open. */
 UNIV_INLINE
-void
-dict_stats_deinit(
-/*==============*/
-	dict_table_t*	table)	/*!< in/out: table */
+void dict_stats_deinit(dict_table_t *table) /*!< in/out: table */
 {
-	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
+  /* Don't assert the table->n_ref_count is 0 here, since there could
+  be some background threads opening the table concurrently. This is
+  not prevented. The only case prevented is in ha_innobase::open(),
+  to acquire an existing table, table->mutex is required */
 
-	ut_a(table->n_ref_count == 0);
+  dict_table_stats_lock(table, RW_X_LATCH);
 
-	dict_table_stats_lock(table, RW_X_LATCH);
+  if (!table->stat_initialized) {
+    dict_table_stats_unlock(table, RW_X_LATCH);
+    return;
+  }
 
-	if (!table->stat_initialized) {
-		dict_table_stats_unlock(table, RW_X_LATCH);
-		return;
-	}
-
-	table->stat_initialized = FALSE;
+  table->stat_initialized = FALSE;
 
 #ifdef UNIV_DEBUG_VALGRIND
-	UNIV_MEM_INVALID(&table->stat_n_rows,
-			 sizeof(table->stat_n_rows));
-	UNIV_MEM_INVALID(&table->stat_clustered_index_size,
-			 sizeof(table->stat_clustered_index_size));
-	UNIV_MEM_INVALID(&table->stat_sum_of_other_index_sizes,
-			 sizeof(table->stat_sum_of_other_index_sizes));
-	UNIV_MEM_INVALID(&table->stat_modified_counter,
-			 sizeof(table->stat_modified_counter));
+  UNIV_MEM_INVALID(&table->stat_n_rows, sizeof(table->stat_n_rows));
+  UNIV_MEM_INVALID(&table->stat_clustered_index_size,
+                   sizeof(table->stat_clustered_index_size));
+  UNIV_MEM_INVALID(&table->stat_sum_of_other_index_sizes,
+                   sizeof(table->stat_sum_of_other_index_sizes));
+  UNIV_MEM_INVALID(&table->stat_modified_counter,
+                   sizeof(table->stat_modified_counter));
 
-	dict_index_t*   index;
+  dict_index_t *index;
 
-	for (index = dict_table_get_first_index(table);
-	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
+  for (index = table->first_index(); index != NULL; index = index->next()) {
+    ulint n_uniq = dict_index_get_n_unique(index);
 
-		ulint	n_uniq = dict_index_get_n_unique(index);
-
-		UNIV_MEM_INVALID(
-			index->stat_n_diff_key_vals,
-			n_uniq * sizeof(index->stat_n_diff_key_vals[0]));
-		UNIV_MEM_INVALID(
-			index->stat_n_sample_sizes,
-			n_uniq * sizeof(index->stat_n_sample_sizes[0]));
-		UNIV_MEM_INVALID(
-			index->stat_n_non_null_key_vals,
-			n_uniq * sizeof(index->stat_n_non_null_key_vals[0]));
-		UNIV_MEM_INVALID(
-			&index->stat_index_size,
-			sizeof(index->stat_index_size));
-		UNIV_MEM_INVALID(
-			&index->stat_n_leaf_pages,
-			sizeof(index->stat_n_leaf_pages));
-	}
+    UNIV_MEM_INVALID(index->stat_n_diff_key_vals,
+                     n_uniq * sizeof(index->stat_n_diff_key_vals[0]));
+    UNIV_MEM_INVALID(index->stat_n_sample_sizes,
+                     n_uniq * sizeof(index->stat_n_sample_sizes[0]));
+    UNIV_MEM_INVALID(index->stat_n_non_null_key_vals,
+                     n_uniq * sizeof(index->stat_n_non_null_key_vals[0]));
+    UNIV_MEM_INVALID(&index->stat_index_size, sizeof(index->stat_index_size));
+    UNIV_MEM_INVALID(&index->stat_n_leaf_pages,
+                     sizeof(index->stat_n_leaf_pages));
+  }
 #endif /* UNIV_DEBUG_VALGRIND */
 
-	dict_table_stats_unlock(table, RW_X_LATCH);
+  dict_table_stats_unlock(table, RW_X_LATCH);
 }

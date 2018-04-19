@@ -1,6 +1,5 @@
   --source include/have_debug.inc
   --source include/have_debug_sync.inc
-  --source include/not_embedded.inc
   --source include/not_windows.inc
   --source include/have_grep.inc
 
@@ -15,13 +14,14 @@
 
   set default_storage_engine= myisam;
   let $point=   before_reset_query_plan;
-
+  SET @save_log_bin= @@sql_log_bin;
+  SET SQL_LOG_BIN=0;
   create table t1 (a char(10) character set koi8r) ;
   insert ignore into t1 values ('ÔÅÓÔ') ;
   let $point=   before_reset_query_plan;let $query=  DELETE from t1 ;
   --source include/explain_for_connection.inc
   drop table t1 ;
-
+  SET SQL_LOG_BIN=@save_log_bin;
   CREATE TABLE t1 (a int not null,b int not null) ;
   CREATE TABLE t2 (a int not null, b int not null, primary key (a,b)) ;
   CREATE TABLE t3 (a int not null, b int not null, primary key (a,b)) ;
@@ -98,12 +98,12 @@
   INSERT INTO ten VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9) ;
   CREATE TABLE t1 ( pk INTEGER NOT NULL, i1 INTEGER NOT NULL, c1 VARCHAR(10) NOT NULL, PRIMARY KEY (pk) ) ;
   INSERT INTO t1 SELECT a, 1, 'MySQL' FROM ten ;
-  CREATE TABLE t2 ( pk INTEGER NOT NULL, c1 VARCHAR(10) NOT NULL, c2 varchar(10) NOT NULL, PRIMARY KEY (pk) ) ;
+  CREATE TABLE t2 ( pk INTEGER NOT NULL, c1 VARCHAR(10) NOT NULL, c2 varchar(10) NOT NULL, PRIMARY KEY (pk) ) charset latin1;
   INSERT INTO t2 SELECT a, 'MySQL', 'MySQL' FROM ten ;
-  CREATE TABLE t3 ( pk INTEGER NOT NULL, c1 VARCHAR(10) NOT NULL, PRIMARY KEY (pk) ) ;
+  CREATE TABLE t3 ( pk INTEGER NOT NULL, c1 VARCHAR(10) NOT NULL, PRIMARY KEY (pk) ) charset latin1;
   INSERT INTO t3 SELECT a, 'MySQL' FROM ten ;
-  CREATE TABLE t4 ( pk int(11) NOT NULL, c1_key varchar(10) CHARACTER SET utf8 NOT NULL, c2 varchar(10) NOT NULL, c3 varchar(10) NOT NULL, PRIMARY KEY (pk), KEY k1 (c1_key) ) ;
-  CREATE TABLE t5 ( pk INTEGER NOT NULL, c1 VARCHAR(10) NOT NULL, PRIMARY KEY (pk) ) ;
+  CREATE TABLE t4 ( pk int(11) NOT NULL, c1_key varchar(10) CHARACTER SET utf8 NOT NULL, c2 varchar(10) NOT NULL, c3 varchar(10) NOT NULL, PRIMARY KEY (pk), KEY k1 (c1_key) ) charset latin1;
+  CREATE TABLE t5 ( pk INTEGER NOT NULL, c1 VARCHAR(10) NOT NULL, PRIMARY KEY (pk) ) charset latin1;
   INSERT INTO t5 SELECT a, 'MySQL' FROM ten ;
   let $point=   after_join_optimize;let $query=  SELECT STRAIGHT_JOIN * FROM (t1 LEFT JOIN  (t2 LEFT JOIN (t3 LEFT OUTER JOIN t4 ON t3.c1 <= t4.c1_key) ON t2.c1 = t4.c3)  ON t1.c1 = t4.c2) RIGHT OUTER JOIN t5 ON t2.c2 <= t5.c1 WHERE t1.i1 = 1 ;
   --source include/explain_for_connection.inc
@@ -247,7 +247,7 @@
 
   CREATE TABLE t1 ( OXID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT '', OXPARENTID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT 'oxrootid', OXLEFT int NOT NULL DEFAULT '0', OXRIGHT int NOT NULL DEFAULT '0', OXROOTID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT '', PRIMARY KEY  (OXID), KEY OXNID (OXID), KEY OXLEFT (OXLEFT), KEY OXRIGHT (OXRIGHT), KEY OXROOTID (OXROOTID) ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci ;
   INSERT INTO t1 VALUES ('d8c4177d09f8b11f5.52725521','oxrootid',1,40,'d8c4177d09f8b11f5.52725521'), ('d8c4177d151affab2.81582770','d8c4177d09f8b11f5.52725521',2,3, 'd8c4177d09f8b11f5.52725521'), ('d8c4177d206a333d2.74422679','d8c4177d09f8b11f5.52725521',4,5, 'd8c4177d09f8b11f5.52725521'), ('d8c4177d225791924.30714720','d8c4177d09f8b11f5.52725521',6,7, 'd8c4177d09f8b11f5.52725521'), ('d8c4177d2380fc201.39666693','d8c4177d09f8b11f5.52725521',8,9, 'd8c4177d09f8b11f5.52725521'), ('d8c4177d24ccef970.14957924','d8c4177d09f8b11f5.52725521',10,11, 'd8c4177d09f8b11f5.52725521') ;
-  let $replace=/"rows_produced_per_join": 24/"rows_produced_per_join": 25/ ;
+  let $replace=/"rows_produced_per_join": 5/"rows_produced_per_join": 4/ /"data_read_per_join": "560"/"data_read_per_join": "559"/;
   let $point=   before_reset_query_plan;let $query=  SELECT s.oxid FROM t1 v, t1 s  WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND v.oxrootid ='d8c4177d09f8b11f5.52725521' AND s.oxleft > v.oxleft AND s.oxleft < v.oxright ;
   --source include/explain_for_connection.inc
   let $replace=;
@@ -298,7 +298,7 @@ SET sql_mode = default;
 
 
 
-  CREATE TABLE t1 ( a varchar(255) default NULL, b timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP, INDEX idx(a,b) ) ;
+  CREATE TABLE t1 ( a varchar(240) default NULL, b timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP, INDEX idx(a,b) ) ;
   CREATE TABLE t2 ( a varchar(255) default NULL ) ;
   INSERT INTO t1 VALUES ('abcdefghijk','2007-05-07 06:00:24') ;
   INSERT INTO t1 SELECT * FROM t1 ;
@@ -403,4 +403,152 @@ SET sql_mode = default;
   --source include/explain_for_connection.inc
   drop table t1,t2 ;
  
+let $point= before_reset_query_plan;
+
+###############################
+#MTR FOR BUG#14581870         #
+###############################
+
+CREATE TABLE a1 (
+  col_int int(11) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+ CREATE TABLE aa1 (
+  col_int int(11) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+let $query=SELECT DISTINCT   alias2.col_int AS field1 , alias2.col_int AS field2 FROM  a1 AS alias1 LEFT  JOIN aa1 AS alias2 ON  alias1.pk =  alias2.pk WHERE ( alias1.col_int = 8 OR alias1 .pk <= alias1.col_int ) GROUP BY field1, field2  ORDER BY field1, field2 DESC;
+--source include/explain_for_connection.inc
+
+DROP TABLE a1;
+DROP TABLE aa1;
+
+###############################
+#MTR FOR BUG#14582154         #
+###############################
+
+CREATE TABLE f1 (
+  col_varchar_1024_latin1_key varchar(1024) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+   PRIMARY KEY (pk),
+  KEY col_varchar_1024_latin1_key (col_varchar_1024_latin1_key(1000))
+  ) ENGINE=MyISAM AUTO_INCREMENT=8 DEFAULT CHARSET=latin1;
+
+insert ignore into f1 values
+(1,"I'll"),
+(2,'v'),
+(3,'time'),
+(4,"I'm"),
+(5,'o'),
+(6,'rkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrge
+ozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhh
+cxsxwujulpjdzvkpaijursprnwgrpquarwkazzjeiwvdmdivjqsxmhjwagewclcfykywlcnemiuaab
+rrifnhuufzasunkrcpvasdqkxbwptigbpnesqigwegcnfeuvrgnecpthmhffqbythjwpukqubzpomn
+trddrwhzjtqvbjiklcekxqyoxsolbxthdcprswpjxixmvfwmsyseblwcvumvyvbitxqjxdzdytunqv
+vrmpyxrencqhuyrfluezqekmqpwutxnzddrbjycyoyqbzsoxvillooqxuvoxcgohdbytybwcqxdwtq
+rebgjzbycekyjgbpmqadutrqluyxhrdodxqqjwasfkvetfobocgpftrhvxugmmszwpoglvarsfiljr
+zimqeplevleqdhepkhcfrahcpjjvhkkwblfenfpetwejamgeefplsksusqvazujabvkfek'),
+(7,'y');
+
+ANALYZE TABLE f1;
+
+CREATE TABLE a2 (
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+let $query=SELECT DISTINCT   alias1.pk AS field1 FROM  f1 AS alias1 LEFT  JOIN a2 AS alias2 ON  alias1.col_varchar_1024_latin1_key =  alias2 .col_varchar_10_utf8_key WHERE alias1.pk  IN (5, 5) GROUP BY field1 HAVING field1 <= 3;
+--source include/explain_for_connection.inc
+
+DROP TABLE f1;
+DROP TABLE a2;
+
+###############################
+#MTR FOR BUG#14586538         #
+###############################
+
+CREATE TABLE h2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM AUTO_INCREMENT=10 DEFAULT CHARSET=latin1;
+
+insert into h2 values (1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+ANALYZE TABLE h2;
+
+CREATE TABLE aa3 (
+  col_int_key int(11) DEFAULT NULL,
+  KEY col_int_key (col_int_key)
+ ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+let $query=SELECT alias1.pk AS field1 FROM  h2 AS alias1 LEFT  JOIN aa3 AS alias2 ON  alias1.pk =  alias2.col_int_key WHERE alias1.pk <> 9 GROUP BY field1 ORDER BY field1 LIMIT 1 OFFSET 3;
+--source include/explain_for_connection.inc
+
+DROP TABLE h2;
+DROP TABLE aa3;
+
+###############################
+#MTR FOR BUG#14591376         #
+###############################
+
+CREATE TABLE e1 (
+  col_int int(11) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_key int(11) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM AUTO_INCREMENT=7 DEFAULT CHARSET=latin1;
+
+insert into e1 values (1, NULL,NULL);
+insert into e1 values (2,6,NULL);
+insert into e1 values (3,8,-1131610112);
+insert into e1 values (4,2,-1009057792);
+insert into e1 values (5,-1220345856,1);
+insert into e1 values (6,NULL,-185204736);
+
+ANALYZE TABLE e1;
+
+CREATE TABLE cc2 (
+  col_int int(11) DEFAULT NULL
+ ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
+
+insert into cc2 values ( 685899776),(NULL);
+
+ANALYZE TABLE CC2;
+
+let $query=SELECT    alias1.pk AS field1 FROM  e1 AS alias1 RIGHT  JOIN cc2 AS alias2 ON  alias1.col_int =  alias2.col_int WHERE alias1.col_int_key  IN (8) ;
+--source include/explain_for_connection.inc
+
+DROP TABLE e1;
+DROP TABLE cc2;
+
+###############################
+#MTR FOR Bug#15915676         #
+###############################
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  col_int INT,
+  col_varchar_key VARCHAR(10),
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  pk INT NOT NULL,
+  col_varchar_key VARCHAR(10),
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+
+let $query=SELECT DISTINCT alias2.pk AS field1, alias2.pk AS field2, alias2.pk AS field3 FROM t1 AS alias1 RIGHT JOIN t2 AS alias2  ON  alias1.col_varchar_key =  alias2.col_varchar_key WHERE alias1.col_int >alias1.col_int HAVING field3 = 7 ORDER BY field1, field2, field3 LIMIT 10 OFFSET 1;
+
+--source include/explain_for_connection.inc
+
+drop table t1;
+drop table t2;
 

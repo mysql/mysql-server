@@ -1,82 +1,101 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
+/**
+  @file storage/perfschema/table_accounts.cc
+  TABLE ACCOUNTS.
+*/
+
+#include "storage/perfschema/table_accounts.h"
+
+#include <stddef.h>
+
+#include "my_dbug.h"
 #include "my_thread.h"
-#include "table_accounts.h"
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
-#include "pfs_account.h"
-#include "pfs_visitor.h"
-#include "pfs_memory.h"
-#include "pfs_status.h"
-#include "field.h"
+#include "sql/field.h"
+#include "sql/plugin_table.h"
+#include "sql/table.h"
+#include "storage/perfschema/pfs_account.h"
+#include "storage/perfschema/pfs_events_transactions.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_memory.h"
+#include "storage/perfschema/pfs_status.h"
+#include "storage/perfschema/pfs_visitor.h"
 
 THR_LOCK table_accounts::m_table_lock;
 
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("USER") },
-    { C_STRING_WITH_LEN("char(16)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("HOST") },
-    { C_STRING_WITH_LEN("char(60)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("CURRENT_CONNECTIONS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("TOTAL_CONNECTIONS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
+Plugin_table table_accounts::m_table_def(
+    /* Schema name */
+    "performance_schema",
+    /* Name */
+    "accounts",
+    /* Definition */
+    "  USER CHAR(32) collate utf8mb4_bin default null,\n"
+    "  HOST CHAR(60) collate utf8mb4_bin default null,\n"
+    "  CURRENT_CONNECTIONS bigint not null,\n"
+    "  TOTAL_CONNECTIONS bigint not null,\n"
+    "  UNIQUE KEY `ACCOUNT` (USER, HOST) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr);
+
+PFS_engine_table_share table_accounts::m_share = {
+    &pfs_truncatable_acl,
+    table_accounts::create,
+    NULL, /* write_row */
+    table_accounts::delete_all_rows,
+    cursor_by_account::get_row_count,
+    sizeof(PFS_simple_index), /* ref length */
+    &m_table_lock,
+    &m_table_def,
+    false /* perpetual */,
+    PFS_engine_table_proxy(),
+    {0},
+    false /* m_in_purgatory */
+};
+
+bool PFS_index_accounts_by_user_host::match(PFS_account *pfs) {
+  if (m_fields >= 1) {
+    if (!m_key_1.match(pfs)) {
+      return false;
+    }
   }
-};
 
-TABLE_FIELD_DEF
-table_accounts::m_field_def=
-{ 4, field_types };
+  if (m_fields >= 2) {
+    if (!m_key_2.match(pfs)) {
+      return false;
+    }
+  }
 
-PFS_engine_table_share
-table_accounts::m_share=
-{
-  { C_STRING_WITH_LEN("accounts") },
-  &pfs_truncatable_acl,
-  table_accounts::create,
-  NULL, /* write_row */
-  table_accounts::delete_all_rows,
-  cursor_by_account::get_row_count,
-  sizeof(PFS_simple_index), /* ref length */
-  &m_table_lock,
-  &m_field_def,
-  false /* checked */
-};
+  return true;
+}
 
-PFS_engine_table* table_accounts::create()
-{
+PFS_engine_table *table_accounts::create(PFS_engine_table_share *) {
   return new table_accounts();
 }
 
-int
-table_accounts::delete_all_rows(void)
-{
+int table_accounts::delete_all_rows(void) {
   reset_events_waits_by_thread();
   reset_events_waits_by_account();
   reset_events_stages_by_thread();
@@ -93,67 +112,61 @@ table_accounts::delete_all_rows(void)
   return 0;
 }
 
-table_accounts::table_accounts()
-  : cursor_by_account(& m_share),
-  m_row_exists(false)
-{}
+table_accounts::table_accounts() : cursor_by_account(&m_share) {}
 
-void table_accounts::make_row(PFS_account *pfs)
-{
-  pfs_optimistic_state lock;
-
-  m_row_exists= false;
-  pfs->m_lock.begin_optimistic_lock(&lock);
-
-  if (m_row.m_account.make_row(pfs))
-    return;
-
-  PFS_connection_stat_visitor visitor;
-  PFS_connection_iterator::visit_account(pfs,
-                                         true,  /* threads */
-                                         false, /* THDs */
-                                         & visitor);
-
-  if (! pfs->m_lock.end_optimistic_lock(& lock))
-    return;
-
-  m_row.m_connection_stat.set(& visitor.m_stat);
-  m_row_exists= true;
+int table_accounts::index_init(uint, bool) {
+  PFS_index_accounts *result = NULL;
+  result = PFS_NEW(PFS_index_accounts_by_user_host);
+  m_opened_index = result;
+  m_index = result;
+  return 0;
 }
 
-int table_accounts::read_row_values(TABLE *table,
-                                      unsigned char *buf,
-                                      Field **fields,
-                                      bool read_all)
-{
-  Field *f;
+int table_accounts::make_row(PFS_account *pfs) {
+  pfs_optimistic_state lock;
 
-  if (unlikely(! m_row_exists))
+  pfs->m_lock.begin_optimistic_lock(&lock);
+
+  if (m_row.m_account.make_row(pfs)) {
     return HA_ERR_RECORD_DELETED;
+  }
+
+  PFS_connection_stat_visitor visitor;
+  PFS_connection_iterator::visit_account(pfs, true, /* threads */
+                                         false,     /* THDs */
+                                         &visitor);
+
+  if (!pfs->m_lock.end_optimistic_lock(&lock)) {
+    return HA_ERR_RECORD_DELETED;
+  }
+
+  m_row.m_connection_stat.set(&visitor.m_stat);
+  return 0;
+}
+
+int table_accounts::read_row_values(TABLE *table, unsigned char *buf,
+                                    Field **fields, bool read_all) {
+  Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
-  {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index))
-    {
-      switch(f->field_index)
-      {
-      case 0: /* USER */
-      case 1: /* HOST */
-        m_row.m_account.set_field(f->field_index, f);
-        break;
-      case 2: /* CURRENT_CONNECTIONS */
-      case 3: /* TOTAL_CONNECTIONS */
-        m_row.m_connection_stat.set_field(f->field_index - 2, f);
-        break;
-      default:
-        DBUG_ASSERT(false);
+  for (; (f = *fields); fields++) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
+      switch (f->field_index) {
+        case 0: /* USER */
+        case 1: /* HOST */
+          m_row.m_account.set_field(f->field_index, f);
+          break;
+        case 2: /* CURRENT_CONNECTIONS */
+        case 3: /* TOTAL_CONNECTIONS */
+          m_row.m_connection_stat.set_field(f->field_index - 2, f);
+          break;
+        default:
+          DBUG_ASSERT(false);
       }
     }
   }
   return 0;
 }
-
