@@ -38,13 +38,9 @@ SELECT @@SESSION.sort_buffer_size;
 #################################################################################
 --echo # Restart server with sort_buffer_size 9999999;
 
-let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server 
---source include/wait_until_disconnected.inc
--- exec echo "restart:--sort_buffer_size=9999999 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
--- source include/wait_until_connected_again.inc
+
+-- let $restart_parameters= "restart:--sort_buffer_size=9999999"
+-- source include/restart_mysqld.inc
 
 SELECT @@GLOBAL.sort_buffer_size;
 
