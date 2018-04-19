@@ -1,5 +1,9 @@
 connect(con_log_recent_closed_freeze, localhost, root,,);
 CREATE TABLE log_recent_closed_freeze_t (a INT PRIMARY KEY) ENGINE=InnoDB;
+# Force to start transaction and assign trx->id.
+# This can trigger flush of max_trx_id which can
+# involve its own mtr and result in dirty page.
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
 if ($recent_closed_freeze_empty_flush_list) {
   SET GLOBAL innodb_buf_flush_list_now = 1;
 }

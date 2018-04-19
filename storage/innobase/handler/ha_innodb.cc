@@ -18600,7 +18600,8 @@ static void purge_stop_now_set(THD *thd MY_ATTRIBUTE((unused)),
   }
 }
 
-/** Force innodb to do sharp checkpoint.
+/** Force InnoDB to do sharp checkpoint. This forces a flush of all
+dirty pages.
 @param[in]  thd       thread handle
 @param[in]  var       pointer to system variable
 @param[out] var_ptr   where the formal string goes
@@ -18626,7 +18627,11 @@ static void checkpoint_now_set(THD *thd MY_ATTRIBUTE((unused)),
   }
 }
 
-/** Force innodb to do fuzzy checkpoint.
+/** Force InnoDB to do fuzzy checkpoint. Fuzzy checkpoint does not
+force InnoDB to flush dirty pages. It only forces to write the new
+checkpoint_lsn to the header of ib_logfile0. This LSN is where the
+recovery starts. You can read more about the fuzzy checkpoints in
+the internet.
 @param[in]  thd       thread handle
 @param[in]  var       pointer to system variable
 @param[out] var_ptr   where the formal string goes
@@ -18641,10 +18646,6 @@ static void checkpoint_fuzzy_now_set(THD *thd MY_ATTRIBUTE((unused)),
     only inside mtr tests. */
 
     log_request_checkpoint(*log_sys, true);
-
-    dberr_t err = fil_write_flushed_lsn(log_sys->last_checkpoint_lsn);
-
-    ut_a(err == DB_SUCCESS);
   }
 }
 

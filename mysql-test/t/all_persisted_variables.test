@@ -24,10 +24,10 @@
 # In future, if a new global variable is added, it will be automatically
 # picked up from performance_schema.global_variables table.
 #
-# Out of all, 354 are global persistent variable. In future, if a new global
+# Out of all, 355 are global persistent variable. In future, if a new global
 # persistent variable is added, it is the responsibility of the Dev to
 # edit this variable.
-#      -> $total_persistent_var=354
+#      -> $total_persistent_var=355
 ################################################################################
 
 --echo ########################################################################
@@ -38,7 +38,7 @@
 --source include/not_windows.inc
 
 let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables`;
-let $total_persistent_vars=354;
+let $total_persistent_vars=355;
 
 --echo ##############################################################
 --echo # 0. Verify that variables present in performance_schema.global
@@ -155,7 +155,7 @@ SET PERSIST innodb_monitor_reset_all="latch";
 --enable_warnings
 --enable_query_log
 --echo
---let $assert_text= 'Expect 354 persisted variables in the table. Due to open Bugs, we are checking for 349'
+--let $assert_text= 'Expect 355 persisted variables in the table. Due to open Bugs, we are checking for 350'
 
 # Below are the persisted variables we are unable to test at the moment due to
 # existing Bugs.

@@ -37,9 +37,9 @@ if ($noredo_remodify) {
 --echo # 3. Keep modifying pages, stop just before we reach limit in recent_closed.
 --echo #
 
-CALL mtr_redo_generate_multi(1, 10000, 155);
+CALL mtr_redo_generate_multi(1, 10000, 150);
 
-let $wait_lsn = $dirty_pages_added_up_to_lsn + 2*1024*1024 - 400;
+let $wait_lsn = $dirty_pages_added_up_to_lsn + 2*1024*1024 - 600;
 
 let $stop = 0;
 while ($stop == 0) {
@@ -75,6 +75,12 @@ SET GLOBAL DEBUG = "-d,buf_flush_list_ignore_recent_closed";
 let $i = $n_conn;
 while ($i) {
   connect(con$i, localhost, root,,);
+
+  # Force to start transaction and assign trx->id.
+  # This can trigger flush of max_trx_id which can
+  # involve its own mtr and result in dirty page.
+  START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
   SET DEBUG_SYNC = "mtr_redo_before_add_dirty_blocks WAIT_FOR mtr_go NO_CLEAR_EVENT";
 
   # This actually stops in mini-transaction related to undo_insert
@@ -132,6 +138,7 @@ let $i = $n_conn;
 while ($i) {
   --connection con$i
   reap;
+  COMMIT;
   disconnect con$i;
   dec $i;
 }
