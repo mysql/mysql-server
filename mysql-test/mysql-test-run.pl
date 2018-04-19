@@ -1694,8 +1694,13 @@ sub command_line_setup {
 
   # Check if "parallel" options is set
   if (not defined $opt_parallel) {
-    # Set parallel value to "auto"
-    $opt_parallel = "auto";
+    if ($opt_start or $opt_start_dirty) {
+      # Set parallel value to 1
+      $opt_parallel = 1;
+    } else {
+      # Set parallel value to "auto"
+      $opt_parallel = "auto";
+    }
   } else {
     my $flag = 0;
     # Check if parallel value is a positive number or "auto".
