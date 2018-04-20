@@ -3681,11 +3681,7 @@ lock_t *lock_table_create(dict_table_t *table, /*!< in/out: database table
   ut_ad(trx_mutex_own(trx));
 
   check_trx_state(trx);
-
-  if ((type_mode & LOCK_MODE_MASK) == LOCK_AUTO_INC) {
-    ++table->n_waiting_or_granted_auto_inc_locks;
-  }
-
+  ++table->count_by_mode[type_mode & LOCK_MODE_MASK];
   /* For AUTOINC locking we reuse the lock instance only if
   there is no wait involved else we allocate the waiting lock
   from the transaction lock heap. */
@@ -3818,10 +3814,10 @@ void lock_table_remove_low(lock_t *lock) /*!< in/out: table lock */
 
   trx = lock->trx;
   table = lock->tab_lock.table;
-
+  const auto lock_mode = lock_get_mode(lock);
   /* Remove the table from the transaction's AUTOINC vector, if
   the lock that is being released is an AUTOINC lock. */
-  if (lock_get_mode(lock) == LOCK_AUTO_INC) {
+  if (lock_mode == LOCK_AUTO_INC) {
     /* The table's AUTOINC lock can get transferred to
     another transaction before we get here. */
     if (table->autoinc_trx == trx) {
@@ -3840,10 +3836,9 @@ void lock_table_remove_low(lock_t *lock) /*!< in/out: table lock */
     if (!lock_get_wait(lock) && !ib_vector_is_empty(trx->autoinc_locks)) {
       lock_table_remove_autoinc_lock(lock, trx);
     }
-
-    ut_a(table->n_waiting_or_granted_auto_inc_locks > 0);
-    table->n_waiting_or_granted_auto_inc_locks--;
   }
+  ut_a(0 < table->count_by_mode[lock_mode]);
+  --table->count_by_mode[lock_mode];
 
   UT_LIST_REMOVE(trx->lock.trx_locks, lock);
   ut_list_remove(table->locks, lock, TableLockGetNode());
@@ -3943,6 +3938,20 @@ const lock_t *lock_table_other_has_incompatible(
   const lock_t *lock;
 
   ut_ad(lock_mutex_own());
+
+  // According to lock_compatibility_matrix, an intention lock can wait only
+  // for LOCK_S or LOCK_X. If there are no LOCK_S nor LOCK_X locks in the queue,
+  // then we can avoid iterating through the list and return immediately.
+  // This might help in OLTP scenarios, with no DDL queries,
+  // as then there are almost no LOCK_S nor LOCK_X, but many DML queries still
+  // need to get an intention lock to perform their action - while this never
+  // causes them to wait for a "data lock", it might cause them to wait for
+  // lock_sys->mutex if the operation takes Omega(n).
+
+  if ((mode == LOCK_IS || mode == LOCK_IX) &&
+      table->count_by_mode[LOCK_S] == 0 && table->count_by_mode[LOCK_X] == 0) {
+    return NULL;
+  }
 
   for (lock = UT_LIST_GET_LAST(table->locks); lock != NULL;
        lock = UT_LIST_GET_PREV(tab_lock.locks, lock)) {
@@ -4066,6 +4075,23 @@ static bool lock_table_has_to_wait_in_queue(
 
   table = wait_lock->tab_lock.table;
 
+  const auto mode = lock_get_mode(wait_lock);
+
+  // According to lock_compatibility_matrix, an intention lock can wait only
+  // for LOCK_S or LOCK_X. If there are no LOCK_S nor LOCK_X locks in the queue,
+  // then we can avoid iterating through the list and return immediately.
+  // This might help in OLTP scenarios, with no DDL queries,
+  // as then there are almost no LOCK_S nor LOCK_X, but many DML queries still
+  // need to get an intention lock to perform their action. When an occasional
+  // DDL finishes and releases the LOCK_S or LOCK_X, it has to scan the queue
+  // and grant any locks which were blocked by it. This can take Omega(n^2) if
+  // each of intention locks has to verify that all the other locks.
+
+  if ((mode == LOCK_IS || mode == LOCK_IX) &&
+      table->count_by_mode[LOCK_S] == 0 && table->count_by_mode[LOCK_X] == 0) {
+    return false;
+  }
+
   for (lock = UT_LIST_GET_FIRST(table->locks); lock != wait_lock;
        lock = UT_LIST_GET_NEXT(tab_lock.locks, lock)) {
     if (lock_has_to_wait(wait_lock, lock)) {
@@ -4087,9 +4113,26 @@ static void lock_table_dequeue(
   ut_ad(lock_mutex_own());
   ut_a(lock_get_type_low(in_lock) == LOCK_TABLE);
 
+  const auto mode = lock_get_mode(in_lock);
+  const auto table = in_lock->tab_lock.table;
+
   lock_t *lock = UT_LIST_GET_NEXT(tab_lock.locks, in_lock);
 
   lock_table_remove_low(in_lock);
+
+  // According to lock_compatibility_matrix, an intention lock can block only
+  // LOCK_S or LOCK_X from being granted, and thus, releasing of an intention
+  // lock can help in granting only LOCK_S or LOCK_X. If there are no LOCK_S nor
+  // LOCK_X locks in the queue, then we can avoid iterating through the list and
+  // return immediately. This might help in OLTP scenarios, with no DDL queries,
+  // as then there are almost no LOCK_S nor LOCK_X, but many DML queries still
+  // need to get an intention lock to perform their action - while this never
+  // causes them to wait for a "data lock", it might cause them to wait for
+  // lock_sys->mutex if the operation takes Omega(n) or even Omega(n^2)
+  if ((mode == LOCK_IS || mode == LOCK_IX) &&
+      table->count_by_mode[LOCK_S] == 0 && table->count_by_mode[LOCK_X] == 0) {
+    return;
+  }
 
   /* Check if waiting locks in the queue can now be granted: grant
   locks if there are no conflicting locks ahead. */

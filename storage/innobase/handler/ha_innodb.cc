@@ -7459,7 +7459,7 @@ dberr_t ha_innobase::innobase_lock_autoinc(void) {
 
         /* We need to check that another transaction isn't
         already holding the AUTOINC lock on the table. */
-        if (ib_table->n_waiting_or_granted_auto_inc_locks) {
+        if (ib_table->count_by_mode[LOCK_AUTO_INC]) {
           /* Release the mutex to avoid deadlocks. */
           dict_table_autoinc_unlock(ib_table);
         } else {
