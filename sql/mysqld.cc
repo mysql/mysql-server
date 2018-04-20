@@ -1471,7 +1471,7 @@ extern "C" void *signal_hand(void *arg);
 static bool pid_file_created = false;
 static void usage(void);
 static void clean_up_mutexes(void);
-static void create_pid_file();
+static bool create_pid_file();
 static void mysqld_exit(int exit_code) MY_ATTRIBUTE((noreturn));
 static void delete_pid_file(myf flags);
 static void clean_up(bool print_message);
@@ -6069,13 +6069,16 @@ int mysqld_main(int argc, char **argv)
 
   error_handler_hook = my_message_sql;
 
+  bool abort = false;
+
   /* Save pid of this process in a file */
-  if (!opt_initialize) create_pid_file();
+  if (!opt_initialize) {
+    if (create_pid_file()) abort = true;
+  }
 
   /* Read the optimizer cost model configuration tables */
   if (!opt_initialize) reload_optimizer_cost_constants();
 
-  bool abort = false;
   if (
       /*
         Read components table to restore previously installed components. This
@@ -9625,7 +9628,7 @@ static int test_if_case_insensitive(const char *dir_name) {
 /**
   Create file to store pid number.
 */
-static void create_pid_file() {
+static bool create_pid_file() {
   File file;
   bool check_parent_path = 1, is_path_accessible = 1;
   char pid_filepath[FN_REFLEN], *pos = NULL;
@@ -9667,12 +9670,12 @@ static void create_pid_file() {
                           MYF(MY_WME | MY_NABP))) {
       mysql_file_close(file, MYF(0));
       pid_file_created = true;
-      return;
+      return false;
     }
     mysql_file_close(file, MYF(0));
   }
   LogErr(ERROR_LEVEL, ER_CANT_CREATE_PID_FILE, strerror(errno));
-  unireg_abort(MYSQLD_ABORT_EXIT);
+  return true;
 }
 
 /**
