@@ -1595,10 +1595,7 @@ public:
     Uint32 m_ops;
     Uint32 m_apiPtr;
     Uint32 m_totalLen;
-    union {
-      Uint32 nextPool;
-      Uint32 nextList;
-    };
+    Uint32 nextList;
     Uint32 prevList;
     NDB_TICKS m_start_ticks;
   };
