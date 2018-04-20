@@ -268,18 +268,30 @@ struct Tup_fixsize_page
       Uint32 small_map = m_change_map[i];
       Uint32 bit_pos = 2 * i + 24;
       Uint32 bit_val = m_flags & (1 << bit_pos);
-      if (bit_val)
+      if (bit_val != 0)
       {
         Uint32 small_bit_map = small_map & 0xFFFF;
         if (small_bit_map == 0)
           return false;
       }
+      else
+      {
+        Uint32 small_bit_map = small_map & 0xFFFF;
+        if (small_bit_map != 0)
+          return false;
+      }
       bit_pos = 2 * i + 24 + 1;
       bit_val = m_flags & (1 << bit_pos);
-      if (bit_val)
+      if (bit_val != 0)
       {
         Uint32 small_bit_map = small_map >> 16;
         if (small_bit_map == 0)
+          return false;
+      }
+      else
+      {
+        Uint32 small_bit_map = small_map >> 16;
+        if (small_bit_map != 0)
           return false;
       }
     }
