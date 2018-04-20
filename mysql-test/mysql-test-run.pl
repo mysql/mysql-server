@@ -6540,7 +6540,7 @@ sub valgrind_arguments {
 
   my @tool_list = grep(/^--tool=(memcheck|callgrind|massif)/, @valgrind_args);
 
-  if (my @tool_list) {
+  if (@tool_list) {
     # Get the value of the last specified --tool=<> argument to valgrind
     my ($tool_name) = $tool_list[-1] =~ /(memcheck|callgrind|massif)$/;
     if ($tool_name =~ /memcheck/) {
