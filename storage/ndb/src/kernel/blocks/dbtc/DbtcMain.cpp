@@ -3757,7 +3757,6 @@ void Dbtc::execTCKEYREQ(Signal* signal)
         {
           regTcPtr->commitAckMarker = tmp.i;
           regApiPtr->commitAckMarker = tmp.i;
-          new (tmp.p) CommitAckMarker();
           tmp.p->transid1      = tcKeyReq->transId1;
           tmp.p->transid2      = tcKeyReq->transId2;
           tmp.p->apiNodeId     = refToNode(regApiPtr->ndbapiBlockref);
@@ -12277,7 +12276,6 @@ void Dbtc::initApiConnectFail(Signal* signal,
         jam();
         m_commitAckMarkerPool.seize(tmp);
         ndbrequire(tmp.i != RNIL);
-        new (tmp.p) CommitAckMarker();
         tmp.p->transid1      = transid1;
         tmp.p->transid2      = transid2;
         m_commitAckMarkerHash.add(tmp);
@@ -12449,7 +12447,6 @@ void Dbtc::updateApiStateFail(Signal* signal,
       m_commitAckMarkerPool.seize(tmp);
       ndbrequire(tmp.i != RNIL);
       
-      new (tmp.p) CommitAckMarker();
       apiConnectptr.p->commitAckMarker = tmp.i;
       tmp.p->transid1      = transid1;
       tmp.p->transid2      = transid2;

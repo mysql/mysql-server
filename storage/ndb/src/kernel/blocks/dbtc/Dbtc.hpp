@@ -2601,12 +2601,16 @@ public:
   {
     STATIC_CONST( TYPE_ID = RT_DBTC_COMMIT_ACK_MARKER );
 
-    CommitAckMarker(): m_magic(Magic::make(TYPE_ID)) {}
+    CommitAckMarker()
+    : m_magic(Magic::make(TYPE_ID)),
+      apiConnectPtr(RNIL),
+      apiNodeId(0)
+    {}
 
     Uint32 m_magic;
     Uint32 transid1;
     Uint32 transid2;
-    union { Uint32 nextPool; Uint32 nextHash; };
+    Uint32 nextHash;
     Uint32 prevHash;
     Uint32 apiConnectPtr;
     Uint16 apiNodeId;
