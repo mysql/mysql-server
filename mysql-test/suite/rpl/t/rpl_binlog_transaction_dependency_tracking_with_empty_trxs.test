@@ -1,0 +1,71 @@
+# ==== Purpose ====
+#
+# Verify that we can avoid clearing writeset history when executing an empty
+# transaction if binlog-transaction-dependency-tracking is set to WRITESET.
+#
+# ==== Implementation ====
+#
+# 1. Exectute some DDLs and DMls on master.
+# 2. Sync slave sql with master and filter out these DDLs and DMls on slave,
+#    then they become empty transactions when applying them on slave.
+# 3. Verify that last_committed is not increased, since writeset history
+#    is not cleared when applying these empty transactions on slave.
+#
+# ==== References ====
+#
+# Bug #25982097  WRITESET DEPENDENCY TRACKING SUB-OPTIMAL AFTER ROTATION OR ON EMPTY TRANSACTIONS
+
+# Test in this file only makes sense in standard replication,
+# so it is skipped in group replication.
+--source include/not_group_replication_plugin.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+--source include/have_gtid.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+# The following logical timestamps check needs fresh slave server.
+RESET MASTER;
+# Set the filter rule to filter out these DDLs and DMls on slave.
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE= (test.t1);
+SET @save_binlog_transaction_dependency_tracking= @@GLOBAL.binlog_transaction_dependency_tracking;
+SET @save_transaction_write_set_extraction= @@GLOBAL.transaction_write_set_extraction;
+SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
+SET GLOBAL transaction_write_set_extraction= XXHASH64;
+SET LOCAL transaction_write_set_extraction= XXHASH64;
+SET GLOBAL binlog_transaction_dependency_tracking= WRITESET;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+
+--source include/sync_slave_sql_with_master.inc
+--echo #
+--echo # Verify that the value of last_committed is not increased,
+--echo # since writeset history is not cleared when applying
+--echo # these empty transactions on slave.
+--echo #
+--let $logical_timestamps=0 1;0 2;0 3;0 4
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--echo Processing binlog $binlog_file
+--let $source_file= $server_2_datadir/$binlog_file
+--source include/assert_logical_timestamps.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
+SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
+SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE= ();
+--source include/start_slave_sql.inc
+
+--source include/rpl_end.inc
