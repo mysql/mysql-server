@@ -261,6 +261,30 @@ struct Tup_fixsize_page
 #endif
     return (map_val != 0);
   }
+  bool verify_change_maps()
+  {
+    for (Uint32 i = 0; i < 4; i++)
+    {
+      Uint32 small_map = m_change_map[i];
+      Uint32 bit_pos = 2 * i + 24;
+      Uint32 bit_val = m_flags & (1 << bit_pos);
+      if (bit_val)
+      {
+        Uint32 small_bit_map = small_map & 0xFFFF;
+        if (small_bit_map == 0)
+          return false;
+      }
+      bit_pos = 2 * i + 24 + 1;
+      bit_val = m_flags & (1 << bit_pos);
+      if (bit_val)
+      {
+        Uint32 small_bit_map = small_map >> 16;
+        if (small_bit_map == 0)
+          return false;
+      }
+    }
+    return true;
+  }
   Uint32 get_num_changes()
   {
     Uint32 bit_count = 0;
