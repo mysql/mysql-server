@@ -8154,9 +8154,12 @@ void Field_enum::sql_type(String &res) const {
 
     const CHARSET_INFO *cs = res.charset();
     int well_formed_error = 42;
-    size_t wl = cs->cset->well_formed_len(
-        cs, enum_item.ptr(), enum_item.ptr() + enum_item.length(),
-        enum_item.length(), &well_formed_error);
+#ifndef DBUG_OFF
+    size_t wl =
+#endif
+        cs->cset->well_formed_len(cs, enum_item.ptr(),
+                                  enum_item.ptr() + enum_item.length(),
+                                  enum_item.length(), &well_formed_error);
     DBUG_ASSERT(wl <= enum_item.length());
     if (well_formed_error) {
       // Append the hex literal instead
