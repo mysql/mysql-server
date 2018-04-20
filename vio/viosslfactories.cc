@@ -572,8 +572,6 @@ static struct st_VioSSLFd *new_VioSSLFd(
     DBUG_RETURN(0);
   }
 
-  SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
-
   /*
     We explicitly prohibit weak ciphers.
     NOTE: SSL_CTX_set_cipher_list will return 0 if
@@ -680,6 +678,8 @@ static struct st_VioSSLFd *new_VioSSLFd(
     DBUG_RETURN(0);
   }
   DH_free(dh);
+
+  SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
 
   /* set IO functions used by wolfSSL */
 #ifdef HAVE_WOLFSSL

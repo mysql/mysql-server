@@ -1,6 +1,3 @@
-# Disable test for WolfSSL: Bug #27731060 2018-03-22 ivo.roylev X TESTS FAIL WITH WOLFSSL 3.14
---source include/have_openssl.inc
-
 ######################## t/grant_alter_user_qa.test ###################################
 # Testing CREATE/ALTER/GRANT USER new syntax and                                      #
 # new variable "log-builtin-as-identified-by-password" default value "OFF"         #
