@@ -1081,6 +1081,8 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      thbits,
                      tuple_header_ptr->m_header_bits);
       fix_page->set_change_map(key.m_page_idx);
+      jamDebug();
+      jamLineDebug((Uint16)key.m_page_idx);
       ndbassert(!(thbits & Tuple_header::LCP_SKIP));
       DEB_LCP_DEL(("(%u)Reset LCP_DELETE on tab(%u,%u),"
                    " row(%u,%u), header: %x",
@@ -1146,6 +1148,8 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      thbits,
                      tuple_header_ptr->m_header_bits);
       fix_page->set_change_map(key.m_page_idx);
+      jamDebug();
+      jamLineDebug((Uint16)key.m_page_idx);
     }
     else
     {
@@ -1442,6 +1446,7 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
     if (pos.m_next_large_area_check_idx == key.m_page_idx)
     {
       jamDebug();
+      jamLineDebug(Uint16(key.m_page_idx));
       pos.m_next_large_area_check_idx =
         fix_page->get_next_large_idx(key.m_page_idx, size);
       if (!fix_page->get_and_clear_large_change_map(key.m_page_idx))
@@ -1471,6 +1476,7 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
     if (pos.m_next_small_area_check_idx == key.m_page_idx)
     {
       jamDebug();
+      jamLineDebug(Uint16(key.m_page_idx));
       pos.m_next_small_area_check_idx =
         fix_page->get_next_small_idx(key.m_page_idx, size);
       if (!fix_page->get_and_clear_small_change_map(key.m_page_idx))
@@ -1497,6 +1503,10 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
     break;
   } while (1);
   (*tuple_header_ptr) = (Tuple_header*)&fix_page->m_data[key.m_page_idx];
+  jamDebug();
+  jamLineDebug(Uint16(key.m_page_idx));
+  Uint32 map_val = (fix_page->m_change_map[3] >> 16);
+  jamLineDebug(Uint16(map_val));
   return ZSCAN_FOUND_TUPLE;
 }
 
