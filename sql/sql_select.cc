@@ -4406,37 +4406,6 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
   if (!tab->filesort) DBUG_RETURN(true);
   Opt_trace_object trace_tmp(&thd->opt_trace, "filesort");
   trace_tmp.add("adding_sort_to_table_in_plan_at_position", idx);
-  {
-    if (tab->ref().key >= 0) {
-      TABLE *table = tab->table();
-      if (tab->quick()) {
-        /*
-          We can only use 'Only index' if quick key is same as ref_key
-          and in index_merge 'Only index' cannot be used
-        */
-        if (((uint)tab->ref().key != tab->quick()->index))
-          table->set_keyread(false);
-      } else {
-        /*
-          We have a ref on a const;  Change this to a range that filesort
-          can use.
-          For impossible ranges (like when doing a lookup on NULL on a NOT NULL
-          field, quick will contain an empty record set.
-
-          @TODO This should be either indicated as range or filesort
-          should start using ref directly, without switching to quick.
-        */
-        JOIN_TAB *const jtab = best_ref[idx];
-        QUICK_SELECT_I *q =
-            tab->type() == JT_FT
-                ? get_ft_select(thd, table, tab->ref().key)
-                : get_quick_select_for_ref(thd, table, &tab->ref(),
-                                           jtab->found_records);
-        if (!q) DBUG_RETURN(true); /* purecov: inspected */
-        tab->set_quick(q);         // We keep it displaid as "ref".
-      }
-    }
-  }
 
   // Wrap the chosen RowIterator in a SortingIterator, so that we get
   // sorted results out.

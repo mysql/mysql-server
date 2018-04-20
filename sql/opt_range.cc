@@ -65,9 +65,8 @@
        the specified condition, or a "no records will match the condition"
        statement.
 
-    The module entry points are
+    The module entry point is
       test_quick_select()
-      get_quick_select_for_ref()
 
 
   Record retrieval code for range/index_merge/groupby-min-max.
@@ -10170,143 +10169,6 @@ bool QUICK_ROR_UNION_SELECT::is_keys_used(const MY_BITMAP *fields) {
   while ((quick = it++)) {
     if (quick->is_keys_used(fields)) return 1;
   }
-  return 0;
-}
-
-FT_SELECT *get_ft_select(THD *thd, TABLE *table, uint key) {
-  bool create_err = false;
-  FT_SELECT *fts = new FT_SELECT(thd, table, key, &create_err);
-  if (create_err) {
-    delete fts;
-    return NULL;
-  } else
-    return fts;
-}
-
-/*
-  Check if any columns in the key value specified
-  by 'key_info' has a NULL-value.
-*/
-
-static bool key_has_nulls(const KEY *key_info, const uchar *key, uint key_len) {
-  KEY_PART_INFO *curr_part, *end_part;
-  const uchar *end_ptr = key + key_len;
-  curr_part = key_info->key_part;
-  end_part = curr_part + key_info->user_defined_key_parts;
-
-  for (; curr_part != end_part && key < end_ptr; curr_part++) {
-    if (curr_part->null_bit && *key) return true;
-
-    key += curr_part->store_length;
-  }
-  return false;
-}
-
-/*
-  Create quick select from ref/ref_or_null scan.
-
-  SYNOPSIS
-    get_quick_select_for_ref()
-      thd      Thread handle
-      table    Table to access
-      ref      ref[_or_null] scan parameters
-      records  Estimate of number of records (needed only to construct
-               quick select)
-  NOTES
-    This allocates things in a new memory root, as this may be called many
-    times during a query.
-
-  RETURN
-    Quick select that retrieves the same rows as passed ref scan
-    NULL on error.
-*/
-
-QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
-                                             TABLE_REF *ref, ha_rows records) {
-  MEM_ROOT *old_root, *alloc;
-  QUICK_RANGE_SELECT *quick;
-  KEY *key_info = &table->key_info[ref->key];
-  KEY_PART *key_part;
-  QUICK_RANGE *range;
-  uint part;
-  bool create_err = false;
-  Cost_estimate cost;
-
-  old_root = thd->mem_root;
-  /* The following call may change thd->mem_root */
-  quick = new QUICK_RANGE_SELECT(thd, table, ref->key, 0, 0, &create_err);
-  /* save mem_root set by QUICK_RANGE_SELECT constructor */
-  alloc = thd->mem_root;
-  /*
-    return back default mem_root (thd->mem_root) changed by
-    QUICK_RANGE_SELECT constructor
-  */
-  thd->mem_root = old_root;
-
-  if (!quick || create_err) return 0; /* no ranges found */
-  if (quick->init()) goto err;
-  quick->records = records;
-
-  if (!(range = new (alloc) QUICK_RANGE())) goto err;  // out of memory
-
-  range->min_key = range->max_key = ref->key_buff;
-  range->min_length = range->max_length = ref->key_length;
-  range->min_keypart_map = range->max_keypart_map =
-      make_prev_keypart_map(ref->key_parts);
-  range->flag = (ref->key_length == key_info->key_length ? EQ_RANGE : 0);
-
-  if (!(quick->key_parts = key_part = (KEY_PART *)alloc_root(
-            quick->alloc.get(), sizeof(KEY_PART) * ref->key_parts)))
-    goto err;
-
-  for (part = 0; part < ref->key_parts; part++, key_part++) {
-    key_part->part = part;
-    key_part->field = key_info->key_part[part].field;
-    key_part->length = key_info->key_part[part].length;
-    key_part->store_length = key_info->key_part[part].store_length;
-    key_part->null_bit = key_info->key_part[part].null_bit;
-    key_part->flag = (uint8)key_info->key_part[part].key_part_flag;
-  }
-  if (quick->ranges.push_back(range)) goto err;
-
-  /*
-     Add a NULL range if REF_OR_NULL optimization is used.
-     For example:
-       if we have "WHERE A=2 OR A IS NULL" we created the (A=2) range above
-       and have ref->null_ref_key set. Will create a new NULL range here.
-  */
-  if (ref->null_ref_key) {
-    QUICK_RANGE *null_range;
-
-    *ref->null_ref_key = 1;  // Set null byte then create a range
-    if (!(null_range = new (alloc) QUICK_RANGE(
-              ref->key_buff, ref->key_length,
-              make_prev_keypart_map(ref->key_parts), ref->key_buff,
-              ref->key_length, make_prev_keypart_map(ref->key_parts), EQ_RANGE,
-              HA_READ_INVALID)))
-      goto err;
-    *ref->null_ref_key = 0;  // Clear null byte
-    if (quick->ranges.push_back(null_range)) goto err;
-  }
-
-  /* Call multi_range_read_info() to get the MRR flags and buffer size */
-  quick->mrr_flags =
-      HA_MRR_NO_ASSOCIATION | (table->key_read ? HA_MRR_INDEX_ONLY : 0);
-  if (thd->lex->sql_command != SQLCOM_SELECT)
-    quick->mrr_flags |= HA_MRR_SORTED;  // Assumed to give faster ins/upd/del
-  if (!ref->null_ref_key &&
-      !key_has_nulls(key_info, range->min_key, ref->key_length))
-    quick->mrr_flags |= HA_MRR_NO_NULL_ENDPOINTS;
-
-  quick->mrr_buf_size = thd->variables.read_rnd_buff_size;
-  if (table->file->multi_range_read_info(
-          quick->index, 1, static_cast<uint>(records), &quick->mrr_buf_size,
-          &quick->mrr_flags, &cost))
-    goto err;
-
-  return quick;
-err:
-  delete quick;
   return 0;
 }
 

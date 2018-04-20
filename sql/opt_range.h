@@ -180,7 +180,7 @@ class QUICK_RANGE {
 
 /*
   Quick select interface.
-  This class is a parent for all QUICK_*_SELECT and FT_SELECT classes.
+  This class is a parent for all QUICK_*_SELECT classes.
 
   The usage scenario is as follows:
   1. Create quick select
@@ -462,9 +462,6 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   MY_BITMAP column_bitmap;
 
   friend class TRP_ROR_INTERSECT;
-  friend QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
-                                                      TABLE_REF *ref,
-                                                      ha_rows records);
   friend bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick,
                              KEY_PART *key, SEL_ARG *key_tree, uchar *min_key,
                              uint min_key_flag, uchar *max_key,
@@ -1007,28 +1004,6 @@ int test_quick_select(THD *thd, Key_map keys, table_map prev_tables,
                       const QEP_shared_owner *tab, Item *cond,
                       Key_map *needed_reg, QUICK_SELECT_I **quick);
 
-class FT_SELECT : public QUICK_RANGE_SELECT {
- public:
-  FT_SELECT(THD *thd, TABLE *table, uint key, bool *error)
-      : QUICK_RANGE_SELECT(thd, table, key, 1, NULL, error) {
-    (void)init();
-  }
-  ~FT_SELECT() { file->ft_end(); }
-  int init() {
-    // No estimation is done for FTS, return 1 for compatibility.
-    records = 1;
-    return file->ft_init();
-  }
-  int reset() { return 0; }
-  int get_next() { return file->ha_ft_read(record); }
-  int get_type() const { return QS_TYPE_FULLTEXT; }
-  virtual bool is_loose_index_scan() const { return false; }
-  virtual bool is_agg_loose_index_scan() const { return false; }
-};
-
-FT_SELECT *get_ft_select(THD *thd, TABLE *table, uint key);
-QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
-                                             TABLE_REF *ref, ha_rows records);
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond);
 void store_key_image_to_rec(Field *field, uchar *ptr, uint len);
 

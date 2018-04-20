@@ -400,6 +400,10 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   table->sort.addon_fields = param.addon_fields;
 
+  /*
+    TODO: Now that we read from RowIterators, the situation is a lot more
+    complicated than just “quick is range scan, everything else is full scan”.
+   */
   if (qep_tab->quick())
     thd->inc_status_sort_range();
   else

@@ -6470,13 +6470,6 @@ bool Item_func_match::init_search(THD *thd) {
   TABLE *const table = table_ref->table;
   /* Check if init_search() has been called before */
   if (ft_handler && !master) {
-    /*
-      We should reset ft_handler as it is cleaned up
-      on destruction of FT_SELECT object
-      (necessary in case of re-execution of subquery).
-      TODO: FT_SELECT should not clean up ft_handler.
-    */
-    if (join_key) table->file->ft_handler = ft_handler;
     DBUG_RETURN(false);
   }
 

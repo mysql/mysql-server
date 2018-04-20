@@ -5510,8 +5510,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS
 Variable_name	Value
 Handler_read_key	4
 Handler_read_next	2
-Sort_range	1
 Sort_rows	2
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -5616,8 +5616,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS
 Variable_name	Value
 Handler_read_key	4
 Handler_read_next	2
-Sort_range	1
 Sort_rows	2
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	2
