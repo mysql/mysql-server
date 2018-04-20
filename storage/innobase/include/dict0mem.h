@@ -1885,14 +1885,6 @@ detect this and will eventually quit sooner. */
   be no conflict to access it, so no protection is needed. */
   ulint autoinc_field_no;
 
-  /** This counter is used to track the number of granted and pending
-  autoinc locks on this table. This value is set after acquiring the
-  lock_sys_t::mutex but we peek the contents to determine whether other
-  transactions have acquired the AUTOINC lock or not. Of course only one
-  transaction can be granted the lock but there can be multiple
-  waiters. */
-  ulong n_waiting_or_granted_auto_inc_locks;
-
   /** The transaction that currently holds the the AUTOINC lock on this
   table. Protected by lock_sys->mutex. */
   const trx_t *autoinc_trx;
@@ -1926,6 +1918,19 @@ detect this and will eventually quit sooner. */
 #ifndef UNIV_HOTBACKUP
   /** List of locks on the table. Protected by lock_sys->mutex. */
   table_lock_list_t locks;
+  /** count_by_mode[M] = number of locks in this->locks with
+  lock->type_mode&LOCK_MODE_MASK == M.
+  Used to quickly verify that there are no LOCK_S or LOCK_X, which are the only
+  modes incompatible with LOCK_IS and LOCK_IX, to avoid costly iteration over
+  this->locks when adding LOCK_IS or LOCK_IX.
+  We use count_by_mode[LOCK_AUTO_INC] to track the number of granted and pending
+  autoinc locks on this table. This value is set after acquiring the
+  lock_sys_t::mutex but we peek the contents to determine whether other
+  transactions have acquired the AUTOINC lock or not. Of course only one
+  transaction can be granted the lock but there can be multiple
+  waiters.
+  Protected by lock_sys->mutex. */
+  ulong count_by_mode[LOCK_NUM];
 #endif /* !UNIV_HOTBACKUP */
 
   /** Timestamp of the last modification of this table. */
