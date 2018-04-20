@@ -1,7 +1,4 @@
-# Disable test for WolfSSL: Bug #27731060 2018-03-22 ivo.roylev X TESTS FAIL WITH WOLFSSL 3.14
---source include/have_openssl.inc
-
- #Get deafult engine value
+# Get default engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 # Description

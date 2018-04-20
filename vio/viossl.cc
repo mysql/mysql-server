@@ -118,7 +118,7 @@ static void report_errors(SSL *ssl) {
   unsigned long l;
   const char *file;
   const char *data;
-  int line, flags;
+  int line, flags = 0;
   char buf[512];
 
   DBUG_ENTER("report_errors");
