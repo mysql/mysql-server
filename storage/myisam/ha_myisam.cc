@@ -79,7 +79,7 @@ TYPELIB myisam_stats_method_typelib = {
     myisam_stats_method_names, NULL};
 
 static MYSQL_SYSVAR_ULONG(block_size, opt_myisam_block_size,
-                          PLUGIN_VAR_EXPERIMENTAL | PLUGIN_VAR_RQCMDARG,
+                          PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_RQCMDARG,
                           "Block size to be used for MyISAM index pages", NULL,
                           NULL, MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH,
                           MI_MAX_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH);

@@ -173,16 +173,9 @@ struct MYSQL_XID {
 #define PLUGIN_VAR_SET 0x0007
 #define PLUGIN_VAR_DOUBLE 0x0008
 #define PLUGIN_VAR_UNSIGNED 0x0080
-#define PLUGIN_VAR_THDLOCAL 0x0100 /* Variable is per-connection */
-#define PLUGIN_VAR_READONLY 0x0200 /* Server variable is read only */
-#ifdef ENABLE_EXPERIMENT_SYSVARS
-#define PLUGIN_VAR_EXPERIMENTAL 0
-#else
-#define PLUGIN_VAR_EXPERIMENTAL                    \
-  0x0400 /* Experimental server variable to be     \
-            hidden, unless forced to be exposed by \
-            CMake option. */
-#endif
+#define PLUGIN_VAR_THDLOCAL 0x0100  /* Variable is per-connection */
+#define PLUGIN_VAR_READONLY 0x0200  /* Server variable is read only */
+#define PLUGIN_VAR_NOSYSVAR 0x0400  /* Configurable only by cmd-line */
 #define PLUGIN_VAR_NOCMDOPT 0x0800  /* Not a command line option */
 #define PLUGIN_VAR_NOCMDARG 0x1000  /* No argument for cmd line */
 #define PLUGIN_VAR_RQCMDARG 0x0000  /* Argument required for cmd line */
@@ -243,10 +236,10 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd, SYS_VAR *var,
 
 /* the following declarations are for internal use only */
 
-#define PLUGIN_VAR_MASK                                                  \
-  (PLUGIN_VAR_READONLY | PLUGIN_VAR_EXPERIMENTAL | PLUGIN_VAR_NOCMDOPT | \
-   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_RQCMDARG |     \
-   PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NODEFAULT | PLUGIN_VAR_NOPERSIST |   \
+#define PLUGIN_VAR_MASK                                                \
+  (PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT |   \
+   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_RQCMDARG |   \
+   PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NODEFAULT | PLUGIN_VAR_NOPERSIST | \
    PLUGIN_VAR_PERSIST_AS_READ_ONLY)
 
 #define MYSQL_PLUGIN_VAR_HEADER \
