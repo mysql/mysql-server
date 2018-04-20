@@ -15,7 +15,7 @@
 # We want to ensure all slave configuration is restored.  But SHOW
 # SLAVE STATUS returns nothing for servers not configured as slaves,
 # and (after BUG#28796 was fixed) there is no way to de-configure a
-# slave.  Hence, it's impossible to clean up the replication state at
+# slave.  Hence, it is impossible to clean up the replication state at
 # the end.  But we want to check that the slave is stopped, there is
 # no error, and a few other invariants.  So we issue SHOW SLAVE
 # STATUS, and if it returns no rows we fake the result.
@@ -157,7 +157,7 @@ EOF
 #   timer
 # We do not list the content of this directory because
 # - the name of the testcase is currently not available
-# - it's rather unusual to create files there via a test script
+# - it is rather unusual to create files there via a test script
 #
 
 --append_file $infile
