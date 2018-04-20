@@ -1427,7 +1427,7 @@ Dbtup::setup_change_page_for_scan(ScanOp& scan,
 Uint32
 Dbtup::move_to_next_change_page_row(ScanOp & scan,
                                     Fix_page *fix_page,
-                                    Tuple_header *tuple_header_ptr,
+                                    Tuple_header **tuple_header_ptr,
                                     Uint32 & loop_count,
                                     Uint32 size)
 {
@@ -1492,7 +1492,7 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
     }
     break;
   } while (1);
-  tuple_header_ptr = (Tuple_header*)&fix_page->m_data[key.m_page_idx];
+  (*tuple_header_ptr) = (Tuple_header*)&fix_page->m_data[key.m_page_idx];
   return ZSCAN_FOUND_TUPLE;
 }
 
@@ -2191,7 +2191,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             {
               ret_val = move_to_next_change_page_row(scan,
                                                      page,
-                                                     tuple_header_ptr,
+                                                     &tuple_header_ptr,
                                                      loop_count,
                                                      size);
               if (ret_val == ZSCAN_FOUND_PAGE_END)

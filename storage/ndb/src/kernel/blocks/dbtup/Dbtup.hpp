@@ -517,7 +517,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
                                     Uint32 size);
   Uint32 move_to_next_change_page_row(ScanOp & scan,
                                       Fix_page *fix_page,
-                                      Tuple_header *tuple_header_ptr,
+                                      Tuple_header **tuple_header_ptr,
                                       Uint32 & loop_count,
                                       Uint32 size);
 
