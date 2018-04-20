@@ -141,6 +141,13 @@ The following options may be given as the first argument:
  non-transactional engines for the binary log. If you
  often use statements updating a great number of rows, you
  can increase this to get more performance
+ --binlog-transaction-dependency-history-size=# 
+ Maximum number of rows to keep in the writeset history.
+ --binlog-transaction-dependency-tracking=name 
+ Selects the source of dependency information from which
+ to assess which transactions can be executed in parallel
+ by the slave's multi-threaded applier. Possible values
+ are COMMIT_ORDER, WRITESET and WRITESET_SESSION.
  --block-encryption-mode=name 
  mode for AES_ENCRYPT/AES_DECRYPT
  --bootstrap         Used by mysql installation scripts.
@@ -1292,6 +1299,8 @@ binlog-row-event-max-size 8192
 binlog-row-image FULL
 binlog-rows-query-log-events FALSE
 binlog-stmt-cache-size 32768
+binlog-transaction-dependency-history-size 25000
+binlog-transaction-dependency-tracking COMMIT_ORDER
 block-encryption-mode aes-128-ecb
 bulk-insert-buffer-size 8388608
 character-set-client-handshake TRUE

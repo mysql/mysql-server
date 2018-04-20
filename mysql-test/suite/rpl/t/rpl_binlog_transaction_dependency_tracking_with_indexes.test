@@ -1,0 +1,319 @@
+# ==== Purpose ====
+#
+# Verify that logical timestamps are generated correctly for all types
+# of indexes when binlog_transaction_dependency_tracking=WRITESET.
+#
+# The following properties are tested:
+#
+# P1. Any transaction that updates a table having no primary key, must
+#     (a) depend on the previous transaction, but (b) must not clear
+#     history.
+#
+#     P1.1. This must hold if the transaction has no writeset.
+#           (e.g. it updates only the no-pk table; a no-pk table will
+#           not add to the writeset).
+#
+#     P1.2. This must hold if the transaction has a writeset.
+#           (e.g. it updates some other table too).
+#
+# P2. Any transaction that only updates tables having primary keys
+#     must compute its dependencies using the writeset. (In contrast
+#     with P1).
+#
+# P3. A UNIQUE index with NOT NULL constraints on all columns counts
+#     as a primary key too.
+#
+# P4. If there is both a primary key and other keys, then uniqueness
+#     constraints due to the other keys generate dependencies too.
+#
+# P5. If there is both a primary key and nullable columns, then NULL
+#     values in the same column do not conflict.
+#
+# ==== Implementation ====
+#
+# Repeatedly define a table t1 with three columns a, b, c, using all
+# combinations of the following parameters:
+#
+#  A. Without/with explicit primary key on a.
+#
+#  B. Without/with NOT NULL constraints on b and c.
+#
+#  C. Without/with uniqueness constraints on b and/or c.
+#
+#  D. Without index on b and c/with index on b/with index on c.
+#     (Skip the no-index case if uniqueness constraints are required).
+#
+# This gives 20 combinations. For each such combination, execute the
+# following:
+#
+# INSERT (1, 1, 1)
+# INSERT (2, 2, 2)
+# -> should be independent
+# DELETE (2, 2, 2)
+# -> should depend on insert (2, 2, 2)
+# UPDATE (1, 1, 1) to (1, 2, 2)
+# -> if there are uniqueness constraints on b and/or c, this should
+#    depend on delete (2, 2, 2) (and that verifies P4). Otherwise, depend
+#    on insert (1, 1, 1). When there is a pk, this verifies P1.1, otherwise
+#    it verifies P2.
+# if columns b and c are nullable:
+#   INSERT (3, NULL, 2)
+#   -> should be independent
+#   INSERT (4, NULL, 2)
+#   -> should be independent since multiple NULL values are allowed.
+#      This verifies P5.
+#   DELETE (3, NULL, 2)
+#   -> should depend on insert (3, NULL, 2) but not on insert (4, NULL, 2)
+#      This verifies P5.
+#
+# To verify P1(b), execute extra, independent transactions updating
+# another table t2 after some of the statements above (e.g. after
+# delete (2, 2, 2)).  Verify that the extra transaction is marked as
+# independent of all the previous ones.
+#
+# To verify P1.2, include a statement doing an independent insert into
+# t2 within the same transaction that inserts (2, 2, 2) in t1.
+#
+# To distinguish the cases that DELETE (2, 2, 2) depends on INSERT (2,
+# 2, 2) (when there is a pk) from the case that it is executed in
+# isolation due to not having a pk, we precede it by an independent
+# transaction updating another table, t2.  Similar for UPDATE (1, 1,
+# 1) to (2, 2, 2), for INSERT (4, NULL, 2), and for DELETE (3, NULL,
+# 2).
+#
+# P3 is verified in the loop iterations where we use both NOT NULL and
+# UNIQUE.
+#
+# ==== References ====
+#
+# WL#9556: Writeset-based MTS dependency tracking on master
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo #### INITIALIZE ####
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+SET @save_slave_parallel_workers= @@GLOBAL.slave_parallel_workers;
+SET @@GLOBAL.slave_parallel_workers= 4;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
+SET @save_transaction_write_set_extraction = @@GLOBAL.transaction_write_set_extraction;
+
+SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
+SET GLOBAL transaction_write_set_extraction = XXHASH64;
+SET SESSION transaction_write_set_extraction = XXHASH64;
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+
+# Tell assert_logical_timestamps to save the current position so that
+# the next call will continue where the current ended.
+--let $save_binlog_position= 1
+
+# First without any explicit PRIMARY KEY, then with one on column a.
+--let $explicit_pk= 0
+while ($explicit_pk < 2)
+{
+
+  # First with columns b and c NULL-able, then with NOT NULL on both.
+  --let $nonnull= 0
+  while ($nonnull < 2)
+  {
+
+    # First without uniqueness constraints on second index, then with.
+    --let $unique= 0
+    while ($unique < 2)
+    {
+
+      # First without index (unless $unique==1), then with 1-column
+      # index, then with 2-column index.
+      --let $colcount= $unique
+      while ($colcount < 3)
+      {
+
+        # Determine if there is a primary key. Unique non-null indexes
+        # count as primary if there is no explicit primary key.
+        --let $pk= 0
+        if ($explicit_pk)
+        {
+          --let $pk= 1
+        }
+        if ($unique)
+        {
+          if ($nonnull)
+          {
+            --let $pk= 1
+          }
+        }
+
+        # Compute table definition and header according to all the parameters.
+        --let $text= $explicit_pk.$nonnull.$unique.$colcount
+        if ($explicit_pk == 0)
+        {
+          --let $text= $text: WITHOUT PK
+          --let $first_column_def= a INT
+        }
+        if ($explicit_pk == 1)
+        {
+          --let $text= $text: WITH PK
+          --let $first_column_def= a INT PRIMARY KEY
+        }
+        if ($nonnull == 0)
+        {
+          --let $text= $text, NULLABLE
+          --let $not_null_def=
+        }
+        if ($nonnull == 1)
+        {
+          --let $text= $text, NOT NULL
+          --let $not_null_def= NOT NULL
+        }
+        if ($unique == 0)
+        {
+          --let $text= $text, NOT UNIQUE
+          --let $unique_def=
+        }
+        if ($unique == 1)
+        {
+          --let $text= $text, UNIQUE
+          --let $unique_def= UNIQUE
+        }
+        if ($colcount == 0)
+        {
+          --let $text= $text, NO INDEX
+          --let $second_index_def=
+        }
+        if ($colcount == 1)
+        {
+          --let $text= $text, 1-COLUMN INDEX
+          --let $second_index_def= , $unique_def INDEX(b)
+        }
+        if ($colcount == 2)
+        {
+          --let $text= $text, 2-COLUMN INDEX
+          --let $second_index_def= , $unique_def INDEX(b, c)
+        }
+
+        --echo
+        --echo #### $text ####
+        --echo
+
+        eval CREATE TABLE t1 ($first_column_def, b INT $not_null_def, c INT $not_null_def $second_index_def);
+        CREATE TABLE t2 (a INT PRIMARY KEY);
+
+        FLUSH LOGS;
+        --source include/save_binlog_position.inc
+
+        --echo # TRX1: independent
+        INSERT INTO t1 VALUES (1, 1, 1);
+
+        --echo # now t1 contains one row: (1, 1, 1)
+        --let $logical_timestamps= 0 1
+        --source include/assert_logical_timestamps.inc
+
+        --echo # TRX2: independent
+        BEGIN;
+        INSERT INTO t1 VALUES (2, 2, 2);
+        INSERT INTO t2 VALUES (1);
+        COMMIT;
+
+        --echo # now t1 contains two rows: (1, 1, 1), (2, 2, 2)
+        if ($pk)  { --let $logical_timestamps= 1 2
+        }
+        if (!$pk) { --let $logical_timestamps= 1 2
+        }
+        --source include/assert_logical_timestamps.inc
+
+        --echo # TRX3: independent
+        INSERT INTO t2 VALUES (3);
+        --echo # TRX4: depends on TRX2
+        DELETE FROM t1 WHERE a = 2;
+
+        --echo # now t1 contains one row: (1, 1, 1)
+        if ($pk)  { --let $logical_timestamps= 1 3;2 4
+        }
+        if (!$pk) { --let $logical_timestamps= 1 3;3 4
+        }
+        --source include/assert_logical_timestamps.inc
+
+        --echo # TRX5: independent
+        INSERT INTO t2 VALUES (5);
+        --echo # TRX6: conflict with TRX4 if unique, else with TRX1
+        UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
+
+        --echo # now t1 contains one row: (1, 2, 2)
+        if ($pk) {
+          if ($unique)  { --let $logical_timestamps= 1 5;4 6
+          }
+          if (!$unique) { --let $logical_timestamps= 1 5;1 6
+          }
+        }
+        if (!$pk) { --let $logical_timestamps= 1 5;5 6
+        }
+        --source include/assert_logical_timestamps.inc
+
+        if (!$nonnull)
+        {
+
+          --echo # TRX7: independent
+          INSERT INTO t1 VALUES (3, NULL, 2);
+
+          --echo # now t1 contains two rows: (1, 2, 2), (3, NULL, 2)
+          if ($pk)  { --let $logical_timestamps= 1 7
+          }
+          if (!$pk) { --let $logical_timestamps= 6 7
+          }
+          --source include/assert_logical_timestamps.inc
+
+          --echo # TRX8: independent
+          INSERT INTO t2 VALUES (8);
+          --echo # TRX9: independent (no conflict with TRX7 since multiple NULLs are allowed)
+          INSERT INTO t1 VALUES (4, NULL, 2);
+
+          --echo # now t1 contains three rows: (1, 2, 2), (3, NULL, 2), (4, NULL, 2)
+          if ($pk)  { --let $logical_timestamps= 1 8;1 9
+          }
+          if (!$pk) { --let $logical_timestamps= 1 8;8 9
+          }
+          --source include/assert_logical_timestamps.inc
+
+          --echo # TRX10: independent
+          INSERT INTO t2 VALUES (10);
+          --echo # TRX11: conflict with TRX7 (not with TRX9 since multiple NULLs are allowed)
+          DELETE FROM t1 WHERE a = 3;
+
+          --echo # now t1 contains two rows: (1, 2, 2), (4, NULL, 2)
+          if ($pk) {  --let $logical_timestamps= 1 10;7 11
+          }
+          if (!$pk) { --let $logical_timestamps= 1 10;10 11
+          }
+          --source include/assert_logical_timestamps.inc
+
+        }
+
+        DROP TABLE t1;
+        DROP TABLE t2;
+
+        --inc $colcount
+       }
+       --inc $unique
+     }
+    --inc $nonnull
+  }
+  --inc $explicit_pk
+}
+
+--echo #### CLEAN UP ####
+
+SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+if (`SELECT @@GLOBAL.transaction_write_set_extraction != @save_transaction_write_set_extraction`)
+{
+  SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
+}
+
+--source include/sync_slave_sql_with_master.inc
+SET @@GLOBAL.slave_parallel_workers= @save_slave_parallel_workers;
+
+--source include/rpl_end.inc
