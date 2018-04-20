@@ -6226,8 +6226,7 @@ bool Dbtc::seizeApiConnectCopy(Signal* signal,
   {
     return false;
   }
-  locApiConnectptr.p = new (locApiConnectptr.p) ApiConnectRecord();
-  locApiConnectptr.p->m_apiConTimer = RNIL;
+  locApiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_COPY;
   ndbrequire(seizeApiConTimer(locApiConnectptr));
   setApiConTimer(locApiConnectptr, 0, __LINE__);
   ndbassert(regApiPtr->apiCopyRecord == RNIL);
@@ -6235,7 +6234,6 @@ bool Dbtc::seizeApiConnectCopy(Signal* signal,
   tc_clearbit(regApiPtr->m_flags,
               ApiConnectRecord::TF_TRIGGER_PENDING);
   regApiPtr->m_special_op_flags = 0;
-  locApiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_COPY;
   return true;
 }//Dbtc::seizeApiConnectCopy()
 
@@ -15201,27 +15199,8 @@ void Dbtc::initApiConnect(Signal* signal)
     jam();
     ApiConnectRecordPtr apiConnectptr;
     ndbrequire(c_apiConnectRecordPool.seize(apiConnectptr));
-    apiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_FREE;
-    apiConnectptr.p->m_apiConTimer = RNIL;
     ndbrequire(seizeApiConTimer(apiConnectptr));
     setApiConTimer(apiConnectptr, 0, __LINE__);
-    apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_OK;
-    apiConnectptr.p->apiConnectstate = CS_RESTART;
-    apiConnectptr.p->takeOverRec = (Uint8)Z8NIL;
-    apiConnectptr.p->cachePtr = RNIL;
-    apiConnectptr.p->ndbapiBlockref = 0xFFFFFFFF;  // Invalid ref
-    apiConnectptr.p->commitAckMarker = RNIL;
-    apiConnectptr.p->num_commit_ack_markers = 0;
-    apiConnectptr.p->tcConnect.init();
-    apiConnectptr.p->m_flags = 0;
-    apiConnectptr.p->m_special_op_flags = 0;
-    apiConnectptr.p->accumulatingIndexOp = RNIL;
-    apiConnectptr.p->executingIndexOp = RNIL;
-    apiConnectptr.p->buddyPtr = RNIL;
-    apiConnectptr.p->currSavePointId = 0;
-    apiConnectptr.p->m_transaction_nodes.clear();
-    apiConnectptr.p->singleUserMode = 0;
-    apiConnectptr.p->apiCopyRecord = RNIL;
     apiConListFail.addFirst(apiConnectptr);
   }//for
 
@@ -15611,17 +15590,13 @@ bool Dbtc::seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr)
   {
     jam();
     terrorCode = ZOK;
-    apiConnectptr.p = new (apiConnectptr.p) ApiConnectRecord();
-    ndbrequire(apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_FREE);
     apiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_USER;
     apiConnectptr.p->apiConnectstate = CS_DISCONNECTED;
-    apiConnectptr.p->m_apiConTimer = RNIL;
     ndbrequire(seizeApiConTimer(apiConnectptr));
     setApiConTimer(apiConnectptr, 0, __LINE__);
     apiConnectptr.p->apiConnectstate = CS_CONNECTED; /* STATE OF CONNECTION */
     tc_clearbit(apiConnectptr.p->m_flags,
                 ApiConnectRecord::TF_TRIGGER_PENDING);
-    apiConnectptr.p->m_special_op_flags = 0;
     return true;
   } else {
     jam();
