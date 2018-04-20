@@ -1819,33 +1819,43 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                                                   key,
                                                   pagePtr.p);
             if (ret_val == ZSCAN_FOUND_PAGE_END)
+            {
+              jamDebug();
               break;
+            }
             else
             {
+              jamDebug();
               assert(ret_val == ZSCAN_FOUND_DROPPED_CHANGE_PAGE);
               goto record_dropped_change_page;
             }
           }
-          else if (pos.m_lcp_scan_changed_rows_page &&
-                   key.m_page_idx == 0)
+          else if (pos.m_lcp_scan_changed_rows_page)
           {
-            /* First access of a CHANGE page */
-            Uint32 ret_val = setup_change_page_for_scan(scan,
-                                                        (Fix_page*)pagePtr.p,
-                                                        key,
-                                                        size);
-            if (ret_val == ZSCAN_FOUND_PAGE_END)
+            /* CHANGE page is accessed */
+            if (key.m_page_idx == 0)
             {
-              /* No changes found on page level bitmaps */
-              break;
-            }
-            else
-            {
-              ndbassert(ret_val == ZSCAN_FOUND_TUPLE);
+              jamDebug();
+              /* First access of a CHANGE page */
+              Uint32 ret_val = setup_change_page_for_scan(scan,
+                                                          (Fix_page*)pagePtr.p,
+                                                          key,
+                                                          size);
+              if (ret_val == ZSCAN_FOUND_PAGE_END)
+              {
+                jamDebug();
+                /* No changes found on page level bitmaps */
+                break;
+              }
+              else
+              {
+                ndbassert(ret_val == ZSCAN_FOUND_TUPLE);
+              }
             }
           }
           else
           {
+            /* LCP ALL page is accessed */
             jamDebug();
             /**
              * Make sure those values have defined values if we were to enter
