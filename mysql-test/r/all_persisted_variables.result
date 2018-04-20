@@ -39,9 +39,10 @@ WHERE variable_name NOT IN
 'log_syslog_facility',
 'log_syslog_include_pid',
 'log_syslog_tag')
+AND variable_name NOT LIKE 'ndb_%'
 ORDER BY variable_name;
 
-include/assert.inc ['Expect 557 variables in the table. Due to open Bugs, we are checking for 546']
+include/assert.inc ['Expect 558 variables in the table. Due to open Bugs, we are checking for 547']
 
 # Test SET PERSIST
 
@@ -53,8 +54,9 @@ include/assert.inc ['Expect 355 persisted variables in the table. Due to open Bu
 ############################################################
 # restart
 
-include/assert.inc ['Expect 349 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 349 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 350 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 350 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 350 persisted variables with matching peristed and global values.']
 
 ############################################################
 # 4. Test RESET PERSIST IF EXISTS. Verify persisted variable
