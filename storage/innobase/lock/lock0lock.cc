@@ -1478,6 +1478,7 @@ lock_t *RecLock::create(trx_t *trx, bool add_to_hash, const lock_prdt_t *prdt) {
   lock and changing the transaction state to LOCK_WAIT */
 
   if (!trx->owns_mutex) {
+    DEBUG_SYNC_C("rec_lock_create_trx_mutex_enter");
     trx_mutex_enter(trx);
   }
 
@@ -6035,6 +6036,7 @@ dberr_t lock_clust_rec_read_check_and_lock(
   dberr_t err;
   ulint heap_no;
 
+  DEBUG_SYNC_C("before_lock_clust_rec_read_check_and_lock");
   ut_ad(index->is_clustered());
   ut_ad(block->frame == page_align(rec));
   ut_ad(page_rec_is_user_rec(rec) || page_rec_is_supremum(rec));
@@ -6569,9 +6571,10 @@ dberr_t lock_trx_handle_wait(trx_t *trx) /*!< in/out: trx lock state */
     err = DB_SUCCESS;
   }
 
-  lock_mutex_exit();
-
   trx->owns_mutex = false;
+
+  lock_mutex_exit();
+  DEBUG_SYNC_C("lock_trx_handle_wait_released_lock_mutex");
 
   trx_mutex_exit(trx);
 
