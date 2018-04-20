@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 # Prepare playground for test by creating tables
 CREATE TABLE t1 (a INT) ;
-CREATE TABLE t2 (a INT, b INT);
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT);
 CREATE TABLE t3 (a INT);
 CREATE TABLE t4 (a INT);
 CREATE TABLE t1part (id INT, year_col INT);
@@ -766,7 +766,7 @@ include/diff_tables.inc [master:t1, slave:t1]
 --- connection master ---
 BEGIN;
 INSERT INTO t1 VALUES (1);
-INSERT INTO t2 VALUES (2,3);
+INSERT INTO t2 VALUES (3,4);
 INSERT INTO t3 VALUES (2);
 INSERT INTO t4 VALUES (1);
 --- connection master1 ---
