@@ -1446,10 +1446,12 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
         fix_page->get_next_large_idx(key.m_page_idx, size);
       if (!fix_page->get_and_clear_large_change_map(key.m_page_idx))
       {
+        jamDebug();
         if (unlikely((pos.m_next_large_area_check_idx + size) >
                       Fix_page::DATA_WORDS))
         {
           jamDebug();
+          ndbassert(fix_page->verify_change_maps());
           return ZSCAN_FOUND_PAGE_END;
         }
         jamDebug();
@@ -1473,10 +1475,12 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
         fix_page->get_next_small_idx(key.m_page_idx, size);
       if (!fix_page->get_and_clear_small_change_map(key.m_page_idx))
       {
+        jamDebug();
         if (unlikely((pos.m_next_small_area_check_idx + size) >
                       Fix_page::DATA_WORDS))
         {
           jamDebug();
+          ndbassert(fix_page->verify_change_maps());
           return ZSCAN_FOUND_PAGE_END;
         }
         jamDebug();
