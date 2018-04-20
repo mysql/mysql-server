@@ -1471,10 +1471,8 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
 
     ScanRecordPtr scanptr;
     scanptr.i = apiConnectptr.p->apiScanRec;
-    ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
-    {
-      close_scan_req(signal, scanptr, true, apiConnectptr);
-    }
+    scanRecordPool.getPtr(scanptr);
+    close_scan_req(signal, scanptr, true, apiConnectptr);
 
     (*TloopCount) += 64;
     break;
@@ -9378,10 +9376,8 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     
     ScanRecordPtr scanptr;
     scanptr.i = apiConnectptr.p->apiScanRec;
-    ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
-    {
-      scanError(signal, scanptr, ZSCANTIME_OUT_ERROR);
-    }
+    scanRecordPool.getPtr(scanptr);
+    scanError(signal, scanptr, ZSCANTIME_OUT_ERROR);
     break;
   }
   case CS_WAIT_ABORT_CONF:
@@ -9836,7 +9832,7 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
   {
     ScanRecordPtr scanptr;
     scanptr.i = ptr.p->scanRec;
-    ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
+    scanRecordPool.getPtr(scanptr);
     ApiConnectRecordPtr TlocalApiConnectptr;
     TlocalApiConnectptr.i = scanptr.p->scanApiRec;
     c_apiConnectRecordPool.getPtr(TlocalApiConnectptr);
@@ -9857,7 +9853,7 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
     jam();
     ScanRecordPtr scanptr;
     scanptr.i = ptr.p->scanRec;
-    ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
+    scanRecordPool.getPtr(scanptr);
     ApiConnectRecordPtr TlocalApiConnectptr;
     TlocalApiConnectptr.i = scanptr.p->scanApiRec;
     c_apiConnectRecordPool.getPtr(TlocalApiConnectptr);
@@ -13337,7 +13333,7 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen, ApiConnectRecordPtr const
 {
   ScanRecordPtr scanptr;
   scanptr.i = apiConnectptr.p->apiScanRec;
-  ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
+  scanRecordPool.getPtr(scanptr);
   CacheRecordPtr cachePtr;
   cachePtr.i = apiConnectptr.p->cachePtr;
   c_cacheRecordPool.getPtr(cachePtr);
@@ -14163,7 +14159,7 @@ void Dbtc::execSCAN_FRAGREF(Signal* signal)
 
   ScanRecordPtr scanptr;
   scanptr.i = scanFragptr.p->scanRec;
-  ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
+  scanRecordPool.getPtr(scanptr);
 
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = scanptr.p->scanApiRec;
@@ -14262,7 +14258,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   
   ScanRecordPtr scanptr;
   scanptr.i = scanFragptr.p->scanRec;
-  ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
+  scanRecordPool.getPtr(scanptr);
   
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = scanptr.p->scanApiRec;
@@ -14451,7 +14447,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
   setApiConTimer(apiConnectptr, 0, __LINE__);
   ScanRecordPtr scanptr;
   scanptr.i = apiConnectptr.p->apiScanRec;
-  ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
+  scanRecordPool.getPtr(scanptr);
   ScanRecord* scanP = scanptr.p;
 
   /* Copy ReceiverIds to working space past end of signal
