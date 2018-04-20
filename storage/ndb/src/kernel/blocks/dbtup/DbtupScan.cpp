@@ -2240,6 +2240,10 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             set_last_lcp_state(fragPtr.p,
                                key.m_page_no,
                                false /* Set state to A */);
+            if (!pos.m_all_rows)
+            {
+              ndbassert(page->verify_change_maps());
+            }
             scan.m_last_seen = __LINE__;
           }
           // no more tuples on this page
