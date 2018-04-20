@@ -3352,7 +3352,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   for (opt = tmp->plugin->system_vars; opt && *opt; opt++) {
     SYS_VAR *o;
     const my_option **optp = (const my_option **)&opts;
-    if (((o = *opt)->flags & PLUGIN_VAR_EXPERIMENTAL)) continue;
+    if (((o = *opt)->flags & PLUGIN_VAR_NOSYSVAR)) continue;
     if ((var = find_bookmark(plugin_name.str, o->name, o->flags)))
       v = new (mem_root) sys_var_pluginvar(&chain, var->key + 1, o);
     else {

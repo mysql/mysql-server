@@ -19136,7 +19136,7 @@ static MYSQL_SYSVAR_BOOL(rollback_on_timeout, innobase_rollback_on_timeout,
 
 static MYSQL_SYSVAR_BOOL(
     status_file, innobase_create_status_file,
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOSYSVAR,
     "Enable SHOW ENGINE INNODB STATUS output in the innodb_status.<pid> file",
     NULL, NULL, FALSE);
 
@@ -19494,33 +19494,6 @@ static MYSQL_SYSVAR_ULONG(log_write_ahead_size, srv_log_write_ahead_size,
                           INNODB_LOG_WRITE_AHEAD_SIZE_MAX,
                           OS_FILE_LOG_BLOCK_SIZE);
 
-static MYSQL_SYSVAR_ULONG(
-    log_write_events, srv_log_write_events,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_EXPERIMENTAL,
-    "Number of events used for notifications about log write.", NULL, NULL,
-    INNODB_LOG_EVENTS_DEFAULT, INNODB_LOG_EVENTS_MIN, INNODB_LOG_EVENTS_MAX, 0);
-
-static MYSQL_SYSVAR_ULONG(
-    log_flush_events, srv_log_flush_events,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_EXPERIMENTAL,
-    "Number of events used for notifications about log flush.", NULL, NULL,
-    INNODB_LOG_EVENTS_DEFAULT, INNODB_LOG_EVENTS_MIN, INNODB_LOG_EVENTS_MAX, 0);
-
-static MYSQL_SYSVAR_ULONG(
-    log_recent_written_size, srv_log_recent_written_size,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_EXPERIMENTAL,
-    "Size of a small buffer, which allows concurrent writes to log buffer.",
-    NULL, NULL, INNODB_LOG_RECENT_WRITTEN_SIZE_DEFAULT,
-    INNODB_LOG_RECENT_WRITTEN_SIZE_MIN, INNODB_LOG_RECENT_WRITTEN_SIZE_MAX, 0);
-
-static MYSQL_SYSVAR_ULONG(
-    log_recent_closed_size, srv_log_recent_closed_size,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_EXPERIMENTAL,
-    "Size of a small buffer, which allows to break requirement for total order"
-    " of dirty pages, when they are added to flush lists.",
-    NULL, NULL, INNODB_LOG_RECENT_CLOSED_SIZE_DEFAULT,
-    INNODB_LOG_RECENT_CLOSED_SIZE_MIN, INNODB_LOG_RECENT_CLOSED_SIZE_MAX, 0);
-
 static MYSQL_SYSVAR_UINT(
     log_spin_cpu_abs_lwm, srv_log_spin_cpu_abs_lwm, PLUGIN_VAR_RQCMDARG,
     "Minimum value of cpu time for which spin-delay is used."
@@ -19534,26 +19507,6 @@ static MYSQL_SYSVAR_UINT(
     NULL, NULL, INNODB_LOG_SPIN_CPU_PCT_HWM_DEFAULT, 0, 100, 0);
 
 static MYSQL_SYSVAR_ULONG(
-    log_wait_for_write_spin_delay, srv_log_wait_for_write_spin_delay,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
-    "Number of spin iterations, when spinning and waiting for log buffer"
-    " written up to given LSN, before we fallback to loop with sleeps."
-    " This is not used when user thread has to wait for log flushed to disk.",
-    NULL, NULL, INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
-
-static MYSQL_SYSVAR_ULONG(
-    log_wait_for_write_timeout, srv_log_wait_for_write_timeout,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
-    "Timeout used when waiting for redo write (microseconds).", NULL, NULL,
-    INNODB_LOG_WAIT_FOR_WRITE_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
-
-static MYSQL_SYSVAR_ULONG(
-    log_wait_for_flush_spin_delay, srv_log_wait_for_flush_spin_delay,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
-    "Number of spin iterations, when spinning and waiting for log flushed.",
-    NULL, NULL, INNODB_LOG_WAIT_FOR_FLUSH_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
-
-static MYSQL_SYSVAR_ULONG(
     log_wait_for_flush_spin_hwm, srv_log_wait_for_flush_spin_hwm,
     PLUGIN_VAR_RQCMDARG,
     "Maximum value of average log flush time for which spin-delay is used."
@@ -19561,48 +19514,92 @@ static MYSQL_SYSVAR_ULONG(
     "flushed redo. Expressed in microseconds.",
     NULL, NULL, INNODB_LOG_WAIT_FOR_FLUSH_SPIN_HWM_DEFAULT, 0, ULONG_MAX, 0);
 
+#ifdef ENABLE_EXPERIMENT_SYSVARS
+
+static MYSQL_SYSVAR_ULONG(
+    log_write_events, srv_log_write_events,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "Number of events used for notifications about log write.", NULL, NULL,
+    INNODB_LOG_EVENTS_DEFAULT, INNODB_LOG_EVENTS_MIN, INNODB_LOG_EVENTS_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_flush_events, srv_log_flush_events,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "Number of events used for notifications about log flush.", NULL, NULL,
+    INNODB_LOG_EVENTS_DEFAULT, INNODB_LOG_EVENTS_MIN, INNODB_LOG_EVENTS_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_recent_written_size, srv_log_recent_written_size,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "Size of a small buffer, which allows concurrent writes to log buffer.",
+    NULL, NULL, INNODB_LOG_RECENT_WRITTEN_SIZE_DEFAULT,
+    INNODB_LOG_RECENT_WRITTEN_SIZE_MIN, INNODB_LOG_RECENT_WRITTEN_SIZE_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_recent_closed_size, srv_log_recent_closed_size,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "Size of a small buffer, which allows to break requirement for total order"
+    " of dirty pages, when they are added to flush lists.",
+    NULL, NULL, INNODB_LOG_RECENT_CLOSED_SIZE_DEFAULT,
+    INNODB_LOG_RECENT_CLOSED_SIZE_MIN, INNODB_LOG_RECENT_CLOSED_SIZE_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_wait_for_write_spin_delay, srv_log_wait_for_write_spin_delay,
+    PLUGIN_VAR_RQCMDARG,
+    "Number of spin iterations, when spinning and waiting for log buffer"
+    " written up to given LSN, before we fallback to loop with sleeps."
+    " This is not used when user thread has to wait for log flushed to disk.",
+    NULL, NULL, INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_wait_for_write_timeout, srv_log_wait_for_write_timeout,
+    PLUGIN_VAR_RQCMDARG,
+    "Timeout used when waiting for redo write (microseconds).", NULL, NULL,
+    INNODB_LOG_WAIT_FOR_WRITE_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_wait_for_flush_spin_delay, srv_log_wait_for_flush_spin_delay,
+    PLUGIN_VAR_RQCMDARG,
+    "Number of spin iterations, when spinning and waiting for log flushed.",
+    NULL, NULL, INNODB_LOG_WAIT_FOR_FLUSH_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
 static MYSQL_SYSVAR_ULONG(
     log_wait_for_flush_timeout, srv_log_wait_for_flush_timeout,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    PLUGIN_VAR_RQCMDARG,
     "Timeout used when waiting for redo flush (microseconds).", NULL, NULL,
     INNODB_LOG_WAIT_FOR_FLUSH_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
-    log_write_max_size, srv_log_write_max_size,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    log_write_max_size, srv_log_write_max_size, PLUGIN_VAR_RQCMDARG,
     "Size available for next write, which satisfies log_writer thread"
     " when it follows links in recent written buffer.",
     NULL, NULL, INNODB_LOG_WRITE_MAX_SIZE_DEFAULT, 0, ULONG_MAX,
     OS_FILE_LOG_BLOCK_SIZE);
 
 static MYSQL_SYSVAR_ULONG(
-    log_writer_spin_delay, srv_log_writer_spin_delay,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    log_writer_spin_delay, srv_log_writer_spin_delay, PLUGIN_VAR_RQCMDARG,
     "Number of spin iterations, for which log writer thread is waiting"
     " for new data to write without sleeping.",
     NULL, NULL, INNODB_LOG_WRITER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
-    log_writer_timeout, srv_log_writer_timeout,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    log_writer_timeout, srv_log_writer_timeout, PLUGIN_VAR_RQCMDARG,
     "Initial timeout used to wait on event in log writer thread (microseconds)",
     NULL, NULL, INNODB_LOG_WRITER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
-    log_checkpoint_every, srv_log_checkpoint_every,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    log_checkpoint_every, srv_log_checkpoint_every, PLUGIN_VAR_RQCMDARG,
     "Checkpoints are executed at least every that many milliseconds.", NULL,
     NULL, INNODB_LOG_CHECKPOINT_EVERY_DEFAULT, 0, ULONG_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
-    log_flusher_spin_delay, srv_log_flusher_spin_delay,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    log_flusher_spin_delay, srv_log_flusher_spin_delay, PLUGIN_VAR_RQCMDARG,
     "Number of spin iterations, for which log flusher thread is waiting"
     " for new data to flush, without sleeping.",
     NULL, NULL, INNODB_LOG_FLUSHER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(log_flusher_timeout, srv_log_flusher_timeout,
-                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+                          PLUGIN_VAR_RQCMDARG,
                           "Initial timeout used to wait on event in log "
                           "flusher thread (microseconds)",
                           NULL, NULL, INNODB_LOG_FLUSHER_TIMEOUT_DEFAULT, 0,
@@ -19610,44 +19607,44 @@ static MYSQL_SYSVAR_ULONG(log_flusher_timeout, srv_log_flusher_timeout,
 
 static MYSQL_SYSVAR_ULONG(
     log_write_notifier_spin_delay, srv_log_write_notifier_spin_delay,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    PLUGIN_VAR_RQCMDARG,
     "Number of spin iterations, for which log write notifier thread is waiting"
     " for advanced write_lsn, without sleeping.",
     NULL, NULL, INNODB_LOG_WRITE_NOTIFIER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     log_write_notifier_timeout, srv_log_write_notifier_timeout,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    PLUGIN_VAR_RQCMDARG,
     "Initial timeout used to wait on event in log write notifier thread"
     " (microseconds)",
     NULL, NULL, INNODB_LOG_WRITE_NOTIFIER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     log_flush_notifier_spin_delay, srv_log_flush_notifier_spin_delay,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    PLUGIN_VAR_RQCMDARG,
     "Number of spin iterations, for which log flush notifier thread is waiting"
     " for advanced flushed_to_disk_lsn, without sleeping.",
     NULL, NULL, INNODB_LOG_FLUSH_NOTIFIER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     log_flush_notifier_timeout, srv_log_flush_notifier_timeout,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    PLUGIN_VAR_RQCMDARG,
     "Initial timeout used to wait on event in log flush notifier thread"
     " (microseconds)",
     NULL, NULL, INNODB_LOG_FLUSH_NOTIFIER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
-    log_closer_spin_delay, srv_log_closer_spin_delay,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    log_closer_spin_delay, srv_log_closer_spin_delay, PLUGIN_VAR_RQCMDARG,
     "Number of spin iterations, for which log closer thread is waiting"
     " for dirty pages added.",
     NULL, NULL, INNODB_LOG_CLOSER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
-    log_closer_timeout, srv_log_closer_timeout,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    log_closer_timeout, srv_log_closer_timeout, PLUGIN_VAR_RQCMDARG,
     "Initial sleep time in log closer thread (microseconds)", NULL, NULL,
     INNODB_LOG_CLOSER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+
+#endif /* ENABLE_EXPERIMENT_SYSVARS */
 
 static MYSQL_SYSVAR_UINT(
     old_blocks_pct, innobase_old_blocks_pct, PLUGIN_VAR_RQCMDARG,
@@ -20079,16 +20076,17 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(log_files_in_group),
     MYSQL_SYSVAR(log_write_ahead_size),
     MYSQL_SYSVAR(log_group_home_dir),
+    MYSQL_SYSVAR(log_spin_cpu_abs_lwm),
+    MYSQL_SYSVAR(log_spin_cpu_pct_hwm),
+    MYSQL_SYSVAR(log_wait_for_flush_spin_hwm),
+#ifdef ENABLE_EXPERIMENT_SYSVARS
     MYSQL_SYSVAR(log_write_events),
     MYSQL_SYSVAR(log_flush_events),
     MYSQL_SYSVAR(log_recent_written_size),
     MYSQL_SYSVAR(log_recent_closed_size),
-    MYSQL_SYSVAR(log_spin_cpu_abs_lwm),
-    MYSQL_SYSVAR(log_spin_cpu_pct_hwm),
     MYSQL_SYSVAR(log_wait_for_write_spin_delay),
     MYSQL_SYSVAR(log_wait_for_write_timeout),
     MYSQL_SYSVAR(log_wait_for_flush_spin_delay),
-    MYSQL_SYSVAR(log_wait_for_flush_spin_hwm),
     MYSQL_SYSVAR(log_wait_for_flush_timeout),
     MYSQL_SYSVAR(log_write_max_size),
     MYSQL_SYSVAR(log_writer_spin_delay),
@@ -20102,6 +20100,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(log_flush_notifier_timeout),
     MYSQL_SYSVAR(log_closer_spin_delay),
     MYSQL_SYSVAR(log_closer_timeout),
+#endif /* ENABLE_EXPERIMENT_SYSVARS */
     MYSQL_SYSVAR(log_compressed_pages),
     MYSQL_SYSVAR(max_dirty_pages_pct),
     MYSQL_SYSVAR(max_dirty_pages_pct_lwm),
