@@ -442,9 +442,9 @@ static void lock_wait_check_and_cancel(
       lock_cancel_waiting_and_release(trx->lock.wait_lock, false);
     }
 
-    lock_mutex_exit();
-
     trx->owns_mutex = false;
+
+    lock_mutex_exit();
 
     trx_mutex_exit(trx);
   }
