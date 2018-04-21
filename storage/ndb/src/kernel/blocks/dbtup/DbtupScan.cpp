@@ -1495,8 +1495,7 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
          * ourselves past the next large area check.
          */
         key.m_page_idx = pos.m_next_small_area_check_idx;
-        pos.m_next_small_area_check_idx =
-          fix_page->get_next_small_idx(key.m_page_idx, size);
+        ndbassert(key.m_page_idx <= pos.m_next_large_area_check_idx);
         continue;
       }
     }
