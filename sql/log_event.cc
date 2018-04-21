@@ -3940,13 +3940,13 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
   This is used by the SQL slave thread to prepare the event before execution.
 */
 Query_log_event::Query_log_event(
-    const char *buf, uint event_len,
-    const Format_description_event *description_event,
+    const char *buf, const Format_description_event *description_event,
     Log_event_type event_type)
-    : binary_log::Query_event(buf, event_len, description_event, event_type),
+    : binary_log::Query_event(buf, description_event, event_type),
       Log_event(header(), footer()),
       has_ddl_committed(false) {
   DBUG_ENTER("Query_log_event::Query_log_event(char*,...)");
+  data_buf = nullptr;
   if (!is_valid()) DBUG_VOID_RETURN;
 
   slave_proxy_id = thread_id;
@@ -5512,8 +5512,6 @@ Intvar_log_event::Intvar_log_event(
   DBUG_ENTER(
       "Intvar_log_event::Intvar_log_event(const char*, const "
       "Format_description_event *)");
-  if (!is_valid()) DBUG_VOID_RETURN;
-  common_header->set_is_valid(true);
   DBUG_VOID_RETURN;
 }
 
@@ -5632,8 +5630,6 @@ Rand_log_event::Rand_log_event(
   DBUG_ENTER(
       "Rand_log_event::Rand_log_event(const char*, const "
       "Format_description_event *)");
-  if (!is_valid()) DBUG_VOID_RETURN;
-  common_header->set_is_valid(true);
   DBUG_VOID_RETURN;
 }
 
@@ -6259,9 +6255,8 @@ int User_var_log_event::pack_info(Protocol *protocol) {
 #endif /* MYSQL_SERVER */
 
 User_var_log_event::User_var_log_event(
-    const char *buf, uint event_len,
-    const Format_description_event *description_event)
-    : binary_log::User_var_event(buf, event_len, description_event),
+    const char *buf, const Format_description_event *description_event)
+    : binary_log::User_var_event(buf, description_event),
       Log_event(header(), footer())
 #ifdef MYSQL_SERVER
       ,
@@ -6270,10 +6265,8 @@ User_var_log_event::User_var_log_event(
 #endif
 {
   DBUG_ENTER(
-      "User_var_log_event::User_var_log_event(const char*, uint, const "
+      "User_var_log_event::User_var_log_event(const char*, const "
       "Format_description_event *)");
-  if (!is_valid()) DBUG_VOID_RETURN;
-  common_header->set_is_valid(name != 0);
   DBUG_VOID_RETURN;
 }
 
@@ -6950,15 +6943,14 @@ Execute_load_query_log_event::Execute_load_query_log_event(
 #endif /* MYSQL_SERVER */
 
 Execute_load_query_log_event::Execute_load_query_log_event(
-    const char *buf, uint event_len, const Format_description_event *desc_event)
-    : binary_log::Query_event(buf, event_len, desc_event,
+    const char *buf, const Format_description_event *desc_event)
+    : binary_log::Query_event(buf, desc_event,
                               binary_log::EXECUTE_LOAD_QUERY_EVENT),
-      Query_log_event(buf, event_len, desc_event,
-                      binary_log::EXECUTE_LOAD_QUERY_EVENT),
-      binary_log::Execute_load_query_event(buf, event_len, desc_event) {
+      Query_log_event(buf, desc_event, binary_log::EXECUTE_LOAD_QUERY_EVENT),
+      binary_log::Execute_load_query_event(buf, desc_event) {
   DBUG_ENTER(
       "Execute_load_query_log_event::Execute_load_query_log_event(const char*, "
-      "uint, const Format_description_event *)");
+      "const Format_description_event *)");
   if (!is_valid()) DBUG_VOID_RETURN;
   if (!Query_log_event::is_valid()) {
     // clear all the variables set in execute_load_query_event

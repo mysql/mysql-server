@@ -196,7 +196,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
       binary_log_debug::debug_query_mts_corrupt_db_names =
           DBUG_EVALUATE_IF("query_log_event_mts_corrupt_db_names", true, false);
 #endif
-      ev = new Query_log_event(buf, event_len, fde, binary_log::QUERY_EVENT);
+      ev = new Query_log_event(buf, fde, binary_log::QUERY_EVENT);
       break;
     case binary_log::ROTATE_EVENT:
       ev = new Rotate_log_event(buf, fde);
@@ -220,7 +220,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
       ev = new Rand_log_event(buf, fde);
       break;
     case binary_log::USER_VAR_EVENT:
-      ev = new User_var_log_event(buf, event_len, fde);
+      ev = new User_var_log_event(buf, fde);
       break;
     case binary_log::FORMAT_DESCRIPTION_EVENT:
       ev = new Format_description_log_event(buf, fde);
@@ -245,7 +245,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
       ev = new Begin_load_query_log_event(buf, event_len, fde);
       break;
     case binary_log::EXECUTE_LOAD_QUERY_EVENT:
-      ev = new Execute_load_query_log_event(buf, event_len, fde);
+      ev = new Execute_load_query_log_event(buf, fde);
       break;
     case binary_log::INCIDENT_EVENT:
       ev = new Incident_log_event(buf, fde);

@@ -23,6 +23,7 @@
 #include "load_data_events.h"
 #include <stdlib.h>
 #include <string.h>
+#include "event_reader_macros.h"
 
 namespace binary_log {
 /**
@@ -42,28 +43,32 @@ Execute_load_query_event::Execute_load_query_event(
   packet. It is used on the MySQL server acting as a slave.
 */
 Execute_load_query_event::Execute_load_query_event(
-    const char *buf, unsigned int event_len,
-    const Format_description_event *description_event)
-    : Query_event(buf, event_len, description_event, EXECUTE_LOAD_QUERY_EVENT),
+    const char *buf, const Format_description_event *fde)
+    : Query_event(buf, fde, EXECUTE_LOAD_QUERY_EVENT),
       file_id(0),
       fn_pos_start(0),
       fn_pos_end(0) {
-  if (!query) return;
+  uint8_t dup_temp;
+  BAPI_ENTER(
+      "Execute_load_query_event::Execute_load_query_event(const char*, const "
+      "Format_description_event*)");
+  READER_TRY_INITIALIZATION;
 
-  buf += description_event->common_header_len;
+  READER_TRY_CALL(go_to, fde->common_header_len);
+  READER_TRY_CALL(forward, ELQ_FILE_ID_OFFSET);
+  READER_TRY_SET(file_id, read_and_letoh<int32_t>);
+  READER_TRY_SET(fn_pos_start, read_and_letoh<uint32_t>);
+  READER_TRY_SET(fn_pos_end, read_and_letoh<uint32_t>);
+  READER_TRY_SET(dup_temp, read<uint8_t>);
+  dup_handling = (enum_load_dup_handling)(dup_temp);
 
-  memcpy(&fn_pos_start, buf + ELQ_FN_POS_START_OFFSET, sizeof(fn_pos_start));
-  fn_pos_start = le32toh(fn_pos_start);
-  memcpy(&fn_pos_end, buf + ELQ_FN_POS_END_OFFSET, sizeof(fn_pos_end));
-  fn_pos_end = le32toh(fn_pos_end);
-  dup_handling = (enum_load_dup_handling)(*(buf + ELQ_DUP_HANDLING_OFFSET));
-
+  /* Sanity check */
   if (fn_pos_start > q_len || fn_pos_end > q_len ||
       dup_handling > LOAD_DUP_REPLACE)
-    return;
+    READER_THROW("Invalid Execute_load_query_event.");
 
-  memcpy(&file_id, buf + ELQ_FILE_ID_OFFSET, 4);
-  file_id = le32toh(file_id);
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
 }
 
 /**

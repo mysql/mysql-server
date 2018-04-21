@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,6 @@
 #define LOAD_DATA_EVENTS_INCLUDED
 
 #include <sys/types.h>
-
-#include "byteorder.h"
 #include "statement_events.h"
 #include "table_id.h"
 
@@ -144,8 +142,8 @@ class Execute_load_query_event : public virtual Query_event {
                            uint32_t fn_pos_end, enum_load_dup_handling dup);
 
   /**
-    The constructor receives a buffer and instantiates a Execute_load_uery_event
-    filled in with the data from the buffer.
+    The constructor receives a buffer and instantiates a
+    Execute_load_query_event filled in with the data from the buffer.
 
     <pre>
     The fixed event data part buffer layout is as follows:
@@ -164,19 +162,11 @@ class Execute_load_query_event : public virtual Query_event {
     +------------------------------------------------------------------+
     </pre>
 
-    @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
-  Execute_load_query_event(const char *buf, unsigned int event_len,
-                           const Format_description_event *description_event);
+  Execute_load_query_event(const char *buf,
+                           const Format_description_event *fde);
 
   ~Execute_load_query_event() {}
 };

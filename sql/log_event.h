@@ -1334,7 +1334,7 @@ class Query_log_event : public virtual binary_log::Query_event,
 
   Query_log_event();
 
-  Query_log_event(const char *buf, uint event_len,
+  Query_log_event(const char *buf,
                   const Format_description_event *description_event,
                   Log_event_type event_type);
   ~Query_log_event() {
@@ -1787,7 +1787,7 @@ class User_var_log_event : public binary_log::User_var_event, public Log_event {
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
 #endif
 
-  User_var_log_event(const char *buf, uint event_len,
+  User_var_log_event(const char *buf,
                      const Format_description_event *description_event);
   ~User_var_log_event() {}
 #ifdef MYSQL_SERVER
@@ -2140,8 +2140,7 @@ class Execute_load_query_log_event
              const char *local_fname) const;
 #endif
   Execute_load_query_log_event(
-      const char *buf, uint event_len,
-      const Format_description_event *description_event);
+      const char *buf, const Format_description_event *description_event);
   ~Execute_load_query_log_event() {}
 
   ulong get_post_header_size_for_derived() override;
