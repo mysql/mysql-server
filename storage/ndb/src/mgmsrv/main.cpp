@@ -227,6 +227,15 @@ static int mgmd_main(int argc, char** argv)
     mgmd_exit(1);
   }
 
+  if (opt_ndb_connectstring)
+  {
+    if (strncmp(opt_ndb_connectstring, "/", 1) == 0)
+    {
+      fprintf(stderr, "ERROR: ndb-connect-string starts with '/', use -f to specify config file instead of -c\n");
+      mgmd_exit(1);
+    }
+  }
+
   if (opt_nowait_nodes)
   {
     int res = parse_mask(opt_nowait_nodes, opts.nowait_nodes);
