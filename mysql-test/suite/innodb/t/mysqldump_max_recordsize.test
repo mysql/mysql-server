@@ -49,6 +49,8 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 --echo # Start the DB server with page size 32k
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
 --let $restart_parameters="restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2"
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
 --source include/start_mysqld.inc
 
 USE test;
@@ -174,6 +176,8 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 --echo # Start the DB server with page size 16k
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
 --let $restart_parameters="restart: --innodb_page_size=16K --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2"
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
 --source include/start_mysqld.inc
 
 # page size 16K
@@ -234,6 +238,8 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 --echo # Start the DB server with page size 64k
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
 --let restart_parameters="restart: --innodb_page_size=64K --datadir=$MYSQLD_DATADIR1  --innodb_log_file_size=5M --innodb_log_files_in_group=2"
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
 --source include/start_mysqld.inc
 
 # page size 64K
@@ -262,6 +268,8 @@ SELECT count(*) FROM tab3;
 SET innodb_strict_mode=Default;
 
 --let $restart_parameters=
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
 --source include/restart_mysqld.inc
 
 --disable_query_log
