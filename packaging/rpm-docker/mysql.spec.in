@@ -150,6 +150,7 @@ mkdir release
   cd release
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
+           -DREPRODUCIBLE_BUILD=OFF \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
 	   -DWITH_BOOST=.. \
