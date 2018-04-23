@@ -7,17 +7,17 @@
 # This test is executed twice for each test case. Before every
 # testcase it is run with mysqltest in record mode and will thus
 # produce an output file that can be compared to output from after the
-# tescase.  In that way, it is possible to check that a testcase does
+# tescase. In that way, it is possible to check that a testcase does
 # not have any unwanted side affects.
 
 --disable_query_log
 
-# We want to ensure all slave configuration is restored.  But SHOW
+# We want to ensure all slave configuration is restored. But SHOW
 # SLAVE STATUS returns nothing for servers not configured as slaves,
 # and (after BUG#28796 was fixed) there is no way to de-configure a
-# slave.  Hence, it is impossible to clean up the replication state at
-# the end.  But we want to check that the slave is stopped, there is
-# no error, and a few other invariants.  So we issue SHOW SLAVE
+# slave. Hence, it is impossible to clean up the replication state at
+# the end. But we want to check that the slave is stopped, there is
+# no error, and a few other invariants. So we issue SHOW SLAVE
 # STATUS, and if it returns no rows we fake the result.
 --let $tmp= 0
 if (`SELECT @@server_id <> 0`) {
@@ -87,6 +87,7 @@ if ($tmp) {
   --echo Master_public_key_path	
   --echo Get_master_public_key	0
 }
+
 if (!$tmp) {
   # Note: after WL#5177, fields 13-18 shall not be filtered-out.
   --replace_column 4 # 5 # 6 # 7 # 8 # 9 # 10 # 13 # 14 # 15 # 16 # 17 # 18 # 22 # 23 # 24 # 25 # 26 # 40 # 41 # 42 # 46 # 52 # 53 # 55 # 56 #
@@ -98,7 +99,7 @@ if (!$tmp) {
 # will be run for each server. The file lists for each server needs to be
 # uniquely identified. This can be achieved by appending the @@server_id with
 # the filename.
---let $infile = `SELECT CONCAT('$MYSQLTEST_VARDIR_ABS/file_list_', @@server_id,'.flist')`
+--let $infile = `SELECT CONCAT('$MYSQLTEST_VARDIR_ABS/file_list_', @@server_id, '.flist')`
 
 # There may be restrictions on paths usable for import/export operations
 # on a server due to the --secure-file-priv setting.
@@ -132,13 +133,23 @@ if (!$tmp) {
 if ($proceed_with_check_of_files) {
   # Ensure that we have no impact on the content of the binary log.
   #
-  # Some (CREATE TABLE, ...) statements within the current routine would be
-  # usually written into the binary log. This must be avoided.
+  # Some (CREATE TABLE, ...) statements within the current routine would
+  # be usually written into the binary log. This must be avoided.
   # Otherwise tests processing the content of the binary log like
   # "rpl.rpl_extra_row_data" will fail.
   SET @sql_log_bin_save = @@sql_log_bin;
   SET SESSION sql_log_bin = 0;
 
+  USE test;
+
+  # Set $mysql_errno value to 0 (i.e no error) initially.
+  --let $mysql_errno = 0
+
+  # It is not possible to create a temporary table if Innodb engine is disabled.
+  --error 0, ER_DISABLED_STORAGE_ENGINE
+  CREATE TEMPORARY TABLE file_tbl (filename varchar(1024));
+
+  if ($mysql_errno == 0) {
 --write_file $infile
 # These are the files, directory etc. found in some important directories.
 EOF
@@ -178,44 +189,41 @@ EOF
 --list_files_append_file $infile $MYSQLTEST_VARDIR/std_data *
 #
 
-  USE test;
+    # In case of binlog_killed_simulate the LOAD DATA fails with "query got an
+    # interrupt". Important characteristics of binlog_killed_simulate is the
+    # server system variable "debug" with a content <> "". On the other hand
+    # it is quite thinkable that LOAD DATA fails because of a non foreseen
+    # weakness of the current routine.
+    # Conclusion:
+    #   - use disable abort on error
+    #   - automatic abort of the test if LOAD DATA fails and "debug" = 0
+    #   - ignoring errors if LOAD DATA fails and "debug" <> 0
+    --let $debug_condition = query_get_value(SHOW VARIABLES LIKE 'debug', Value, 1)
+    --let $debug_condition_check = `SELECT '$debug_condition' <> ''`
 
-  CREATE TEMPORARY TABLE file_tbl (filename varchar(1024));
+    if ($debug_condition_check == 1) {
+      --disable_abort_on_error
+    }
 
-  # In case of binlog_killed_simulate the LOAD DATA fails with "query got an
-  # interrupt". Important characteristics of binlog_killed_simulate is the server
-  # system variable "debug" with a content <> "".
-  # On the other hand it is quite thinkable that LOAD DATA fails because of a non
-  # foreseen weakness of the current routine.
-  # Conclusion:
-  #    - use disable abort on error
-  #    - automatic abort of the test if LOAD DATA fails and "debug" = 0
-  #    - ignoring errors if LOAD DATA fails and "debug" <> 0
+    --eval LOAD DATA INFILE '$infile' INTO TABLE file_tbl
 
-  --let $debug_condition = query_get_value(SHOW VARIABLES LIKE 'debug',Value, 1)
-  --let $debug_condition_check = `SELECT '$debug_condition' <> ''`
-  if ($debug_condition_check == 1) {
-    --disable_abort_on_error
+    if ($debug_condition_check == 1) {
+      --enable_abort_on_error
+    }
+
+    SELECT filename FROM file_tbl
+      WHERE filename NOT LIKE 'check-mysqld_%'
+      AND filename NOT LIKE 'mysql%.sock%'
+      AND filename NOT LIKE 'file_list_%.flist'
+      AND filename NOT LIKE 'mysqld%.expect'
+      AND filename NOT LIKE 'bootstrap.log';
+
+    DROP TABLE test.file_tbl;
+    --remove_file $infile
   }
 
-  --eval LOAD DATA INFILE '$infile' INTO TABLE file_tbl
-
-  if ($debug_condition_check == 1) {
-    --enable_abort_on_error
-  }
-
-  SELECT filename FROM file_tbl
-  WHERE filename NOT LIKE 'check-mysqld_%'
-  AND filename NOT LIKE 'mysql%.sock%'
-  AND filename NOT LIKE 'file_list_%.flist'
-  AND filename NOT LIKE 'mysqld%.expect'
-  AND filename NOT LIKE 'bootstrap.log';
-
-  DROP TABLE test.file_tbl;
   SET @@sql_log_bin = @sql_log_bin_save;
-  --remove_file $infile
-
---enable_query_log
 }
 
-call mtr.check_testcase();
+--enable_query_log
+CALL mtr.check_testcase();
