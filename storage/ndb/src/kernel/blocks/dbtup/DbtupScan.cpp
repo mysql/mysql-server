@@ -40,6 +40,13 @@
 //#define DEBUG_NR_SCAN 1
 //#define DEBUG_NR_SCAN_EXTRA 1
 //#define DEBUG_LCP_SCANNED_BIT 1
+//#define DEBUG_LCP_FILTER 1
+#endif
+
+#ifdef DEBUG_LCP_FILTER
+#define DEB_LCP_FILTER(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_FILTER(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_LCP
@@ -986,11 +993,13 @@ Dbtup::handle_lcp_skip_page(ScanOp& scan,
    * to be able to decide if it is 4c) or 4d). We also need to set
    * the last LCP* state to D.
    */
-  DEB_LCP_SKIP(("(%u)Clear LCP_SKIP on tab(%u,%u), page(%u)",
+  DEB_LCP_SKIP(("(%u)Clear LCP_SKIP on tab(%u,%u), page(%u), change: %u, D: %u",
                 instance(),
                 m_curr_fragptr.p->fragTableId,
                 m_curr_fragptr.p->fragmentId,
-                key.m_page_no));
+                key.m_page_no,
+                pos.m_lcp_scan_changed_rows_page,
+                pos.m_is_last_lcp_state_D));
 
   page->clear_page_to_skip_lcp();
   set_last_lcp_state(m_curr_fragptr.p,
@@ -1346,6 +1355,11 @@ Dbtup::setup_change_page_for_scan(ScanOp& scan,
       debug_idx += size;
     } while ((debug_idx + size) <= Fix_page::DATA_WORDS);
 #endif
+    DEB_LCP_FILTER(("(%u) tab(%u,%u) page(%u) filtered out",
+                    instance(),
+                    m_curr_fragptr.p->fragTableId,
+                    m_curr_fragptr.p->fragmentId,
+                    fix_page->frag_page_id));
     scan.m_last_seen = __LINE__;
     pos.m_get = ScanPos::Get_next_page_mm;
     c_backup->skip_no_change_page();
@@ -1452,6 +1466,14 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
       if (!fix_page->get_and_clear_large_change_map(key.m_page_idx))
       {
         jamDebug();
+        DEB_LCP_FILTER(("(%u) tab(%u,%u) page(%u) large area filtered"
+                        ", start_idx: %u",
+                        instance(),
+                        m_curr_fragptr.p->fragTableId,
+                        m_curr_fragptr.p->fragmentId,
+                        fix_page->frag_page_id,
+                        key.m_page_idx));
+
         if (unlikely((pos.m_next_large_area_check_idx + size) >
                       Fix_page::DATA_WORDS))
         {
@@ -1482,6 +1504,13 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
       if (!fix_page->get_and_clear_small_change_map(key.m_page_idx))
       {
         jamDebug();
+        DEB_LCP_FILTER(("(%u) tab(%u,%u) page(%u) small area filtered"
+                        ", start_idx: %u",
+                        instance(),
+                        m_curr_fragptr.p->fragTableId,
+                        m_curr_fragptr.p->fragmentId,
+                        fix_page->frag_page_id,
+                        key.m_page_idx));
         if (unlikely((pos.m_next_small_area_check_idx + size) >
                       Fix_page::DATA_WORDS))
         {
@@ -2148,13 +2177,17 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               tuple_header_ptr->m_header_bits =
                 thbits & (~Tuple_header::LCP_SKIP);
               DEB_LCP_SKIP(("(%u)Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
-                            ", header: %x",
+                            ", header: %x"
+                            ", new header: %x"
+                            ", tuple_header_ptr: %p",
                             instance(),
                             fragPtr.p->fragTableId,
                             fragPtr.p->fragmentId,
                             key.m_page_no,
                             key.m_page_idx,
-                            thbits));
+                            thbits,
+                            tuple_header_ptr->m_header_bits,
+                            tuple_header_ptr));
               updateChecksum(tuple_header_ptr,
                              tablePtr.p,
                              thbits,
@@ -2219,7 +2252,16 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                                                      size);
               if (ret_val == ZSCAN_FOUND_PAGE_END)
               {
-                // no more tuples on this page
+                /**
+                 * We've finished scanning a page that was using filtering using
+                 * the bitmaps on the page. We are ready to set the last LCP
+                 * state to A.
+                 */
+                /* Coverage tested */
+                set_last_lcp_state(fragPtr.p,
+                                   key.m_page_no,
+                                   false /* Set state to A */);
+                scan.m_last_seen = __LINE__;
                 pos.m_get = ScanPos::Get_next_page;
                 break;
               }
@@ -2229,7 +2271,10 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                                                    tuple_header_ptr,
                                                    foundGCI);
             if (likely(ret_val == ZSCAN_FOUND_TUPLE))
+            {
+              thbits = tuple_header_ptr->m_header_bits;
               goto found_tuple;
+            }
             else if (ret_val == ZSCAN_FOUND_DELETED_ROWID)
               goto found_deleted_rowid;
             ndbassert(ret_val == ZSCAN_FOUND_NEXT_ROW);
@@ -2379,6 +2424,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                scan.m_scanGCI ||
               foundGCI == 0)
           {
+            thbits = tuple_header_ptr->m_header_bits;
             if (! (thbits & Tuple_header::FREE))
             {
               jam();
