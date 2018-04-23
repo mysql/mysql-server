@@ -2207,7 +2207,7 @@ bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
                 nullptr,                       // On update value
                 &EMPTY_STR,                    // Comment
                 nullptr,                       // Change
-                nullptr,                       // Interval list
+                m_type->get_interval_list(),   // Interval list
                 cs,                            // Charset
                 false,                         // No "COLLATE" clause
                 m_type->get_uint_geom_type(),  // Geom type

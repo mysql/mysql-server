@@ -48,6 +48,7 @@
 #include "sql/sql_exception_handler.h"
 #include "sql/sql_list.h"
 #include "sql/sql_show.h"
+#include "sql/sql_table.h"      // create_typelib
 #include "sql/sql_tmp_table.h"  // create_tmp_table_from_fields
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -289,6 +290,10 @@ bool Table_function_json::init_json_table_col_lists(THD *thd, uint *nest_idx,
         my_error(ER_WRONG_COLUMN_NAME, MYF(0), col->field_name);
         return true;
       }
+      if ((col->sql_type == MYSQL_TYPE_ENUM ||
+           col->sql_type == MYSQL_TYPE_SET) &&
+          !col->interval)
+        col->interval = create_typelib(thd->mem_root, col);
     }
     m_all_columns.push_back(col);
 

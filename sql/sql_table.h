@@ -501,5 +501,7 @@ extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
 */
 
 bool lock_trigger_names(THD *thd, TABLE_LIST *tables);
+struct TYPELIB;
+TYPELIB *create_typelib(MEM_ROOT *mem_root, Create_field *field_def);
 
 #endif /* SQL_TABLE_INCLUDED */

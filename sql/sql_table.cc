@@ -3636,7 +3636,7 @@ bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
   DBUG_RETURN(false);
 }
 
-static TYPELIB *create_typelib(MEM_ROOT *mem_root, Create_field *field_def) {
+TYPELIB *create_typelib(MEM_ROOT *mem_root, Create_field *field_def) {
   if (!field_def->interval_list.elements) return NULL;
 
   TYPELIB *result =
