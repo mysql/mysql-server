@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -69,6 +69,7 @@ MACRO(GET_MYSQL_VERSION)
     "${MAJOR_VERSION}.${MINOR_VERSION}" CACHE INTERNAL "MySQL Base version")
   SET(MYSQL_NO_DASH_VERSION
     "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}")
+  STRING(REGEX REPLACE "^-" "." MYSQL_VERSION_EXTRA_DOT "${EXTRA_VERSION}")
 
   # Use NDBVERSION irregardless of whether this is Cluster or not, if not
   # then the regex will be ignored anyway.
