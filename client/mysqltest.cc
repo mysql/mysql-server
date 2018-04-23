@@ -389,7 +389,7 @@ enum enum_commands {
   Q_ENABLE_INFO, Q_DISABLE_INFO,
   Q_ENABLE_SESSION_TRACK_INFO, Q_DISABLE_SESSION_TRACK_INFO,
   Q_ENABLE_METADATA, Q_DISABLE_METADATA,
-  Q_EXEC, Q_EXECW, Q_DELIMITER,
+  Q_EXEC, Q_EXECW, Q_EXEC_BACKGROUND, Q_DELIMITER,
   Q_DISABLE_ABORT_ON_ERROR, Q_ENABLE_ABORT_ON_ERROR,
   Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
   Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL, Q_SORTED_RESULT,
@@ -465,6 +465,7 @@ const char *command_names[]=
   "disable_metadata",
   "exec",
   "execw",
+  "exec_in_background",
   "delimiter",
   "disable_abort_on_error",
   "enable_abort_on_error",
@@ -3238,7 +3239,7 @@ static int replace(DYNAMIC_STRING *ds_str,
   mysqltest commmand(s) like "remove_file" for that
 */
 
-void do_exec(struct st_command *command)
+void do_exec(struct st_command *command, bool run_in_background)
 {
   int error;
   char buf[512];
@@ -3274,6 +3275,23 @@ void do_exec(struct st_command *command)
   while(replace(&ds_cmd, ">&-", 3, ">&4", 3) == 0)
     ;
 #endif
+  if (run_in_background)
+  {
+    /* Add an invocation of "START /B" on Windows, append " &" on Linux*/
+    DYNAMIC_STRING ds_tmp;
+#ifdef WIN32
+    init_dynamic_string(&ds_tmp, "START /B ",
+                        ds_cmd.length + 9, 256);
+   dynstr_append_mem(&ds_tmp, ds_cmd.str, ds_cmd.length);
+#else
+    init_dynamic_string(&ds_tmp, ds_cmd.str,
+                       ds_cmd.length + 2, 256);
+    dynstr_append_mem(&ds_tmp, " &", 2);
+#endif
+    dynstr_set(&ds_cmd, ds_tmp.str);
+    dynstr_free(&ds_tmp);
+  }
+
 
   /* exec command is interpreted externally and will not take newlines */
   while(replace(&ds_cmd, "\n", 1, " ", 1) == 0)
@@ -3287,17 +3305,19 @@ void do_exec(struct st_command *command)
     dynstr_free(&ds_cmd);
     die("popen(\"%s\", \"r\") failed", command->first_argument);
   }
-
-  while (fgets(buf, sizeof(buf), res_file))
+  if(!run_in_background)
   {
-    if (disable_result_log)
+    while (fgets(buf, sizeof(buf), res_file))
     {
-      buf[strlen(buf)-1]=0;
-      DBUG_PRINT("exec_result",("%s", buf));
-    }
-    else
-    {
-      replace_dynstr_append(&ds_res, buf);
+      if (disable_result_log)
+      {
+        buf[strlen(buf)-1]=0;
+        DBUG_PRINT("exec_result",("%s", buf));
+      }
+      else
+      {
+        replace_dynstr_append(&ds_res, buf);
+      }
     }
   }
   error= pclose(res_file);
@@ -9650,7 +9670,11 @@ int main(int argc, char **argv)
         break;
       case Q_EXEC:
       case Q_EXECW:
-	do_exec(command);
+	do_exec(command, false);
+	command_executed++;
+	break;
+      case Q_EXEC_BACKGROUND:
+	do_exec(command, true);
 	command_executed++;
 	break;
       case Q_START_TIMER:
