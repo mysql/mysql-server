@@ -475,14 +475,16 @@ Dbtup::dealloc_tuple(Signal* signal,
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = page->frag_page_id;
     g_eventLogger->info("(%u) tab(%u,%u) Deleted row(%u,%u)"
-                        ", bits: %x, row_count = %llu",
+                        ", bits: %x, row_count = %llu"
+                        ", tuple_header_ptr: %p",
                         instance(),
                         regFragPtr->fragTableId,
                         regFragPtr->fragmentId,
                         rowid.m_page_no,
                         rowid.m_page_idx,
                         ptr->m_header_bits,
-                        regFragPtr->m_row_count);
+                        regFragPtr->m_row_count,
+                        ptr);
 #endif
   }
 }

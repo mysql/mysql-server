@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -758,6 +758,10 @@ int runSystemRestartLCP_1(NDBT_Context *ctx, NDBT_Step *step)
                                  row_step) == 0);
     if (result == NDBT_FAILED)
       return result;
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == 0);
+    CHECK(hugoTrans.scanReadRecords(pNdb,0,0,64,
+                                    NdbOperation::LM_Read,0,1) == 0);
   }
   return NDBT_OK;
 }

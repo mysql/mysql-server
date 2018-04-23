@@ -44,6 +44,7 @@
 //#define DEBUG_LCP_LGMAN 1
 //#define DEBUG_LCP_SKIP_DELETE 1
 #endif
+
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -677,6 +678,7 @@ void Dbtup::prepareTUPKEYREQ(Uint32 page_id,
   {
     register Uint32 fixed_part_size_in_words =
       tabptr.p->m_offsets[MM].m_fix_header_size;
+    prepare_frag_page_id = page_id;
     page_id = getRealpid(fragptr.p, page_id);
     key.m_page_no = page_id;
     key.m_page_idx = page_idx;
