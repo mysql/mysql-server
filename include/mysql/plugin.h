@@ -813,11 +813,11 @@ int mysql_tmpfile(const char *prefix);
   time-consuming loops, and gracefully abort the operation if it is
   non-zero.
 
-  @param v_thd  user thread connection handle
+  @param thd  user thread connection handle
   @retval 0  the connection is active
   @retval 1  the connection has been killed
 */
-int thd_killed(const void *v_thd);
+int thd_killed(const void *thd);
 
 /**
   Set the killed status of the current statement.
