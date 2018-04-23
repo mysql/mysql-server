@@ -1952,7 +1952,7 @@ class Append_block_log_event : public virtual binary_log::Append_block_event,
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
 #endif
 
-  Append_block_log_event(const char *buf, uint event_len,
+  Append_block_log_event(const char *buf,
                          const Format_description_event *description_event);
   ~Append_block_log_event() {}
   size_t get_data_size() override {
@@ -2011,7 +2011,7 @@ class Delete_file_log_event : public binary_log::Delete_file_event,
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info, bool enable_local);
 #endif
 
-  Delete_file_log_event(const char *buf, uint event_len,
+  Delete_file_log_event(const char *buf,
                         const Format_description_event *description_event);
   ~Delete_file_log_event() {}
   size_t get_data_size() override {
@@ -2076,7 +2076,7 @@ class Begin_load_query_log_event : public Append_block_log_event,
   Begin_load_query_log_event(THD *thd);
   int get_create_or_append() const override;
 #endif
-  Begin_load_query_log_event(const char *buf, uint event_len,
+  Begin_load_query_log_event(const char *buf,
                              const Format_description_event *description_event);
   ~Begin_load_query_log_event() {}
 

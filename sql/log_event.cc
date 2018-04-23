@@ -6660,13 +6660,10 @@ Append_block_log_event::Append_block_log_event(THD *thd_arg, const char *db_arg,
 */
 
 Append_block_log_event::Append_block_log_event(
-    const char *buf, uint len,
-    const Format_description_event *description_event)
-    : binary_log::Append_block_event(buf, len, description_event),
+    const char *buf, const Format_description_event *description_event)
+    : binary_log::Append_block_event(buf, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER("Append_block_log_event::Append_block_log_event(char*,...)");
-  if (!is_valid()) DBUG_VOID_RETURN;
-  common_header->set_is_valid(block != 0);
   DBUG_VOID_RETURN;
 }
 
@@ -6805,15 +6802,12 @@ Delete_file_log_event::Delete_file_log_event(THD *thd_arg, const char *db_arg,
 */
 
 Delete_file_log_event::Delete_file_log_event(
-    const char *buf, uint len,
-    const Format_description_event *description_event)
-    : binary_log::Delete_file_event(buf, len, description_event),
+    const char *buf, const Format_description_event *description_event)
+    : binary_log::Delete_file_event(buf, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER(
-      "Delete_file_log_event::Delete_file_log_event(const char*, uint, const "
+      "Delete_file_log_event::Delete_file_log_event(const char*, const "
       "Format_description_event *)");
-  if (!is_valid()) DBUG_VOID_RETURN;
-  common_header->set_is_valid(file_id != 0);
   DBUG_VOID_RETURN;
 }
 
@@ -6893,10 +6887,10 @@ Begin_load_query_log_event::Begin_load_query_log_event(THD *thd_arg,
 #endif  // MYSQL_SERVER
 
 Begin_load_query_log_event::Begin_load_query_log_event(
-    const char *buf, uint len, const Format_description_event *desc_event)
-    : binary_log::Append_block_event(buf, len, desc_event),
-      Append_block_log_event(buf, len, desc_event),
-      binary_log::Begin_load_query_event(buf, len, desc_event) {
+    const char *buf, const Format_description_event *desc_event)
+    : binary_log::Append_block_event(buf, desc_event),
+      Append_block_log_event(buf, desc_event),
+      binary_log::Begin_load_query_event(buf, desc_event) {
   DBUG_ENTER(
       "Begin_load_query_log_event::Begin_load_query_log_event(char*, uint, "
       "const Format_description_event *)");

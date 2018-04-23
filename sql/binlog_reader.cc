@@ -202,10 +202,10 @@ Binlog_read_error::Error_type binlog_event_deserialize(
       ev = new Rotate_log_event(buf, fde);
       break;
     case binary_log::APPEND_BLOCK_EVENT:
-      ev = new Append_block_log_event(buf, event_len, fde);
+      ev = new Append_block_log_event(buf, fde);
       break;
     case binary_log::DELETE_FILE_EVENT:
-      ev = new Delete_file_log_event(buf, event_len, fde);
+      ev = new Delete_file_log_event(buf, fde);
       break;
     case binary_log::STOP_EVENT:
       ev = new Stop_log_event(buf, fde);
@@ -242,7 +242,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
         ev = new Table_map_log_event(buf, event_len, fde);
       break;
     case binary_log::BEGIN_LOAD_QUERY_EVENT:
-      ev = new Begin_load_query_log_event(buf, event_len, fde);
+      ev = new Begin_load_query_log_event(buf, fde);
       break;
     case binary_log::EXECUTE_LOAD_QUERY_EVENT:
       ev = new Execute_load_query_log_event(buf, fde);

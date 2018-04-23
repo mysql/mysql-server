@@ -21,8 +21,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "load_data_events.h"
-#include <stdlib.h>
-#include <string.h>
 #include "event_reader_macros.h"
 
 namespace binary_log {
@@ -71,49 +69,46 @@ Execute_load_query_event::Execute_load_query_event(
   BAPI_VOID_RETURN;
 }
 
-/**
-  Delete_file_event constructor
-*/
-Delete_file_event::Delete_file_event(
-    const char *buf, unsigned int len,
-    const Format_description_event *description_event)
-    : Binary_log_event(&buf, description_event->binlog_version), file_id(0) {
-  // buf is advanced in Binary_log_event constructor to point to
-  // beginning of post-header
-  unsigned char common_header_len = description_event->common_header_len;
-  unsigned char delete_file_header_len =
-      description_event->post_header_len[DELETE_FILE_EVENT - 1];
-  if (len < (unsigned int)(common_header_len + delete_file_header_len)) return;
-  memcpy(&file_id, buf + DF_FILE_ID_OFFSET, 4);
-  file_id = le32toh(file_id);
+Delete_file_event::Delete_file_event(const char *buf,
+                                     const Format_description_event *fde)
+    : Binary_log_event(&buf, fde), file_id(0) {
+  BAPI_ENTER(
+      "Delete_file_event::Delete_file_event(const char*, const "
+      "Format_description_event*)");
+  READER_TRY_INITIALIZATION;
+
+  READER_ASSERT_POSITION(fde->common_header_len);
+  READER_TRY_SET(file_id, read_and_letoh<uint32_t>);
+  if (file_id == 0) READER_THROW("Invalid file_id");
+
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
 }
 
-/**
-  Constructor receives a packet from the MySQL master or the binary
-  log, containing a block of data to be appended to the file being loaded via
-  LOAD_DATA_INFILE query; and decodes it to create an Append_block_event.
-*/
-Append_block_event::Append_block_event(
-    const char *buf, unsigned int len,
-    const Format_description_event *description_event)
-    : Binary_log_event(&buf, description_event->binlog_version), block(0) {
-  // buf is advanced in Binary_log_event constructor to point to
-  // beginning of post-header
-  unsigned char common_header_len = description_event->common_header_len;
-  unsigned char append_block_header_len =
-      description_event->post_header_len[APPEND_BLOCK_EVENT - 1];
-  unsigned int total_header_len = common_header_len + append_block_header_len;
-  if (len < total_header_len) return;
+Append_block_event::Append_block_event(const char *buf,
+                                       const Format_description_event *fde)
+    : Binary_log_event(&buf, fde), block(0) {
+  BAPI_ENTER(
+      "Append_block_event::Append_block_event(const char*, const "
+      "Format_description_event*)");
+  READER_TRY_INITIALIZATION;
+  READER_ASSERT_POSITION(fde->common_header_len);
 
-  memcpy(&file_id, buf + AB_FILE_ID_OFFSET, 4);
-  file_id = le32toh(file_id);
+  READER_TRY_SET(file_id, read_and_letoh<uint32_t>);
+  block_len = READER_CALL(available_to_read);
+  block = const_cast<unsigned char *>(
+      reinterpret_cast<const unsigned char *>(READER_CALL(ptr, block_len)));
 
-  block = (unsigned char *)buf + append_block_header_len;
-  block_len = len - total_header_len;
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
 }
 
 Begin_load_query_event::Begin_load_query_event(
-    const char *buf, unsigned int len,
-    const Format_description_event *desc_event)
-    : Append_block_event(buf, len, desc_event) {}
+    const char *buf, const Format_description_event *fde)
+    : Append_block_event(buf, fde) {
+  BAPI_ENTER(
+      "Begin_load_query_event::Begin_load_query_event(const char*, const "
+      "Format_description_event*)");
+  BAPI_VOID_RETURN;
+}
 }  // end namespace binary_log

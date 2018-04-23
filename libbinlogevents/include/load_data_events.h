@@ -214,26 +214,17 @@ class Delete_file_event : public Binary_log_event {
   const char *db; /** see comment in Append_block_event */
 
   /**
-   The buffer layout for fixed data part is as follows:
-   <pre>
-   +---------+
-   | file_id |
-   +---------+
-   </pre>
+    The buffer layout for fixed data part is as follows:
+    <pre>
+    +---------+
+    | file_id |
+    +---------+
+    </pre>
 
-   @param buf                Contains the serialized event.
-   @param event_len          Length of the serialized event.
-   @param description_event  An FDE event, used to get the
-                             following information
-                             -binlog_version
-                             -server_version
-                             -post_header_len
-                             -common_header_len
-                             The content of this object
-                             depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
  */
-  Delete_file_event(const char *buf, unsigned int event_len,
-                    const Format_description_event *description_event);
+  Delete_file_event(const char *buf, const Format_description_event *fde);
 
   ~Delete_file_event() {}
 
@@ -319,6 +310,9 @@ class Append_block_event : public Binary_log_event {
   const char *db;
 
   /**
+    Appends the buffered data, received as a parameter, to the file being loaded
+    via LOAD_DATA_FILE.
+
     The buffer layout for fixed data part is as follows:
     <pre>
     +---------+
@@ -326,26 +320,17 @@ class Append_block_event : public Binary_log_event {
     +---------+
     </pre>
 
-    The buffer layout for variabl data part is as follows:
+    The buffer layout for variable data part is as follows:
     <pre>
     +-------------------+
     | block | block_len |
     +-------------------+
     </pre>
 
-    @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
-  Append_block_event(const char *buf, unsigned int event_len,
-                     const Format_description_event *description_event);
+  Append_block_event(const char *buf, const Format_description_event *fde);
   ~Append_block_event() {}
 
 #ifndef HAVE_MYSYS
@@ -389,19 +374,10 @@ class Begin_load_query_event : public virtual Append_block_event {
     +-------------------+
     </pre>
 
-    @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
-  Begin_load_query_event(const char *buf, unsigned int event_len,
-                         const Format_description_event *description_event);
+  Begin_load_query_event(const char *buf, const Format_description_event *fde);
 
   ~Begin_load_query_event() {}
 
