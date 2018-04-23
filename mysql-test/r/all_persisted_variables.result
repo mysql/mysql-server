@@ -1,12 +1,12 @@
-########################################################################
-# Run only on debug build,non-windows as few server variables are not
-# available on all platforms.
-########################################################################
-##############################################################
-# 0. Verify that variables present in performance_schema.global
-# variables are actually global variables and can be set using
-# SET GLOBAL
-###############################################################
+***********************************************************************
+* Run only on debug build,non-windows as few server variables are not
+* available on all platforms.
+***********************************************************************
+***************************************************************
+* 0. Verify that variables present in performance_schema.global
+* variables are actually global variables and can be set using
+* SET GLOBAL
+***************************************************************
 CREATE TABLE global_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64), var_value VARCHAR(1024));
 INSERT INTO global_vars (var_name, var_value) SELECT * FROM
 performance_schema.global_variables WHERE variable_name NOT IN
@@ -15,15 +15,15 @@ performance_schema.global_variables WHERE variable_name NOT IN
 'innodb_monitor_reset',
 'innodb_monitor_reset_all',
 'rbr_exec_mode');
-############################################################
-# 1. Check that there are no persisted variable settings.
-############################################################
+************************************************************
+* 1. Check that there are no persisted variable settings.
+************************************************************
 include/assert.inc ['Expect 0 persisted variables.']
 
-############################################################
-# 2. Initialization. Test SET PERSIST. Verify persisted
-#    variables.
-############################################################
+************************************************************
+* 2. Initialization. Test SET PERSIST. Verify persisted
+*    variables.
+************************************************************
 CREATE TABLE all_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64), var_value VARCHAR(1024));
 INSERT INTO all_vars (var_name, var_value)
 SELECT * FROM performance_schema.global_variables
@@ -48,26 +48,26 @@ include/assert.inc ['Expect 558 variables in the table. Due to open Bugs, we are
 
 include/assert.inc ['Expect 355 persisted variables in the table. Due to open Bugs, we are checking for 350']
 
-############################################################
-# 3. Restart server, it must preserve the persisted variable
-#    settings. Verify persisted configuration.
-############################################################
+************************************************************
+* 3. Restart server, it must preserve the persisted variable
+*    settings. Verify persisted configuration.
+************************************************************
 # restart
 
 include/assert.inc ['Expect 350 persisted variables in persisted_variables table.']
 include/assert.inc ['Expect 350 persisted variables shown as PERSISTED in variables_info table.']
 include/assert.inc ['Expect 350 persisted variables with matching peristed and global values.']
 
-############################################################
-# 4. Test RESET PERSIST IF EXISTS. Verify persisted variable
-#    settings are removed.
-############################################################
+************************************************************
+* 4. Test RESET PERSIST IF EXISTS. Verify persisted variable
+*    settings are removed.
+************************************************************
 
 include/assert.inc ['Expect 0 persisted variables.']
 
-############################################################
-# 5. Clean up.
-############################################################
+************************************************************
+* 5. Clean up.
+************************************************************
 DROP TABLE all_vars;
 DROP TABLE global_vars;
 # restart

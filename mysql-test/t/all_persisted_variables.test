@@ -30,21 +30,22 @@
 #      -> $total_persistent_var=355
 ################################################################################
 
---echo ########################################################################
---echo # Run only on debug build,non-windows as few server variables are not
---echo # available on all platforms.
---echo ########################################################################
+--echo ***********************************************************************
+--echo * Run only on debug build,non-windows as few server variables are not
+--echo * available on all platforms.
+--echo ***********************************************************************
 --source include/have_debug.inc
 --source include/not_windows.inc
+--source include/have_binlog_format_row.inc
 
 let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%'`;
 let $total_persistent_vars=355;
 
---echo ##############################################################
---echo # 0. Verify that variables present in performance_schema.global
---echo # variables are actually global variables and can be set using
---echo # SET GLOBAL
---echo ###############################################################
+--echo ***************************************************************
+--echo * 0. Verify that variables present in performance_schema.global
+--echo * variables are actually global variables and can be set using
+--echo * SET GLOBAL
+--echo ***************************************************************
 
 CREATE TABLE global_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64), var_value VARCHAR(1024));
 
@@ -83,19 +84,19 @@ while($var_id <= $count_vars)
 --enable_warnings
 --enable_query_log
 
---echo ############################################################
---echo # 1. Check that there are no persisted variable settings.
---echo ############################################################
+--echo ************************************************************
+--echo * 1. Check that there are no persisted variable settings.
+--echo ************************************************************
 
 --let $assert_text= 'Expect 0 persisted variables.'
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 0
 --source include/assert.inc
 
 --echo
---echo ############################################################
---echo # 2. Initialization. Test SET PERSIST. Verify persisted
---echo #    variables.
---echo ############################################################
+--echo ************************************************************
+--echo * 2. Initialization. Test SET PERSIST. Verify persisted
+--echo *    variables.
+--echo ************************************************************
 
 --let $MYSQLD_DATADIR= `select @@datadir;`
 
@@ -169,10 +170,10 @@ SET PERSIST innodb_monitor_reset_all="latch";
 --source include/assert.inc
 
 --echo
---echo ############################################################
---echo # 3. Restart server, it must preserve the persisted variable
---echo #    settings. Verify persisted configuration.
---echo ############################################################
+--echo ************************************************************
+--echo * 3. Restart server, it must preserve the persisted variable
+--echo *    settings. Verify persisted configuration.
+--echo ************************************************************
 
 --source include/restart_mysqld.inc
 --source include/wait_until_connected_again.inc
@@ -191,10 +192,10 @@ SET PERSIST innodb_monitor_reset_all="latch";
 --source include/assert.inc
 
 --echo
---echo ############################################################
---echo # 4. Test RESET PERSIST IF EXISTS. Verify persisted variable
---echo #    settings are removed.
---echo ############################################################
+--echo ************************************************************
+--echo * 4. Test RESET PERSIST IF EXISTS. Verify persisted variable
+--echo *    settings are removed.
+--echo ************************************************************
 
 --disable_query_log
 --disable_warnings
@@ -214,9 +215,9 @@ while ( $var_id <= $count_vars )
 --source include/assert.inc
 
 --echo
---echo ############################################################
---echo # 5. Clean up.
---echo ############################################################
+--echo ************************************************************
+--echo * 5. Clean up.
+--echo ************************************************************
 
 --let $count_vars=
 --let $var_id=
