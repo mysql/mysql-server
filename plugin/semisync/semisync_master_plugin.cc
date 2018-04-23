@@ -537,7 +537,8 @@ static int semi_sync_master_plugin_init(void *p) {
 }
 
 static int semi_sync_master_plugin_deinit(void *p) {
-  if (ack_receiver != nullptr) ack_receiver->stop();
+  // the plugin was not initialized, there is nothing to do here
+  if (ack_receiver == nullptr || repl_semisync == nullptr) return 0;
 
   THR_RPL_SEMI_SYNC_DUMP = false;
 
