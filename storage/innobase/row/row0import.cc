@@ -2152,13 +2152,15 @@ dberr_t PageConverter::operator()(os_offset_t offset,
             !is_compressed_table() ? block : NULL,
             !is_compressed_table() ? block->frame : block->page.zip.data,
             !is_compressed_table() ? 0 : m_page_zip_ptr, m_current_lsn,
-            fsp_is_checksum_disabled(block->page.id.space()));
+            fsp_is_checksum_disabled(block->page.id.space()),
+            true /* skip_lsn_check */);
       } else {
         /* Calculate and update the checksum of non-btree
         pages for compressed tables explicitly here. */
 
-        buf_flush_update_zip_checksum(
-            get_frame(block), get_page_size().physical(), m_current_lsn);
+        buf_flush_update_zip_checksum(get_frame(block),
+                                      get_page_size().physical(), m_current_lsn,
+                                      true /* skip_lsn_check */);
       }
 
       break;

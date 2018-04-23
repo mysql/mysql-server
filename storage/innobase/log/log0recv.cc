@@ -1484,7 +1484,8 @@ void meb_apply_log_record(recv_addr_t *recv_addr, buf_block_t *block) {
 
   buf_flush_init_for_writing(block, block->frame, buf_block_get_page_zip(block),
                              mach_read_from_8(block->frame + FIL_PAGE_LSN),
-                             fsp_is_checksum_disabled(block->page.id.space()));
+                             fsp_is_checksum_disabled(block->page.id.space()),
+                             true /* skip_lsn_check */);
 
   mutex_exit(&recv_sys->mutex);
 

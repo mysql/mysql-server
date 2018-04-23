@@ -787,11 +787,13 @@ void Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
 
       buf_flush_init_for_writing(nullptr, block->frame, &page_zip,
                                  bpage->newest_modification,
-                                 fsp_is_checksum_disabled(bpage->id.space()));
+                                 fsp_is_checksum_disabled(bpage->id.space()),
+                                 false /* do not skip lsn check */);
     } else {
       buf_flush_init_for_writing(nullptr, page_data, nullptr,
                                  bpage->newest_modification,
-                                 fsp_is_checksum_disabled(bpage->id.space()));
+                                 fsp_is_checksum_disabled(bpage->id.space()),
+                                 false /* do not skip lsn check */);
     }
   }
 
