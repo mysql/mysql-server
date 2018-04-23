@@ -493,6 +493,7 @@ void buf_flush_insert_into_flush_list(
     lsn_t lsn)            /*!< in: oldest modification */
 {
   ut_ad(mutex_own(buf_page_get_mutex(&block->page)));
+  ut_ad(log_sys != nullptr);
 
   buf_flush_list_mutex_enter(buf_pool);
 
@@ -520,31 +521,29 @@ void buf_flush_insert_into_flush_list(
     /* This page could already be no-redo dirtied before,
     and flushed since then. Also the page from which we
     borrowed lsn last time could be flushed by LRU and
-    we would end up borrowing smaller LSN. In such case
-    it's better to stay with previously borrowed lsn,
-    not to decrease page's newest_modification.
+    we would end up borrowing smaller LSN.
 
-    Note that in such case, we preserve the previous
-    newest_modification but set the oldest_modification
-    to the borrowed lsn (smaller value).
+    Another risk is that this page was flushed earlier
+    and freed. We should not re-flush it to disk with
+    smaller FIL_PAGE_LSN.
 
-    This is required, because possibly the previous
-    newest_modification comes from redo-based mtr, and
-    it could be much bigger than the corresponding
-    previous oldest_modification. Therefore we might
-    not use such value for oldest_modification because
-    it would break flush order properties. */
-    const byte *frame = block->page.zip.data;
-    if (!frame) {
-      frame = reinterpret_cast<const buf_block_t *>(&block->page)->frame;
-    }
-    const lsn_t frame_lsn = mach_read_from_8(frame + FIL_PAGE_LSN);
+    The best way to go is to use flushed_to_disk_lsn,
+    unless we borrowed even higher value.
 
-    const lsn_t newest_lsn = std::max(lsn, frame_lsn);
+    This way we are sure that no page has ever been
+    flushed with higher newest_modification - it would
+    first need to wait until redo is flushed up to
+    such point and it would ensure that by checking
+    the log_sys->flushed_to_disk_lsn's value too.
 
-    if (block->page.newest_modification < newest_lsn) {
-      block->page.newest_modification = newest_lsn;
-    }
+    Because we keep the page latched, after we read
+    flushed_to_disk_lsn this page cannot be flushed
+    in background with higher lsn (hence we are safe
+    even if the flushed_to_disk_lsn advanced after
+    we read it). */
+
+    block->page.newest_modification =
+        std::max(lsn, log_sys->flushed_to_disk_lsn.load());
   }
 
   ut_ad(log_lsn_validate(lsn));
@@ -894,10 +893,12 @@ void buf_flush_write_complete(buf_page_t *bpage) {
 
 /** Calculate the checksum of a page from compressed table and update
 the page.
-@param[in,out]	page	page to update
-@param[in]	size	compressed page size
-@param[in]	lsn	LSN to stamp on the page */
-void buf_flush_update_zip_checksum(buf_frame_t *page, ulint size, lsn_t lsn) {
+@param[in,out]  page            page to update
+@param[in]      size            compressed page size
+@param[in]      lsn             LSN to stamp on the page
+@param[in]      skip_lsn_check  true to skip check for lsn (in DEBUG) */
+void buf_flush_update_zip_checksum(buf_frame_t *page, ulint size, lsn_t lsn,
+                                   bool skip_lsn_check) {
   ut_a(size > 0);
 
   BlockReporter reporter = BlockReporter(false, NULL, univ_page_size, false);
@@ -906,19 +907,22 @@ void buf_flush_update_zip_checksum(buf_frame_t *page, ulint size, lsn_t lsn) {
       page, size,
       static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm));
 
+  ut_ad(skip_lsn_check || mach_read_from_8(page + FIL_PAGE_LSN) <= lsn);
+
   mach_write_to_8(page + FIL_PAGE_LSN, lsn);
   mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 }
 
 /** Initialize a page for writing to the tablespace.
-@param[in]	block		buffer block; NULL if bypassing the buffer pool
-@param[in,out]	page		page frame
-@param[in,out]	page_zip_	compressed page, or NULL if uncompressed
-@param[in]	newest_lsn	newest modification LSN to the page
-@param[in]	skip_checksum	whether to disable the page checksum */
+@param[in]      block           buffer block; NULL if bypassing the buffer pool
+@param[in,out]  page            page frame
+@param[in,out]  page_zip_       compressed page, or NULL if uncompressed
+@param[in]      newest_lsn      newest modification LSN to the page
+@param[in]      skip_checksum   whether to disable the page checksum
+@param[in]      skip_lsn_check  true to skip check for LSN (in DEBUG) */
 void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
                                 void *page_zip_, lsn_t newest_lsn,
-                                bool skip_checksum) {
+                                bool skip_checksum, bool skip_lsn_check) {
   ib_uint32_t checksum = BUF_NO_CHECKSUM_MAGIC;
 
   ut_ad(block == NULL || block->frame == page);
@@ -957,7 +961,8 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
       case FIL_PAGE_SDI:
       case FIL_PAGE_RTREE:
 
-        buf_flush_update_zip_checksum(page_zip->data, size, newest_lsn);
+        buf_flush_update_zip_checksum(page_zip->data, size, newest_lsn,
+                                      skip_lsn_check);
 
         return;
     }
@@ -972,7 +977,7 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
   }
 
   /* Write the newest modification lsn to the page header and trailer */
-  ut_ad(mach_read_from_8(page + FIL_PAGE_LSN) <= newest_lsn);
+  ut_ad(skip_lsn_check || mach_read_from_8(page + FIL_PAGE_LSN) <= newest_lsn);
 
   mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
 
@@ -1157,7 +1162,8 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
           reinterpret_cast<const buf_block_t *>(bpage),
           reinterpret_cast<const buf_block_t *>(bpage)->frame,
           bpage->zip.data ? &bpage->zip : NULL, bpage->newest_modification,
-          fsp_is_checksum_disabled(bpage->id.space()));
+          fsp_is_checksum_disabled(bpage->id.space()),
+          false /* do not skip lsn check */);
       break;
   }
 

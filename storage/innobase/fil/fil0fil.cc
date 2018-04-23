@@ -4912,7 +4912,8 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
 
   if (!page_size.is_compressed()) {
     buf_flush_init_for_writing(nullptr, page, nullptr, 0,
-                               fsp_is_checksum_disabled(space_id));
+                               fsp_is_checksum_disabled(space_id),
+                               true /* skip_lsn_check */);
 
     err = os_file_write(request, path, file, page, 0, page_size.physical());
 
@@ -4929,7 +4930,8 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
         page_zip.m_end = page_zip.m_nonempty = page_zip.n_blobs = 0;
 
     buf_flush_init_for_writing(nullptr, page, &page_zip, 0,
-                               fsp_is_checksum_disabled(space_id));
+                               fsp_is_checksum_disabled(space_id),
+                               true /* skip_lsn_check */);
 
     err = os_file_write(request, path, file, page_zip.data, 0,
                         page_size.physical());
