@@ -227,19 +227,19 @@ Binlog_read_error::Error_type binlog_event_deserialize(
       break;
     case binary_log::WRITE_ROWS_EVENT_V1:
       if (!(fde->post_header_len.empty()))
-        ev = new Write_rows_log_event(buf, event_len, fde);
+        ev = new Write_rows_log_event(buf, fde);
       break;
     case binary_log::UPDATE_ROWS_EVENT_V1:
       if (!(fde->post_header_len.empty()))
-        ev = new Update_rows_log_event(buf, event_len, fde);
+        ev = new Update_rows_log_event(buf, fde);
       break;
     case binary_log::DELETE_ROWS_EVENT_V1:
       if (!(fde->post_header_len.empty()))
-        ev = new Delete_rows_log_event(buf, event_len, fde);
+        ev = new Delete_rows_log_event(buf, fde);
       break;
     case binary_log::TABLE_MAP_EVENT:
       if (!(fde->post_header_len.empty()))
-        ev = new Table_map_log_event(buf, event_len, fde);
+        ev = new Table_map_log_event(buf, fde);
       break;
     case binary_log::BEGIN_LOAD_QUERY_EVENT:
       ev = new Begin_load_query_log_event(buf, fde);
@@ -251,7 +251,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
       ev = new Incident_log_event(buf, fde);
       break;
     case binary_log::ROWS_QUERY_LOG_EVENT:
-      ev = new Rows_query_log_event(buf, event_len, fde);
+      ev = new Rows_query_log_event(buf, fde);
       break;
     case binary_log::GTID_LOG_EVENT:
     case binary_log::ANONYMOUS_GTID_LOG_EVENT:
@@ -261,13 +261,13 @@ Binlog_read_error::Error_type binlog_event_deserialize(
       ev = new Previous_gtids_log_event(buf, fde);
       break;
     case binary_log::WRITE_ROWS_EVENT:
-      ev = new Write_rows_log_event(buf, event_len, fde);
+      ev = new Write_rows_log_event(buf, fde);
       break;
     case binary_log::UPDATE_ROWS_EVENT:
-      ev = new Update_rows_log_event(buf, event_len, fde);
+      ev = new Update_rows_log_event(buf, fde);
       break;
     case binary_log::DELETE_ROWS_EVENT:
-      ev = new Delete_rows_log_event(buf, event_len, fde);
+      ev = new Delete_rows_log_event(buf, fde);
       break;
     case binary_log::TRANSACTION_CONTEXT_EVENT:
       ev = new Transaction_context_log_event(buf, fde);
@@ -279,7 +279,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
       ev = new XA_prepare_log_event(buf, fde);
       break;
     case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
-      ev = new Update_rows_log_event(buf, event_len, fde);
+      ev = new Update_rows_log_event(buf, fde);
       break;
     default:
       /*

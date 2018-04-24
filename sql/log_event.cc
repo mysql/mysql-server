@@ -2356,33 +2356,32 @@ void Log_event::print_base64(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
     Rows_log_event *ev = NULL;
     Log_event_type et = (Log_event_type)ptr[EVENT_TYPE_OFFSET];
 
-    if (common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF &&
-        common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF)
-      size -= BINLOG_CHECKSUM_LEN;  // checksum is displayed through the header
-
-    const Format_description_event fd_evt =
+    enum_binlog_checksum_alg ev_checksum_alg = common_footer->checksum_alg;
+    Format_description_event fd_evt =
         Format_description_event(BINLOG_VERSION, server_version);
+    fd_evt.footer()->checksum_alg = ev_checksum_alg;
+
     switch (et) {
       case binary_log::TABLE_MAP_EVENT: {
         Table_map_log_event *map;
-        map = new Table_map_log_event((const char *)ptr, size, &fd_evt);
+        map = new Table_map_log_event((const char *)ptr, &fd_evt);
         print_event_info->m_table_map.set_table(map->get_table_id(), map);
         break;
       }
       case binary_log::WRITE_ROWS_EVENT:
       case binary_log::WRITE_ROWS_EVENT_V1: {
-        ev = new Write_rows_log_event((const char *)ptr, size, &fd_evt);
+        ev = new Write_rows_log_event((const char *)ptr, &fd_evt);
         break;
       }
       case binary_log::DELETE_ROWS_EVENT:
       case binary_log::DELETE_ROWS_EVENT_V1: {
-        ev = new Delete_rows_log_event((const char *)ptr, size, &fd_evt);
+        ev = new Delete_rows_log_event((const char *)ptr, &fd_evt);
         break;
       }
       case binary_log::UPDATE_ROWS_EVENT:
       case binary_log::UPDATE_ROWS_EVENT_V1:
       case binary_log::PARTIAL_UPDATE_ROWS_EVENT: {
-        ev = new Update_rows_log_event((const char *)ptr, size, &fd_evt);
+        ev = new Update_rows_log_event((const char *)ptr, &fd_evt);
         break;
       }
       default:
@@ -7360,9 +7359,8 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
 #endif
 
 Rows_log_event::Rows_log_event(
-    const char *buf, uint event_len,
-    const Format_description_event *description_event)
-    : binary_log::Rows_event(buf, event_len, description_event),
+    const char *buf, const Format_description_event *description_event)
+    : binary_log::Rows_event(buf, description_event),
       Log_event(header(), footer()),
       m_row_count(0),
 #ifdef MYSQL_SERVER
@@ -7405,15 +7403,18 @@ Rows_log_event::Rows_log_event(
                           m_width <= sizeof(m_bitbuf) * 8 ? m_bitbuf : NULL,
                           m_width, false))) {
     if (!columns_before_image.empty()) {
-      memcpy(m_cols.bitmap, &columns_before_image[0], (m_width + 7) / 8);
+      memcpy(m_cols.bitmap, &columns_before_image[0], n_bits_len);
       create_last_word_mask(&m_cols);
       DBUG_DUMP("m_cols", (uchar *)m_cols.bitmap, no_bytes_in_map(&m_cols));
     }  // end if columns_before_image.empty()
-    else
+    else {
+      if (m_cols.bitmap != m_bitbuf) bitmap_free(&m_cols);
       m_cols.bitmap = NULL;
+    }
   } else {
     // Needed because bitmap_init() does not set it to null on failure
     m_cols.bitmap = NULL;
+    common_header->set_is_valid(false);
     DBUG_VOID_RETURN;
   }
   m_cols_ai.bitmap =
@@ -7427,15 +7428,18 @@ Rows_log_event::Rows_log_event(
             &m_cols_ai, m_width <= sizeof(m_bitbuf_ai) * 8 ? m_bitbuf_ai : NULL,
             m_width, false))) {
       if (!columns_after_image.empty()) {
-        memcpy(m_cols_ai.bitmap, &columns_after_image[0], (m_width + 7) / 8);
+        memcpy(m_cols_ai.bitmap, &columns_after_image[0], n_bits_len);
         create_last_word_mask(&m_cols_ai);
         DBUG_DUMP("m_cols_ai", (uchar *)m_cols_ai.bitmap,
                   no_bytes_in_map(&m_cols_ai));
-      } else
+      } else {
+        if (m_cols_ai.bitmap != m_bitbuf_ai) bitmap_free(&m_cols_ai);
         m_cols_ai.bitmap = NULL;
+      }
     } else {
       // Needed because bitmap_init() does not set it to null on failure
       m_cols_ai.bitmap = 0;
+      common_header->set_is_valid(false);
       DBUG_VOID_RETURN;
     }
   }
@@ -7461,8 +7465,6 @@ Rows_log_event::Rows_log_event(
   /*
     -Check that malloc() succeeded in allocating memory for the row
      buffer and the COLS vector.
-    -Checking that an Update_rows_log_event
-     is valid is done while setting the Update_rows_log_event::is_valid
   */
   common_header->set_is_valid(m_rows_buf && m_cols.bitmap);
   DBUG_VOID_RETURN;
@@ -9781,6 +9783,8 @@ void Rows_log_event::print_helper(FILE *,
   **************************************************************************/
 
   /**
+    @ingroup Replication
+
     @page PAGE_RPL_FIELD_METADATA How replication of field metadata works.
 
     When a table map is created, the master first calls
@@ -9970,34 +9974,22 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
   Constructor used by slave to read the event from the binary log.
  */
 Table_map_log_event::Table_map_log_event(
-    const char *buf, uint event_len,
-    const Format_description_event *description_event)
-
-    : binary_log::Table_map_event(buf, event_len, description_event),
+    const char *buf, const Format_description_event *description_event)
+    : binary_log::Table_map_event(buf, description_event),
       Log_event(header(), footer())
 #ifdef MYSQL_SERVER
       ,
       m_table(NULL)
 #endif
 {
-  DBUG_ENTER("Table_map_log_event::Table_map_log_event(const char*,uint,...)");
-  if (!is_valid()) DBUG_VOID_RETURN;
-  common_header->set_is_valid(m_null_bits != NULL && m_field_metadata != NULL &&
-                              m_coltype != NULL);
+  DBUG_ENTER(
+      "Table_map_log_event::Table_map_log_event(const char*, const "
+      "Format_description_event *)");
   DBUG_ASSERT(header()->type_code == binary_log::TABLE_MAP_EVENT);
   DBUG_VOID_RETURN;
 }
 
-Table_map_log_event::~Table_map_log_event() {
-  if (m_null_bits) {
-    my_free(m_null_bits);
-    m_null_bits = NULL;
-  }
-  if (m_field_metadata) {
-    my_free(m_field_metadata);
-    m_field_metadata = NULL;
-  }
-}
+Table_map_log_event::~Table_map_log_event() {}
 
   /*
     Return value is an error code, one of:
@@ -11031,11 +11023,10 @@ Write_rows_log_event::Write_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
   Constructor used by slave to read the event from the binary log.
  */
 Write_rows_log_event::Write_rows_log_event(
-    const char *buf, uint event_len,
-    const Format_description_event *description_event)
-    : binary_log::Rows_event(buf, event_len, description_event),
-      Rows_log_event(buf, event_len, description_event),
-      binary_log::Write_rows_event(buf, event_len, description_event) {
+    const char *buf, const Format_description_event *description_event)
+    : binary_log::Rows_event(buf, description_event),
+      Rows_log_event(buf, description_event),
+      binary_log::Write_rows_event(buf, description_event) {
   DBUG_ASSERT(header()->type_code == m_type);
 }
 
@@ -11497,11 +11488,10 @@ Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
   Constructor used by slave to read the event from the binary log.
  */
 Delete_rows_log_event::Delete_rows_log_event(
-    const char *buf, uint event_len,
-    const Format_description_event *description_event)
-    : binary_log::Rows_event(buf, event_len, description_event),
-      Rows_log_event(buf, event_len, description_event),
-      binary_log::Delete_rows_event(buf, event_len, description_event) {
+    const char *buf, const Format_description_event *description_event)
+    : binary_log::Rows_event(buf, description_event),
+      Rows_log_event(buf, description_event),
+      binary_log::Delete_rows_event(buf, description_event) {
   DBUG_ASSERT(header()->type_code == m_type);
 }
 
@@ -11618,17 +11608,16 @@ Update_rows_log_event::~Update_rows_log_event() {
   Constructor used by slave to read the event from the binary log.
  */
 Update_rows_log_event::Update_rows_log_event(
-    const char *buf, uint event_len,
-    const Format_description_event *description_event)
-    : binary_log::Rows_event(buf, event_len, description_event),
-      Rows_log_event(buf, event_len, description_event),
-      binary_log::Update_rows_event(buf, event_len, description_event) {
+    const char *buf, const Format_description_event *description_event)
+    : binary_log::Rows_event(buf, description_event),
+      Rows_log_event(buf, description_event),
+      binary_log::Update_rows_event(buf, description_event) {
   DBUG_ENTER(
-      "Update_rows_log_event::Update_rows_log_event(const char *, uint, const "
+      "Update_rows_log_event::Update_rows_log_event(const char *, const "
       "Format_description_event *)");
   if (!is_valid()) DBUG_VOID_RETURN;
-  common_header->set_is_valid(Rows_log_event::is_valid() && m_cols_ai.bitmap);
   DBUG_ASSERT(header()->type_code == m_type);
+  common_header->set_is_valid(m_cols_ai.bitmap);
   DBUG_VOID_RETURN;
 }
 
@@ -11873,16 +11862,13 @@ void Ignorable_log_event::print(FILE *,
 #endif
 
 Rows_query_log_event::Rows_query_log_event(
-    const char *buf, uint event_len,
-    const Format_description_event *descr_event)
+    const char *buf, const Format_description_event *descr_event)
     : binary_log::Ignorable_event(buf, descr_event),
       Ignorable_log_event(buf, descr_event),
-      binary_log::Rows_query_event(buf, event_len, descr_event) {
+      binary_log::Rows_query_event(buf, descr_event) {
   DBUG_ENTER(
-      "Rows_query_log_event::Rows_query_log_event(const char *, uint, const "
+      "Rows_query_log_event::Rows_query_log_event(const char *, const "
       "Format_description_event *)");
-  if (!is_valid()) DBUG_VOID_RETURN;
-  common_header->set_is_valid(m_rows_query != NULL);
   DBUG_VOID_RETURN;
 }
 

@@ -26,7 +26,7 @@
 #include <cstring>
 #include <string>
 
-#include "byteorder.h"
+#include "event_reader_macros.h"
 
 namespace binary_log {
 /**
@@ -65,13 +65,9 @@ static unsigned long get_field_length(unsigned char **packet) {
   return (unsigned long)temp;
 }
 
-/**
-  Constructor used to read the event from the binary log.
-*/
-Table_map_event::Table_map_event(
-    const char *buf, unsigned int event_len,
-    const Format_description_event *description_event)
-    : Binary_log_event(&buf, description_event->binlog_version),
+Table_map_event::Table_map_event(const char *buf,
+                                 const Format_description_event *fde)
+    : Binary_log_event(&buf, fde),
       m_table_id(0),
       m_flags(0),
       m_data_size(0),
@@ -80,112 +76,74 @@ Table_map_event::Table_map_event(
       m_tblnam(""),
       m_tbllen(0),
       m_colcnt(0),
+      m_coltype(nullptr),
       m_field_metadata_size(0),
-      m_field_metadata(0),
-      m_null_bits(0),
+      m_field_metadata(nullptr),
+      m_null_bits(nullptr),
       m_optional_metadata_len(0),
-      m_optional_metadata(NULL) {
-  // buf is advanced in Binary_log_event constructor to point to
-  // beginning of post-header
-  unsigned int bytes_read = 0;
-  uint8_t common_header_len = description_event->common_header_len;
-  uint8_t post_header_len =
-      description_event->post_header_len[TABLE_MAP_EVENT - 1];
-
-  /* Set the event data size = post header + body */
-  m_data_size = event_len - common_header_len;
+      m_optional_metadata(nullptr) {
+  BAPI_ENTER("Table_map_event::Table_map_event(const char*, ...)");
+  const char *ptr_dbnam = nullptr;
+  const char *ptr_tblnam = nullptr;
+  READER_TRY_INITIALIZATION;
+  READER_ASSERT_POSITION(fde->common_header_len);
 
   /* Read the post-header */
-  const char *post_start = buf;
 
-  post_start += TM_MAPID_OFFSET;
-  if (post_header_len == 6) {
+  READER_TRY_CALL(forward, TM_MAPID_OFFSET);
+  if (fde->post_header_len[TABLE_MAP_EVENT - 1] == 6) {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
-    uint64_t table_id = 0;
-    memcpy(&table_id, post_start, 4);
-    m_table_id = le64toh(table_id);
-    post_start += 4;
+    READER_TRY_SET(m_table_id, read_and_letoh<uint64_t>, 4);
   } else {
-    BAPI_ASSERT(post_header_len == TABLE_MAP_HEADER_LEN);
-    uint64_t table_id = 0;
-    memcpy(&table_id, post_start, 6);
-    m_table_id = le64toh(table_id);
-    post_start += TM_FLAGS_OFFSET;
+    BAPI_ASSERT(fde->post_header_len[TABLE_MAP_EVENT - 1] ==
+                TABLE_MAP_HEADER_LEN);
+    READER_TRY_SET(m_table_id, read_and_letoh<uint64_t>, 6);
   }
-
-  memcpy(&m_flags, post_start, sizeof(m_flags));
-  m_flags = le16toh(m_flags);
+  READER_TRY_SET(m_flags, read_and_letoh<uint16_t>);
 
   /* Read the variable part of the event */
-  const char *const vpart = buf + post_header_len;
 
-  /* Extract the length of the various parts from the buffer */
-  unsigned char const *const ptr_dblen = (unsigned char const *)vpart + 0;
-  m_dblen = *(unsigned char *)ptr_dblen;
+  READER_TRY_SET(m_dblen, read<uint8_t>);
+  ptr_dbnam = READER_TRY_CALL(ptr, m_dblen + 1);
+  m_dbnam = std::string(ptr_dbnam, m_dblen);
 
-  /* Length of database name + counter + terminating null */
-  unsigned char const *const ptr_tbllen = ptr_dblen + m_dblen + 2;
-  m_tbllen = *(unsigned char *)ptr_tbllen;
+  READER_TRY_SET(m_tbllen, read<uint8_t>);
+  ptr_tblnam = READER_TRY_CALL(ptr, m_tbllen + 1);
+  m_tblnam = std::string(ptr_tblnam, m_tbllen);
 
-  /* Length of table name + counter + terminating null */
-  unsigned char const *const ptr_colcnt = ptr_tbllen + m_tbllen + 2;
-  unsigned char *ptr_after_colcnt = (unsigned char *)ptr_colcnt;
-  m_colcnt = get_field_length(&ptr_after_colcnt);
+  READER_TRY_SET(m_colcnt, net_field_length_ll);
+  READER_TRY_CALL(alloc_and_memcpy, &m_coltype, m_colcnt, 16);
 
-  bytes_read = (unsigned int)((ptr_after_colcnt + common_header_len) -
-                              (unsigned char *)buf);
-  /* Avoid reading out of buffer */
-  if (event_len <= bytes_read || event_len - bytes_read < m_colcnt) {
-    m_coltype = NULL;
-    return;
-  }
-
-  m_coltype = static_cast<unsigned char *>(bapi_malloc(m_colcnt, 16));
-  m_dbnam = std::string((const char *)ptr_dblen + 1, m_dblen);
-  m_tblnam = std::string((const char *)ptr_tbllen + 1, m_tbllen + 1);
-
-  memcpy(m_coltype, ptr_after_colcnt, m_colcnt);
-
-  ptr_after_colcnt = ptr_after_colcnt + m_colcnt;
-  bytes_read = (unsigned int)(ptr_after_colcnt + common_header_len -
-                              (unsigned char *)buf);
-  if (bytes_read < event_len) {
-    m_field_metadata_size = get_field_length(&ptr_after_colcnt);
-    if (m_field_metadata_size > (m_colcnt * 2)) return;
+  if (READER_CALL(available_to_read) > 0) {
+    READER_TRY_SET(m_field_metadata_size, net_field_length_ll);
+    if (m_field_metadata_size > (m_colcnt * 2))
+      READER_THROW("Invalid m_field_metadata_size");
     unsigned int num_null_bytes = (m_colcnt + 7) / 8;
-
-    m_null_bits = static_cast<unsigned char *>(bapi_malloc(num_null_bytes, 0));
-
-    m_field_metadata =
-        static_cast<unsigned char *>(bapi_malloc(m_field_metadata_size, 0));
-    memcpy(m_field_metadata, ptr_after_colcnt, m_field_metadata_size);
-    ptr_after_colcnt =
-        (unsigned char *)ptr_after_colcnt + m_field_metadata_size;
-    memcpy(m_null_bits, ptr_after_colcnt, num_null_bytes);
-    ptr_after_colcnt = (unsigned char *)ptr_after_colcnt + num_null_bytes;
+    READER_TRY_CALL(alloc_and_memcpy, &m_field_metadata, m_field_metadata_size,
+                    0);
+    READER_TRY_CALL(alloc_and_memcpy, &m_null_bits, num_null_bytes, 0);
   }
-
-  bytes_read = (unsigned int)(ptr_after_colcnt + common_header_len -
-                              (unsigned char *)buf);
 
   /* After null_bits field, there are some new fields for extra metadata. */
-  if (bytes_read < event_len) {
-    m_optional_metadata_len = event_len - bytes_read;
-    m_optional_metadata =
-        static_cast<unsigned char *>(bapi_malloc(m_optional_metadata_len, 0));
-    memcpy(m_optional_metadata, ptr_after_colcnt, m_optional_metadata_len);
+  m_optional_metadata_len = READER_CALL(available_to_read);
+  if (m_optional_metadata_len) {
+    READER_TRY_CALL(alloc_and_memcpy, &m_optional_metadata,
+                    m_optional_metadata_len, 0);
   }
+
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
 }
 
 Table_map_event::~Table_map_event() {
   bapi_free(m_null_bits);
-  m_null_bits = NULL;
+  m_null_bits = nullptr;
   bapi_free(m_field_metadata);
-  m_field_metadata = NULL;
-  if (m_coltype != NULL) bapi_free(m_coltype);
-  m_coltype = NULL;
+  m_field_metadata = nullptr;
+  bapi_free(m_coltype);
+  m_coltype = nullptr;
   bapi_free(m_optional_metadata);
-  m_optional_metadata = NULL;
+  m_optional_metadata = nullptr;
 }
 
 /**
@@ -389,137 +347,87 @@ Table_map_event::Optional_metadata_fields::Optional_metadata_fields(
   }
 }
 
-/*****************************************************************************
-                      Rows_event Methods
-*****************************************************************************/
-Rows_event::Rows_event(const char *buf, unsigned int event_len,
-                       const Format_description_event *description_event)
-    : Binary_log_event(&buf, description_event->binlog_version),
+Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
+    : Binary_log_event(&buf, fde),
       m_table_id(0),
       m_width(0),
       m_extra_row_data(0),
       columns_before_image(0),
       columns_after_image(0),
       row(0) {
-  // buf is advanced in Binary_log_event constructor to point to
-  // beginning of post-header
-  uint8_t const common_header_len = description_event->common_header_len;
+  BAPI_ENTER("Rows_event::Rows_event(const char*, ...)");
+  READER_TRY_INITIALIZATION;
+  READER_ASSERT_POSITION(fde->common_header_len);
   Log_event_type event_type = header()->type_code;
+  uint16_t var_header_len = 0;
+  size_t data_size = 0;
+  uint8_t const post_header_len = fde->post_header_len[event_type - 1];
   m_type = event_type;
 
-  uint8_t const post_header_len =
-      description_event->post_header_len[event_type - 1];
-  const char *post_start = buf;
-  post_start += ROWS_MAPID_OFFSET;
   if (post_header_len == 6) {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
-    uint64_t table_id = 0;
-    memcpy(&table_id, post_start, 4);
-    m_table_id = le64toh(table_id);
-    post_start += 4;
+    READER_TRY_SET(m_table_id, read_and_letoh<uint64_t>, 4);
   } else {
-    uint64_t table_id = 0;
-    memcpy(&table_id, post_start, 6);
-    m_table_id = le64toh(table_id);
-    post_start += ROWS_FLAGS_OFFSET;
+    READER_TRY_SET(m_table_id, read_and_letoh<uint64_t>, 6);
   }
+  READER_TRY_SET(m_flags, read_and_letoh<uint16_t>);
 
-  memcpy(&m_flags, post_start, sizeof(m_flags));
-  m_flags = le16toh(m_flags);
-  post_start += 2;
-
-  uint16_t var_header_len = 0;
   if (post_header_len == ROWS_HEADER_LEN_V2) {
     /*
       Have variable length header, check length,
       which includes length bytes
     */
-    memcpy(&var_header_len, post_start, sizeof(var_header_len));
-    var_header_len = le16toh(var_header_len);
-    /* Check length and also avoid out of buffer read */
-    if (var_header_len < 2 ||
-        event_len <
-            static_cast<unsigned int>(var_header_len + (post_start - buf)))
-      return;
-
+    READER_TRY_SET(var_header_len, read_and_letoh<uint16_t>);
     var_header_len -= 2;
 
     /* Iterate over var-len header, extracting 'chunks' */
-    const char *start = post_start + 2;
-    const char *end = start + var_header_len;
-    for (const char *pos = start; pos < end;) {
-      switch (*pos++) {
+    uint64_t end = READER_CALL(position) + var_header_len;
+    while (READER_CALL(position) < end) {
+      uint8_t type;
+      READER_TRY_SET(type, read<uint8_t>);
+      switch (type) {
         case ROWS_V_EXTRAINFO_TAG: {
           /* Have an 'extra info' section, read it in */
-          if ((end - pos) < EXTRA_ROW_INFO_HDR_BYTES) return;
-
-          uint8_t infoLen = pos[EXTRA_ROW_INFO_LEN_OFFSET];
-          if ((end - pos) < infoLen) return;
+          uint8_t infoLen = 0;
+          READER_TRY_SET(infoLen, read<uint8_t>);
+          /* infoLen is part of the buffer to be copied below */
+          READER_CALL(go_to, READER_CALL(position) - 1);
 
           /* Just store/use the first tag of this type, skip others */
           if (!m_extra_row_data) {
-            m_extra_row_data =
-                static_cast<unsigned char *>(bapi_malloc(infoLen, 16));
-            if (m_extra_row_data != NULL) {
-              memcpy(m_extra_row_data, pos, infoLen);
-            }
+            READER_TRY_CALL(alloc_and_memcpy, &m_extra_row_data, infoLen, 16);
+          } else {
+            READER_TRY_CALL(forward, infoLen);
           }
-          pos += infoLen;
           break;
         }
         default:
           /* Unknown code, we will not understand anything further here */
-          pos = end; /* Break loop */
+          READER_CALL(go_to, end); /* Break loop */
       }
+      if (READER_CALL(position) > end)
+        READER_THROW("Invalid extra rows info header");
     }
   }
 
-  unsigned char const *const var_start =
-      (const unsigned char *)buf + post_header_len + var_header_len;
-  unsigned char const *const ptr_width = var_start;
-  unsigned char *ptr_after_width = (unsigned char *)ptr_width;
-  m_width = get_field_length(&ptr_after_width);
+  READER_TRY_SET(m_width, net_field_length_ll);
+  if (m_width == 0) READER_THROW("Invalid m_width");
   n_bits_len = (m_width + 7) / 8;
-  /* Avoid reading out of buffer */
-  if (ptr_after_width + n_bits_len >
-      (const unsigned char *)(buf + event_len - post_header_len))
-    return;
-  columns_before_image.reserve((m_width + 7) / 8);
-  unsigned char *ch;
-  ch = ptr_after_width;
-  for (unsigned long i = 0; i < (m_width + 7) / 8; i++) {
-    columns_before_image.push_back(*ch);
-    ch++;
-  }
+  READER_TRY_CALL(assign, &columns_before_image, n_bits_len);
 
-  ptr_after_width += (m_width + 7) / 8;
-
-  columns_after_image = columns_before_image;
   if (event_type == UPDATE_ROWS_EVENT || event_type == UPDATE_ROWS_EVENT_V1 ||
       event_type == PARTIAL_UPDATE_ROWS_EVENT) {
-    columns_after_image.reserve((m_width + 7) / 8);
-    columns_after_image.clear();
-    ch = ptr_after_width;
-    for (unsigned long i = 0; i < (m_width + 7) / 8; i++) {
-      columns_after_image.push_back(*ch);
-      ch++;
-    }
-    ptr_after_width += (m_width + 7) / 8;
-  }
+    READER_TRY_CALL(assign, &columns_after_image, n_bits_len);
+  } else
+    columns_after_image = columns_before_image;
 
-  const unsigned char *ptr_rows_data = (unsigned char *)ptr_after_width;
+  data_size = READER_CALL(available_to_read);
+  READER_TRY_CALL(assign, &row, data_size);
+  // JAG: TODO: Investigate and comment here about the need of this extra byte
+  row.push_back(0);
 
-  size_t const read_size =
-      ptr_rows_data + common_header_len - (const unsigned char *)buf;
-  if (read_size > event_len) return;
-  size_t const data_size = event_len - read_size;
-
-  try {
-    row.assign(ptr_rows_data, ptr_rows_data + data_size + 1);
-  } catch (const std::bad_alloc &e) {
-    row.clear();
-  }
-  BAPI_ASSERT(row.size() == data_size + 1);
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
 }
 
 Rows_event::~Rows_event() {
@@ -529,38 +437,59 @@ Rows_event::~Rows_event() {
   }
 }
 
-/**
-  The ctor of Rows_query_event,
-  Here we are copying the exact query executed in RBR, to a
-  char array m_rows_query
-*/
-Rows_query_event::Rows_query_event(const char *buf, unsigned int event_len,
-                                   const Format_description_event *descr_event)
-    : Ignorable_event(buf, descr_event) {
-  uint8_t const common_header_len = descr_event->common_header_len;
+Rows_query_event::Rows_query_event(const char *buf,
+                                   const Format_description_event *fde)
+    : Ignorable_event(buf, fde) {
+  BAPI_ENTER("Rows_query_event::Rows_query_event(const char*, ...)");
+  READER_TRY_INITIALIZATION;
+  READER_ASSERT_POSITION(fde->common_header_len);
+  unsigned int len = 0;
   uint8_t const post_header_len =
-      descr_event->post_header_len[ROWS_QUERY_LOG_EVENT - 1];
+      fde->post_header_len[ROWS_QUERY_LOG_EVENT - 1];
 
-  m_rows_query = NULL;
+  m_rows_query = nullptr;
 
   /*
-   m_rows_query length is stored using only one byte, but that length is
-   ignored and the complete query is read.
+   m_rows_query length is stored using only one byte (the +1 below), but that
+   length is ignored and the complete query is read.
   */
-  unsigned int offset = common_header_len + post_header_len + 1;
-  /* Avoid reading out of buffer */
-  if (offset > event_len) return;
+  READER_TRY_CALL(forward, post_header_len + 1);
+  len = READER_CALL(available_to_read);
+  READER_TRY_CALL(alloc_and_strncpy, &m_rows_query, len, 16);
 
-  unsigned int len = event_len - offset;
-  if (!(m_rows_query = static_cast<char *>(bapi_malloc(len + 1, 16)))) return;
-
-  strncpy(m_rows_query, buf + offset, len);
-  // Appending '\0' at the end.
-  m_rows_query[len] = '\0';
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
 }
 
 Rows_query_event::~Rows_query_event() {
   if (m_rows_query) bapi_free(m_rows_query);
+}
+
+Write_rows_event::Write_rows_event(const char *buf,
+                                   const Format_description_event *fde)
+    : Rows_event(buf, fde) {
+  BAPI_ENTER("Write_rows_event::Write_rows_event(const char*, ...)");
+  READER_TRY_INITIALIZATION;
+  this->header()->type_code = m_type;
+  BAPI_VOID_RETURN;
+}
+
+Update_rows_event::Update_rows_event(const char *buf,
+                                     const Format_description_event *fde)
+    : Rows_event(buf, fde) {
+  BAPI_ENTER("Update_rows_event::Update_rows_event(const char*, ...)");
+  READER_TRY_INITIALIZATION;
+  this->header()->type_code = m_type;
+  BAPI_VOID_RETURN;
+}
+
+Delete_rows_event::Delete_rows_event(const char *buf,
+                                     const Format_description_event *fde)
+    : Rows_event(buf, fde) {
+  BAPI_ENTER("Delete_rows_event::Delete_rows_event(const char*, ...)");
+  READER_TRY_INITIALIZATION;
+  this->header()->type_code = m_type;
+  BAPI_VOID_RETURN;
 }
 
 #ifndef HAVE_MYSYS

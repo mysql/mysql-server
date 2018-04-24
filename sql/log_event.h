@@ -2273,7 +2273,7 @@ class Table_map_log_event : public binary_log::Table_map_event,
   Table_map_log_event(THD *thd_arg, TABLE *tbl, const Table_id &tid,
                       bool is_transactional);
 #endif
-  Table_map_log_event(const char *buf, uint event_len,
+  Table_map_log_event(const char *buf,
                       const Format_description_event *description_event);
 
   virtual ~Table_map_log_event();
@@ -2613,7 +2613,7 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
                  MY_BITMAP const *cols, bool is_transactional,
                  Log_event_type event_type, const uchar *extra_row_info);
 #endif
-  Rows_log_event(const char *row_data, uint event_len,
+  Rows_log_event(const char *row_data,
                  const Format_description_event *description_event);
 
 #ifndef MYSQL_SERVER
@@ -3004,7 +3004,7 @@ class Write_rows_log_event : public Rows_log_event,
   Write_rows_log_event(THD *, TABLE *, const Table_id &table_id,
                        bool is_transactional, const uchar *extra_row_info);
 #endif
-  Write_rows_log_event(const char *buf, uint event_len,
+  Write_rows_log_event(const char *buf,
                        const Format_description_event *description_event);
 #if defined(MYSQL_SERVER)
   static bool binlog_row_logging_function(
@@ -3100,7 +3100,7 @@ class Update_rows_log_event : public Rows_log_event,
 
   virtual ~Update_rows_log_event();
 
-  Update_rows_log_event(const char *buf, uint event_len,
+  Update_rows_log_event(const char *buf,
                         const Format_description_event *description_event);
 
 #ifdef MYSQL_SERVER
@@ -3210,7 +3210,7 @@ class Delete_rows_log_event : public Rows_log_event,
   Delete_rows_log_event(THD *, TABLE *, const Table_id &, bool is_transactional,
                         const uchar *extra_row_info);
 #endif
-  Delete_rows_log_event(const char *buf, uint event_len,
+  Delete_rows_log_event(const char *buf,
                         const Format_description_event *description_event);
 #ifdef MYSQL_SERVER
   static bool binlog_row_logging_function(
@@ -3453,7 +3453,7 @@ class Rows_query_log_event : public Ignorable_log_event,
   virtual bool write_data_body(Basic_ostream *ostream) override;
 #endif
 
-  Rows_query_log_event(const char *buf, uint event_len,
+  Rows_query_log_event(const char *buf,
                        const Format_description_event *descr_event);
 
   virtual ~Rows_query_log_event() {

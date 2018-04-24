@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,6 @@
 #define ROWS_EVENT_INCLUDED
 
 #include <vector>
-#include "byteorder.h"
 #include "control_events.h"
 #include "table_id.h"
 
@@ -545,34 +544,27 @@ class Table_map_event : public Binary_log_event {
   };
 
   /**
-  <pre>
-  The buffer layout for fixed data part is as follows:
-  +-----------------------------------+
-  | table_id | Reserved for future use|
-  +-----------------------------------+
-  </pre>
+    <pre>
+    The buffer layout for fixed data part is as follows:
+    +-----------------------------------+
+    | table_id | Reserved for future use|
+    +-----------------------------------+
+    </pre>
 
-  <pre>
-  The buffer layout for variable data part is as follows:
-  +---------------------------------------------------------------------------+
-  | db len | db name | table len| table name | no of cols | array of col types|
-  +---------------------------------------------------------------------------+
-  +---------------------------------------------+
-  | metadata len | metadata block | m_null_bits |
-  +---------------------------------------------+
-  </pre>
-  @param buf                Contains the serialized event.
-  @param event_len             Length of the serialized event.
-  @param description_event  An FDE event, used to get the following information
-                            -binlog_version
-                            -server_version
-                            -post_header_len
-                            -common_header_len
-                            The content of this object
-                            depends on the binlog-version currently in use.
+    <pre>
+    The buffer layout for variable data part is as follows:
+    +--------------------------------------------------------------------------+
+    | db len| db name | table len| table name | no of cols | array of col types|
+    +--------------------------------------------------------------------------+
+    +---------------------------------------------+
+    | metadata len | metadata block | m_null_bits |
+    +---------------------------------------------+
+    </pre>
+
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
-  Table_map_event(const char *buf, unsigned int event_len,
-                  const Format_description_event *description_event);
+  Table_map_event(const char *buf, const Format_description_event *fde);
 
   Table_map_event(const Table_id &tid, unsigned long colcnt, const char *dbnam,
                   size_t dblen, const char *tblnam, size_t tbllen)
@@ -824,16 +816,10 @@ class Rows_event : public Binary_log_event {
     +------------------------------------------------------------------+
     </pre>
 
-    @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the following
-    information -binlog_version -server_version -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
-  Rows_event(const char *buf, unsigned int event_len,
-             const Format_description_event *description_event);
+  Rows_event(const char *buf, const Format_description_event *fde);
 
   virtual ~Rows_event();
 
@@ -894,12 +880,7 @@ class Rows_event : public Binary_log_event {
 */
 class Write_rows_event : public virtual Rows_event {
  public:
-  Write_rows_event(const char *buf, unsigned int event_len,
-                   const Format_description_event *description_event)
-      : Rows_event(buf, event_len, description_event) {
-    this->header()->type_code = m_type;
-  };
-
+  Write_rows_event(const char *buf, const Format_description_event *fde);
   Write_rows_event() : Rows_event(WRITE_ROWS_EVENT) {}
 };
 
@@ -917,12 +898,7 @@ class Write_rows_event : public virtual Rows_event {
 */
 class Update_rows_event : public virtual Rows_event {
  public:
-  Update_rows_event(const char *buf, unsigned int event_len,
-                    const Format_description_event *description_event)
-      : Rows_event(buf, event_len, description_event) {
-    this->header()->type_code = m_type;
-  }
-
+  Update_rows_event(const char *buf, const Format_description_event *fde);
   Update_rows_event(Log_event_type event_type) : Rows_event(event_type) {}
 };
 
@@ -941,12 +917,7 @@ class Update_rows_event : public virtual Rows_event {
 */
 class Delete_rows_event : public virtual Rows_event {
  public:
-  Delete_rows_event(const char *buf, unsigned int event_len,
-                    const Format_description_event *description_event)
-      : Rows_event(buf, event_len, description_event) {
-    this->header()->type_code = m_type;
-  }
-
+  Delete_rows_event(const char *buf, const Format_description_event *fde);
   Delete_rows_event() : Rows_event(DELETE_ROWS_EVENT) {}
 };
 
@@ -993,20 +964,11 @@ class Rows_query_event : public virtual Ignorable_event {
     +------------------------------------+
     </pre>
 
-    @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param descr_event        An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
 
-  Rows_query_event(const char *buf, unsigned int event_len,
-                   const Format_description_event *descr_event);
+  Rows_query_event(const char *buf, const Format_description_event *fde);
   /**
     It is the minimal constructor, and all it will do is set the type_code as
     ROWS_QUERY_LOG_EVENT in the header object in Binary_log_event.
