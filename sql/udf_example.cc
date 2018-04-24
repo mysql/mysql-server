@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,11 +153,11 @@ void metaphon_deinit(UDF_INIT *initid);
 char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
                unsigned long *length, char *is_null, char *error);
 bool myfunc_double_init(UDF_INIT *, UDF_ARGS *args, char *message);
-double myfunc_double(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
-                     char *error);
+double myfunc_double(UDF_INIT *initid, UDF_ARGS *args, unsigned char *is_null,
+                     unsigned char *error);
 bool myfunc_int_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
-long long myfunc_int(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
-                     char *error);
+long long myfunc_int(UDF_INIT *initid, UDF_ARGS *args, unsigned char *is_null,
+                     unsigned char *error);
 bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 void sequence_deinit(UDF_INIT *initid);
 long long sequence(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
@@ -166,9 +166,12 @@ bool avgcost_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 void avgcost_deinit(UDF_INIT *initid);
 void avgcost_reset(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
                    char *error);
-void avgcost_clear(UDF_INIT *initid, char *is_null, char *error);
-void avgcost_add(UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
-double avgcost(UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
+void avgcost_clear(UDF_INIT *initid, unsigned char *is_null,
+                   unsigned char *error);
+void avgcost_add(UDF_INIT *initid, UDF_ARGS *args, unsigned char *is_null,
+                 unsigned char *error);
+double avgcost(UDF_INIT *initid, UDF_ARGS *args, unsigned char *is_null,
+               unsigned char *error);
 bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 char *is_const(UDF_INIT *initid, UDF_ARGS *args, char *result,
                unsigned long *length, char *is_null, char *error);
@@ -495,7 +498,8 @@ bool myfunc_double_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   return 0;
 }
 
-double myfunc_double(UDF_INIT *, UDF_ARGS *args, char *is_null, char *) {
+double myfunc_double(UDF_INIT *, UDF_ARGS *args, unsigned char *is_null,
+                     unsigned char *) {
   unsigned long val = 0;
   unsigned long v = 0;
   unsigned i, j;
@@ -527,7 +531,8 @@ double myfunc_double(UDF_INIT *, UDF_ARGS *args, char *is_null, char *) {
 
 /* This function returns the sum of all arguments */
 
-long long myfunc_int(UDF_INIT *, UDF_ARGS *args, char *, char *) {
+long long myfunc_int(UDF_INIT *, UDF_ARGS *args, unsigned char *,
+                     unsigned char *) {
   long long val = 0;
   unsigned i;
 
@@ -806,20 +811,21 @@ void avgcost_deinit(UDF_INIT *initid) {
 /* This is only for MySQL 4.0 compability */
 void avgcost_reset(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
                    char *message) {
-  avgcost_clear(initid, is_null, message);
-  avgcost_add(initid, args, is_null, message);
+  avgcost_clear(initid, (unsigned char *)is_null, (unsigned char *)message);
+  avgcost_add(initid, args, (unsigned char *)is_null, (unsigned char *)message);
 }
 
 /* This is needed to get things to work in MySQL 4.1.1 and above */
 
-void avgcost_clear(UDF_INIT *initid, char *, char *) {
+void avgcost_clear(UDF_INIT *initid, unsigned char *, unsigned char *) {
   struct avgcost_data *data = (struct avgcost_data *)initid->ptr;
   data->totalprice = 0.0;
   data->totalquantity = 0;
   data->count = 0;
 }
 
-void avgcost_add(UDF_INIT *initid, UDF_ARGS *args, char *, char *) {
+void avgcost_add(UDF_INIT *initid, UDF_ARGS *args, unsigned char *,
+                 unsigned char *) {
   if (args->args[0] && args->args[1]) {
     struct avgcost_data *data = (struct avgcost_data *)initid->ptr;
     long long quantity = *((long long *)args->args[0]);
@@ -855,7 +861,8 @@ void avgcost_add(UDF_INIT *initid, UDF_ARGS *args, char *, char *) {
   }
 }
 
-double avgcost(UDF_INIT *initid, UDF_ARGS *, char *is_null, char *) {
+double avgcost(UDF_INIT *initid, UDF_ARGS *, unsigned char *is_null,
+               unsigned char *) {
   struct avgcost_data *data = (struct avgcost_data *)initid->ptr;
   if (!data->count || !data->totalquantity) {
     *is_null = 1;

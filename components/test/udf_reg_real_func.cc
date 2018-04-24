@@ -70,7 +70,8 @@ bool myfunc_double_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   return 0;
 }
 
-double myfunc_double(UDF_INIT *, UDF_ARGS *args, char *is_null, char *) {
+double myfunc_double(UDF_INIT *, UDF_ARGS *args, unsigned char *is_null,
+                     unsigned char *) {
   unsigned long val = 0;
   unsigned long v = 0;
   unsigned i, j;
@@ -91,7 +92,7 @@ static mysql_service_status_t init() {
   bool ret_double = false;
   ret_double = mysql_service_udf_registration->udf_register(
       "myfunc_double", REAL_RESULT, (Udf_func_any)myfunc_double,
-      (Udf_func_init)myfunc_double_init, NULL);
+      myfunc_double_init, NULL);
   return ret_double;
 }
 
