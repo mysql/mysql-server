@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2432,6 +2432,11 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
       bool found= false;
       for (unsigned i = 0; i < obj_list.count; i++)
       {
+        // Skip if the element is not a foreign key
+        if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
+          continue;
+
+        // Check if this is the fk being dropped
         char db_and_name[FN_LEN + 1];
         const char * name= fk_split_name(db_and_name,obj_list.elements[i].name);
         if (ndb_fk_casecmp(drop_item->name, name) != 0)
@@ -2440,9 +2445,16 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         NdbDictionary::ForeignKey fk;
         if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
         {
+          // should never happen
+          DBUG_ASSERT(false);
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_CANT_DROP_FIELD_OR_KEY,
+                              "INTERNAL ERROR: Could not find foreign key '%s'",
+                              obj_list.elements[i].name);
           ERR_RETURN(dict->getNdbError());
         }
 
+        // The FK we are looking for is on src_tab.
         char child_db_and_name[FN_LEN + 1];
         const char* child_name = fk_split_name(child_db_and_name,
                                                fk.getChildTable());
@@ -2469,6 +2481,12 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
       NdbDictionary::ForeignKey fk;
       if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
       {
+        // should never happen
+        DBUG_ASSERT(false);
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_ALTER_INFO,
+                            "INTERNAL ERROR: Could not find foreign key '%s'",
+                            obj_list.elements[i].name);
         ERR_RETURN(dict->getNdbError());
       }
 
