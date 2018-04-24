@@ -247,7 +247,6 @@ Obsoletes:      mariadb-common
 Obsoletes:      mariadb-errmsg
 %endif # compatlib
 Obsoletes:      mariadb-config
-Obsoletes:      community-mysql-common < %{version}-%{release}
 Obsoletes:      community-mysql-errmsg < %{version}-%{release}
 Obsoletes:      mysql-common < %{version}-%{release}
 Provides:       mysql-common = %{version}-%{release}
@@ -339,7 +338,6 @@ Requires:       mysql-community-common%{?_isa} >= %{min}
 %if 0%{?compatlib}
 Obsoletes:      mariadb-libs
 %endif # compatlib
-Obsoletes:      community-mysql-libs < %{version}-%{release}
 Obsoletes:      mysql-libs < %{version}-%{release}
 Provides:       mysql-libs = %{version}-%{release}
 Provides:       mysql-libs%{?_isa} = %{version}-%{release}
