@@ -29,6 +29,7 @@
 #include "sql/ha_ndbcluster.h"
 #include "sql/key_spec.h"
 #include "sql/mysqld.h"     // global_system_variables table_alias_charset ...
+#include "sql/ndb_fk_util.h"
 #include "sql/ndb_log.h"
 #include "sql/ndb_table_guard.h"
 #include "sql/ndb_tdc.h"
@@ -71,11 +72,6 @@ struct Ndb_fk_data
   uint cnt_child;
   uint cnt_parent;
 };
-
-// Forward decl
-static
-const char *
-fk_split_name(char dst[], const char * src, bool index= false);
 
 /*
   Create all the fks  for a table.
@@ -221,25 +217,6 @@ setDbName(Ndb* ndb, const char * name)
     ndb->setDatabaseName(name);
   }
 }
-
-struct Ndb_db_guard
-{
-  Ndb_db_guard(Ndb* ndb) {
-    this->ndb = ndb;
-    strcpy(save_db, ndb->getDatabaseName());
-  }
-
-  void restore() {
-    ndb->setDatabaseName(save_db);
-  }
-
-  ~Ndb_db_guard() {
-    ndb->setDatabaseName(save_db);
-  }
-private:
-  Ndb* ndb;
-  char save_db[FN_REFLEN + 1];
-};
 
 
 template <size_t buf_size>
@@ -1813,71 +1790,6 @@ ha_ndbcluster::can_switch_engines()
   DBUG_RETURN(1);
 }
 
-static
-const char *
-fk_split_name(char dst[], const char * src, bool index)
-{
-  DBUG_PRINT("info", ("fk_split_name: %s index=%d", src, index));
-
-  /**
-   * Split a fully qualified (ndb) name into db and name
-   *
-   * Store result in dst
-   */
-  char * dstptr = dst;
-  const char * save = src;
-  while (src[0] != 0 && src[0] != '/')
-  {
-    * dstptr = * src;
-    dstptr++;
-    src++;
-  }
-
-  if (src[0] == 0)
-  {
-    /**
-     * No '/' found
-     *  set db to ''
-     *  and return pointer to name
-     *
-     * This is for compability with create_fk/drop_fk tools...
-     */
-    dst[0] = 0;
-    strcpy(dst + 1, save);
-    DBUG_PRINT("info", ("fk_split_name: %s,%s", dst, dst + 1));
-    return dst + 1;
-  }
-
-  assert(src[0] == '/');
-  src++;
-  * dstptr = 0;
-  dstptr++;
-
-  // Skip over catalog (not implemented)
-  while (src[0] != '/')
-  {
-    src++;
-  }
-
-  assert(src[0] == '/');
-  src++;
-
-  /**
-   * Indexes contains an extra /
-   */
-  if (index)
-  {
-    while (src[0] != '/')
-    {
-      src++;
-    }
-    assert(src[0] == '/');
-    src++;
-  }
-  strcpy(dstptr, src);
-  DBUG_PRINT("info", ("fk_split_name: %s,%s", dst, dstptr));
-  return dstptr;
-}
 
 struct Ndb_mem_root_guard {
   Ndb_mem_root_guard(MEM_ROOT *new_root) {

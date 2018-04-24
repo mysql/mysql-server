@@ -912,7 +912,8 @@ static int
 ndb_create_table_from_engine(THD *thd,
                              const char *schema_name,
                              const char *table_name,
-                             bool force_overwrite = false)
+                             bool force_overwrite,
+                             bool invalidate_referenced_tables= false)
 {
   DBUG_ENTER("ndb_create_table_from_engine");
   DBUG_PRINT("enter", ("schema_name: %s, table_name: %s",
@@ -1002,11 +1003,21 @@ ndb_create_table_from_engine(THD *thd,
     DBUG_RETURN(12);
   }
 
-  if (!dd_client.install_table(schema_name, table_name,
-                               sdi,
-                               tab->getObjectId(), tab->getObjectVersion(),
-                               tab->getPartitionCount(), force_overwrite))
+  Ndb_referenced_tables_invalidator invalidator(thd, dd_client);
+
+  if (!dd_client.install_table(
+      schema_name, table_name, sdi,
+      tab->getObjectId(), tab->getObjectVersion(),
+      tab->getPartitionCount(), force_overwrite,
+      (invalidate_referenced_tables?&invalidator:nullptr)))
   {
+    DBUG_RETURN(13);
+  }
+
+  if (invalidate_referenced_tables &&
+      !invalidator.invalidate())
+  {
+    DBUG_ASSERT(false);
     DBUG_RETURN(13);
   }
 
@@ -3316,7 +3327,8 @@ class Ndb_schema_event_handler {
     // Install table from NDB, overwrite the existing table
     if (ndb_create_table_from_engine(m_thd,
                                      schema->db, schema->name,
-                                     true /* force_overwrite */))
+                                     true /* force_overwrite */,
+                                     true /* invalidate_referenced_tables */))
     {
       // NOTE! The below function has a rather misleading name of
       // actual functionality which failed
@@ -3396,7 +3408,8 @@ class Ndb_schema_event_handler {
         // has a op assigned, that part will be skipped
         if (ndb_create_table_from_engine(m_thd,
                                          schema->db, schema->name,
-                                         true /* force_overwrite */))
+                                         true /* force_overwrite */,
+                                         true /* invalidate_referenced_tables */))
         {
           // NOTE! The below function has a rather misleading name of
           // actual functionality which failed
@@ -3872,6 +3885,8 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
+    Ndb_referenced_tables_invalidator invalidator(m_thd, dd_client);
+
     for (const auto ndb_table_name : ndb_tables_in_DD)
     {
       if (!dd_client.mdl_locks_acquire_exclusive(schema->db,
@@ -3883,7 +3898,8 @@ class Ndb_schema_event_handler {
         continue;
       }
 
-      if (!dd_client.remove_table(schema->db, ndb_table_name.c_str()))
+      if (!dd_client.remove_table(schema->db, ndb_table_name.c_str(),
+                                  &invalidator))
       {
         // Failed to remove the table from DD, not much else to do
         // than try with the next
@@ -3912,6 +3928,12 @@ class Ndb_schema_event_handler {
 
       ndbapi_invalidate_table(schema->db, ndb_table_name.c_str());
       ndb_tdc_close_cached_table(m_thd, schema->db, ndb_table_name.c_str());
+    }
+
+    if (!invalidator.invalidate())
+    {
+      DBUG_ASSERT(false);
+      DBUG_VOID_RETURN;
     }
 
     dd_client.commit();
@@ -4026,7 +4048,9 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
-    if (ndb_create_table_from_engine(m_thd, schema->db, schema->name))
+    if (ndb_create_table_from_engine(m_thd, schema->db, schema->name,
+                                     false, /* force_overwrite */
+                                     true /* invalidate_referenced_tables */))
     {
       // NOTE! The below function has a rather misleading name of
       // actual functionality which failed

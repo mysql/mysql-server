@@ -115,8 +115,14 @@ bool ndb_dd_remove_table(THD *thd, const char *schema_name,
   DBUG_ENTER("ndb_dd_remove_table");
 
   Ndb_dd_client dd_client(thd);
+  Ndb_referenced_tables_invalidator invalidator(thd, dd_client);
 
-  if (!dd_client.remove_table(schema_name, table_name))
+  if (!dd_client.remove_table(schema_name, table_name, &invalidator))
+  {
+    DBUG_RETURN(false);
+  }
+
+  if (!invalidator.invalidate())
   {
     DBUG_RETURN(false);
   }
@@ -139,10 +145,17 @@ ndb_dd_rename_table(THD *thd,
                        new_schema_name, new_table_name));
 
   Ndb_dd_client dd_client(thd);
+  Ndb_referenced_tables_invalidator invalidator(thd, dd_client);
 
   if (!dd_client.rename_table(old_schema_name, old_table_name,
                               new_schema_name, new_table_name,
-                              new_table_id, new_table_version))
+                              new_table_id, new_table_version,
+                              &invalidator))
+  {
+    DBUG_RETURN(false);
+  }
+
+  if (!invalidator.invalidate())
   {
     DBUG_RETURN(false);
   }
