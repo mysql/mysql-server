@@ -7,7 +7,7 @@
 --echo # autoinc features are not the main part of this one.
 
 --disable_query_log
-CALL mtr.add_suppression("\\[ERROR\\].*MLOG_FILE_RENAME: Invalid to file name.* File name in the redo log is ''");
+CALL mtr.add_suppression("\\[ERROR\\].*MLOG_FILE_RENAME: Invalid to file name");
 --enable_query_log
 
 --echo # Pre-create several tables
