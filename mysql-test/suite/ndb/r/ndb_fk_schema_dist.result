@@ -1,0 +1,236 @@
+#setup tables
+create table parent(
+a int unique,
+b int unique
+) engine ndb;
+insert into parent values (1, 2), (2, 1);
+create table child(
+ref int
+) engine ndb;
+#Testing create FK, using copy algorithm
+#cache parent table in server1
+select * from parent order by a;
+a	b
+1	2
+2	1
+#now run the DDL query in server2
+alter table child add
+constraint fk1 foreign key(ref) references parent(a),
+algorithm = copy;
+#check if the parent metadata has been reset in server1
+#altering column should fail with error
+alter table parent
+change column a a varchar(64) not null;
+ERROR HY000: Cannot change column 'a': used in a foreign key constraint 'fk1' of table 'test.child'
+#Testing drop FK, using inplace algorithm
+#cache parent table in server1
+select * from parent order by a;
+a	b
+1	2
+2	1
+#now run the DDL query in server2
+alter table child drop foreign key fk1, algorithm=inplace;
+#check if the parent metadata has been reset in server1
+#altering column should pass
+alter table parent
+change column a a varchar(64) not null;
+#check parent's new definition
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `a` varchar(64) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+#restore parent to old definition
+alter table parent change column a a int;
+#restore fk for further testing
+alter table child add constraint fk1 foreign key(ref) references parent(a);
+#Testing drop child table
+#cache parent table in server1
+select * from parent order by a;
+a	b
+1	2
+2	1
+#now run the DDL query in server2
+drop table child;
+#check if the parent metadata has been reset in server1
+#altering column should pass
+alter table parent
+change column a a varchar(64) not null;
+#check parent's new definition
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `a` varchar(64) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+#restore parent to old definition
+alter table parent change column a a int;
+#Testing create table
+#cache parent table in server1
+select * from parent order by a;
+a	b
+1	2
+2	1
+#now run the DDL query in server2
+create table child(
+ref int,
+foreign key fk1(ref) references parent(a)
+) engine ndb;
+#check if the parent metadata has been reset in server1
+#altering column should fail with error
+alter table parent
+change column a a varchar(64) not null;
+ERROR HY000: Cannot change column 'a': used in a foreign key constraint 'fk1' of table 'test.child'
+#Testing multiple alter FK create/drops : I
+#cache parent table in server1
+select * from parent order by a;
+a	b
+1	2
+2	1
+#now run the DDL query in server2
+alter table child
+drop foreign key fk1,
+add foreign key fk2(ref) references parent(b);
+#check if the parent metadata has been reset in server1
+#altering column should pass
+alter table parent
+change column a a varchar(64) not null;
+#check parent's new definition
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `a` varchar(64) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+#restore parent to old definition
+alter table parent change column a a int;
+#setup for child referring multiple parents
+create table parent2(
+a int unique
+) engine ndb;
+show create table child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `ref` int(11) DEFAULT NULL,
+  KEY `fk2` (`ref`),
+  CONSTRAINT `fk2` FOREIGN KEY (`ref`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+alter table child
+drop foreign key fk2,
+add foreign key fk1(ref) references parent(a);
+#Testing multiple alter FK create/drops : II
+#This also tests the fix for Bug#27646160
+#Also cache parent2
+select * from parent2;
+a
+#cache parent table in server1
+select * from parent order by a;
+a	b
+1	2
+2	1
+#now run the DDL query in server2
+alter table child
+drop foreign key fk1,
+add foreign key fk2(ref) references parent2(a);
+#check if the parent metadata has been reset in server1
+#altering column should pass
+alter table parent
+change column a a varchar(64) not null;
+#check parent's new definition
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `a` varchar(64) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+#restore parent to old definition
+alter table parent change column a a int;
+#altering column in parent2 should fail with error
+flush tables parent2;
+alter table parent2
+change column a a varchar(64) not null;
+ERROR HY000: Cannot change column 'a': used in a foreign key constraint 'fk2' of table 'test.child'
+#setup to test drop database
+drop table child;
+create database test1;
+create table test1.child(
+ref1 int,
+ref2 int,
+foreign key fk1(ref1) references test.parent(a),
+foreign key fk2(ref2) references test.parent2(a)
+) engine ndb;
+#Testing drop database
+#cache parent2
+select * from parent2;
+a
+#cache parent table in server1
+select * from parent order by a;
+a	b
+1	2
+2	1
+#now run the DDL query in server2
+drop database test1;
+#check if the parent metadata has been reset in server1
+#altering column should pass
+alter table parent
+change column a a varchar(64) not null;
+#check parent's new definition
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `a` varchar(64) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+#restore parent to old definition
+alter table parent change column a a int;
+#altering column in parent2 should also pass
+flush tables parent2;
+alter table parent2
+change column a a varchar(64) not null;
+#cleanup
+drop table parent, parent2;
+#setup to test mock table resolution
+set foreign_key_checks=0;
+create table child (
+a int,
+foreign key fk1(a) references parent(a)
+) engine ndb;
+create table parent (
+a int unique
+) engine ndb;
+insert into parent values (1), (2);
+set foreign_key_checks=1;
+#Now drop child and test
+#cache parent table in server1
+select * from parent order by a;
+a
+1
+2
+#now run the DDL query in server2
+drop table child;
+#check if the parent metadata has been reset in server1
+#altering column should pass
+alter table parent
+change column a a varchar(64) not null;
+#check parent's new definition
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `a` varchar(64) NOT NULL,
+  UNIQUE KEY `a` (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+#restore parent to old definition
+alter table parent change column a a int;
+#cleanup
+drop table parent;
