@@ -1,6 +1,5 @@
-
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,7 +150,7 @@ void create_table(MYSQL &mysql)
 		  "     BRAND CHAR(20) NOT NULL,"
 		  "     COLOR CHAR(20) NOT NULL,"
 		  "     PRIMARY KEY USING HASH (REG_NO))"
-		  "  ENGINE=NDB"))
+                  "  ENGINE=NDB CHARSET=latin1"))
   {
     if (mysql_errno(&mysql) != ER_TABLE_EXISTS_ERROR)
       MYSQLERROR(mysql);
