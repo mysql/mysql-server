@@ -6178,7 +6178,7 @@ storage_engines:
               $$= plugin_data<handlerton*>(plugin);
             else
             {
-              if (thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION)
+              if (!is_engine_substitution_allowed(thd))
               {
                 my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
                 MYSQL_YYABORT;
