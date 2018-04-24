@@ -6294,15 +6294,46 @@ static bool create_table_impl(
     DBUG_RETURN(true);
   }
 
+  if (check_engine(thd, db, table_name, create_info)) DBUG_RETURN(true);
+
   // Check if new table creation is disallowed by the storage engine.
   if (!internal_tmp_table &&
       ha_is_storage_engine_disabled(create_info->db_type)) {
-    my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
-             ha_resolve_storage_engine_name(create_info->db_type));
-    DBUG_RETURN(true);
-  }
+    /*
+      If table creation is disabled for the engine then substitute the engine
+      for the table with the default engine only if sql mode
+      NO_ENGINE_SUBSTITUTION is disabled.
+    */
+    handlerton *new_engine = nullptr;
+    if (is_engine_substitution_allowed(thd))
+      new_engine = ha_default_handlerton(thd);
 
-  if (check_engine(thd, db, table_name, create_info)) DBUG_RETURN(true);
+    /*
+      Proceed with the engine substitution only if,
+      1. The disabled engine and the default engine are not the same.
+      2. The default engine is not in the disabled engines list.
+      else report an error.
+    */
+    if (new_engine && create_info->db_type &&
+        new_engine != create_info->db_type &&
+        !ha_is_storage_engine_disabled(new_engine)) {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_DISABLED_STORAGE_ENGINE,
+                          ER_THD(thd, ER_DISABLED_STORAGE_ENGINE),
+                          ha_resolve_storage_engine_name(create_info->db_type));
+
+      create_info->db_type = new_engine;
+
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_WARN_USING_OTHER_HANDLER,
+          ER_THD(thd, ER_WARN_USING_OTHER_HANDLER),
+          ha_resolve_storage_engine_name(create_info->db_type), table_name);
+    } else {
+      my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
+               ha_resolve_storage_engine_name(create_info->db_type));
+      DBUG_RETURN(true);
+    }
+  }
 
   if (set_table_default_charset(thd, create_info, schema)) DBUG_RETURN(true);
 
@@ -12349,14 +12380,29 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DBUG_RETURN(true);
   }
 
-  // Check if ALTER TABLE ... ENGINE is disallowed by the storage engine.
+  /*
+    Check if ALTER TABLE ... ENGINE is disallowed by the desired storage
+    engine.
+  */
   if (table_list->table->s->db_type() != create_info->db_type &&
       (alter_info->flags & Alter_info::ALTER_OPTIONS) &&
       (create_info->used_fields & HA_CREATE_USED_ENGINE) &&
       ha_is_storage_engine_disabled(create_info->db_type)) {
-    my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
-             ha_resolve_storage_engine_name(create_info->db_type));
-    DBUG_RETURN(true);
+    /*
+      If NO_ENGINE_SUBSTITUTION is disabled, then report a warning and do not
+      alter the table.
+    */
+    if (is_engine_substitution_allowed(thd)) {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_UNKNOWN_STORAGE_ENGINE,
+                          ER_THD(thd, ER_UNKNOWN_STORAGE_ENGINE),
+                          ha_resolve_storage_engine_name(create_info->db_type));
+      create_info->db_type = table_list->table->s->db_type();
+    } else {
+      my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
+               ha_resolve_storage_engine_name(create_info->db_type));
+      DBUG_RETURN(true);
+    }
   }
 
   TABLE *table = table_list->table;
@@ -14478,8 +14524,7 @@ static bool check_engine(THD *thd, const char *db_name, const char *table_name,
   DBUG_ENTER("check_engine");
   handlerton **new_engine = &create_info->db_type;
   handlerton *req_engine = *new_engine;
-  bool no_substitution =
-      (thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
+  bool no_substitution = (!is_engine_substitution_allowed(thd));
   if (!(*new_engine =
             ha_checktype(thd, ha_legacy_type(req_engine), no_substitution, 1)))
     DBUG_RETURN(true);
