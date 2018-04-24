@@ -25,6 +25,7 @@
 #ifndef NDB_DD_CLIENT_H
 #define NDB_DD_CLIENT_H
 
+#include <set>
 #include <vector>
 #include <unordered_set>
 
@@ -39,6 +40,28 @@ namespace dd {
   }
   class Table;
 }
+
+/*
+ * Helper class to Ndb_dd_client to fetch and
+ * invalidate tables referenced by foreign keys.
+ * Used by the schema distribution participant
+ */
+class Ndb_referenced_tables_invalidator {
+  std::set<std::pair<std::string, std::string>> m_referenced_tables;
+  class THD* const m_thd;
+  class Ndb_dd_client& m_dd_client;
+
+  bool add_and_lock_referenced_table(const char* schema_name,
+                                     const char* table_name);
+public:
+  Ndb_referenced_tables_invalidator(class THD* thd,
+                                      class Ndb_dd_client& dd_client)
+    :m_thd(thd), m_dd_client(dd_client) {}
+  bool fetch_referenced_tables_to_invalidate(
+      const char* schema_name, const char* table_name,
+      const dd::Table* table_def, bool skip_ndb_dict_fetch = false);
+  bool invalidate() const;
+};
 
 
 /*
@@ -97,13 +120,16 @@ public:
 
   bool rename_table(const char *old_schema_name, const char *old_table_name,
                     const char *new_schema_name, const char *new_table_name,
-                    int new_table_id, int new_table_version);
-  bool remove_table(const char* schema_name, const char* table_name);
+                    int new_table_id, int new_table_version,
+                    Ndb_referenced_tables_invalidator *invalidator= nullptr);
+  bool remove_table(const char* schema_name, const char* table_name,
+                    Ndb_referenced_tables_invalidator *invalidator= nullptr);
   bool install_table(const char* schema_name, const char* table_name,
                      const dd::sdi_t &sdi,
                      int ndb_table_id, int ndb_table_version,
                      size_t ndb_num_partitions,
-                     bool force_overwrite);
+                     bool force_overwrite,
+                     Ndb_referenced_tables_invalidator *invalidator= nullptr);
   bool migrate_table(const char* schema_name, const char* table_name,
                      const unsigned char* frm_data,
                      unsigned int unpacked_len,

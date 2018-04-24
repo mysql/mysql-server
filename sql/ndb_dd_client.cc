@@ -39,7 +39,9 @@
 #include "sql/ndb_dd_sdi.h"
 #include "sql/ndb_dd_table.h"
 #include "sql/ndb_dd_upgrade_table.h"
+#include "sql/ndb_fk_util.h"
 #include "sql/ndb_log.h"
+#include "sql/ndb_tdc.h"
 #include "sql/query_options.h"  // OPTION_AUTOCOMMIT
 #include "sql/sql_class.h"      // THD
 #include "sql/system_variables.h"
@@ -281,7 +283,8 @@ Ndb_dd_client::rename_table(const char* old_schema_name,
                             const char* old_table_name,
                             const char* new_schema_name,
                             const char* new_table_name,
-                            int new_table_id, int new_table_version)
+                            int new_table_id, int new_table_version,
+                            Ndb_referenced_tables_invalidator *invalidator)
 {
   // Read new schema from DD
   const dd::Schema *new_schema= nullptr;
@@ -301,6 +304,15 @@ Ndb_dd_client::rename_table(const char* old_schema_name,
   if (m_client->acquire_for_modification(old_schema_name, old_table_name,
                                          &to_table_def))
     return false;
+
+  if (invalidator != nullptr &&
+      !invalidator->fetch_referenced_tables_to_invalidate(old_schema_name,
+                                                          old_table_name,
+                                                          to_table_def,
+                                                          true))
+  {
+    return false;
+  }
 
   // Set schema id and table name
   to_table_def->set_schema_id(new_schema->id());
@@ -332,7 +344,8 @@ Ndb_dd_client::rename_table(const char* old_schema_name,
 
 bool
 Ndb_dd_client::remove_table(const char* schema_name,
-                            const char* table_name)
+                            const char* table_name,
+                            Ndb_referenced_tables_invalidator* invalidator)
 
 {
   DBUG_ENTER("Ndb_dd_client::remove_table");
@@ -351,6 +364,14 @@ Ndb_dd_client::remove_table(const char* schema_name,
     DBUG_RETURN(false);
   }
 
+  if (invalidator != nullptr &&
+      !invalidator->fetch_referenced_tables_to_invalidate(schema_name,
+                                                          table_name,
+                                                          existing, true))
+  {
+    DBUG_RETURN(false);
+  }
+
   DBUG_PRINT("info", ("removing existing table"));
   if (m_client->drop(existing))
   {
@@ -358,6 +379,7 @@ Ndb_dd_client::remove_table(const char* schema_name,
     DBUG_ASSERT(false); // Catch in debug, unexpected error
     DBUG_RETURN(false);
   }
+
   DBUG_RETURN(true);
 }
 
@@ -463,7 +485,8 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
                              const dd::sdi_t& sdi,
                              int ndb_table_id, int ndb_table_version,
                              size_t ndb_num_partitions,
-                             bool force_overwrite)
+                             bool force_overwrite,
+                             Ndb_referenced_tables_invalidator *invalidator)
 {
   const dd::Schema *schema= nullptr;
 
@@ -519,6 +542,14 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
 
   const dd::Table *existing= nullptr;
   if (m_client->acquire(schema_name, table_name, &existing))
+  {
+    return false;
+  }
+
+  if (invalidator != nullptr &&
+      !invalidator->fetch_referenced_tables_to_invalidate(schema_name,
+                                                          table_name,
+                                                          existing))
   {
     return false;
   }
@@ -906,3 +937,144 @@ Ndb_dd_client::drop_logfile_group(const char* logfile_group_name)
   DBUG_RETURN(true);
 }
 
+
+/**
+  Lock and add the given referenced table to the set of
+  referenced tables maintained by the invalidator.
+
+  @param schema_name  Schema name of the table.
+  @param table_name   Name of the table.
+
+  @return true        On success.
+  @return false       Unable to lock the table to the list.
+*/
+bool
+Ndb_referenced_tables_invalidator::add_and_lock_referenced_table(
+    const char* schema_name, const char* table_name)
+{
+  auto result =
+      m_referenced_tables.insert(std::make_pair(schema_name,
+                                                table_name));
+  if (result.second)
+  {
+    // New parent added to invalidator. Lock it down
+    DBUG_PRINT("info", ("Locking '%s.%s'",
+                        schema_name, table_name));
+    if (!m_dd_client.mdl_locks_acquire_exclusive(schema_name,
+                                                 table_name))
+    {
+      DBUG_PRINT("error", ("Unable to acquire lock to parent table '%s.%s'",
+                           schema_name, table_name));
+      return false;
+    }
+  }
+  return true;
+}
+
+
+/**
+  Fetch the list of referenced tables to add from the local Data Dictionary
+  if available and also from the NDB Dictionary if available. Then lock
+  them and add them to the unique list maintained by the invalidator.
+
+  @param schema_name          Schema name of the table.
+  @param table_name           Name of the table.
+  @param table_def            Table object from the DD
+  @param skip_ndb_dict_fetch  Bool value. If true, skip fetching the
+                              referenced tables from NDB. Default value is
+                              false. NDB Dictionary fetch has to be skipped
+                              if the DDL being distributed would have dropped
+                              the table in NDB dictionary already (like drop
+                              table) or if reading the NDB dictionary is
+                              redundant as the DDL won't  be adding/dropping
+                              any FKs(like rename table).
+
+  @return true        On success.
+  @return false       Fetching failed.
+*/
+bool
+Ndb_referenced_tables_invalidator::fetch_referenced_tables_to_invalidate(
+    const char* schema_name, const char* table_name,
+    const dd::Table* table_def, bool skip_ndb_dict_fetch)
+{
+  DBUG_ENTER("Ndb_dd_client::fetch_referenced_tables_to_invalidate");
+
+  DBUG_PRINT("info",
+             ("Collecting parent tables of '%s.%s' that are to be invalidated",
+              schema_name, table_name));
+
+  if (table_def != nullptr)
+  {
+    /* Table exists in DD already. Lock and add the parents */
+    for (const dd::Foreign_key *fk : table_def->foreign_keys())
+    {
+      const char* parent_db = fk->referenced_table_schema_name().c_str();
+      const char* parent_table = fk->referenced_table_name().c_str();
+      if (strcmp(parent_db, schema_name) == 0 &&
+          strcmp(parent_table, table_name) == 0)
+      {
+        // Given table is the parent of this FK. Skip adding.
+        continue;
+      }
+      if (!add_and_lock_referenced_table(parent_db, parent_table))
+      {
+        DBUG_RETURN(false);
+      }
+    }
+  }
+
+  if(!skip_ndb_dict_fetch)
+  {
+    std::set<std::pair<std::string, std::string>> referenced_tables;
+
+    /* fetch the foreign key definitions from NDB dictionary */
+    if (!fetch_referenced_tables_from_ndb_dictionary(m_thd,
+                                                     schema_name, table_name,
+                                                     referenced_tables))
+    {
+      DBUG_RETURN(false);
+    }
+
+    /* lock and add any missing parents */
+    for (auto const& parent_name : referenced_tables)
+    {
+      if (!add_and_lock_referenced_table(parent_name.first.c_str(),
+                                         parent_name.second.c_str()))
+      {
+        DBUG_RETURN(false);
+      }
+    }
+  }
+
+  DBUG_RETURN(true);
+}
+
+
+/**
+  Invalidate all the tables in the referenced_tables set by closing
+  any cached instances in the table definition cache and invalidating
+  the same from the local DD.
+
+  @return true        On success.
+  @return false       Invalidation failed.
+*/
+bool
+Ndb_referenced_tables_invalidator::invalidate() const
+{
+  DBUG_ENTER("Ndb_foreign_key_parents_invalidator::invalidate");
+  for (auto parent_it : m_referenced_tables) {
+    // Invalidate Table and Table Definition Caches too.
+    const char* schema_name = parent_it.first.c_str();
+    const char* table_name = parent_it.second.c_str();
+    DBUG_PRINT("info", ("Invalidating parent table '%s.%s'",
+                        schema_name, table_name));
+    if (ndb_tdc_close_cached_table(m_thd, schema_name, table_name) ||
+        m_thd->dd_client()->invalidate(schema_name, table_name) != 0)
+    {
+      DBUG_PRINT("error", ("Unable to invalidate table '%s.%s'",
+                           schema_name, table_name));
+      DBUG_RETURN(false);
+    }
+  }
+  DBUG_RETURN(true);
+}
