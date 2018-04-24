@@ -1,0 +1,17 @@
+# Variable Name: connect_timeout                                               #
+# Scope: GLOBAL                                                                #
+# Access Type: Read only                                                       #
+# Data Type: Numeric                                                           #
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.Mysqlx_port_open_timeout=1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.Mysqlx_port_open_timeout="1.0.1.0";
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.Mysqlx_port_open_timeout);
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.Mysqlx_port_open_timeout);
+

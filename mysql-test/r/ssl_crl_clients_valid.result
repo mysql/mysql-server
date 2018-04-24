@@ -4,6 +4,13 @@
 Variable_name	Value
 have_openssl	YES
 have_ssl	YES
+mysqlx_ssl_ca	
+mysqlx_ssl_capath	
+mysqlx_ssl_cert	
+mysqlx_ssl_cipher	
+mysqlx_ssl_crl	
+mysqlx_ssl_crlpath	
+mysqlx_ssl_key	
 ssl_ca	MYSQL_TEST_DIR/std_data/crl-ca-cert.pem
 ssl_capath	
 ssl_cert	MYSQL_TEST_DIR/std_data/crl-client-cert.pem

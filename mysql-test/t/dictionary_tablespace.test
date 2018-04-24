@@ -60,6 +60,8 @@ call mtr.add_suppression("Error in checking mysql.slave_master_info repository i
 call mtr.add_suppression("Error creating master info: Error checking repositories.");
 call mtr.add_suppression("Slave: Failed to initialize the master info structure for channel");
 call mtr.add_suppression("Failed to create or recover replication info repositories.");
+call mtr.add_suppression("Plugin mysqlx reported: 'Unable to use user mysql.session");
+call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context");
 
 # Set different paths for --datadir
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_partition;

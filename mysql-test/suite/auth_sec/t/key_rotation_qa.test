@@ -25,6 +25,7 @@ call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Table .* in the InnoDB data di
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Please refer to .* for how to resolve the issue");
 call mtr.add_suppression("Could not flush keys to keyring's backup");
 call mtr.add_suppression("\\[ERROR\\].* Tablespace [0-9]+, name 'test.t[0-9]+', unable to open file '.*test.t[0-9]+.ibd' - Data structure corruption");
+call mtr.add_suppression("Plugin mysqlx reported: 'Failed at SSL configuration");
 --enable_query_log
 
 # Invalid syntax

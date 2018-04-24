@@ -4,7 +4,7 @@
 --echo Preamble
 --source include/xplugin_preamble.inc
 
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 
 SHOW VARIABLES LIKE 'mysqlx_connect_timeout';
 show status like 'Mysqlx_conn%';

@@ -40,7 +40,7 @@ SELECT COUNT(@@SESSION.Mysqlx_bind_address);
 --echo #
 --echo #
 --let $restart_parameters = restart: --loose-mysqlx-bind-address=::
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 
 --let $assert_text= Mysqlx_bind_address global variablem must exist
 --let $assert_cond= [SELECT COUNT(@@GLOBAL.Mysqlx_bind_address) as Result;, Result, 1] =1

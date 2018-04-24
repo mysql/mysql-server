@@ -168,7 +168,7 @@ my $build_thread       = 0;
 my $daemonize_mysqld   = 0;
 my $debug_d            = "d";
 my $exe_ndbmtd_counter = 0;
-my $ports_per_thread   = 10;
+my $ports_per_thread                 = 20;
 my $source_dist        = 0;
 my $valgrind_reports   = 0;
 
@@ -276,7 +276,6 @@ our $experimental_test_cases = [];
 our $glob_debugger           = 0;
 our $group_replication       = 0;
 our $ndbcluster_enabled      = 0;
-our $xplugin                 = 0;
 
 our @share_locations;
 
@@ -515,10 +514,6 @@ sub main {
   }
 
   if ($group_replication) {
-    $ports_per_thread = $ports_per_thread + 10;
-  }
-
-  if ($xplugin) {
     $ports_per_thread = $ports_per_thread + 10;
   }
 

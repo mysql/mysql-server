@@ -12,6 +12,7 @@
 
 --disable_query_log
 call mtr.add_suppression("Failed to set up SSL because of");
+call mtr.add_suppression("Plugin mysqlx reported: 'Failed at SSL configuration");
 --enable_query_log
 
 # We let our server restart attempts write to the file $error_log.

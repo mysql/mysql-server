@@ -30,7 +30,7 @@ call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket ..+/mysq
 --replace_regex /loose-mysqlx-socket=.*custom/loose-mysqlx-socket=SOCKET/
 let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.custom;
 --let $wait_for_unixsocket_status = undefined_value
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 
 --replace_regex $UNIX_SOCKET_REGEX
 --error 1
@@ -43,7 +43,7 @@ call mtr.add_suppression("Plugin mysqlx reported: .* wasn't allocated by X Plugi
 --replace_regex /loose-mysqlx-socket=.*socket/loose-mysqlx-socket=SOCKET/
 let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.dir.socket;
 --let $wait_for_unixsocket_status = undefined_value
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 
 --replace_regex $UNIX_SOCKET_REGEX
 --error 1
@@ -59,7 +59,7 @@ call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket ..+/mysq
 --replace_regex /loose-mysqlx-socket=.*custom/loose-mysqlx-socket=SOCKET/
 let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.custom;
 --let $wait_for_unixsocket_status = undefined_value
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 
 --replace_regex $UNIX_SOCKET_REGEX
 --error 1

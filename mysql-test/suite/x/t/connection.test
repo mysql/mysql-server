@@ -176,7 +176,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 replace_regex /\.dll/.so/;
 let $restart_parameters = restart: ;
-source ../include/restart_mysqld_and_wait_for_xplugin.inc;
+source include/restart_mysqld.inc;
 exec $MYSQLXTEST -u x_root --password='' -v%EXPECT_ERROR%=ER_SUCCESS
   --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
 let $wait_for_status_variable = 'Mysqlx_connections_closed';
@@ -279,7 +279,7 @@ EOF
 --echo #
 let $restart_parameters = restart: --bind-address=localhost;
 replace_regex /\.dll/.so/;
-source ../include/restart_mysqld_and_wait_for_xplugin.inc;
+source include/restart_mysqld.inc;
 exec $MYSQLXTEST -u nonblank --password='nonblank'
   -v%EXPECT_ERROR%=ER_SUCCESS
   --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
@@ -298,7 +298,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 let $restart_parameters = restart: --bind-address=127.0.0.1;
 replace_regex /\.dll/.so/;
-source ../include/restart_mysqld_and_wait_for_xplugin.inc;
+source include/restart_mysqld.inc;
 exec $MYSQLXTEST -u nonblank --password='nonblank'
   -v%EXPECT_ERROR%=ER_SUCCESS
   --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
@@ -324,9 +324,8 @@ source ../include/connection_test_helpers.inc;
 --echo #
 let $restart_parameters = restart: --offline_mode=ON;
 replace_regex /\.dll/.so/;
-source ../include/restart_mysqld_and_wait_for_xplugin.inc;
+source include/restart_mysqld.inc;
 exec $MYSQLXTEST --expect-error ER_SERVER_OFFLINE_MODE -u nonblank --password='nonblank'  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
-
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';
@@ -347,7 +346,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 let $restart_parameters = restart: ;
 replace_regex /\.dll/.so/;
-source ../include/restart_mysqld_and_wait_for_xplugin.inc;
+source include/restart_mysqld.inc;
 exec $MYSQLXTEST -u session --password='session'
   --file=$MYSQL_TMP_DIR/mysqlx-connection_session_track.tmp 2>&1;
 let $wait_for_status_variable =
@@ -362,7 +361,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 let $restart_parameters = restart:  --skip-disconnect-on-expired-password;
 replace_regex /\.dll/.so/;
-source ../include/restart_mysqld_and_wait_for_xplugin.inc;
+source include/restart_mysqld.inc;
 
 exec $MYSQLXTEST -u xplugin --password='xplugin'
   -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD
@@ -425,7 +424,7 @@ EOF
 --echo #
 let $restart_parameters = restart: --mysqlx_max_connections=2;
 replace_regex /\.dll/.so/;
-source ../include/restart_mysqld_and_wait_for_xplugin.inc;
+source include/restart_mysqld.inc;
 exec $MYSQLXTEST -u x_root --password=''
   --file=$MYSQL_TMP_DIR/open_max_mysqlx_connection.tmp 2>&1;
 let $wait_for_status_variable =
@@ -486,7 +485,7 @@ drop user con1@localhost;
 drop user con2@localhost;
 let $restart_parameters = restart: --mysqlx_max_connections=3;
 --replace_regex /\.dll/.so/
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 --exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/open_max_mysqlx_connection2.tmp 2>&1
 let $wait_for_status_variable =
   'Mysqlx_connections_closed',

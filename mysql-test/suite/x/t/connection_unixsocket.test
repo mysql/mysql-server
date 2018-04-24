@@ -192,7 +192,7 @@ EOF
 # Command line option --mysqlx-socket
 --replace_regex /mysqlx-socket=.*sock/mysqlx-socket=SOCKET/
 let $restart_parameters = restart: --mysqlx-socket=$MYSQL_TMP_DIR/valid_mysqlx.sock;
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 
 # MySQL Server was started with new UNIX socket file for X Plugin
 # Check if old UNIX socket file was removed and lockfile

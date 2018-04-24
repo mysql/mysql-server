@@ -23,7 +23,7 @@ EOF
 --source ../include/mysqlxtest_mode_ssl.inc
 
 let $restart_parameters=restart: ;
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 
 --let $USE_SOCKET=
 --source ../include/mysqlxtest_mode_ssl.inc

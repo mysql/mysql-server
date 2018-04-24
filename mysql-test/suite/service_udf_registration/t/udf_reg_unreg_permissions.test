@@ -22,6 +22,7 @@ connect(c1,localhost,test,,);
 # No right to access performance_schema.
 --error ER_TABLEACCESS_DENIED_ERROR
 SELECT * FROM performance_schema.user_defined_functions
+  WHERE (udf_name LIKE 'myfunc%') or (udf_name LIKE 'avgcost%')
   ORDER BY udf_name;
 
 # Check UDFs can be executed by normal user with right privileges..
@@ -65,6 +66,7 @@ send SELECT myfunc_int(23);
 connection default;
 SELECT udf_name,udf_return_type,udf_type,udf_library,udf_usage_count>0
        FROM performance_schema.user_defined_functions
+       WHERE (udf_name LIKE 'myfunc%') or (udf_name LIKE 'avgcost%')
        ORDER BY udf_name;
 
 # execution of sent commands.

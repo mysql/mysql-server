@@ -30,8 +30,8 @@ package mtr_cases;
 use strict;
 
 use base qw(Exporter);
-our @EXPORT = qw(collect_option collect_test_cases init_pattern
-  $group_replication $xplugin);
+our @EXPORT= qw(collect_option collect_test_cases init_pattern
+                $group_replication);
 
 use File::Basename;
 use File::Spec::Functions qw / splitdir /;
@@ -84,7 +84,6 @@ our $start_from;
 our $default_myisam = 0;
 
 our $group_replication;
-our $xplugin;
 
 sub collect_option {
   my ($opt, $value) = @_;
@@ -173,7 +172,6 @@ sub collect_test_cases ($$$$) {
              collect_one_suite("i_" . $suite, $opt_cases, $opt_skip_test_list));
       }
     } else {
-      share(\$xplugin);
       share(\$group_replication);
       share(\$some_test_found);
 
@@ -1107,9 +1105,6 @@ sub collect_one_test_case {
   # Check for group replication tests
   $group_replication = 1 if ($tinfo->{'grp_rpl_test'});
 
-  # Check for xplugin tests
-  $xplugin = 1 if ($tinfo->{'xplugin_test'});
-
   if ($tinfo->{'not_windows'} && IS_WINDOWS) {
     skip_test($tinfo, "Test not supported on Windows");
     return $tinfo;
@@ -1217,9 +1212,6 @@ my @tags = (
   # Tests with below .inc file are considered to be group replication tests
   [ "have_group_replication_plugin_base.inc", "grp_rpl_test", 1 ],
   [ "have_group_replication_plugin.inc",      "grp_rpl_test", 1 ],
-
-  # Tests with below .inc file are considered to be xplugin tests
-  [ "include/have_mysqlx_plugin.inc", "xplugin_test", 1 ],
 
   # Tests with below .inc file needs either big-test or only-big-test
   # option along with valgrind option.

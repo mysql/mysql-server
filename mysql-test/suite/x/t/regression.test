@@ -7,7 +7,7 @@
 call mtr.add_suppression("Plugin mysqlx reported: .Error parsing message of type 17:");
 call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket .. failed, the socket file path is empty");
 --let $wait_for_unixsocket_status = no_wait
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 
 
 ## Test starts here

@@ -1,0 +1,42 @@
+# Variable: mysqlx_document_id_unique_prefix
+# Default : 0
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+SET @mysqlx_document_id_unique_prefix_sav= @@global.mysqlx_document_id_unique_prefix;
+## Valid cases
+SET GLOBAL mysqlx_document_id_unique_prefix=7;
+SET @@global.mysqlx_document_id_unique_prefix=7;
+show variables like 'mysqlx_document_id_unique_prefix';
+#Max valid value
+SET @@global.mysqlx_document_id_unique_prefix=3600;
+show variables like 'mysqlx_document_id_unique_prefix';
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_document_id_unique_prefix=7;
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_document_id_unique_prefix=7;
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_document_id_unique_prefix=7;
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_document_id_unique_prefix=7;
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_document_id_unique_prefix=7;
+# Warning: Truncated incorrect mysqlx_document_id_unique_prefix value
+SET @@global.mysqlx_document_id_unique_prefix=3601;
+
+#--error ER_GLOBAL_VARIABLE
+SET GLOBAL mysqlx_document_id_unique_prefix=0;
+# Warning for negative values
+SET GLOBAL mysqlx_document_id_unique_prefix=-1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_document_id_unique_prefix='invaid%char';
+
+show variables like 'mysqlx_document_id_unique_prefix';
+SET GLOBAL mysqlx_document_id_unique_prefix=65535;
+show variables like 'mysqlx_document_id_unique_prefix';
+SET GLOBAL mysqlx_document_id_unique_prefix=65536;
+show variables like 'mysqlx_document_id_unique_prefix';
+
+SET GLOBAL mysqlx_document_id_unique_prefix= @mysqlx_document_id_unique_prefix_sav;

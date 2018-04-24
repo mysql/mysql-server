@@ -14,3 +14,4 @@
 --loose-performance-schema-consumer-events-waits-current=OFF
 --loose-performance-schema-consumer-events-waits-history=OFF
 --loose-performance-schema-consumer-events-waits-history-long=OFF
+--mysqlx=OFF

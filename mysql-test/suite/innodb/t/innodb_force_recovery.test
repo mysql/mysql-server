@@ -1,6 +1,7 @@
 
 # This test case needs InnoDB.
 
+call mtr.add_suppression("Unable to use user mysql.session account when connecting the server for internal plugin requests");
 call mtr.add_suppression("Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
 
 --disable_query_log

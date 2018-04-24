@@ -1,1 +1,2 @@
 $TEST_X_SESSIONS_INIT_OPT  --loose-test-x_sessions-init-nb-sessions=5
+--mysqlx=off

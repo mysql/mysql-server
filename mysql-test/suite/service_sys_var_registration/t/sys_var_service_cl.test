@@ -31,7 +31,6 @@ let $MYSQL_SERVER_ID= `SELECT @@server_id`;
 [mysqld]
 loose-test-component.uint-sys-var=1234
 loose-test-component.str-sys-var="before restart"
-mysqlx=OFF
 EOF
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -51,7 +50,6 @@ SELECT @@test_component.uint_sys_var;
 [mysqld]
 loose-test-component.uint-sys-var=1234
 loose-test-component.str-sys-var="before 2nd restart"
-mysqlx=OFF
 EOF
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -71,7 +69,6 @@ SELECT @@test_component.uint_sys_var;
 [mysqld]
 loose-test-component.uint-sys-var=5678
 loose-test-component.str-sys-var=9999
-mysqlx=OFF
 EOF
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

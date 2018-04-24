@@ -41,6 +41,7 @@ SELECT sql_text, digest
 FROM performance_schema.events_statements_history
 WHERE sql_text LIKE 'SELECT %' order by event_id;
 sql_text	digest
+SELECT @@skip_networking, @@skip_name_resolve, @@have_ssl='YES', @@ssl_key, @@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_crl, @@ssl_crlpath, @@tls_version	1ebda414995104bec2d678a2f3a337c8cc504cafa93982ba395404ef9dbc5419
 SELECT load_rewrite_rules() INTO message_text	NULL
 SELECT "rewritten"	NULL
 

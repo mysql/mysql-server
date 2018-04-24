@@ -61,6 +61,3 @@ loose-performance-schema-consumer-events-waits-history=ON
 loose-performance-schema-consumer-events-waits-history-long=ON
 loose-performance-schema-consumer-global-instrumentation=ON
 loose-performance-schema-consumer-thread-instrumentation=ON
-
-# Disable mysqlx plugin
-mysqlx=OFF

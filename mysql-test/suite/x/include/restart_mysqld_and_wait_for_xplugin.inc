@@ -9,4 +9,4 @@
 #
 
 --source include/restart_mysqld.inc
---source include/xplugin_wait_for_interfaces.inc
+# --source include/xplugin_wait_for_interfaces.inc

@@ -1,5 +1,6 @@
 CALL mtr.add_suppression("default_storage_engine is set to a disabled storage engine .*");
 CALL mtr.add_suppression("default_tmp_storage_engine is set to a disabled storage engine .*");
+CALL mtr.add_suppression("Plugin mysqlx reported: 'All I/O interfaces are disabled");
 CREATE TABLE t1(c1 int) ENGINE=HEAP;
 ERROR HY000: Storage engine MEMORY is disabled (Table creation is disallowed).
 CREATE TABLE t1 (c1 int) ENGINE=MYISAM;

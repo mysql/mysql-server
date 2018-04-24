@@ -21,7 +21,6 @@ innodb_undo_tablespaces = 3
 innodb_log_files_in_group = 3
 innodb_log_file_size=20M
 loose-skip-log-bin
-mysqlx=OFF
 EOF
 
 --exec echo "datadir = $bugdir/data" >> $bugdir/my.cnf

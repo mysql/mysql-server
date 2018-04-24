@@ -10,6 +10,7 @@ call mtr.add_suppression(' Allocated tablespace [0-9]+, old maximum was [0-9]+')
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
 call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
 call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
+call mtr.add_suppression("Unable to use user mysql.session account when connecting the server for internal plugin requests");
 --enable_query_log
 
 --echo # Restart the server in force recovery mode (2)

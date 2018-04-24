@@ -9,6 +9,7 @@ INSTALL COMPONENT "file://component_udf_reg_int_func";
 
 # Check performance_schmea
 SELECT * FROM performance_schema.user_defined_functions
+  WHERE (udf_name LIKE 'myfunc%') or (udf_name LIKE 'avgcost%')
   ORDER BY udf_name;
 
 # Verify, that UDFs are working.
@@ -57,6 +58,7 @@ INSTALL COMPONENT "file://component_udf_reg_int_func";
 
 # Check performance_schema is showing only 1 UDF.
 SELECT * FROM performance_schema.user_defined_functions
+  WHERE (udf_name LIKE 'myfunc%') or (udf_name LIKE 'avgcost%')
   ORDER BY udf_name;
 
 # Check components.
@@ -73,6 +75,7 @@ INSTALL COMPONENT "file://component_udf_reg_real_func";
 
 # Check performance_schema is showing 2 UDFs.
 SELECT * FROM performance_schema.user_defined_functions
+  WHERE (udf_name LIKE 'myfunc%') or (udf_name LIKE 'avgcost%')
   ORDER BY udf_name;
 
 # Check components.
@@ -87,6 +90,7 @@ UNINSTALL COMPONENT "file://component_udf_reg_real_func";
 
 # Check performance_schema is showing only 1 UDF.
 SELECT * FROM performance_schema.user_defined_functions
+  WHERE (udf_name LIKE 'myfunc%') or (udf_name LIKE 'avgcost%')
   ORDER BY udf_name;
 # Check components.
 SELECT component_urn FROM mysql.component;
@@ -96,6 +100,7 @@ UNINSTALL COMPONENT "file://component_udf_reg_only_3_func";
 
 # Check performance_schema is showing only 3 UDFs.
 SELECT * FROM performance_schema.user_defined_functions
+  WHERE (udf_name LIKE 'myfunc%') or (udf_name LIKE 'avgcost%')
   ORDER BY udf_name;
 
 # Check compoinents.
@@ -106,6 +111,7 @@ UNINSTALL COMPONENT "file://component_udf_unreg_3_func";
 
 # No UDF shown by performance_schema.
 SELECT * FROM performance_schema.user_defined_functions
+  WHERE (udf_name LIKE 'myfunc%') or (udf_name LIKE 'avgcost%')
   ORDER BY udf_name;
 # Check components.
 SELECT component_urn FROM mysql.component;
@@ -114,5 +120,6 @@ SELECT component_urn FROM mysql.component;
 UNINSTALL COMPONENT "file://component_udf_reg_int_func";
 # check performance_schema and compoents, both empty.
 SELECT * FROM performance_schema.user_defined_functions
+  WHERE (udf_name LIKE 'myfunc%') or (udf_name LIKE 'avgcost%')
   ORDER BY udf_name;
 SELECT component_urn FROM mysql.component;

@@ -581,7 +581,7 @@ EOF
 
 --echo Restart server and verify if ssl callback works
 let $restart_parameters = restart: --ssl=1;
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--source include/restart_mysqld.inc
 
 --echo capabilities.result checks the presence of tls cap
 --exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-get.tmp 2>&1

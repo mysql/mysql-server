@@ -309,6 +309,15 @@ INSERT INTO global_suppressions VALUES
  ("The member has resumed contact with a majority of the members in the group.*"),
  ("Members removed from the group.*"),
 
+ /*
+   Warnings/errors related to SSL connection by mysqlx
+ */
+ ("Plugin mysqlx reported: 'Unable to use user mysql.session account when connecting the server for internal plugin requests.'"),
+ ("Plugin mysqlx reported: 'Failed at SSL configuration: \"SSL_CTX_new failed\""),
+ ("Plugin mysqlx reported: 'Could not open"),
+ ("Plugin mysqlx reported: 'All I/O interfaces are disabled"),
+ ("Plugin mysqlx reported: 'Failed at SSL configuration: \"SSL context is not usable without certificate and private key\"'"),
+
  ("THE_LAST_SUPPRESSION")||
 
 

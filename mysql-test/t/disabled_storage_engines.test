@@ -12,6 +12,7 @@
 
 CALL mtr.add_suppression("default_storage_engine is set to a disabled storage engine .*");
 CALL mtr.add_suppression("default_tmp_storage_engine is set to a disabled storage engine .*");
+CALL mtr.add_suppression("Plugin mysqlx reported: 'All I/O interfaces are disabled");
 
 
 --ERROR ER_DISABLED_STORAGE_ENGINE
@@ -32,6 +33,7 @@ CREATE TABLE tp1 (c1 int) PARTITION BY KEY (c1) PARTITIONS 1;
 --exec echo "restart: --disabled_storage_engines=innodb,myisam,heap,example" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
+--source include/xplugin_wait_for_interfaces.inc
 
 SHOW VARIABLES LIKE 'disabled_storage_engines';
 SELECT * FROM t1;

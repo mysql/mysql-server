@@ -1,0 +1,36 @@
+# Variable: mysqlx_max_allowed_packet
+# Default : 1048576
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+SET @mysqlx_max_allowed_packet_sav= @@global.mysqlx_max_allowed_packet;
+
+## Valid cases
+SET GLOBAL mysqlx_max_allowed_packet=5000000;
+SET @@global.mysqlx_max_allowed_packet=7000000;
+show variables like 'mysqlx_max_allowed_packet';
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_max_allowed_packet=5000000;
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_max_allowed_packet=5000000;
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_max_allowed_packet=5000000;
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_max_allowed_packet=5000000;
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_max_allowed_packet=5000000;
+
+SET @@global.mysqlx_max_allowed_packet=0;
+
+# Setting negative value for mysqlx_max_allowed_packet
+# is assinging 512 packet size automaticaly.
+SET @@global.mysqlx_max_allowed_packet=-123;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.mysqlx_max_allowed_packet='crash#$%';
+
+show variables like 'mysqlx_max_allowed_packet';
+SET @@global.mysqlx_max_allowed_packet=1048576;
+
+SET @@global.mysqlx_max_allowed_packet= @mysqlx_max_allowed_packet_sav;
