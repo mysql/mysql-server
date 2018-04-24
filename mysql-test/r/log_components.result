@@ -14,18 +14,39 @@ SELECT "*** SWITCHING ERROR LOG TO JSON ***";
 *** SWITCHING ERROR LOG TO JSON ***
 *** SWITCHING ERROR LOG TO JSON ***
 INSTALL COMPONENT "file://component_log_sink_json";
-SET @@global.log_error_services="log_filter_internal; log_sink_json";
+SET @@global.log_error_services="log_filter_internal; log_sink_json;";
+# may not start with a delimiter
+SET @@global.log_error_services=";log_filter_internal";
+ERROR 42000: Variable 'log_error_services' can't be set to the value of ';log_filter_internal'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3701	Value for log_error_services got confusing at or around ";log_filter_internal". Syntax may be wrong, component may not be INSTALLed, or a component that does not support instances may be listed more than once.
+Error	1231	Variable 'log_error_services' can't be set to the value of ';log_filter_internal'
+# may not mix delimiters
+SET @@global.log_error_services="log_filter_internal;,log_sink_internal";
+ERROR 42000: Variable 'log_error_services' can't be set to the value of 'log_filter_internal;,log_sink_internal'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3701	Value for log_error_services got confusing at or around ",log_sink_internal". Syntax may be wrong, component may not be INSTALLed, or a component that does not support instances may be listed more than once.
+Error	1231	Variable 'log_error_services' can't be set to the value of 'log_filter_internal;,log_sink_internal'
+# whitespace alone is no valid delimiter
+SET @@global.log_error_services="log_filter_internal log_sink_internal";
+ERROR 42000: Variable 'log_error_services' can't be set to the value of 'log_filter_internal log_sink_internal'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3701	Value for log_error_services got confusing at or around "log_sink_internal". Syntax may be wrong, component may not be INSTALLed, or a component that does not support instances may be listed more than once.
+Error	1231	Variable 'log_error_services' can't be set to the value of 'log_filter_internal log_sink_internal'
 SELECT "logging as JSON";
 logging as JSON
 logging as JSON
-SET @@global.log_error_services="log_filter_internal; log_sink_internal";
+SET @@global.log_error_services="log_filter_internal, log_sink_internal,";
 UNINSTALL COMPONENT "file://component_log_sink_json";
 
 SELECT "*** SWITCHING ERROR LOG TO TRAD AND JSON ***";
 *** SWITCHING ERROR LOG TO TRAD AND JSON ***
 *** SWITCHING ERROR LOG TO TRAD AND JSON ***
 INSTALL COMPONENT "file://component_log_sink_json";
-SET @@global.log_error_services="log_filter_internal; log_sink_internal; log_sink_json";
+SET @@global.log_error_services="log_filter_internal, log_sink_internal, log_sink_json";
 SELECT "logging as traditional MySQL error log and as JSON";
 logging as traditional MySQL error log and as JSON
 logging as traditional MySQL error log and as JSON
@@ -70,14 +91,20 @@ FLUSH ERROR LOGS;
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT @@global.log_error_services
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT "*** SWITCHING ERROR LOG TO JSON ***"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
-{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal; log_sink_json;\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\";log_filter_internal\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SHOW WARNINGS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal;,log_sink_internal\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SHOW WARNINGS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal log_sink_internal\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SHOW WARNINGS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
 { "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"logging as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_internal, log_sink_internal,"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT "*** SWITCHING ERROR LOG TO TRAD AND JSON ***"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal; log_sink_json"
-{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal; log_sink_internal; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_internal, log_sink_internal, log_sink_json"
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal, log_sink_internal, log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT "logging as traditional MySQL error log and as JSON"
 { "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"logging as traditional MySQL error log and as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
