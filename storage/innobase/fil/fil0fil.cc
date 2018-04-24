@@ -9183,10 +9183,10 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
 
       snprintf(name, sizeof(name), "%.*s", (int)from_len, ptr);
 
-      ib::error(ER_IB_MSG_357) << "MLOG_FILE_RENAME: Invalid from file name."
-                               << " Length (" << from_len << ") must be >= 5"
-                               << " and end in '.ibd'. File name in the"
-                               << " redo log is '" << name << "'";
+      ib::info(ER_IB_MSG_357) << "MLOG_FILE_RENAME: Invalid from file name."
+                              << " Length (" << from_len << ") must be >= 5"
+                              << " and end in '.ibd'. File name in the"
+                              << " redo log is '" << name << "'";
     }
 
     return (nullptr);
@@ -9222,10 +9222,10 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
 
       snprintf(name, sizeof(name), "%.*s", (int)to_len, ptr);
 
-      ib::error(ER_IB_MSG_359) << "MLOG_FILE_RENAME: Invalid to file name."
-                               << " Length (" << to_len << ") must be >= 5"
-                               << " and end in '.ibd'. File name in the"
-                               << " redo log is '" << name << "'";
+      ib::info(ER_IB_MSG_359) << "MLOG_FILE_RENAME: Invalid to file name."
+                              << " Length (" << to_len << ") must be >= 5"
+                              << " and end in '.ibd'. File name in the"
+                              << " redo log is '" << name << "'";
     }
 
     return (nullptr);
