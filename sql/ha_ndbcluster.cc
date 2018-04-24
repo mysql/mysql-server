@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -12566,7 +12566,13 @@ ha_ndbcluster::~ha_ndbcluster()
   }
   m_pushed_join_member= NULL;
 
-  // make sure is released
+  /* m_fk_mem_root is already freed inside release_fk_data
+   * called from inside release_metadata. But if get_metadata()
+   * fails midway due to some error, the release_fk_data is not
+   * called and the m_fk_mem_root won't be released.
+   * This additional free_root() is here to make sure that
+   * m_fk_mem_root gets released in that case.
+   */
   free_root(&m_fk_mem_root, 0);
   m_fk_data= NULL;
   DBUG_VOID_RETURN;
