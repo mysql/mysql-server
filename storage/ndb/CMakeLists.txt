@@ -185,6 +185,8 @@ ELSE()
   IF(ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
     MESSAGE(STATUS "Building NDB test programs for improved gcov coverage")
     SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for improved gcov coverage")
+    SET(WITH_NDBAPI_EXAMPLES ON)
   ENDIF()
   # Turn on NDB tests automatically for valgrind builds
   IF(WITH_VALGRIND)
