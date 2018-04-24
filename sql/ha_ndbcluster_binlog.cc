@@ -2946,6 +2946,19 @@ class Ndb_schema_event_handler {
     DBUG_VOID_RETURN;
   }
 
+  void
+  mysqld_close_cached_tables_referenced_by(const char* db,
+                                           const char* table_name) const
+  {
+    (void)db;
+    (void)table_name;
+    /* The DDL might have added/dropped/altered a foreign key constraint,
+     * the referenced parent table handlers' metadata would be outdated.
+     * But finding out the exact parents is not possible at this point.
+     * So flush out all tables */
+    ndb_tdc_close_cached_tables();
+  }
+
 
   void
   mysqld_write_frm_from_ndb(const char* db_name,
@@ -3178,6 +3191,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
     ndbapi_invalidate_table(schema->db, schema->name);
     mysqld_close_cached_table(schema->db, schema->name);
+    mysqld_close_cached_tables_referenced_by(schema->db, schema->name);
 
     /**
      * Note about get_share() / free_share() referrences:
@@ -3254,6 +3268,7 @@ class Ndb_schema_event_handler {
 
     ndbapi_invalidate_table(schema->db, schema->name);
     mysqld_close_cached_table(schema->db, schema->name);
+    mysqld_close_cached_tables_referenced_by(schema->db, schema->name);
 
     if (schema->node_id != own_nodeid())
     {
@@ -3394,6 +3409,7 @@ class Ndb_schema_event_handler {
 
     ndbapi_invalidate_table(schema->db, schema->name);
     mysqld_close_cached_table(schema->db, schema->name);
+    mysqld_close_cached_tables_referenced_by(schema->db, schema->name);
 
     DBUG_VOID_RETURN;
   }
@@ -3545,6 +3561,8 @@ class Ndb_schema_event_handler {
               schema->query + schema->query_length,
               no_print_error);
 
+    mysqld_close_cached_tables_referenced_by(schema->db, schema->name);
+
     DBUG_VOID_RETURN;
   }
 
@@ -3625,6 +3643,8 @@ class Ndb_schema_event_handler {
     {
       print_could_not_discover_error(m_thd, schema);
     }
+
+    mysqld_close_cached_tables_referenced_by(schema->db, schema->name);
 
     DBUG_VOID_RETURN;
   }

@@ -1,0 +1,122 @@
+--source include/have_ndb.inc
+--source include/have_multi_ndb.inc
+
+--connection server1
+--echo #setup tables
+create table parent(
+ a int unique,
+ b int unique
+) engine ndb;
+insert into parent values (1, 2), (2, 1);
+create table child(
+ ref int
+) engine ndb;
+
+--echo #Testing create FK, using copy algorithm
+let $ddl_query= alter table child add
+                  constraint fk1 foreign key(ref) references parent(a),
+                  algorithm = copy;
+let $expect_alter_failure= 1;
+--source ndb_fk_schema_dist_test_parent.inc
+
+--echo #Testing drop FK, using inplace algorithm
+let $ddl_query= alter table child drop foreign key fk1, algorithm=inplace;
+let $expect_alter_failure= 0;
+--source ndb_fk_schema_dist_test_parent.inc
+
+--echo #restore fk for further testing
+alter table child add constraint fk1 foreign key(ref) references parent(a);
+
+--echo #Testing drop child table
+let $ddl_query= drop table child;
+let $expect_alter_failure= 0;
+--source ndb_fk_schema_dist_test_parent.inc
+
+--echo #Testing create table
+let $ddl_query= create table child(
+                  ref int,
+                  foreign key fk1(ref) references parent(a)
+                ) engine ndb;
+let $expect_alter_failure= 1;
+--source ndb_fk_schema_dist_test_parent.inc
+
+--echo #Testing multiple alter FK create/drops : I
+let $ddl_query= alter table child
+                  drop foreign key fk1,
+                  add foreign key fk2(ref) references parent(b);
+let $expect_alter_failure= 0;
+--source ndb_fk_schema_dist_test_parent.inc
+
+--echo #setup for child referring multiple parents
+create table parent2(
+  a int unique
+) engine ndb;
+show create table child;
+alter table child
+  drop foreign key fk2,
+  add foreign key fk1(ref) references parent(a);
+
+--echo #Testing multiple alter FK create/drops : II
+--echo #This also tests the fix for Bug#27646160
+--echo #Also cache parent2
+--connection server1
+select * from parent2;
+let $ddl_query= alter table child
+                  drop foreign key fk1,
+                  add foreign key fk2(ref) references parent2(a);
+let $expect_alter_failure= 0;
+--source ndb_fk_schema_dist_test_parent.inc
+--echo #altering column in parent2 should fail with error
+flush tables parent2;
+--error ER_FK_COLUMN_CANNOT_CHANGE_CHILD
+alter table parent2
+  change column a a varchar(64) not null;
+
+--echo #setup to test drop database
+drop table child;
+create database test1;
+create table test1.child(
+  ref1 int,
+  ref2 int,
+  foreign key fk1(ref1) references test.parent(a),
+  foreign key fk2(ref2) references test.parent2(a)
+) engine ndb;
+
+--echo #Testing drop database
+--echo #cache parent2
+--connection server1
+select * from parent2;
+let $ddl_query= drop database test1;
+let $expect_alter_failure= 0;
+--source ndb_fk_schema_dist_test_parent.inc
+--echo #altering column in parent2 should also pass
+flush tables parent2;
+alter table parent2
+  change column a a varchar(64) not null;
+
+--echo #cleanup
+drop table parent, parent2;
+
+--echo #setup to test mock table resolution
+--connection server1
+set foreign_key_checks=0;
+
+create table child (
+  a int,
+  foreign key fk1(a) references parent(a)
+) engine ndb;
+
+create table parent (
+  a int unique
+) engine ndb;
+insert into parent values (1), (2);
+
+set foreign_key_checks=1;
+
+--echo #Now drop child and test
+let $ddl_query= drop table child;
+let $expect_alter_failure= 0;
+--source ndb_fk_schema_dist_test_parent.inc
+
+--echo #cleanup
+drop table parent;
