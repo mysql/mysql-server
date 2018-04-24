@@ -9,6 +9,7 @@
 # ... and the crash recovery has finally success.
 --disable_query_log
 CALL mtr.add_suppression("\\[ERROR\\]  Could not find a valid tablespace file for");
+CALL mtr.add_suppression("\\[ERROR\\].*MLOG_FILE_RENAME: Invalid to file name.* File name in the redo log is ''");
 CALL mtr.add_suppression("\\[ERROR\\].* Tablespace.*, name 'test.t1', unable to open file '.*test.t1.ibd' - Data structure corruption");
 --enable_query_log
 

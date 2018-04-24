@@ -27,6 +27,8 @@ INSERT INTO t1 (a, b) VALUES (6, REPEAT('a', 6*1024*1024));
 --echo # Connection default:
 connection default;
 
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
 --source include/kill_and_restart_mysqld.inc
 
 --disconnect big_packets
@@ -45,6 +47,8 @@ UPDATE t1 SET b = REPEAT('a', 6*1024*1024) WHERE a = 1;
 --echo # Connection default:
 connection default;
 
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
 --source include/kill_and_restart_mysqld.inc
 
 --echo # Connection default:
