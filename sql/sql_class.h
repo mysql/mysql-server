@@ -5629,6 +5629,20 @@ inline void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *ht
   }
 }
 
+/**
+  Check if engine substitution is allowed in the current thread context.
+
+  @param thd         thread context
+  @return
+  @retval            true if engine substitution is allowed
+  @retval            false otherwise
+*/
+
+static inline bool is_engine_substitution_allowed(THD* thd)
+{
+  return !(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
+}
+
 /*************************************************************************/
 
 #endif /* MYSQL_SERVER */
