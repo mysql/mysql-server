@@ -1456,7 +1456,11 @@ bool Explain_join::explain_rows_and_filtered() {
 
     // Print cost-related info
     double prefix_rows = pos->prefix_rowcount;
-    fmt->entry()->col_prefix_rows.set(static_cast<ulonglong>(prefix_rows));
+    ulonglong prefix_rows_ull =
+        prefix_rows >= std::numeric_limits<ulonglong>::max()
+            ? std::numeric_limits<ulonglong>::max()
+            : static_cast<ulonglong>(prefix_rows);
+    fmt->entry()->col_prefix_rows.set(prefix_rows_ull);
     double const cond_cost = join->cost_model()->row_evaluate_cost(prefix_rows);
     fmt->entry()->col_cond_cost.set(cond_cost < 0 ? 0 : cond_cost);
     fmt->entry()->col_read_cost.set(pos->read_cost < 0.0 ? 0.0
