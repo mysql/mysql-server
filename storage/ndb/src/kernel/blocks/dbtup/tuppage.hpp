@@ -39,39 +39,30 @@ struct Tup_page
     Uint32 prev_page;
     Uint32 prevList;
   };
-  Uint32 physical_page_id;
+  Uint32 unused_cluster_page[3];
+  Uint32 m_gci;
   Uint32 frag_page_id;
-  Uint32 unused_cluster_page[4];
+  Uint32 physical_page_id;
   Uint32 free_space;
   Uint32 next_free_index;
-  union {
-    /**
-     * list_index used by disk pages and varsized pages.
-     * m_gci is used by fixed size pages to indicate the highest GCI
-     * found on any row in the fixed size page.
-     * free space in page bits/list, 0x8000 means not in free
-     */
-    Uint32 list_index;
-    Uint32 m_gci;
-  };
+  /**
+   * list_index used by disk pages and varsized pages.
+   * free space in page bits/list, 0x8000 means not in free
+   */
+  Uint32 list_index;
   Uint32 uncommitted_used_space;
   Uint32 m_page_no;
   Uint32 m_file_no;
   Uint32 m_table_id;
   Uint32 m_fragment_id;
-  union {
-    Uint32 m_extent_no;
-    Uint32 unused_insert_pos;
-  };
-  union {
-    Uint32 m_extent_info_ptr;
-    Uint32 unused_high_index; // size of index + 1
-  };
-  Uint32 unused_ph2[2];
+  Uint32 m_extent_no;
+  Uint32 m_extent_info_ptr;
+  Uint32 unused_high_index; // size of index + 1
+  Uint32 unused_insert_pos;
   Uint32 m_flags; /* Currently only LCP_SKIP flag in bit 0 */
   Uint32 m_ndb_version;
   Uint32 m_create_table_version;
-  Uint32 unused_ph[4];
+  Uint32 m_change_map[4];
 
   STATIC_CONST( HEADER_WORDS = 32 );
   STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
@@ -112,26 +103,22 @@ struct Tup_fixsize_page
     Uint32 prev_page;
     Uint32 prevList;
   };
-  Uint32 physical_page_id;
+  Uint32 unused_cluster_page[3];
+  Uint32 m_gci;
   Uint32 frag_page_id;
-  Uint32 unused_cluster_page[4];
+  Uint32 physical_page_id;
   Uint32 free_space;
   Uint32 next_free_index;
-  Uint32 m_gci;
+  Uint32 list_index;
   Uint32 uncommitted_used_space;
   Uint32 m_page_no;
   Uint32 m_file_no;
   Uint32 m_table_id;
   Uint32 m_fragment_id;
-  union {
-    Uint32 m_extent_no;
-    Uint32 unused_insert_pos;
-  };
-  union {
-    Uint32 m_extent_info_ptr;
-    Uint32 unused_high_index; // size of index + 1
-  };
-  Uint32 unused_ph2[2];
+  Uint32 m_extent_no;
+  Uint32 m_extent_info_ptr;
+  Uint32 unused_high_index; // size of index + 1
+  Uint32 unused_insert_pos;
   /**
    * Currently LCP_SKIP flag in bit 0 and
    * change map bits in bits 24-31 (4 kB per bit)
@@ -348,9 +335,10 @@ struct Tup_varsize_page
     Uint32 prev_page;
     Uint32 prevList;
   };
-  Uint32 physical_page_id;
+  Uint32 unused_cluster_page[3];
+  Uint32 m_gci;
   Uint32 frag_page_id;
-  Uint32 unused_cluster_page[4];
+  Uint32 physical_page_id;
   Uint32 free_space;
   Uint32 next_free_index;
   Uint32 list_index;
@@ -359,19 +347,14 @@ struct Tup_varsize_page
   Uint32 m_file_no;
   Uint32 m_table_id;
   Uint32 m_fragment_id;
-  union {
-    Uint32 m_extent_no;
-    Uint32 insert_pos;
-  };
-  union {
-    Uint32 m_extent_info_ptr;
-    Uint32 high_index; // size of index + 1
-  };
-  Uint32 unused_ph2[2];
+  Uint32 m_extent_no;
+  Uint32 m_extent_info_ptr;
+  Uint32 high_index; // size of index + 1
+  Uint32 insert_pos;
   Uint32 m_flags; /* Currently only LCP_SKIP flag in bit 0 */
   Uint32 m_ndb_version;
   Uint32 m_schema_version;
-  Uint32 unused_ph[4];
+  Uint32 m_change_map[4];
   
   STATIC_CONST( HEADER_WORDS = 32 );
   STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
