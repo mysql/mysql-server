@@ -412,19 +412,19 @@
         this file.
 
         The format of a line in the <b>disabled.def</b> file looks
-        like this, where fields are separated by one or more spaces or
-        Tab characters:
+        like this, where fields are separated by one or more spaces.
 
         @verbatim
-  test_name : BUG#nnnnn YYYY-MM-DD disabler comment
+  suite_name.test_name : BUG#nnnnn YYYY-MM-DD disabler comment
         @endverbatim
 
         Example:
 
         @verbatim
-  rpl_row_blob_innodb : BUG#18980 2006-04-10 kent  Test fails randomly
+  rpl.rpl_row_blob_innodb : BUG#18980 2006-04-10 kent Test fails randomly
         @endverbatim
 
+        <b><em>suite_name</em></b> is the suite name.
         <b><em>test_name</em></b> is the test case name.
         <b>BUG#<em>nnnnn</em></b> indicates the bug related to the
         test that causes it to fail (and thus requires it to be

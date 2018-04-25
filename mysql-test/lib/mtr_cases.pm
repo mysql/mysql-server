@@ -116,6 +116,106 @@ sub init_pattern {
   return $from;
 }
 
+# Check if the test name format in a disabled.def file is correct. The
+# format is "suite_name.test_name". If the format is incorrect, throw
+# an error and abort the test run.
+sub check_test_name_format($$$) {
+  my $test_name         = shift;
+  my $disabled_def_file = shift;
+  my $line_number       = shift;
+
+  my ($sname, $tname, $extension) = split_testname($test_name);
+  if (not defined $sname || not defined $tname || defined $extension) {
+    mtr_error("Invalid test name format '$test_name' at " .
+              "'$disabled_def_file:$line_number', it should be " .
+              "'suite_name.test_name'.");
+  }
+
+  # disabled.def should contain only non-ndb suite tests, and disabled_ndb.def
+  # should contain only any of the ndb suite tests.
+  my $fname = basename($disabled_def_file);
+  if (($fname eq 'disabled.def' and $sname =~ /ndb/) or
+      ($fname eq 'disabled_ndb.def' and $sname !~ /ndb/)) {
+    mtr_error("'$disabled_def_file' shouldn't contain '$sname' suite test(s).");
+  }
+}
+
+# Create a list of disabled tests from disabled.def file. This list is
+# used while collecting the test cases. If a test case is disabled, disabled
+# flag is enabled for the test and the test run will be disabled.
+sub create_disabled_test_list($$) {
+  my $disabled           = shift;
+  my $opt_skip_test_list = shift;
+
+  if ($opt_skip_test_list) {
+    $opt_skip_test_list = get_bld_path($opt_skip_test_list);
+  }
+
+  # Array containing files listing tests that should be disabled.
+  my @disabled_collection = $opt_skip_test_list if $opt_skip_test_list;
+
+  # Add 'disabled.def' files.
+  unshift(@disabled_collection,
+          "$::basedir/internal/mysql-test/collections/disabled.def");
+  unshift(@disabled_collection,
+          "$::glob_mysql_test_dir/collections/disabled.def");
+
+  # Add 'disabled_ndb.def' to the list of disabled files if ndb is enabled.
+  unshift(@disabled_collection,
+          "$::glob_mysql_test_dir/collections/disabled_ndb.def")
+    if $::ndbcluster_enabled;
+
+  # Check for the tests to be skipped in a sanitizer which are listed
+  # in "mysql-test/collections/disabled-<sanitizer>.list" file.
+  if ($::opt_sanitize) {
+    # Check for disabled-asan.list
+    if ($::mysql_version_extra =~ /asan/i &&
+        !grep(/disabled-asan\.list$/, @{$opt_skip_test_list})) {
+      push(@disabled_collection, "collections/disabled-asan.list");
+    }
+    # Check for disabled-ubsan.list
+    elsif ($::mysql_version_extra =~ /ubsan/i &&
+           !grep(/disabled-ubsan\.list$/, @{$opt_skip_test_list})) {
+      push(@disabled_collection, "collections/disabled-ubsan.list");
+    }
+  }
+
+  for my $disabled_def_file (@disabled_collection) {
+    if (open(DISABLED, $disabled_def_file)) {
+      # $^O on Windows considered not generic enough
+      my $plat = (IS_WINDOWS) ? 'windows' : $^O;
+
+      while (<DISABLED>) {
+        chomp;
+
+        # Skip a line if it starts with '#'
+        next if /^#/;
+
+        # Disable the test case if platform matches
+        if (/\@/) {
+          if (/\@$plat/) {
+            /^\s*(\S+)\s*\@$plat.*:\s*(.*?)\s*$/;
+            check_test_name_format($1, $disabled_def_file, $.);
+            $disabled->{$1} = $2 if not exists $disabled->{$1};
+          } elsif (/\@!(\S*)/) {
+            if ($1 ne $plat) {
+              /^\s*(\S+)\s*\@!.*:\s*(.*?)\s*$/;
+              check_test_name_format($1, $disabled_def_file, $.);
+              $disabled->{$1} = $2 if not exists $disabled->{$1};
+            }
+          }
+        } elsif (/^\s*(\S+)\s*:\s*(.*?)\s*$/) {
+          if (/^\s*(\S+)\s*:\s*(.*?)\s*$/) {
+            check_test_name_format($1, $disabled_def_file, $.);
+            $disabled->{$1} = $2 if not exists $disabled->{$1};
+          }
+        }
+      }
+      close DISABLED;
+    }
+  }
+}
+
 # This is the top level collection routine. If tests are explicitly
 # named on the command line, it collects suite name information from
 # the test names if all of them are qualified with suite name.
@@ -154,6 +254,10 @@ sub collect_test_cases ($$$$) {
   $do_innodb_plugin =
     ($::mysql_version_id >= 50100 && !(IS_WINDOWS) && $lib_innodb_plugin);
 
+  # Build a hash of disabled testcases
+  my %disabled;
+  create_disabled_test_list(\%disabled, $opt_skip_test_list);
+
   # If not reordering, we also shouldn't group by suites, unless no
   # test cases were named. This also effects some logic in the loop
   # following this.
@@ -166,10 +270,14 @@ sub collect_test_cases ($$$$) {
     if ($parallel == 1 or !$threads_support or !$threads_shared_support) {
       foreach my $suite (split(",", $suites)) {
         push(@$cases,
-             collect_one_suite($suite, $opt_cases, $opt_skip_test_list));
+             collect_one_suite($suite,              $opt_cases,
+                               $opt_skip_test_list, \%disabled
+             ));
         last if $some_test_found;
         push(@$cases,
-             collect_one_suite("i_" . $suite, $opt_cases, $opt_skip_test_list));
+             collect_one_suite("i_" . $suite,       $opt_cases,
+                               $opt_skip_test_list, \%disabled
+             ));
       }
     } else {
       share(\$group_replication);
@@ -181,7 +289,8 @@ sub collect_test_cases ($$$$) {
       foreach my $suite (split(",", $suites)) {
         push(@collect_test_cases_thrds,
              threads->create("collect_one_suite", $suite,
-                             $opt_cases,          $opt_skip_test_list
+                             $opt_cases,          $opt_skip_test_list,
+                             \%disabled
              ));
         while ($parallel <= scalar @collect_test_cases_thrds) {
           mtr_milli_sleep(100);
@@ -191,7 +300,8 @@ sub collect_test_cases ($$$$) {
 
         push(@collect_test_cases_thrds,
              threads->create("collect_one_suite", "i_" . $suite,
-                             $opt_cases,          $opt_skip_test_list
+                             $opt_cases,          $opt_skip_test_list,
+                             \%disabled
              ));
         while ($parallel <= scalar @collect_test_cases_thrds) {
           mtr_milli_sleep(100);
@@ -395,10 +505,11 @@ sub split_testname {
 # combinations are being used, from command line or from a combination
 # file. If so, start building a new list of test cases in @new_cases
 # using those combinations, then assigns that over to @cases.
-sub collect_one_suite($) {
+sub collect_one_suite($$$$) {
   my $suite              = shift;    # Test suite name
   my $opt_cases          = shift;
   my $opt_skip_test_list = shift;
+  my $disabled           = shift;
   my @cases;                         # Array of hash
 
   mtr_verbose("Collecting: $suite");
@@ -456,59 +567,6 @@ sub collect_one_suite($) {
   mtr_verbose("testdir: $testdir");
   mtr_verbose("resdir: $resdir");
 
-  # Build a hash of disabled testcases for this suite
-  my %disabled;
-  foreach my $skip_file (@{$opt_skip_test_list}) {
-    $skip_file = get_bld_path($skip_file);
-  }
-
-  my @disabled_collection = @{$opt_skip_test_list} if $opt_skip_test_list;
-  unshift(@disabled_collection, "$testdir/disabled.def");
-
-  # Check for the tests to be skipped in a sanitizer which are listed
-  # in "mysql-test/collections/disabled-<sanitizer>.list" file.
-  if ($::opt_sanitize) {
-    # Check for disabled-asan.list
-    if ($::mysql_version_extra =~ /asan/i &&
-        !grep(/disabled-asan\.list$/, @{$opt_skip_test_list})) {
-      push(@disabled_collection, "collections/disabled-asan.list");
-    }
-    # Check for disabled-ubsan.list
-    elsif ($::mysql_version_extra =~ /ubsan/i &&
-           !grep(/disabled-ubsan\.list$/, @{$opt_skip_test_list})) {
-      push(@disabled_collection, "collections/disabled-ubsan.list");
-    }
-  }
-
-  for my $skip (@disabled_collection) {
-    if (open(DISABLED, $skip)) {
-      # $^O on Windows considered not generic enough
-      my $plat = (IS_WINDOWS) ? 'windows' : $^O;
-
-      while (<DISABLED>) {
-        chomp;
-        # Diasble the test case if platform matches
-        if (/\@/) {
-          if (/\@$plat/) {
-            /^\s*(\S+)\s*\@$plat.*:\s*(.*?)\s*$/;
-            $disabled{$1} = $2 if not exists $disabled{$1};
-          } elsif (/\@!(\S*)/) {
-            if ($1 ne $plat) {
-              /^\s*(\S+)\s*\@!.*:\s*(.*?)\s*$/;
-              $disabled{$1} = $2 if not exists $disabled{$1};
-            }
-          }
-        } elsif (/^\s*(\S+)\s*:\s*(.*?)\s*$/) {
-          chomp;
-          if (/^\s*(\S+)\s*:\s*(.*?)\s*$/) {
-            $disabled{$1} = $2 if not exists $disabled{$1};
-          }
-        }
-      }
-      close DISABLED;
-    }
-  }
-
   # Read suite.opt file
   my $suite_opt_file = "$testdir/suite.opt";
 
@@ -549,10 +607,10 @@ sub collect_one_suite($) {
       }
 
       push(@cases,
-           collect_one_test_case($suitedir,  $testdir,
-                                 $resdir,    $suite,
-                                 $tname,     "$tname.$extension",
-                                 \%disabled, $suite_opts
+           collect_one_test_case($suitedir, $testdir,
+                                 $resdir,   $suite,
+                                 $tname,    "$tname.$extension",
+                                 $disabled, $suite_opts
            ));
     }
   } else {
@@ -566,9 +624,9 @@ sub collect_one_suite($) {
       next if ($do_test_reg and not $tname =~ /$do_test_reg/o);
 
       push(@cases,
-           collect_one_test_case($suitedir,  $testdir, $resdir,
-                                 $suite,     $tname,   $elem,
-                                 \%disabled, $suite_opts
+           collect_one_test_case($suitedir, $testdir, $resdir,
+                                 $suite,    $tname,   $elem,
+                                 $disabled, $suite_opts
            ));
     }
     closedir TESTDIR;
@@ -918,13 +976,10 @@ sub collect_one_test_case {
 
   # Check for disabled tests
   my $marked_as_disabled = 0;
-  if ($disabled->{$tname} or $disabled->{"$suitename.$tname"}) {
+  if ($disabled->{"$suitename.$tname"}) {
     # Test was marked as disabled in suites disabled.def file
     $marked_as_disabled = 1;
-
-    # Test name may have been disabled with or without suite name part
-    $tinfo->{'comment'} = $disabled->{$tname} ||
-      $disabled->{"$suitename.$tname"};
+    $tinfo->{'comment'} = $disabled->{"$suitename.$tname"};
   }
 
   my $disabled_file = "$testdir/$tname.disabled";

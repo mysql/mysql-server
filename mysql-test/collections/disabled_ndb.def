@@ -1,0 +1,204 @@
+##############################################################################
+#
+# List the test cases that are to be disabled temporarily. This file is
+# used for MySQL Cluster tests only.
+#
+# Separate the test case name and the comment with ':'.
+#   <suitename>.<testcasename> : BUG#<xxxx> <date> <disabler> <comment>
+#
+# Note:
+#   - Do not use any TAB characters for whitespace.
+#
+##############################################################################
+
+# gcol_ndb suite tests
+gcol_ndb.gcol_column_def_options_ndb : BUG#26609059 2017-08-10 Bin, PB2 failures.
+gcol_ndb.gcol_non_stored_columns_ndb : BUG#25957586 BINLOGGING OF GENERATED NON STORED COLUMNS FAILS.
+
+# ndb_big suite tests
+ndb_big.smoke : Not ready for automated testing yet.
+
+# ndb_binlog suite tests
+ndb_binlog.ndb_binlog_restore : Need WL#10167 On the fly frm translation.
+
+# ndbcluster suite tests
+# Problem with missing information in information_schema
+ndbcluster.tablespace_datafiles : BUG#26794727 MISSING DISK DATA INFORMATION IN INFORMATION_SCHEMA.
+
+# Problem with incorrect partition information in information_schema
+ndbcluster.information_schema_partitions : BUG#26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS.
+
+# ndb_ddl suite tests
+# Problem with alter table while MDL lock is held on other mysqld
+ndb_ddl.alter_open_trans: Need WL#10164 Schema dist prepare phase
+
+# ndb_memcache suite tests
+ndb_memcache.basic           : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.external_values : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.lib_ascii       : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.lib_binary      : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.math1           : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.math2           : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.math3           : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.mpart_key       : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.reconf1         : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.tsv1            : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.tsv2            : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.ttls_flags      : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.type_binary     : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.type_char       : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.type_numeric    : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.type_signed     : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.type_temporal   : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.type_unsigned   : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.unique_idx      : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+
+# ndb_rpl suite tests
+ndb_rpl.ndb_dist_priv_ndb                  : BUG#22826700 TEST NDB_RPL.NDB_DIST_PRIV_NDB FAILS
+ndb_rpl.ndb_rpl_basic                      : Need WL#10665 Extend size of extra table metadata
+ndb_rpl.ndb_rpl_binlog_format_errors       : BUG#26078612 PB2 TEST FAIL: NDB_RPL.NDB_RPL_BINLOG_FORMAT_ERRORS. MIXED ENGINE + SELF_LOGGING
+ndb_rpl.ndb_rpl_conflict_load_epoch_trans  : Not designed for determinism
+ndb_rpl.ndb_rpl_ctype_ucs2_def             : BUG#34661 rpl_ndb_ctype_ucs2_def fails in 6.2
+ndb_rpl.ndb_rpl_mix_innodb                 : BUG#16321437 NDB_APPLY_STATUS START_POS ALWAYS EQUALS END_POS
+ndb_rpl.ndb_rpl_row_implicit_commit_binlog : SEAGULL ndb-force-binlog-format-statement
+ndb_rpl.ndb_rpl_slave_lsu                  : SEAGULL ndb-force-binlog-format-statement
+ndb_rpl.ndb_rpl_slave_lsu_anyval           : SEAGULL ndb-force-binlog-format-statement
+ndb_rpl.ndb_rpl_stm_innodb                 : BUG#16321437 NDB_APPLY_STATUS START_POS ALWAYS EQUALS END_POS
+
+# Problem with alter table while MDL lock is held on other mysqld
+ndb_rpl.ndb_rpl_ddl_open_trans : Need WL#9185 MySQL Cluster support for new DD.
+
+# Problem with DDL on tablespaces not synchronized between mysqlds,
+# this need to be implemented
+ndb_rpl.ndb_rpl_dd_advance : Need WL#9185 MySQL Cluster support for new DD.
+
+# Problem with distributed privilege tables in combination with shadow
+ndb_rpl.ndb_rpl_dist_priv : Need WL#9185 MySQL Cluster support for new DD.
+
+# ndb suite tests
+ndb.ndb_alter_table                     : Need WL#10665 Extend size of extra table metadata
+ndb.ndb_alter_table_backup              : Need WL#10167 On the fly frm translation
+ndb.ndb_alter_table_backup              : Need WL#10167 On the fly frm translation
+ndb.ndb_column_properties_compat        : Need WL#10167 On the fly frm translation
+ndb.ndb_dbug_lock                       : SEAGULL gsl locking order
+ndb.ndb_dd_restore_check_tablespace_mdl : Need WL#10167 On the fly frm translation
+ndb.ndb_dd_restore_compat               : Need WL#10167 On the fly frm translation
+ndb.ndb_insert                          : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
+ndb.ndb_native_default_support          : Need WL#10167 On the fly frm translation
+ndb.ndb_restore_compat_compression      : Need WL#10167 On the fly frm translation
+ndb.ndb_restore_compat_downward         : Need WL#10167 On the fly frm translation
+ndb.ndb_restore_compat_endianness       : Need WL#10167 On the fly frm translation
+ndb.ndb_restore_conv_more               : Need WL#10167 On the fly frm translation
+ndb.ndb_restore_misc                    : Need WL#10167 On the fly frm translation
+ndb.ndb_restore_schema_tolerance        : Need WL#10665 Extend size of extra table metadata
+ndb.ndb_restore_undolog                 : Need WL#10167 On the fly frm translation
+ndb.ndb_row_count                       : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
+ndb.ndb_statistics0                     : Need WL#10167 On the fly frm translation
+ndb.ndb_wl946_post                      : Need WL#10167 On the fly frm translation
+ndb.ndb_wl946_pre                       : Need WL#10167 On the fly frm translation
+
+# Tests does not autotect tables created from NdbApi tools(like ndb_restore)
+ndb.ndb_alter_table_online     : Need WL#9185 MySQL Cluster support for new DD
+ndb.ndb_fk_restore             : Need WL#9185 MySQL Cluster support for new DD
+ndb.ndb_restore_schema_subsets : Need WL#9185 MySQL Cluster support for new DD
+
+# Test which timeout most likley due to mismatches in shares etc.
+ndb.ndb_spj_dict : Need WL#9185 MySQL Cluster support for new DD.
+
+# Problem with crash, most likley due to mismatches in shares etc
+ndb.ndb_ddl_dml : Need WL#9185 MySQL Cluster support for new DD.
+
+# Inplace alter table and index problem(same problem as above)
+ndb.ndb_alter_table3 : BUG#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH.
+
+# Problem with alter table which fails while copying data between tables, the
+# temporary named destination table is not dropped. Need to rewrite
+# the copying alter table code path in ndbcluster to drop the table in
+# order to be atomic
+ndb.ndb_dd_alter : Need WL#9185 MySQL Cluster support for new DD
+ndb.ndb_fk_db    : Need WL#9185 MySQL Cluster support for new DD
+ndb.ndb_fk_no_fk : Need WL#9185 MySQL Cluster support for new DD
+
+# Problem with distributed privilege tables in combination with shadow
+# table behaviour causing the DD come severly out of synch on participants
+# Example:
+# --connection server1
+# ALTER TABLE mysql.db engine = NDB;
+# ALTER TABLE mysql.db engine = Innodb;
+#
+# --connection server2
+# SHOW CREATE TABLE mysql.db; << No mysql.db table here anymore
+#
+# Note! Probably we should reimplement distributed privilege tables
+# to just make them be in synch but stay in their original engine
+ndb.ndb_dist_priv : Need WL#9185 MySQL Cluster support for new DD
+
+# Need to remove stale .ndb files for DROP DATABASE
+ndb.drop_database_stale : Need WL#9185 MySQL Cluster support for new DD
+
+# Problem with alter table while MDL lock is held on other mysqld
+ndb.ndb_ddl_open_trans : Need WL#9185 MySQL Cluster support for new DD
+
+# Schema distribution timeout while altering table
+ndb.ndb_alter_table_online_multi : Need WL#9185 MySQL Cluster support for new DD
+
+# Problem running clusterj* with utf8
+ndb.clusterj_jpa : BUG#26027722 UNKNOWN INITIAL CHARACTER SET
+
+# Problem since DDL on tablespaces are not synchronized between mysqlds
+# this need to be implemented
+ndb.ndb_single_user : Need WL#9185 MySQL Cluster support for new DD
+
+# Problem since tablespaces are not installed into DD during ndb_restore
+ndb.ndb_dd_backuprestore : Need WL#9185 MySQL Cluster support for new DD
+
+# Problem with failing ALTER, the Thd_ndb::open_tables contains
+# invalid THD_NDB_SHARE
+ndb.ndb_alter_table_error : Need WL#9185 MySQL Cluster support for new DD
+
+# Problem with different metadata in NDB dictionary and DD
+ndb.ndb_dist_priv_bug_13340854 : BUG#26434578 NDB_DIST_PRIV_BUG_13340854 TEST FAILS WITH MYSQLD CRASHING
+
+# Tests disabled under various bugs pending further investigation
+ndb.ndb_bushy_joins     : BUG#26484136 FAILURE OF NDB_BUSHY_JOINS AND NDB_MANY_FRAGMENTS TESTS ON WINDOWS
+ndb.ndb_dd_sql_features : BUG#26484275 FAILURE OF NDB_DD_SQL_FEATURES TEST ON WINDOWS
+ndb.ndb_many_fragments  : BUG#26484136 FAILURE OF NDB_BUSHY_JOINS AND NDB_MANY_FRAGMENTS TESTS ON WINDOWS
+
+# Problem with missing information in information_schema
+ndb.ndb_dd_basic: Bug #26794727 MISSING DISK DATA INFORMATION IN INFORMATION_SCHEMA
+
+# Problem with incorrect information about partitions in information_schema
+ndb.ndb_add_partition          : BUG#26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
+ndb.ndb_fragment_count_addnode : BUG#26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
+ndb.ndb_fully_replicated       : BUG#26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
+ndb.ndb_no_rb_fragment_count   : BUG#26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
+ndb.ndb_rb_fragment_count      : BUF#26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
+
+# mysqldump fails to dump logfilegroups and partitions, thus the dump
+# is incomplete and tables in tablespaces cant be restored by running
+# the dumped sql file. This problem probably need both bug#26794727 as
+# well as WL#9185
+ndb.ndb_dd_dump : BUG#26794727 MISSING DISK DATA INFORMATION IN INFORMATION_SCHEMA
+
+# Problem with table present in DD and not in SE
+ndb.ndb_restore_schema_rewrites : Need WL#9185 MySQL Cluster support for new DD
+
+# Clusterj fails to start since libndbclient.se fails to load
+ndb. clusterj : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+
+# Test fails with varying failures in all versions
+ndb.ndb_truncate_nologging : BUG#14845851 MYSQL CLUSTER - AUTO INCREMENT NOT RESET WHEN TRUNCATE NON-BINLOGGING SQL NODES: Could not acquire global schema lock
+
+# rpl_ndb suite tests
+rpl_ndb.rpl_ndb_set_null  : BUG#51100
+rpl_ndb.rpl_ndb_row_basic : BUG#26434966 FAILURE OF RPL_NDB_ROW_BASIC TEST
+
+# The below two tests runs extra/rpl_tests/rpl_mixed_implicit_commit_binlog
+# which is maintained upstream and easily breaks due to the inherent
+# difference in binlog ouput depending on who's creating the binlog.
+# These tests should be merged and made much more stable by not having
+# to hardcode "magic" numbers into the test. Test should also be fixed
+# to switch binlog_format itself if that is necessary for the test to properly
+# test everything.
+rpl_ndb.rpl_ndb_mixed_implicit_commit_binlog : Unstable, magic numbers causes errors
+rpl_ndb.rpl_ndb_row_implicit_commit_binlog   : BUG#12586131 - fails on SET PASSWORD

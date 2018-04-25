@@ -97,6 +97,7 @@ my $opt_ps_protocol;
 my $opt_report_features;
 my $opt_skip_core;
 my $opt_skip_ssl;
+my $opt_skip_test_list;
 my $opt_sleep;
 my $opt_sp_protocol;
 my $opt_start;
@@ -139,8 +140,6 @@ my $opt_testcase_timeout   = $ENV{MTR_TESTCASE_TIMEOUT} || 15;         # minutes
 my $opt_valgrind_clients   = 0;
 my $opt_valgrind_mysqld    = 0;
 my $opt_valgrind_mysqltest = 0;
-
-my @opt_skip_test_list;
 
 # Options used when connecting to an already running server
 my %opts_extern;
@@ -428,7 +427,7 @@ sub main {
 
   mtr_report("Collecting tests...");
   my $tests = collect_test_cases($opt_reorder, $opt_suites,
-                                 \@opt_cases,  \@opt_skip_test_list);
+                                 \@opt_cases,  $opt_skip_test_list);
   mark_time_used('collect');
 
   if ($opt_report_features) {
@@ -1411,7 +1410,7 @@ sub command_line_setup {
     # list-options is internal, not listed in help
     'do-test-list=s'   => \$opt_do_test_list,
     'list-options'     => \$opt_list_options,
-    'skip-test-list=s' => \@opt_skip_test_list,
+    'skip-test-list=s' => \$opt_skip_test_list,
     'summary-report=s' => \$opt_summary_report,
     'xml-report=s'     => \$opt_xml_report);
 
