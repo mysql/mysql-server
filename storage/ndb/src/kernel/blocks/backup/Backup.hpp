@@ -912,8 +912,11 @@ public:
   bool m_node_restart_check_sent;
   bool m_our_node_started;
   Uint64 m_curr_disk_write_speed;
+  Uint64 m_curr_backup_disk_write_speed;
   Uint64 m_words_written_this_period;
+  Uint64 m_backup_words_written_this_period;
   Uint64 m_overflow_disk_write;
+  Uint64 m_backup_overflow_disk_write;
   Uint32 m_reset_delay_used;
   NDB_TICKS m_reset_disk_speed_time;
 
@@ -930,6 +933,7 @@ public:
   static const int CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS = 40;
   
   Uint64 m_monitor_words_written;
+  Uint64 m_backup_monitor_words_written;
   Uint32 m_periods_passed_in_monitor_period;
   NDB_TICKS m_monitor_snapshot_start;
 
@@ -939,7 +943,9 @@ public:
    */
   Uint64 slowdowns_due_to_io_lag;
   Uint64 slowdowns_due_to_high_cpu;
+  Uint64 slowdown_backups_due_to_high_cpu;
   Uint64 disk_write_speed_set_to_min;
+  Uint64 backup_disk_write_speed_set_to_min;
 
   /**
    * Variables used to keep stats on disk write speeds for
@@ -969,8 +975,10 @@ public:
   struct DiskWriteSpeedReport
   {
     Uint64 backup_lcp_bytes_written;
+    Uint64 backup_bytes_written;
     Uint64 redo_bytes_written;
     Uint64 target_disk_write_speed;
+    Uint64 target_backup_disk_write_speed;
     Uint64 millis_passed;
   };
   DiskWriteSpeedReport disk_write_speed_rep[DISK_WRITE_SPEED_REPORT_SIZE];
@@ -980,13 +988,22 @@ public:
   /**
    * Methods used in control of checkpoint speed
    */
-  void handle_overflow(void);
+  void handle_overflow(Uint64& overflow_disk_write,
+                       Uint64& words_written_this_period,
+                       Uint64& curr_disk_write_speed);
   void calculate_next_delay(const NDB_TICKS curr_time);
   void monitor_disk_write_speed(const NDB_TICKS curr_time,
                                 const Uint64 millisPassed);
-  void calculate_current_speed_bounds(Uint64& max_speed, Uint64& min_speed);
-  void adjust_disk_write_speed_down(Uint64 min_speed, int adjust_speed);
-  void adjust_disk_write_speed_up(Uint64 max_speed, int adjust_speed);
+  void calculate_current_speed_bounds(Uint64& max_speed,
+                                      Uint64& max_backup_speed,
+                                      Uint64& min_speed);
+  void adjust_disk_write_speed_down(Uint64& curr_disk_write_speed,
+                                    Uint64& disk_speed_set_to_min,
+                                    Uint64 min_speed,
+                                    int adjust_speed);
+  void adjust_disk_write_speed_up(Uint64& curr_disk_write_speed,
+                                  Uint64 max_speed,
+                                  int adjust_speed);
   void calculate_disk_write_speed(Signal *signal);
   void send_next_reset_disk_speed_counter(Signal *signal);
 
@@ -999,18 +1016,23 @@ public:
    * Methods used in ndbinfo reporting of checkpoint speed.
    */
   void report_disk_write_speed_report(Uint64 bytes_written_this_period,
+                                      Uint64 backup_bytes_written_this_period,
                                       Uint64 millis_passed);
   Uint32 get_disk_write_speed_record(Uint32 start_index);
   Uint64 calculate_millis_since_finished(Uint32 start_index);
   void calculate_disk_write_speed_seconds_back(Uint32 seconds_back,
                                        Uint64 & millis_passed,
                                        Uint64 & backup_lcp_bytes_written,
-                                       Uint64 & redo_bytes_written);
+                                       Uint64 & backup_bytes_written,
+                                       Uint64 & redo_bytes_written,
+                                       bool at_least_one = false);
   void calculate_std_disk_write_speed_seconds_back(Uint32 seconds_back,
                              Uint64 millis_passed_total,
                              Uint64 backup_lcp_bytes_written_total,
+                             Uint64 backup_bytes_written_total,
                              Uint64 redo_bytes_written_total,
                              Uint64 & std_dev_backup_lcp_in_bytes_per_sec,
+                             Uint64 & std_dev_backup_in_bytes_per_sec,
                              Uint64 & std_dev_redo_in_bytes_per_sec);
 
 
@@ -1252,7 +1274,11 @@ public:
                        DeleteLcpFilePtr);
   void lcp_remove_file_conf(Signal*, BackupRecordPtr ptr);
 
-  bool ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP);
+  bool ready_to_write(bool ready,
+                      Uint32 sz,
+                      bool eof,
+                      BackupFile *fileP,
+                      BackupRecord* ptrP);
 
   void afterGetTabinfoLockTab(Signal *signal,
                               BackupRecordPtr ptr, TablePtr tabPtr);
