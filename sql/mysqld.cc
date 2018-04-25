@@ -1297,11 +1297,6 @@ void substitute_progpath(char **argv) {
 
   while (true) {
     const char *colonend = std::find(spbegin, spend, ':');
-    if (colonend == spend) {
-      DBUG_ASSERT(false);
-      break;
-    }
-
     std::string cand{spbegin, colonend};
     spbegin = colonend + 1;
 
@@ -1317,6 +1312,10 @@ void substitute_progpath(char **argv) {
       }
       my_orig_progname = argv[0];
       argv[0] = my_progpath;
+      break;
+    }
+    if (colonend == spend) {
+      DBUG_ASSERT(false);
       break;
     }
   }  // while (true)
