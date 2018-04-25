@@ -9028,7 +9028,8 @@ bool Item_type_holder::join_types(THD *, Item *item) {
       subtypes are different, use GEOMETRY.
     */
     if (data_type() == MYSQL_TYPE_GEOMETRY &&
-        geometry_type != item->get_geometry_type())
+        (item->data_type() != MYSQL_TYPE_GEOMETRY ||
+         geometry_type != item->get_geometry_type()))
       geometry_type = Field::GEOM_GEOMETRY;
   } else
     aggregate_num_type(merge_type, args, 2);

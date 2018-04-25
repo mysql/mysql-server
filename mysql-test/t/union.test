@@ -2135,3 +2135,15 @@ while ($c)
 }
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #27903792 [MYSQL 8.0 GA DEBUG BUILD] ASSERTION `DATA_TYPE() ==
+--echo # MYSQL_TYPE_GEOMETRY' FAILED
+--echo #
+
+# We're not interested in the result, just that it doesn't fail any assertions.
+--disable_result_log
+SELECT ST_GEOMFROMTEXT('POINT(0 0)')
+UNION
+SELECT * FROM (SELECT NULL) AS a;
+--enable_result_log
