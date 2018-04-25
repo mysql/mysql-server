@@ -4779,6 +4779,7 @@ do_send(struct thr_data* selfptr, bool must_send, bool assist_send)
   const NDB_TICKS now = NdbTick_getCurrentTicks();
   selfptr->m_curr_ticks = now;
   bool pending_send = false;
+  selfptr->m_watchdog_counter = 6;
 
   if (count == 0)
   {
@@ -5364,6 +5365,7 @@ sendpacked(struct thr_data* thr_ptr, Signal* signal)
 {
   Uint32 i;
   signal->header.m_noOfSections = 0; /* valgrind */
+  thr_ptr->m_watchdog_counter = 15;
   for (i = 0; i < thr_ptr->m_instance_count; i++)
   {
     BlockReference block = thr_ptr->m_instance_list[i];
@@ -5453,6 +5455,7 @@ execute_signals(thr_data *selfptr,
 
   for (num_signals = 0; num_signals < max_signals; num_signals++)
   {
+    *watchDogCounter = 12;
     while (read_pos >= read_end)
     {
       if (read_index == write_index)
@@ -5591,6 +5594,7 @@ run_job_buffers(thr_data *selfptr,
   thr_job_queue *queue = selfptr->m_in_queue;
   thr_job_queue_head *head = selfptr->m_in_queue_head;
   thr_jb_read_state *read_state = selfptr->m_read_states;
+  selfptr->m_watchdog_counter = 13;
   for (Uint32 send_thr_no = 0; send_thr_no < thr_count;
        send_thr_no++,queue++,read_state++,head++)
   {
@@ -5708,11 +5712,12 @@ run_job_buffers(thr_data *selfptr,
          * here again to check the bounded delay signals.
          */
         signal_count_since_last_zero_time_queue = signal_count;
+        selfptr->m_watchdog_counter = 14;
         scan_zero_queue(selfptr);
+        selfptr->m_watchdog_counter = 13;
       }
     }
   }
-
   return signal_count;
 }
 
@@ -6431,6 +6436,7 @@ update_sched_config(struct thr_data* selfptr,
 {
   Uint32 sleeploop = 0;
   Uint32 thr_no = selfptr->m_thr_no;
+  selfptr->m_watchdog_counter = 16;
 loop:
   Uint32 minfree = compute_min_free_out_buffers(thr_no);
   Uint32 reserved = (minfree > thr_job_queue::RESERVED)
@@ -6575,7 +6581,6 @@ mt_job_thread_main(void *thr_arg)
                                  flush_sum,
                                  pending_send);
     
-    watchDogCounter = 1;
     sendpacked(selfptr, signal);
 
     if (sum)
@@ -6664,6 +6669,7 @@ mt_job_thread_main(void *thr_arg)
               maxwait -= spin_time_in_ns;
             }
           }
+          selfptr->m_watchdog_counter = 18;
           const Uint32 used_maxwait = maxwait;
           bool waited = yield(&selfptr->m_waiter,
                               used_maxwait,
@@ -6698,6 +6704,7 @@ mt_job_thread_main(void *thr_arg)
                * We want to do this here to avoid an extra loop in scheduler
                * before we discover those messages from NDBFS.
                */
+              selfptr->m_watchdog_counter = 17;
               check_for_input_from_ndbfs(selfptr, signal);
             }
           }

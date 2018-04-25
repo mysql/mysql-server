@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -168,6 +168,27 @@ const char *get_action(Uint32 IPValue)
     break;
   case 11:
     action = "Packing Send Buffers";
+    break;
+  case 12:
+    action = "Looking for next job to execute";
+    break;
+  case 13:
+    action = "Looking for next non-empty job buffer";
+    break;
+  case 14:
+    action = "Scanning zero time queue";
+    break;
+  case 15:
+    action = "Send packed signals";
+    break;
+  case 16:
+    action = "Update scheduler configuration";
+    break;
+  case 17:
+    action = "Check for input from NDBFS";
+    break;
+  case 18:
+    action = "Yielding to OS";
     break;
   default:
     action = NULL;
