@@ -564,7 +564,7 @@ Backup::calculate_current_speed_bounds(Uint64& max_speed,
     jam();
 
     const Uint64 node_max_speed = 
-      max_backup_speed * 
+      max_backup_speed *
       num_ldm_threads;
   
     /* Backup will get a percentage of the node total allowance */
