@@ -343,6 +343,7 @@ Dbtup::update_extent_pos(EmulatedJamBuffer* jamBuf,
   Uint32 old = extentPtr.p->m_free_matrix_pos;
   if (old != RNIL)
   {
+    thrjam(jamBuf);
     Uint32 pos = alloc.calc_extent_pos(extentPtr.p);
     if (old != pos)
     {
@@ -552,6 +553,8 @@ Dbtup::disk_page_prealloc(Signal* signal,
   {
     if (!alloc.m_dirty_pages[i].isEmpty())
     {
+      jam();
+      jamLine(i);
       ptrI= alloc.m_dirty_pages[i].getFirst();
       Ptr<GlobalPage> gpage;
       m_global_page_pool.getPtr(gpage, ptrI);
@@ -576,6 +579,8 @@ Dbtup::disk_page_prealloc(Signal* signal,
   {
     if (!alloc.m_page_requests[i].isEmpty())
     {
+      jam();
+      jamLine(i);
       ptrI= alloc.m_page_requests[i].getFirst();
       Ptr<Page_request> req;
       c_page_request_pool.getPtr(req, ptrI);
@@ -753,6 +758,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
 
   // And put page request in correct free list
   idx= alloc.calc_page_free_bits(new_size);
+  jamLine(idx);
   {
     Local_page_request_list list(c_page_request_pool, 
 				 alloc.m_page_requests[idx]);
@@ -1022,6 +1028,7 @@ Dbtup::disk_page_move_dirty_page(Disk_alloc_info& alloc,
   extentPtr.p->m_free_page_count[old_idx]--;
   extentPtr.p->m_free_page_count[new_idx]++;
 
+  jam();
   Page_pool *pool= (Page_pool*)&m_global_page_pool;
   Local_Page_list new_list(*pool, alloc.m_dirty_pages[new_idx]);
   Local_Page_list old_list(*pool, alloc.m_dirty_pages[old_idx]);
@@ -1037,6 +1044,7 @@ Dbtup::disk_page_move_page_request(Disk_alloc_info& alloc,
                                    Ptr<Page_request> req,
                                    Uint32 old_idx, Uint32 new_idx)
 {
+  jam();
   Page_request_list::Head *lists = alloc.m_page_requests;
   Local_page_request_list old_list(c_page_request_pool, lists[old_idx]);
   Local_page_request_list new_list(c_page_request_pool, lists[new_idx]);
@@ -1540,6 +1548,7 @@ Dbtup::disk_page_free(Signal *signal,
   }
   else
   {
+    jam();
     const Uint32 *src= ((Var_page*)pagePtr.p)->get_ptr(page_idx);
     sz= ((Var_page*)pagePtr.p)->get_entry_len(page_idx);
     lsn= disk_page_undo_free(signal,
@@ -2039,10 +2048,12 @@ Dbtup::disk_restart_undo(Signal* signal,
 
   if (isNdbMtLqh())
   {
+    jam();
     Pending_undo_page key(preq.m_page.m_file_no, preq.m_page.m_page_no);
 
     if (c_pending_undo_page_hash.find(cur_undo_record_page, key))
     {
+      jam();
       /**
        *  Page of the current undo record being processed already has a pending
        *  request.
@@ -2115,6 +2126,7 @@ Dbtup::disk_restart_undo(Signal* signal,
                         f_undo.m_lsn));
     if (isNdbMtLqh())
     {
+      jam();
       c_pending_undo_page_pool.release(cur_undo_record_page);
       // no page stored in hash, so i = RNIL
       preq.m_callback.m_callbackData = RNIL;
@@ -2230,6 +2242,7 @@ Dbtup::disk_restart_undo_lcp(Uint32 tableId,
          * was created. This is not always inserted, but we don't perform
          * any UNDO operations after this operation have been seen.
          */
+        jam();
 	fragPtr.p->m_undo_complete = Fragrecord::UC_CREATE;
 	return;
       case Fragrecord::UC_LCP:
@@ -2285,6 +2298,7 @@ Dbtup::release_undo_record(Ptr<Apply_undo>& undo_record, bool pending)
 {
   if (pending)
   {
+    jam();
     c_apply_undo_pool.release(undo_record);
   }
 }
@@ -2319,6 +2333,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
 
   if (isNdbMtLqh())
   {
+    jam();
     pending = (page_i != RNIL);
 
     if (pending)
@@ -2430,6 +2445,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
     Ptr<Apply_undo> pending_undo;
     if (pending)
     {
+      jam();
       //Remove, process, release all Apply_undo from the list.
       LocalApply_undo_list undoList(c_apply_undo_pool,
                                     pendingPage->m_apply_undo_head);
@@ -2638,6 +2654,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
   ndbassert(count_pending != 0);
   if (isNdbMtLqh() && pending)
   {
+    jam();
     LocalApply_undo_list undoList(c_apply_undo_pool,
                                   pendingPage->m_apply_undo_head);
     DEB_UNDO(("LDM(%u) Page:%u CheckCount:%u Applied:%u", instance(),

@@ -271,7 +271,10 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       goto error;
     }      
     AttributeOffset::setNullFlagPos(attrDes2, null_pos);
-  } else {
+  }
+  else
+  {
+    jam();
     /* A dynamic attribute. */
     ndbrequire(ind==MM);
     regTabPtr.p->m_attributes[ind].m_no_of_dynamic++;
@@ -291,6 +294,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       jam();
       if (AttributeDescriptor::getSize(attrDescriptor)==0)
       {
+        jam();
         /**
          * Bit type. These are stored directly in the bitmap.
          * This means that we will still use some space for a dynamic NULL
@@ -355,7 +359,10 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   }
 
   if (!receive_defvalue(signal, regTabPtr))
+  {
+    jam();
     goto error;
+  }
 
   if ((ERROR_INSERTED(4032) && (attrId == 0)) ||
       (ERROR_INSERTED(4033) && lastAttr))
@@ -449,7 +456,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     /* Allocate  dynamic descriptors. */
     for (Uint32 i = 0; i < NO_DYNAMICS; ++i)
     {
-
+      jam();
       Uint32 offset[3];
       Uint32 allocSize= getDynTabDescrOffsets(
                           (regTabPtr.p->m_dyn_null_bits[i]+31)>>5,
@@ -524,7 +531,10 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
   const Uint32 numSections = signal->getNoOfSections();
 
   if (numSections == 0)
+  {
+    jam();
     return true;
+  }
 
   jam();
   SectionHandle handle(this, signal);
@@ -575,15 +585,19 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
   {
     if (arrayType == NDB_ARRAYTYPE_FIXED)
     {
+      jam();
       if (defValueBytes != bytes)
       {
+        jam();
         terrorCode = ZBAD_DEFAULT_VALUE_LEN;
       }
     }
     else
     {
+      jam();
       if (defValueBytes > bytes)
       {
+        jam();
         terrorCode = ZBAD_DEFAULT_VALUE_LEN;
       }
     }
@@ -596,8 +610,10 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
      * for the 4-byte alignemnt, the space for BIT type occupied 4 bytes at least.
      * yet the bytes of default value can be 1, 2, 3, 4, 5, 6, 7, 8 bytes.
      */
+    jam();
     if (defValueBytes > bytes)
     {
+      jam();
       terrorCode = ZBAD_DEFAULT_VALUE_LEN;
     }
   }
@@ -606,6 +622,7 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
 
   if (likely( !terrorCode ))
   {
+    jam();
     dst = cinBuffer;
     
     ndbrequire(r.getWords(dst, defValueWords));
@@ -620,10 +637,12 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
       
       if (arrayType == NDB_ARRAYTYPE_SHORT_VAR)
       {
+        jam();
         internalVarSize = 1 + valPtr[0];
       }
       else if (arrayType == NDB_ARRAYTYPE_MEDIUM_VAR)
       {
+        jam();
         internalVarSize = 2 + valPtr[0] + (256 * Uint32(valPtr[1]));
       }
       else
@@ -652,6 +671,7 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
         return true;
       }
     }
+    jam();
     terrorCode = ZMEM_NOMEM_ERROR;
   }
 
@@ -792,6 +812,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   if(regTabPtr.p->m_no_of_disk_attributes)
   {
     {
+      jam();
       D("Tablespace_client - execTUPFRAGREQ");
       Tablespace_client tsman(0, this, c_tsman, 0, 0, 0,
                               regFragPtr.p->m_tablespace_id);
@@ -1106,6 +1127,7 @@ Dbtup::execALTER_TAB_REQ(Signal *signal)
   }
   case AlterTabReq::AlterTableReadOnly:
   case AlterTabReq::AlterTableReadWrite:
+    jam();
     signal->theData[0] = 0;
     signal->theData[1] = RNIL;
     return;
@@ -1139,6 +1161,7 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
         regTabPtr->m_attributes[MM].m_no_of_dynamic +
         (regTabPtr->m_bits & Tablerec::TR_ForceVarPart)) == 0)
     {
+      jam();
       sendAlterTabRef(signal, ZINVALID_ALTER_TAB);
       return;
     }
@@ -1230,6 +1253,7 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
       noDynamic++;
       if (arrType==NDB_ARRAYTYPE_FIXED)
       {
+        jam();
         Uint32 words= AttributeDescriptor::getSizeInWords(attrDescriptor);
 
         if(AttributeDescriptor::getSize(attrDescriptor) > 0)
@@ -1322,6 +1346,7 @@ Dbtup::handleAlterTableCommit(Signal *signal,
 {
   if (AlterTableReq::getAddAttrFlag(req->changeMask))
   {
+    jam();
     AlterTabOperationPtr regAlterTabOpPtr;
     regAlterTabOpPtr.i= req->connectPtr;
     ptrCheckGuard(regAlterTabOpPtr, cnoOfAlterTabOps, alterTabOperRec);
@@ -1509,8 +1534,10 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
 
   for (Uint32 i = 0; i < NO_DYNAMICS; ++i)
   {
+    jam();
     if (regTabPtr->m_dyn_null_bits[i] == DYN_BM_LEN_BITS)
     {
+      jam();
       regTabPtr->m_dyn_null_bits[i] = 0;
     }
     dyn_null_words[i] = (regTabPtr->m_dyn_null_bits[i]+31)>>5;
@@ -1521,11 +1548,13 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   Uint32 pos[2] = { 0, 0 };
   if (regTabPtr->m_bits & Tablerec::TR_Checksum)
   {
+    jam();
     pos[MM]++; 
   }
 
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI)
   {
+    jam();
     pos[MM]++;
     pos[DD]++;
   }
@@ -1536,6 +1565,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   if(regTabPtr->m_no_of_disk_attributes > 0)
   {
     /* Room for disk part location. */
+    jam();
     regTabPtr->m_offsets[MM].m_disk_ref_offset= pos[MM];
     pos[MM] += Disk_part_ref::SZ32; // 8 bytes
     regTabPtr->m_bits |= Tablerec::TR_DiskPart;
@@ -1548,11 +1578,13 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   if (regTabPtr->m_attributes[MM].m_no_of_varsize ||
       regTabPtr->m_attributes[MM].m_no_of_dynamic)
   {
+    jam();
     pos[MM] += Var_part_ref::SZ32;
     regTabPtr->m_bits &= ~(Uint32)Tablerec::TR_ForceVarPart;
   }
   else if (regTabPtr->m_bits & Tablerec::TR_ForceVarPart)
   {
+    jam();
     pos[MM] += Var_part_ref::SZ32;
   }
 
@@ -1587,6 +1619,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
 
   for(Uint32 i= 0; i<regTabPtr->m_no_of_attributes; i++)
   {
+    jam();
     Uint32 attrDescriptor= *tabDesc++;
     Uint32 attrDes2= *tabDesc;
     Uint32 ind= AttributeDescriptor::getDiskBased(attrDescriptor);
@@ -1598,23 +1631,34 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
     Uint32 off;
 
     if (extType == NDB_TYPE_BLOB || extType == NDB_TYPE_TEXT)
+    {
+      jam();
       regTabPtr->blobAttributeMask.set(i);
+    }
     if(!AttributeDescriptor::getNullable(attrDescriptor))
+    {
+      jam();
       regTabPtr->notNullAttributeMask.set(i);
+    }
     if (!AttributeDescriptor::getDynamic(attrDescriptor))
     {
       if(arr == NDB_ARRAYTYPE_FIXED || ind==DD)
       {
         if (attrLen!=0)
         {
+          jam();
           off= fix_size[ind] + pos[ind];
           fix_size[ind]+= size_in_words;
         }
         else
+        {
+          jam();
           off= 0;                               // Bit type
+        }
       }
       else
       {
+        jam();
         /* Static varsize. */
         ndbassert(ind==MM);
         off= statvar_count++;
@@ -1623,6 +1667,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
     }
     else
     {
+      jam();
       /* Dynamic attribute. */
       dynamic_count++;
       ndbrequire(ind==MM);
@@ -1649,7 +1694,10 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
           }
         }
         else
+        {
+          jam();
           off= 0;                               // Bit type
+        }
       }
       else
       {
@@ -1661,6 +1709,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
     }
     if (off > AttributeOffset::getMaxOffset())
     {
+      jam();
       return ZTOO_LARGE_TUPLE_ERROR;
     }
     AttributeOffset::setOffset(attrDes2, off);
@@ -1712,6 +1761,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   */
   if(mm_vars + regTabPtr->m_attributes[MM].m_no_of_dynamic)
   {
+    jam();
     total_rec_size+= (mm_vars + 2) >> 1;
     total_rec_size+= regTabPtr->m_offsets[MM].m_dyn_null_words;
     total_rec_size+= (mm_dyns + 2) >> 1;
@@ -1976,6 +2026,7 @@ void Dbtup::releaseTabDescr(Tablerec* const regTabPtr)
     descriptor= regTabPtr->dynTabDescriptor[i];
     if(descriptor != RNIL)
     {
+      jam();
       regTabPtr->dynTabDescriptor[i]= RNIL;
       regTabPtr->dynVarSizeMask[i]= NULL;
       regTabPtr->dynFixSizeMask[i]= NULL;
@@ -2039,6 +2090,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
       jam();
       return;
     case -1:
+      jam();
       lgman.free_log_space(sz, jamBuffer());
       g_eventLogger->warning("Out of space in RG_TRANSACTION_MEMORY resource,"
                              " increase config parameter GlobalSharedMemory");
@@ -2047,6 +2099,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
       jamEntry();
       goto done;
     default:
+      jam();
       goto execute;
     }
   }
@@ -2085,8 +2138,10 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     
     if (pos == MAX_FREE_LIST)
     {
+      jam();
       if(alloc_info.m_curr_extent_info_ptr_i != RNIL)
       {
+        jam();
 	Local_extent_info_list
 	  list(c_extent_pool, alloc_info.m_free_extents[0]);
 	Ptr<Extent_info> ext_ptr;
@@ -2101,6 +2156,7 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     
     Ptr<Page> pagePtr;
     Page_pool *pool= (Page_pool*)&m_global_page_pool;
+    jam();
     {
       Local_Page_list list(*pool, alloc_info.m_dirty_pages[pos]);
       list.first(pagePtr);
@@ -2124,9 +2180,12 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     switch(res)
     {
     case 0:
+      jam();
     case -1:
+      jam();
       break;
     default:
+      jam();
       ndbrequire((Uint32)res == pagePtr.i);
       drop_fragment_unmap_page_callback(signal, pos, res);
     }
@@ -2139,6 +2198,7 @@ void
 Dbtup::drop_fragment_unmap_page_callback(Signal* signal, 
 					 Uint32 pos, Uint32 page_id)
 {
+  jam();
   Ptr<GlobalPage> page;
   m_global_page_pool.getPtr(page, page_id);
   
@@ -2266,6 +2326,7 @@ Dbtup::drop_table_logsync_callback(Signal* signal,
 				   Uint32 tabPtrI, 
 				   Uint32 logfile_group_id)
 {
+  jam();
   TablerecPtr tabPtr;
   tabPtr.i = tabPtrI;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
@@ -2288,6 +2349,7 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
 						     Uint32 fragPtrI,
 						     Uint32 unused)
 {
+  jam();
   FragrecordPtr fragPtr;
   fragPtr.i = fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
@@ -2351,8 +2413,10 @@ Dbtup::drop_fragment_free_var_pages(Signal* signal)
   PagePtr pagePtr;
   for (Uint32 i = 0; i<MAX_FREE_LIST+1; i++)
   {
+    jam();
     if (! fragPtr.p->free_var_page_array[i].isEmpty())
     {
+      jam();
       Local_Page_list list(c_page_pool, fragPtr.p->free_var_page_array[i]);
       ndbrequire(list.first(pagePtr));
       list.remove(pagePtr);
@@ -2379,6 +2443,7 @@ Dbtup::drop_fragment_free_var_pages(Signal* signal)
 void
 Dbtup::drop_fragment_free_pages(Signal* signal)
 {
+  jam();
   Uint32 i;
   Uint32 tableId = signal->theData[1];
   Uint32 fragPtrI = signal->theData[2];
@@ -2410,6 +2475,7 @@ Dbtup::drop_fragment_free_pages(Signal* signal)
         realpid &= PAGE_BIT_MASK;
         returnCommonArea(realpid, 1);
       }
+      jam();
       break;
     case 2:
       jam();
@@ -2451,6 +2517,7 @@ Dbtup::drop_fragment_fsremove_done(Signal* signal,
                                    TablerecPtr tabPtr,
                                    FragrecordPtr fragPtr)
 {
+  jam();
   DEB_TUP_META(("(%u)Done drop fragment: tab(%u,%u)",
                instance(),
                fragPtr.p->fragTableId,
@@ -2468,7 +2535,7 @@ Dbtup::drop_fragment_fsremove_done(Signal* signal,
     Page_cache_client pgman(this, c_pgman);
     pgman.drop_fragment(tabPtr.i, fragPtr.p->fragmentId);
   }
-
+  jam();
   if (tabPtr.p->tableStatus == DROPPING)
   {
     jam();
@@ -2715,6 +2782,7 @@ Dbtup::handle_ctl_info(TablerecPtr tabPtr,
                        FragrecordPtr fragPtr,
                        Uint32 bytesRead)
 {
+  jam();
   BackupFormat::LCPCtlFile *lcpCtlFilePtr =
     (BackupFormat::LCPCtlFile*)&m_read_ctl_file_data[0];
   ndbassert(bytesRead == BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL ||
@@ -2862,6 +2930,7 @@ Dbtup::drop_fragment_fsremove(Signal* signal,
                               TablerecPtr tabPtr, 
                               FragrecordPtr fragPtr)
 {
+  jam();
   Uint32 loop_count;
   Uint32 lcpno;
   Uint32 file_type = tabPtr.p->m_dropTable.m_file_type;
@@ -2988,6 +3057,7 @@ Dbtup::get_max_lcp_record_size(Uint32 tableId)
 void
 Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
 {
+  jam();
   TablerecPtr tabPtr;
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
@@ -3035,6 +3105,7 @@ Dbtup::complete_restore_lcp(Signal* signal,
                             Uint32 tableId,
                             Uint32 fragId)
 {
+  jam();
   TablerecPtr tabPtr;
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
