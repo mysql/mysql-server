@@ -30,3 +30,4 @@ max_parts.partition_max_sub_parts_key_range_innodb @windows : Bug#27681900 20.02
 max_parts.partition_max_sub_parts_key_list_innodb @windows  : Bug#27681900 20.02.2018 Ashish Disabling max_parts tests on windows.
 max_parts.partition_max_parts_range_innodb @windows         : Bug#27681900 20.02.2018 Ashish Disabling max_parts tests on windows.
 max_parts.partition_max_sub_parts_list_innodb @windows      : Bug#27681900 20.02.2018 Ashish Disabling max_parts tests on windows.
+max_parts.innodb_partition_open_files_limiti @linux : Bug#27924122 25.04.2018 Horst Disabled on Linux, only.
