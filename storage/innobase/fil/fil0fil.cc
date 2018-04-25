@@ -6071,6 +6071,8 @@ void meb_extend_tablespaces_to_stored_len() {
   fil_system->meb_extend_tablespaces_to_stored_len();
 }
 
+bool meb_is_redo_log_only_restore = false;
+
 /** Determine if file is intermediate / temporary. These files are
 created during reorganize partition, rename tables, add / drop columns etc.
 @param[in]	filepath	absolute / relative or simply file name
@@ -6080,6 +6082,11 @@ bool meb_is_intermediate_file(const std::string &filepath) {
   std::string file_name = filepath;
 
   {
+    /** If its redo only restore, apply log needs to got through the
+        intermediate steps to apply a ddl.
+        Some of these operation might result in intermediate files.
+    */
+    if (meb_is_redo_log_only_restore) return false;
     /* extract file name from relative or absolute file name */
     auto pos = file_name.rfind(OS_PATH_SEPARATOR);
 
